@@ -1,14 +1,7 @@
 import 'package:flutter/material.dart';
 import 'pages/splash_screen.dart';
-import 'package:firebase_core/firebase_core.dart';
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Firebase.initializeApp();
-  } catch (_) {
-    // Laisse l'app démarrer même si Firebase n'est pas encore configuré.
-  }
+void main() {
   runApp(const MyApp());
 }
 
