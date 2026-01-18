@@ -22,8 +22,11 @@ import 'pages/paywall_page.dart';
 import 'pages/account_admin_page.dart';
 import 'pages/orders_page.dart';
 import 'pages/map_admin_editor_page.dart';
+import 'pages/account_page.dart';
+import 'pages/shop_page.dart';
 import 'services/cart_service.dart';
 import 'services/premium_service.dart';
+import 'ui/theme/maslive_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -60,16 +63,16 @@ class MasLiveApp extends StatelessWidget {
         builder: (context, child) {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
-            theme: ThemeData(
-              useMaterial3: true,
-              colorSchemeSeed: const Color(0xFFFF7A00),
-            ),
+            theme: MasliveTheme.lightTheme,
             locale: Locale(LocalizationService().languageCode),
             initialRoute: '/splash',
             routes: {
               '/splash': (_) => const SplashScreen(),
               '/router': (_) => const RoleRouterPage(),
               '/': (_) => const HomeMapPage(),
+              '/account-ui': (_) => const AccountUiPage(),
+              '/shop-ui': (_) => const ShopUiPage(),
+              '/group-ui': (_) => const GroupProfilePage(groupId: 'demo'),
               '/app': (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
                 final groupId = args != null ? args['groupId'] as String? : null;
