@@ -18,7 +18,7 @@ import '../services/firestore_service.dart';
 import '../services/geolocation_service.dart';
 import '../services/localization_service.dart';
 
-enum _MapAction { ville, tracking, visiter, encadrement, food }
+enum _MapAction { ville, tracking, visiter, encadrement, food, wc }
 
 class HomeMapPage extends StatefulWidget {
   const HomeMapPage({super.key});
@@ -181,6 +181,8 @@ class _HomeMapPageState extends State<HomeMapPage>
         return _firestore.getPlacesByTypeStream(PlaceType.food);
       case _MapAction.encadrement:
         return _firestore.getPlacesByTypeStream(PlaceType.market);
+      case _MapAction.wc:
+        return _firestore.getPlacesByTypeStream(PlaceType.wc);
       case _MapAction.tracking:
       case _MapAction.ville:
         return _firestore.getPlacesStream();
@@ -195,6 +197,8 @@ class _HomeMapPageState extends State<HomeMapPage>
         return 'À visiter';
       case PlaceType.food:
         return 'Food';
+      case PlaceType.wc:
+        return 'WC';
     }
   }
 
@@ -229,6 +233,8 @@ class _HomeMapPageState extends State<HomeMapPage>
         return Icons.attractions_rounded;
       case PlaceType.food:
         return Icons.restaurant_rounded;
+      case PlaceType.wc:
+        return Icons.wc_rounded;
     }
   }
 
@@ -240,6 +246,8 @@ class _HomeMapPageState extends State<HomeMapPage>
         return const Color(0xFFB35BFF);
       case PlaceType.food:
         return const Color(0xFFFF7A59);
+      case PlaceType.wc:
+        return const Color(0xFF00BFA6);
     }
   }
 
@@ -1018,6 +1026,21 @@ class _HomeMapPageState extends State<HomeMapPage>
                                               setState(() {
                                                 _selected =
                                                     _MapAction.encadrement;
+                                                _showActionsMenu = false;
+                                              });
+                                              _menuAnimController.reverse();
+                                            },
+                                          ),
+                                          const SizedBox(height: 8),
+                                          _ActionItem(
+                                            label: 'WC',
+                                            icon: Icons.wc_rounded,
+                                            selected:
+                                                _selected ==
+                                                _MapAction.wc,
+                                            onTap: () {
+                                              setState(() {
+                                                _selected = _MapAction.wc;
                                                 _showActionsMenu = false;
                                               });
                                               _menuAnimController.reverse();
