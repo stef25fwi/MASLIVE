@@ -1,0 +1,54 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isValidImageType() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    function isValidImageSize() {
+      return request.resource.size < 5 * 1024 * 1024; // 5MB max
+    }
+    
+    // ✅ Images de profil utilisateurs
+    match /users/{userId}/profile/{imageId} {
+      allow read: if true;
+      allow write: if isOwner(userId) && 
+                      isValidImageType() && 
+                      isValidImageSize();
+      allow delete: if isOwner(userId);
+    }
+    
+    // ✅ Images de groupes
+    match /groups/{groupId}/{imageId} {
+      allow read: if true;
+      allow write: if isAuthenticated() && 
+                      isValidImageType() && 
+                      isValidImageSize();
+      allow delete: if isAuthenticated();
+    }
+    
+    // ✅ Images de places (admin seulement)
+    match /places/{placeId}/{imageId} {
+      allow read: if true;
+      allow write: if isAuthenticated() && 
+                      isValidImageType() && 
+                      isValidImageSize();
+      allow delete: if isAuthenticated();
+    }
+    
+    // ✅ Tout refuser par défaut
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

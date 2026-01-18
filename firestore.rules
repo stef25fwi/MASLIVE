@@ -1,8 +1,49 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+
+    // ✅ Fonctions helper
+    function isSignedIn() {
+      return request.auth != null;
     }
-  }
-}
+
+    function isAdmin() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+// ✅ Users : seul l'utilisateur peut lire/écrire son profil
+    match /users/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    // ✅ POIs : lecture publique, écriture admin uniquement
+    match /pois/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ✅ Circuits : lecture publique, écriture admin uniquement
+    match /circuits/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ✅ Config : lecture publique, écriture admin uniquement
+    match /config/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ✅ Orders : chaque utilisateur voit ses commandes, admin voit tout
+    match /orders/{orderId} {
+      allow read: if isSignedIn() && 
+                     (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && 
+                       request.resource.data.userId == request.auth.uid &&
+                       request.resource.data.keys().hasAll(['userId', 'groupId', 'items', 'totalPrice']);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+

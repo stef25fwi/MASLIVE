@@ -1,0 +1,189 @@
+===============================
+Firebase config full check
+Date: Fri Jan 16 06:01:31 PM UTC 2026
+Dir : /workspaces/MASLIVE
+===============================
+
+---- Versions ----
+15.2.1
+v20.20.0
+10.8.2
+
+---- Git status (optional) ----
+## main...origin/main
+ M app/android/app/build.gradle.kts
+ M app/android/settings.gradle.kts
+ M app/lib/main.dart
+ M app/lib/pages/splash_screen.dart
+ M app/pubspec.yaml
+ M app/test/widget_test.dart
+ M firestore.rules
+?? .firebase/
+?? .firebaserc
+?? app/android/app/google-services.json
+?? app/assets/
+?? app/firebase.json
+?? app/lib/firebase_options.dart
+?? app/lib/models/
+?? app/lib/pages/account_page.dart
+?? app/lib/pages/add_place_page.dart
+?? app/lib/pages/admin_dashboard_page.dart
+?? app/lib/pages/favorites_page.dart
+?? app/lib/pages/group_member_page.dart
+?? app/lib/pages/group_profile_page.dart
+?? app/lib/pages/group_shop_page.dart
+?? app/lib/pages/home_map_page.dart
+?? app/lib/pages/login_page.dart
+?? app/lib/pages/my_account_page.dart
+?? app/lib/pages/role_router_page.dart
+?? app/lib/pages/route_drawing_page.dart
+?? app/lib/pages/tracking_live_page.dart
+?? app/lib/pages/user_home_page.dart
+?? app/lib/services/
+?? app/lib/session/
+?? firebase_config_report_20260116_180131.txt
+?? functions/
+
+---- Firebase projects accessible ----
+- Preparing the list of your Firebase projects
+✔ Preparing the list of your Firebase projects
+[90m┌──────────────────────[39m[90m┬───────────────────[39m[90m┬────────────────[39m[90m┬──────────────────────┐[39m
+[90m│[39m[32m Project Display Name [39m[90m│[39m[32m Project ID        [39m[90m│[39m[32m Project Number [39m[90m│[39m[32m Resource Location ID [39m[90m│[39m
+[90m├──────────────────────[39m[90m┼───────────────────[39m[90m┼────────────────[39m[90m┼──────────────────────┤[39m
+[90m│[39m MasLive              [90m│[39m maslive (current) [90m│[39m 646399778464   [90m│[39m [Not specified]      [90m│[39m
+[90m├──────────────────────[39m[90m┼───────────────────[39m[90m┼────────────────[39m[90m┼──────────────────────┤[39m
+[90m│[39m presto-app           [90m│[39m presto-app-74abe  [90m│[39m 151421230024   [90m│[39m [Not specified]      [90m│[39m
+[90m└──────────────────────[39m[90m┴───────────────────[39m[90m┴────────────────[39m[90m┴──────────────────────┘[39m
+
+2 project(s) total.
+
+---- Active project & aliases (.firebaserc) ----
+✅ .firebaserc found
+{
+  "projects": {
+    "MASLIVEV1": "maslive",
+    "prod": "maslive"
+  },
+  "targets": {},
+  "etags": {}
+}
+---- firebase.json ----
+✅ firebase.json found
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log"
+      ]
+    }
+  ],
+  "hosting": {
+    "public": "app/build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}
+
+---- .firebase/ (local state) ----
+total 12
+drwxrwxrwx+ 2 vscode vscode 4096 Jan 16 16:52 .
+drwxrwxrwx+ 8 vscode root   4096 Jan 16 18:01 ..
+-rw-rw-rw-  1 vscode vscode 1571 Jan 16 18:00 hosting.YXBwL2J1aWxkL3dlYg.cache
+
+---- Hosting target(s) ----
+Resource targets for maslive:
+
+
+---- Hosting deploy preview (dry-run) ----
+
+=== Deploying to 'maslive'...
+
+i  deploying hosting
+
+✔  Dry run complete!
+
+Project Console: https://console.firebase.google.com/project/maslive/overview
+Hosting URL: https://maslive.web.app
+
+---- Firestore rules file ----
+✅ Firestore rules file: firestore.rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Données carte : lecture publique
+    match /places/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null; // à durcir (admin) plus tard
+    }
+
+    match /groups/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /group_locations/{doc} {
+      allow read: if true;
+      // ✅ Sécurité : seul le compte propriétaire du groupe peut écrire
+      allow write: if request.auth != null && 
+                      request.auth.uid == resource.data.ownerId;
+    }
+
+    // Données personnelles : uniquement propriétaire
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}
+
+
+---- Firestore indexes ----
+✅ Firestore indexes file: firestore.indexes.json
+{
+  "indexes": [],
+  "fieldOverrides": []
+}
+
+---- Storage rules ----
+⚠️  No storage rules file detected
+
+---- Functions ----
+✅ Functions dir: functions
+total 12
+drwxrwxrwx+ 2 vscode vscode 4096 Jan 16 15:42 .
+drwxrwxrwx+ 8 vscode root   4096 Jan 16 18:01 ..
+-rw-rw-rw-  1 vscode vscode 3894 Jan 16 16:26 index.js
+⚠️  No package.json in functions dir
+
+---- Remote config checks (requires active project) ----
+firebase use (current):
+maslive
+
+---- Hosting sites (remote) ----
+
+Sites for project maslive
+
+[90m┌─────────[39m[90m┬─────────────────────────[39m[90m┬───────────────────────────────────────────┐[39m
+[90m│[39m[32m Site ID [39m[90m│[39m[32m Default URL             [39m[90m│[39m[32m App ID (if set)                           [39m[90m│[39m
+[90m├─────────[39m[90m┼─────────────────────────[39m[90m┼───────────────────────────────────────────┤[39m
+[90m│[39m maslive [90m│[39m https://maslive.web.app [90m│[39m 1:646399778464:web:fda172cac8ce4c86f433c5 [90m│[39m
+[90m└─────────[39m[90m┴─────────────────────────[39m[90m┴───────────────────────────────────────────┘[39m
+
+---- Emulators (if configured in firebase.json) ----
+(no emulators section)
+
+===============================
+✅ Report saved to: firebase_config_report_20260116_180131.txt
+===============================

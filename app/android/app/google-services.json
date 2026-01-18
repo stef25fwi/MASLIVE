@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "646399778464",
+    "project_id": "maslive",
+    "storage_bucket": "maslive.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:646399778464:android:15df6513858de0f6f433c5",
+        "android_client_info": {
+          "package_name": "com.example.masslive"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "646399778464-hsm91nl98tb09vlg81ji36kmrn7uvtb2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBF-kOWi86XTLsFa9nG2xDmrtG2XpkTC0I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "646399778464-hsm91nl98tb09vlg81ji36kmrn7uvtb2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "646399778464-j8g8i9nk5398mfukv1itkilrnvg2p43q.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.masslive"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
