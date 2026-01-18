@@ -210,41 +210,44 @@ class _ProductCard extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: MasliveTheme.textPrimary,
+              child: SizedBox(
+                height: 92,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color: MasliveTheme.textPrimary,
+                          ),
+                    ),
+                    const Spacer(),
+                    Row(
+                      children: [
+                        Text(
+                          product.priceLabel,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w900,
+                              ),
                         ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Text(
-                        product.priceLabel,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w900,
-                            ),
-                      ),
-                      const Spacer(),
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          gradient: MasliveTheme.actionGradient,
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: MasliveTheme.cardShadow,
+                        const Spacer(),
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            gradient: MasliveTheme.actionGradient,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: MasliveTheme.cardShadow,
+                          ),
+                          child: const Icon(Icons.add_rounded, color: Colors.white),
                         ),
-                        child: const Icon(Icons.add_rounded, color: Colors.white),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

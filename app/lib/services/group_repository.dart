@@ -13,11 +13,26 @@ class GroupRepository {
   }
 
   Stream<List<GroupProduct>> watchProducts(String groupId, {String? category}) {
+    return watchProductsWithPending(groupId, category: category, includePending: false);
+  }
+
+  Stream<List<GroupProduct>> watchProductsWithPending(
+    String groupId, {
+    String? category,
+    required bool includePending,
+  }) {
     Query<Map<String, dynamic>> q = _db
         .collection('groups')
         .doc(groupId)
         .collection('products')
         .where('isActive', isEqualTo: true);
+
+    if (includePending) {
+      q = _db
+          .collection('groups')
+          .doc(groupId)
+          .collection('products');
+    }
 
     if (category != null && category.isNotEmpty) {
       q = q.where('category', isEqualTo: category);
@@ -26,7 +41,20 @@ class GroupRepository {
     return q.snapshots().map((snap) {
       return snap.docs
           .map((d) => GroupProduct.fromMap(d.id, d.data()))
-          .toList();
+          .toList()
+        ..sort((a, b) {
+          int rank(GroupProduct p) {
+            if (p.isApproved) return 0;
+            if (p.isPending) return 1;
+            if (p.isRejected) return 2;
+            return 3;
+          }
+
+          final ar = rank(a);
+          final br = rank(b);
+          if (ar != br) return ar - br;
+          return a.title.compareTo(b.title);
+        });
     });
   }
 

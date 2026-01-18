@@ -1,0 +1,23 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "MASLIVE: Flutter pub get",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && flutter pub get",
+      "problemMatcher": []
+    },
+    {
+      "label": "MASLIVE: Firebase deploy",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && firebase deploy --only firestore:rules,functions",
+      "problemMatcher": []
+    },
+    {
+      "label": "MASLIVE: Setup and deploy",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/scripts/setup_deploy.sh",
+      "problemMatcher": []
+    }
+  ]
+}

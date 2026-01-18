@@ -6,6 +6,34 @@ service firebase.storage {
     function isAuthenticated() {
       return request.auth != null;
     }
+
+    function hasUserDoc() {
+      return isAuthenticated()
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid));
+    }
+
+    function isMasterAdmin() {
+      return hasUserDoc() && (
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin == true
+        || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
+    }
+
+    function userRole() {
+      return hasUserDoc()
+        ? firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function userGroupId() {
+      return hasUserDoc()
+        ? firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.groupId
+        : null;
+    }
+
+    function isGroupAdmin(groupId) {
+      return hasUserDoc() && userRole() == 'group' && userGroupId() == groupId;
+    }
     
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
@@ -28,22 +56,22 @@ service firebase.storage {
       allow delete: if isOwner(userId);
     }
     
-    // ✅ Images de groupes
-    match /groups/{groupId}/{imageId} {
+    // ✅ Images de groupes (inclut sous-dossiers, ex: products/{productId}/1.jpg)
+    match /groups/{groupId}/{allPaths=**} {
       allow read: if true;
-      allow write: if isAuthenticated() && 
+      allow write: if (isMasterAdmin() || isGroupAdmin(groupId)) && 
                       isValidImageType() && 
                       isValidImageSize();
-      allow delete: if isAuthenticated();
+      allow delete: if isMasterAdmin() || isGroupAdmin(groupId);
     }
     
     // ✅ Images de places (admin seulement)
     match /places/{placeId}/{imageId} {
       allow read: if true;
-      allow write: if isAuthenticated() && 
+      allow write: if isMasterAdmin() && 
                       isValidImageType() && 
                       isValidImageSize();
-      allow delete: if isAuthenticated();
+      allow delete: if isMasterAdmin();
     }
     
     // ✅ Tout refuser par défaut

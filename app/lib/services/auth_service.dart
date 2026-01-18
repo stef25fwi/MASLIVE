@@ -61,19 +61,32 @@ class AuthService {
     String? region,
     UserRole role = UserRole.user,
     String? groupId,
+    bool preserveRoleAndGroup = true,
   }) async {
     try {
+      final existing = await _firestore.collection('users').doc(userId).get();
+
+      final isExistingUser = existing.exists;
+
+      final Map<String, dynamic> data = {
+        'email': email,
+        'displayName': displayName,
+        'photoUrl': photoUrl,
+        'phone': phone,
+        'region': region,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      // On ne positionne role/groupId que lors de la création (ou si explicitement demandé)
+      if (!isExistingUser || preserveRoleAndGroup == false) {
+        data['groupId'] = groupId;
+        data['role'] = UserProfile.roleToString(role);
+      }
+
       await _firestore.collection('users').doc(userId).set(
         {
-          'email': email,
-          'displayName': displayName,
-          'photoUrl': photoUrl,
-          'phone': phone,
-          'region': region,
-          'groupId': groupId,
-          'role': UserProfile.roleToString(role),
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
+          ...data,
+          if (!isExistingUser) 'createdAt': FieldValue.serverTimestamp(),
         },
         SetOptions(merge: true),
       );

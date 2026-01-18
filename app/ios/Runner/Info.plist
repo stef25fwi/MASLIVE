@@ -26,6 +26,10 @@
 	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Autoriser l’accès à la photothèque pour ajouter des photos produit.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Autoriser l’accès à la caméra pour prendre une photo produit.</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
 	<key>UISupportedInterfaceOrientations</key>
