@@ -12,30 +12,29 @@ class CloudFunctionService {
 
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
-  /// Nearby Search: Cherche les places/groupes proches
-  /// [lat], [lng]: coordonnées de recherche
-  /// [radiusKm]: rayon en km (défaut 5)
-  /// [type]: "place" ou "group_location"
+  /// Nearby Search: Cherche des groupes proches (via `groups.lastLocation`)
+  /// Cloud Function: `nearbySearch`
+  /// - attend: { centerLat, centerLng, radiusKm?, limit? }
+  /// - retourne: { ok, count, items }
   Future<List<Map<String, dynamic>>> nearbySearch({
-    required double lat,
-    required double lng,
-    double radiusKm = 5,
-    String type = 'place',
+    required double centerLat,
+    required double centerLng,
+    double radiusKm = 2,
+    int limit = 50,
   }) async {
     try {
       final callable = _functions.httpsCallable('nearbySearch');
       final result = await callable.call({
-        'lat': lat,
-        'lng': lng,
+        'centerLat': centerLat,
+        'centerLng': centerLng,
         'radiusKm': radiusKm,
-        'type': type,
+        'limit': limit,
       });
 
       final data = result.data as Map<String, dynamic>;
-      final results = (data['results'] as List<dynamic>)
+      final items = (data['items'] as List<dynamic>? ?? const <dynamic>[])
           .cast<Map<String, dynamic>>();
-
-      return results;
+      return items;
     } catch (e) {
       // print('Erreur nearbySearch: $e');
       rethrow;

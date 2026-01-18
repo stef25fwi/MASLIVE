@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'session/session_controller.dart';
@@ -27,9 +28,22 @@ import 'pages/shop_page.dart';
 import 'services/cart_service.dart';
 import 'services/premium_service.dart';
 import 'ui/theme/maslive_theme.dart';
+import 'ui/widgets/honeycomb_background.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.white,
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.black,
+      systemNavigationBarIconBrightness: Brightness.light,
+      systemNavigationBarDividerColor: Colors.black,
+    ),
+  );
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // ✅ RevenueCat init (mets ta clé via --dart-define=RC_API_KEY=...)
@@ -75,12 +89,15 @@ class MasLiveApp extends StatelessWidget {
               '/group-ui': (_) => const GroupProfilePage(groupId: 'demo'),
               '/app': (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
-                final groupId = args != null ? args['groupId'] as String? : null;
+                final groupId = args != null
+                    ? args['groupId'] as String?
+                    : null;
                 return AppShell(groupId: groupId ?? 'groupe_demo');
               },
               '/group': (_) => const GroupProfilePage(groupId: 'groupe_demo'),
               '/shop': (ctx) {
-                final groupId = ModalRoute.of(ctx)?.settings.arguments as String?;
+                final groupId =
+                    ModalRoute.of(ctx)?.settings.arguments as String?;
                 return GroupShopPage(groupId: groupId ?? 'groupe_demo');
               },
               '/account': (_) => const MyAccountPage(),
@@ -90,7 +107,9 @@ class MasLiveApp extends StatelessWidget {
               '/user': (_) => const UserHomePage(),
               '/group-member': (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
-                final groupId = args != null ? args['groupId'] as String? : null;
+                final groupId = args != null
+                    ? args['groupId'] as String?
+                    : null;
                 return GroupMemberPage(groupId: groupId);
               },
               '/admin': (_) => const AdminDashboardPage(),
@@ -99,9 +118,12 @@ class MasLiveApp extends StatelessWidget {
               '/cart': (_) => const CartPage(),
               '/paywall': (_) => const PaywallPage(),
             },
-            builder: (context, child) => LocalizedApp(
-              showLanguageSidebar: true,
-              child: child ?? const SizedBox(),
+            builder: (context, child) => HoneycombBackground(
+              opacity: 0.08,
+              child: LocalizedApp(
+                showLanguageSidebar: false,
+                child: child ?? const SizedBox(),
+              ),
             ),
           );
         },

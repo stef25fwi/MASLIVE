@@ -1,12 +1,37 @@
 import 'package:flutter/material.dart';
 
+import 'account_admin_page.dart';
+import '../services/auth_service.dart';
 import '../ui/theme/maslive_theme.dart';
 import '../ui/widgets/gradient_header.dart';
 import '../ui/widgets/honeycomb_background.dart';
 import '../ui/widgets/maslive_card.dart';
 
-class AccountUiPage extends StatelessWidget {
+class AccountUiPage extends StatefulWidget {
   const AccountUiPage({super.key});
+
+  @override
+  State<AccountUiPage> createState() => _AccountUiPageState();
+}
+
+class _AccountUiPageState extends State<AccountUiPage> {
+  bool _isAdmin = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAdminStatus();
+  }
+
+  Future<void> _checkAdminStatus() async {
+    final user = AuthService.instance.currentUser;
+    if (user != null) {
+      final profile = await AuthService.instance.getUserProfile(user.uid);
+      setState(() {
+        _isAdmin = profile?.isAdmin ?? false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -81,9 +106,74 @@ class AccountUiPage extends StatelessWidget {
             Expanded(
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
-                itemCount: tiles.length,
+                itemCount: tiles.length + (_isAdmin ? 2 : 0),
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, i) {
+                  // Section admin
+                  if (_isAdmin && i == tiles.length) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Text(
+                            'Administration',
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: MasliveTheme.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  
+                  // Bouton Espace Admin
+                  if (_isAdmin && i == tiles.length + 1) {
+                    return MasliveCard(
+                      radius: 20,
+                      padding: EdgeInsets.zero,
+                      child: ListTile(
+                        leading: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: MasliveTheme.surfaceAlt,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: MasliveTheme.divider),
+                          ),
+                          child: const Icon(Icons.admin_panel_settings_rounded, color: MasliveTheme.textPrimary),
+                        ),
+                        title: Text(
+                          'Espace Administrateur',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: MasliveTheme.textPrimary,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Gérer l\'application',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: MasliveTheme.textSecondary,
+                          ),
+                        ),
+                        trailing: Icon(
+                          Icons.chevron_right_rounded,
+                          color: MasliveTheme.textSecondary,
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AccountAndAdminPage(),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  }
+
+                  // Tiles normaux
                   final t = tiles[i];
                   return MasliveCard(
                     radius: 20,
@@ -124,6 +214,33 @@ class AccountUiPage extends StatelessWidget {
                     ),
                   );
                 },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    await AuthService().signOut();
+                    if (context.mounted) {
+                      Navigator.of(context).pushNamedAndRemoveUntil(
+                        '/login',
+                        (route) => false,
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.logout_rounded),
+                  label: const Text('Se déconnecter'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.withOpacity(0.1),
+                    foregroundColor: Colors.red,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
