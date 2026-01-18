@@ -1,0 +1,235 @@
+let functions;
+try {
+  functions = require("firebase-functions/v1");
+} catch (_) {
+  functions = require("firebase-functions");
+}
+const admin = require("firebase-admin");
+
+admin.initializeApp();
+
+const geohash = require("ngeohash");
+
+// ✅ Configuration régionale pour réduire la latence
+const runtimeOpts = {
+  timeoutSeconds: 60,
+  memory: "256MB",
+};
+
+/**
+ * Cloud Function: Nearby Search
+ * Cherche les places/groupes proches d'une coordonnée donnée
+ * Utilise un géohash pour la performance
+ */
+exports.nearbySearch = functions
+    .runWith(runtimeOpts)
+    .https.onCall(async (data, context) => {
+      // ✅ Validation des paramètres
+      const {lat, lng, radiusKm = 5, type = "place"} = data;
+
+      if (!lat || !lng) {
+        throw new functions.https.HttpsError(
+            "invalid-argument",
+            "Latitude et longitude requises"
+        );
+      }
+
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        throw new functions.https.HttpsError(
+            "invalid-argument",
+            "Coordonnées invalides"
+        );
+      }
+
+      if (radiusKm < 0 || radiusKm > 100) {
+        throw new functions.https.HttpsError(
+            "invalid-argument",
+            "Rayon doit être entre 0 et 100 km"
+        );
+      }
+
+      const hash = geohash.encode(lat, lng, 6); // Précision ~1km
+
+      try {
+        const db = admin.firestore();
+        let results = [];
+
+        if (type === "place") {
+          const placesRef = db.collection("places");
+          const snapshot = await placesRef
+              .where("active", "==", true)
+              .limit(100) // ✅ Limite pour performance
+              .get();
+
+          results = snapshot.docs
+              .map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+                distance: calculateDistance(lat, lng, doc.data().lat, doc.data().lng),
+              }))
+              .filter((item) => item.distance <= radiusKm)
+              .sort((a, b) => a.distance - b.distance)
+              .slice(0, 20);
+        } else if (type === "group_location") {
+          const locationsRef = db.collection("group_locations");
+          // ✅ Filtre temporel : seulement positions récentes (< 5 min)
+          const fiveMinutesAgo = admin.firestore.Timestamp.fromDate(
+              new Date(Date.now() - 5 * 60 * 1000)
+          );
+
+          const snapshot = await locationsRef
+              .where("updatedAt", ">=", fiveMinutesAgo)
+              .limit(50)
+              .get();
+
+          results = snapshot.docs
+              .map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+                distance: calculateDistance(lat, lng, doc.data().lat, doc.data().lng),
+              }))
+              .filter((item) => item.distance <= radiusKm)
+              .sort((a, b) => a.distance - b.distance)
+              .slice(0, 20);
+        } else {
+          throw new functions.https.HttpsError(
+              "invalid-argument",
+              "Type invalide. Utilisez 'place' ou 'group_location'"
+          );
+        }
+
+        return {
+          success: true,
+          results,
+          count: results.length,
+          radiusKm,
+        };
+      } catch (error) {
+        console.error("Erreur nearbySearch:", error);
+        throw new functions.https.HttpsError("internal", error.message);
+      }
+    });
+
+/**
+ * Cloud Function: Update Group Location (tracking toutes les 15s)
+ * Client envoie sa position, on met à jour group_locations
+ * ✅ Inclut ownerId (userId du compte propriétaire du groupe)
+ */
+exports.updateGroupLocation = functions
+    .runWith(runtimeOpts)
+    .https.onCall(async (data, context) => {
+      // ✅ Vérification authentification
+      if (!context.auth) {
+        throw new functions.https.HttpsError(
+            "unauthenticated",
+            "Utilisateur non authentifié"
+        );
+      }
+
+      const {groupId, lat, lng, heading, speed, groupName} = data;
+      const userId = context.auth.uid;
+
+      // ✅ Validation stricte
+      if (!groupId || !lat || !lng) {
+        throw new functions.https.HttpsError(
+            "invalid-argument",
+            "groupId, lat, lng requis"
+        );
+      }
+
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        throw new functions.https.HttpsError(
+            "invalid-argument",
+            "Coordonnées invalides"
+        );
+      }
+
+      try {
+        const db = admin.firestore();
+        const locationRef = db.collection("group_locations").doc(groupId);
+
+        // ✅ Vérifier que l'utilisateur est bien le propriétaire
+        const existing = await locationRef.get();
+        if (existing.exists && existing.data().ownerId !== userId) {
+          throw new functions.https.HttpsError(
+              "permission-denied",
+              "Vous n'êtes pas le propriétaire de ce groupe"
+          );
+        }
+
+        // ✅ Calcul geohash pour requêtes géographiques optimisées
+        const hash = geohash.encode(lat, lng, 6);
+
+        await locationRef.set(
+            {
+              groupId,
+              groupName: groupName || "Groupe",
+              lat,
+              lng,
+              geohash: hash,
+              heading: heading || null,
+              speed: speed || null,
+              ownerId: userId,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            {merge: true}
+        );
+
+        return {
+          success: true,
+          message: "Position mise à jour",
+          groupId,
+        };
+      } catch (error) {
+        console.error("Erreur updateGroupLocation:", error);
+        throw new functions.https.HttpsError("internal", error.message);
+      }
+    });
+
+/**
+ * Cloud Function: Cleanup Old Locations
+ * Supprime les positions de groupes obsolètes (> 24h)
+ * Trigger: Scheduled (tous les jours à 3h)
+ */
+exports.cleanupOldLocations = functions.pubsub
+    .schedule("0 3 * * *")
+    .timeZone("Europe/Paris")
+    .onRun(async (context) => {
+      const db = admin.firestore();
+      const yesterday = admin.firestore.Timestamp.fromDate(
+          new Date(Date.now() - 24 * 60 * 60 * 1000)
+      );
+
+      const snapshot = await db
+          .collection("group_locations")
+          .where("updatedAt", "<", yesterday)
+          .get();
+
+      const batch = db.batch();
+      snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+
+      await batch.commit();
+      console.log(`Supprimé ${snapshot.size} anciennes positions`);
+      return null;
+    });
+
+/**
+ * Helper: Calcule distance Haversine entre deux points (km)
+ */
+function calculateDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371; // Rayon Terre en km
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function toRad(degree) {
+  return degree * (Math.PI / 180);
+}
+

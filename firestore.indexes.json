@@ -1,4 +1,79 @@
 {
-  "indexes": [],
-  "fieldOverrides": []
+  "indexes": [
+    {
+      "collectionGroup": "places",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "active", "order": "ASCENDING"},
+        {"fieldPath": "type", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "places",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "active", "order": "ASCENDING"},
+        {"fieldPath": "lat", "order": "ASCENDING"},
+        {"fieldPath": "lng", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "group_locations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "updatedAt", "order": "DESCENDING"},
+        {"fieldPath": "lat", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "groups",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "ownerId", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "products",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {"fieldPath": "isActive", "order": "ASCENDING"},
+        {"fieldPath": "category", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "products",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {"fieldPath": "isActive", "order": "ASCENDING"},
+        {"fieldPath": "priceCents", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "role", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "places",
+      "fieldPath": "geohash",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "group_locations",
+      "fieldPath": "geohash",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"}
+      ]
+    }
+  ]
 }
