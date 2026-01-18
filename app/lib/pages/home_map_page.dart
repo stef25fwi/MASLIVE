@@ -930,23 +930,51 @@ class _HomeMapPageState extends State<HomeMapPage>
                                 child: IgnorePointer(
                                   ignoring: !_showActionsMenu,
                                   child: Container(
-                                    width: 86,
+                                    width: 98,
                                     margin: const EdgeInsets.only(
                                       right: 4,
                                       top: 18,
                                     ),
                                     decoration: BoxDecoration(
                                       color: Colors.white.withOpacity(0.65),
-                                      borderRadius: BorderRadius.circular(
-                                        MasliveTheme.rPill,
+                                      borderRadius: const BorderRadius.only(
+                                        topLeft: Radius.circular(12),
+                                        bottomLeft: Radius.circular(12),
+                                        topRight: Radius.circular(MasliveTheme.rPill),
+                                        bottomRight: Radius.circular(MasliveTheme.rPill),
                                       ),
                                       boxShadow: MasliveTheme.floatingShadow,
                                     ),
-                                    padding: const EdgeInsets.all(8),
-                                    child: SingleChildScrollView(
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
+                                    child: Row(
+                                      children: [
+                                        // Onglet indicateur
+                                        GestureDetector(
+                                          onTap: !_showActionsMenu
+                                              ? () {
+                                                  setState(() => _showActionsMenu = true);
+                                                  _menuAnimController.forward();
+                                                }
+                                              : null,
+                                          child: Container(
+                                            width: 12,
+                                            height: double.infinity,
+                                            decoration: const BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius: BorderRadius.only(
+                                                topLeft: Radius.circular(12),
+                                                bottomLeft: Radius.circular(12),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        // Contenu de la nav
+                                        Expanded(
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(8),
+                                            child: SingleChildScrollView(
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
                                           _ActionItem(
                                             label: 'Centrer',
                                             icon: Icons.my_location_rounded,
@@ -1025,6 +1053,10 @@ class _HomeMapPageState extends State<HomeMapPage>
                                         ],
                                       ),
                                     ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1041,31 +1073,6 @@ class _HomeMapPageState extends State<HomeMapPage>
                           child: _TrackingPill(
                             isTracking: _isTracking,
                             onToggle: _toggleTracking,
-                          ),
-                        ),
-
-                      // Indicateur onglet - montre la nav bar cachée
-                      if (!_showActionsMenu)
-                        Positioned(
-                          right: 90,
-                          top: 18,
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() => _showActionsMenu = true);
-                              _menuAnimController.forward();
-                            },
-                            child: Container(
-                              width: 12,
-                              height: 70,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.65),
-                                borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(12),
-                                  bottomLeft: Radius.circular(12),
-                                ),
-                                boxShadow: MasliveTheme.floatingShadow,
-                              ),
-                            ),
                           ),
                         ),
                     ],
