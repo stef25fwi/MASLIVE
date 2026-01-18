@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:latlong2/latlong.dart';
 
-enum PlaceType { market, visit, food }
+enum PlaceType { market, visit, food, wc }
 
 class Place {
   final String id;
@@ -63,6 +63,8 @@ class Place {
         return PlaceType.visit;
       case 'food':
         return PlaceType.food;
+      case 'wc':
+        return PlaceType.wc;
       default:
         return PlaceType.market;
     }
@@ -76,6 +78,8 @@ class Place {
         return 'visit';
       case PlaceType.food:
         return 'food';
+      case PlaceType.wc:
+        return 'wc';
     }
   }
 

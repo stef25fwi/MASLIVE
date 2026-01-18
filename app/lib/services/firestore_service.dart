@@ -86,6 +86,8 @@ class FirestoreService {
         return 'visit';
       case PlaceType.food:
         return 'food';
+      case PlaceType.wc:
+        return 'wc';
     }
   }
 
