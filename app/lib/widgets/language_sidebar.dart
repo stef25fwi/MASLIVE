@@ -12,7 +12,6 @@ class LanguageSidebar extends StatelessWidget {
       listenable: LocalizationService(),
       builder: (context, child) {
         final locService = LocalizationService();
-        final l10n = AppLocalizations();
 
         return Container(
           width: 80,

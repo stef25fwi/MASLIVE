@@ -59,7 +59,6 @@ class RoutingService {
       // Construire l'instruction à partir des étapes si disponibles
       String instruction = 'Route';
       if (route['legs'] != null && (route['legs'] as List).isNotEmpty) {
-        final leg = route['legs'][0];
         instruction = '${distance ~/ 1000} km - ${duration ~/ 60} min';
       }
 

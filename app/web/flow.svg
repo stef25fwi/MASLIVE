@@ -1,0 +1,292 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1200" viewBox="0 0 1600 1200">
+  <defs>
+    <style>
+      .bg { fill: #0b0c10; }
+      .title { fill: #ffffff; font: 700 28px system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+      .sub { fill: rgba(255,255,255,0.75); font: 500 14px system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+      .card { fill: #141720; stroke: rgba(255,255,255,0.12); stroke-width: 1.2; }
+      .card2 { fill: #10131b; stroke: rgba(255,255,255,0.12); stroke-width: 1.2; }
+      .chip { fill: rgba(255,122,0,0.14); stroke: rgba(255,122,0,0.5); stroke-width: 1; }
+      .chipText { fill: #ffb26a; font: 700 12px system-ui, -apple-system, Segoe UI, Roboto, Arial; letter-spacing: 0.2px; }
+      .h { fill: #ffffff; font: 800 15px system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+      .t { fill: rgba(255,255,255,0.72); font: 500 12px system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+      .link { fill: rgba(255,255,255,0.62); font: 600 11px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+      .arrow { stroke: rgba(255,255,255,0.40); stroke-width: 2.2; fill: none; marker-end: url(#arrowHead); }
+      .arrowHot { stroke: rgba(255,122,0,0.85); stroke-width: 2.6; fill: none; marker-end: url(#arrowHeadHot); }
+      .dash { stroke-dasharray: 6 6; }
+      .mock { fill: rgba(255,255,255,0.04); stroke: rgba(255,255,255,0.12); stroke-width: 1; }
+      .mockTop { fill: rgba(255,255,255,0.05); }
+      .mockText { fill: rgba(255,255,255,0.78); font: 700 11px system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+      .pill { fill: rgba(124,224,255,0.12); stroke: rgba(124,224,255,0.45); stroke-width: 1; }
+      .pillText { fill: #aeefff; font: 700 11px system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    </style>
+
+    <marker id="arrowHead" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,1 L10,6 L0,11" fill="none" stroke="rgba(255,255,255,0.40)" stroke-width="2.2" />
+    </marker>
+    <marker id="arrowHeadHot" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,1 L10,6 L0,11" fill="none" stroke="rgba(255,122,0,0.85)" stroke-width="2.6" />
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1600" height="1200" />
+
+  <text class="title" x="48" y="64">MASLIVE — Flow complet des pages (v1)</text>
+  <text class="sub" x="48" y="92">Schéma de navigation + écrans principaux (wireframes simplifiés). Routes issues de lib/main.dart.</text>
+
+  <!-- Légende -->
+  <g transform="translate(1180,48)">
+    <rect class="card2" x="0" y="0" width="372" height="122" rx="16" />
+    <text class="h" x="16" y="28">Légende</text>
+    <path class="arrowHot" d="M16,46 L86,46" />
+    <text class="t" x="98" y="50">Chemin principal</text>
+    <path class="arrow dash" d="M16,70 L86,70" />
+    <text class="t" x="98" y="74">Chemin alternatif / optionnel</text>
+    <rect class="chip" x="16" y="86" width="86" height="22" rx="11" />
+    <text class="chipText" x="28" y="101">ADMIN</text>
+    <text class="t" x="112" y="102">Écrans réservés admin</text>
+  </g>
+
+  <!-- Colonne 1 : Onboarding/Auth -->
+  <g transform="translate(48,130)">
+    <rect class="card" x="0" y="0" width="420" height="310" rx="18" />
+    <text class="h" x="18" y="34">Onboarding / Auth</text>
+
+    <g transform="translate(18,54)">
+      <rect class="mock" x="0" y="0" width="180" height="240" rx="18" />
+      <rect class="mockTop" x="0" y="0" width="180" height="28" rx="18" />
+      <text class="mockText" x="12" y="19">Splash</text>
+      <rect class="mock" x="14" y="46" width="152" height="18" rx="9" />
+      <rect class="mock" x="14" y="76" width="152" height="18" rx="9" />
+      <rect class="mock" x="14" y="120" width="152" height="36" rx="12" />
+      <rect class="mock" x="14" y="166" width="152" height="18" rx="9" />
+      <text class="t" x="0" y="260">/splash</text>
+    </g>
+
+    <g transform="translate(216,54)">
+      <rect class="mock" x="0" y="0" width="186" height="114" rx="18" />
+      <rect class="mockTop" x="0" y="0" width="186" height="28" rx="18" />
+      <text class="mockText" x="12" y="19">RoleRouter</text>
+      <rect class="pill" x="12" y="44" width="162" height="22" rx="11" />
+      <text class="pillText" x="22" y="59">check auth + isAdmin</text>
+      <text class="t" x="0" y="134">/router</text>
+
+      <rect class="mock" x="0" y="156" width="186" height="138" rx="18" />
+      <rect class="mockTop" x="0" y="156" width="186" height="28" rx="18" />
+      <text class="mockText" x="12" y="175">Login</text>
+      <rect class="mock" x="12" y="196" width="162" height="18" rx="9" />
+      <rect class="mock" x="12" y="224" width="162" height="36" rx="12" />
+      <text class="t" x="0" y="310">/login</text>
+    </g>
+  </g>
+
+  <!-- Colonne 2 : App shell + tabs -->
+  <g transform="translate(520,130)">
+    <rect class="card" x="0" y="0" width="520" height="310" rx="18" />
+    <text class="h" x="18" y="34">Navigation principale (AppShell)</text>
+    <text class="t" x="18" y="56">Bottom nav + sidebar langue. Entrée: /app (groupId optionnel).</text>
+
+    <g transform="translate(18,76)">
+      <rect class="mock" x="0" y="0" width="240" height="220" rx="18" />
+      <rect class="mockTop" x="0" y="0" width="240" height="28" rx="18" />
+      <text class="mockText" x="12" y="19">AppShell</text>
+      <rect class="mock" x="14" y="46" width="212" height="18" rx="9" />
+      <rect class="mock" x="14" y="74" width="212" height="18" rx="9" />
+      <rect class="mock" x="14" y="112" width="212" height="70" rx="14" />
+      <rect class="mock" x="14" y="192" width="212" height="14" rx="7" />
+      <text class="t" x="0" y="240">/app</text>
+    </g>
+
+    <g transform="translate(270,76)">
+      <rect class="mock" x="0" y="0" width="232" height="52" rx="14" />
+      <text class="mockText" x="12" y="22">Tabs (exemples)</text>
+      <text class="t" x="12" y="44">Map · Search · Media · Profile</text>
+
+      <rect class="mock" x="0" y="70" width="232" height="52" rx="14" />
+      <text class="mockText" x="12" y="92">HomeMap</text>
+      <text class="link" x="12" y="114">/</text>
+
+      <rect class="mock" x="0" y="132" width="232" height="52" rx="14" />
+      <text class="mockText" x="12" y="154">Search</text>
+      <text class="link" x="12" y="176">/search</text>
+
+      <rect class="mock" x="0" y="194" width="232" height="52" rx="14" />
+      <text class="mockText" x="12" y="216">Favorites</text>
+      <text class="link" x="12" y="238">/favorites</text>
+    </g>
+  </g>
+
+  <!-- Colonne 3 : Groupe / Shop -->
+  <g transform="translate(48,470)">
+    <rect class="card" x="0" y="0" width="540" height="330" rx="18" />
+    <text class="h" x="18" y="34">Groupe & Boutique</text>
+
+    <g transform="translate(18,56)">
+      <rect class="mock" x="0" y="0" width="250" height="250" rx="18" />
+      <rect class="mockTop" x="0" y="0" width="250" height="28" rx="18" />
+      <text class="mockText" x="12" y="19">GroupProfile</text>
+      <rect class="mock" x="14" y="46" width="222" height="18" rx="9" />
+      <rect class="mock" x="14" y="74" width="222" height="60" rx="14" />
+      <rect class="mock" x="14" y="144" width="222" height="36" rx="12" />
+      <rect class="mock" x="14" y="190" width="222" height="36" rx="12" />
+      <text class="link" x="0" y="274">/group</text>
+    </g>
+
+    <g transform="translate(286,56)">
+      <rect class="mock" x="0" y="0" width="236" height="250" rx="18" />
+      <rect class="mockTop" x="0" y="0" width="236" height="28" rx="18" />
+      <text class="mockText" x="12" y="19">GroupShop</text>
+      <rect class="mock" x="12" y="46" width="212" height="18" rx="9" />
+      <rect class="mock" x="12" y="74" width="212" height="18" rx="9" />
+      <rect class="mock" x="12" y="114" width="212" height="120" rx="16" />
+      <text class="link" x="0" y="274">/shop</text>
+    </g>
+  </g>
+
+  <!-- Colonne 4 : Produit/Cart/Orders -->
+  <g transform="translate(640,470)">
+    <rect class="card" x="0" y="0" width="520" height="330" rx="18" />
+    <text class="h" x="18" y="34">Achat</text>
+
+    <g transform="translate(18,56)">
+      <rect class="mock" x="0" y="0" width="240" height="250" rx="18" />
+      <rect class="mockTop" x="0" y="0" width="240" height="28" rx="18" />
+      <text class="mockText" x="12" y="19">ProductDetail</text>
+      <rect class="mock" x="14" y="46" width="212" height="120" rx="16" />
+      <rect class="mock" x="14" y="176" width="212" height="18" rx="9" />
+      <rect class="mock" x="14" y="204" width="212" height="36" rx="12" />
+      <text class="t" x="0" y="274">(push MaterialRoute)</text>
+    </g>
+
+    <g transform="translate(270,56)">
+      <rect class="mock" x="0" y="0" width="232" height="74" rx="18" />
+      <rect class="mockTop" x="0" y="0" width="232" height="28" rx="18" />
+      <text class="mockText" x="12" y="19">Cart</text>
+      <text class="link" x="12" y="56">/cart</text>
+
+      <rect class="mock" x="0" y="92" width="232" height="74" rx="18" />
+      <rect class="mockTop" x="0" y="92" width="232" height="28" rx="18" />
+      <text class="mockText" x="12" y="111">Orders</text>
+      <text class="link" x="12" y="148">/orders</text>
+
+      <rect class="mock" x="0" y="184" width="232" height="74" rx="18" />
+      <rect class="mockTop" x="0" y="184" width="232" height="28" rx="18" />
+      <text class="mockText" x="12" y="203">Paywall</text>
+      <text class="link" x="12" y="240">/paywall</text>
+    </g>
+  </g>
+
+  <!-- Colonne 5 : Admin -->
+  <g transform="translate(1210,200)">
+    <rect class="card" x="0" y="0" width="342" height="600" rx="18" />
+    <rect class="chip" x="18" y="18" width="86" height="22" rx="11" />
+    <text class="chipText" x="30" y="33">ADMIN</text>
+    <text class="h" x="18" y="68">Administration</text>
+    <text class="t" x="18" y="90">Accès via RoleRouter (isAdmin) ou menu compte.</text>
+
+    <g transform="translate(18,110)">
+      <rect class="mock" x="0" y="0" width="306" height="118" rx="18" />
+      <rect class="mockTop" x="0" y="0" width="306" height="28" rx="18" />
+      <text class="mockText" x="12" y="19">AdminDashboard</text>
+      <rect class="mock" x="12" y="46" width="282" height="18" rx="9" />
+      <rect class="mock" x="12" y="74" width="282" height="30" rx="12" />
+      <text class="link" x="12" y="112">/admin</text>
+
+      <rect class="mock" x="0" y="140" width="306" height="118" rx="18" />
+      <rect class="mockTop" x="0" y="140" width="306" height="28" rx="18" />
+      <text class="mockText" x="12" y="159">Account & Admin</text>
+      <rect class="mock" x="12" y="186" width="282" height="18" rx="9" />
+      <rect class="mock" x="12" y="214" width="282" height="30" rx="12" />
+      <text class="link" x="12" y="252">/account-admin</text>
+
+      <rect class="mock" x="0" y="280" width="306" height="118" rx="18" />
+      <rect class="mockTop" x="0" y="280" width="306" height="28" rx="18" />
+      <text class="mockText" x="12" y="299">MapAdminEditor</text>
+      <rect class="mock" x="12" y="326" width="282" height="18" rx="9" />
+      <rect class="mock" x="12" y="354" width="282" height="30" rx="12" />
+      <text class="link" x="12" y="392">/map-admin</text>
+
+      <rect class="mock" x="0" y="420" width="306" height="118" rx="18" />
+      <rect class="mockTop" x="0" y="420" width="306" height="28" rx="18" />
+      <text class="mockText" x="12" y="439">RouteDisplay</text>
+      <rect class="pill" x="12" y="466" width="282" height="22" rx="11" />
+      <text class="pillText" x="22" y="481">polyline OSRM + fitCamera</text>
+      <text class="t" x="12" y="510">(ouvert depuis éditeur / circuit)</text>
+    </g>
+  </g>
+
+  <!-- Flèches -->
+  <!-- Splash -> Router -->
+  <path class="arrowHot" d="M468,255 C505,255 505,255 520,255" />
+  <!-- Router -> Login (optionnel) -->
+  <path class="arrow dash" d="M420,332 C475,380 475,380 520,410" />
+  <!-- Router -> AppShell -->
+  <path class="arrowHot" d="M468,290 C510,310 510,310 520,320" />
+
+  <!-- AppShell -> GroupProfile -->
+  <path class="arrowHot" d="M780,440 C600,460 600,460 320,470" />
+  <!-- GroupProfile -> Shop -->
+  <path class="arrowHot" d="M318,635 C390,635 390,635 336,635" opacity="0" />
+  <path class="arrowHot" d="M318,640 C350,640 350,640 335,640" opacity="0" />
+  <path class="arrowHot" d="M318,642 C360,642 360,642 335,642" opacity="0" />
+  <path class="arrowHot" d="M318,650 C375,650 375,650 334,650" opacity="0" />
+  <path class="arrowHot" d="M268,650 C282,650 282,650 286,650" />
+  <!-- Shop -> ProductDetail -->
+  <path class="arrowHot" d="M588,640 C610,640 610,640 640,640" />
+  <!-- ProductDetail -> Cart -->
+  <path class="arrowHot" d="M880,640 C980,620 980,620 910,526" opacity="0" />
+  <path class="arrowHot" d="M880,700 C960,720 960,720 910,562" opacity="0" />
+  <path class="arrowHot" d="M880,690 C955,705 955,705 910,590" opacity="0" />
+  <path class="arrowHot" d="M880,688 C950,700 950,700 910,596" opacity="0" />
+  <path class="arrowHot" d="M880,690 C940,700 940,700 910,606" opacity="0" />
+  <path class="arrowHot" d="M880,700 C935,710 935,710 910,620" opacity="0" />
+  <path class="arrowHot" d="M880,695 C930,705 930,705 910,628" opacity="0" />
+  <path class="arrowHot" d="M880,690 C925,700 925,700 910,640" opacity="0" />
+  <path class="arrowHot" d="M880,690 C920,700 920,700 910,640" opacity="0" />
+  <path class="arrowHot" d="M880,690 C915,700 915,700 910,640" opacity="0" />
+  <path class="arrowHot" d="M880,690 C910,700 910,700 910,640" opacity="0" />
+  <path class="arrowHot" d="M880,690 C900,700 900,700 910,640" opacity="0" />
+  <path class="arrowHot" d="M880,690 C895,700 895,700 910,640" opacity="0" />
+  <path class="arrowHot" d="M880,690 C890,700 890,700 910,640" opacity="0" />
+  <path class="arrowHot" d="M880,690 C885,700 885,700 910,640" opacity="0" />
+  <path class="arrowHot" d="M880,690 C882,700 882,700 910,640" opacity="0" />
+  <path class="arrowHot" d="M880,690 C880,700 880,700 910,640" opacity="0" />
+  <path class="arrowHot" d="M880,640 C915,640 915,640 910,640" opacity="0" />
+  <path class="arrowHot" d="M880,640 C900,640 900,640 910,640" opacity="0" />
+  <path class="arrowHot" d="M880,640 C890,640 890,640 910,640" opacity="0" />
+  <path class="arrowHot" d="M880,640 C885,640 885,640 910,640" opacity="0" />
+  <path class="arrowHot" d="M880,640 C910,640 910,640 910,640" opacity="0" />
+  <path class="arrowHot" d="M880,640 C950,640 950,640 910,516" opacity="0" />
+  <path class="arrowHot" d="M880,640 C940,640 940,640 910,530" opacity="0" />
+  <path class="arrowHot" d="M880,640 C930,640 930,640 910,548" opacity="0" />
+  <path class="arrowHot" d="M880,640 C920,640 920,640 910,560" opacity="0" />
+  <path class="arrowHot" d="M880,640 C900,640 900,640 910,560" opacity="0" />
+  <path class="arrowHot" d="M880,640 C960,640 960,640 910,546" opacity="0" />
+  <path class="arrowHot" d="M880,640 C980,640 980,640 910,564" opacity="0" />
+  <path class="arrowHot" d="M880,640 C1000,640 1000,640 910,600" opacity="0" />
+  <path class="arrowHot" d="M880,640 C1040,640 1040,640 910,628" opacity="0" />
+  <path class="arrowHot" d="M880,640 C1080,640 1080,640 910,650" opacity="0" />
+  <path class="arrowHot" d="M880,640 C900,640 900,640 910,564" />
+
+  <!-- Cart -> Orders -->
+  <path class="arrow" d="M1040,600 C1080,600 1080,600 1040,640" opacity="0" />
+  <path class="arrowHot" d="M1040,600 C1100,600 1100,600 1040,640" opacity="0" />
+  <path class="arrow" d="M1040,600 C1100,640 1100,640 1040,692" opacity="0" />
+  <path class="arrowHot" d="M1040,600 C1140,600 1140,600 1040,692" opacity="0" />
+  <path class="arrowHot" d="M1040,600 C1080,600 1080,600 1040,692" opacity="0" />
+  <path class="arrowHot" d="M1040,600 C1080,620 1080,620 1040,692" opacity="0" />
+  <path class="arrowHot" d="M1040,600 C1100,620 1100,620 1040,692" opacity="0" />
+  <path class="arrowHot" d="M1040,600 C1120,620 1120,620 1040,692" opacity="0" />
+  <path class="arrowHot" d="M1040,600 C1120,650 1120,650 1040,692" opacity="0" />
+  <path class="arrowHot" d="M1040,600 C1040,628 1040,628 1040,692" />
+
+  <!-- Orders -> Paywall (optionnel) -->
+  <path class="arrow dash" d="M1040,692 C1040,720 1040,720 1040,746" />
+
+  <!-- Router -> Admin (si isAdmin) -->
+  <path class="arrowHot" d="M468,266 C920,220 920,220 1210,270" />
+
+  <!-- Footer -->
+  <text class="sub" x="48" y="1146">Astuce: ce fichier SVG est téléchargeable et imprimable (PDF) depuis le navigateur.</text>
+</svg>

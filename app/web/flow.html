@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MASLIVE — Flow complet (mockup)</title>
+  <style>
+    :root {
+      --bg: #0b0c10;
+      --card: #141720;
+      --text: rgba(255,255,255,0.92);
+      --muted: rgba(255,255,255,0.72);
+      --line: rgba(255,255,255,0.12);
+      --accent: #ff7a00;
+      --accent2: rgba(255,122,0,0.14);
+    }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: radial-gradient(1200px 700px at 20% 0%, rgba(255,122,0,0.14), transparent 60%),
+                  radial-gradient(1000px 600px at 90% 20%, rgba(124,224,255,0.10), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 18px 40px; }
+    .top {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    }
+    h1 { margin: 0; font-size: 26px; letter-spacing: 0.2px; }
+    .sub { margin-top: 8px; color: var(--muted); font-size: 13.5px; line-height: 1.45; }
+
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    a.btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 12px; border-radius: 12px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+      color: var(--text); text-decoration: none; font-weight: 700; font-size: 13px;
+    }
+    a.btn.primary {
+      border-color: rgba(255,122,0,0.5);
+      background: var(--accent2);
+      color: #ffb26a;
+    }
+    a.btn:hover { transform: translateY(-1px); }
+
+    .panel {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+    }
+    .panelHead {
+      padding: 12px 14px;
+      display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid var(--line);
+    }
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 6px 10px; border-radius: 999px;
+      border: 1px solid rgba(255,122,0,0.5);
+      background: var(--accent2);
+      color: #ffb26a;
+      font-weight: 800; font-size: 12px;
+      letter-spacing: 0.3px;
+    }
+    .hint { color: var(--muted); font-size: 12.5px; }
+
+    .svgWrap { background: #0b0c10; }
+    object, img { display: block; width: 100%; height: auto; }
+
+    .grid {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      border-radius: 18px;
+      padding: 14px;
+    }
+    .card h2 { margin: 0 0 8px; font-size: 14px; }
+    .card ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>MASLIVE — Flow complet des pages (mockup)</h1>
+        <div class="sub">
+          Lien direct après déploiement : <code>/flow.html</code><br />
+          Télécharger : SVG imprimable (tu peux aussi “Imprimer → Enregistrer en PDF”).
+        </div>
+      </div>
+      <div class="actions">
+        <a class="btn primary" href="flow.svg" download="maslive-flow.svg">Télécharger le schéma (SVG)</a>
+        <a class="btn" href="flow.svg" target="_blank" rel="noopener">Ouvrir le SVG</a>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panelHead">
+        <span class="badge">FLOW + MOCKUP</span>
+        <span class="hint">Basé sur les routes Flutter + pages existantes</span>
+      </div>
+      <div class="svgWrap">
+        <object data="flow.svg" type="image/svg+xml" aria-label="Schéma MASLIVE"></object>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Notes</h2>
+        <ul>
+          <li>Entrée : <code>/splash</code> → <code>/router</code> puis redirection selon auth/admin.</li>
+          <li><code>/app</code> : navigation principale (AppShell) + sidebar langue.</li>
+          <li>Admin : <code>/admin</code>, <code>/account-admin</code>, <code>/map-admin</code> (selon <code>isAdmin</code>).</li>
+          <li>Shop : GroupShop → ProductDetail → Cart → Orders (+ Paywall optionnel).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

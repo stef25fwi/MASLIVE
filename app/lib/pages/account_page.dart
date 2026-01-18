@@ -1,82 +1,198 @@
 import 'package:flutter/material.dart';
-import '../session/session_scope.dart';
-import '../session/require_signin.dart';
 
-class AccountPage extends StatelessWidget {
-  const AccountPage({super.key});
+import '../ui/theme/maslive_theme.dart';
+import '../ui/widgets/gradient_header.dart';
+import '../ui/widgets/honeycomb_background.dart';
+import '../ui/widgets/maslive_card.dart';
+
+class AccountUiPage extends StatelessWidget {
+  const AccountUiPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final session = SessionScope.of(context);
+    // Dummy data (remplace par SessionScope si besoin)
+    const userName = 'Stéphane';
+    const userSubtitle = 'Premium Member';
 
-    if (session.isGuest) {
-      // écran "connexion requise"
-      return Scaffold(
-        appBar: AppBar(title: const Text('Mon compte')),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.lock_outline, size: 44),
-                const SizedBox(height: 10),
-                const Text(
-                  'Connexion requise',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'En mode invité, tu peux consulter la carte et les couches.\n'
-                  'Connecte-toi pour accéder à ton compte et à tes favoris.',
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 14),
-                FilledButton(
-                  onPressed: () => requireSignIn(context, session: session),
-                  child: const Text('Se connecter'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
+    final tiles = <_AccountTileData>[
+      const _AccountTileData(
+        icon: Icons.favorite_border,
+        title: 'Mes favoris',
+        subtitle: 'Lieux et groupes enregistrés',
+      ),
+      const _AccountTileData(
+        icon: Icons.groups_2_rounded,
+        title: 'Mes groupes',
+        subtitle: 'Accéder à vos communautés',
+      ),
+      const _AccountTileData(
+        icon: Icons.notifications_none_rounded,
+        title: 'Notifications',
+        subtitle: 'Gérer vos alertes',
+      ),
+      const _AccountTileData(
+        icon: Icons.settings_outlined,
+        title: 'Paramètres',
+        subtitle: 'Langue, confidentialité…',
+      ),
+      const _AccountTileData(
+        icon: Icons.help_outline_rounded,
+        title: 'Aide',
+        subtitle: 'FAQ & support',
+      ),
+    ];
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mon compte'),
-        actions: [
-          IconButton(
-            onPressed: () async {
-              await session.signOut();
-              if (context.mounted) Navigator.pop(context);
-            },
-            icon: const Icon(Icons.logout),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const CircleAvatar(radius: 44, child: Icon(Icons.person, size: 44)),
-          const SizedBox(height: 12),
-          Center(
-            child: Text(
-              session.user?.email ?? 'Utilisateur',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+      body: HoneycombBackground(
+        opacity: 0.08,
+        child: Column(
+          children: [
+            MasliveGradientHeader(
+              height: 210,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Row(
+                    children: [
+                      const Spacer(),
+                      Text(
+                        'Mon compte',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              color: MasliveTheme.textPrimary,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close_rounded),
+                        color: MasliveTheme.textPrimary,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _AvatarBlock(
+                    name: userName,
+                    subtitle: userSubtitle,
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 18),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.favorite_border),
-              title: const Text('Mes favoris'),
-              onTap: () => Navigator.pushNamed(context, '/favorites'),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+                itemCount: tiles.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, i) {
+                  final t = tiles[i];
+                  return MasliveCard(
+                    radius: 20,
+                    padding: EdgeInsets.zero,
+                    child: ListTile(
+                      leading: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: MasliveTheme.surfaceAlt,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: MasliveTheme.divider),
+                        ),
+                        child: Icon(t.icon, color: MasliveTheme.textPrimary),
+                      ),
+                      title: Text(
+                        t.title,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: MasliveTheme.textPrimary,
+                            ),
+                      ),
+                      subtitle: Text(
+                        t.subtitle,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: MasliveTheme.textSecondary,
+                            ),
+                      ),
+                      trailing: Icon(
+                        Icons.chevron_right_rounded,
+                        color: MasliveTheme.textSecondary,
+                      ),
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('${t.title} (mock)')),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
+
+class _AvatarBlock extends StatelessWidget {
+  final String name;
+  final String subtitle;
+
+  const _AvatarBlock({
+    required this.name,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 84,
+          height: 84,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: MasliveTheme.actionGradient,
+            boxShadow: MasliveTheme.floatingShadow,
+          ),
+          child: const Center(
+            child: CircleAvatar(
+              radius: 36,
+              backgroundColor: Colors.white,
+              child: Icon(Icons.person_rounded, size: 40, color: MasliveTheme.textPrimary),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          name,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: MasliveTheme.textPrimary,
+              ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: MasliveTheme.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AccountTileData {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _AccountTileData({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
 }
