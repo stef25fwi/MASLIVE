@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/firestore_service.dart';
 import '../ui/theme/maslive_theme.dart';
 import '../ui/widgets/gradient_header.dart';
 import '../ui/widgets/honeycomb_background.dart';
@@ -16,6 +17,8 @@ class ShopUiPage extends StatefulWidget {
 
 class _ShopPageState extends State<ShopUiPage> {
   String _category = 'Tous';
+  String? _selectedGroup;
+  final FirestoreService _firestore = FirestoreService();
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +35,7 @@ class _ShopPageState extends State<ShopUiPage> {
             MasliveGradientHeader(
               height: 220,
               padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
+              borderRadius: BorderRadius.zero,
               child: Column(
                 children: [
                   Row(
@@ -67,27 +71,10 @@ class _ShopPageState extends State<ShopUiPage> {
                     onSelected: (c) => setState(() => _category = c),
                   ),
                   const SizedBox(height: 12),
-                  MasliveCard(
-                    radius: 22,
-                    child: Row(
-                      children: [
-                        const Icon(Icons.local_shipping_outlined, color: MasliveTheme.textPrimary),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Livraison 24–48h · Retours gratuits (mock)',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: MasliveTheme.textSecondary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () {},
-                          child: const Text('Infos'),
-                        ),
-                      ],
-                    ),
+                  _GroupDropdown(
+                    selected: _selectedGroup,
+                    onSelected: (g) => setState(() => _selectedGroup = g),
+                    firestore: _firestore,
                   ),
                 ],
               ),
@@ -379,4 +366,70 @@ class _MockProduct {
       description: 'Texture honeycomb, accroche solide, style premium.',
     ),
   ];
+}
+class _GroupDropdown extends StatelessWidget {
+  final String? selected;
+  final ValueChanged<String?> onSelected;
+  final FirestoreService firestore;
+
+  const _GroupDropdown({
+    required this.selected,
+    required this.onSelected,
+    required this.firestore,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<String>>(
+      future: firestore.getGroupsNamesList(),
+      builder: (context, snapshot) {
+        final groups = snapshot.data ?? const [];
+        
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.92),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: MasliveTheme.divider),
+          ),
+          child: DropdownButton<String?>(
+            value: selected,
+            isExpanded: true,
+            underline: const SizedBox.shrink(),
+            hint: Text(
+              'Sélectionner un groupe',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: MasliveTheme.textSecondary,
+              ),
+            ),
+            items: [
+              DropdownMenuItem<String?>(
+                value: null,
+                child: Text(
+                  'Tous les groupes',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: MasliveTheme.textPrimary,
+                  ),
+                ),
+              ),
+              ...groups.map((group) {
+                return DropdownMenuItem<String?>(
+                  value: group,
+                  child: Text(
+                    group,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: MasliveTheme.textPrimary,
+                    ),
+                  ),
+                );
+              }),
+            ],
+            onChanged: onSelected,
+          ),
+        );
+      },
+    );
+  }
 }

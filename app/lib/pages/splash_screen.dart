@@ -14,10 +14,13 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     
-    // ✅ Statusbar transparente
+    // ✅ Masquer la status bar et navigation bar
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
+    
+    // ✅ Statusbar noir
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
+        statusBarColor: Colors.black,
         statusBarIconBrightness: Brightness.light,
       ),
     );
@@ -25,21 +28,29 @@ class _SplashScreenState extends State<SplashScreen> {
     // ✅ Navigation après 4 secondes
     Future.delayed(const Duration(seconds: 4), () {
       if (mounted) {
+        // Restaurer les barres système avant de naviguer
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
         Navigator.of(context).pushReplacementNamed('/');
       }
     });
   }
 
   @override
+  void dispose() {
+    // S'assurer que les barres système sont restaurées
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Center(
-        child: Image.asset(
-          'assets/splash/maslive.png',
-          fit: BoxFit.fitWidth,
-          width: MediaQuery.of(context).size.width,
-        ),
+      body: Image.asset(
+        'assets/splash/maslivepink.png',
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
       ),
     );
   }

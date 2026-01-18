@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/place_model.dart';
 import '../models/group_model.dart';
 import '../models/group_location_model.dart';
+import '../models/circuit_model.dart';
 
 class FirestoreService {
   static final FirestoreService _instance = FirestoreService._internal();
@@ -161,6 +162,20 @@ class FirestoreService {
     await _firestore.collection('groups').doc(id).delete();
   }
 
+  // ============ CIRCUITS ============
+
+  Stream<List<Circuit>> getPublishedCircuitsStream() {
+    return _firestore
+        .collection('circuits')
+        .where('isPublished', isEqualTo: true)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => Circuit.fromFirestore(doc))
+              .toList();
+        });
+  }
+
   // ============ GROUP_LOCATIONS ============
 
   // Récupérer toutes les localisations de groupe (streaming)
@@ -243,6 +258,18 @@ class FirestoreService {
     
     for (final doc in query.docs) {
       await doc.reference.delete();
+    }
+  }
+
+  // Récupérer la liste des noms de groupes
+  Future<List<String>> getGroupsNamesList() async {
+    try {
+      final snapshot = await _firestore.collection('groups').get();
+      return snapshot.docs
+          .map((doc) => (doc['name'] ?? doc.id) as String)
+          .toList();
+    } catch (e) {
+      return const [];
     }
   }
 }
