@@ -19,8 +19,8 @@ class LocalizedApp extends StatelessWidget {
 
     return Row(
       children: [
-        LanguageSidebar(),
         Expanded(child: child),
+        LanguageSidebar(),
       ],
     );
   }

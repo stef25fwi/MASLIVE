@@ -7,6 +7,10 @@
 const admin = require("firebase-admin");
 const ngeohash = require("ngeohash");
 const { setGlobalOptions } = require("firebase-functions/v2");
+const {
+  onDocumentCreated,
+  onDocumentUpdated,
+} = require("firebase-functions/v2/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 
 setGlobalOptions({ region: "us-central1" });
@@ -71,6 +75,23 @@ exports.updateGroupLocation = onCall(
 
     if (lat < -90 || lat > 90) throw new HttpsError("invalid-argument", "lat out of range");
     if (lng < -180 || lng > 180) throw new HttpsError("invalid-argument", "lng out of range");
+
+    // Authorization: only admins or users bound to the same groupId
+    const userRef = db.collection("users").doc(request.auth.uid);
+    const userSnap = await userRef.get();
+    const user = userSnap.exists ? userSnap.data() : null;
+
+    const isAdmin = !!user && (user.isAdmin === true || user.role === "admin");
+    const userGroupId = user && typeof user.groupId === "string" ? user.groupId : null;
+
+    if (!isAdmin) {
+      if (!userGroupId || userGroupId !== groupId) {
+        throw new HttpsError(
+          "permission-denied",
+          "Not allowed to update this group's location"
+        );
+      }
+    }
 
     const accuracy = typeof data.accuracy === "number" ? data.accuracy : null;
     const heading = typeof data.heading === "number" ? data.heading : null;
@@ -178,5 +199,103 @@ exports.nearbySearch = onCall(
       .slice(0, limit);
 
     return { ok: true, count: arr.length, items: arr };
+  }
+);
+
+async function sendPendingProductNotification({ groupId, productId, product }) {
+  // Récupérer les tokens des admins master
+  const [isAdminSnap, roleAdminSnap] = await Promise.all([
+    db.collection("users").where("isAdmin", "==", true).get(),
+    db.collection("users").where("role", "==", "admin").get(),
+  ]);
+
+  const tokens = new Set();
+  for (const doc of [...isAdminSnap.docs, ...roleAdminSnap.docs]) {
+    const d = doc.data() || {};
+    const arr = Array.isArray(d.fcmTokens) ? d.fcmTokens : [];
+    for (const t of arr) {
+      if (typeof t === "string" && t.trim().length > 0) tokens.add(t.trim());
+    }
+  }
+
+  const tokenList = Array.from(tokens);
+  if (tokenList.length === 0) return;
+
+  const title = "Nouvel article à valider";
+  const body = (product.title
+    ? `${product.title}`
+    : "Un article est en attente de validation"
+  ).toString();
+
+  // Envoi en lots (FCM max 500 tokens par requête)
+  const chunkSize = 500;
+  for (let i = 0; i < tokenList.length; i += chunkSize) {
+    const chunk = tokenList.slice(i, i + chunkSize);
+    await admin.messaging().sendEachForMulticast({
+      tokens: chunk,
+      notification: { title, body },
+      data: {
+        type: "pending_product",
+        groupId,
+        productId,
+      },
+    });
+  }
+}
+
+/**
+ * notifyPendingProductCreated
+ * Déclenchée quand un admin groupe crée un produit en attente.
+ * Notifie tous les admins master (users/{uid}.isAdmin == true OU role == 'admin').
+ */
+exports.notifyPendingProductCreated = onDocumentCreated(
+  "groups/{groupId}/products/{productId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    const product = snap.data() || {};
+    const status = (product.moderationStatus || "").toString();
+    const isActive = product.isActive === true;
+
+    // On ne notifie que les créations en attente.
+    if (status !== "pending" || isActive) return;
+
+    const groupId = event.params.groupId;
+    const productId = event.params.productId;
+
+    await sendPendingProductNotification({ groupId, productId, product });
+  }
+);
+
+/**
+ * notifyPendingProductResubmitted
+ * Déclenchée quand un produit passe à nouveau en pending (ex: correction après refus).
+ */
+exports.notifyPendingProductResubmitted = onDocumentUpdated(
+  "groups/{groupId}/products/{productId}",
+  async (event) => {
+    const before = event.data?.before;
+    const after = event.data?.after;
+    if (!before || !after) return;
+
+    const prev = before.data() || {};
+    const next = after.data() || {};
+
+    const prevStatus = (prev.moderationStatus || "").toString();
+    const nextStatus = (next.moderationStatus || "").toString();
+    const nextActive = next.isActive === true;
+
+    if (prevStatus === "pending") return;
+    if (nextStatus !== "pending" || nextActive) return;
+
+    const groupId = event.params.groupId;
+    const productId = event.params.productId;
+
+    await sendPendingProductNotification({
+      groupId,
+      productId,
+      product: next,
+    });
   }
 );

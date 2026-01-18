@@ -696,8 +696,8 @@ class _HomeMapPageState extends State<HomeMapPage>
                   ),
                   const SizedBox(height: 4),
                   const Divider(height: 1),
-                  item(AppLanguage.fr, 'Français'),
                   item(AppLanguage.en, 'English'),
+                  item(AppLanguage.fr, 'Français'),
                   item(AppLanguage.es, 'Español'),
                 ],
               ),
@@ -909,20 +909,21 @@ class _HomeMapPageState extends State<HomeMapPage>
 
                       // Overlay actions - affiche quand burger cliqué
                       Positioned.fill(
-                        child: GestureDetector(
-                          onTap: () {
-                            if (!_showActionsMenu) return;
-                            setState(() => _showActionsMenu = false);
-                            _menuAnimController.reverse();
-                          },
-                          onHorizontalDragEnd: (details) {
-                            if (details.primaryVelocity! > 0 && _showActionsMenu) {
+                        child: IgnorePointer(
+                          ignoring: !_showActionsMenu,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.translucent,
+                            onTap: () {
                               setState(() => _showActionsMenu = false);
                               _menuAnimController.reverse();
-                            }
-                          },
-                          child: Container(
-                            color: Colors.transparent,
+                            },
+                            onHorizontalDragEnd: (details) {
+                              if (details.primaryVelocity != null &&
+                                  details.primaryVelocity! > 0) {
+                                setState(() => _showActionsMenu = false);
+                                _menuAnimController.reverse();
+                              }
+                            },
                             child: Align(
                               alignment: Alignment.topRight,
                               child: SlideTransition(
@@ -930,51 +931,23 @@ class _HomeMapPageState extends State<HomeMapPage>
                                 child: IgnorePointer(
                                   ignoring: !_showActionsMenu,
                                   child: Container(
-                                    width: 98,
+                                    width: 86,
                                     margin: const EdgeInsets.only(
                                       right: 4,
                                       top: 18,
                                     ),
                                     decoration: BoxDecoration(
                                       color: Colors.white.withOpacity(0.65),
-                                      borderRadius: const BorderRadius.only(
-                                        topLeft: Radius.circular(12),
-                                        bottomLeft: Radius.circular(12),
-                                        topRight: Radius.circular(MasliveTheme.rPill),
-                                        bottomRight: Radius.circular(MasliveTheme.rPill),
+                                      borderRadius: BorderRadius.circular(
+                                        MasliveTheme.rPill,
                                       ),
                                       boxShadow: MasliveTheme.floatingShadow,
                                     ),
-                                    child: Row(
-                                      children: [
-                                        // Onglet indicateur
-                                        GestureDetector(
-                                          onTap: !_showActionsMenu
-                                              ? () {
-                                                  setState(() => _showActionsMenu = true);
-                                                  _menuAnimController.forward();
-                                                }
-                                              : null,
-                                          child: Container(
-                                            width: 12,
-                                            height: double.infinity,
-                                            decoration: const BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius: BorderRadius.only(
-                                                topLeft: Radius.circular(12),
-                                                bottomLeft: Radius.circular(12),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        // Contenu de la nav
-                                        Expanded(
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(8),
-                                            child: SingleChildScrollView(
-                                              child: Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
+                                    padding: const EdgeInsets.all(8),
+                                    child: SingleChildScrollView(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
                                           _ActionItem(
                                             label: 'Centrer',
                                             icon: Icons.my_location_rounded,
@@ -1053,10 +1026,6 @@ class _HomeMapPageState extends State<HomeMapPage>
                                         ],
                                       ),
                                     ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
                                   ),
                                 ),
                               ),
@@ -1073,6 +1042,31 @@ class _HomeMapPageState extends State<HomeMapPage>
                           child: _TrackingPill(
                             isTracking: _isTracking,
                             onToggle: _toggleTracking,
+                          ),
+                        ),
+
+                      // Indicateur onglet - montre la nav bar cachée
+                      if (!_showActionsMenu)
+                        Positioned(
+                          right: 90,
+                          top: 18,
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() => _showActionsMenu = true);
+                              _menuAnimController.forward();
+                            },
+                            child: Container(
+                              width: 12,
+                              height: 70,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.65),
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(12),
+                                  bottomLeft: Radius.circular(12),
+                                ),
+                                boxShadow: MasliveTheme.floatingShadow,
+                              ),
+                            ),
                           ),
                         ),
                     ],

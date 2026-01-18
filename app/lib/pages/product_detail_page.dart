@@ -25,6 +25,28 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
   static const _bg = Color(0xFFF4F5F8);
 
+  Widget _productImageGallery(GroupProduct p) {
+    final urls = <String>[
+      if (p.imageUrl.isNotEmpty) p.imageUrl,
+      if ((p.imageUrl2 ?? '').isNotEmpty) p.imageUrl2!,
+    ];
+
+    if (urls.isEmpty) {
+      return Container(color: Colors.black.withValues(alpha: 0.06));
+    }
+
+    if (urls.length == 1) {
+      return Image.network(urls.first, fit: BoxFit.cover);
+    }
+
+    return PageView.builder(
+      itemCount: urls.length,
+      itemBuilder: (context, i) {
+        return Image.network(urls[i], fit: BoxFit.cover);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = widget.product;
@@ -65,9 +87,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         borderRadius: BorderRadius.circular(18),
                         child: AspectRatio(
                           aspectRatio: 1.08,
-                          child: p.imageUrl.isEmpty
-                              ? Container(color: Colors.black.withValues(alpha: 0.06))
-                              : Image.network(p.imageUrl, fit: BoxFit.cover),
+                          child: _productImageGallery(p),
                         ),
                       ),
                     ),

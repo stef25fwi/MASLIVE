@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'group_add_item_page.dart';
+import 'pending_products_page.dart';
 
 class AccountAndAdminPage extends StatefulWidget {
   const AccountAndAdminPage({super.key});
@@ -33,6 +35,9 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
       builder: (context, snap) {
         final data = snap.data?.data() ?? {};
         final isAdmin = (data['isAdmin'] == true);
+        final role = (data['role'] ?? 'user').toString();
+        final groupId = (data['groupId'] as String?)?.trim();
+        final isGroupAdmin = role == 'group' && (groupId != null && groupId.isNotEmpty);
 
         return Scaffold(
           appBar: AppBar(
@@ -113,8 +118,23 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
                     builder: (_) => StartEndDialog(db: _db, uid: user!.uid),
                   ),
                   onModeration: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("À brancher : page Modération")),
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const PendingProductsPage()),
+                    );
+                  },
+                ),
+              ],
+
+              if (isGroupAdmin) ...[
+                const SizedBox(height: 20),
+                const _SectionTitle("Espace Groupe"),
+                const SizedBox(height: 10),
+                GroupTilesGrid(
+                  onAddItem: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => GroupAddItemPage(groupId: groupId),
+                      ),
                     );
                   },
                 ),
@@ -372,10 +392,41 @@ class AdminTilesGrid extends StatelessWidget {
           onTap: onSetStartEnd,
         ),
         _AdminTile(
-          title: "Modération",
-          subtitle: "Validation contenu",
+          title: "Articles à valider",
+          subtitle: "Boutique",
           icon: Icons.shield,
           onTap: onModeration,
+        ),
+      ],
+    );
+  }
+}
+
+class GroupTilesGrid extends StatelessWidget {
+  final VoidCallback onAddItem;
+
+  const GroupTilesGrid({
+    super.key,
+    required this.onAddItem,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 1.15,
+      ),
+      children: [
+        _AdminTile(
+          title: "Ajouter article",
+          subtitle: "Boutique du groupe",
+          icon: Icons.add_shopping_cart,
+          onTap: onAddItem,
         ),
       ],
     );

@@ -42,6 +42,23 @@ class LanguageSidebar extends StatelessWidget {
                   size: 24,
                 ),
               ),
+              const SizedBox(height: 12),
+
+              // Pictogramme WC homme/femme
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.12),
+                  border: Border.all(color: Colors.white24, width: 1),
+                ),
+                child: const Icon(
+                  Icons.wc,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
               const SizedBox(height: 24),
 
               // Language buttons

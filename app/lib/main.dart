@@ -25,10 +25,14 @@ import 'pages/orders_page.dart';
 import 'pages/map_admin_editor_page.dart';
 import 'pages/account_page.dart';
 import 'pages/shop_page.dart';
+import 'pages/pending_products_page.dart';
 import 'services/cart_service.dart';
+import 'services/notifications_service.dart';
 import 'services/premium_service.dart';
 import 'ui/theme/maslive_theme.dart';
 import 'ui/widgets/honeycomb_background.dart';
+
+final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -61,6 +65,9 @@ Future<void> main() async {
   // ✅ Initialiser le panier (sync Firestore si connecté)
   CartService.instance.start();
 
+  // ✅ Notifications: synchronise le token FCM dans users/{uid}
+  NotificationsService.instance.start(navigatorKey: _rootNavigatorKey);
+
   runApp(MasLiveApp(session: session));
 }
 
@@ -77,6 +84,7 @@ class MasLiveApp extends StatelessWidget {
         builder: (context, child) {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
+            navigatorKey: _rootNavigatorKey,
             theme: MasliveTheme.lightTheme,
             locale: Locale(LocalizationService().languageCode),
             initialRoute: '/splash',
@@ -117,11 +125,12 @@ class MasLiveApp extends StatelessWidget {
               '/tracking': (_) => const TrackingLivePage(),
               '/cart': (_) => const CartPage(),
               '/paywall': (_) => const PaywallPage(),
+              '/pending-products': (_) => const PendingProductsPage(),
             },
             builder: (context, child) => HoneycombBackground(
               opacity: 0.08,
               child: LocalizedApp(
-                showLanguageSidebar: false,
+                showLanguageSidebar: true,
                 child: child ?? const SizedBox(),
               ),
             ),
