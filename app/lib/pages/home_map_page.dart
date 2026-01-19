@@ -830,7 +830,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                                         }
                                         return PolylineLayer(
                                           polylines: circuits
-                                              .where((c) => c.points.length >= 1)
+                                              .where((c) => c.points.isNotEmpty)
                                               .map(
                                                 (c) => Polyline(
                                                   points: _circuitPoints(c),
@@ -866,8 +866,9 @@ class _HomeMapPageState extends State<HomeMapPage>
                                               ?.toDouble();
                                           final lng = (loc['lng'] as num?)
                                               ?.toDouble();
-                                          if (lat == null || lng == null)
+                                          if (lat == null || lng == null) {
                                             continue;
+                                          }
 
                                           final heading =
                                               (loc['heading'] as num?)

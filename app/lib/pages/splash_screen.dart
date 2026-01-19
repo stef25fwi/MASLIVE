@@ -30,7 +30,7 @@ class _SplashScreenState extends State<SplashScreen> {
       if (mounted) {
         // Restaurer les barres système avant de naviguer
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-        Navigator.of(context).pushReplacementNamed('/');
+        Navigator.of(context).pushReplacementNamed('/router');
       }
     });
   }
