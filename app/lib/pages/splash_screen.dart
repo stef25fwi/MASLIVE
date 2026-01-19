@@ -25,12 +25,12 @@ class _SplashScreenState extends State<SplashScreen> {
       ),
     );
     
-    // ✅ Navigation après 4 secondes
+    // ✅ Navigation après 4 secondes vers la page d'accueil avec carte
     Future.delayed(const Duration(seconds: 4), () {
       if (mounted) {
         // Restaurer les barres système avant de naviguer
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-        Navigator.of(context).pushReplacementNamed('/router');
+        Navigator.of(context).pushReplacementNamed('/');
       }
     });
   }
