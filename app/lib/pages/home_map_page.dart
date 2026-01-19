@@ -1084,8 +1084,8 @@ class _ActionItem extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 70,
-            height: 70,
+            width: 60,
+            height: 60,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white.withOpacity(0.85),
@@ -1100,7 +1100,7 @@ class _ActionItem extends StatelessWidget {
               children: [
                 Icon(
                   icon,
-                  size: 28,
+                  size: 32,
                   color: selected
                       ? MasliveTheme.pink
                       : MasliveTheme.textPrimary,
