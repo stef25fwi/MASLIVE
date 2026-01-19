@@ -1,14 +1,12 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
-/// Barre de navigation inférieure MASLIVE avec effet verre blanc transparent,
-/// indicateur glissant pastel et animations fluides.
-class MasliveBottomNavGlass extends StatelessWidget {
+class PrestoBottomNav extends StatelessWidget {
   final int index;
   final ValueChanged<int> onTap;
   final VoidCallback onPlus;
 
-  const MasliveBottomNavGlass({
+  const PrestoBottomNav({
     super.key,
     required this.index,
     required this.onTap,
@@ -61,7 +59,7 @@ class _GlassBar extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
         child: Container(
-          height: MasliveBottomNavGlass.barHeight,
+          height: PrestoBottomNav.barHeight,
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.82),
             borderRadius: BorderRadius.circular(24),
@@ -88,10 +86,10 @@ class _GlassBar extends StatelessWidget {
               final safeWidth = usableWidth == 0
                   ? constraints.maxWidth
                   : usableWidth;
-              final itemWidth = safeWidth / MasliveBottomNavGlass._icons.length;
+              final itemWidth = safeWidth / PrestoBottomNav._icons.length;
               final clampedIndex = index.clamp(
                 0,
-                MasliveBottomNavGlass._icons.length - 1,
+                PrestoBottomNav._icons.length - 1,
               );
               final indicatorLeft =
                   (itemWidth * clampedIndex) + (itemWidth - indicatorWidth) / 2;
@@ -120,9 +118,9 @@ class _GlassBar extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: List.generate(
-                        MasliveBottomNavGlass._icons.length,
+                        PrestoBottomNav._icons.length,
                         (i) => _NavIcon(
-                          icon: MasliveBottomNavGlass._icons[i],
+                          icon: PrestoBottomNav._icons[i],
                           selected: index == i,
                           onTap: () => onTap(i),
                         ),
