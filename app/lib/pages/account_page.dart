@@ -107,7 +107,7 @@ class _AccountUiPageState extends State<AccountUiPage> {
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
                 itemCount: tiles.length + (_isAdmin ? 2 : 0),
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, i) {
                   // Section admin
                   if (_isAdmin && i == tiles.length) {
@@ -233,7 +233,7 @@ class _AccountUiPageState extends State<AccountUiPage> {
                   icon: const Icon(Icons.logout_rounded),
                   label: const Text('Se déconnecter'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red.withOpacity(0.1),
+                    backgroundColor: Colors.red.withValues(alpha: 0.1),
                     foregroundColor: Colors.red,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(

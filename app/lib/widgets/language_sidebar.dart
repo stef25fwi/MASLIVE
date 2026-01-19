@@ -16,11 +16,11 @@ class LanguageSidebar extends StatelessWidget {
         return Container(
           width: 80,
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.92),
+            color: Colors.black.withValues(alpha: 0.92),
             boxShadow: [
               BoxShadow(
                 blurRadius: 8,
-                color: Colors.black.withOpacity(0.3),
+                color: Colors.black.withValues(alpha: 0.3),
               ),
             ],
           ),
@@ -34,7 +34,7 @@ class LanguageSidebar extends StatelessWidget {
                 height: 50,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.1),
+                  color: Colors.white.withValues(alpha: 0.1),
                 ),
                 child: const Icon(
                   Icons.language,
@@ -50,7 +50,7 @@ class LanguageSidebar extends StatelessWidget {
                 height: 48,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.12),
+                  color: Colors.white.withValues(alpha: 0.12),
                   border: Border.all(color: Colors.white24, width: 1),
                 ),
                 child: const Icon(
@@ -136,7 +136,7 @@ class _LanguageButton extends StatelessWidget {
       height: 50,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: isSelected ? Colors.orange : Colors.white.withOpacity(0.1),
+        color: isSelected ? Colors.orange : Colors.white.withValues(alpha: 0.1),
       ),
       child: Material(
         color: Colors.transparent,

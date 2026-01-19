@@ -65,7 +65,7 @@ class _GroupProfilePageState extends State<GroupProfilePage> {
                               child: Image.asset(
                                 'assets/splash/maslive.png',
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(
+                                errorBuilder: (_, _, _) => Container(
                                   color: MasliveTheme.surfaceAlt,
                                 ),
                               ),
@@ -77,8 +77,8 @@ class _GroupProfilePageState extends State<GroupProfilePage> {
                                     begin: Alignment.topCenter,
                                     end: Alignment.bottomCenter,
                                     colors: [
-                                      Colors.black.withOpacity(0.0),
-                                      Colors.black.withOpacity(0.22),
+                                      Colors.black.withValues(alpha: 0.0),
+                                      Colors.black.withValues(alpha: 0.22),
                                     ],
                                   ),
                                 ),
@@ -105,7 +105,7 @@ class _GroupProfilePageState extends State<GroupProfilePage> {
                                         Text(
                                           '${group.city} · ${group.membersCount} membres',
                                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                color: Colors.white.withOpacity(0.86),
+                                                color: Colors.white.withValues(alpha: 0.86),
                                                 fontWeight: FontWeight.w600,
                                               ),
                                         ),
@@ -114,7 +114,7 @@ class _GroupProfilePageState extends State<GroupProfilePage> {
                                   ),
                                   FilledButton(
                                     style: FilledButton.styleFrom(
-                                      backgroundColor: Colors.white.withOpacity(0.90),
+                                      backgroundColor: Colors.white.withValues(alpha: 0.90),
                                       foregroundColor: MasliveTheme.textPrimary,
                                       shape: const StadiumBorder(),
                                     ),
@@ -259,7 +259,7 @@ class _PlanningTab extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
       itemCount: items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, i) {
         final e = items[i];
         return MasliveCard(
@@ -335,7 +335,7 @@ class _MediaTab extends StatelessWidget {
               child: Image.asset(
                 a,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(color: MasliveTheme.surfaceAlt),
+                errorBuilder: (_, _, _) => Container(color: MasliveTheme.surfaceAlt),
               ),
             ),
           );
@@ -361,7 +361,7 @@ class _MembersTab extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
       itemCount: members.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, i) {
         final m = members[i];
         return MasliveCard(

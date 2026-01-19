@@ -57,8 +57,10 @@ class GeolocationService {
   Future<void> _sendPosition(String groupId) async {
     try {
       final position = await Geolocator.getCurrentPosition(
-        timeLimit: const Duration(seconds: 10),
-        desiredAccuracy: LocationAccuracy.best,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.best,
+          timeLimit: Duration(seconds: 10),
+        ),
       );
 
       // ✅ Envoyer via Cloud Function
@@ -87,8 +89,10 @@ class GeolocationService {
       }
 
       return await Geolocator.getCurrentPosition(
-        timeLimit: const Duration(seconds: 10),
-        desiredAccuracy: LocationAccuracy.best,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.best,
+          timeLimit: Duration(seconds: 10),
+        ),
       );
     } catch (e) {
       // print('❌ Erreur getCurrentPosition: $e');

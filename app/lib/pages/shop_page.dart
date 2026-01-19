@@ -183,7 +183,7 @@ class _ProductCard extends StatelessWidget {
                     Image.asset(
                       product.imageAsset,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(color: MasliveTheme.surfaceAlt),
+                      errorBuilder: (_, _, _) => Container(color: MasliveTheme.surfaceAlt),
                     ),
                     Positioned(
                       left: 10,
@@ -191,7 +191,7 @@ class _ProductCard extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.86),
+                          color: Colors.white.withValues(alpha: 0.86),
                           borderRadius: BorderRadius.circular(MasliveTheme.rPill),
                           border: Border.all(color: MasliveTheme.divider),
                         ),
@@ -269,7 +269,7 @@ class _ProductSheet extends StatelessWidget {
         margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.92),
+          color: Colors.white.withValues(alpha: 0.92),
           borderRadius: BorderRadius.circular(24),
           boxShadow: MasliveTheme.floatingShadow,
         ),
@@ -391,7 +391,7 @@ class _GroupDropdown extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.92),
+            color: Colors.white.withValues(alpha: 0.92),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: MasliveTheme.divider),
           ),

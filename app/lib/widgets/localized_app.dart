@@ -44,7 +44,7 @@ class _LocalizedAppState extends State<LocalizedApp> {
                 width: 12,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withValues(alpha: 0.7),
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(12),
                     bottomLeft: Radius.circular(12),
@@ -52,7 +52,7 @@ class _LocalizedAppState extends State<LocalizedApp> {
                   boxShadow: [
                     BoxShadow(
                       blurRadius: 8,
-                      color: Colors.black.withOpacity(0.15),
+                      color: Colors.black.withValues(alpha: 0.15),
                     ),
                   ],
                 ),

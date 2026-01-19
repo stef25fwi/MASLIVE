@@ -80,7 +80,7 @@ class _RouteDisplayPageState extends State<RouteDisplayPage> {
                     Polyline(
                       points: _route!.points,
                       strokeWidth: 6,
-                      color: Colors.blue.withOpacity(0.8),
+                      color: Colors.blue.withValues(alpha: 0.8),
                     ),
                   ],
                 ),
@@ -202,12 +202,12 @@ class _RouteInfoCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        color: Colors.white.withOpacity(0.95),
+        color: Colors.white.withValues(alpha: 0.95),
         border: Border.all(color: Colors.black12),
         boxShadow: [
           BoxShadow(
             blurRadius: 8,
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
           ),
         ],
       ),
@@ -254,7 +254,7 @@ class _RouteInfoCard extends StatelessWidget {
                             ),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(999),
-                              color: Colors.blue.withOpacity(0.1),
+                              color: Colors.blue.withValues(alpha: 0.1),
                             ),
                             child: Text(
                               "$waypointCount points",

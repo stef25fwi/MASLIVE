@@ -36,7 +36,7 @@ class OrderService {
       if (!doc.exists) return null;
       return ShopOrder.fromFirestore(doc);
     } catch (e) {
-      print('Erreur getOrder: $e');
+      // print('Erreur getOrder: $e');
       return null;
     }
   }

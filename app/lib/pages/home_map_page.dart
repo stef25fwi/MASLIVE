@@ -157,8 +157,10 @@ class _HomeMapPageState extends State<HomeMapPage>
     if (!ok) return;
 
     final pos = await Geolocator.getCurrentPosition(
-      timeLimit: const Duration(seconds: 10),
-      desiredAccuracy: LocationAccuracy.best,
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.best,
+        timeLimit: Duration(seconds: 10),
+      ),
     );
 
     final p = LatLng(pos.latitude, pos.longitude);
@@ -273,7 +275,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                     shape: BoxShape.circle,
                     color: const Color(
                       0xFF2F6BFF,
-                    ).withOpacity(opacity.clamp(0, 1)),
+                    ).withValues(alpha: opacity.clamp(0, 1)),
                   ),
                 ),
                 Container(
@@ -306,8 +308,8 @@ class _HomeMapPageState extends State<HomeMapPage>
         child: Container(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.white.withOpacity(0.92),
-            border: Border.all(color: color.withOpacity(0.45)),
+            color: Colors.white.withValues(alpha: 0.92),
+            border: Border.all(color: color.withValues(alpha: 0.45)),
             boxShadow: MasliveTheme.floatingShadow,
           ),
           child: Icon(icon, color: color, size: 26),
@@ -336,8 +338,8 @@ class _HomeMapPageState extends State<HomeMapPage>
               height: 56,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.92),
-                border: Border.all(color: color.withOpacity(0.45)),
+                color: Colors.white.withValues(alpha: 0.92),
+                border: Border.all(color: color.withValues(alpha: 0.45)),
                 boxShadow: MasliveTheme.floatingShadow,
               ),
             ),
@@ -382,7 +384,7 @@ class _HomeMapPageState extends State<HomeMapPage>
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.94),
+              color: Colors.white.withValues(alpha: 0.94),
               borderRadius: BorderRadius.circular(24),
               boxShadow: MasliveTheme.floatingShadow,
               border: Border.all(color: MasliveTheme.divider),
@@ -421,7 +423,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                           height: 56,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: _placeColor(place.type).withOpacity(0.14),
+                            color: _placeColor(place.type).withValues(alpha: 0.14),
                           ),
                           child: Icon(
                             _placeIcon(place.type),
@@ -444,12 +446,12 @@ class _HomeMapPageState extends State<HomeMapPage>
                                     decoration: BoxDecoration(
                                       color: _placeColor(
                                         place.type,
-                                      ).withOpacity(0.14),
+                                      ).withValues(alpha: 0.14),
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
                                         color: _placeColor(
                                           place.type,
-                                        ).withOpacity(0.4),
+                                        ).withValues(alpha: 0.4),
                                       ),
                                     ),
                                     child: Text(
@@ -536,7 +538,7 @@ class _HomeMapPageState extends State<HomeMapPage>
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.94),
+              color: Colors.white.withValues(alpha: 0.94),
               borderRadius: BorderRadius.circular(24),
               boxShadow: MasliveTheme.floatingShadow,
               border: Border.all(color: MasliveTheme.divider),
@@ -626,7 +628,7 @@ class _HomeMapPageState extends State<HomeMapPage>
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Fermer',
-      barrierColor: Colors.black.withOpacity(0.3),
+      barrierColor: Colors.black.withValues(alpha: 0.3),
       transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (context, animation, secondaryAnimation) {
         Widget item(AppLanguage lang, String label) {
@@ -660,7 +662,7 @@ class _HomeMapPageState extends State<HomeMapPage>
               constraints: const BoxConstraints(maxWidth: 200),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.94),
+                color: Colors.white.withValues(alpha: 0.94),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: MasliveTheme.floatingShadow,
                 border: Border.all(color: MasliveTheme.divider),
@@ -727,7 +729,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                     height: 60,
                     borderRadius: BorderRadius.zero,
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                    backgroundColor: Colors.white.withOpacity(0.50),
+                    backgroundColor: Colors.white.withValues(alpha: 0.50),
                     child: Row(
                       children: [
                         MasliveGradientIconButton(
@@ -829,13 +831,13 @@ class _HomeMapPageState extends State<HomeMapPage>
                                           return PolylineLayer(
                                             polylines: circuits
                                                 .where(
-                                                  (c) => c.points.length >= 1,
+                                                  (c) => c.points.isNotEmpty,
                                                 )
                                                 .map(
                                                   (c) => Polyline(
                                                     points: _circuitPoints(c),
                                                     color: Colors.black
-                                                        .withOpacity(0.65),
+                                                        .withValues(alpha: 0.65),
                                                     strokeWidth: 4,
                                                   ),
                                                 )
@@ -867,8 +869,9 @@ class _HomeMapPageState extends State<HomeMapPage>
                                                 ?.toDouble();
                                             final lng = (loc['lng'] as num?)
                                                 ?.toDouble();
-                                            if (lat == null || lng == null)
+                                            if (lat == null || lng == null) {
                                               continue;
+                                            }
 
                                             final heading =
                                                 (loc['heading'] as num?)
@@ -1088,7 +1091,7 @@ class _ActionItem extends StatelessWidget {
             height: 60,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.85),
+              color: Colors.white.withValues(alpha: 0.85),
               border: Border.all(
                 color: selected ? MasliveTheme.pink : MasliveTheme.divider,
                 width: selected ? 2.0 : 1.0,
@@ -1149,8 +1152,8 @@ class _TrackingPill extends StatelessWidget {
             height: 38,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: (isTracking ? Colors.green : Colors.black).withOpacity(
-                0.08,
+              color: (isTracking ? Colors.green : Colors.black).withValues(
+                alpha: 0.08,
               ),
             ),
             child: Icon(

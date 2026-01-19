@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'group_add_item_page.dart';
 import 'pending_products_page.dart';
+import 'favorites_page.dart';
 
 class AccountAndAdminPage extends StatefulWidget {
   const AccountAndAdminPage({super.key});
@@ -46,8 +47,9 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
               IconButton(
                 tooltip: "Déconnexion",
                 onPressed: () async {
+                  final nav = Navigator.of(context);
                   await _auth.signOut();
-                  if (mounted) Navigator.of(context).pop();
+                  if (mounted) nav.pop();
                 },
                 icon: const Icon(Icons.logout),
               ),
@@ -79,9 +81,8 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
                 subtitle: "Points & circuits sauvegardés",
                 icon: Icons.bookmark,
                 onTap: () {
-                  // TODO: route favoris
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("À brancher : page Favoris")),
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const FavoritesPage()),
                   );
                 },
               ),
@@ -187,6 +188,7 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
                   icon: const Icon(Icons.save),
                   label: const Text("Enregistrer"),
                   onPressed: () async {
+                    final nav = Navigator.of(context);
                     final uid = user!.uid;
                     await _db.collection('users').doc(uid).set({
                       'displayName': nameCtrl.text.trim(),
@@ -194,7 +196,7 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
                       'updatedAt': FieldValue.serverTimestamp(),
                     }, SetOptions(merge: true));
 
-                    if (mounted) Navigator.pop(context);
+                    if (mounted) nav.pop();
                   },
                 ),
               ),
@@ -270,7 +272,7 @@ class _Chip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        color: Colors.black.withOpacity(0.05),
+        color: Colors.black.withValues(alpha: 0.05),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -324,7 +326,7 @@ class _SectionCard extends StatelessWidget {
               width: 44, height: 44,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withValues(alpha: 0.06),
               ),
               child: Icon(icon),
             ),
@@ -464,7 +466,7 @@ class _AdminTile extends StatelessWidget {
               width: 46, height: 46,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withValues(alpha: 0.06),
               ),
               child: Icon(icon),
             ),
@@ -524,6 +526,7 @@ class _AddPoiDialogState extends State<AddPoiDialog> {
         TextButton(onPressed: saving ? null : () => Navigator.pop(context), child: const Text("Annuler")),
         FilledButton(
           onPressed: saving ? null : () async {
+            final nav = Navigator.of(context);
             final name = nameCtrl.text.trim();
             final cat = catCtrl.text.trim();
             final desc = descCtrl.text.trim();
@@ -543,7 +546,7 @@ class _AddPoiDialogState extends State<AddPoiDialog> {
               'createdBy': widget.uid,
               'isActive': true,
             });
-            if (mounted) Navigator.pop(context);
+            if (mounted) nav.pop();
           },
           child: saving ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text("Enregistrer"),
         ),
@@ -622,6 +625,7 @@ class _CreateCircuitDialogState extends State<CreateCircuitDialog> {
         TextButton(onPressed: saving ? null : () => Navigator.pop(context), child: const Text("Annuler")),
         FilledButton(
           onPressed: saving ? null : () async {
+            final nav = Navigator.of(context);
             final title = titleCtrl.text.trim();
             final sLat = double.tryParse(sLatCtrl.text.trim());
             final sLng = double.tryParse(sLngCtrl.text.trim());
@@ -641,7 +645,7 @@ class _CreateCircuitDialogState extends State<CreateCircuitDialog> {
               'createdBy': widget.uid,
               'isPublished': false,
             });
-            if (mounted) Navigator.pop(context);
+            if (mounted) nav.pop();
           },
           child: saving ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text("Créer"),
         ),
@@ -697,6 +701,7 @@ class _StartEndDialogState extends State<StartEndDialog> {
         TextButton(onPressed: saving ? null : () => Navigator.pop(context), child: const Text("Annuler")),
         FilledButton(
           onPressed: saving ? null : () async {
+            final nav = Navigator.of(context);
             final sLat = double.tryParse(sLatCtrl.text.trim());
             final sLng = double.tryParse(sLngCtrl.text.trim());
             final eLat = double.tryParse(eLatCtrl.text.trim());
@@ -711,7 +716,7 @@ class _StartEndDialogState extends State<StartEndDialog> {
               'updatedBy': widget.uid,
             }, SetOptions(merge: true));
 
-            if (mounted) Navigator.pop(context);
+            if (mounted) nav.pop();
           },
           child: saving ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text("Enregistrer"),
         ),

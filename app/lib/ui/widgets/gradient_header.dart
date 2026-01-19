@@ -44,7 +44,7 @@ class MasliveGradientHeader extends StatelessWidget {
             DecoratedBox(decoration: decoration),
             BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-              child: Container(color: Colors.white.withOpacity(0.06)),
+              child: Container(color: Colors.white.withValues(alpha: 0.06)),
             ),
             Padding(padding: padding, child: child),
           ],
