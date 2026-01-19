@@ -1,12 +1,14 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
-class PrestoBottomNav extends StatelessWidget {
+/// Barre de navigation inférieure MASLIVE avec effet verre blanc transparent,
+/// indicateur glissant pastel et animations fluides.
+class MasliveBottomNavGlass extends StatelessWidget {
   final int index;
   final ValueChanged<int> onTap;
   final VoidCallback onPlus;
 
-  const PrestoBottomNav({
+  const MasliveBottomNavGlass({
     super.key,
     required this.index,
     required this.onTap,
@@ -62,7 +64,7 @@ class _GlassBar extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
         child: Container(
-          height: PrestoBottomNav.barHeight,
+          height: MasliveBottomNavGlass.barHeight,
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.82),
             borderRadius: BorderRadius.circular(24),
@@ -86,8 +88,8 @@ class _GlassBar extends StatelessWidget {
               final usableWidth = (constraints.maxWidth - reservedForFab - sidePadding * 2)
                   .clamp(0.0, constraints.maxWidth);
               final safeWidth = usableWidth == 0 ? constraints.maxWidth : usableWidth;
-              final itemWidth = safeWidth / PrestoBottomNav._icons.length;
-              final clampedIndex = index.clamp(0, PrestoBottomNav._icons.length - 1);
+              final itemWidth = safeWidth / MasliveBottomNavGlass._icons.length;
+              final clampedIndex = index.clamp(0, MasliveBottomNavGlass._icons.length - 1);
               final indicatorLeft = (itemWidth * clampedIndex) + (itemWidth - indicatorWidth) / 2;
               final maxLeft = (safeWidth - indicatorWidth).clamp(0.0, safeWidth);
               final resolvedIndicatorLeft = indicatorLeft.clamp(0.0, maxLeft);
@@ -106,9 +108,9 @@ class _GlassBar extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: List.generate(
-                        PrestoBottomNav._icons.length,
+                        MasliveBottomNavGlass._icons.length,
                         (i) => _NavIcon(
-                          icon: PrestoBottomNav._icons[i],
+                          icon: MasliveBottomNavGlass._icons[i],
                           selected: index == i,
                           onTap: () => onTap(i),
                         ),

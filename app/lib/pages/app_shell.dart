@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../widgets/presto_bottom_nav.dart';
+import '../widgets/maslive_bottom_nav_glass.dart';
 import 'home_map_page.dart';
 import 'media_galleries_page.dart';
 import 'group_profile_page.dart';
@@ -19,7 +19,7 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
-    final bottomNavHeight = PrestoBottomNav.barHeight + bottomInset;
+    final bottomNavHeight = MasliveBottomNavGlass.barHeight + bottomInset;
 
     final pages =
         <Widget>[
@@ -39,7 +39,7 @@ class _AppShellState extends State<AppShell> {
 
     return Scaffold(
       body: IndexedStack(index: _index, children: pages),
-      bottomNavigationBar: PrestoBottomNav(
+      bottomNavigationBar: MasliveBottomNavGlass(
         index: _index,
         onTap: (i) => setState(() => _index = i),
         onPlus: () {
