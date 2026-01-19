@@ -1,5 +1,5 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'honeycomb_background.dart';
 
 class PrestoBottomNav extends StatelessWidget {
   final int index;
@@ -14,72 +14,139 @@ class PrestoBottomNav extends StatelessWidget {
   });
 
   static const barHeight = 78.0;
+  static const _icons = <IconData>[
+    Icons.near_me_rounded,
+    Icons.search_rounded,
+    Icons.movie_creation_outlined,
+    Icons.person_rounded,
+  ];
 
   @override
   Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
     return SizedBox(
-      height: barHeight + MediaQuery.of(context).padding.bottom,
+      height: barHeight + bottomPad,
       child: Stack(
         children: [
-          // Barre sombre avec honeycomb
-          Positioned.fill(
-            child: Container(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).padding.bottom,
-              ),
-              decoration: const BoxDecoration(color: Color(0xFF171A20)),
-              child: ClipRRect(
-                child: Opacity(
-                  opacity: 0.20,
-                  child: HoneycombBackground(
-                    child: Container(color: Colors.transparent),
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // Items
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _NavIcon(
-                    icon: Icons.near_me_rounded,
-                    label: '',
-                    selected: index == 0,
-                    onTap: () => onTap(0),
-                  ),
-                  _NavIcon(
-                    icon: Icons.search_rounded,
-                    label: '',
-                    selected: index == 1,
-                    onTap: () => onTap(1),
-                  ),
-                  _NavIcon(
-                    icon: Icons.movie_creation_outlined,
-                    label: '',
-                    selected: index == 2,
-                    onTap: () => onTap(2),
-                  ),
-                  _NavIcon(
-                    icon: Icons.person_rounded,
-                    label: '',
-                    selected: index == 3,
-                    onTap: () => onTap(3),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Bouton + (rond dégradé) en bas à droite
           Positioned(
-            right: 14,
-            bottom: 16 + MediaQuery.of(context).padding.bottom,
+            left: 12,
+            right: 12,
+            bottom: bottomPad,
+            child: _GlassBar(
+              index: index,
+              onTap: onTap,
+            ),
+          ),
+          Positioned(
+            right: 18,
+            bottom: 18 + bottomPad,
             child: _PlusButton(onTap: onPlus),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GlassBar extends StatelessWidget {
+  final int index;
+  final ValueChanged<int> onTap;
+
+  const _GlassBar({required this.index, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+        child: Container(
+          height: PrestoBottomNav.barHeight,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.82),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.35),
+              width: 1.2,
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x24000000),
+                blurRadius: 18,
+                offset: Offset(0, 12),
+              ),
+            ],
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              const reservedForFab = 78.0;
+              const sidePadding = 12.0;
+              const indicatorWidth = 56.0;
+              final usableWidth = (constraints.maxWidth - reservedForFab - sidePadding * 2)
+                  .clamp(0.0, constraints.maxWidth);
+              final safeWidth = usableWidth == 0 ? constraints.maxWidth : usableWidth;
+              final itemWidth = safeWidth / PrestoBottomNav._icons.length;
+              final clampedIndex = index.clamp(0, PrestoBottomNav._icons.length - 1);
+              final indicatorLeft = (itemWidth * clampedIndex) + (itemWidth - indicatorWidth) / 2;
+              final maxLeft = (safeWidth - indicatorWidth).clamp(0.0, safeWidth);
+              final resolvedIndicatorLeft = indicatorLeft.clamp(0.0, maxLeft);
+
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(sidePadding, 0, reservedForFab + sidePadding, 0),
+                child: Stack(
+                  children: [
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 280),
+                      curve: Curves.easeOutCubic,
+                      left: resolvedIndicatorLeft,
+                      bottom: 10,
+                      child: _Indicator(width: indicatorWidth),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: List.generate(
+                        PrestoBottomNav._icons.length,
+                        (i) => _NavIcon(
+                          icon: PrestoBottomNav._icons[i],
+                          selected: index == i,
+                          onTap: () => onTap(i),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Indicator extends StatelessWidget {
+  final double width;
+  const _Indicator({required this.width});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: 42,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFF9FF), Color(0xFFEFF4FF)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.7)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 16,
+            offset: Offset(0, 10),
           ),
         ],
       ),
@@ -89,26 +156,32 @@ class PrestoBottomNav extends StatelessWidget {
 
 class _NavIcon extends StatelessWidget {
   final IconData icon;
-  final String label;
   final bool selected;
   final VoidCallback onTap;
 
   const _NavIcon({
     required this.icon,
-    required this.label,
     required this.selected,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? Colors.white : Colors.white.withOpacity(0.65);
+    final activeColor = const Color(0xFF111827);
+    final idleColor = const Color(0xFF7A8699);
+
     return InkResponse(
       onTap: onTap,
       radius: 28,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-        child: Icon(icon, color: color, size: 24),
+      child: AnimatedSlide(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        offset: selected ? const Offset(0, -0.12) : Offset.zero,
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 160),
+          opacity: selected ? 1 : 0.75,
+          child: Icon(icon, color: selected ? activeColor : idleColor, size: 24),
+        ),
       ),
     );
   }
@@ -135,11 +208,11 @@ class _PlusButton extends StatelessWidget {
               end: Alignment.bottomRight,
               colors: [Color(0xFFFFE36A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
             ),
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
                 blurRadius: 18,
                 offset: Offset(0, 10),
-                color: Color(0x59000000),
+                color: Color(0x24000000),
               ),
             ],
           ),
