@@ -59,11 +59,11 @@ class _HomeMapPageState extends State<HomeMapPage>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _menuSlideAnimation = Tween<Offset>(
-      begin: const Offset(1.0, 0.0),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _menuAnimController, curve: Curves.easeOut));
-    
+    _menuSlideAnimation =
+        Tween<Offset>(begin: const Offset(1.0, 0.0), end: Offset.zero).animate(
+          CurvedAnimation(parent: _menuAnimController, curve: Curves.easeOut),
+        );
+
     _pulseController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
@@ -72,7 +72,7 @@ class _HomeMapPageState extends State<HomeMapPage>
     _pulseAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-    
+
     _bootstrapLocation();
   }
 
@@ -262,7 +262,7 @@ class _HomeMapPageState extends State<HomeMapPage>
           builder: (context, child) {
             final scale = 1.0 + (_pulseAnimation.value * 0.3);
             final opacity = 0.18 - (_pulseAnimation.value * 0.08);
-            
+
             return Stack(
               alignment: Alignment.center,
               children: [
@@ -271,7 +271,9 @@ class _HomeMapPageState extends State<HomeMapPage>
                   height: 44 * scale,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: const Color(0xFF2F6BFF).withOpacity(opacity.clamp(0, 1)),
+                    color: const Color(
+                      0xFF2F6BFF,
+                    ).withOpacity(opacity.clamp(0, 1)),
                   ),
                 ),
                 Container(
@@ -342,18 +344,10 @@ class _HomeMapPageState extends State<HomeMapPage>
             if (heading != null)
               Transform.rotate(
                 angle: (heading) * (3.1415926535 / 180),
-                child: Icon(
-                  Icons.navigation_rounded,
-                  size: 22,
-                  color: color,
-                ),
+                child: Icon(Icons.navigation_rounded, size: 22, color: color),
               )
             else
-              Icon(
-                Icons.wifi_tethering_rounded,
-                size: 22,
-                color: color,
-              ),
+              Icon(Icons.wifi_tethering_rounded, size: 22, color: color),
             Positioned(
               bottom: 6,
               child: Container(
@@ -448,12 +442,14 @@ class _HomeMapPageState extends State<HomeMapPage>
                                       vertical: 6,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: _placeColor(place.type)
-                                          .withOpacity(0.14),
+                                      color: _placeColor(
+                                        place.type,
+                                      ).withOpacity(0.14),
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
-                                        color:
-                                            _placeColor(place.type).withOpacity(0.4),
+                                        color: _placeColor(
+                                          place.type,
+                                        ).withOpacity(0.4),
                                       ),
                                     ),
                                     child: Text(
@@ -472,17 +468,13 @@ class _HomeMapPageState extends State<HomeMapPage>
                               const SizedBox(height: 6),
                               Text(
                                 place.name,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
+                                style: Theme.of(context).textTheme.titleMedium
                                     ?.copyWith(fontWeight: FontWeight.w900),
                               ),
                               const SizedBox(height: 6),
                               Text(
                                 '${place.city} • ${place.rating.toStringAsFixed(1)}★',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
+                                style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
                                       color: MasliveTheme.textSecondary,
                                       fontWeight: FontWeight.w700,
@@ -491,9 +483,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                               const SizedBox(height: 6),
                               Text(
                                 'Coordonnées: ${place.lat.toStringAsFixed(5)}, ${place.lng.toStringAsFixed(5)}',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
+                                style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
                                       color: MasliveTheme.textSecondary,
                                       fontWeight: FontWeight.w600,
@@ -513,17 +503,13 @@ class _HomeMapPageState extends State<HomeMapPage>
                         children: [
                           Text(
                             'Description',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
+                            style: Theme.of(context).textTheme.titleSmall
                                 ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'Informations détaillées sur ce lieu. Ajoutez ici un descriptif plus long si disponible.',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
+                            style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(color: MasliveTheme.textSecondary),
                           ),
                         ],
@@ -688,10 +674,11 @@ class _HomeMapPageState extends State<HomeMapPage>
                       Expanded(
                         child: Text(
                           'Langue',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: MasliveTheme.textPrimary,
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w900,
+                                color: MasliveTheme.textPrimary,
+                              ),
                         ),
                       ),
                       IconButton(
@@ -743,311 +730,307 @@ class _HomeMapPageState extends State<HomeMapPage>
                     backgroundColor: Colors.white.withOpacity(0.50),
                     child: Row(
                       children: [
-                      MasliveGradientIconButton(
-                        icon: Icons.account_circle_rounded,
-                        tooltip: 'Profil',
-                        onTap: () =>
-                            Navigator.pushNamed(context, '/account-ui'),
-                      ),
-                      const SizedBox(width: 12),
-                      const Spacer(),
-                      MasliveGradientIconButton(
-                        icon: Icons.language_rounded,
-                        tooltip: 'Langue',
-                        onTap: _openLanguagePicker,
-                      ),
-                      const SizedBox(width: 10),
-                      MasliveGradientIconButton(
-                        icon: Icons.shopping_bag_rounded,
-                        tooltip: 'Shop',
-                        onTap: () => Navigator.pushNamed(context, '/shop-ui'),
-                      ),
-                      const SizedBox(width: 10),
-                      MasliveGradientIconButton(
-                        icon: Icons.menu_rounded,
-                        tooltip: 'Menu',
-                        onTap: () {
-                          setState(() => _showActionsMenu = !_showActionsMenu);
-                          if (_showActionsMenu) {
-                            _menuAnimController.forward();
-                          } else {
-                            _menuAnimController.reverse();
-                          }
-                        },
-                      ),
-                    ],
+                        MasliveGradientIconButton(
+                          icon: Icons.account_circle_rounded,
+                          tooltip: 'Profil',
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/account-ui'),
+                        ),
+                        const SizedBox(width: 12),
+                        const Spacer(),
+                        MasliveGradientIconButton(
+                          icon: Icons.language_rounded,
+                          tooltip: 'Langue',
+                          onTap: _openLanguagePicker,
+                        ),
+                        const SizedBox(width: 10),
+                        MasliveGradientIconButton(
+                          icon: Icons.shopping_bag_rounded,
+                          tooltip: 'Shop',
+                          onTap: () => Navigator.pushNamed(context, '/shop-ui'),
+                        ),
+                        const SizedBox(width: 10),
+                        MasliveGradientIconButton(
+                          icon: Icons.menu_rounded,
+                          tooltip: 'Menu',
+                          onTap: () {
+                            setState(
+                              () => _showActionsMenu = !_showActionsMenu,
+                            );
+                            if (_showActionsMenu) {
+                              _menuAnimController.forward();
+                            } else {
+                              _menuAnimController.reverse();
+                            }
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                ),
 
-                Expanded(
-                  child: Stack(
-                    children: [
-                      // Carte (réelle) - plein écran
-                      MasliveCard(
-                        radius: 0,
-                        padding: EdgeInsets.zero,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.zero,
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              FlutterMap(
-                                mapController: _mapController,
-                                options: MapOptions(
-                                  initialCenter: _userPos ?? _fallbackCenter,
-                                  initialZoom: _userPos != null ? 13.5 : 12.5,
-                                  onPositionChanged: (pos, hasGesture) {
-                                    if (hasGesture) _followUser = false;
-                                  },
-                                ),
-                                children: [
-                                  TileLayer(
-                                    urlTemplate:
-                                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                    userAgentPackageName: 'com.maslive.app',
-                                  ),
-
-                                  if (_userPos != null)
-                                    MarkerLayer(
-                                      markers: [_userMarker(_userPos!)],
-                                    ),
-
-                                  StreamBuilder<List<Place>>(
-                                    stream: _placesStream(),
-                                    builder: (context, snap) {
-                                      final places =
-                                          snap.data ?? const <Place>[];
-                                      if (places.isEmpty) {
-                                        return const SizedBox.shrink();
-                                      }
-                                      return MarkerLayer(
-                                        markers: places
-                                            .map(_placeMarker)
-                                            .toList(),
-                                      );
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        // Carte (réelle) - plein écran
+                        MasliveCard(
+                          radius: 0,
+                          padding: EdgeInsets.zero,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.zero,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                FlutterMap(
+                                  mapController: _mapController,
+                                  options: MapOptions(
+                                    initialCenter: _userPos ?? _fallbackCenter,
+                                    initialZoom: _userPos != null ? 13.5 : 12.5,
+                                    onPositionChanged: (pos, hasGesture) {
+                                      if (hasGesture) _followUser = false;
                                     },
                                   ),
+                                  children: [
+                                    TileLayer(
+                                      urlTemplate:
+                                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                      userAgentPackageName: 'com.maslive.app',
+                                    ),
 
-                                  if (_selected == _MapAction.tracking) ...[
-                                    StreamBuilder<List<Circuit>>(
-                                      stream: _circuitStream,
+                                    if (_userPos != null)
+                                      MarkerLayer(
+                                        markers: [_userMarker(_userPos!)],
+                                      ),
+
+                                    StreamBuilder<List<Place>>(
+                                      stream: _placesStream(),
                                       builder: (context, snap) {
-                                        final circuits = snap.data ?? const [];
-                                        if (circuits.isEmpty) {
+                                        final places =
+                                            snap.data ?? const <Place>[];
+                                        if (places.isEmpty) {
                                           return const SizedBox.shrink();
                                         }
-                                        return PolylineLayer(
-                                          polylines: circuits
-                                              .where((c) => c.points.isNotEmpty)
-                                              .map(
-                                                (c) => Polyline(
-                                                  points: _circuitPoints(c),
-                                                  color: Colors.black.withOpacity(0.65),
-                                                  strokeWidth: 4,
-                                                ),
-                                              )
+                                        return MarkerLayer(
+                                          markers: places
+                                              .map(_placeMarker)
                                               .toList(),
                                         );
                                       },
                                     ),
-                                    StreamBuilder<
-                                      QuerySnapshot<Map<String, dynamic>>
-                                    >(
-                                      stream: FirebaseFirestore.instance
-                                          .collection('groups')
-                                          .snapshots(),
-                                      builder: (context, snap) {
-                                        if (!snap.hasData) {
-                                          return const SizedBox.shrink();
-                                        }
 
-                                        final markers = <Marker>[];
-                                        for (final doc in snap.data!.docs) {
-                                          final d = doc.data();
-                                          final name = (d['name'] ?? doc.id)
-                                              .toString();
-                                          final loc =
-                                              (d['lastLocation']
-                                                  as Map<String, dynamic>?) ??
-                                              const {};
-                                          final lat = (loc['lat'] as num?)
-                                              ?.toDouble();
-                                          final lng = (loc['lng'] as num?)
-                                              ?.toDouble();
-                                          if (lat == null || lng == null) {
-                                            continue;
+                                    if (_selected == _MapAction.tracking) ...[
+                                      StreamBuilder<List<Circuit>>(
+                                        stream: _circuitStream,
+                                        builder: (context, snap) {
+                                          final circuits =
+                                              snap.data ?? const [];
+                                          if (circuits.isEmpty) {
+                                            return const SizedBox.shrink();
                                           }
-
-                                          final heading =
-                                              (loc['heading'] as num?)
-                                                  ?.toDouble();
-                                          final updatedAt = loc['updatedAt'];
-                                          if (updatedAt is Timestamp) {
-                                            final age = DateTime.now()
-                                                .difference(
-                                                  updatedAt.toDate(),
+                                          return PolylineLayer(
+                                            polylines: circuits
+                                                .where(
+                                                  (c) => c.points.length >= 1,
                                                 )
-                                                .inSeconds;
-                                            if (age > 180) continue;
+                                                .map(
+                                                  (c) => Polyline(
+                                                    points: _circuitPoints(c),
+                                                    color: Colors.black
+                                                        .withOpacity(0.65),
+                                                    strokeWidth: 4,
+                                                  ),
+                                                )
+                                                .toList(),
+                                          );
+                                        },
+                                      ),
+                                      StreamBuilder<
+                                        QuerySnapshot<Map<String, dynamic>>
+                                      >(
+                                        stream: FirebaseFirestore.instance
+                                            .collection('groups')
+                                            .snapshots(),
+                                        builder: (context, snap) {
+                                          if (!snap.hasData) {
+                                            return const SizedBox.shrink();
                                           }
 
-                                          markers.add(
-                                            _groupMarker(
-                                              p: LatLng(lat, lng),
-                                              label: name,
-                                              heading: heading,
-                                              color: _groupColor(doc.id),
-                                            ),
-                                          );
-                                        }
+                                          final markers = <Marker>[];
+                                          for (final doc in snap.data!.docs) {
+                                            final d = doc.data();
+                                            final name = (d['name'] ?? doc.id)
+                                                .toString();
+                                            final loc =
+                                                (d['lastLocation']
+                                                    as Map<String, dynamic>?) ??
+                                                const {};
+                                            final lat = (loc['lat'] as num?)
+                                                ?.toDouble();
+                                            final lng = (loc['lng'] as num?)
+                                                ?.toDouble();
+                                            if (lat == null || lng == null)
+                                              continue;
 
-                                        if (markers.isEmpty) {
-                                          return const SizedBox.shrink();
-                                        }
+                                            final heading =
+                                                (loc['heading'] as num?)
+                                                    ?.toDouble();
+                                            final updatedAt = loc['updatedAt'];
+                                            if (updatedAt is Timestamp) {
+                                              final age = DateTime.now()
+                                                  .difference(
+                                                    updatedAt.toDate(),
+                                                  )
+                                                  .inSeconds;
+                                              if (age > 180) continue;
+                                            }
 
-                                        return MarkerLayer(markers: markers);
-                                      },
-                                    ),
+                                            markers.add(
+                                              _groupMarker(
+                                                p: LatLng(lat, lng),
+                                                label: name,
+                                                heading: heading,
+                                                color: _groupColor(doc.id),
+                                              ),
+                                            );
+                                          }
+
+                                          if (markers.isEmpty) {
+                                            return const SizedBox.shrink();
+                                          }
+
+                                          return MarkerLayer(markers: markers);
+                                        },
+                                      ),
+                                    ],
                                   ],
-                                ],
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
 
-                      // Overlay actions - affiche quand burger cliqué
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          ignoring: !_showActionsMenu,
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.translucent,
-                            onTap: () {
-                              setState(() => _showActionsMenu = false);
-                              _menuAnimController.reverse();
-                            },
-                            onHorizontalDragEnd: (details) {
-                              if (details.primaryVelocity != null &&
-                                  details.primaryVelocity! > 0) {
+                        // Overlay actions - affiche quand burger cliqué
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            ignoring: !_showActionsMenu,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.translucent,
+                              onTap: () {
                                 setState(() => _showActionsMenu = false);
                                 _menuAnimController.reverse();
-                              }
-                            },
-                            child: Align(
-                              alignment: Alignment.topRight,
-                              child: SlideTransition(
-                                position: _menuSlideAnimation,
-                                child: IgnorePointer(
-                                  ignoring: !_showActionsMenu,
-                                  child: Container(
-                                    width: 86,
-                                    margin: const EdgeInsets.only(
-                                      right: 4,
-                                      top: 18,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.65),
-                                      borderRadius: BorderRadius.circular(
-                                        MasliveTheme.rPill,
+                              },
+                              onHorizontalDragEnd: (details) {
+                                if (details.primaryVelocity != null &&
+                                    details.primaryVelocity! > 0) {
+                                  setState(() => _showActionsMenu = false);
+                                  _menuAnimController.reverse();
+                                }
+                              },
+                              child: Align(
+                                alignment: Alignment.topRight,
+                                child: SlideTransition(
+                                  position: _menuSlideAnimation,
+                                  child: IgnorePointer(
+                                    ignoring: !_showActionsMenu,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(
+                                        right: 4,
+                                        top: 18,
                                       ),
-                                      boxShadow: MasliveTheme.floatingShadow,
-                                    ),
-                                    padding: const EdgeInsets.all(8),
-                                    child: SingleChildScrollView(
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          _ActionItem(
-                                            label: 'Centrer',
-                                            icon: Icons.my_location_rounded,
-                                            selected: false,
-                                            onTap: () {
-                                              _recenterOnUser();
-                                              setState(
-                                                () =>
-                                                    _showActionsMenu = false,
-                                              );
-                                              _menuAnimController.reverse();
-                                            },
-                                          ),
-                                          const SizedBox(height: 8),
-                                          _ActionItem(
-                                            label: 'Tracking',
-                                            icon: Icons.track_changes_rounded,
-                                            selected:
-                                                _selected ==
-                                                _MapAction.tracking,
-                                            onTap: () {
-                                              setState(() {
-                                                _selected =
-                                                    _MapAction.tracking;
-                                                _showActionsMenu = false;
-                                              });
-                                              _menuAnimController.reverse();
-                                            },
-                                          ),
-                                          const SizedBox(height: 8),
-                                          _ActionItem(
-                                            label: 'Visiter',
-                                            icon: Icons.map_outlined,
-                                            selected:
-                                                _selected ==
-                                                _MapAction.visiter,
-                                            onTap: () {
-                                              setState(() {
-                                                _selected =
-                                                    _MapAction.visiter;
-                                                _showActionsMenu = false;
-                                              });
-                                              _menuAnimController.reverse();
-                                            },
-                                          ),
-                                          const SizedBox(height: 8),
-                                          _ActionItem(
-                                            label: 'Food',
-                                            icon: Icons.fastfood_rounded,
-                                            selected:
-                                                _selected == _MapAction.food,
-                                            onTap: () {
-                                              setState(() {
-                                                _selected = _MapAction.food;
-                                                _showActionsMenu = false;
-                                              });
-                                              _menuAnimController.reverse();
-                                            },
-                                          ),
-                                          const SizedBox(height: 8),
-                                          _ActionItem(
-                                            label: 'Assistance',
-                                            icon: Icons.shield_outlined,
-                                            selected:
-                                                _selected ==
-                                                _MapAction.encadrement,
-                                            onTap: () {
-                                              setState(() {
-                                                _selected =
-                                                    _MapAction.encadrement;
-                                                _showActionsMenu = false;
-                                              });
-                                              _menuAnimController.reverse();
-                                            },
-                                          ),
-                                          const SizedBox(height: 8),
-                                          _ActionItem(
-                                            label: 'WC',
-                                            icon: Icons.wc_rounded,
-                                            selected:
-                                                _selected ==
-                                                _MapAction.wc,
-                                            onTap: () {
-                                              setState(() {
-                                                _selected = _MapAction.wc;
-                                                _showActionsMenu = false;
-                                              });
-                                              _menuAnimController.reverse();
-                                            },
-                                          ),
-                                        ],
+                                      child: SingleChildScrollView(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            _ActionItem(
+                                              label: 'Centrer',
+                                              icon: Icons.my_location_rounded,
+                                              selected: false,
+                                              onTap: () {
+                                                _recenterOnUser();
+                                                setState(
+                                                  () =>
+                                                      _showActionsMenu = false,
+                                                );
+                                                _menuAnimController.reverse();
+                                              },
+                                            ),
+                                            const SizedBox(height: 8),
+                                            _ActionItem(
+                                              label: 'Tracking',
+                                              icon: Icons.track_changes_rounded,
+                                              selected:
+                                                  _selected ==
+                                                  _MapAction.tracking,
+                                              onTap: () {
+                                                setState(() {
+                                                  _selected =
+                                                      _MapAction.tracking;
+                                                  _showActionsMenu = false;
+                                                });
+                                                _menuAnimController.reverse();
+                                              },
+                                            ),
+                                            const SizedBox(height: 8),
+                                            _ActionItem(
+                                              label: 'Visiter',
+                                              icon: Icons.map_outlined,
+                                              selected:
+                                                  _selected ==
+                                                  _MapAction.visiter,
+                                              onTap: () {
+                                                setState(() {
+                                                  _selected =
+                                                      _MapAction.visiter;
+                                                  _showActionsMenu = false;
+                                                });
+                                                _menuAnimController.reverse();
+                                              },
+                                            ),
+                                            const SizedBox(height: 8),
+                                            _ActionItem(
+                                              label: 'Food',
+                                              icon: Icons.fastfood_rounded,
+                                              selected:
+                                                  _selected == _MapAction.food,
+                                              onTap: () {
+                                                setState(() {
+                                                  _selected = _MapAction.food;
+                                                  _showActionsMenu = false;
+                                                });
+                                                _menuAnimController.reverse();
+                                              },
+                                            ),
+                                            const SizedBox(height: 8),
+                                            _ActionItem(
+                                              label: 'Assistance',
+                                              icon: Icons.shield_outlined,
+                                              selected:
+                                                  _selected ==
+                                                  _MapAction.encadrement,
+                                              onTap: () {
+                                                setState(() {
+                                                  _selected =
+                                                      _MapAction.encadrement;
+                                                  _showActionsMenu = false;
+                                                });
+                                                _menuAnimController.reverse();
+                                              },
+                                            ),
+                                            const SizedBox(height: 8),
+                                            _ActionItem(
+                                              label: 'WC',
+                                              icon: Icons.wc_rounded,
+                                              selected:
+                                                  _selected == _MapAction.wc,
+                                              onTap: () {
+                                                setState(() {
+                                                  _selected = _MapAction.wc;
+                                                  _showActionsMenu = false;
+                                                });
+                                                _menuAnimController.reverse();
+                                              },
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -1056,50 +1039,24 @@ class _HomeMapPageState extends State<HomeMapPage>
                             ),
                           ),
                         ),
-                      ),
 
-                      if (_selected == _MapAction.tracking)
-                        Positioned(
-                          left: 16,
-                          right: 90,
-                          bottom: 18,
-                          child: _TrackingPill(
-                            isTracking: _isTracking,
-                            onToggle: _toggleTracking,
-                          ),
-                        ),
-
-                      // Indicateur onglet - montre la nav bar cachée
-                      if (!_showActionsMenu)
-                        Positioned(
-                          right: 90,
-                          top: 18,
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() => _showActionsMenu = true);
-                              _menuAnimController.forward();
-                            },
-                            child: Container(
-                              width: 12,
-                              height: 70,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.65),
-                                borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(12),
-                                  bottomLeft: Radius.circular(12),
-                                ),
-                                boxShadow: MasliveTheme.floatingShadow,
-                              ),
+                        if (_selected == _MapAction.tracking)
+                          Positioned(
+                            left: 16,
+                            right: 90,
+                            bottom: 18,
+                            child: _TrackingPill(
+                              isTracking: _isTracking,
+                              onToggle: _toggleTracking,
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ],
-        ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1133,9 +1090,7 @@ class _ActionItem extends StatelessWidget {
               shape: BoxShape.circle,
               color: Colors.white.withOpacity(0.85),
               border: Border.all(
-                color: selected
-                    ? MasliveTheme.pink
-                    : MasliveTheme.divider,
+                color: selected ? MasliveTheme.pink : MasliveTheme.divider,
                 width: selected ? 2.0 : 1.0,
               ),
               boxShadow: selected ? MasliveTheme.cardShadow : const [],

@@ -101,6 +101,13 @@ flutter_native_splash:
   android: true
   ios: true
   web: true
+  fullscreen: true
+  android_gravity: fill
+  ios_content_mode: scaleAspectFill
+  web_image_mode: cover
+  android_12:
+    color: "#000000"
+    image: assets/splash/maslivepink.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
