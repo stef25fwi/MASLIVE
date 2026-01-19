@@ -50,8 +50,9 @@ class _PaywallPageState extends State<PaywallPage> {
         actions: [
           TextButton(
             onPressed: () async {
+              final nav = Navigator.of(context);
               await premium.restorePurchases();
-              if (mounted) Navigator.pop(context);
+              if (mounted) nav.pop();
             },
             child: const Text(
               'Restaurer',
@@ -111,12 +112,14 @@ class _PaywallPageState extends State<PaywallPage> {
                   subtitle: desc,
                   price: price,
                   onTap: () async {
+                    final nav = Navigator.of(context);
+                    final messenger = ScaffoldMessenger.of(context);
                     try {
                       await PremiumService.instance.purchasePackage(p);
-                      if (mounted) Navigator.pop(context);
+                      if (mounted) nav.pop();
                     } catch (e) {
                       if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      messenger.showSnackBar(
                         SnackBar(content: Text('Achat annulé/échoué: $e')),
                       );
                     }

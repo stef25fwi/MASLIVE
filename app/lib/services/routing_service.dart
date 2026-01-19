@@ -69,7 +69,7 @@ class RoutingService {
         instruction: instruction,
       );
     } catch (e) {
-      print('Erreur getRoute: $e');
+      // print('Erreur getRoute: $e');
       return null;
     }
   }
@@ -117,7 +117,7 @@ class RoutingService {
         instruction: '${distance ~/ 1000} km - ${duration ~/ 60} min',
       );
     } catch (e) {
-      print('Erreur getMultiRoute: $e');
+      // print('Erreur getMultiRoute: $e');
       return null;
     }
   }

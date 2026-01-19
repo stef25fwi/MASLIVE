@@ -202,7 +202,7 @@ class _MapAdminEditorPageState extends State<MapAdminEditorPage> {
         child: Container(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.black.withOpacity(0.65),
+            color: Colors.black.withValues(alpha: 0.65),
           ),
           child: Icon(icon, color: Colors.white),
         ),
@@ -326,7 +326,7 @@ class _HintBar extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        color: Colors.white.withOpacity(0.92),
+        color: Colors.white.withValues(alpha: 0.92),
         border: Border.all(color: Colors.black12),
       ),
       child: Row(
@@ -364,7 +364,7 @@ class _SmallIndexBadge extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.black.withOpacity(0.75),
+        color: Colors.black.withValues(alpha: 0.75),
       ),
       child: Text(
         "$index",

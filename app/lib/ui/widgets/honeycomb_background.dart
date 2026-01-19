@@ -51,7 +51,7 @@ class HoneycombBackground extends StatelessWidget {
                     'assets/textures/maslive_honeycomb_2048.png',
                     fit: BoxFit.cover,
                     filterQuality: FilterQuality.low,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
                   ),
                 ),
               ),

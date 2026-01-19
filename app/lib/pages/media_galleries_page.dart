@@ -91,11 +91,11 @@ class MediaGalleriesPage extends StatelessWidget {
     );
   }
 
-  List<_Gallery> _demoGalleries() {
+  List<Gallery> _demoGalleries() {
     // Démo locale (sans dépendances) : on réutilise le logo en attendant de brancher Storage.
     // Remplace _demoAsset par des URLs ou des assets réels plus tard.
     return [
-      _Gallery(
+      Gallery(
         title: 'Backstage',
         subtitle: 'Coulisses & répétitions',
         images: const [_demoAsset, _demoAsset, _demoAsset, _demoAsset],
@@ -105,7 +105,7 @@ class MediaGalleriesPage extends StatelessWidget {
           colors: [Color(0xFFFFE36A), Color(0xFFFF7BC5)],
         ),
       ),
-      _Gallery(
+      Gallery(
         title: 'Live',
         subtitle: 'Concerts & scène',
         images: const [
@@ -121,7 +121,7 @@ class MediaGalleriesPage extends StatelessWidget {
           colors: [Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
         ),
       ),
-      _Gallery(
+      Gallery(
         title: 'Team',
         subtitle: 'Moments du crew',
         images: const [_demoAsset, _demoAsset, _demoAsset],
@@ -131,7 +131,7 @@ class MediaGalleriesPage extends StatelessWidget {
           colors: [Color(0xFF7CE0FF), Color(0xFFFFE36A)],
         ),
       ),
-      _Gallery(
+      Gallery(
         title: 'Flyers',
         subtitle: 'Affiches & visuels',
         images: const [
@@ -155,7 +155,7 @@ class MediaGalleriesPage extends StatelessWidget {
 class GalleryDetailPage extends StatelessWidget {
   const GalleryDetailPage({super.key, required this.gallery});
 
-  final _Gallery gallery;
+  final Gallery gallery;
 
   @override
   Widget build(BuildContext context) {
@@ -491,8 +491,8 @@ class _TipCard extends StatelessWidget {
   }
 }
 
-class _Gallery {
-  const _Gallery({
+class Gallery {
+  const Gallery({
     required this.title,
     required this.subtitle,
     required this.images,

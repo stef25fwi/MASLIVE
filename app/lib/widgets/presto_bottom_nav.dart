@@ -61,10 +61,10 @@ class _GlassBar extends StatelessWidget {
         child: Container(
           height: PrestoBottomNav.barHeight,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.82),
+            color: Colors.white.withValues(alpha: 0.82),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: Colors.white.withOpacity(0.35),
+              color: Colors.white.withValues(alpha: 0.35),
               width: 1.2,
             ),
             boxShadow: const [
@@ -153,7 +153,7 @@ class _Indicator extends StatelessWidget {
           colors: [Color(0xFFFFF9FF), Color(0xFFEFF4FF)],
         ),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withOpacity(0.7)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.7)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x14000000),
