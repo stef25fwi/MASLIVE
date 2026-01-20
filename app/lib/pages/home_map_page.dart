@@ -20,7 +20,7 @@ import '../services/firestore_service.dart';
 import '../services/geolocation_service.dart';
 import '../services/localization_service.dart';
 
-enum _MapAction { ville, tracking, visiter, encadrement, food, wc }
+enum _MapAction { ville, tracking, visiter, encadrement, food, wc, parking }
 
 class HomeMapPage extends StatefulWidget {
   const HomeMapPage({super.key});
@@ -187,6 +187,8 @@ class _HomeMapPageState extends State<HomeMapPage>
         return _firestore.getPlacesByTypeStream(PlaceType.market);
       case _MapAction.wc:
         return _firestore.getPlacesByTypeStream(PlaceType.wc);
+      case _MapAction.parking:
+        return _firestore.getPlacesStream();
       case _MapAction.tracking:
       case _MapAction.ville:
         return _firestore.getPlacesStream();
@@ -1018,6 +1020,21 @@ class _HomeMapPageState extends State<HomeMapPage>
                                             ),
                                             const SizedBox(height: 8),
                                             _ActionItem(
+                                              label: 'Parking',
+                                              icon: Icons.local_parking,
+                                              color: const Color(0xFF0D97EB),
+                                              selected:
+                                                  _selected == _MapAction.parking,
+                                              onTap: () {
+                                                setState(() {
+                                                  _selected = _MapAction.parking;
+                                                  _showActionsMenu = false;
+                                                });
+                                                _menuAnimController.reverse();
+                                              },
+                                            ),
+                                            const SizedBox(height: 8),
+                                            _ActionItem(
                                               label: 'Assistance',
                                               icon: Icons.shield_outlined,
                                               selected:
@@ -1085,12 +1102,14 @@ class _ActionItem extends StatelessWidget {
   final IconData icon;
   final bool selected;
   final VoidCallback onTap;
+  final Color? color;
 
   const _ActionItem({
     required this.label,
     required this.icon,
     required this.selected,
     required this.onTap,
+    this.color,
   });
 
   @override
@@ -1107,7 +1126,9 @@ class _ActionItem extends StatelessWidget {
               shape: BoxShape.circle,
               color: Colors.white.withValues(alpha: 0.92),
               border: Border.all(
-                color: selected ? MasliveTheme.pink : MasliveTheme.divider,
+                color: selected
+                    ? (color ?? MasliveTheme.pink)
+                    : MasliveTheme.divider,
                 width: selected ? 2.0 : 1.0,
               ),
               boxShadow: selected ? MasliveTheme.cardShadow : const [],
@@ -1119,8 +1140,8 @@ class _ActionItem extends StatelessWidget {
                   icon,
                   size: 32,
                   color: selected
-                      ? MasliveTheme.pink
-                      : MasliveTheme.textPrimary,
+                      ? (color ?? MasliveTheme.pink)
+                      : (color ?? MasliveTheme.textPrimary),
                 ),
                 const SizedBox(height: 4),
                 Padding(
@@ -1132,8 +1153,8 @@ class _ActionItem extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: selected
-                          ? MasliveTheme.pink
-                          : MasliveTheme.textSecondary,
+                          ? (color ?? MasliveTheme.pink)
+                          : (color ?? MasliveTheme.textSecondary),
                       fontWeight: FontWeight.w700,
                       fontSize: 10,
                     ),
