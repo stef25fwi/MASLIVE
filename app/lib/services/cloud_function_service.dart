@@ -10,7 +10,7 @@ class CloudFunctionService {
     return _instance;
   }
 
-  final FirebaseFunctions _functions = FirebaseFunctions.instance;
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(region: 'us-east1');
 
   /// Nearby Search: Cherche des groupes proches (via `groups.lastLocation`)
   /// Cloud Function: `nearbySearch`

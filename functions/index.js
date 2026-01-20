@@ -13,7 +13,7 @@ const {
 } = require("firebase-functions/v2/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 
-setGlobalOptions({ region: "us-central1" });
+setGlobalOptions({ region: "us-east1" });
 
 admin.initializeApp();
 const db = admin.firestore();

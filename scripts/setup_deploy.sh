@@ -4,7 +4,11 @@ set -euo pipefail
 cd /workspaces/MASLIVE/app
 flutter pub get
 
-cd /workspaces/MASLIVE
-firebase deploy --only firestore:rules,functions
+echo "🔨 Building Flutter Web..."
+flutter build web --release
 
-echo "OK: pub get + deploy terminés"
+cd /workspaces/MASLIVE
+echo "🚀 Deploying to Firebase..."
+firebase deploy --only firestore:rules,functions,hosting
+
+echo "✅ Déploiement complet terminé (Firestore + Functions + Web)"

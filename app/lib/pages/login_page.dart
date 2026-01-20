@@ -1,3 +1,5 @@
+import 'dart:ui';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../session/session_scope.dart';
 import 'auth/auth_action_runner.dart';
@@ -11,8 +13,9 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _email = TextEditingController();
-  final _pass = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  bool _obscure = true;
   bool _loading = false;
   String? _error;
 
@@ -59,115 +62,444 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
-    _email.dispose();
-    _pass.dispose();
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    const bg = Color(0xFFFFFFFF);
+    const text = Color(0xFF1A1A1A);
+    const subText = Color(0xFF6B7280);
+    const border = Color(0x1A111827);
+
+    const masliveGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        Color(0xFFFFE08A),
+        Color(0xFFFFB067),
+        Color(0xFFFF6FAE),
+        Color(0xFF9B7BFF),
+        Color(0xFF4FD8FF),
+      ],
+    );
     return Scaffold(
-      appBar: AppBar(title: const Text('Connexion')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      backgroundColor: bg,
+      body: SafeArea(
+        child: Stack(
           children: [
-            TextField(
-              controller: _email,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'Email'),
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _MasliveGlowPainter(gradient: masliveGradient),
+              ),
             ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _pass,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Mot de passe'),
+            Positioned.fill(
+              child: Opacity(
+                opacity: 0.06,
+                child: CustomPaint(painter: _HexPatternPainter()),
+              ),
             ),
-            const SizedBox(height: 14),
-            if (_error != null)
-              Text(_error!, style: const TextStyle(color: Colors.red)),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton(
-                    onPressed: _loading
-                        ? null
-                        : () => _run(
-                            () => AuthService.instance.signInWithEmailPassword(
-                              email: _email.text.trim(),
-                              password: _pass.text,
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: _GlassCard(
+                    borderColor: border,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: 6),
+                        Text(
+                          "Connexion",
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: text,
+                                letterSpacing: 0.2,
+                              ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          "Accédez à votre espace",
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: subText,
+                                fontWeight: FontWeight.w500,
+                              ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 22),
+                        if (_error != null) ...[
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.red.shade200),
+                            ),
+                            child: Text(
+                              _error!,
+                              style: TextStyle(color: Colors.red.shade700, fontSize: 13),
                             ),
                           ),
-                    child: _loading
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Se connecter'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _loading
-                        ? null
-                        : () => _run(
-                            () => AuthService.instance
-                                .createUserWithEmailPassword(
-                                  email: _email.text.trim(),
-                                  password: _pass.text,
-                                ),
+                          const SizedBox(height: 12),
+                        ],
+                        _PremiumField(
+                          controller: _emailCtrl,
+                          hintText: "Email",
+                          prefixIcon: Icons.mail_outline_rounded,
+                          borderColor: border,
+                        ),
+                        const SizedBox(height: 12),
+                        _PremiumField(
+                          controller: _passCtrl,
+                          hintText: "Mot de passe",
+                          prefixIcon: Icons.lock_outline_rounded,
+                          borderColor: border,
+                          obscureText: _obscure,
+                          suffix: IconButton(
+                            onPressed: () => setState(() => _obscure = !_obscure),
+                            icon: Icon(
+                              _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                              color: const Color(0xFF6B7280),
+                            ),
                           ),
-                    child: const Text('Créer un compte'),
+                        ),
+                        const SizedBox(height: 18),
+                        _GradientButton(
+                          gradient: masliveGradient,
+                          text: _loading ? "Connexion..." : "Se connecter",
+                          onPressed: _loading
+                              ? () {}
+                              : () => _run(
+                                    () => AuthService.instance.signInWithEmailPassword(
+                                      email: _emailCtrl.text.trim(),
+                                      password: _passCtrl.text,
+                                    ),
+                                  ),
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          children: [
+                            const Expanded(child: Divider(color: Color(0x14111827), height: 1)),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: _loading
+                                    ? null
+                                    : () => _run(
+                                          () => AuthService.instance.createUserWithEmailPassword(
+                                            email: _emailCtrl.text.trim(),
+                                            password: _passCtrl.text,
+                                          ),
+                                        ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  child: Text(
+                                    "Créer un compte",
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                          color: subText,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const Expanded(child: Divider(color: Color(0x14111827), height: 1)),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        _SocialButton(
+                          label: "Continuer avec Google",
+                          leading: const _GLogo(),
+                          onPressed: _loading ? () {} : () => _runProvider(AuthAction.google),
+                        ),
+                        const SizedBox(height: 10),
+                        _SocialButton(
+                          label: "Continuer avec Apple",
+                          leading: const Icon(Icons.apple, size: 22, color: Color(0xFF111827)),
+                          onPressed: _loading ? () {} : () => _runProvider(AuthAction.apple),
+                        ),
+                        const SizedBox(height: 18),
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pushReplacementNamed('/'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: subText,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          ),
+                          child: const Text(
+                            "Continuer en invité",
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                      ],
+                    ),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            const Divider(height: 1),
-            const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _loading
-                    ? null
-                    : () => _runProvider(AuthAction.google),
-                icon: const Icon(Icons.g_mobiledata_rounded),
-                label: const Text('Continuer avec Google'),
               ),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _loading
-                    ? null
-                    : () => _runProvider(AuthAction.apple),
-                icon: const Icon(Icons.apple),
-                label: const Text('Continuer avec Apple'),
-              ),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _loading
-                    ? null
-                    : () => _runProvider(AuthAction.email),
-                icon: const Icon(Icons.alternate_email_rounded),
-                label: const Text('Email (popup)'),
-              ),
-            ),
-            const SizedBox(height: 18),
-            TextButton(
-              onPressed: () => Navigator.of(context).pushReplacementNamed('/'),
-              child: const Text('Continuer en invité'),
             ),
           ],
         ),
       ),
     );
   }
+}
+
+class _GlassCard extends StatelessWidget {
+  final Widget child;
+  final Color borderColor;
+
+  const _GlassCard({required this.child, required this.borderColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.62),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: borderColor, width: 1),
+            boxShadow: [
+              BoxShadow(
+                blurRadius: 30,
+                spreadRadius: 0,
+                offset: const Offset(0, 18),
+                color: Colors.black.withOpacity(0.10),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class _PremiumField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hintText;
+  final IconData prefixIcon;
+  final Color borderColor;
+  final bool obscureText;
+  final Widget? suffix;
+
+  const _PremiumField({
+    required this.controller,
+    required this.hintText,
+    required this.prefixIcon,
+    required this.borderColor,
+    this.obscureText = false,
+    this.suffix,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        color: Colors.white.withOpacity(0.72),
+        border: Border.all(color: borderColor),
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: obscureText,
+        keyboardType: hintText.toLowerCase().contains("email")
+            ? TextInputType.emailAddress
+            : TextInputType.text,
+        style: const TextStyle(fontWeight: FontWeight.w600),
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontWeight: FontWeight.w600),
+          prefixIcon: Icon(prefixIcon, color: const Color(0xFF6B7280)),
+          suffixIcon: suffix,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        ),
+      ),
+    );
+  }
+}
+
+class _GradientButton extends StatelessWidget {
+  final String text;
+  final VoidCallback onPressed;
+  final Gradient gradient;
+
+  const _GradientButton({
+    required this.text,
+    required this.onPressed,
+    required this.gradient,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 54,
+      width: double.infinity,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              blurRadius: 22,
+              offset: const Offset(0, 10),
+              color: Colors.black.withOpacity(0.10),
+            ),
+          ],
+        ),
+        child: ElevatedButton(
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          ),
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 16,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SocialButton extends StatelessWidget {
+  final String label;
+  final Widget leading;
+  final VoidCallback onPressed;
+
+  const _SocialButton({
+    required this.label,
+    required this.leading,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 52,
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white.withOpacity(0.70),
+          foregroundColor: const Color(0xFF111827),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+            side: const BorderSide(color: Color(0x1A111827)),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            leading,
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GLogo extends StatelessWidget {
+  const _GLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 22,
+      height: 22,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: const Text(
+        "G",
+        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+      ),
+    );
+  }
+}
+
+class _MasliveGlowPainter extends CustomPainter {
+  final Gradient gradient;
+  _MasliveGlowPainter({required this.gradient});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..shader = gradient.createShader(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 70);
+
+    canvas.drawCircle(Offset(size.width * 0.55, size.height * 0.18), size.width * 0.55, paint);
+    canvas.drawCircle(Offset(size.width * 0.45, size.height * 0.78), size.width * 0.60, paint);
+
+    final veil = Paint()..color = Colors.white.withOpacity(0.55);
+    canvas.drawRect(Offset.zero & size, veil);
+  }
+
+  @override
+  bool shouldRepaint(covariant _MasliveGlowPainter oldDelegate) => false;
+}
+
+class _HexPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    const step = 34.0;
+    final r = step / 2;
+
+    for (double y = -step; y < size.height + step; y += step * 0.86) {
+      final odd = ((y / (step * 0.86)).round() % 2) == 1;
+      for (double x = -step; x < size.width + step; x += step) {
+        final cx = x + (odd ? r : 0);
+        final cy = y;
+        _drawHex(canvas, Offset(cx, cy), r, p);
+      }
+    }
+  }
+
+  void _drawHex(Canvas canvas, Offset c, double r, Paint p) {
+    p.color = const Color(0xFF111827).withOpacity(0.35);
+
+    final path = Path();
+    for (int i = 0; i < 6; i++) {
+      final angle = (60.0 * i - 30.0) * math.pi / 180.0;
+      final pt = Offset(c.dx + r * 0.95 * math.cos(angle), c.dy + r * 0.95 * math.sin(angle));
+      if (i == 0) {
+        path.moveTo(pt.dx, pt.dy);
+      } else {
+        path.lineTo(pt.dx, pt.dy);
+      }
+    }
+    path.close();
+    canvas.drawPath(path, p);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
