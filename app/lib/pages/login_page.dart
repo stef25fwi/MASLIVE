@@ -27,7 +27,7 @@ class _LoginPageState extends State<LoginPage> {
     try {
       await fn();
       if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed('/router');
+      Navigator.of(context).pushReplacementNamed('/account-ui');
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
@@ -51,7 +51,7 @@ class _LoginPageState extends State<LoginPage> {
 
       final session = SessionScope.of(context);
       if (session.isSignedIn) {
-        Navigator.of(context).pushReplacementNamed('/router');
+        Navigator.of(context).pushReplacementNamed('/account-ui');
       }
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
@@ -104,141 +104,176 @@ class _LoginPageState extends State<LoginPage> {
             Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
-                  child: _GlassCard(
-                    borderColor: border,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const SizedBox(height: 6),
-                        Text(
-                          "Connexion",
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: text,
-                                letterSpacing: 0.2,
-                              ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          "Accédez à votre espace",
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: subText,
-                                fontWeight: FontWeight.w500,
-                              ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 22),
-                        if (_error != null) ...[
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade50,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.red.shade200),
-                            ),
-                            child: Text(
-                              _error!,
-                              style: TextStyle(color: Colors.red.shade700, fontSize: 13),
-                            ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 6),
+                    Text(
+                      "Connexion",
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: text,
+                            letterSpacing: 0.2,
                           ),
-                          const SizedBox(height: 12),
-                        ],
-                        _PremiumField(
-                          controller: _emailCtrl,
-                          hintText: "Email",
-                          prefixIcon: Icons.mail_outline_rounded,
-                          borderColor: border,
-                        ),
-                        const SizedBox(height: 12),
-                        _PremiumField(
-                          controller: _passCtrl,
-                          hintText: "Mot de passe",
-                          prefixIcon: Icons.lock_outline_rounded,
-                          borderColor: border,
-                          obscureText: _obscure,
-                          suffix: IconButton(
-                            onPressed: () => setState(() => _obscure = !_obscure),
-                            icon: Icon(
-                              _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                              color: const Color(0xFF6B7280),
-                            ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      "Accédez à votre espace",
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: subText,
+                            fontWeight: FontWeight.w500,
                           ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 22),
+                    if (_error != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.red.shade200),
                         ),
-                        const SizedBox(height: 18),
-                        _GradientButton(
-                          gradient: masliveGradient,
-                          text: _loading ? "Connexion..." : "Se connecter",
-                          onPressed: _loading
-                              ? () {}
-                              : () => _run(
-                                    () => AuthService.instance.signInWithEmailPassword(
-                                      email: _emailCtrl.text.trim(),
-                                      password: _passCtrl.text,
-                                    ),
-                                  ),
+                        child: Text(
+                          _error!,
+                          style: TextStyle(color: Colors.red.shade700, fontSize: 13),
                         ),
-                        const SizedBox(height: 14),
-                        Row(
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isWide = constraints.maxWidth >= 700;
+                        final sectionWidth = isWide
+                            ? (constraints.maxWidth - 14) / 2
+                            : constraints.maxWidth;
+
+                        return Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 14,
+                          runSpacing: 14,
                           children: [
-                            const Expanded(child: Divider(color: Color(0x14111827), height: 1)),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 10),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(12),
-                                onTap: _loading
-                                    ? null
-                                    : () => _run(
-                                          () => AuthService.instance.createUserWithEmailPassword(
-                                            email: _emailCtrl.text.trim(),
-                                            password: _passCtrl.text,
+                            SizedBox(
+                              width: sectionWidth,
+                              child: _GlassCard(
+                                borderColor: border,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const SizedBox(height: 6),
+                                    _PremiumField(
+                                      controller: _emailCtrl,
+                                      hintText: "Email",
+                                      prefixIcon: Icons.mail_outline_rounded,
+                                      borderColor: border,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    _PremiumField(
+                                      controller: _passCtrl,
+                                      hintText: "Mot de passe",
+                                      prefixIcon: Icons.lock_outline_rounded,
+                                      borderColor: border,
+                                      obscureText: _obscure,
+                                      suffix: IconButton(
+                                        onPressed: () => setState(() => _obscure = !_obscure),
+                                        icon: Icon(
+                                          _obscure
+                                              ? Icons.visibility_off_outlined
+                                              : Icons.visibility_outlined,
+                                          color: const Color(0xFF6B7280),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 18),
+                                    _GradientButton(
+                                      gradient: masliveGradient,
+                                      text: _loading ? "Connexion..." : "Se connecter",
+                                      onPressed: _loading
+                                          ? () {}
+                                          : () => _run(
+                                                () => AuthService.instance
+                                                    .signInWithEmailPassword(
+                                                  email: _emailCtrl.text.trim(),
+                                                  password: _passCtrl.text,
+                                                ),
+                                              ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: TextButton(
+                                        onPressed: () => Navigator.of(context)
+                                            .pushReplacementNamed('/'),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: subText,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 10,
                                           ),
                                         ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                  child: Text(
-                                    "Créer un compte",
-                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                          color: subText,
-                                          fontWeight: FontWeight.w600,
+                                        child: const Text(
+                                          "Continuer en invité",
+                                          style: TextStyle(fontWeight: FontWeight.w700),
                                         ),
-                                  ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
-                            const Expanded(child: Divider(color: Color(0x14111827), height: 1)),
+                            SizedBox(
+                              width: sectionWidth,
+                              child: _GlassCard(
+                                borderColor: border,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const SizedBox(height: 6),
+                                    _GradientButton(
+                                      gradient: masliveGradient,
+                                      text: _loading
+                                          ? "Création..."
+                                          : "Créer un compte avec email",
+                                      onPressed: _loading
+                                          ? () {}
+                                          : () => _run(
+                                                () => AuthService.instance
+                                                    .createUserWithEmailPassword(
+                                                  email: _emailCtrl.text.trim(),
+                                                  password: _passCtrl.text,
+                                                ),
+                                              ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    _SocialButton(
+                                      label: "Continuer avec Google",
+                                      leading: const _GLogo(),
+                                      onPressed:
+                                          _loading ? () {} : () => _runProvider(AuthAction.google),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    _SocialButton(
+                                      label: "Continuer avec Apple",
+                                      leading: const Icon(
+                                        Icons.apple,
+                                        size: 22,
+                                        color: Color(0xFF111827),
+                                      ),
+                                      onPressed:
+                                          _loading ? () {} : () => _runProvider(AuthAction.apple),
+                                    ),
+                                    const SizedBox(height: 6),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ],
-                        ),
-                        const SizedBox(height: 14),
-                        _SocialButton(
-                          label: "Continuer avec Google",
-                          leading: const _GLogo(),
-                          onPressed: _loading ? () {} : () => _runProvider(AuthAction.google),
-                        ),
-                        const SizedBox(height: 10),
-                        _SocialButton(
-                          label: "Continuer avec Apple",
-                          leading: const Icon(Icons.apple, size: 22, color: Color(0xFF111827)),
-                          onPressed: _loading ? () {} : () => _runProvider(AuthAction.apple),
-                        ),
-                        const SizedBox(height: 18),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pushReplacementNamed('/'),
-                          style: TextButton.styleFrom(
-                            foregroundColor: subText,
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          ),
-                          child: const Text(
-                            "Continuer en invité",
-                            style: TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                      ],
+                        );
+                      },
                     ),
-                  ),
+                    const SizedBox(height: 6),
+                  ],
                 ),
               ),
             ),

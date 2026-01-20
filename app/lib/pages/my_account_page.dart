@@ -12,15 +12,26 @@ class MyAccountPage extends StatefulWidget {
 
 class _MyAccountPageState extends State<MyAccountPage> {
   final AuthService _authService = AuthService();
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _regionController = TextEditingController();
+  final TextEditingController _pseudoController = TextEditingController();
+  String _selectedCountry = 'France';
+  bool _isEditing = false;
+
+  final List<String> _countries = [
+    'France',
+    'Guadeloupe',
+    'Martinique',
+    'Guyane',
+    'Réunion',
+    'Mayotte',
+    'Belgique',
+    'Suisse',
+    'Canada',
+    'Autre',
+  ];
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _regionController.dispose();
+    _pseudoController.dispose();
     super.dispose();
   }
 
@@ -146,33 +157,31 @@ class _MyAccountPageState extends State<MyAccountPage> {
               _buildSectionTitle('Informations Personnelles'),
               const SizedBox(height: 12),
               _buildEditableField(
-                controller: _nameController,
-                label: 'Nom complet',
+                controller: _pseudoController,
+                label: 'Pseudo',
                 icon: Icons.person,
                 initialValue: user.displayName,
+                enabled: _isEditing,
               ),
               const SizedBox(height: 12),
-              _buildEditableField(
-                controller: _phoneController,
-                label: 'Téléphone',
-                icon: Icons.phone,
-                initialValue: profile?.phone,
-              ),
-              const SizedBox(height: 12),
-              _buildEditableField(
-                controller: _regionController,
-                label: 'Région',
-                icon: Icons.location_on,
+              _buildCountryDropdown(
+                enabled: _isEditing,
                 initialValue: profile?.region,
               ),
               const SizedBox(height: 20),
 
-              // ✅ Bouton Sauvegarder
+              // ✅ Bouton Sauvegarder/Modifier
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: () => _saveProfile(user),
-                  child: const Text('Sauvegarder les modifications'),
+                  onPressed: () {
+                    if (_isEditing) {
+                      _saveProfile(user);
+                    } else {
+                      setState(() => _isEditing = true);
+                    }
+                  },
+                  child: Text(_isEditing ? 'Sauvegarder les modifications' : 'Modifier'),
                 ),
               ),
               const SizedBox(height: 32),
@@ -236,18 +245,57 @@ class _MyAccountPageState extends State<MyAccountPage> {
     required String label,
     required IconData icon,
     String? initialValue,
+    required bool enabled,
   }) {
     controller.text = initialValue ?? '';
 
     return TextField(
       controller: controller,
+      enabled: enabled,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
         ),
+        filled: !enabled,
+        fillColor: !enabled ? Colors.grey[200] : null,
       ),
+    );
+  }
+
+  Widget _buildCountryDropdown({
+    required bool enabled,
+    String? initialValue,
+  }) {
+    if (initialValue != null && _countries.contains(initialValue)) {
+      _selectedCountry = initialValue;
+    }
+
+    return DropdownButtonFormField<String>(
+      value: _selectedCountry,
+      decoration: InputDecoration(
+        labelText: 'Pays',
+        prefixIcon: const Icon(Icons.public),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        filled: !enabled,
+        fillColor: !enabled ? Colors.grey[200] : null,
+      ),
+      items: _countries.map((country) {
+        return DropdownMenuItem(
+          value: country,
+          child: Text(country),
+        );
+      }).toList(),
+      onChanged: enabled
+          ? (value) {
+              if (value != null) {
+                setState(() => _selectedCountry = value);
+              }
+            }
+          : null,
     );
   }
 
@@ -302,16 +350,16 @@ class _MyAccountPageState extends State<MyAccountPage> {
   void _saveProfile(User user) {
     _authService
         .updateUserProfile(
-          displayName: _nameController.text.isNotEmpty
-              ? _nameController.text
+          displayName: _pseudoController.text.isNotEmpty
+              ? _pseudoController.text
               : null,
-          phone: _phoneController.text.isNotEmpty ? _phoneController.text : null,
-          region: _regionController.text.isNotEmpty ? _regionController.text : null,
+          region: _selectedCountry,
         )
         .then((_) {
           if (!mounted) {
             return;
           }
+          setState(() => _isEditing = false);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Profil mis à jour ✓')),
           );
