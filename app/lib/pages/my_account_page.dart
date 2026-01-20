@@ -107,6 +107,30 @@ class _MyAccountPageState extends State<MyAccountPage> {
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.verified_user_rounded,
+                            size: 16,
+                            color: Colors.black.withValues(alpha: 0.55),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _statusLabel(profile),
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
                     Text(
                       user.email ?? '',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -187,6 +211,13 @@ class _MyAccountPageState extends State<MyAccountPage> {
         );
       },
     );
+  }
+
+  String _statusLabel(UserProfile? profile) {
+    if (profile == null) return 'Utilisateur connecté';
+    if (profile.isAdmin || profile.role == UserRole.admin) return 'Admin';
+    if (profile.role == UserRole.group) return 'Admin de groupe';
+    return 'Membre';
   }
 
   Widget _buildSectionTitle(String title, {bool isRed = false}) {
