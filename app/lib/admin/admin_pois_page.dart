@@ -1,12 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:flutter_map/flutter_map.dart';
-import '../models/place_model.dart';
-import '../theme/maslive_theme.dart';
+// FICHIER OBSOLÈTE - Redirige vers admin_pois_simple_page.dart
+// Ce fichier conserve l'ancien nom pour la compatibilité mais redirige vers la nouvelle implémentation
 
-/// Page de gestion des POIs (Points d'Intérêt) - CRUD complet
-class AdminPOIsPage extends StatefulWidget {
+export 'admin_pois_simple_page.dart';
+
   const AdminPOIsPage({Key? key}) : super(key: key);
 
   @override
