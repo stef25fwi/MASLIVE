@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helpers
+    // ========== HELPERS DE BASE ==========
     function isSignedIn() {
       return request.auth != null;
     }
@@ -11,44 +11,101 @@ service cloud.firestore {
       return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
-    function isMasterAdmin() {
-      return hasUserDoc() && (
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
-        || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
-      );
+    function getUserData() {
+      return hasUserDoc() 
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+        : null;
     }
 
-    // Rôles attendus dans users/{uid}.role :
-    // - 'user' (défaut)
-    // - 'tracker' (utilisateur traceur)
-    // - 'group' (administrateur groupe)
-    // - 'admin' (administrateur master)
     function userRole() {
-      return hasUserDoc()
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
-        : null;
+      return hasUserDoc() ? getUserData().role : null;
     }
 
     function userGroupId() {
-      return hasUserDoc()
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groupId
-        : null;
+      return hasUserDoc() ? getUserData().groupId : null;
     }
 
-    function isTracker() {
-      return hasUserDoc() && (userRole() == 'tracker' || userRole() == 'group');
+    // ========== VÉRIFICATIONS DE RÔLES ==========
+    // Rôles hiérarchiques:
+    // - 'user' (utilisateur standard - priorité 10)
+    // - 'tracker' (utilisateur traceur - priorité 20)
+    // - 'group' (administrateur de groupe - priorité 50)
+    // - 'admin' (administrateur master - priorité 90)
+    // - 'superAdmin' (super administrateur - priorité 100)
+
+    function isSuperAdmin() {
+      return hasUserDoc() && userRole() == 'superAdmin';
+    }
+
+    function isMasterAdmin() {
+      return hasUserDoc() && (
+        getUserData().isAdmin == true 
+        || userRole() == 'admin'
+        || userRole() == 'superAdmin'
+      );
     }
 
     function isGroupAdmin(groupId) {
-      return hasUserDoc() && userRole() == 'group' && userGroupId() == groupId;
+      return hasUserDoc() 
+        && userRole() == 'group' 
+        && userGroupId() == groupId;
     }
 
-    // ---------- Users (profil + sous-collections) ----------
-    match /users/{uid} {
-      allow read: if isSignedIn() && (request.auth.uid == uid || isMasterAdmin());
+    function isTracker() {
+      return hasUserDoc() && (
+        userRole() == 'tracker' 
+        || userRole() == 'group'
+        || isMasterAdmin()
+      );
+    }
 
-      // Création profil: l'utilisateur peut créer son propre doc (rôle user), ou admin master peut créer pour d'autres.
-      allow create: if isMasterAdmin() || (
+    function isAtLeastGroupAdmin() {
+      return hasUserDoc() && (
+        userRole() == 'group'
+        || userRole() == 'admin'
+        || userRole() == 'superAdmin'
+      );
+    }
+
+    // ========== VÉRIFICATIONS DE PERMISSIONS ==========
+    function canManageUsers() {
+      return isMasterAdmin();
+    }
+
+    function canManageContent() {
+      return isMasterAdmin();
+    }
+
+    function canManageGroup(groupId) {
+      return isMasterAdmin() || isGroupAdmin(groupId);
+    }
+
+    function canViewGroupData(groupId) {
+      return isMasterAdmin() 
+        || isGroupAdmin(groupId)
+        || userGroupId() == groupId;
+    }
+
+    // ========== COLLECTION: ROLES (Définitions des rôles) ==========
+    match /roles/{roleId} {
+      // Lecture: tous les utilisateurs authentifiés peuvent voir les définitions de rôles
+      allow read: if isSignedIn();
+      
+      // Écriture: uniquement les super admins
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+    // ========== COLLECTION: USERS (Profils utilisateurs) ==========
+    match /users/{uid} {
+      // Lecture: utilisateur lui-même ou admins
+      allow read: if isSignedIn() && (
+        request.auth.uid == uid 
+        || canManageUsers()
+      );
+
+      // Création: l'utilisateur crée son profil avec rôle 'user' par défaut,
+      // ou admin peut créer pour d'autres
+      allow create: if canManageUsers() || (
         isSignedIn()
         && request.auth.uid == uid
         && (request.resource.data.role == 'user' || !('role' in request.resource.data))
@@ -56,8 +113,10 @@ service cloud.firestore {
         && (!('groupId' in request.resource.data) || request.resource.data.groupId == null)
       );
 
-      // Update profil: propriétaire peut modifier uniquement des champs non privilégiés.
-      allow update: if isMasterAdmin() || (
+      // Update: propriétaire peut modifier ses champs non privilégiés,
+      // admin groupe peut modifier les membres de son groupe (sauf le rôle),
+      // admin master peut tout modifier
+      allow update: if canManageUsers() || (
         isSignedIn()
         && request.auth.uid == uid
         && request.resource.data.role == resource.data.role
@@ -72,31 +131,51 @@ service cloud.firestore {
           'fcmTokens',
           'updatedAt'
         ])
+      ) || (
+        // Admin groupe peut modifier les infos basiques des membres de son groupe
+        isGroupAdmin(resource.data.groupId)
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.isAdmin == resource.data.isAdmin
+        && request.resource.data.groupId == resource.data.groupId
       );
 
-      allow delete: if isSignedIn() && (request.auth.uid == uid || isMasterAdmin());
+      // Suppression: propriétaire ou admin master
+      allow delete: if isSignedIn() && (
+        request.auth.uid == uid 
+        || canManageUsers()
+      );
 
       // Sous-collections privées (cart, favorites, followingGroups, ...)
       match /{document=**} {
-        allow read, write: if isSignedIn() && (request.auth.uid == uid || isMasterAdmin());
+        allow read, write: if isSignedIn() && (
+          request.auth.uid == uid 
+          || canManageUsers()
+        );
       }
     }
 
-    // ---------- Contenu public ----------
-    // Places : lecture publique, écriture admin (AddPlacePage devrait être admin)
+    // ========== COLLECTION: PLACES (Lieux) ==========
     match /places/{id} {
+      // Lecture: publique
       allow read: if true;
-      allow create, update, delete: if isMasterAdmin();
+      
+      // Écriture: admins uniquement
+      allow create, update, delete: if canManageContent();
     }
 
-    // Groupes : lecture publique, écriture admin (pas de ownerId dans le modèle actuel)
+    // ========== COLLECTION: GROUPS (Groupes) ==========
     match /groups/{groupId} {
+      // Lecture: publique
       allow read: if true;
-      // Admin master: CRUD complet
-      // Admin groupe: peut modifier son groupe (pas supprimer)
-      allow create: if isMasterAdmin();
-      allow update: if isMasterAdmin() || isGroupAdmin(groupId);
-      allow delete: if isMasterAdmin();
+      
+      // Création: admin master uniquement
+      allow create: if canManageContent();
+      
+      // Mise à jour: admin master ou admin du groupe spécifique
+      allow update: if canManageGroup(groupId);
+      
+      // Suppression: admin master uniquement
+      allow delete: if canManageContent();
 
       // Produits d’un groupe (shop)
       match /products/{productId} {
@@ -136,46 +215,64 @@ service cloud.firestore {
       }
     }
 
-    // Live tracking (si vous utilisez la collection group_locations côté app)
+    // ========== COLLECTION: GROUP_LOCATIONS (Tracking en direct) ==========
     match /group_locations/{docId} {
+      // Lecture: publique
       allow read: if true;
-      // Les écritures devraient passer par une Function : on bloque côté client.
+      
+      // Écriture: via Cloud Functions uniquement
       allow create, update, delete: if false;
     }
 
-    // POIs / Circuits / Config : lecture publique, écriture admin
+    // ========== COLLECTION: POIs (Points d'intérêt) ==========
     match /pois/{id} {
+      // Lecture: publique
       allow read: if true;
-      allow create, update, delete: if isMasterAdmin();
+      
+      // Écriture: admins uniquement
+      allow create, update, delete: if canManageContent();
     }
 
+    // ========== COLLECTION: CIRCUITS ==========
     match /circuits/{id} {
+      // Lecture: publique
       allow read: if true;
-      allow create, update, delete: if isMasterAdmin();
+      
+      // Écriture: admins uniquement
+      allow create, update, delete: if canManageContent();
     }
 
+    // ========== COLLECTION: CONFIG ==========
     match /config/{id} {
+      // Lecture: publique
       allow read: if true;
-      allow create, update, delete: if isMasterAdmin();
+      
+      // Écriture: admins uniquement
+      allow create, update, delete: if canManageContent();
     }
 
-    // Orders : utilisateur voit ses commandes, admin voit tout
+    // ========== COLLECTION: ORDERS (Commandes) ==========
     match /orders/{orderId} {
-      // Utilisateur: ses commandes
-      // Admin groupe: commandes de SON groupe (si la commande a bien un champ groupId)
-      // Admin master: toutes les commandes
+      // Lecture:
+      // - Utilisateur: ses propres commandes
+      // - Admin groupe: commandes de son groupe
+      // - Admin master: toutes les commandes
       allow read: if isSignedIn() && (
         resource.data.userId == request.auth.uid
-        || isMasterAdmin()
-        || (isGroupAdmin(resource.data.groupId) == true)
+        || canManageContent()
+        || canViewGroupData(resource.data.groupId)
       );
+      
+      // Création: utilisateur authentifié avec son propre userId
       allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.keys().hasAll(['userId', 'groupId', 'items', 'totalPrice']);
-      allow update, delete: if isMasterAdmin();
+      
+      // Mise à jour/Suppression: admin master uniquement
+      allow update, delete: if canManageContent();
     }
 
-    // ---------- Refus par défaut ----------
+    // ========== REFUS PAR DÉFAUT ==========
     match /{document=**} {
       allow read, write: if false;
     }

@@ -5,6 +5,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:characters/characters.dart';
 
 import '../ui/theme/maslive_theme.dart';
 import '../ui/widgets/gradient_header.dart';
@@ -732,11 +734,8 @@ class _HomeMapPageState extends State<HomeMapPage>
                     backgroundColor: Colors.white.withValues(alpha: 0.50),
                     child: Row(
                       children: [
-                        MasliveGradientIconButton(
-                          icon: Icons.account_circle_rounded,
-                          tooltip: 'Profil',
-                          onTap: () =>
-                              Navigator.pushNamed(context, '/account-ui'),
+                        _AccountIconButton(
+                          onTap: () => Navigator.pushNamed(context, '/account-ui'),
                         ),
                         const SizedBox(width: 12),
                         const Spacer(),
@@ -934,10 +933,25 @@ class _HomeMapPageState extends State<HomeMapPage>
                                   position: _menuSlideAnimation,
                                   child: IgnorePointer(
                                     ignoring: !_showActionsMenu,
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(
+                                    child: Container(
+                                      margin: const EdgeInsets.only(
                                         right: 4,
-                                        top: 18,
+                                        top: 60,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.86),
+                                        borderRadius: BorderRadius.circular(24),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            blurRadius: 16,
+                                            offset: const Offset(-4, 4),
+                                            color: Colors.black.withValues(alpha: 0.12),
+                                          ),
+                                        ],
                                       ),
                                       child: SingleChildScrollView(
                                         child: Column(
@@ -1087,11 +1101,11 @@ class _ActionItem extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 60,
-            height: 60,
+            width: 68,
+            height: 68,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withValues(alpha: 0.85),
+              color: Colors.white.withValues(alpha: 0.92),
               border: Border.all(
                 color: selected ? MasliveTheme.pink : MasliveTheme.divider,
                 width: selected ? 2.0 : 1.0,
@@ -1194,6 +1208,54 @@ class _TrackingPill extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _AccountIconButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _AccountIconButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: AuthService.instance.authStateChanges,
+      builder: (context, snap) {
+        final user = snap.data;
+        final pseudo = (user?.displayName ?? user?.email ?? 'Profil').trim();
+        final initial = pseudo.isNotEmpty ? pseudo.characters.first.toUpperCase() : '?';
+
+        final button = Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            customBorder: const CircleBorder(),
+            child: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: MasliveTheme.actionGradient,
+                boxShadow: MasliveTheme.floatingShadow,
+              ),
+              child: Center(
+                child: Text(
+                  initial,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        return Tooltip(message: pseudo, child: button);
+      },
     );
   }
 }

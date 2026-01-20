@@ -2,6 +2,7 @@
  * Cloud Functions Gen 2 (firebase-functions v2)
  * - nearbySearch (onCall)
  * - updateGroupLocation (onCall)
+ * - initializeRoles (onCall) - Initialise les rôles par défaut
  */
 
 const admin = require("firebase-admin");
@@ -299,3 +300,287 @@ exports.notifyPendingProductResubmitted = onDocumentUpdated(
     });
   }
 );
+
+// ========== GESTION DES RÔLES ET PERMISSIONS ==========
+
+/**
+ * Définitions des rôles par défaut
+ */
+const defaultRoles = [
+  {
+    id: "user",
+    name: "Utilisateur",
+    description: "Utilisateur standard avec permissions de base",
+    roleType: "user",
+    priority: 10,
+    permissions: [
+      "readPublicContent",
+      "createAccount",
+      "updateOwnProfile",
+      "createOrder",
+      "viewOwnOrders",
+      "manageCart",
+      "manageFavorites",
+      "followGroups",
+    ],
+    isActive: true,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  {
+    id: "tracker",
+    name: "Traceur",
+    description: "Utilisateur avec permissions de suivi de localisation",
+    roleType: "tracker",
+    priority: 20,
+    permissions: [
+      "readPublicContent",
+      "createAccount",
+      "updateOwnProfile",
+      "createOrder",
+      "viewOwnOrders",
+      "manageCart",
+      "manageFavorites",
+      "followGroups",
+      "updateLocation",
+      "viewTracking",
+    ],
+    isActive: true,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  {
+    id: "group",
+    name: "Administrateur de groupe",
+    description: "Gestion complète d'un groupe spécifique",
+    roleType: "group",
+    priority: 50,
+    permissions: [
+      "readPublicContent",
+      "createAccount",
+      "updateOwnProfile",
+      "createOrder",
+      "viewOwnOrders",
+      "manageCart",
+      "manageFavorites",
+      "followGroups",
+      "manageGroupInfo",
+      "manageGroupProducts",
+      "viewGroupOrders",
+      "viewGroupStats",
+      "manageGroupMembers",
+    ],
+    isActive: true,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  {
+    id: "admin",
+    name: "Administrateur",
+    description: "Administrateur avec accès complet au système",
+    roleType: "admin",
+    priority: 90,
+    permissions: [
+      "readPublicContent",
+      "createAccount",
+      "updateOwnProfile",
+      "createOrder",
+      "viewOwnOrders",
+      "manageCart",
+      "manageFavorites",
+      "followGroups",
+      "manageAllGroups",
+      "manageAllUsers",
+      "manageAllProducts",
+      "manageAllOrders",
+      "managePlaces",
+      "managePOIs",
+      "manageCircuits",
+      "viewAllStats",
+      "moderateContent",
+    ],
+    isActive: true,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  {
+    id: "superAdmin",
+    name: "Super Administrateur",
+    description: "Tous les droits sur le système",
+    roleType: "superAdmin",
+    priority: 100,
+    permissions: [
+      "readPublicContent",
+      "createAccount",
+      "updateOwnProfile",
+      "createOrder",
+      "viewOwnOrders",
+      "manageCart",
+      "manageFavorites",
+      "followGroups",
+      "updateLocation",
+      "viewTracking",
+      "manageGroupInfo",
+      "manageGroupProducts",
+      "viewGroupOrders",
+      "viewGroupStats",
+      "manageGroupMembers",
+      "manageAllGroups",
+      "manageAllUsers",
+      "manageAllProducts",
+      "manageAllOrders",
+      "managePlaces",
+      "managePOIs",
+      "manageCircuits",
+      "viewAllStats",
+      "moderateContent",
+      "manageRoles",
+      "managePermissions",
+      "accessAdminPanel",
+      "deleteAnyContent",
+    ],
+    isActive: true,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+];
+
+/**
+ * Cloud Function pour initialiser les rôles dans Firestore
+ * Callable uniquement par un super admin
+ */
+exports.initializeRoles = onCall({ region: "us-east1" }, async (request) => {
+  const uid = request.auth?.uid;
+
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Utilisateur non authentifié");
+  }
+
+  // Vérifier que l'utilisateur est super admin
+  const userDoc = await db.collection("users").doc(uid).get();
+  if (!userDoc.exists) {
+    throw new HttpsError("permission-denied", "Profil utilisateur introuvable");
+  }
+
+  const userData = userDoc.data();
+  const userRole = userData.role || "user";
+
+  // Seul un superAdmin peut initialiser les rôles
+  if (userRole !== "superAdmin" && !userData.isAdmin) {
+    throw new HttpsError(
+      "permission-denied",
+      "Seul un super administrateur peut initialiser les rôles"
+    );
+  }
+
+  // Créer ou mettre à jour les rôles par défaut
+  const batch = db.batch();
+  let created = 0;
+  let updated = 0;
+
+  for (const role of defaultRoles) {
+    const roleRef = db.collection("roles").doc(role.id);
+    const roleDoc = await roleRef.get();
+
+    if (roleDoc.exists) {
+      // Mettre à jour en préservant certaines données existantes
+      batch.set(roleRef, role, { merge: true });
+      updated++;
+    } else {
+      // Créer nouveau rôle
+      batch.set(roleRef, role);
+      created++;
+    }
+  }
+
+  await batch.commit();
+
+  return {
+    success: true,
+    message: `Rôles initialisés avec succès`,
+    stats: {
+      created,
+      updated,
+      total: defaultRoles.length,
+    },
+  };
+});
+
+/**
+ * Cloud Function pour assigner un rôle à un utilisateur
+ * Callable par admin ou super admin
+ */
+exports.assignUserRole = onCall({ region: "us-east1" }, async (request) => {
+  const uid = request.auth?.uid;
+  const { targetUserId, role, groupId } = request.data || {};
+
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Utilisateur non authentifié");
+  }
+
+  if (!targetUserId || !role) {
+    throw new HttpsError(
+      "invalid-argument",
+      "targetUserId et role sont requis"
+    );
+  }
+
+  // Vérifier que l'utilisateur a les permissions
+  const callerDoc = await db.collection("users").doc(uid).get();
+  if (!callerDoc.exists) {
+    throw new HttpsError("permission-denied", "Profil utilisateur introuvable");
+  }
+
+  const callerData = callerDoc.data();
+  const callerRole = callerData.role || "user";
+
+  // Seuls admin et superAdmin peuvent assigner des rôles
+  if (!["admin", "superAdmin"].includes(callerRole) && !callerData.isAdmin) {
+    throw new HttpsError(
+      "permission-denied",
+      "Permissions insuffisantes pour assigner des rôles"
+    );
+  }
+
+  // Vérifier que le rôle cible existe
+  const roleDoc = await db.collection("roles").doc(role).get();
+  if (!roleDoc.exists) {
+    throw new HttpsError("not-found", `Le rôle '${role}' n'existe pas`);
+  }
+
+  // Vérifier que l'utilisateur cible existe
+  const targetDoc = await db.collection("users").doc(targetUserId).get();
+  if (!targetDoc.exists) {
+    throw new HttpsError(
+      "not-found",
+      `L'utilisateur ${targetUserId} n'existe pas`
+    );
+  }
+
+  const updates = {
+    role,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  // Si c'est un rôle groupe, le groupId est requis
+  if (role === "group") {
+    if (!groupId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "groupId est requis pour le rôle groupe"
+      );
+    }
+    updates.groupId = groupId;
+  } else {
+    updates.groupId = null;
+  }
+
+  // Mettre à jour isAdmin pour la rétrocompatibilité
+  updates.isAdmin = ["admin", "superAdmin"].includes(role);
+
+  await db.collection("users").doc(targetUserId).update(updates);
+
+  return {
+    success: true,
+    message: `Rôle '${role}' assigné à l'utilisateur ${targetUserId}`,
+    userId: targetUserId,
+    role,
+    groupId: groupId || null,
+  };
+});
+
