@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/permission_service.dart';
+import '../services/auth_claims_service.dart';
 
 class CreateCircuitFeaturesPage extends StatefulWidget {
   const CreateCircuitFeaturesPage({super.key});
@@ -24,7 +24,7 @@ class _CreateCircuitFeaturesPageState extends State<CreateCircuitFeaturesPage> {
   }
 
   Future<void> _checkPermissions() async {
-    final isSuperAdmin = await PermissionService().isCurrentUserSuperAdmin();
+    final isSuperAdmin = await AuthClaimsService.instance.isCurrentUserSuperAdmin();
     setState(() {
       _isSuperAdmin = isSuperAdmin;
       _isLoading = false;
