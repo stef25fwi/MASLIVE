@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Page de gestion des produits
 class AdminProductsPage extends StatefulWidget {
-  const AdminProductsPage({Key? key}) : super(key: key);
+  const AdminProductsPage({super.key});
 
   @override
   State<AdminProductsPage> createState() => _AdminProductsPageState();
@@ -178,7 +178,7 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                   ? Image.network(
                       imageUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                      errorBuilder: (context, error, stackTrace) => Container(
                         color: Colors.grey[200],
                         child: const Icon(Icons.image, size: 50),
                       ),
@@ -320,7 +320,7 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedCategory,
+                  initialValue: selectedCategory,
                   decoration: const InputDecoration(
                     labelText: 'Catégorie',
                     border: OutlineInputBorder(),
@@ -467,7 +467,7 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedCategory,
+                  initialValue: selectedCategory,
                   decoration: const InputDecoration(
                     labelText: 'Catégorie',
                     border: OutlineInputBorder(),

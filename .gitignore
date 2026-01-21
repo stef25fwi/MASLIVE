@@ -111,6 +111,9 @@ coverage/
 .firebase/
 firebase-debug.log
 
+# Firebase service account key (NEVER commit this!)
+serviceAccountKey.json
+
 # Symbols
 app.*.symbols
 

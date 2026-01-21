@@ -18,6 +18,13 @@
       "type": "shell",
       "command": "bash /workspaces/MASLIVE/scripts/setup_deploy.sh",
       "problemMatcher": []
+    },
+    {
+      "label": "MASLIVE: Build Web & Deploy Hosting",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && flutter build web --release && cd .. && firebase deploy --only hosting",
+      "problemMatcher": [],
+      "isBackground": false
     }
   ]
 }

@@ -299,7 +299,7 @@ class _GlassCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.62),
+            color: Colors.white.withAlpha((0.62 * 255).round()),
             borderRadius: BorderRadius.circular(28),
             border: Border.all(color: borderColor, width: 1),
             boxShadow: [
@@ -307,7 +307,7 @@ class _GlassCard extends StatelessWidget {
                 blurRadius: 30,
                 spreadRadius: 0,
                 offset: const Offset(0, 18),
-                color: Colors.black.withOpacity(0.10),
+                color: Colors.black.withAlpha((0.10 * 255).round()),
               ),
             ],
           ),
@@ -340,7 +340,7 @@ class _PremiumField extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
-        color: Colors.white.withOpacity(0.72),
+        color: Colors.white.withValues(alpha: 0.72),
         border: Border.all(color: borderColor),
       ),
       child: TextField(
@@ -387,7 +387,7 @@ class _GradientButton extends StatelessWidget {
             BoxShadow(
               blurRadius: 22,
               offset: const Offset(0, 10),
-              color: Colors.black.withOpacity(0.10),
+              color: Colors.black.withAlpha((0.10 * 255).round()),
             ),
           ],
         ),
@@ -432,7 +432,7 @@ class _SocialButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white.withOpacity(0.70),
+          backgroundColor: Colors.white.withAlpha((0.70 * 255).round()),
           foregroundColor: const Color(0xFF111827),
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -490,7 +490,7 @@ class _MasliveGlowPainter extends CustomPainter {
     canvas.drawCircle(Offset(size.width * 0.55, size.height * 0.18), size.width * 0.55, paint);
     canvas.drawCircle(Offset(size.width * 0.45, size.height * 0.78), size.width * 0.60, paint);
 
-    final veil = Paint()..color = Colors.white.withOpacity(0.55);
+  final veil = Paint()..color = Colors.white.withValues(alpha: 0.55);
     canvas.drawRect(Offset.zero & size, veil);
   }
 
@@ -519,7 +519,7 @@ class _HexPatternPainter extends CustomPainter {
   }
 
   void _drawHex(Canvas canvas, Offset c, double r, Paint p) {
-    p.color = const Color(0xFF111827).withOpacity(0.35);
+    p.color = const Color(0xFF111827).withValues(alpha: 0.35);
 
     final path = Path();
     for (int i = 0; i < 6; i++) {

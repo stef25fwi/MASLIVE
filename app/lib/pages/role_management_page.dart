@@ -8,7 +8,7 @@ import '../widgets/permission_widgets.dart';
 
 /// Page de gestion des rôles et permissions (accessible uniquement aux admins)
 class RoleManagementPage extends StatefulWidget {
-  const RoleManagementPage({Key? key}) : super(key: key);
+  const RoleManagementPage({super.key});
 
   @override
   State<RoleManagementPage> createState() => _RoleManagementPageState();
@@ -194,7 +194,7 @@ class _RoleCard extends StatelessWidget {
               children: [
                 Chip(
                   label: Text('Priorité ${role.priority}'),
-                  backgroundColor: _getPriorityColor().withOpacity(0.2),
+                  backgroundColor: _getPriorityColor().withValues(alpha: 0.2),
                   labelStyle: TextStyle(
                     color: _getPriorityColor(),
                     fontWeight: FontWeight.bold,
@@ -283,7 +283,7 @@ class _RoleCard extends StatelessWidget {
 
 /// Page de gestion des utilisateurs avec leurs rôles
 class UserRolesManagementPage extends StatefulWidget {
-  const UserRolesManagementPage({Key? key}) : super(key: key);
+  const UserRolesManagementPage({super.key});
 
   @override
   State<UserRolesManagementPage> createState() =>

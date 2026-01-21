@@ -9,7 +9,7 @@ import 'admin_logs_page.dart';
 import 'admin_system_settings_page.dart';
 
 class AdminDashboardPage extends StatefulWidget {
-  const AdminDashboardPage({Key? key}) : super(key: key);
+  const AdminDashboardPage({super.key});
 
   @override
   State<AdminDashboardPage> createState() => _AdminDashboardPageState();

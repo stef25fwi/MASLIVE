@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'account_admin_page.dart';
 import '../services/auth_service.dart';
+import '../services/auth_claims_service.dart';
 import '../ui/theme/maslive_theme.dart';
 import '../ui/widgets/gradient_header.dart';
 import '../ui/widgets/honeycomb_background.dart';
@@ -16,6 +17,7 @@ class AccountUiPage extends StatefulWidget {
 
 class _AccountUiPageState extends State<AccountUiPage> {
   bool _isAdmin = false;
+  bool _isSuperAdmin = false;
 
   @override
   void initState() {
@@ -24,12 +26,24 @@ class _AccountUiPageState extends State<AccountUiPage> {
   }
 
   Future<void> _checkAdminStatus() async {
-    final user = AuthService.instance.currentUser;
-    if (user != null) {
-      final profile = await AuthService.instance.getUserProfile(user.uid);
-      setState(() {
-        _isAdmin = profile?.isAdmin ?? false;
-      });
+    try {
+      final appUser = await AuthClaimsService.instance.getCurrentAppUser();
+      if (appUser != null) {
+        setState(() {
+          _isAdmin = appUser.isAdmin;
+          _isSuperAdmin = appUser.role.toString() == 'superAdmin';
+        });
+      }
+    } catch (e) {
+      // Fallback to old method
+      final user = AuthService.instance.currentUser;
+      if (user != null) {
+        final profile = await AuthService.instance.getUserProfile(user.uid);
+        setState(() {
+          _isAdmin = profile?.isAdmin ?? false;
+          _isSuperAdmin = profile?.role.toString() == 'superAdmin';
+        });
+      }
     }
   }
 
@@ -73,21 +87,15 @@ class _AccountUiPageState extends State<AccountUiPage> {
         child: Column(
           children: [
             MasliveGradientHeader(
-              height: 210,
+              height: 200,
+              borderRadius: BorderRadius.zero,
+              padding: const EdgeInsets.fromLTRB(20, 26, 20, 18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      const Spacer(),
-                      Text(
-                        'Mon compte',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: MasliveTheme.textPrimary,
-                              fontWeight: FontWeight.w800,
-                            ),
-                      ),
-                      const Spacer(),
                       IconButton(
                         onPressed: () => Navigator.pop(context),
                         icon: const Icon(Icons.close_rounded),
@@ -95,7 +103,7 @@ class _AccountUiPageState extends State<AccountUiPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   _AvatarBlock(
                     name: userName,
                     subtitle: userSubtitle,
@@ -174,7 +182,9 @@ class _AccountUiPageState extends State<AccountUiPage> {
                   }
 
                   // Tiles normaux
-                  final t = tiles[i];
+                  final tileIndex = _isSuperAdmin ? (i - 1) : (_isAdmin && i > tiles.length ? i - 1 : i);
+                  if (tileIndex < 0 || tileIndex >= tiles.length) return const SizedBox.shrink();
+                  final t = tiles[tileIndex];
                   return MasliveCard(
                     radius: 20,
                     padding: EdgeInsets.zero,
@@ -233,8 +243,8 @@ class _AccountUiPageState extends State<AccountUiPage> {
                   icon: const Icon(Icons.logout_rounded),
                   label: const Text('Se déconnecter'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red.withValues(alpha: 0.1),
-                    foregroundColor: Colors.red,
+                    backgroundColor: Colors.blue.shade600,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -264,8 +274,8 @@ class _AvatarBlock extends StatelessWidget {
     return Column(
       children: [
         Container(
-          width: 84,
-          height: 84,
+          width: 92,
+          height: 92,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: MasliveTheme.actionGradient,
@@ -273,13 +283,13 @@ class _AvatarBlock extends StatelessWidget {
           ),
           child: const Center(
             child: CircleAvatar(
-              radius: 36,
+              radius: 40,
               backgroundColor: Colors.white,
-              child: Icon(Icons.person_rounded, size: 40, color: MasliveTheme.textPrimary),
+              child: Icon(Icons.person_rounded, size: 42, color: MasliveTheme.textPrimary),
             ),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         Text(
           name,
           textAlign: TextAlign.center,

@@ -197,7 +197,7 @@ class _NavIcon extends StatelessWidget {
           child: Icon(
             icon,
             color: selected ? activeColor : idleColor,
-            size: 24,
+            size: 26,
           ),
         ),
       ),

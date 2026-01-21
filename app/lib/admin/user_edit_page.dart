@@ -10,9 +10,9 @@ class UserEditPage extends StatefulWidget {
   final AppUser user;
 
   const UserEditPage({
-    Key? key,
+    super.key,
     required this.user,
-  }) : super(key: key);
+  });
 
   @override
   State<UserEditPage> createState() => _UserEditPageState();
@@ -335,7 +335,7 @@ class _UserEditPageState extends State<UserEditPage> {
 
               // Rôle
               DropdownButtonFormField<UserRoleType>(
-                value: _selectedRole,
+                initialValue: _selectedRole,
                 decoration: const InputDecoration(
                   labelText: 'Rôle',
                   border: OutlineInputBorder(),

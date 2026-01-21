@@ -5,7 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 
 /// Page de gestion des POIs (Points d'Intérêt) - Version simple compatible avec Place model
 class AdminPOIsSimplePage extends StatefulWidget {
-  const AdminPOIsSimplePage({Key? key}) : super(key: key);
+  const AdminPOIsSimplePage({super.key});
 
   @override
   State<AdminPOIsSimplePage> createState() => _AdminPOIsSimplePageState();
@@ -328,7 +328,7 @@ class _AdminPOIsSimplePageState extends State<AdminPOIsSimplePage> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedType,
+                  initialValue: selectedType,
                   decoration: const InputDecoration(
                     labelText: 'Type',
                     border: OutlineInputBorder(),
@@ -404,8 +404,10 @@ class _AdminPOIsSimplePageState extends State<AdminPOIsSimplePage> {
                   });
 
                   if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    final nav = Navigator.of(context);
+                    final messenger = ScaffoldMessenger.of(context);
+                    nav.pop();
+                    messenger.showSnackBar(
                       const SnackBar(content: Text('POI créé avec succès')),
                     );
                   }
@@ -458,7 +460,7 @@ class _AdminPOIsSimplePageState extends State<AdminPOIsSimplePage> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedType,
+                  initialValue: selectedType,
                   decoration: const InputDecoration(
                     labelText: 'Type',
                     border: OutlineInputBorder(),
@@ -534,8 +536,10 @@ class _AdminPOIsSimplePageState extends State<AdminPOIsSimplePage> {
                   });
 
                   if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    final nav = Navigator.of(context);
+                    final messenger = ScaffoldMessenger.of(context);
+                    nav.pop();
+                    messenger.showSnackBar(
                       const SnackBar(content: Text('POI modifié avec succès')),
                     );
                   }
