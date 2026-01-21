@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -67,6 +68,7 @@ class _HomeMapPageState extends State<HomeMapPage>
   @override
   void initState() {
     super.initState();
+    debugPrint('🗺️ HomeMapPage: initState called');
     _isTracking = _geo.isTracking;
     _menuAnimController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -721,7 +723,7 @@ class _HomeMapPageState extends State<HomeMapPage>
         }
       }
     } catch (e) {
-      print('Erreur lors du chargement du groupId: $e');
+      debugPrint('Erreur lors du chargement du groupId: $e');
     }
   }
 
@@ -1009,6 +1011,7 @@ class _HomeMapPageState extends State<HomeMapPage>
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
+        top: false,
         bottom: false,
         child: HoneycombBackground(
           opacity: 0.08,
@@ -1016,111 +1019,6 @@ class _HomeMapPageState extends State<HomeMapPage>
             children: [
               Column(
                 children: [
-                  MasliveGradientHeader(
-                    height: 60,
-                    borderRadius: BorderRadius.zero,
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                    backgroundColor: Colors.white.withValues(alpha: 0.50),
-                    child: Row(
-                      children: [
-                        StreamBuilder<User?>(
-                          stream: AuthService.instance.authStateChanges,
-                          builder: (context, snap) {
-                            final user = snap.data;
-                            final pseudo =
-                                (user?.displayName ?? user?.email ?? 'Profil')
-                                    .trim();
-
-                            return Tooltip(
-                              message: pseudo.isEmpty ? 'Profil' : pseudo,
-                              child: InkWell(
-                                onTap: () {
-                                  if (user != null) {
-                                    Navigator.pushNamed(context, '/account-ui');
-                                  } else {
-                                    Navigator.pushNamed(context, '/login');
-                                  }
-                                },
-                                customBorder: const CircleBorder(),
-                                child: MasliveProfileIcon(
-                                  size: 46,
-                                  badgeSizeRatio: 0.22,
-                                  showBadge: user != null,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 12),
-                        const Spacer(),
-                        Tooltip(
-                          message: 'Langue',
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: _cycleLanguage,
-                              onLongPress: _openLanguagePicker,
-                              customBorder: const CircleBorder(),
-                              child: Container(
-                                width: 46,
-                                height: 46,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: _headerLanguageColor(),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF9B6BFF)
-                                          .withValues(alpha: 0.22),
-                                      blurRadius: 18,
-                                      spreadRadius: 1,
-                                      offset: const Offset(0, 10),
-                                    ),
-                                    BoxShadow(
-                                      color: const Color(0xFFFF7AAE)
-                                          .withValues(alpha: 0.16),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 6),
-                                    ),
-                                  ],
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    _headerLanguageCode(),
-                                    style: TextStyle(
-                                      color: _headerLanguageTextColor(),
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 13,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        MasliveGradientIconButton(
-                          icon: Icons.shopping_bag_rounded,
-                          tooltip: 'Shop',
-                          onTap: () => Navigator.pushNamed(context, '/shop-ui'),
-                        ),
-                        const SizedBox(width: 10),
-                        MasliveGradientIconButton(
-                          icon: Icons.menu_rounded,
-                          tooltip: 'Menu',
-                          onTap: () {
-                            setState(() => _showActionsMenu = !_showActionsMenu);
-                            if (_showActionsMenu) {
-                              _menuAnimController.forward();
-                            } else {
-                              _menuAnimController.reverse();
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-
                   Expanded(
                     child: Stack(
                       children: [
@@ -1442,6 +1340,111 @@ class _HomeMapPageState extends State<HomeMapPage>
                               onToggle: _toggleTracking,
                             ),
                           ),
+                      ],
+                    ),
+                  ),
+                  // Header déplacé en bas comme bottom bar
+                  MasliveGradientHeader(
+                    height: 60,
+                    borderRadius: BorderRadius.zero,
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                    backgroundColor: Colors.white.withValues(alpha: 0.85),
+                    child: Row(
+                      children: [
+                        StreamBuilder<User?>(
+                          stream: AuthService.instance.authStateChanges,
+                          builder: (context, snap) {
+                            final user = snap.data;
+                            final pseudo =
+                                (user?.displayName ?? user?.email ?? 'Profil')
+                                    .trim();
+
+                            return Tooltip(
+                              message: pseudo.isEmpty ? 'Profil' : pseudo,
+                              child: InkWell(
+                                onTap: () {
+                                  if (user != null) {
+                                    Navigator.pushNamed(context, '/account-ui');
+                                  } else {
+                                    Navigator.pushNamed(context, '/login');
+                                  }
+                                },
+                                customBorder: const CircleBorder(),
+                                child: MasliveProfileIcon(
+                                  size: 46,
+                                  badgeSizeRatio: 0.22,
+                                  showBadge: user != null,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 12),
+                        const Spacer(),
+                        Tooltip(
+                          message: 'Langue',
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: _cycleLanguage,
+                              onLongPress: _openLanguagePicker,
+                              customBorder: const CircleBorder(),
+                              child: Container(
+                                width: 46,
+                                height: 46,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _headerLanguageColor(),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF9B6BFF)
+                                          .withValues(alpha: 0.22),
+                                      blurRadius: 18,
+                                      spreadRadius: 1,
+                                      offset: const Offset(0, 10),
+                                    ),
+                                    BoxShadow(
+                                      color: const Color(0xFFFF7AAE)
+                                          .withValues(alpha: 0.16),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 6),
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    _headerLanguageCode(),
+                                    style: TextStyle(
+                                      color: _headerLanguageTextColor(),
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 13,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        MasliveGradientIconButton(
+                          icon: Icons.shopping_bag_rounded,
+                          tooltip: 'Shop',
+                          onTap: () => Navigator.pushNamed(context, '/shop-ui'),
+                        ),
+                        const SizedBox(width: 10),
+                        MasliveGradientIconButton(
+                          icon: Icons.menu_rounded,
+                          tooltip: 'Menu',
+                          onTap: () {
+                            setState(() => _showActionsMenu = !_showActionsMenu);
+                            if (_showActionsMenu) {
+                              _menuAnimController.forward();
+                            } else {
+                              _menuAnimController.reverse();
+                            }
+                          },
+                        ),
                       ],
                     ),
                   ),

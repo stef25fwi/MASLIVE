@@ -31,7 +31,6 @@ class LanguageService extends GetxService {
     'es': '🇪🇸',
   };
 
-  @override
   Future<LanguageService> init() async {
     _prefs = await SharedPreferences.getInstance();
     

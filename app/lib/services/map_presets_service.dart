@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/map_preset_model.dart';
 
 /// Service pour gérer les cartes pré-enregistrées stockées dans Firestore
@@ -47,7 +48,7 @@ class MapPresetsService {
       }
       return null;
     } catch (e) {
-      print('Erreur lors de la récupération de la carte: $e');
+      debugPrint('Erreur lors de la récupération de la carte: $e');
       return null;
     }
   }
@@ -60,7 +61,7 @@ class MapPresetsService {
           .add(preset.toMap());
       return docRef.id;
     } catch (e) {
-      print('Erreur lors de la création de la carte: $e');
+      debugPrint('Erreur lors de la création de la carte: $e');
       rethrow;
     }
   }
@@ -73,7 +74,7 @@ class MapPresetsService {
           .doc(preset.id)
           .update(preset.copyWith(updatedAt: DateTime.now()).toMap());
     } catch (e) {
-      print('Erreur lors de la mise à jour de la carte: $e');
+      debugPrint('Erreur lors de la mise à jour de la carte: $e');
       rethrow;
     }
   }
@@ -94,7 +95,7 @@ class MapPresetsService {
       final updatedPreset = preset.withLayer(layer.copyWith(visible: visible));
       await updatePreset(updatedPreset);
     } catch (e) {
-      print('Erreur lors de la mise à jour de la visibilité: $e');
+      debugPrint('Erreur lors de la mise à jour de la visibilité: $e');
       rethrow;
     }
   }
@@ -108,7 +109,7 @@ class MapPresetsService {
       final updatedPreset = preset.withLayer(layer);
       await updatePreset(updatedPreset);
     } catch (e) {
-      print('Erreur lors de l\'ajout de la couche: $e');
+      debugPrint('Erreur lors de l\'ajout de la couche: $e');
       rethrow;
     }
   }
@@ -122,7 +123,7 @@ class MapPresetsService {
       final updatedPreset = preset.withoutLayer(layerId);
       await updatePreset(updatedPreset);
     } catch (e) {
-      print('Erreur lors de la suppression de la couche: $e');
+      debugPrint('Erreur lors de la suppression de la couche: $e');
       rethrow;
     }
   }
@@ -132,7 +133,7 @@ class MapPresetsService {
     try {
       await _firestore.collection(_collection).doc(presetId).delete();
     } catch (e) {
-      print('Erreur lors de la suppression de la carte: $e');
+      debugPrint('Erreur lors de la suppression de la carte: $e');
       rethrow;
     }
   }
@@ -148,7 +149,7 @@ class MapPresetsService {
       );
       return await createPreset(newPreset);
     } catch (e) {
-      print('Erreur lors de la duplication de la carte: $e');
+      debugPrint('Erreur lors de la duplication de la carte: $e');
       rethrow;
     }
   }

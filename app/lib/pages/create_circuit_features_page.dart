@@ -289,40 +289,28 @@ class _StepSection extends StatelessWidget {
     // Actions selon la section
     switch (data.index) {
       case 1: // Dessiner le Circuit
+        Navigator.pushNamed(context, '/circuit-draw');
+        break;
+      case 2: // Importer / Exporter
+        Navigator.pushNamed(context, '/circuit-import-export');
+        break;
+      case 3: // Calculs & Validation
+        Navigator.pushNamed(context, '/circuit-calculs');
+        break;
+      case 4: // Sauvegarder & Publier
         Navigator.pushNamed(context, '/admin/circuits');
         break;
-      case 2: // Ajouter des étapes
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('🚧 ${data.title} - En développement')),
-        );
-        break;
-      case 3: // Infos & Médias
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('🚧 ${data.title} - En développement')),
-        );
-        break;
-      case 4: // Publier
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('🚧 ${data.title} - En développement')),
-        );
-        break;
-      case 5: // Rechercher
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('🚧 ${data.title} - En développement')),
-        );
+      case 5: // Rechercher des Circuits
+        Navigator.pushNamed(context, '/search');
         break;
       case 6: // Navigation & Suivi
         Navigator.pushNamed(context, '/tracking');
         break;
       case 7: // Avis & Signalement
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('🚧 ${data.title} - En développement')),
-        );
+        Navigator.pushNamed(context, '/favorites');
         break;
       case 8: // Import / Équipe
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('🚧 ${data.title} - En développement')),
-        );
+        Navigator.pushNamed(context, '/map-admin');
         break;
     }
   }

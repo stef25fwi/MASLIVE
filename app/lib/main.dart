@@ -26,9 +26,16 @@ import 'pages/orders_page.dart';
 import 'pages/map_admin_editor_page.dart';
 import 'pages/shop_page.dart';
 import 'pages/pending_products_page.dart';
+import 'pages/search_page.dart';
+import 'pages/circuit_import_export_page.dart';
+import 'pages/circuit_calculs_validation_page.dart';
+import 'pages/circuit_save_page.dart';
+import 'pages/favorites_page.dart';
+import 'pages/circuit_draw_page.dart';
 import 'admin/super_admin_space.dart';
 import 'admin/category_management_page.dart';
 import 'admin/role_management_page.dart';
+import 'admin/admin_circuits_page.dart';
 import 'services/cart_service.dart';
 import 'services/notifications_service.dart';
 import 'services/premium_service.dart';
@@ -43,12 +50,12 @@ Future<void> main() async {
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
-      statusBarColor: Colors.white,
+      statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
       statusBarBrightness: Brightness.light,
-      systemNavigationBarColor: Colors.black,
+      systemNavigationBarColor: Colors.transparent,
       systemNavigationBarIconBrightness: Brightness.light,
-      systemNavigationBarDividerColor: Colors.black,
+      systemNavigationBarDividerColor: Colors.transparent,
     ),
   );
 
@@ -130,11 +137,18 @@ class MasLiveApp extends StatelessWidget {
                 return GroupMemberPage(groupId: groupId);
               },
               '/admin': (_) => const AdminDashboardPage(),
+              '/admin/circuits': (_) => const AdminCircuitsPage(),
               '/admin/superadmin': (_) => const SuperAdminSpace(),
               '/admin/categories': (_) => const CategoryManagementPage(),
               '/admin/roles': (_) => const RoleManagementPage(),
               '/login': (_) => const LoginPage(),
               '/tracking': (_) => const TrackingLivePage(),
+              '/search': (_) => const SearchPage(),
+              '/circuit-import-export': (_) => const CircuitImportExportPage(),
+              '/circuit-calculs': (_) => const CircuitCalculsValidationPage(),
+              '/circuit-save': (_) => const CircuitSavePage(),
+              '/circuit-draw': (_) => const CircuitDrawPage(),
+              '/favorites': (_) => const FavoritesPage(),
               '/cart': (_) => const CartPage(),
               '/paywall': (_) => const PaywallPage(),
               '/pending-products': (_) => const PendingProductsPage(),
