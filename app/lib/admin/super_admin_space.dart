@@ -79,7 +79,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
       }
       _pendingApprovals = pending;
     } catch (e) {
-      print('Erreur chargement stats: $e');
+      debugPrint('Erreur chargement stats: $e');
     }
   }
 

@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import '../services/firestore_service.dart';
 import '../services/gallery_counts_service.dart';
 import '../ui/theme/maslive_theme.dart';
-import '../ui/widgets/gradient_header.dart';
 import '../ui/widgets/honeycomb_background.dart';
 import '../ui/widgets/maslive_card.dart';
+import '../widgets/la_boutique_header.dart';
 import 'media_galleries_page.dart';
 
 class ShopUiPage extends StatefulWidget {
@@ -20,6 +20,9 @@ class ShopUiPage extends StatefulWidget {
 class _ShopPageState extends State<ShopUiPage> {
   String _category = 'Tous';
   String? _selectedGroup;
+  // ignore: unused_field
+  String _searchQuery = '';
+  // ignore: unused_field
   final FirestoreService _firestore = FirestoreService();
 
   @override
@@ -36,56 +39,20 @@ class _ShopPageState extends State<ShopUiPage> {
         opacity: 0.08,
         child: Column(
           children: [
-            MasliveGradientHeader(
-              height: 220,
-              padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
-              borderRadius: BorderRadius.zero,
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                        color: MasliveTheme.textPrimary,
-                      ),
-                      const Spacer(),
-                      Text(
-                        widget.groupId == null ? 'Shop' : 'Shop du groupe',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w900,
-                              color: MasliveTheme.textPrimary,
-                            ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Recherche (mock)')),
-                          );
-                        },
-                        icon: const Icon(Icons.search_rounded),
-                        color: MasliveTheme.textPrimary,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  _CategoryRow(
-                    selected: _category,
-                    onSelected: (c) => setState(() => _category = c),
-                  ),
-                  const SizedBox(height: 12),
-                  _GroupDropdown(
-                    selected: _selectedGroup,
-                    onSelected: (g) => setState(() => _selectedGroup = g),
-                    firestore: _firestore,
-                  ),
-                ],
-              ),
+            LaBoutiqueHeader(
+              onBack: () => Navigator.pop(context),
+              onSearchIconTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Recherche (mock)')),
+                );
+              },
+              onQueryChanged: (query) {
+                setState(() => _searchQuery = query);
+              },
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
                 child: GridView.builder(
                   itemCount: products.length + 1,
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(

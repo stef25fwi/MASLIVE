@@ -1,12 +1,5 @@
 /// Local draft cache pour brouillons de circuits/routes
 class DraftManager {
-  static const _prefix = 'draft_';
-
-  static String _keyCircuit(String? groupId) =>
-      '${_prefix}circuit_${groupId ?? "global"}';
-  static String _keyRoute(String? groupId) =>
-      '${_prefix}route_${groupId ?? "global"}';
-
   /// Sauvegarde un brouillon de circuit (données sérialisées)
   static Future<void> saveCircuitDraft({
     required String? groupId,
