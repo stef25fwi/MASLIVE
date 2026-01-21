@@ -328,4 +328,22 @@ class PermissionService {
       return false;
     }
   }
+
+  /// Vérifie si l'utilisateur actuel est un superadmin
+  Future<bool> isCurrentUserSuperAdmin(String userId) async {
+    try {
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      if (!userDoc.exists) return false;
+
+      final userData = userDoc.data()!;
+      final role = userData['role'] as String? ?? 'user';
+      final isAdmin = userData['isAdmin'] as bool? ?? false;
+
+      // Superadmin ou isAdmin + role admin
+      return role == 'superAdmin' || role == 'superadmin' || 
+             (isAdmin && (role == 'admin' || role == 'Admin'));
+    } catch (e) {
+      return false;
+    }
+  }
 }

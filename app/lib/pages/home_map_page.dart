@@ -15,6 +15,8 @@ import '../ui/widgets/maslive_card.dart';
 import '../ui/widgets/maslive_profile_icon.dart';
 import '../models/place_model.dart';
 import '../models/circuit_model.dart';
+import '../models/map_preset_model.dart';
+import '../pages/map_selector_page.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/geolocation_service.dart';
@@ -50,6 +52,11 @@ class _HomeMapPageState extends State<HomeMapPage>
   bool _followUser = true;
   bool _requestingGps = false;
   bool _isTracking = false;
+  
+  // Variables pour la gestion des cartes pré-enregistrées
+  MapPresetModel? _selectedPreset;
+  String? _userGroupId;
+  bool _isSuperAdmin = false;
 
   static const LatLng _fallbackCenter = LatLng(16.241, -61.533);
 
@@ -76,6 +83,7 @@ class _HomeMapPageState extends State<HomeMapPage>
     );
 
     _bootstrapLocation();
+    _loadUserGroupId();
   }
 
   @override
@@ -679,6 +687,84 @@ class _HomeMapPageState extends State<HomeMapPage>
     });
   }
 
+  /// Charge le groupId et le statut superadmin de l'utilisateur
+  Future<void> _loadUserGroupId() async {
+    try {
+      final user = AuthService.instance.currentUser;
+      if (user == null) return;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      
+      if (doc.exists && mounted) {
+        final groupId = doc.data()?['groupId'] as String?;
+        final role = doc.data()?['role'] as String?;
+        final isAdmin = doc.data()?['isAdmin'] as bool? ?? false;
+        
+        // Vérifie si l'utilisateur est superadmin
+        final isSuperAdmin = role == 'superAdmin' || role == 'superadmin' || 
+                             (isAdmin && (role == 'admin' || role == 'Admin'));
+        
+        if (groupId != null) {
+          setState(() {
+            _userGroupId = groupId;
+            _isSuperAdmin = isSuperAdmin;
+          });
+        } else {
+          setState(() => _isSuperAdmin = isSuperAdmin);
+        }
+      }
+    } catch (e) {
+      print('Erreur lors du chargement du groupId: $e');
+    }
+  }
+
+  /// Ouvre le sélecteur de cartes pré-enregistrées
+  /// Seuls les superadmins peuvent modifier la sélection
+  void _openMapSelector() {
+    if (_userGroupId == null || _userGroupId!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Aucun groupe associé à ton profil.'),
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MapSelectorPage(
+          groupId: _userGroupId!,
+          initialPreset: _selectedPreset,
+          isReadOnly: !_isSuperAdmin,
+          onMapSelected: (preset, visibleLayers) {
+            setState(() {
+              _selectedPreset = preset;
+              
+              // Centre la carte sur la position du preset
+              _mapController.move(preset.center, preset.zoom);
+              
+              // Affiche un message
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    '${preset.title} chargée (${visibleLayers.length} couche${visibleLayers.length != 1 ? 's' : ''} visible${visibleLayers.length != 1 ? 's' : ''})',
+                  ),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            });
+          },
+        ),
+      ),
+    );
+
+    _closeNavWithDelay();
+  }
+
   void _openLanguagePicker() {
     final loc = LocalizationService();
 
@@ -1071,6 +1157,16 @@ class _HomeMapPageState extends State<HomeMapPage>
                                       child: Column(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
+                                          // Bouton Cartes - visible seulement pour les superadmins
+                                          if (_isSuperAdmin)
+                                            _ActionItem(
+                                              label: 'Cartes',
+                                              icon: Icons.layers_rounded,
+                                              selected: _selectedPreset != null,
+                                              onTap: _openMapSelector,
+                                            ),
+                                          if (_isSuperAdmin)
+                                            const SizedBox(height: 8),
                                           _ActionItem(
                                               label: 'Centrer',
                                               icon: Icons.my_location_rounded,
