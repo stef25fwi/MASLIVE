@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CircuitDrawPage extends StatefulWidget {
   const CircuitDrawPage({super.key});
@@ -15,8 +17,11 @@ class _CircuitDrawPageState extends State<CircuitDrawPage> {
   final List<LatLng> _points = [];
   final List<List<LatLng>> _undoStack = [];
   final List<List<LatLng>> _redoStack = [];
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _descController = TextEditingController();
 
   bool _drawMode = true;
+  bool _saving = false;
 
   void _pushUndoSnapshot() {
     _undoStack.add(List<LatLng>.from(_points));
@@ -108,10 +113,183 @@ class _CircuitDrawPageState extends State<CircuitDrawPage> {
     return LatLngBounds(LatLng(minLat, minLon), LatLng(maxLat, maxLon));
   }
 
+  // Créer les flèches directionnelles le long du tracé
+  List<Marker> _buildDirectionArrows() {
+    final arrows = <Marker>[];
+  
+    // Ajouter une flèche tous les N points (ex: tous les 5 points)
+    for (int i = 0; i < _points.length - 1; i += 5) {
+      final from = _points[i];
+      final to = _points[i + 1];
+    
+      // Point au milieu du segment
+      final midLat = (from.latitude + to.latitude) / 2;
+      final midLng = (from.longitude + to.longitude) / 2;
+      final midPoint = LatLng(midLat, midLng);
+    
+      // Calculer l'angle de direction
+      final angle = math.atan2(
+        to.longitude - from.longitude,
+        to.latitude - from.latitude,
+      );
+    
+      arrows.add(
+        Marker(
+          point: midPoint,
+          width: 24,
+          height: 24,
+          child: Transform.rotate(
+            angle: angle,
+            child: const Icon(
+              Icons.arrow_upward,
+              color: Colors.white,
+              size: 16,
+              shadows: [
+                Shadow(
+                  color: Colors.black45,
+                  blurRadius: 2,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+  
+    return arrows;
+  }
+
   Future<void> _saveCircuit() async {
-    if (!mounted) return;
+    if (_points.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Le circuit doit avoir au moins 2 points')),
+      );
+      return;
+    }
+
+    // Demander le titre et la description
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Enregistrer le circuit'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _titleController,
+              decoration: const InputDecoration(
+                labelText: 'Titre du circuit *',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _descController,
+              decoration: const InputDecoration(
+                labelText: 'Description',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (_titleController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Le titre est requis')),
+                );
+                return;
+              }
+              Navigator.pop(context, {
+                'title': _titleController.text.trim(),
+                'description': _descController.text.trim(),
+              });
+            },
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == null) return;
+
+    setState(() => _saving = true);
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw 'Non authentifié';
+
+      // Calculer la distance totale
+      final distanceKm = _distanceMeters() / 1000.0;
+
+      await FirebaseFirestore.instance.collection('circuits').add({
+        'title': result['title'],
+        'description': result['description'],
+        'waypoints': _points.map((p) => {
+          'lat': p.latitude,
+          'lng': p.longitude,
+        }).toList(),
+        'distanceKm': distanceKm,
+        'isPublished': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'createdBy': user.uid,
+      });
+
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Circuit "${result['title']}" enregistré (${distanceKm.toStringAsFixed(2)} km)'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('❌ Erreur: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  // Lissage du tracé (simplification Douglas-Peucker)
+  void _smoothTrack() {
+    if (_points.length < 3) return;
+    
+    _pushUndoSnapshot();
+    
+    // Algorithme simple de lissage par moyenne mobile
+    final smoothed = <LatLng>[_points.first];
+    
+    for (int i = 1; i < _points.length - 1; i++) {
+      final prev = _points[i - 1];
+      final curr = _points[i];
+      final next = _points[i + 1];
+      
+      final avgLat = (prev.latitude + curr.latitude + next.latitude) / 3;
+      final avgLng = (prev.longitude + curr.longitude + next.longitude) / 3;
+      
+      smoothed.add(LatLng(avgLat, avgLng));
+    }
+    
+    smoothed.add(_points.last);
+    
+    setState(() {
+      _points.clear();
+      _points.addAll(smoothed);
+    });
+    
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Circuit prêt (${_points.length} points)")),
+      const SnackBar(content: Text('✨ Tracé lissé')),
     );
   }
 
@@ -119,14 +297,6 @@ class _CircuitDrawPageState extends State<CircuitDrawPage> {
   Widget build(BuildContext context) {
     final dist = _distanceMeters();
     final hasTrack = _points.length >= 2;
-
-    final polyline = Polyline(
-      points: _points,
-      strokeWidth: 6,
-      color: const Color(0xFF1A73E8),
-      borderStrokeWidth: 2,
-      borderColor: Colors.white,
-    );
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -145,10 +315,22 @@ class _CircuitDrawPageState extends State<CircuitDrawPage> {
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: hasTrack ? _saveCircuit : null,
-            child: const Text("Terminer"),
+          FilledButton.icon(
+            onPressed: hasTrack && !_saving ? _saveCircuit : null,
+            icon: _saving 
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : const Icon(Icons.check),
+            label: Text(_saving ? 'Enregistrement...' : 'Terminer'),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF34A853),
+              foregroundColor: Colors.white,
+            ),
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Stack(
@@ -169,7 +351,20 @@ class _CircuitDrawPageState extends State<CircuitDrawPage> {
               ),
               if (_points.isNotEmpty)
                 PolylineLayer(
-                  polylines: [polyline],
+                  polylines: [
+                    Polyline(
+                      points: _points,
+                      strokeWidth: 8,
+                      color: const Color(0xFF1A73E8),
+                      borderStrokeWidth: 2,
+                      borderColor: Colors.white,
+                    ),
+                  ],
+                ),
+              // Flèches directionnelles
+              if (_points.length >= 2)
+                MarkerLayer(
+                  markers: _buildDirectionArrows(),
                 ),
               MarkerLayer(
                 markers: List.generate(_points.length, (i) {
@@ -210,6 +405,8 @@ class _CircuitDrawPageState extends State<CircuitDrawPage> {
                 _pushUndoSnapshot();
                 setState(() => _points.clear());
               },
+              onSmooth: _smoothTrack,
+              hasPoints: _points.length >= 3,
             ),
           ),
           Positioned(
@@ -283,21 +480,25 @@ class _ToolColumn extends StatelessWidget {
   final bool drawMode;
   final bool canUndo;
   final bool canRedo;
+    final bool hasPoints;
   final VoidCallback onToggleMode;
   final VoidCallback onUndo;
   final VoidCallback onRedo;
   final VoidCallback onCenterOnTrack;
   final VoidCallback onClear;
+  final VoidCallback onSmooth;
 
   const _ToolColumn({
     required this.drawMode,
     required this.canUndo,
     required this.canRedo,
+      required this.hasPoints,
     required this.onToggleMode,
     required this.onUndo,
     required this.onRedo,
     required this.onCenterOnTrack,
     required this.onClear,
+    required this.onSmooth,
   });
 
   @override
@@ -327,6 +528,13 @@ class _ToolColumn extends StatelessWidget {
           icon: Icons.zoom_out_map,
           onPressed: onCenterOnTrack,
           tooltip: "Centrer sur circuit",
+        ),
+        const SizedBox(height: 8),
+        _ToolButton(
+          icon: Icons.auto_fix_high,
+          onPressed: hasPoints ? onSmooth : null,
+          tooltip: "Lisser le tracé",
+          color: const Color(0xFF9C27B0),
         ),
         const SizedBox(height: 8),
         _ToolButton(

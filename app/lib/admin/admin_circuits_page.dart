@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'dart:math' as math;
 import '../models/circuit_model.dart';
+import '../pages/circuit_draw_page.dart';
 
 /// Page de gestion des circuits/parcours (CRUD complet)
 class AdminCircuitsPage extends StatefulWidget {
@@ -24,9 +25,17 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
         title: const Text('Gestion des parcours'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.edit_location_alt),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CircuitDrawPage()),
+            ),
+            tooltip: 'Dessiner un nouveau circuit',
+          ),
+          IconButton(
             icon: const Icon(Icons.add),
             onPressed: () => _showCreateCircuitDialog(),
-            tooltip: 'Créer un parcours',
+            tooltip: 'Créer un parcours (formulaire)',
           ),
         ],
       ),

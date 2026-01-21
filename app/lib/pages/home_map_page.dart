@@ -21,6 +21,7 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/geolocation_service.dart';
 import '../services/localization_service.dart';
+import '../services/map_presets_service.dart';
 
 enum _MapAction { ville, tracking, visiter, encadrement, food, wc, parking }
 
@@ -46,6 +47,7 @@ class _HomeMapPageState extends State<HomeMapPage>
   final FirestoreService _firestore = FirestoreService();
   final GeolocationService _geo = GeolocationService.instance;
   final _circuitStream = FirestoreService().getPublishedCircuitsStream();
+  final MapPresetsService _presetService = MapPresetsService();
 
   StreamSubscription<Position>? _positionSub;
   LatLng? _userPos;
@@ -55,6 +57,8 @@ class _HomeMapPageState extends State<HomeMapPage>
   
   // Variables pour la gestion des cartes pré-enregistrées
   MapPresetModel? _selectedPreset;
+  List<LayerModel> _currentPresetLayers = [];
+  Map<String, bool> _activeLayers = {};
   String? _userGroupId;
   bool _isSuperAdmin = false;
 
@@ -741,28 +745,171 @@ class _HomeMapPageState extends State<HomeMapPage>
           initialPreset: _selectedPreset,
           isReadOnly: !_isSuperAdmin,
           onMapSelected: (preset, visibleLayers) {
-            setState(() {
-              _selectedPreset = preset;
-              
-              // Centre la carte sur la position du preset
-              _mapController.move(preset.center, preset.zoom);
-              
-              // Affiche un message
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    '${preset.title} chargée (${visibleLayers.length} couche${visibleLayers.length != 1 ? 's' : ''} visible${visibleLayers.length != 1 ? 's' : ''})',
-                  ),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            });
+            _applyPreset(preset, visibleLayers: visibleLayers);
           },
         ),
       ),
     );
 
     _closeNavWithDelay();
+  }
+
+  /// Menu rapide de sélection de carte (pour superadmin) avec confirmation
+  Future<void> _openMapQuickMenu() async {
+    if (!_isSuperAdmin) {
+      _openMapSelector();
+      return;
+    }
+
+    if (_userGroupId == null || _userGroupId!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aucun groupe associé à ton profil.')),
+      );
+      return;
+    }
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.layers_rounded, color: Color(0xFF7C3AED)),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Cartes du groupe',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.settings),
+                    tooltip: 'Ouvrir le sélecteur avancé',
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _openMapSelector();
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              StreamBuilder<List<MapPresetModel>>(
+                stream: _presetService.getGroupPresetsStream(_userGroupId!),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: CircularProgressIndicator(),
+                    ));
+                  }
+
+                  final presets = snapshot.data ?? const <MapPresetModel>[];
+                  if (presets.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Text('Aucune carte enregistrée pour ce groupe.'),
+                    );
+                  }
+
+                  return ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: presets.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final preset = presets[index];
+                      final isSelected = _selectedPreset?.id == preset.id;
+
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: const Color(0xFFB66CFF).withValues(alpha: 0.16),
+                          child: Icon(Icons.map_rounded, color: const Color(0xFF7C3AED)),
+                        ),
+                        title: Text(preset.title, style: const TextStyle(fontWeight: FontWeight.w800)),
+                        subtitle: Text(preset.description.isNotEmpty ? preset.description : 'Centre: ${preset.center.latitude.toStringAsFixed(3)}, ${preset.center.longitude.toStringAsFixed(3)}'),
+                        trailing: isSelected
+                            ? const Icon(Icons.check_circle, color: Colors.green)
+                            : const Icon(Icons.chevron_right),
+                        onTap: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (_) => AlertDialog(
+                              title: const Text('Confirmer le chargement ?'),
+                              content: Text('Charger "${preset.title}" et ses couches associées ?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  child: const Text('Annuler'),
+                                ),
+                                FilledButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: const Text('Confirmer'),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (confirm == true) {
+                            Navigator.pop(context); // ferme le bottom sheet
+                            _applyPreset(preset);
+                          }
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    _closeNavWithDelay();
+  }
+
+  /// Applique un preset (centre la carte, configure les couches)
+  void _applyPreset(MapPresetModel preset, {List<LayerModel>? visibleLayers}) {
+    final layers = visibleLayers ?? preset.layers;
+
+    setState(() {
+      _selectedPreset = preset;
+      _currentPresetLayers = List<LayerModel>.from(preset.layers);
+      _activeLayers = {
+        for (final layer in layers) layer.id: layer.visible,
+      };
+      _mapController.move(preset.center, preset.zoom);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${preset.title} chargée (${layers.length} couche${layers.length != 1 ? 's' : ''} active${layers.length != 1 ? 's' : ''})',
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _toggleLayer(String layerId, bool value) {
+    setState(() {
+      _activeLayers[layerId] = value;
+    });
+
+    final activeCount = _activeLayers.values.where((v) => v).length;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Couches actives: $activeCount'),
+        duration: const Duration(milliseconds: 1200),
+      ),
+    );
   }
 
   void _openLanguagePicker() {
@@ -1163,7 +1310,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                                               label: 'Cartes',
                                               icon: Icons.layers_rounded,
                                               selected: _selectedPreset != null,
-                                              onTap: _openMapSelector,
+                                              onTap: _openMapQuickMenu,
                                             ),
                                           if (_isSuperAdmin)
                                             const SizedBox(height: 8),
@@ -1269,6 +1416,19 @@ class _HomeMapPageState extends State<HomeMapPage>
                                   ),
                                 ),
                               ),
+                          ),
+                        ),
+
+                      // Panneau rapide des couches actives (si un preset est chargé)
+                      if (_selectedPreset != null && _currentPresetLayers.isNotEmpty)
+                        Positioned(
+                          left: 14,
+                          right: 14,
+                          bottom: _selected == _MapAction.tracking ? 96 : 36,
+                          child: _LayerQuickPanel(
+                            layers: _currentPresetLayers,
+                            activeLayers: _activeLayers,
+                            onToggle: _toggleLayer,
                           ),
                         ),
 
@@ -1439,6 +1599,73 @@ class _TrackingPill extends StatelessWidget {
             onPressed: onToggle,
             icon: Icon(isTracking ? Icons.stop_circle : Icons.play_circle),
             label: Text(isTracking ? 'Stop' : 'Start'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LayerQuickPanel extends StatelessWidget {
+  final List<LayerModel> layers;
+  final Map<String, bool> activeLayers;
+  final void Function(String layerId, bool value) onToggle;
+
+  const _LayerQuickPanel({
+    required this.layers,
+    required this.activeLayers,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container
+    (
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(color: Color(0x14000000), blurRadius: 18, offset: Offset(0, 10)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.layers_rounded, size: 18, color: Color(0xFF7C3AED)),
+              SizedBox(width: 8),
+              Text(
+                'Couches actives',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final layer in layers)
+                FilterChip(
+                  label: Text(layer.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  avatar: Icon(
+                    layer.iconName != null ? Icons.checklist_rtl : Icons.layers,
+                    size: 18,
+                  ),
+                  selected: activeLayers[layer.id] ?? layer.visible,
+                  onSelected: (value) => onToggle(layer.id, value),
+                  selectedColor: const Color(0xFFB66CFF).withValues(alpha: 0.18),
+                  checkmarkColor: const Color(0xFF7C3AED),
+                  side: BorderSide(
+                    color: (activeLayers[layer.id] ?? layer.visible)
+                        ? const Color(0xFF7C3AED)
+                        : Colors.grey.shade300,
+                  ),
+                ),
+            ],
           ),
         ],
       ),
