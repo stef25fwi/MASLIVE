@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../widgets/honeycomb_background.dart';
 import '../widgets/rainbow_header.dart';
@@ -8,12 +9,8 @@ class MediaGalleriesPage extends StatelessWidget {
 
   final String groupId;
 
-  static const _demoAsset = 'assets/splash/maslive.png';
-
   @override
   Widget build(BuildContext context) {
-    final galleries = _demoGalleries();
-
     return Scaffold(
       body: HoneycombBackground(
         child: CustomScrollView(
@@ -27,63 +24,95 @@ class MediaGalleriesPage extends StatelessWidget {
                 ),
               ),
             ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Galeries photos',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Groupe: $groupId',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.black.withValues(alpha: 0.55),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _TipCard(
-                      title: 'Astuce',
-                      message:
-                          "Ici tu verras les galeries. Plus tard, on pourra brancher ça sur Firestore/Storage.",
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 0.92,
-                ),
-                delegate: SliverChildBuilderDelegate((context, i) {
-                  final g = galleries[i];
-                  return _GalleryCard(
-                    title: g.title,
-                    subtitle: g.subtitle,
-                    count: g.images.length,
-                    coverAsset: g.images.first,
-                    gradient: g.gradient,
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => GalleryDetailPage(gallery: g),
-                        ),
-                      );
-                    },
+            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: _queryForGroup(groupId).snapshots(),
+              builder: (context, snapshot) {
+                final isLoading = snapshot.connectionState == ConnectionState.waiting;
+                final docs = snapshot.data?.docs ?? const [];
+                final galleries = docs.asMap().entries.map((entry) {
+                  final data = entry.value.data();
+                  final imagesRaw = data['images'];
+                  final images = imagesRaw is List ? imagesRaw.whereType<String>().toList() : <String>[];
+                  final photoCount = (data['photoCount'] is int) ? data['photoCount'] as int : images.length;
+                  return Gallery(
+                    id: entry.value.id,
+                    title: (data['title'] as String?)?.trim().isNotEmpty == true ? data['title'] as String : 'Sans titre',
+                    subtitle: (data['subtitle'] as String?) ?? '',
+                    images: images,
+                    coverUrl: (data['coverUrl'] as String?) ?? (images.isNotEmpty ? images.first : null),
+                    gradient: _palette[entry.key % _palette.length],
+                    photoCount: photoCount,
                   );
-                }, childCount: galleries.length),
-              ),
+                }).toList();
+
+                return SliverList.list(children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Galeries photos',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          groupId == 'all' ? 'Toutes les galeries' : 'Groupe: $groupId',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Colors.black.withValues(alpha: 0.55),
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                        const SizedBox(height: 12),
+                        if (isLoading) const _TipCard(title: 'Chargement', message: 'Récupération des galeries...') else if (galleries.isEmpty)
+                          const _TipCard(title: 'Aucune galerie', message: 'Ajoute des galeries depuis Firestore (collection: media_galleries).'),
+                      ],
+                    ),
+                  ),
+                  if (isLoading)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 40),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (galleries.isEmpty)
+                    const SizedBox.shrink()
+                  else
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                      child: GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: galleries.length,
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 0.92,
+                        ),
+                        itemBuilder: (context, i) {
+                          final g = galleries[i];
+                          return _GalleryCard(
+                            title: g.title,
+                            subtitle: g.subtitle,
+                            count: g.photoCount,
+                            cover: g.coverUrl,
+                            fallbackAsset: _demoAsset,
+                            gradient: g.gradient,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => GalleryDetailPage(gallery: g),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                ]);
+              },
             ),
           ],
         ),
@@ -91,64 +120,13 @@ class MediaGalleriesPage extends StatelessWidget {
     );
   }
 
-  List<Gallery> _demoGalleries() {
-    // Démo locale (sans dépendances) : on réutilise le logo en attendant de brancher Storage.
-    // Remplace _demoAsset par des URLs ou des assets réels plus tard.
-    return [
-      Gallery(
-        title: 'Backstage',
-        subtitle: 'Coulisses & répétitions',
-        images: const [_demoAsset, _demoAsset, _demoAsset, _demoAsset],
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFFFE36A), Color(0xFFFF7BC5)],
-        ),
-      ),
-      Gallery(
-        title: 'Live',
-        subtitle: 'Concerts & scène',
-        images: const [
-          _demoAsset,
-          _demoAsset,
-          _demoAsset,
-          _demoAsset,
-          _demoAsset,
-        ],
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
-        ),
-      ),
-      Gallery(
-        title: 'Team',
-        subtitle: 'Moments du crew',
-        images: const [_demoAsset, _demoAsset, _demoAsset],
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF7CE0FF), Color(0xFFFFE36A)],
-        ),
-      ),
-      Gallery(
-        title: 'Flyers',
-        subtitle: 'Affiches & visuels',
-        images: const [
-          _demoAsset,
-          _demoAsset,
-          _demoAsset,
-          _demoAsset,
-          _demoAsset,
-          _demoAsset,
-        ],
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF171A20), Color(0xFF353B48)],
-        ),
-      ),
-    ];
+  Query<Map<String, dynamic>> _queryForGroup(String groupId) {
+    Query<Map<String, dynamic>> q = FirebaseFirestore.instance.collection('media_galleries');
+    final trimmed = groupId.trim();
+    if (trimmed.isNotEmpty && trimmed != 'all') {
+      q = q.where('groupId', isEqualTo: trimmed);
+    }
+    return q.orderBy('createdAt', descending: true);
   }
 }
 
@@ -194,7 +172,7 @@ class GalleryDetailPage extends StatelessWidget {
                 ),
                 delegate: SliverChildBuilderDelegate((context, i) {
                   final asset = gallery.images[i];
-                  final heroTag = '${gallery.title}#$i';
+                  final heroTag = '${gallery.id}#$i';
                   return GestureDetector(
                     onTap: () {
                       Navigator.of(context).push(
@@ -203,7 +181,7 @@ class GalleryDetailPage extends StatelessWidget {
                             title: gallery.title,
                             images: gallery.images,
                             initialIndex: i,
-                            heroTagBuilder: (idx) => '${gallery.title}#$idx',
+                            heroTagBuilder: (idx) => '${gallery.id}#$idx',
                           ),
                         ),
                       );
@@ -212,7 +190,7 @@ class GalleryDetailPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                       child: Hero(
                         tag: heroTag,
-                        child: Image.asset(asset, fit: BoxFit.cover),
+                        child: _GalleryImage(src: asset, fit: BoxFit.cover),
                       ),
                     ),
                   );
@@ -279,7 +257,7 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
                   child: InteractiveViewer(
                     minScale: 1,
                     maxScale: 4,
-                    child: Image.asset(asset, fit: BoxFit.contain),
+                    child: _GalleryImage(src: asset, fit: BoxFit.contain),
                   ),
                 ),
               );
@@ -321,7 +299,8 @@ class _GalleryCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.count,
-    required this.coverAsset,
+    required this.cover,
+    required this.fallbackAsset,
     required this.gradient,
     required this.onTap,
   });
@@ -329,7 +308,8 @@ class _GalleryCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final int count;
-  final String coverAsset;
+  final String? cover;
+  final String fallbackAsset;
   final Gradient gradient;
   final VoidCallback onTap;
 
@@ -347,7 +327,10 @@ class _GalleryCard extends StatelessWidget {
           child: Stack(
             children: [
               Positioned.fill(
-                child: Image.asset(coverAsset, fit: BoxFit.cover),
+                child: _GalleryImage(
+                  src: cover ?? fallbackAsset,
+                  fit: BoxFit.cover,
+                ),
               ),
               Positioned.fill(
                 child: DecoratedBox(
@@ -493,14 +476,74 @@ class _TipCard extends StatelessWidget {
 
 class Gallery {
   const Gallery({
+    required this.id,
     required this.title,
     required this.subtitle,
     required this.images,
     required this.gradient,
+    required this.photoCount,
+    this.coverUrl,
   });
 
+  final String id;
   final String title;
   final String subtitle;
   final List<String> images;
   final Gradient gradient;
+  final String? coverUrl;
+  final int photoCount;
 }
+
+class _GalleryImage extends StatelessWidget {
+  const _GalleryImage({required this.src, this.fit = BoxFit.cover});
+
+  final String src;
+  final BoxFit fit;
+
+  bool get _isNetwork => src.startsWith('http');
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isNetwork) {
+      return Image.network(
+        src,
+        fit: fit,
+        errorBuilder: (_, __, ___) => _fallback(),
+      );
+    }
+    return Image.asset(src, fit: fit, errorBuilder: (_, __, ___) => _fallback());
+  }
+
+  Widget _fallback() {
+    return Container(
+      color: Colors.black.withValues(alpha: 0.06),
+      alignment: Alignment.center,
+      child: const Icon(Icons.image_not_supported_outlined, color: Colors.white70),
+    );
+  }
+}
+
+const _demoAsset = 'assets/splash/maslive.png';
+
+const _palette = [
+  LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFFFE36A), Color(0xFFFF7BC5)],
+  ),
+  LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
+  ),
+  LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF7CE0FF), Color(0xFFFFE36A)],
+  ),
+  LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF171A20), Color(0xFF353B48)],
+  ),
+];

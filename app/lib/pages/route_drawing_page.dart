@@ -3,8 +3,12 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../services/route_validator.dart';
+
 class RouteDrawingPage extends StatefulWidget {
-  const RouteDrawingPage({super.key});
+  const RouteDrawingPage({super.key, this.groupId});
+
+  final String? groupId;
 
   @override
   State<RouteDrawingPage> createState() => _RouteDrawingPageState();
@@ -13,8 +17,10 @@ class RouteDrawingPage extends StatefulWidget {
 class _RouteDrawingPageState extends State<RouteDrawingPage> {
   final MapController _mapController = MapController();
   final List<LatLng> _points = [];
+  final List<List<LatLng>> _history = []; // Undo stack
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
+  int? _editingPointIndex; // Index du point en édition
   bool _saving = false;
 
   @override
@@ -26,49 +32,111 @@ class _RouteDrawingPageState extends State<RouteDrawingPage> {
 
   void _onMapTap(TapPosition tapPosition, LatLng point) {
     setState(() {
-      _points.add(point);
+      _saveHistory();
+      if (_editingPointIndex != null) {
+        _points[_editingPointIndex!] = point;
+        _editingPointIndex = null;
+      } else {
+        _points.add(point);
+      }
     });
   }
 
+  void _saveHistory() {
+    _history.add(List<LatLng>.from(_points));
+  }
+
   void _undoLastPoint() {
-    if (_points.isNotEmpty) {
+    if (_history.isNotEmpty) {
       setState(() {
-        _points.removeLast();
+        _points.clear();
+        _points.addAll(_history.removeLast());
+        _editingPointIndex = null;
       });
     }
   }
 
-  void _clearAll() {
+  void _deletePoint(int index) {
     setState(() {
-      _points.clear();
+      _saveHistory();
+      _points.removeAt(index);
+      _editingPointIndex = null;
     });
   }
 
+  void _editPoint(int index) {
+    setState(() {
+      _editingPointIndex = _editingPointIndex == index ? null : index;
+    });
+  }
+
+  void _clearAll() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Effacer tous les points ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+          FilledButton(
+            onPressed: () {
+              setState(() {
+                _points.clear();
+                _history.clear();
+                _editingPointIndex = null;
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Effacer'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _saveRoute() async {
-    if (_points.isEmpty) {
+    final validation = RouteValidator.validate(
+      name: _nameController.text,
+      points: _points,
+    );
+
+    if (validation != null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aucun point tracé')),
+        SnackBar(content: Text('❌ $validation')),
       );
       return;
     }
 
-    if (_nameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nom du parcours requis')),
+    // Avertir si doublons
+    final dupes = RouteValidator.findDuplicates(_points);
+    if (dupes.isNotEmpty && mounted) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Points trop proches ?'),
+          content: Text('${dupes.length} point(s) sont très proches. Continuer ?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Continuer')),
+          ],
+        ),
       );
-      return;
+      if (proceed != true) return;
     }
 
     setState(() => _saving = true);
 
     try {
       final routeData = {
-        'name': _nameController.text,
-        'description': _descriptionController.text,
+        'name': _nameController.text.trim(),
+        'description': _descriptionController.text.trim(),
         'points': _points.map((p) => {
           'lat': p.latitude,
           'lng': p.longitude,
         }).toList(),
+        'distanceKm': RouteValidator.totalDistance(_points),
+        'estimatedMinutes': RouteValidator.estimatedTime(_points).inMinutes,
+        'groupId': widget.groupId,
         'createdAt': FieldValue.serverTimestamp(),
       };
 
@@ -96,12 +164,13 @@ class _RouteDrawingPageState extends State<RouteDrawingPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tracer un parcours'),
+        elevation: 0,
         actions: [
           if (_points.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.undo),
-              tooltip: 'Annuler dernier point',
-              onPressed: _undoLastPoint,
+              tooltip: 'Annuler (Undo)',
+              onPressed: _history.isNotEmpty ? _undoLastPoint : null,
             ),
           if (_points.isNotEmpty)
             IconButton(
@@ -113,6 +182,34 @@ class _RouteDrawingPageState extends State<RouteDrawingPage> {
       ),
       body: Column(
         children: [
+          // Statistiques
+          if (_points.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.08),
+                border: Border(
+                  bottom: BorderSide(color: Colors.blue.withValues(alpha: 0.2)),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _StatTile(
+                    icon: Icons.pin_drop,
+                    label: '${_points.length} points',
+                  ),
+                  _StatTile(
+                    icon: Icons.route,
+                    label: '${RouteValidator.totalDistance(_points).toStringAsFixed(2)} km',
+                  ),
+                  _StatTile(
+                    icon: Icons.timer_outlined,
+                    label: _formatTime(RouteValidator.estimatedTime(_points)),
+                  ),
+                ],
+              ),
+            ),
           // Carte
           Expanded(
             flex: 3,
@@ -141,39 +238,33 @@ class _RouteDrawingPageState extends State<RouteDrawingPage> {
                 if (_points.isNotEmpty)
                   MarkerLayer(
                     markers: [
-                      // Point de départ (vert)
-                      Marker(
-                        point: _points.first,
-                        width: 40,
-                        height: 40,
-                        child: const Icon(
-                          Icons.location_on,
-                          color: Colors.green,
-                          size: 40,
-                        ),
-                      ),
-                      // Points intermédiaires (bleu)
-                      for (int i = 1; i < _points.length - 1; i++)
+                      for (int i = 0; i < _points.length; i++)
                         Marker(
                           point: _points[i],
-                          width: 30,
-                          height: 30,
-                          child: const Icon(
-                            Icons.circle,
-                            color: Colors.blue,
-                            size: 12,
-                          ),
-                        ),
-                      // Point d'arrivée (rouge) si plus de 1 point
-                      if (_points.length > 1)
-                        Marker(
-                          point: _points.last,
-                          width: 40,
-                          height: 40,
-                          child: const Icon(
-                            Icons.location_on,
-                            color: Colors.red,
-                            size: 40,
+                          width: _editingPointIndex == i ? 50 : 40,
+                          height: _editingPointIndex == i ? 50 : 40,
+                          child: GestureDetector(
+                            onTap: () => _editPoint(i),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: _editingPointIndex == i
+                                    ? Colors.orange
+                                    : (i == 0
+                                        ? Colors.green
+                                        : (i == _points.length - 1 ? Colors.red : Colors.blue)),
+                                border: _editingPointIndex == i
+                                    ? Border.all(color: Colors.white, width: 3)
+                                    : null,
+                              ),
+                              child: Icon(
+                                i == 0
+                                    ? Icons.location_on
+                                    : (i == _points.length - 1 ? Icons.location_on : Icons.circle),
+                                color: Colors.white,
+                                size: _editingPointIndex == i ? 24 : 18,
+                              ),
+                            ),
                           ),
                         ),
                     ],
@@ -182,7 +273,7 @@ class _RouteDrawingPageState extends State<RouteDrawingPage> {
             ),
           ),
 
-          // Formulaire
+          // Formulaire + points list
           Expanded(
             flex: 2,
             child: Container(
@@ -199,26 +290,81 @@ class _RouteDrawingPageState extends State<RouteDrawingPage> {
               ),
               child: ListView(
                 children: [
-                  Text(
-                    'Points tracés: ${_points.length}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  if (_points.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      'Départ: ${_points.first.latitude.toStringAsFixed(5)}, ${_points.first.longitude.toStringAsFixed(5)}',
-                      style: const TextStyle(fontSize: 12, color: Colors.green),
-                    ),
-                    if (_points.length > 1)
-                      Text(
-                        'Arrivée: ${_points.last.latitude.toStringAsFixed(5)}, ${_points.last.longitude.toStringAsFixed(5)}',
-                        style: const TextStyle(fontSize: 12, color: Colors.red),
+                  if (_points.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        'Tapez sur la carte pour ajouter des points',
+                        style: TextStyle(fontSize: 13, color: Colors.grey),
+                        textAlign: TextAlign.center,
                       ),
-                  ],
-                  const SizedBox(height: 16),
+                    )
+                  else
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Points du parcours',
+                          style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: 80,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _points.length,
+                            itemBuilder: (_, i) {
+                              final p = _points[i];
+                              return GestureDetector(
+                                onTap: () => _editPoint(i),
+                                child: Container(
+                                  margin: const EdgeInsets.only(right: 8),
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    color: _editingPointIndex == i
+                                        ? Colors.orange.withValues(alpha: 0.15)
+                                        : Colors.grey.withValues(alpha: 0.06),
+                                    border: Border.all(
+                                      color: _editingPointIndex == i
+                                          ? Colors.orange
+                                          : Colors.grey.withValues(alpha: 0.2),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        i == 0 ? 'Départ' : (i == _points.length - 1 ? 'Arrivée' : 'Point $i'),
+                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                                      ),
+                                      Text(
+                                        '${p.latitude.toStringAsFixed(3)}\n${p.longitude.toStringAsFixed(3)}',
+                                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                      ),
+                                      Row(
+                                        children: [
+                                          if (_editingPointIndex == i)
+                                            IconButton(
+                                              iconSize: 16,
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(),
+                                              icon: const Icon(Icons.delete, color: Colors.red),
+                                              onPressed: () => _deletePoint(i),
+                                            ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                    ),
                   TextField(
                     controller: _nameController,
                     decoration: const InputDecoration(
@@ -264,18 +410,36 @@ class _RouteDrawingPageState extends State<RouteDrawingPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Tapez sur la carte pour ajouter des points',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                    textAlign: TextAlign.center,
-                  ),
                 ],
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  String _formatTime(Duration d) {
+    if (d.inHours > 0) {
+      return '${d.inHours}h ${d.inMinutes % 60}m';
+    }
+    return '${d.inMinutes}m';
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _StatTile({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Icon(icon, size: 18, color: Colors.blue),
+        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+      ],
     );
   }
 }

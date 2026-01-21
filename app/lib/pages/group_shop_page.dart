@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/group_repository.dart';
+import '../services/gallery_counts_service.dart';
 import '../models/product_model.dart';
 import 'product_detail_page.dart';
+import 'media_galleries_page.dart';
 
 class GroupShopPage extends StatefulWidget {
   const GroupShopPage({super.key, required this.groupId});
@@ -95,12 +97,9 @@ class _GroupShopPageState extends State<GroupShopPage> {
                       }
 
                       final products = productsSnap.data!;
-                      if (products.isEmpty) {
-                        return const Center(child: Text('Aucun produit disponible'));
-                      }
 
                       return GridView.builder(
-                        itemCount: products.length,
+                        itemCount: products.length + 1,
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
                           crossAxisSpacing: 12,
@@ -108,7 +107,21 @@ class _GroupShopPageState extends State<GroupShopPage> {
                           childAspectRatio: 0.78,
                         ),
                         itemBuilder: (context, i) {
-                          final product = products[i];
+                          if (i == 0) {
+                            return _GalleryTile(
+                              groupId: widget.groupId,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => MediaGalleriesPage(groupId: widget.groupId),
+                                  ),
+                                );
+                              },
+                            );
+                          }
+
+                          final product = products[i - 1];
                           return _ProductCard(
                             groupId: widget.groupId,
                             product: product,
@@ -236,6 +249,136 @@ class _ProductCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _GalleryTile extends StatefulWidget {
+  final String groupId;
+  final VoidCallback onTap;
+
+  const _GalleryTile({required this.groupId, required this.onTap});
+
+  @override
+  State<_GalleryTile> createState() => _GalleryTileState();
+}
+
+class _GalleryTileState extends State<_GalleryTile> {
+  final GalleryCountsService _counts = GalleryCountsService();
+  late Future<GalleryCounts> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _counts.fetch(groupId: widget.groupId);
+  }
+
+  @override
+  void didUpdateWidget(covariant _GalleryTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.groupId != widget.groupId) {
+      setState(() {
+        _future = _counts.fetch(groupId: widget.groupId);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<GalleryCounts>(
+      future: _future,
+      builder: (context, snapshot) {
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+        final photos = snapshot.data?.photos ?? 0;
+        final label = isLoading
+            ? 'Chargement...'
+            : photos == 0
+                ? 'Photos à venir'
+                : '$photos photos';
+
+        return InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: widget.onTap,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF1F2A37), Color(0xFF3B82F6)],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  blurRadius: 18,
+                  offset: const Offset(0, 10),
+                  color: Colors.black.withValues(alpha: 0.10),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.photo_library_outlined, color: Colors.white, size: 16),
+                        SizedBox(width: 6),
+                        Text('Galerie photos', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                    ),
+                    child: const Text(
+                      'Photographes only',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Photos du groupe',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Filtre: ${widget.groupId}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    label,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
