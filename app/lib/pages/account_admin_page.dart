@@ -5,6 +5,7 @@ import 'group_add_item_page.dart';
 import 'pending_products_page.dart';
 import 'favorites_page.dart';
 import 'login_page.dart';
+import 'create_circuit_features_page.dart';
 
 const Color _adminAccent = Color(0xFF1E88E5);
 
@@ -420,6 +421,16 @@ class AdminTilesGrid extends StatelessWidget {
           subtitle: "Boutique",
           icon: Icons.shield,
           onTap: onModeration,
+        ),
+        _AdminTile(
+          title: "Tracking Dash",
+          subtitle: "Circuits & Suivi",
+          icon: Icons.dashboard,
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const CreateCircuitFeaturesPage()),
+            );
+          },
         ),
       ],
     );
