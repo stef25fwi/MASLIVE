@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
+import '../services/permission_service.dart';
 
-class CreateCircuitFeaturesPage extends StatelessWidget {
+class CreateCircuitFeaturesPage extends StatefulWidget {
   const CreateCircuitFeaturesPage({super.key});
+
+  @override
+  State<CreateCircuitFeaturesPage> createState() => _CreateCircuitFeaturesPageState();
+}
+
+class _CreateCircuitFeaturesPageState extends State<CreateCircuitFeaturesPage> {
+  bool _isLoading = true;
+  bool _isSuperAdmin = false;
 
   static const _bg = Colors.white;
   static const _text = Color(0xFF1F2A37);      // bleu/noir élégant
@@ -9,7 +18,57 @@ class CreateCircuitFeaturesPage extends StatelessWidget {
   static const _line = Color(0xFFE5E7EB);      // séparateurs
 
   @override
+  void initState() {
+    super.initState();
+    _checkPermissions();
+  }
+
+  Future<void> _checkPermissions() async {
+    final isSuperAdmin = await PermissionService().isCurrentUserSuperAdmin();
+    setState(() {
+      _isSuperAdmin = isSuperAdmin;
+      _isLoading = false;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (!_isSuperAdmin) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Accès refusé'),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.lock, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              const Text(
+                'Accès réservé aux Super Admins',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Vous n\'avez pas les permissions nécessaires',
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Retour'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     final sections = <_StepSectionData>[
       _StepSectionData(
         index: 1,
@@ -226,47 +285,97 @@ class _StepSection extends StatelessWidget {
     required this.lineColor,
   });
 
+  void _handleTap(BuildContext context) {
+    // Actions selon la section
+    switch (data.index) {
+      case 1: // Dessiner le Circuit
+        Navigator.pushNamed(context, '/admin/circuits');
+        break;
+      case 2: // Ajouter des étapes
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('🚧 ${data.title} - En développement')),
+        );
+        break;
+      case 3: // Infos & Médias
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('🚧 ${data.title} - En développement')),
+        );
+        break;
+      case 4: // Publier
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('🚧 ${data.title} - En développement')),
+        );
+        break;
+      case 5: // Rechercher
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('🚧 ${data.title} - En développement')),
+        );
+        break;
+      case 6: // Navigation & Suivi
+        Navigator.pushNamed(context, '/tracking');
+        break;
+      case 7: // Avis & Signalement
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('🚧 ${data.title} - En développement')),
+        );
+        break;
+      case 8: // Import / Équipe
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('🚧 ${data.title} - En développement')),
+        );
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _AppIconSquare(color: data.color, icon: data.icon),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Titre + ligne à droite (comme ton mockup)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+    return InkWell(
+      onTap: () => _handleTap(context),
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _AppIconSquare(color: data.color, icon: data.icon),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "${data.index}. ${data.title}",
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: textColor,
-                      height: 1.1,
-                      letterSpacing: -0.15,
-                    ),
+                  // Titre + ligne à droite (comme ton mockup)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        "${data.index}. ${data.title}",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: textColor,
+                          height: 1.1,
+                          letterSpacing: -0.15,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Container(
+                          margin: const EdgeInsets.only(top: 2),
+                          height: 1,
+                          color: lineColor,
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right, color: Color(0xFF9CA3AF), size: 24),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      margin: const EdgeInsets.only(top: 2),
-                      height: 1,
-                      color: lineColor,
-                    ),
-                  ),
+                  const SizedBox(height: 10),
+                  ...data.bullets.map((t) => _BulletLine(text: t, dotColor: data.color, textColor: textColor)),
                 ],
               ),
-              const SizedBox(height: 10),
-              ...data.bullets.map((t) => _BulletLine(text: t, dotColor: data.color, textColor: textColor)),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
