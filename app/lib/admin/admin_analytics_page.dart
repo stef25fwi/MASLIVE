@@ -5,7 +5,7 @@ import '../theme/maslive_theme.dart';
 
 /// Page d'analytics avancées pour les administrateurs
 class AdminAnalyticsPage extends StatefulWidget {
-  const AdminAnalyticsPage({Key? key}) : super(key: key);
+  const AdminAnalyticsPage({super.key});
 
   @override
   State<AdminAnalyticsPage> createState() => _AdminAnalyticsPageState();
@@ -276,7 +276,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -359,7 +359,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                   ],
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),
@@ -403,7 +403,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: _recentActivity.take(10).length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
+                separatorBuilder: (context, index) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final activity = _recentActivity[index];
                   final updatedAt = activity['updatedAt'] as DateTime?;
@@ -431,7 +431,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                         activity['role'],
                         style: const TextStyle(fontSize: 11),
                       ),
-                      backgroundColor: MasLiveTheme.getRoleColor(activity['role']).withOpacity(0.2),
+                    backgroundColor: MasLiveTheme.getRoleColor(activity['role']).withValues(alpha: 0.2),
                       padding: EdgeInsets.zero,
                     ),
                   );

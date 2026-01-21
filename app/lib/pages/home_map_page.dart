@@ -6,13 +6,13 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:characters/characters.dart';
 
 import '../ui/theme/maslive_theme.dart';
 import '../ui/widgets/gradient_header.dart';
 import '../ui/widgets/gradient_icon_button.dart';
 import '../ui/widgets/honeycomb_background.dart';
 import '../ui/widgets/maslive_card.dart';
+import '../ui/widgets/maslive_profile_icon.dart';
 import '../models/place_model.dart';
 import '../models/circuit_model.dart';
 import '../services/auth_service.dart';
@@ -625,6 +625,60 @@ class _HomeMapPageState extends State<HomeMapPage>
     );
   }
 
+  Color _headerLanguageColor() {
+    final loc = LocalizationService();
+    switch (loc.language) {
+      case AppLanguage.fr:
+        return const Color(0xFF0066FF); // bleu France plus vif
+      case AppLanguage.en:
+        return const Color(0xFFEE0000); // rouge UK plus vif
+      case AppLanguage.es:
+        return const Color(0xFFFFD700); // jaune Espagne plus vif
+    }
+  }
+
+  Color _headerLanguageTextColor() {
+    final loc = LocalizationService();
+    switch (loc.language) {
+      case AppLanguage.es:
+        return Colors.black; // meilleur contraste sur jaune
+      case AppLanguage.fr:
+      case AppLanguage.en:
+        return Colors.white;
+    }
+  }
+
+  String _headerLanguageCode() {
+    final loc = LocalizationService();
+    switch (loc.language) {
+      case AppLanguage.fr:
+        return 'FR';
+      case AppLanguage.en:
+        return 'EN';
+      case AppLanguage.es:
+        return 'ES';
+    }
+  }
+
+  void _cycleLanguage() {
+    final loc = LocalizationService();
+    final langs = [AppLanguage.fr, AppLanguage.en, AppLanguage.es];
+    final current = loc.language;
+    final idx = langs.indexOf(current);
+    final next = langs[(idx + 1) % langs.length];
+    loc.setLanguage(next);
+    setState(() {});
+  }
+
+  void _closeNavWithDelay() {
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted && _showActionsMenu) {
+        setState(() => _showActionsMenu = false);
+        _menuAnimController.reverse();
+      }
+    });
+  }
+
   void _openLanguagePicker() {
     final loc = LocalizationService();
 
@@ -736,15 +790,80 @@ class _HomeMapPageState extends State<HomeMapPage>
                     backgroundColor: Colors.white.withValues(alpha: 0.50),
                     child: Row(
                       children: [
-                        _AccountIconButton(
-                          onTap: () => Navigator.pushNamed(context, '/account-ui'),
+                        StreamBuilder<User?>(
+                          stream: AuthService.instance.authStateChanges,
+                          builder: (context, snap) {
+                            final user = snap.data;
+                            final pseudo =
+                                (user?.displayName ?? user?.email ?? 'Profil')
+                                    .trim();
+
+                            return Tooltip(
+                              message: pseudo.isEmpty ? 'Profil' : pseudo,
+                              child: InkWell(
+                                onTap: () {
+                                  if (user != null) {
+                                    Navigator.pushNamed(context, '/account-ui');
+                                  } else {
+                                    Navigator.pushNamed(context, '/login');
+                                  }
+                                },
+                                customBorder: const CircleBorder(),
+                                child: MasliveProfileIcon(
+                                  size: 46,
+                                  badgeSizeRatio: 0.22,
+                                  showBadge: user != null,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(width: 12),
                         const Spacer(),
-                        MasliveGradientIconButton(
-                          icon: Icons.language_rounded,
-                          tooltip: 'Langue',
-                          onTap: _openLanguagePicker,
+                        Tooltip(
+                          message: 'Langue',
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: _cycleLanguage,
+                              onLongPress: _openLanguagePicker,
+                              customBorder: const CircleBorder(),
+                              child: Container(
+                                width: 46,
+                                height: 46,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _headerLanguageColor(),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF9B6BFF)
+                                          .withValues(alpha: 0.22),
+                                      blurRadius: 18,
+                                      spreadRadius: 1,
+                                      offset: const Offset(0, 10),
+                                    ),
+                                    BoxShadow(
+                                      color: const Color(0xFFFF7AAE)
+                                          .withValues(alpha: 0.16),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 6),
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    _headerLanguageCode(),
+                                    style: TextStyle(
+                                      color: _headerLanguageTextColor(),
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 13,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                         const SizedBox(width: 10),
                         MasliveGradientIconButton(
@@ -757,9 +876,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                           icon: Icons.menu_rounded,
                           tooltip: 'Menu',
                           onTap: () {
-                            setState(
-                              () => _showActionsMenu = !_showActionsMenu,
-                            );
+                            setState(() => _showActionsMenu = !_showActionsMenu);
                             if (_showActionsMenu) {
                               _menuAnimController.forward();
                             } else {
@@ -787,7 +904,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                                   mapController: _mapController,
                                   options: MapOptions(
                                     initialCenter: _userPos ?? _fallbackCenter,
-                                    initialZoom: _userPos != null ? 13.5 : 12.5,
+                                    initialZoom: _userPos != null ? 14.5 : 12.5,
                                     onPositionChanged: (pos, hasGesture) {
                                       if (hasGesture) _followUser = false;
                                     },
@@ -914,8 +1031,8 @@ class _HomeMapPageState extends State<HomeMapPage>
 
                         // Overlay actions - affiche quand burger cliqué
                         Positioned.fill(
-                          child: IgnorePointer(
-                            ignoring: !_showActionsMenu,
+                          child: Visibility(
+                            visible: _showActionsMenu,
                             child: GestureDetector(
                               behavior: HitTestBehavior.translucent,
                               onTap: () {
@@ -933,43 +1050,34 @@ class _HomeMapPageState extends State<HomeMapPage>
                                 alignment: Alignment.topRight,
                                 child: SlideTransition(
                                   position: _menuSlideAnimation,
-                                  child: IgnorePointer(
-                                    ignoring: !_showActionsMenu,
-                                    child: Container(
-                                      margin: const EdgeInsets.only(
-                                        right: 4,
-                                        top: 60,
+                                  child: Container(
+                                    margin: const EdgeInsets.only(
+                                      right: 0,
+                                      top: 52,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.86),
+                                      borderRadius: const BorderRadius.vertical(
+                                        top: Radius.circular(24),
+                                        bottom: Radius.circular(24),
                                       ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 12,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.86),
-                                        borderRadius: BorderRadius.circular(24),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            blurRadius: 16,
-                                            offset: const Offset(-4, 4),
-                                            color: Colors.black.withValues(alpha: 0.12),
-                                          ),
-                                        ],
-                                      ),
-                                      child: SingleChildScrollView(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            _ActionItem(
+                                      boxShadow: const [],
+                                    ),
+                                    child: SingleChildScrollView(
+                                      child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                          _ActionItem(
                                               label: 'Centrer',
                                               icon: Icons.my_location_rounded,
                                               selected: false,
                                               onTap: () {
                                                 _recenterOnUser();
-                                                setState(
-                                                  () =>
-                                                      _showActionsMenu = false,
-                                                );
-                                                _menuAnimController.reverse();
+                                                _closeNavWithDelay();
                                               },
                                             ),
                                             const SizedBox(height: 8),
@@ -983,9 +1091,8 @@ class _HomeMapPageState extends State<HomeMapPage>
                                                 setState(() {
                                                   _selected =
                                                       _MapAction.tracking;
-                                                  _showActionsMenu = false;
                                                 });
-                                                _menuAnimController.reverse();
+                                                _closeNavWithDelay();
                                               },
                                             ),
                                             const SizedBox(height: 8),
@@ -999,9 +1106,8 @@ class _HomeMapPageState extends State<HomeMapPage>
                                                 setState(() {
                                                   _selected =
                                                       _MapAction.visiter;
-                                                  _showActionsMenu = false;
                                                 });
-                                                _menuAnimController.reverse();
+                                                _closeNavWithDelay();
                                               },
                                             ),
                                             const SizedBox(height: 8),
@@ -1013,24 +1119,8 @@ class _HomeMapPageState extends State<HomeMapPage>
                                               onTap: () {
                                                 setState(() {
                                                   _selected = _MapAction.food;
-                                                  _showActionsMenu = false;
                                                 });
-                                                _menuAnimController.reverse();
-                                              },
-                                            ),
-                                            const SizedBox(height: 8),
-                                            _ActionItem(
-                                              label: 'Parking',
-                                              icon: Icons.local_parking,
-                                              color: const Color(0xFF0D97EB),
-                                              selected:
-                                                  _selected == _MapAction.parking,
-                                              onTap: () {
-                                                setState(() {
-                                                  _selected = _MapAction.parking;
-                                                  _showActionsMenu = false;
-                                                });
-                                                _menuAnimController.reverse();
+                                                _closeNavWithDelay();
                                               },
                                             ),
                                             const SizedBox(height: 8),
@@ -1044,23 +1134,36 @@ class _HomeMapPageState extends State<HomeMapPage>
                                                 setState(() {
                                                   _selected =
                                                       _MapAction.encadrement;
-                                                  _showActionsMenu = false;
                                                 });
-                                                _menuAnimController.reverse();
+                                                _closeNavWithDelay();
                                               },
                                             ),
                                             const SizedBox(height: 8),
                                             _ActionItem(
-                                              label: 'WC',
+                                              label: 'Parking',
+                                              icon: Icons.local_parking_rounded,
+                                              customText: 'P',
+                                              color: const Color(0xFF0D97EB),
+                                              selected:
+                                                  _selected == _MapAction.parking,
+                                              onTap: () {
+                                                setState(() {
+                                                  _selected = _MapAction.parking;
+                                                });
+                                                _closeNavWithDelay();
+                                              },
+                                            ),
+                                            const SizedBox(height: 8),
+                                            _ActionItem(
+                                              label: '',
                                               icon: Icons.wc_rounded,
                                               selected:
                                                   _selected == _MapAction.wc,
                                               onTap: () {
                                                 setState(() {
                                                   _selected = _MapAction.wc;
-                                                  _showActionsMenu = false;
                                                 });
-                                                _menuAnimController.reverse();
+                                                _closeNavWithDelay();
                                               },
                                             ),
                                           ],
@@ -1070,7 +1173,6 @@ class _HomeMapPageState extends State<HomeMapPage>
                                   ),
                                 ),
                               ),
-                            ),
                           ),
                         ),
 
@@ -1103,6 +1205,7 @@ class _ActionItem extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   final Color? color;
+  final String? customText;
 
   const _ActionItem({
     required this.label,
@@ -1110,6 +1213,7 @@ class _ActionItem extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.color,
+    this.customText,
   });
 
   @override
@@ -1120,8 +1224,8 @@ class _ActionItem extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 68,
-            height: 68,
+            width: 60,
+            height: 60,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white.withValues(alpha: 0.92),
@@ -1136,14 +1240,27 @@ class _ActionItem extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  icon,
-                  size: 32,
-                  color: selected
-                      ? (color ?? MasliveTheme.pink)
-                      : (color ?? MasliveTheme.textPrimary),
-                ),
-                const SizedBox(height: 4),
+                if (customText != null)
+                  Text(
+                    customText!,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      color: selected
+                          ? (color ?? MasliveTheme.pink)
+                          : (color ?? MasliveTheme.textPrimary),
+                    ),
+                  )
+                else
+                  Icon(
+                    icon,
+                    size: label.isEmpty ? 32 : 28,
+                    color: selected
+                        ? (color ?? MasliveTheme.pink)
+                        : (color ?? MasliveTheme.textPrimary),
+                  ),
+                if (label.isNotEmpty) const SizedBox(height: 4),
+                if (label.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Text(
@@ -1156,7 +1273,7 @@ class _ActionItem extends StatelessWidget {
                           ? (color ?? MasliveTheme.pink)
                           : (color ?? MasliveTheme.textSecondary),
                       fontWeight: FontWeight.w700,
-                      fontSize: 10,
+                      fontSize: 8,
                     ),
                   ),
                 ),
@@ -1229,54 +1346,6 @@ class _TrackingPill extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _AccountIconButton extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _AccountIconButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: AuthService.instance.authStateChanges,
-      builder: (context, snap) {
-        final user = snap.data;
-        final pseudo = (user?.displayName ?? user?.email ?? 'Profil').trim();
-        final initial = pseudo.isNotEmpty ? pseudo.characters.first.toUpperCase() : '?';
-
-        final button = Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            customBorder: const CircleBorder(),
-            child: Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: MasliveTheme.actionGradient,
-                boxShadow: MasliveTheme.floatingShadow,
-              ),
-              child: Center(
-                child: Text(
-                  initial,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-
-        return Tooltip(message: pseudo, child: button);
-      },
     );
   }
 }

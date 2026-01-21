@@ -5,7 +5,7 @@ import '../services/auth_claims_service.dart';
 
 /// Page de gestion des paramètres système (Super Admin uniquement)
 class AdminSystemSettingsPage extends StatefulWidget {
-  const AdminSystemSettingsPage({Key? key}) : super(key: key);
+  const AdminSystemSettingsPage({super.key});
 
   @override
   State<AdminSystemSettingsPage> createState() => _AdminSystemSettingsPageState();

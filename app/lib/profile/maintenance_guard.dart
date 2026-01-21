@@ -7,10 +7,10 @@ class MaintenanceGuard extends StatelessWidget {
   final Widget? maintenanceFallback;
 
   const MaintenanceGuard({
-    Key? key,
+    super.key,
     required this.child,
     this.maintenanceFallback,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -212,7 +212,7 @@ class MaintenanceService {
 
 /// Widget pour afficher l'état de maintenance dans l'interface admin
 class MaintenanceStatusWidget extends StatelessWidget {
-  const MaintenanceStatusWidget({Key? key}) : super(key: key);
+  const MaintenanceStatusWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -264,7 +264,7 @@ class MaintenanceStatusWidget extends StatelessWidget {
 
 /// Page de gestion de la maintenance (pour les admins)
 class MaintenanceManagementPage extends StatefulWidget {
-  const MaintenanceManagementPage({Key? key}) : super(key: key);
+  const MaintenanceManagementPage({super.key});
 
   @override
   State<MaintenanceManagementPage> createState() =>

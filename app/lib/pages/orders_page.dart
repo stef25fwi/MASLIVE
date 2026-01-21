@@ -19,9 +19,11 @@ class _OrdersPageState extends State<OrdersPage> {
   @override
   Widget build(BuildContext context) {
     if (userId == null) {
-      return const Scaffold(
-        body: Center(child: Text("Non connecté")),
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).pushReplacementNamed('/login');
+      });
+      return const SizedBox.shrink();
     }
 
     return Scaffold(

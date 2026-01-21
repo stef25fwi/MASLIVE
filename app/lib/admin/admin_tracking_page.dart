@@ -5,7 +5,7 @@ import 'package:latlong2/latlong.dart';
 
 /// Page de tracking en temps réel des groupes
 class AdminTrackingPage extends StatefulWidget {
-  const AdminTrackingPage({Key? key}) : super(key: key);
+  const AdminTrackingPage({super.key});
 
   @override
   State<AdminTrackingPage> createState() => _AdminTrackingPageState();
@@ -104,7 +104,7 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.3),
+                                  color: Colors.black.withAlpha((0.3 * 255).round()),
                                   blurRadius: 8,
                                   spreadRadius: 1,
                                 ),
@@ -135,13 +135,13 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        spreadRadius: 2,
-                      ),
-                    ],
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha((0.1 * 255).round()),
+                          blurRadius: 10,
+                          spreadRadius: 2,
+                        ),
+                      ],
                   ),
                   child: Column(
                     children: [
@@ -218,7 +218,7 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
     }
 
     return Card(
-      color: isSelected ? color.withOpacity(0.1) : null,
+      color: isSelected ? color.withValues(alpha: 0.1) : null,
       elevation: isSelected ? 4 : 1,
       child: InkWell(
         onTap: () {

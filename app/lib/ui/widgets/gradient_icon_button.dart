@@ -28,7 +28,19 @@ class MasliveGradientIconButton extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: MasliveTheme.actionGradient,
-            boxShadow: MasliveTheme.floatingShadow,
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF9B6BFF).withValues(alpha: 0.22),
+                blurRadius: 18,
+                spreadRadius: 1,
+                offset: const Offset(0, 10),
+              ),
+              BoxShadow(
+                color: const Color(0xFFFF7AAE).withValues(alpha: 0.16),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
           child: Icon(icon, color: Colors.white, size: 22),
         ),

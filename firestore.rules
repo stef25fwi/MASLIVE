@@ -95,6 +95,32 @@ service cloud.firestore {
       allow create, update, delete: if isSuperAdmin();
     }
 
+    // ========== COLLECTION: USER CATEGORIES (Catégories d'utilisateurs) ==========
+    match /userCategories/{categoryId} {
+      // Lecture: tous les utilisateurs authentifiés peuvent voir les définitions de catégories
+      allow read: if isSignedIn();
+      
+      // Écriture: uniquement les admins et super admins
+      allow create, update, delete: if isMasterAdmin();
+    }
+
+    // ========== SOUS-COLLECTION: USER CATEGORY ASSIGNMENTS ==========
+    match /users/{uid}/categories/{assignmentId} {
+      // Lecture: utilisateur lui-même ou admins
+      allow read: if isSignedIn() && (request.auth.uid == uid || isMasterAdmin());
+      
+      // Création: utilisateur pour les catégories auto-assignables, ou admins
+      allow create: if isSignedIn() && (
+        // L'utilisateur lui-même si la catégorie permet l'auto-assignation
+        (request.auth.uid == uid && request.resource.data.requiresApproval == false)
+        // Ou un admin
+        || isMasterAdmin()
+      );
+      
+      // Mise à jour/suppression: uniquement admins
+      allow update, delete: if isMasterAdmin();
+    }
+
     // ========== COLLECTION: USERS (Profils utilisateurs) ==========
     match /users/{uid} {
       // Lecture: utilisateur lui-même ou admins

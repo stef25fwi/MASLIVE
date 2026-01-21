@@ -584,3 +584,485 @@ exports.assignUserRole = onCall({ region: "us-east1" }, async (request) => {
   };
 });
 
+// ========== GESTION DES CATÉGORIES D'UTILISATEURS ==========
+
+/**
+ * Définitions des catégories par défaut
+ */
+const defaultUserCategories = [
+  {
+    id: "pilote",
+    name: "Pilote",
+    description: "Pilote de moto participant aux événements",
+    categoryType: "pilote",
+    priority: 10,
+    requiresApproval: false,
+    badgeColor: "#FF6B00",
+    iconName: "sports_motorsports",
+    benefits: [
+      {
+        id: "parking_prioritaire",
+        title: "Parking prioritaire",
+        description: "Accès aux zones de parking réservées aux pilotes",
+        iconName: "local_parking",
+      },
+      {
+        id: "acces_paddock",
+        title: "Accès paddock",
+        description: "Accès aux zones techniques et paddock",
+        iconName: "garage",
+      },
+    ],
+    isActive: true,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  {
+    id: "passager",
+    name: "Passager",
+    description: "Passager accompagnant un pilote",
+    categoryType: "passager",
+    priority: 20,
+    requiresApproval: false,
+    badgeColor: "#4CAF50",
+    iconName: "airline_seat_recline_normal",
+    benefits: [
+      {
+        id: "accompagnement",
+        title: "Accompagnement pilote",
+        description: "Peut accompagner un pilote lors des événements",
+        iconName: "group",
+      },
+    ],
+    isActive: true,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  {
+    id: "organisateur",
+    name: "Organisateur",
+    description: "Organisateur d'événements et circuits",
+    categoryType: "organisateur",
+    priority: 30,
+    requiresApproval: true,
+    badgeColor: "#9C27B0",
+    iconName: "event_note",
+    benefits: [
+      {
+        id: "gestion_evenements",
+        title: "Gestion événements",
+        description: "Peut créer et gérer des événements",
+        iconName: "edit_calendar",
+      },
+      {
+        id: "stats_avancees",
+        title: "Statistiques avancées",
+        description: "Accès aux statistiques détaillées des événements",
+        iconName: "analytics",
+      },
+    ],
+    isActive: true,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  {
+    id: "comercant",
+    name: "Commerçant",
+    description: "Commerçant ou vendeur sur les événements",
+    categoryType: "comercant",
+    priority: 40,
+    requiresApproval: true,
+    badgeColor: "#2196F3",
+    iconName: "store",
+    benefits: [
+      {
+        id: "stand_commerce",
+        title: "Stand commercial",
+        description: "Peut installer un stand lors des événements",
+        iconName: "storefront",
+      },
+      {
+        id: "visibilite",
+        title: "Visibilité augmentée",
+        description: "Profil mis en avant dans la section commerce",
+        iconName: "trending_up",
+      },
+    ],
+    isActive: true,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  {
+    id: "secours",
+    name: "Secours",
+    description: "Personnel de secours et sécurité",
+    categoryType: "secours",
+    priority: 50,
+    requiresApproval: true,
+    badgeColor: "#F44336",
+    iconName: "local_hospital",
+    benefits: [
+      {
+        id: "acces_total",
+        title: "Accès total",
+        description: "Accès à toutes les zones pour interventions",
+        iconName: "vpn_key",
+      },
+      {
+        id: "communication_prioritaire",
+        title: "Communication prioritaire",
+        description: "Accès aux canaux de communication prioritaires",
+        iconName: "priority_high",
+      },
+    ],
+    isActive: true,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  {
+    id: "vip",
+    name: "VIP",
+    description: "Invité VIP ou partenaire privilégié",
+    categoryType: "vip",
+    priority: 60,
+    requiresApproval: true,
+    badgeColor: "#FFD700",
+    iconName: "star",
+    benefits: [
+      {
+        id: "acces_exclusif",
+        title: "Accès exclusif",
+        description: "Accès aux zones VIP et espaces privés",
+        iconName: "workspace_premium",
+      },
+      {
+        id: "services_premium",
+        title: "Services premium",
+        description: "Services et avantages premium",
+        iconName: "diamond",
+      },
+    ],
+    isActive: true,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  {
+    id: "media",
+    name: "Média",
+    description: "Presse et médias accrédités",
+    categoryType: "media",
+    priority: 70,
+    requiresApproval: true,
+    badgeColor: "#607D8B",
+    iconName: "photo_camera",
+    benefits: [
+      {
+        id: "acces_media",
+        title: "Accès média",
+        description: "Accès aux zones réservées à la presse",
+        iconName: "badge",
+      },
+      {
+        id: "ressources_presse",
+        title: "Ressources presse",
+        description: "Accès aux communiqués et ressources médias",
+        iconName: "article",
+      },
+    ],
+    isActive: true,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  {
+    id: "benevole",
+    name: "Bénévole",
+    description: "Bénévole aidant à l'organisation",
+    categoryType: "benevole",
+    priority: 80,
+    requiresApproval: true,
+    badgeColor: "#00BCD4",
+    iconName: "volunteer_activism",
+    benefits: [
+      {
+        id: "participation_orga",
+        title: "Participation organisation",
+        description: "Peut aider à l'organisation des événements",
+        iconName: "handshake",
+      },
+      {
+        id: "recompenses",
+        title: "Récompenses",
+        description: "Points et récompenses pour l'aide apportée",
+        iconName: "card_giftcard",
+      },
+    ],
+    isActive: true,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+  {
+    id: "spectateur",
+    name: "Spectateur",
+    description: "Spectateur des événements",
+    categoryType: "spectateur",
+    priority: 90,
+    requiresApproval: false,
+    badgeColor: "#9E9E9E",
+    iconName: "visibility",
+    benefits: [
+      {
+        id: "acces_public",
+        title: "Accès zones publiques",
+        description: "Accès aux zones publiques des événements",
+        iconName: "public",
+      },
+    ],
+    isActive: true,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  },
+];
+
+/**
+ * Cloud Function pour initialiser les catégories d'utilisateurs dans Firestore
+ * Callable uniquement par un admin ou super admin
+ */
+exports.initializeUserCategories = onCall(
+  { region: "us-east1" },
+  async (request) => {
+    const uid = request.auth?.uid;
+
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Utilisateur non authentifié");
+    }
+
+    // Vérifier que l'utilisateur est admin ou super admin
+    const userDoc = await db.collection("users").doc(uid).get();
+    if (!userDoc.exists) {
+      throw new HttpsError(
+        "permission-denied",
+        "Profil utilisateur introuvable"
+      );
+    }
+
+    const userData = userDoc.data();
+    const userRole = userData.role || "user";
+
+    // Seul un admin ou superAdmin peut initialiser les catégories
+    if (!["admin", "superAdmin"].includes(userRole) && !userData.isAdmin) {
+      throw new HttpsError(
+        "permission-denied",
+        "Seul un administrateur peut initialiser les catégories"
+      );
+    }
+
+    // Créer ou mettre à jour les catégories par défaut
+    const batch = db.batch();
+    let created = 0;
+    let updated = 0;
+
+    for (const category of defaultUserCategories) {
+      const categoryRef = db.collection("userCategories").doc(category.id);
+      const categoryDoc = await categoryRef.get();
+
+      if (categoryDoc.exists) {
+        // Mettre à jour en préservant certaines données existantes
+        batch.set(categoryRef, category, { merge: true });
+        updated++;
+      } else {
+        // Créer nouvelle catégorie
+        batch.set(categoryRef, category);
+        created++;
+      }
+    }
+
+    await batch.commit();
+
+    return {
+      success: true,
+      message: `Catégories d'utilisateurs initialisées avec succès`,
+      stats: {
+        created,
+        updated,
+        total: defaultUserCategories.length,
+      },
+    };
+  }
+);
+
+/**
+ * Cloud Function pour assigner une catégorie à un utilisateur
+ * Callable par l'utilisateur lui-même (si auto-assignable) ou par un admin
+ */
+exports.assignUserCategory = onCall(
+  { region: "us-east1" },
+  async (request) => {
+    const uid = request.auth?.uid;
+    const {
+      targetUserId,
+      categoryId,
+      expiresAt,
+      verificationProof,
+    } = request.data || {};
+
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Utilisateur non authentifié");
+    }
+
+    if (!targetUserId || !categoryId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "targetUserId et categoryId sont requis"
+      );
+    }
+
+    // Vérifier que la catégorie existe
+    const categoryDoc = await db
+      .collection("userCategories")
+      .doc(categoryId)
+      .get();
+    if (!categoryDoc.exists) {
+      throw new HttpsError(
+        "not-found",
+        `La catégorie '${categoryId}' n'existe pas`
+      );
+    }
+
+    const categoryData = categoryDoc.data();
+
+    // Vérifier les permissions
+    const callerDoc = await db.collection("users").doc(uid).get();
+    if (!callerDoc.exists) {
+      throw new HttpsError(
+        "permission-denied",
+        "Profil utilisateur introuvable"
+      );
+    }
+
+    const callerData = callerDoc.data();
+    const callerRole = callerData.role || "user";
+    const isAdmin =
+      ["admin", "superAdmin"].includes(callerRole) || callerData.isAdmin;
+    const isSelfAssignment = uid === targetUserId;
+
+    // Vérifier les droits d'assignation
+    if (!isAdmin && isSelfAssignment && categoryData.requiresApproval) {
+      throw new HttpsError(
+        "permission-denied",
+        "Cette catégorie nécessite une approbation administrative"
+      );
+    }
+
+    if (!isAdmin && !isSelfAssignment) {
+      throw new HttpsError(
+        "permission-denied",
+        "Vous ne pouvez pas assigner une catégorie à un autre utilisateur"
+      );
+    }
+
+    // Vérifier que l'utilisateur cible existe
+    const targetDoc = await db.collection("users").doc(targetUserId).get();
+    if (!targetDoc.exists) {
+      throw new HttpsError(
+        "not-found",
+        `L'utilisateur ${targetUserId} n'existe pas`
+      );
+    }
+
+    // Créer l'assignation
+    const assignment = {
+      userId: targetUserId,
+      categoryId,
+      categoryType: categoryData.categoryType,
+      assignedAt: admin.firestore.FieldValue.serverTimestamp(),
+      assignedBy: isAdmin ? uid : null,
+      isActive: true,
+    };
+
+    if (expiresAt) {
+      assignment.expiresAt = admin.firestore.Timestamp.fromDate(
+        new Date(expiresAt)
+      );
+    }
+
+    if (verificationProof) {
+      assignment.verificationProof = verificationProof;
+    }
+
+    // Ajouter à la sous-collection de l'utilisateur
+    const assignmentRef = db
+      .collection("users")
+      .doc(targetUserId)
+      .collection("categories")
+      .doc(categoryId);
+
+    await assignmentRef.set(assignment);
+
+    return {
+      success: true,
+      message: `Catégorie '${categoryData.name}' assignée à l'utilisateur ${targetUserId}`,
+      userId: targetUserId,
+      categoryId,
+      categoryName: categoryData.name,
+    };
+  }
+);
+
+/**
+ * Cloud Function pour révoquer une catégorie d'un utilisateur
+ * Callable uniquement par un admin
+ */
+exports.revokeUserCategory = onCall(
+  { region: "us-east1" },
+  async (request) => {
+    const uid = request.auth?.uid;
+    const { targetUserId, categoryId } = request.data || {};
+
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Utilisateur non authentifié");
+    }
+
+    if (!targetUserId || !categoryId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "targetUserId et categoryId sont requis"
+      );
+    }
+
+    // Vérifier que l'appelant est admin
+    const callerDoc = await db.collection("users").doc(uid).get();
+    if (!callerDoc.exists) {
+      throw new HttpsError(
+        "permission-denied",
+        "Profil utilisateur introuvable"
+      );
+    }
+
+    const callerData = callerDoc.data();
+    const callerRole = callerData.role || "user";
+
+    if (!["admin", "superAdmin"].includes(callerRole) && !callerData.isAdmin) {
+      throw new HttpsError(
+        "permission-denied",
+        "Seul un administrateur peut révoquer des catégories"
+      );
+    }
+
+    // Supprimer l'assignation
+    const assignmentRef = db
+      .collection("users")
+      .doc(targetUserId)
+      .collection("categories")
+      .doc(categoryId);
+
+    const assignmentDoc = await assignmentRef.get();
+    if (!assignmentDoc.exists) {
+      throw new HttpsError(
+        "not-found",
+        "Cette catégorie n'est pas assignée à cet utilisateur"
+      );
+    }
+
+    await assignmentRef.delete();
+
+    return {
+      success: true,
+      message: `Catégorie révoquée pour l'utilisateur ${targetUserId}`,
+      userId: targetUserId,
+      categoryId,
+    };
+  }
+);
+
+

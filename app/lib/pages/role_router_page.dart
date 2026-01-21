@@ -60,7 +60,7 @@ class RoleRouterPage extends StatelessWidget {
                   );
                   break;
                 case UserRole.user:
-                  Navigator.of(context).pushReplacementNamed('/user');
+                  Navigator.of(context).pushReplacementNamed('/');
                   break;
               }
             });

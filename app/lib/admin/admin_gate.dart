@@ -9,11 +9,11 @@ class AdminGate extends StatelessWidget {
   final bool requireSuperAdmin;
 
   const AdminGate({
-    Key? key,
+    super.key,
     required this.child,
     this.fallback,
     this.requireSuperAdmin = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -123,11 +123,11 @@ class AdminOnly extends StatelessWidget {
   final bool requireSuperAdmin;
 
   const AdminOnly({
-    Key? key,
+    super.key,
     required this.child,
     this.fallback,
     this.requireSuperAdmin = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

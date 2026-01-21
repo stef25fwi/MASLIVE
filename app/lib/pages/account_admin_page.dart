@@ -4,6 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'group_add_item_page.dart';
 import 'pending_products_page.dart';
 import 'favorites_page.dart';
+import 'login_page.dart';
+
+const Color _adminAccent = Color(0xFF1E88E5);
 
 class AccountAndAdminPage extends StatefulWidget {
   const AccountAndAdminPage({super.key});
@@ -26,9 +29,13 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
   @override
   Widget build(BuildContext context) {
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: Text("Non connecté")),
-      );
+      // Rediriger vers la page de connexion si non connecté
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+        );
+      });
+      return const SizedBox.shrink();
     }
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -41,8 +48,12 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
         final isGroupAdmin = role == 'group' && (groupId != null && groupId.isNotEmpty);
 
         return Scaffold(
+          backgroundColor: Colors.white,
           appBar: AppBar(
-            title: const Text("Mon compte"),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            foregroundColor: _adminAccent,
+            title: const Text("Mon compte", style: TextStyle(color: _adminAccent, fontWeight: FontWeight.w800)),
             actions: [
               IconButton(
                 tooltip: "Déconnexion",
@@ -165,7 +176,7 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text("Modifier mon profil", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               TextField(
                 controller: nameCtrl,
                 decoration: const InputDecoration(
@@ -173,7 +184,7 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
                   prefixIcon: Icon(Icons.badge),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
               TextField(
                 controller: photoCtrl,
                 decoration: const InputDecoration(
@@ -181,7 +192,7 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
                   prefixIcon: Icon(Icons.image),
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -228,22 +239,29 @@ class _AccountHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 6)),
+        ],
       ),
       child: Row(
         children: [
           CircleAvatar(
-            radius: 26,
+            radius: 28,
+            backgroundColor: Colors.white,
             backgroundImage: (photoUrl == null || photoUrl!.isEmpty) ? null : NetworkImage(photoUrl!),
-            child: (photoUrl == null || photoUrl!.isEmpty) ? const Icon(Icons.person) : null,
+            child: (photoUrl == null || photoUrl!.isEmpty)
+                ? const Icon(Icons.person, color: _adminAccent)
+                : null,
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(displayName, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                Text(displayName, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: _adminAccent)),
                 const SizedBox(height: 2),
                 Text(email, style: const TextStyle(color: Colors.black54)),
                 const SizedBox(height: 8),
@@ -272,14 +290,14 @@ class _Chip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        color: Colors.black.withValues(alpha: 0.05),
+        color: _adminAccent.withValues(alpha: 0.12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16),
+          Icon(icon, size: 16, color: _adminAccent),
           const SizedBox(width: 6),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: _adminAccent)),
         ],
       ),
     );
@@ -292,7 +310,7 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(text, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800));
+    return Text(text, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _adminAccent));
   }
 }
 
@@ -317,8 +335,12 @@ class _SectionCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.black12),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 6)),
+          ],
         ),
         child: Row(
           children: [
@@ -326,22 +348,22 @@ class _SectionCard extends StatelessWidget {
               width: 44, height: 44,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                color: Colors.black.withValues(alpha: 0.06),
+                color: _adminAccent.withValues(alpha: 0.1),
               ),
-              child: Icon(icon),
+              child: Icon(icon, color: _adminAccent),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.w800, color: _adminAccent)),
                   const SizedBox(height: 3),
                   Text(subtitle, style: const TextStyle(color: Colors.black54)),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right),
+            const Icon(Icons.chevron_right, color: _adminAccent),
           ],
         ),
       ),
@@ -456,8 +478,12 @@ class _AdminTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.black12),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 6)),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -466,12 +492,12 @@ class _AdminTile extends StatelessWidget {
               width: 46, height: 46,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
-                color: Colors.black.withValues(alpha: 0.06),
+                color: _adminAccent.withValues(alpha: 0.1),
               ),
-              child: Icon(icon),
+              child: Icon(icon, color: _adminAccent),
             ),
             const Spacer(),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w900, color: _adminAccent)),
             const SizedBox(height: 4),
             Text(subtitle, style: const TextStyle(color: Colors.black54)),
           ],

@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 /// Page obsolète - Utiliser AdminPOIsSimplePage
 @Deprecated('Utiliser AdminPOIsSimplePage à la place')
 class AdminPOIsPageDeprecated extends StatelessWidget {
-  const AdminPOIsPageDeprecated({Key? key}) : super(key: key);
+  const AdminPOIsPageDeprecated({super.key});
 
   @override
   Widget build(BuildContext context) {

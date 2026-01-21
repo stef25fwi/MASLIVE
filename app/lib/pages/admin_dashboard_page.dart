@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'route_drawing_page.dart';
 import 'add_place_page.dart';
 
@@ -58,7 +59,10 @@ class AdminDashboardPage extends StatelessWidget {
             icon: Icons.person,
             title: 'Mon compte',
             subtitle: 'Gérer mon profil et mes paramètres',
-            onTap: () => Navigator.pushNamed(context, '/account'),
+            onTap: () {
+              final isSignedIn = FirebaseAuth.instance.currentUser != null;
+              Navigator.pushNamed(context, isSignedIn ? '/account' : '/login');
+            },
           ),
         ],
       ),

@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Page de logs et audit pour le monitoring système
 class AdminLogsPage extends StatefulWidget {
-  const AdminLogsPage({Key? key}) : super(key: key);
+  const AdminLogsPage({super.key});
 
   @override
   State<AdminLogsPage> createState() => _AdminLogsPageState();
@@ -74,7 +74,7 @@ class _AdminLogsPageState extends State<AdminLogsPage> with SingleTickerProvider
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _selectedSeverity,
+                    initialValue: _selectedSeverity,
                     decoration: const InputDecoration(
                       labelText: 'Sévérité',
                       isDense: true,
@@ -185,7 +185,7 @@ class _AdminLogsPageState extends State<AdminLogsPage> with SingleTickerProvider
         return ListView.separated(
           padding: const EdgeInsets.all(12),
           itemCount: logs.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          separatorBuilder: (context, index) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             final log = logs[index].data() as Map<String, dynamic>;
             return _buildLogCard(log);
@@ -257,7 +257,7 @@ class _AdminLogsPageState extends State<AdminLogsPage> with SingleTickerProvider
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
+                      color: color.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(

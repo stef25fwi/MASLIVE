@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'dart:math' as math;
 import '../models/circuit_model.dart';
 
 /// Page de gestion des circuits/parcours (CRUD complet)
 class AdminCircuitsPage extends StatefulWidget {
-  const AdminCircuitsPage({Key? key}) : super(key: key);
+  const AdminCircuitsPage({super.key});
 
   @override
   State<AdminCircuitsPage> createState() => _AdminCircuitsPageState();
@@ -132,7 +133,19 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
                   label: Text('${circuit.points.length} points'),
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-
+                Chip(
+                  label: Text(circuit.isPublished ? 'Publié' : 'Brouillon'),
+                  backgroundColor: circuit.isPublished 
+                      ? Colors.green.withValues(alpha: 0.2) 
+                      : Colors.orange.withValues(alpha: 0.2),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                if (circuit.points.isNotEmpty)
+                  Chip(
+                    label: Text(_calculateDistance(circuit)),
+                    avatar: const Icon(Icons.straighten, size: 16),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
               ],
             ),
           ],
@@ -443,5 +456,38 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
         }
       }
     }
+  }
+
+  String _calculateDistance(Circuit circuit) {
+    if (circuit.points.isEmpty) return '0 km';
+    
+    double totalDistance = 0;
+    for (int i = 0; i < circuit.points.length - 1; i++) {
+      final p1 = circuit.points[i];
+      final p2 = circuit.points[i + 1];
+      totalDistance += _distanceBetween(p1.lat, p1.lng, p2.lat, p2.lng);
+    }
+    
+    if (totalDistance < 1) {
+      return '${(totalDistance * 1000).toStringAsFixed(0)} m';
+    }
+    return '${totalDistance.toStringAsFixed(1)} km';
+  }
+
+  double _distanceBetween(double lat1, double lon1, double lat2, double lon2) {
+    const earthRadius = 6371; // km
+    final dLat = _toRadians(lat2 - lat1);
+    final dLon = _toRadians(lon2 - lon1);
+    
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_toRadians(lat1)) * math.cos(_toRadians(lat2)) *
+        math.sin(dLon / 2) * math.sin(dLon / 2);
+    
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return earthRadius * c;
+  }
+
+  double _toRadians(double degree) {
+    return degree * math.pi / 180;
   }
 }

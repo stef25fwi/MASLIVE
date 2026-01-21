@@ -10,9 +10,7 @@ import 'pages/splash_screen.dart';
 import 'pages/home_map_page.dart';
 import 'pages/group_profile_page.dart';
 import 'pages/group_shop_page.dart';
-import 'pages/my_account_page.dart';
 import 'pages/role_router_page.dart';
-import 'pages/user_home_page.dart';
 import 'pages/group_member_page.dart';
 import 'pages/admin_dashboard_page.dart';
 import 'pages/login_page.dart';
@@ -21,11 +19,14 @@ import 'pages/app_shell.dart';
 import 'pages/cart_page.dart';
 import 'pages/paywall_page.dart';
 import 'pages/account_admin_page.dart';
+import 'pages/account_page.dart';
 import 'pages/orders_page.dart';
 import 'pages/map_admin_editor_page.dart';
-import 'pages/account_page.dart';
 import 'pages/shop_page.dart';
 import 'pages/pending_products_page.dart';
+import 'admin/super_admin_space.dart';
+import 'admin/category_management_page.dart';
+import 'admin/role_management_page.dart';
 import 'services/cart_service.dart';
 import 'services/notifications_service.dart';
 import 'services/premium_service.dart';
@@ -108,11 +109,10 @@ class MasLiveApp extends StatelessWidget {
                     ModalRoute.of(ctx)?.settings.arguments as String?;
                 return GroupShopPage(groupId: groupId ?? 'groupe_demo');
               },
-              '/account': (_) => const MyAccountPage(),
+              '/account': (_) => const AccountAndAdminPage(),
               '/account-admin': (_) => const AccountAndAdminPage(),
               '/orders': (_) => const OrdersPage(),
               '/map-admin': (_) => const MapAdminEditorPage(),
-              '/user': (_) => const UserHomePage(),
               '/group-member': (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
                 final groupId = args != null
@@ -121,6 +121,9 @@ class MasLiveApp extends StatelessWidget {
                 return GroupMemberPage(groupId: groupId);
               },
               '/admin': (_) => const AdminDashboardPage(),
+              '/admin/superadmin': (_) => const SuperAdminSpace(),
+              '/admin/categories': (_) => const CategoryManagementPage(),
+              '/admin/roles': (_) => const RoleManagementPage(),
               '/login': (_) => const LoginPage(),
               '/tracking': (_) => const TrackingLivePage(),
               '/cart': (_) => const CartPage(),

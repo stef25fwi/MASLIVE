@@ -106,7 +106,7 @@ enum SystemMessagePriority {
 
 /// Page d'affichage des messages système
 class SystemMessagesPage extends StatefulWidget {
-  const SystemMessagesPage({Key? key}) : super(key: key);
+  const SystemMessagesPage({super.key});
 
   @override
   State<SystemMessagesPage> createState() => _SystemMessagesPageState();
@@ -489,7 +489,7 @@ class _SystemMessagesPageState extends State<SystemMessagesPage> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<SystemMessageType>(
-                  value: type,
+                  initialValue: type,
                   decoration: const InputDecoration(
                     labelText: 'Type',
                     border: OutlineInputBorder(),
@@ -508,7 +508,7 @@ class _SystemMessagesPageState extends State<SystemMessagesPage> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<SystemMessagePriority>(
-                  value: priority,
+                  initialValue: priority,
                   decoration: const InputDecoration(
                     labelText: 'Priorité',
                     border: OutlineInputBorder(),
