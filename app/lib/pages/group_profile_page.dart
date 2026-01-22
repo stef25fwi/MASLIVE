@@ -310,7 +310,6 @@ class _MediaTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final assets = [
       'assets/splash/maslive.png',
-      'assets/splash/maslivepink.png',
       'assets/splash/maslivepinky.png',
       'assets/splash/maslivesmall.png',
     ];
