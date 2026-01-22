@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  const SplashScreen({super.key, this.onComplete});
+  
+  final VoidCallback? onComplete;
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -15,7 +17,7 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     
-    debugPrint('🚀 SplashScreen: initState - starting timer');
+    debugPrint('🚀 SplashScreen: initState - waiting for map to load');
     
     // ✅ Masquer la status bar et navigation bar
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
@@ -28,17 +30,8 @@ class _SplashScreenState extends State<SplashScreen> {
       ),
     );
     
-    // ✅ Navigation après 3 secondes vers la page d'accueil avec carte
-    Future.delayed(const Duration(seconds: 3), () {
-      debugPrint('🚀 SplashScreen: Timer finished, mounted=$mounted');
-      if (mounted) {
-        debugPrint('🚀 SplashScreen: Navigating to /');
-        // Restaurer les barres système avant de naviguer
-        SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-        Navigator.of(context).pushReplacementNamed('/');
-        debugPrint('🚀 SplashScreen: Navigation called');
-      }
-    });
+    // ✅ Navigation déclenchée par la page home quand la carte est prête
+    // Le callback onComplete sera appelé par main.dart après le chargement de la carte
   }
 
   @override
@@ -54,7 +47,7 @@ class _SplashScreenState extends State<SplashScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Image.asset(
-        'assets/splash/maslivepink.png',
+        'assets/splash/wom1.png',
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,

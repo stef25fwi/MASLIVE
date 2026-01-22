@@ -25,6 +25,18 @@
       "command": "cd /workspaces/MASLIVE/app && flutter build web --release && cd .. && firebase deploy --only hosting",
       "problemMatcher": [],
       "isBackground": false
+    },
+    {
+      "label": "MASLIVE: Regenerate splash screens",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && flutter pub run flutter_native_splash:create",
+      "problemMatcher": []
+    },
+    {
+      "label": "MASLIVE: Quick deploy",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/quick_deploy.sh",
+      "problemMatcher": []
     }
   ]
 }

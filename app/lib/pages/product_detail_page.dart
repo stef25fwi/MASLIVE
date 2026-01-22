@@ -32,17 +32,34 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     ];
 
     if (urls.isEmpty) {
-      return Container(color: Colors.black.withValues(alpha: 0.06));
+      return Image.asset(
+        'assets/splash/maslivesmall.png',
+        fit: BoxFit.cover,
+      );
     }
 
     if (urls.length == 1) {
-      return Image.network(urls.first, fit: BoxFit.cover);
+      return Image.network(
+        urls.first,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Image.asset(
+          'assets/splash/maslivesmall.png',
+          fit: BoxFit.cover,
+        ),
+      );
     }
 
     return PageView.builder(
       itemCount: urls.length,
       itemBuilder: (context, i) {
-        return Image.network(urls[i], fit: BoxFit.cover);
+        return Image.network(
+          urls[i],
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Image.asset(
+            'assets/splash/maslivesmall.png',
+            fit: BoxFit.cover,
+          ),
+        );
       },
     );
   }

@@ -23,6 +23,7 @@ import '../services/firestore_service.dart';
 import '../services/geolocation_service.dart';
 import '../services/localization_service.dart';
 import '../services/map_presets_service.dart';
+import 'splash_wrapper_page.dart' show mapReadyNotifier;
 
 enum _MapAction { ville, tracking, visiter, encadrement, food, wc, parking }
 
@@ -55,6 +56,8 @@ class _HomeMapPageState extends State<HomeMapPage>
   bool _followUser = true;
   bool _requestingGps = false;
   bool _isTracking = false;
+  bool _isMapReady = false;
+  bool _isGpsReady = false;
   
   // Variables pour la gestion des cartes pré-enregistrées
   MapPresetModel? _selectedPreset;
@@ -159,13 +162,26 @@ class _HomeMapPageState extends State<HomeMapPage>
           final p = LatLng(pos.latitude, pos.longitude);
           if (!mounted) return;
 
-          setState(() => _userPos = p);
+          setState(() {
+            _userPos = p;
+            if (!_isGpsReady) {
+              _isGpsReady = true;
+              _checkIfReady();
+            }
+          });
 
           if (_followUser) {
             final z = _mapController.camera.zoom;
             _mapController.move(p, z < 12.5 ? 13.5 : z);
           }
         });
+  }
+  
+  void _checkIfReady() {
+    if (_isMapReady && _isGpsReady && !mapReadyNotifier.value) {
+      debugPrint('✅ HomeMapPage: Carte et GPS prêts, notification du splashscreen');
+      mapReadyNotifier.value = true;
+    }
   }
 
   Future<void> _recenterOnUser() async {
@@ -1036,6 +1052,13 @@ class _HomeMapPageState extends State<HomeMapPage>
                                   options: MapOptions(
                                     initialCenter: _userPos ?? _fallbackCenter,
                                     initialZoom: _userPos != null ? 14.5 : 12.5,
+                                    onMapReady: () {
+                                      debugPrint('🗺️ HomeMapPage: Carte FlutterMap prête');
+                                      setState(() {
+                                        _isMapReady = true;
+                                        _checkIfReady();
+                                      });
+                                    },
                                     onPositionChanged: (pos, hasGesture) {
                                       if (hasGesture) _followUser = false;
                                     },

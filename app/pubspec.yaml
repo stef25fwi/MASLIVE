@@ -106,7 +106,7 @@ flutter:
 # Native splash configuration
 flutter_native_splash:
   color: "#000000"
-  image: assets/splash/maslivepink.png
+  image: assets/splash/wom1.png
   android: true
   ios: true
   web: true
@@ -116,7 +116,7 @@ flutter_native_splash:
   web_image_mode: cover
   android_12:
     color: "#000000"
-    image: assets/splash/maslivepink.png
+    image: assets/splash/wom1.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

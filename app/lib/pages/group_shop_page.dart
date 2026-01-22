@@ -188,8 +188,18 @@ class _ProductCard extends StatelessWidget {
                   AspectRatio(
                     aspectRatio: 1.2,
                     child: product.imageUrl.isEmpty
-                        ? Container(color: Colors.black.withValues(alpha: 0.06))
-                        : Image.network(product.imageUrl, fit: BoxFit.cover),
+                        ? Image.asset(
+                            'assets/splash/maslivesmall.png',
+                            fit: BoxFit.cover,
+                          )
+                        : Image.network(
+                            product.imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Image.asset(
+                              'assets/splash/maslivesmall.png',
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                   ),
                   if (showPendingBadge && (isPending || isRejected))
                     Positioned(

@@ -8,7 +8,7 @@ import 'session/session_scope.dart';
 import 'services/localization_service.dart' show LocalizationService;
 import 'services/language_service.dart';
 import 'widgets/localized_app.dart';
-import 'pages/splash_screen.dart';
+import 'pages/splash_wrapper_page.dart';
 import 'pages/home_map_page.dart';
 import 'pages/group_profile_page.dart';
 import 'pages/group_shop_page.dart';
@@ -106,7 +106,7 @@ class MasLiveApp extends StatelessWidget {
             supportedLocales: AppLocalizations.supportedLocales,
             initialRoute: '/splash',
             routes: {
-              '/splash': (_) => const SplashScreen(),
+              '/splash': (_) => const SplashWrapperPage(),
               '/router': (_) => const RoleRouterPage(),
               '/': (_) => const HomeMapPage(),
               '/account-ui': (_) => const AccountUiPage(),

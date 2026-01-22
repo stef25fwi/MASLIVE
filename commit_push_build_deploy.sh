@@ -15,34 +15,24 @@ echo ""
 
 # Commit
 echo "[2/5] 📦 Commit..."
-git commit -m "feat: UI improvements
+git commit -m "feat: splashscreen avec wom1.png + images par défaut boutique maslivesmall.png + status bar shop
 
-- Move header to bottom bar on home page
-- Make status bar transparent with dark icons
-- Redesign shop page header with gradient and search pill
-- Remove white padding on shop grid
+- Splashscreen natif et Flutter utilisent wom1.png
+- Splashscreen reste visible jusqu'à chargement carte + GPS
+- Images par défaut boutique: maslivesmall.png
+- Status bar transparente page shop avec icônes sombres
 "
 echo "✅ Committés"
 echo ""
 
 # Push V2
-echo "[3/5] 🔄 Push V2 → origin..."
-git push origin V2
-echo "✅ V2 pushée"
-echo ""
-
-# Merge main
-echo "[4/5] 🔀 Merge & push main..."
-git checkout main
-git pull origin main
-git merge V2 --no-edit
+echo "[3/5] 🔄 Push main → origin..."
 git push origin main
-git checkout V2
 echo "✅ Main pushée"
 echo ""
 
 # Build & Deploy
-echo "[5/5] 🚀 Build & Deploy..."
+echo "[4/5] 🚀 Build & Deploy..."
 cd app
 flutter build web --release
 cd ..

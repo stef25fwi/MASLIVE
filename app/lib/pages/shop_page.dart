@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../services/firestore_service.dart';
 import '../services/gallery_counts_service.dart';
@@ -34,55 +35,63 @@ class _ShopPageState extends State<ShopUiPage> {
 
     final galleryGroupLabel = _selectedGroup ?? 'Tous les groupes';
 
-    return Scaffold(
-      body: HoneycombBackground(
-        opacity: 0.08,
-        child: Column(
-          children: [
-            LaBoutiqueHeader(
-              onBack: () => Navigator.pop(context),
-              onSearchIconTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Recherche (mock)')),
-                );
-              },
-              onQueryChanged: (query) {
-                setState(() => _searchQuery = query);
-              },
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                child: GridView.builder(
-                  itemCount: products.length + 1,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 0.76,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+      ),
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
+        body: HoneycombBackground(
+          opacity: 0.08,
+          child: Column(
+            children: [
+              LaBoutiqueHeader(
+                onBack: () => Navigator.pop(context),
+                onSearchIconTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Recherche (mock)')),
+                  );
+                },
+                onQueryChanged: (query) {
+                  setState(() => _searchQuery = query);
+                },
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                  child: GridView.builder(
+                    itemCount: products.length + 1,
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 0.76,
+                    ),
+                    itemBuilder: (context, i) {
+                      if (i == 0) {
+                        return _GalleryTile(
+                          groupId: _selectedGroup,
+                          groupLabel: galleryGroupLabel,
+                          onTap: () {
+                            final gid = _selectedGroup ?? 'all';
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => MediaGalleriesPage(groupId: gid),
+                              ),
+                            );
+                          },
+                        );
+                      }
+                      return _ProductCard(product: products[i - 1]);
+                    },
                   ),
-                  itemBuilder: (context, i) {
-                    if (i == 0) {
-                      return _GalleryTile(
-                        groupId: _selectedGroup,
-                        groupLabel: galleryGroupLabel,
-                        onTap: () {
-                          final gid = _selectedGroup ?? 'all';
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => MediaGalleriesPage(groupId: gid),
-                            ),
-                          );
-                        },
-                      );
-                    }
-                    return _ProductCard(product: products[i - 1]);
-                  },
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -464,14 +473,14 @@ class _MockProduct {
       name: 'T-shirt MASLIVE Premium',
       category: 'T-shirts',
       priceLabel: '29€',
-      imageAsset: 'assets/splash/maslivepink.png',
+      imageAsset: 'assets/splash/maslivesmall.png',
       description: 'Coupe oversize, coton doux, logo discret. Edition mock.',
     ),
     _MockProduct(
       name: 'Casquette Pastel',
       category: 'Casquettes',
       priceLabel: '24€',
-      imageAsset: 'assets/splash/maslivepinky.png',
+      imageAsset: 'assets/splash/maslivesmall.png',
       description: 'Visière courbe, broderie premium, look clean.',
     ),
     _MockProduct(
@@ -485,7 +494,7 @@ class _MockProduct {
       name: 'Porte-clés Honeycomb',
       category: 'Accessoires',
       priceLabel: '12€',
-      imageAsset: 'assets/splash/maslive.png',
+      imageAsset: 'assets/splash/maslivesmall.png',
       description: 'Texture honeycomb, accroche solide, style premium.',
     ),
   ];
