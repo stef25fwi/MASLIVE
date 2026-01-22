@@ -180,7 +180,10 @@ class _HomeMapPageState extends State<HomeMapPage>
   void _checkIfReady() {
     if (_isMapReady && _isGpsReady && !mapReadyNotifier.value) {
       debugPrint('✅ HomeMapPage: Carte et GPS prêts, notification du splashscreen');
-      mapReadyNotifier.value = true;
+      // Petit délai pour assurer le rendu complet avant de notifier
+      Future.delayed(const Duration(milliseconds: 300), () {
+        mapReadyNotifier.value = true;
+      });
     }
   }
 

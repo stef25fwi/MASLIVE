@@ -17,10 +17,12 @@ class SplashWrapperPage extends StatefulWidget {
 class _SplashWrapperPageState extends State<SplashWrapperPage> {
   bool _showHome = false;
   bool _mapReady = false;
+  late DateTime _splashStartTime;
 
   @override
   void initState() {
     super.initState();
+    _splashStartTime = DateTime.now();
     debugPrint('🚀 SplashWrapperPage: initState - preparing home page');
     
     // Écouter quand la carte est prête
@@ -42,12 +44,29 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
 
   void _onMapReady() {
     if (mapReadyNotifier.value && !_mapReady) {
-      debugPrint('✅ SplashWrapperPage: Carte prête, masquage du splashscreen');
-      setState(() => _mapReady = true);
+      // Calcul du délai écoulé depuis le démarrage du splash
+      final elapsedSeconds = DateTime.now().difference(_splashStartTime).inSeconds;
       
-      // Restaurer les barres système
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+      // Minimum 2.5 secondes de splashscreen
+      if (elapsedSeconds < 2.5) {
+        debugPrint('⏳ SplashWrapperPage: Carte prête mais délai minimum non atteint ($elapsedSeconds sec < 2.5 sec)');
+        final remainingMs = (2500 - (elapsedSeconds * 1000)).toInt();
+        Future.delayed(Duration(milliseconds: remainingMs), () {
+          if (mounted) {
+            _hideSplash();
+          }
+        });
+      } else {
+        debugPrint('✅ SplashWrapperPage: Carte prête et délai minimum atteint, masquage du splashscreen');
+        _hideSplash();
+      }
     }
+  }
+
+  void _hideSplash() {
+    setState(() => _mapReady = true);
+    // Restaurer les barres système
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
 
   @override
