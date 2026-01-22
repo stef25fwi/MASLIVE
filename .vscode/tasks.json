@@ -25,6 +25,12 @@
       "command": "cd /workspaces/MASLIVE/app && flutter build web --release && cd .. && firebase deploy --only hosting",
       "problemMatcher": [],
       "isBackground": false
+    },
+    {
+      "label": "MASLIVE: Merge V2 to main",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/merge_v2_to_main.sh",
+      "problemMatcher": []
     }
   ]
 }
