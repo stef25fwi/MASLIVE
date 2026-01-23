@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../models/product_model.dart';
-import 'media_galleries_page.dart';
+import 'media_shop_page.dart';
 import 'product_detail_page.dart';
 
 class ShopBodyUnderHeader extends StatefulWidget {
@@ -147,9 +147,7 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => MediaGalleriesPage(
-                                    groupId: widget.groupId ?? 'all',
-                                  ),
+                                  builder: (_) => const MediaShopPage(),
                                 ),
                               );
                             },
@@ -513,12 +511,12 @@ class _GalleryBlueCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _PillDark(icon: Icons.photo_library_outlined, label: "Galerie photos", fontSize: fsPill),
+                  _PillDark(icon: Icons.photo_library_outlined, label: "Boutique Photos", fontSize: fsPill),
                   const SizedBox(height: 18),
-                  _PillDarkPlain(label: "Photographes only", fontSize: fsPill),
+                  _PillDarkPlain(label: "Photos événements", fontSize: fsPill),
                   const SizedBox(height: 14),
                   Text(
-                    "Photos par les\nphotographes",
+                    "Achète tes\nphotos",
                     style: TextStyle(
                       fontSize: fsTitle,
                       height: 1.08,
@@ -529,7 +527,7 @@ class _GalleryBlueCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    "Filtre: Tous les groupes",
+                    "Carnaval & événements",
                     style: TextStyle(
                       fontSize: fsLine,
                       fontWeight: FontWeight.w700,
@@ -538,7 +536,7 @@ class _GalleryBlueCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    "Photos à venir",
+                    "Photos haute qualité",
                     style: TextStyle(
                       fontSize: fsLine,
                       fontWeight: FontWeight.w700,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'account_admin_page.dart';
+import 'media_shop_page.dart';
 import '../services/auth_service.dart';
 import '../services/auth_claims_service.dart';
 import '../ui/theme/maslive_theme.dart';
@@ -56,6 +57,17 @@ class _AccountUiPageState extends State<AccountUiPage> {
 
     final l10n = AppLocalizations.of(context)!;
     final tiles = <_AccountTileData>[
+      _AccountTileData(
+        icon: Icons.photo_library_outlined,
+        title: 'Boutique Photos',
+        subtitle: 'Achète tes photos d\'événements',
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const MediaShopPage()),
+          );
+        },
+      ),
       _AccountTileData(
         icon: Icons.favorite_border,
         title: l10n.myFavorites,
@@ -209,7 +221,7 @@ class _AccountUiPageState extends State<AccountUiPage> {
                         Icons.chevron_right_rounded,
                         color: MasliveTheme.textSecondary,
                       ),
-                      onTap: () {
+                      onTap: t.onTap ?? () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text('${t.title} (mock)')),
                         );
@@ -313,10 +325,12 @@ class _AccountTileData {
   final IconData icon;
   final String title;
   final String subtitle;
+  final VoidCallback? onTap;
 
   const _AccountTileData({
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.onTap,
   });
 }

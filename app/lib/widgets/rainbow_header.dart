@@ -5,6 +5,8 @@ class RainbowHeader extends StatelessWidget {
   final Widget? trailing;
   final double height;
   final TextStyle? titleStyle;
+  final bool showBackButton;
+  final String? backRoute;
 
   const RainbowHeader({
     super.key,
@@ -12,6 +14,8 @@ class RainbowHeader extends StatelessWidget {
     this.trailing,
     this.height = 150,
     this.titleStyle,
+    this.showBackButton = true,
+    this.backRoute,
   });
 
   @override
@@ -53,6 +57,27 @@ class RainbowHeader extends StatelessWidget {
             bottom: false,
             child: Stack(
               children: [
+                // Bouton retour
+                if (showBackButton)
+                  Positioned(
+                    left: 16,
+                    top: 14,
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.arrow_back_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                      onPressed: () {
+                        if (backRoute != null) {
+                          Navigator.of(context).pushReplacementNamed(backRoute!);
+                        } else {
+                          Navigator.of(context).pop();
+                        }
+                      },
+                      tooltip: 'Retour',
+                    ),
+                  ),
                 Align(
                   alignment: Alignment.topCenter,
                   child: Padding(

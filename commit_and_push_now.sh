@@ -15,7 +15,7 @@ echo ""
 
 # Commit
 echo "📦 Commit..."
-git commit -m "fix: remove maslivepink.png from splash gallery"
+git commit -m "feat(shop): styles filtres (contours + ombres) et bouton retour header\n\n- RainbowHeader: ajout bouton retour haut-gauche (pop ou route)\n- Boutique: contours 1.5px gris + ombre douce 8px sur tuiles filtres\n- Focus: bordures colorées pour meilleure interactivité\n- Tuiles: Pays, Événement, Groupe, Photographe, Tri, Date"
 echo "✅ Committés"
 echo ""
 

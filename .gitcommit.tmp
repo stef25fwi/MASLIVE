@@ -1,0 +1,7 @@
+feat: add media shop page and business signup
+
+- Add new media shop page with Firebase integration
+- Add business signup page with professional account creation
+- Update account page with media shop navigation
+- Add cart functionality to shop page header
+- Improve UI consistency across pages
