@@ -41,6 +41,12 @@ class _ShopPageState extends State<ShopUiPage> {
               const SliverToBoxAdapter(
                 child: RainbowHeader(
                   title: 'La Boutique',
+                  titleStyle: TextStyle(
+                    fontFamily: 'MASLIVEBrushV2',
+                    fontSize: 46,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
                   trailing: Icon(
                     Icons.shopping_bag_outlined,
                     color: Colors.white,

@@ -132,9 +132,9 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
                 const gap = 10.0;
                 final itemW = (w - gap) / 2;
 
-                // Calibrage tailles (comme ta capture)
-                final bigH = itemW * 1.12;
-                final smallH = itemW * 0.82;
+                // Calibrage tailles (réduites)
+                final bigH = itemW * 0.85;
+                final smallH = itemW * 0.65;
 
                 return Column(
                   children: [
@@ -611,10 +611,21 @@ class _ProductTileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = _SoftCard(
-      radius: 30,
-      child: Container(
+    final content = Container(
+      decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.82),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30),
         child: Stack(
           children: [
             Column(

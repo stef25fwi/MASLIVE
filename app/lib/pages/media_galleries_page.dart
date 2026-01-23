@@ -4,10 +4,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/honeycomb_background.dart';
 import '../widgets/rainbow_header.dart';
 
-class MediaGalleriesPage extends StatelessWidget {
+class MediaGalleriesPage extends StatefulWidget {
   const MediaGalleriesPage({super.key, required this.groupId});
 
   final String groupId;
+
+  @override
+  State<MediaGalleriesPage> createState() => _MediaGalleriesPageState();
+}
+
+class _MediaGalleriesPageState extends State<MediaGalleriesPage> {
+  String? _selectedPays;
+  String? _selectedDate;
+  String? _selectedEvent;
+  String? _selectedGroupCarnaval;
+  String? _selectedPhotographe;
 
   @override
   Widget build(BuildContext context) {
@@ -18,14 +29,94 @@ class MediaGalleriesPage extends StatelessWidget {
             const SliverToBoxAdapter(
               child: RainbowHeader(
                 title: 'Médias',
-                trailing: Icon(
-                  Icons.photo_library_outlined,
+              ),
+            ),
+            // Filtres
+            SliverToBoxAdapter(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
                   color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Filtres',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _FilterDropdown(
+                          label: 'Pays',
+                          value: _selectedPays,
+                          items: const ['France', 'Martinique', 'Guadeloupe', 'Guyane', 'Réunion'],
+                          onChanged: (value) => setState(() => _selectedPays = value),
+                        ),
+                        _FilterDropdown(
+                          label: 'Date',
+                          value: _selectedDate,
+                          items: const ['2026', '2025', '2024', '2023', '2022'],
+                          onChanged: (value) => setState(() => _selectedDate = value),
+                        ),
+                        _FilterDropdown(
+                          label: 'Événement',
+                          value: _selectedEvent,
+                          items: const ['Carnaval', 'Parade', 'Concert', 'Festival'],
+                          onChanged: (value) => setState(() => _selectedEvent = value),
+                        ),
+                        _FilterDropdown(
+                          label: 'Groupe de carnaval',
+                          value: _selectedGroupCarnaval,
+                          items: const ['Groupe A', 'Groupe B', 'Groupe C'],
+                          onChanged: (value) => setState(() => _selectedGroupCarnaval = value),
+                        ),
+                        _FilterDropdown(
+                          label: 'Photographe',
+                          value: _selectedPhotographe,
+                          items: const ['Tous', 'Photographe 1', 'Photographe 2'],
+                          onChanged: (value) => setState(() => _selectedPhotographe = value),
+                        ),
+                      ],
+                    ),
+                    if (_selectedPays != null || _selectedDate != null || _selectedEvent != null || _selectedGroupCarnaval != null || _selectedPhotographe != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _selectedPays = null;
+                              _selectedDate = null;
+                              _selectedEvent = null;
+                              _selectedGroupCarnaval = null;
+                              _selectedPhotographe = null;
+                            });
+                          },
+                          icon: const Icon(Icons.clear, size: 18),
+                          label: const Text('Réinitialiser les filtres'),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
             StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _queryForGroup(groupId).snapshots(),
+              stream: _queryForGroup(widget.groupId).snapshots(),
               builder: (context, snapshot) {
                 final isLoading = snapshot.connectionState == ConnectionState.waiting;
                 final docs = snapshot.data?.docs ?? const [];
@@ -59,7 +150,7 @@ class MediaGalleriesPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          groupId == 'all' ? 'Toutes les galeries' : 'Groupe: $groupId',
+                          widget.groupId == 'all' ? 'Toutes les galeries' : 'Groupe: ${widget.groupId}',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 color: Colors.black.withValues(alpha: 0.55),
                                 fontWeight: FontWeight.w600,
@@ -547,3 +638,57 @@ const _palette = [
     colors: [Color(0xFF171A20), Color(0xFF353B48)],
   ),
 ];
+
+class _FilterDropdown extends StatelessWidget {
+  const _FilterDropdown({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String? value;
+  final List<String> items;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 140),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        decoration: InputDecoration(
+          labelText: label,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFFF7BC5), width: 2),
+          ),
+        ),
+        items: [
+          DropdownMenuItem<String>(
+            value: null,
+            child: Text(
+              'Tous',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          ),
+          ...items.map((item) => DropdownMenuItem<String>(
+                value: item,
+                child: Text(item),
+              )),
+        ],
+        onChanged: onChanged,
+      ),
+    );
+  }
+}

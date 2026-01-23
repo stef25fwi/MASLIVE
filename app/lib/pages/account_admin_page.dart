@@ -57,7 +57,7 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
               slivers: [
                 const SliverToBoxAdapter(
                   child: RainbowHeader(
-                    title: 'Mon compte',
+                    title: 'Espace administrateur',
                     trailing: Icon(
                       Icons.person_outline,
                       color: Colors.white,
