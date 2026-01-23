@@ -1443,7 +1443,9 @@ class _Drop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
+      height: 56,
+      child: Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
@@ -1454,35 +1456,37 @@ class _Drop extends StatelessWidget {
           ),
         ],
       ),
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+        child: InputDecorator(
+          decoration: InputDecoration(
+            isDense: true,
+            labelText: label,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: MasliveTheme.pink, width: 2),
+            ),
+            contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            filled: true,
+            fillColor: Colors.white,
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: MasliveTheme.secondary, width: 2),
-          ),
-          contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-          filled: true,
-          fillColor: Colors.white,
-        ),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<String>(
-            isExpanded: true,
-            value: value,
-            hint: const Text('Tout'),
-            items: [
-              const DropdownMenuItem<String>(value: null, child: Text('Tout')),
-              ...items.map((e) => DropdownMenuItem(value: e, child: Text(e))),
-            ],
-            onChanged: onChanged,
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              isExpanded: true,
+              value: value,
+              hint: const Text('Tout'),
+              items: [
+                const DropdownMenuItem<String>(value: null, child: Text('Tout')),
+                ...items.map((e) => DropdownMenuItem(value: e, child: Text(e))),
+              ],
+              onChanged: onChanged,
+            ),
           ),
         ),
       ),
@@ -1511,7 +1515,9 @@ class _SortDrop extends StatelessWidget {
       }
     }
 
-    return Container(
+    return SizedBox(
+      height: 56,
+      child: Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
@@ -1522,33 +1528,35 @@ class _SortDrop extends StatelessWidget {
           ),
         ],
       ),
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: 'Trier',
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+        child: InputDecorator(
+          decoration: InputDecoration(
+            isDense: true,
+            labelText: 'Trier',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: MasliveTheme.pink, width: 2),
+            ),
+            contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            filled: true,
+            fillColor: Colors.white,
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: MasliveTheme.secondary, width: 2),
-          ),
-          contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-          filled: true,
-          fillColor: Colors.white,
-        ),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<SortMode>(
-            isExpanded: true,
-            value: value,
-            items: SortMode.values.map((e) => DropdownMenuItem(value: e, child: Text(label(e)))).toList(),
-            onChanged: (v) {
-              if (v != null) onChanged(v);
-            },
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<SortMode>(
+              isExpanded: true,
+              value: value,
+              items: SortMode.values.map((e) => DropdownMenuItem(value: e, child: Text(label(e)))).toList(),
+              onChanged: (v) {
+                if (v != null) onChanged(v);
+              },
+            ),
           ),
         ),
       ),
@@ -1573,56 +1581,60 @@ class _DateRangeField extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = range == null ? 'Toutes' : '${_fmt(range!.start)} → ${_fmt(range!.end)}';
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    return SizedBox(
+      height: 56,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () async {
+            final now = DateTime.now();
+            final picked = await showDateRangePicker(
+              context: context,
+              firstDate: DateTime(now.year - 3),
+              lastDate: DateTime(now.year + 3),
+              initialDateRange: range ?? DateTimeRange(start: now.subtract(const Duration(days: 7)), end: now),
+            );
+            if (picked != null) onPick(picked);
+          },
+          child: InputDecorator(
+            decoration: InputDecoration(
+              isDense: true,
+              labelText: label,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: MasliveTheme.pink, width: 2),
+              ),
+              contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              filled: true,
+              fillColor: Colors.white,
+              suffixIcon: range == null
+                  ? const Icon(Icons.date_range)
+                  : IconButton(
+                      tooltip: 'Effacer',
+                      onPressed: onClear,
+                      icon: const Icon(Icons.close),
+                    ),
+            ),
+            child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
-        ],
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: () async {
-          final now = DateTime.now();
-          final picked = await showDateRangePicker(
-            context: context,
-            firstDate: DateTime(now.year - 3),
-            lastDate: DateTime(now.year + 3),
-            initialDateRange: range ?? DateTimeRange(start: now.subtract(const Duration(days: 7)), end: now),
-          );
-          if (picked != null) onPick(picked);
-        },
-        child: InputDecorator(
-          decoration: InputDecoration(
-            labelText: label,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: MasliveTheme.secondary, width: 2),
-            ),
-            contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-            filled: true,
-            fillColor: Colors.white,
-            suffixIcon: range == null
-                ? const Icon(Icons.date_range)
-                : IconButton(
-                    tooltip: 'Effacer',
-                    onPressed: onClear,
-                    icon: const Icon(Icons.close),
-                  ),
-          ),
-          child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
       ),
     );
