@@ -55,5 +55,15 @@
 		<true/>
 		<key>UIViewControllerBasedStatusBarAppearance</key>
 		<false/>
-	</dict>
-</plist>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- TODO: Remplacer par votre REVERSED_CLIENT_ID depuis GoogleService-Info.plist -->
+				<string>com.googleusercontent.apps.646399778464-j8g8i9nk5398mfukv1itkilrnvg2p43q</string>
+			</array>
+		</dict>
+	</array>

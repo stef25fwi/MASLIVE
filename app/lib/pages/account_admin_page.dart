@@ -6,6 +6,9 @@ import 'pending_products_page.dart';
 import 'favorites_page.dart';
 import 'login_page.dart';
 import 'create_circuit_features_page.dart';
+import '../ui/map_access_labels.dart';
+import '../widgets/rainbow_header.dart';
+import '../widgets/honeycomb_background.dart';
 
 const Color _adminAccent = Color(0xFF1E88E5);
 
@@ -49,27 +52,22 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
         final isGroupAdmin = role == 'group' && (groupId != null && groupId.isNotEmpty);
 
         return Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
-            foregroundColor: _adminAccent,
-            title: const Text("Mon compte", style: TextStyle(color: _adminAccent, fontWeight: FontWeight.w800)),
-            actions: [
-              IconButton(
-                tooltip: "Déconnexion",
-                onPressed: () async {
-                  final nav = Navigator.of(context);
-                  await _auth.signOut();
-                  if (mounted) nav.pop();
-                },
-                icon: const Icon(Icons.logout),
-              ),
-            ],
-          ),
-          body: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
+          body: HoneycombBackground(
+            child: CustomScrollView(
+              slivers: [
+                const SliverToBoxAdapter(
+                  child: RainbowHeader(
+                    title: 'Mon compte',
+                    trailing: Icon(
+                      Icons.person_outline,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.all(16),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
               _AccountHeader(
                 displayName: data['displayName'] ?? (user!.displayName ?? "Utilisateur"),
                 email: user!.email ?? "",
@@ -152,7 +150,11 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
                   },
                 ),
               ],
-            ],
+            ]),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -388,6 +390,8 @@ class AdminTilesGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mapLabels = mapAccessLabels();
+
     return GridView(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -421,6 +425,30 @@ class AdminTilesGrid extends StatelessWidget {
           subtitle: "Boutique",
           icon: Icons.shield,
           onTap: onModeration,
+        ),
+        _AdminTile(
+          title: mapLabels.title,
+          subtitle: mapLabels.subtitle,
+          icon: Icons.map_outlined,
+          onTap: () => Navigator.pushNamed(context, '/mapbox-google-light'),
+        ),
+        _AdminTile(
+          title: "Éditeur de cartes",
+          subtitle: "Créer / éditer (presets)",
+          icon: Icons.edit,
+          onTap: () => Navigator.pushNamed(context, '/map-admin'),
+        ),
+        _AdminTile(
+          title: "Éditer circuit",
+          subtitle: "Track Editor",
+          icon: Icons.route,
+          onTap: () => Navigator.pushNamed(context, '/admin/track-editor'),
+        ),
+        _AdminTile(
+          title: "Bibliothèque",
+          subtitle: "Année / Pays / Commune",
+          icon: Icons.folder_copy_outlined,
+          onTap: () => Navigator.pushNamed(context, '/admin/map-library'),
         ),
         _AdminTile(
           title: "Tracking Dash",

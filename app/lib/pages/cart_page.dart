@@ -26,7 +26,38 @@ class CartPage extends StatelessWidget {
         builder: (context, _) {
           final items = CartService.instance.items;
           if (items.isEmpty) {
-            return const Center(child: Text('Votre panier est vide'));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.shopping_bag_outlined, size: 52),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Votre panier est vide',
+                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Ajoutez des articles depuis la boutique.',
+                      style: TextStyle(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 14),
+                    FilledButton.icon(
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      label: const Text('Continuer mes achats'),
+                    ),
+                  ],
+                ),
+              ),
+            );
           }
 
           return ListView.separated(

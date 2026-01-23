@@ -8,14 +8,14 @@ import 'admin_analytics_page.dart';
 import 'admin_logs_page.dart';
 import 'admin_system_settings_page.dart';
 
-class AdminDashboardPage extends StatefulWidget {
-  const AdminDashboardPage({super.key});
+class AdminStatsDashboardPage extends StatefulWidget {
+  const AdminStatsDashboardPage({super.key});
 
   @override
-  State<AdminDashboardPage> createState() => _AdminDashboardPageState();
+  State<AdminStatsDashboardPage> createState() => _AdminStatsDashboardPageState();
 }
 
-class _AdminDashboardPageState extends State<AdminDashboardPage> {
+class _AdminStatsDashboardPageState extends State<AdminStatsDashboardPage> {
   final _userRepo = UserRepository.instance;
   final _authService = AuthClaimsService.instance;
 

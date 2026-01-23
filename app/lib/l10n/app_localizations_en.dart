@@ -323,4 +323,205 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hideLayers => 'Hide layers';
+
+  @override
+  String get connection => 'Connection';
+
+  @override
+  String get accessYourSpace => 'Access your space';
+
+  @override
+  String get signIn => 'Sign in';
+
+  @override
+  String get signingIn => 'Signing in...';
+
+  @override
+  String get continueAsGuest => 'Continue as guest';
+
+  @override
+  String get createAccountWithEmail => 'Create account with email';
+
+  @override
+  String get creating => 'Creating...';
+
+  @override
+  String get continueWithGoogle => 'Continue with Google';
+
+  @override
+  String get continueWithApple => 'Continue with Apple';
+
+  @override
+  String get myFavorites => 'My favorites';
+
+  @override
+  String get myGroups => 'My groups';
+
+  @override
+  String get savedPlacesGroups => 'Saved places and groups';
+
+  @override
+  String get accessYourCommunities => 'Access your communities';
+
+  @override
+  String get manageAlerts => 'Manage your alerts';
+
+  @override
+  String get languagePrivacy => 'Language, privacy…';
+
+  @override
+  String get help => 'Help';
+
+  @override
+  String get faqSupport => 'FAQ & support';
+
+  @override
+  String get administration => 'Administration';
+
+  @override
+  String get adminSpace => 'Administrator Space';
+
+  @override
+  String get manageApp => 'Manage application';
+
+  @override
+  String get disconnect => 'Disconnect';
+
+  @override
+  String get premiumMember => 'Premium Member';
+
+  @override
+  String get noFavoritesYet => 'No favorites yet.';
+
+  @override
+  String get place => 'Place';
+
+  @override
+  String get searchLocation => 'Search for a location…';
+
+  @override
+  String get noResults => 'No results';
+
+  @override
+  String get type => 'Type';
+
+  @override
+  String get ok => 'OK';
+
+  @override
+  String get premium => 'Premium';
+
+  @override
+  String get purchaseCancelledFailed => 'Purchase cancelled/failed';
+
+  @override
+  String get clearAllPoints => 'Clear all points?';
+
+  @override
+  String get clear => 'Clear';
+
+  @override
+  String get pointsTooClose => 'Points too close?';
+
+  @override
+  String pointsVeryClose(int count) {
+    return '$count point(s) are very close. Continue?';
+  }
+
+  @override
+  String get continueButton => 'Continue';
+
+  @override
+  String get routeSaved => 'Route saved';
+
+  @override
+  String get drawRoute => 'Draw a route';
+
+  @override
+  String get points => 'points';
+
+  @override
+  String get km => 'km';
+
+  @override
+  String get saving => 'Saving...';
+
+  @override
+  String get normalMode => 'Normal mode';
+
+  @override
+  String get openAdvancedSelector => 'Open advanced selector';
+
+  @override
+  String get menu => 'Menu';
+
+  @override
+  String get visit => 'Visit';
+
+  @override
+  String get food => 'Food';
+
+  @override
+  String get assistance => 'Assistance';
+
+  @override
+  String get parking => 'Parking';
+
+  @override
+  String get tracking => 'Tracking';
+
+  @override
+  String get theShop => 'The Shop';
+
+  @override
+  String get merchStickersAccessories =>
+      'Merch, stickers, accessories & photos';
+
+  @override
+  String get allGroups => 'All groups';
+
+  @override
+  String get searchArticle => 'Search for an item, a group…';
+
+  @override
+  String get categories => 'Categories';
+
+  @override
+  String get all => 'All';
+
+  @override
+  String get tshirts => 'T-shirts';
+
+  @override
+  String get caps => 'Caps';
+
+  @override
+  String get stickers => 'Stickers';
+
+  @override
+  String get accessories => 'Accessories';
+
+  @override
+  String get group => 'Group';
+
+  @override
+  String get filters => 'Filters';
+
+  @override
+  String get newest => 'Newest';
+
+  @override
+  String get priceAsc => 'Price ↑';
+
+  @override
+  String get priceDesc => 'Price ↓';
+
+  @override
+  String get azSort => 'A → Z';
+
+  @override
+  String get noProductsFound => 'No products found';
+
+  @override
+  String get changeCategoryOrGroup => 'Change category, group or search.';
 }

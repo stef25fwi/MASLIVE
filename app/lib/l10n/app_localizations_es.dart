@@ -323,4 +323,204 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get hideLayers => 'Ocultar capas';
+
+  @override
+  String get connection => 'Conexión';
+
+  @override
+  String get accessYourSpace => 'Acceda a su espacio';
+
+  @override
+  String get signIn => 'Iniciar sesión';
+
+  @override
+  String get signingIn => 'Iniciando sesión...';
+
+  @override
+  String get continueAsGuest => 'Continuar como invitado';
+
+  @override
+  String get createAccountWithEmail => 'Crear cuenta con correo electrónico';
+
+  @override
+  String get creating => 'Creando...';
+
+  @override
+  String get continueWithGoogle => 'Continuar con Google';
+
+  @override
+  String get continueWithApple => 'Continuar con Apple';
+
+  @override
+  String get myFavorites => 'Mis favoritos';
+
+  @override
+  String get myGroups => 'Mis grupos';
+
+  @override
+  String get savedPlacesGroups => 'Lugares y grupos guardados';
+
+  @override
+  String get accessYourCommunities => 'Acceder a tus comunidades';
+
+  @override
+  String get manageAlerts => 'Gestionar tus alertas';
+
+  @override
+  String get languagePrivacy => 'Idioma, privacidad…';
+
+  @override
+  String get help => 'Ayuda';
+
+  @override
+  String get faqSupport => 'FAQ & soporte';
+
+  @override
+  String get administration => 'Administración';
+
+  @override
+  String get adminSpace => 'Espacio de Administrador';
+
+  @override
+  String get manageApp => 'Gestionar aplicación';
+
+  @override
+  String get disconnect => 'Desconectar';
+
+  @override
+  String get premiumMember => 'Miembro Premium';
+
+  @override
+  String get noFavoritesYet => 'Aún no hay favoritos.';
+
+  @override
+  String get place => 'Lugar';
+
+  @override
+  String get searchLocation => 'Buscar una ubicación…';
+
+  @override
+  String get noResults => 'Sin resultados';
+
+  @override
+  String get type => 'Tipo';
+
+  @override
+  String get ok => 'OK';
+
+  @override
+  String get premium => 'Premium';
+
+  @override
+  String get purchaseCancelledFailed => 'Compra cancelada/fallida';
+
+  @override
+  String get clearAllPoints => '¿Borrar todos los puntos?';
+
+  @override
+  String get clear => 'Borrar';
+
+  @override
+  String get pointsTooClose => '¿Puntos demasiado cerca?';
+
+  @override
+  String pointsVeryClose(int count) {
+    return '$count punto(s) están muy cerca. ¿Continuar?';
+  }
+
+  @override
+  String get continueButton => 'Continuar';
+
+  @override
+  String get routeSaved => 'Ruta guardada';
+
+  @override
+  String get drawRoute => 'Trazar una ruta';
+
+  @override
+  String get points => 'puntos';
+
+  @override
+  String get km => 'km';
+
+  @override
+  String get saving => 'Guardando...';
+
+  @override
+  String get normalMode => 'Modo normal';
+
+  @override
+  String get openAdvancedSelector => 'Abrir selector avanzado';
+
+  @override
+  String get menu => 'Menú';
+
+  @override
+  String get visit => 'Visitar';
+
+  @override
+  String get food => 'Comida';
+
+  @override
+  String get assistance => 'Asistencia';
+
+  @override
+  String get parking => 'Parking';
+
+  @override
+  String get tracking => 'Tracking';
+
+  @override
+  String get theShop => 'La tienda';
+
+  @override
+  String get merchStickersAccessories => 'Merch, stickers, accesorios y fotos';
+
+  @override
+  String get allGroups => 'Todos los grupos';
+
+  @override
+  String get searchArticle => 'Buscar un artículo, un grupo…';
+
+  @override
+  String get categories => 'Categorías';
+
+  @override
+  String get all => 'Todos';
+
+  @override
+  String get tshirts => 'Camisetas';
+
+  @override
+  String get caps => 'Gorras';
+
+  @override
+  String get stickers => 'Stickers';
+
+  @override
+  String get accessories => 'Accesorios';
+
+  @override
+  String get group => 'Grupo';
+
+  @override
+  String get filters => 'Filtros';
+
+  @override
+  String get newest => 'Novedades';
+
+  @override
+  String get priceAsc => 'Precio ↑';
+
+  @override
+  String get priceDesc => 'Precio ↓';
+
+  @override
+  String get azSort => 'A → Z';
+
+  @override
+  String get noProductsFound => 'No se encontraron productos';
+
+  @override
+  String get changeCategoryOrGroup => 'Cambia de categoría, grupo o búsqueda.';
 }

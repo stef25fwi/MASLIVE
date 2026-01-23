@@ -27,9 +27,26 @@
       "isBackground": false
     },
     {
-      "label": "MASLIVE: Regenerate Splash & Deploy",
+      "label": "MASLIVE: Déployer Hosting (1 clic)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE/app && flutter pub run flutter_native_splash:create && flutter build web --release && cd .. && firebase deploy --only hosting",
+      "command": "cd /workspaces/MASLIVE/app && flutter pub get && flutter build web --release && cd .. && firebase deploy --only hosting",
+      "problemMatcher": [],
+      "isBackground": false,
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "MASLIVE: Regenerate Splash & Deploy (Deprecated)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && flutter build web --release && cd .. && firebase deploy --only hosting",
+      "problemMatcher": []
+    },
+    {
+      "label": "MASLIVE: Flutter analyze",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && flutter analyze",
       "problemMatcher": []
     }
   ]

@@ -105,6 +105,56 @@ class MasliveTheme {
     ),
   ];
 
+  // Premium border with elegant white outline and soft shadow
+  static const List<BoxShadow> premiumBorderShadow = [
+    BoxShadow(
+      color: Color(0x2E000000), // ~18% opacity
+      blurRadius: 18,
+      offset: Offset(0, 10),
+    ),
+  ];
+
+  static const Border premiumBorder = Border(
+    top: BorderSide(color: Color(0xFFFFFFFF), width: 2),
+    bottom: BorderSide(color: Color(0xFFFFFFFF), width: 2),
+    left: BorderSide(color: Color(0xFFFFFFFF), width: 2),
+    right: BorderSide(color: Color(0xFFFFFFFF), width: 2),
+  );
+
+  // Internal bevel border for beveled edge effect
+  static const Border bevelBorder = Border(
+    top: BorderSide(color: Color(0x1A000000), width: 1),
+    bottom: BorderSide(color: Color(0x1A000000), width: 1),
+    left: BorderSide(color: Color(0x1A000000), width: 1),
+    right: BorderSide(color: Color(0x1A000000), width: 1),
+  );
+
+  // Complete premium decoration with white border + shadow
+  static BoxDecoration get premiumDecoration {
+    return BoxDecoration(
+      border: premiumBorder,
+      boxShadow: premiumBorderShadow,
+      borderRadius: BorderRadius.circular(rCard),
+    );
+  }
+
+  // Internal bevel decoration (overlay on top for beveled effect)
+  static BoxDecoration get bevelDecoration {
+    return BoxDecoration(
+      border: bevelBorder,
+      borderRadius: BorderRadius.circular(rCard),
+    );
+  }
+
+  // Premium + Bevel combination
+  static BoxDecoration get premiumWithBevelDecoration {
+    return BoxDecoration(
+      border: premiumBorder,
+      boxShadow: premiumBorderShadow,
+      borderRadius: BorderRadius.circular(rCard),
+    );
+  }
+
   // ---------- ThemeData ----------
   static ThemeData get lightTheme {
     final base = ThemeData(

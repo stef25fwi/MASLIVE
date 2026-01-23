@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../session/session_scope.dart';
 import '../session/require_signin.dart';
 import '../services/favorites_service.dart';
+import '../l10n/app_localizations.dart';
 
 class FavoritesPage extends StatelessWidget {
   const FavoritesPage({super.key});
@@ -12,24 +13,24 @@ class FavoritesPage extends StatelessWidget {
 
     if (session.isGuest) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Favoris')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context)!.myFavorites)),
         body: Center(
           child: FilledButton(
             onPressed: () => requireSignIn(context, session: session),
-            child: const Text('Se connecter'),
+            child: Text(AppLocalizations.of(context)!.signIn),
           ),
         ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Favoris')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.myFavorites)),
       body: StreamBuilder<Set<String>>(
         stream: FavoritesService.instance.favoritesIdsStream(),
         builder: (context, snap) {
           final ids = snap.data ?? {};
           if (ids.isEmpty) {
-            return const Center(child: Text('Aucun favori pour le moment.'));
+            return Center(child: Text(AppLocalizations.of(context)!.noFavoritesYet));
           }
           final list = ids.toList()..sort();
           return ListView.separated(
@@ -37,7 +38,7 @@ class FavoritesPage extends StatelessWidget {
             separatorBuilder: (_, index) => const Divider(height: 1),
             itemBuilder: (_, i) => ListTile(
               leading: const Icon(Icons.place),
-              title: Text('Place: ${list[i]}'),
+              title: Text('${AppLocalizations.of(context)!.place}: ${list[i]}'),
             ),
           );
         },

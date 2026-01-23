@@ -15,7 +15,7 @@ class MasliveBottomNavGlass extends StatelessWidget {
     required this.onPlus,
   });
 
-  static const barHeight = 78.0;
+  static const barHeight = 68.0;
   static const _icons = <IconData>[
     Icons.near_me_rounded,
     Icons.search_rounded,
@@ -63,7 +63,7 @@ class _GlassBar extends StatelessWidget {
         child: Container(
           height: MasliveBottomNavGlass.barHeight,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.82),
+            color: Colors.white.withValues(alpha: 0.55),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
               color: Colors.white.withValues(alpha: 0.35),

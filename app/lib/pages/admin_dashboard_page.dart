@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'route_drawing_page.dart';
 import 'add_place_page.dart';
+import '../ui/map_access_labels.dart';
 
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final mapLabels = mapAccessLabels();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin - Gestion carte'),
@@ -34,7 +37,7 @@ class AdminDashboardPage extends StatelessWidget {
             context,
             icon: Icons.layers,
             title: 'Points par couche',
-            subtitle: 'Ajouter des points pour chaque onglet (Ville, Visiter, Food...)',
+            subtitle: 'Ajouter des points pour chaque onglet (Visiter, Food, etc.)',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const AddPlacePage()),
@@ -49,10 +52,38 @@ class AdminDashboardPage extends StatelessWidget {
           ),
           _tile(
             context,
+            icon: Icons.route,
+            title: 'Éditer circuit (Track Editor)',
+            subtitle: 'Pays → périmètre → circuit → habillage → validation',
+            onTap: () => Navigator.pushNamed(context, '/admin/track-editor'),
+          ),
+          _tile(
+            context,
+            icon: Icons.folder_copy_outlined,
+            title: 'Bibliothèque de cartes',
+            subtitle: 'Classement: année / pays / commune',
+            onTap: () => Navigator.pushNamed(context, '/admin/map-library'),
+          ),
+          _tile(
+            context,
             icon: Icons.map,
             title: 'Carte principale',
             subtitle: 'Accéder à la carte avec tous les points',
             onTap: () => Navigator.pushNamed(context, '/'),
+          ),
+          _tile(
+            context,
+            icon: Icons.edit,
+            title: 'Éditeur de cartes',
+            subtitle: 'Créer / éditer une carte (presets, couches, éléments)',
+            onTap: () => Navigator.pushNamed(context, '/map-admin'),
+          ),
+          _tile(
+            context,
+            icon: Icons.map_outlined,
+            title: mapLabels.title,
+            subtitle: mapLabels.subtitle,
+            onTap: () => Navigator.pushNamed(context, '/mapbox-google-light'),
           ),
           _tile(
             context,

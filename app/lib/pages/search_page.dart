@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -20,15 +21,16 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text('Recherche')),
+      appBar: AppBar(title: Text(l10n.searchLocation)),
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: TextField(
               decoration: InputDecoration(
-                hintText: 'Rechercher un lieu…',
+                hintText: l10n.searchLocation,
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
               ),
@@ -53,7 +55,7 @@ class _SearchPageState extends State<SearchPage> {
                 }).toList();
 
                 if (filtered.isEmpty) {
-                  return const Center(child: Text('Aucun résultat'));
+                  return Center(child: Text(l10n.noResults));
                 }
 
                 return ListView.separated(
@@ -72,13 +74,13 @@ class _SearchPageState extends State<SearchPage> {
                       onTap: () {
                         showDialog<void>(
                           context: context,
-                          builder: (context) => AlertDialog(
+                          builder: (ctx) => AlertDialog(
                             title: Text(name),
-                            content: Text('Type: $type'),
+                            content: Text('${l10n.type}: $type'),
                             actions: [
                               TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('OK'),
+                                onPressed: () => Navigator.pop(ctx),
+                                child: Text(l10n.ok),
                               ),
                             ],
                           ),

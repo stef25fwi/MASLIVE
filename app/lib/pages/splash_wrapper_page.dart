@@ -71,19 +71,27 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // La page home est chargée en arrière-plan pour que la carte commence à se charger
-        if (_showHome)
-          Opacity(
-            opacity: _mapReady ? 1.0 : 0.0,
-            child: const HomeMapPage(),
-          ),
-        
-        // Le splashscreen reste visible tant que la carte n'est pas prête
-        if (!_mapReady)
-          const SplashScreen(),
-      ],
+    return Container(
+      color: Colors.white, // Fond blanc permanent pour éviter les flashs
+      child: Stack(
+        children: [
+          // La page home est chargée en arrière-plan pour que la carte commence à se charger
+          if (_showHome)
+            AnimatedOpacity(
+              duration: const Duration(milliseconds: 400),
+              opacity: _mapReady ? 1.0 : 0.0,
+              child: const HomeMapPage(),
+            ),
+          
+          // Le splashscreen reste visible tant que la carte n'est pas prête
+          if (!_mapReady)
+            AnimatedOpacity(
+              duration: const Duration(milliseconds: 400),
+              opacity: _mapReady ? 0.0 : 1.0,
+              child: const SplashScreen(),
+            ),
+        ],
+      ),
     );
   }
 }

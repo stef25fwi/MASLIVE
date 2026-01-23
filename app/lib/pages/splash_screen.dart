@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key, this.onComplete});
@@ -22,11 +21,11 @@ class _SplashScreenState extends State<SplashScreen> {
     // ✅ Masquer la status bar et navigation bar
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
     
-    // ✅ Statusbar noir
+    // ✅ Statusbar blanc
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
-        statusBarColor: Colors.black,
-        statusBarIconBrightness: Brightness.light,
+        statusBarColor: Colors.white,
+        statusBarIconBrightness: Brightness.dark,
       ),
     );
     
@@ -45,18 +44,45 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     debugPrint('🚀 SplashScreen: build called');
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Image.asset(
-        'assets/splash/wom1.png',
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        errorBuilder: (context, error, stackTrace) {
-          debugPrint('❌ SplashScreen: Image load error: $error');
-          return const Center(
-            child: CircularProgressIndicator(color: Colors.pink),
-          );
-        },
+      backgroundColor: Colors.white,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Image wom1 en plein écran
+          Image.asset(
+            'assets/splash/wom1.png',
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              debugPrint('❌ SplashScreen: Image load error: $error');
+              return Container(
+                color: Colors.white,
+                child: const Center(
+                  child: Icon(
+                    Icons.festival,
+                    size: 120,
+                    color: Color(0xFFFF6FB1),
+                  ),
+                ),
+              );
+            },
+          ),
+          // Animation de chargement en bas
+          Positioned(
+            bottom: 80,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: CircularProgressIndicator(
+                  strokeWidth: 4,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6FB1)),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

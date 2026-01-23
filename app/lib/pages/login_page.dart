@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../session/session_scope.dart';
 import 'auth/auth_action_runner.dart';
 import '../services/auth_service.dart';
+import '../l10n/app_localizations.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,8 +19,23 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscure = true;
   bool _loading = false;
   String? _error;
+  bool _emailError = false;
+  bool _passwordError = false;
 
   Future<void> _run(Future<void> Function() fn) async {
+    // Validation
+    final email = _emailCtrl.text.trim();
+    final password = _passCtrl.text;
+    
+    setState(() {
+      _emailError = email.isEmpty;
+      _passwordError = password.isEmpty;
+    });
+
+    if (_emailError || _passwordError) {
+      return;
+    }
+
     setState(() {
       _loading = true;
       _error = null;
@@ -68,6 +84,22 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Réinitialiser les erreurs quand l'utilisateur tape
+    _emailCtrl.addListener(() {
+      if (_emailError && _emailCtrl.text.trim().isNotEmpty) {
+        setState(() => _emailError = false);
+      }
+    });
+    _passCtrl.addListener(() {
+      if (_passwordError && _passCtrl.text.isNotEmpty) {
+        setState(() => _passwordError = false);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     const bg = Color(0xFFFFFFFF);
     const text = Color(0xFF1A1A1A);
@@ -109,7 +141,7 @@ class _LoginPageState extends State<LoginPage> {
                   children: [
                     const SizedBox(height: 6),
                     Text(
-                      "Connexion",
+                      AppLocalizations.of(context)!.connection,
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                             color: text,
@@ -119,7 +151,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      "Accédez à votre espace",
+                      AppLocalizations.of(context)!.accessYourSpace,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: subText,
                             fontWeight: FontWeight.w500,
@@ -164,17 +196,19 @@ class _LoginPageState extends State<LoginPage> {
                                     const SizedBox(height: 6),
                                     _PremiumField(
                                       controller: _emailCtrl,
-                                      hintText: "Email",
+                                      hintText: AppLocalizations.of(context)!.email,
                                       prefixIcon: Icons.mail_outline_rounded,
                                       borderColor: border,
+                                      hasError: _emailError,
                                     ),
                                     const SizedBox(height: 12),
                                     _PremiumField(
                                       controller: _passCtrl,
-                                      hintText: "Mot de passe",
+                                      hintText: AppLocalizations.of(context)!.password,
                                       prefixIcon: Icons.lock_outline_rounded,
                                       borderColor: border,
                                       obscureText: _obscure,
+                                      hasError: _passwordError,
                                       suffix: IconButton(
                                         onPressed: () => setState(() => _obscure = !_obscure),
                                         icon: Icon(
@@ -188,7 +222,7 @@ class _LoginPageState extends State<LoginPage> {
                                     const SizedBox(height: 18),
                                     _GradientButton(
                                       gradient: masliveGradient,
-                                      text: _loading ? "Connexion..." : "Se connecter",
+                                      text: _loading ? AppLocalizations.of(context)!.signingIn : AppLocalizations.of(context)!.signIn,
                                       onPressed: _loading
                                           ? () {}
                                           : () => _run(
@@ -212,9 +246,9 @@ class _LoginPageState extends State<LoginPage> {
                                             vertical: 10,
                                           ),
                                         ),
-                                        child: const Text(
-                                          "Continuer en invité",
-                                          style: TextStyle(fontWeight: FontWeight.w700),
+                                        child: Text(
+                                          AppLocalizations.of(context)!.continueAsGuest,
+                                          style: const TextStyle(fontWeight: FontWeight.w700),
                                         ),
                                       ),
                                     ),
@@ -233,8 +267,8 @@ class _LoginPageState extends State<LoginPage> {
                                     _GradientButton(
                                       gradient: masliveGradient,
                                       text: _loading
-                                          ? "Création..."
-                                          : "Créer un compte avec email",
+                                          ? AppLocalizations.of(context)!.creating
+                                          : AppLocalizations.of(context)!.createAccountWithEmail,
                                       onPressed: _loading
                                           ? () {}
                                           : () => _run(
@@ -247,14 +281,14 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                     const SizedBox(height: 12),
                                     _SocialButton(
-                                      label: "Continuer avec Google",
+                                      label: AppLocalizations.of(context)!.continueWithGoogle,
                                       leading: const _GLogo(),
                                       onPressed:
                                           _loading ? () {} : () => _runProvider(AuthAction.google),
                                     ),
                                     const SizedBox(height: 10),
                                     _SocialButton(
-                                      label: "Continuer avec Apple",
+                                      label: AppLocalizations.of(context)!.continueWithApple,
                                       leading: const Icon(
                                         Icons.apple,
                                         size: 22,
@@ -325,6 +359,7 @@ class _PremiumField extends StatelessWidget {
   final Color borderColor;
   final bool obscureText;
   final Widget? suffix;
+  final bool hasError;
 
   const _PremiumField({
     required this.controller,
@@ -333,6 +368,7 @@ class _PremiumField extends StatelessWidget {
     required this.borderColor,
     this.obscureText = false,
     this.suffix,
+    this.hasError = false,
   });
 
   @override
@@ -341,7 +377,10 @@ class _PremiumField extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
         color: Colors.white.withValues(alpha: 0.72),
-        border: Border.all(color: borderColor),
+        border: Border.all(
+          color: hasError ? Colors.red : borderColor,
+          width: hasError ? 2 : 1,
+        ),
       ),
       child: TextField(
         controller: controller,

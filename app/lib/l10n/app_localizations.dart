@@ -415,7 +415,7 @@ abstract class AppLocalizations {
   /// No description provided for @sort.
   ///
   /// In fr, this message translates to:
-  /// **'Trier'**
+  /// **'Tri'**
   String get sort;
 
   /// No description provided for @details.
@@ -723,6 +723,402 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Masquer les couches'**
   String get hideLayers;
+
+  /// No description provided for @connection.
+  ///
+  /// In fr, this message translates to:
+  /// **'Connexion'**
+  String get connection;
+
+  /// No description provided for @accessYourSpace.
+  ///
+  /// In fr, this message translates to:
+  /// **'Accédez à votre espace'**
+  String get accessYourSpace;
+
+  /// No description provided for @signIn.
+  ///
+  /// In fr, this message translates to:
+  /// **'Se connecter'**
+  String get signIn;
+
+  /// No description provided for @signingIn.
+  ///
+  /// In fr, this message translates to:
+  /// **'Connexion...'**
+  String get signingIn;
+
+  /// No description provided for @continueAsGuest.
+  ///
+  /// In fr, this message translates to:
+  /// **'Continuer en invité'**
+  String get continueAsGuest;
+
+  /// No description provided for @createAccountWithEmail.
+  ///
+  /// In fr, this message translates to:
+  /// **'Créer un compte avec email'**
+  String get createAccountWithEmail;
+
+  /// No description provided for @creating.
+  ///
+  /// In fr, this message translates to:
+  /// **'Création...'**
+  String get creating;
+
+  /// No description provided for @continueWithGoogle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Continuer avec Google'**
+  String get continueWithGoogle;
+
+  /// No description provided for @continueWithApple.
+  ///
+  /// In fr, this message translates to:
+  /// **'Continuer avec Apple'**
+  String get continueWithApple;
+
+  /// No description provided for @myFavorites.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mes favoris'**
+  String get myFavorites;
+
+  /// No description provided for @myGroups.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mes groupes'**
+  String get myGroups;
+
+  /// No description provided for @savedPlacesGroups.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lieux et groupes enregistrés'**
+  String get savedPlacesGroups;
+
+  /// No description provided for @accessYourCommunities.
+  ///
+  /// In fr, this message translates to:
+  /// **'Accéder à vos communautés'**
+  String get accessYourCommunities;
+
+  /// No description provided for @manageAlerts.
+  ///
+  /// In fr, this message translates to:
+  /// **'Gérer vos alertes'**
+  String get manageAlerts;
+
+  /// No description provided for @languagePrivacy.
+  ///
+  /// In fr, this message translates to:
+  /// **'Langue, confidentialité…'**
+  String get languagePrivacy;
+
+  /// No description provided for @help.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aide'**
+  String get help;
+
+  /// No description provided for @faqSupport.
+  ///
+  /// In fr, this message translates to:
+  /// **'FAQ & support'**
+  String get faqSupport;
+
+  /// No description provided for @administration.
+  ///
+  /// In fr, this message translates to:
+  /// **'Administration'**
+  String get administration;
+
+  /// No description provided for @adminSpace.
+  ///
+  /// In fr, this message translates to:
+  /// **'Espace Administrateur'**
+  String get adminSpace;
+
+  /// No description provided for @manageApp.
+  ///
+  /// In fr, this message translates to:
+  /// **'Gérer l\'application'**
+  String get manageApp;
+
+  /// No description provided for @disconnect.
+  ///
+  /// In fr, this message translates to:
+  /// **'Se déconnecter'**
+  String get disconnect;
+
+  /// No description provided for @premiumMember.
+  ///
+  /// In fr, this message translates to:
+  /// **'Premium Member'**
+  String get premiumMember;
+
+  /// No description provided for @noFavoritesYet.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun favori pour le moment.'**
+  String get noFavoritesYet;
+
+  /// No description provided for @place.
+  ///
+  /// In fr, this message translates to:
+  /// **'Place'**
+  String get place;
+
+  /// No description provided for @searchLocation.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rechercher un lieu…'**
+  String get searchLocation;
+
+  /// No description provided for @noResults.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun résultat'**
+  String get noResults;
+
+  /// No description provided for @type.
+  ///
+  /// In fr, this message translates to:
+  /// **'Type'**
+  String get type;
+
+  /// No description provided for @ok.
+  ///
+  /// In fr, this message translates to:
+  /// **'OK'**
+  String get ok;
+
+  /// No description provided for @premium.
+  ///
+  /// In fr, this message translates to:
+  /// **'Premium'**
+  String get premium;
+
+  /// No description provided for @purchaseCancelledFailed.
+  ///
+  /// In fr, this message translates to:
+  /// **'Achat annulé/échoué'**
+  String get purchaseCancelledFailed;
+
+  /// No description provided for @clearAllPoints.
+  ///
+  /// In fr, this message translates to:
+  /// **'Effacer tous les points ?'**
+  String get clearAllPoints;
+
+  /// No description provided for @clear.
+  ///
+  /// In fr, this message translates to:
+  /// **'Effacer'**
+  String get clear;
+
+  /// No description provided for @pointsTooClose.
+  ///
+  /// In fr, this message translates to:
+  /// **'Points trop proches ?'**
+  String get pointsTooClose;
+
+  /// Warning about points too close
+  ///
+  /// In fr, this message translates to:
+  /// **'{count} point(s) sont très proches. Continuer ?'**
+  String pointsVeryClose(int count);
+
+  /// No description provided for @continueButton.
+  ///
+  /// In fr, this message translates to:
+  /// **'Continuer'**
+  String get continueButton;
+
+  /// No description provided for @routeSaved.
+  ///
+  /// In fr, this message translates to:
+  /// **'Parcours enregistré'**
+  String get routeSaved;
+
+  /// No description provided for @drawRoute.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tracer un parcours'**
+  String get drawRoute;
+
+  /// No description provided for @points.
+  ///
+  /// In fr, this message translates to:
+  /// **'points'**
+  String get points;
+
+  /// No description provided for @km.
+  ///
+  /// In fr, this message translates to:
+  /// **'km'**
+  String get km;
+
+  /// No description provided for @saving.
+  ///
+  /// In fr, this message translates to:
+  /// **'Enregistrement...'**
+  String get saving;
+
+  /// No description provided for @normalMode.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mode normal'**
+  String get normalMode;
+
+  /// No description provided for @openAdvancedSelector.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ouvrir le sélecteur avancé'**
+  String get openAdvancedSelector;
+
+  /// No description provided for @menu.
+  ///
+  /// In fr, this message translates to:
+  /// **'Menu'**
+  String get menu;
+
+  /// No description provided for @visit.
+  ///
+  /// In fr, this message translates to:
+  /// **'Visiter'**
+  String get visit;
+
+  /// No description provided for @food.
+  ///
+  /// In fr, this message translates to:
+  /// **'Food'**
+  String get food;
+
+  /// No description provided for @assistance.
+  ///
+  /// In fr, this message translates to:
+  /// **'Assistance'**
+  String get assistance;
+
+  /// No description provided for @parking.
+  ///
+  /// In fr, this message translates to:
+  /// **'Parking'**
+  String get parking;
+
+  /// No description provided for @tracking.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tracking'**
+  String get tracking;
+
+  /// No description provided for @theShop.
+  ///
+  /// In fr, this message translates to:
+  /// **'La boutique'**
+  String get theShop;
+
+  /// No description provided for @merchStickersAccessories.
+  ///
+  /// In fr, this message translates to:
+  /// **'Merch, stickers, accessoires & photos'**
+  String get merchStickersAccessories;
+
+  /// No description provided for @allGroups.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tous les groupes'**
+  String get allGroups;
+
+  /// No description provided for @searchArticle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rechercher un article, un groupe…'**
+  String get searchArticle;
+
+  /// No description provided for @categories.
+  ///
+  /// In fr, this message translates to:
+  /// **'Catégories'**
+  String get categories;
+
+  /// No description provided for @all.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tous'**
+  String get all;
+
+  /// No description provided for @tshirts.
+  ///
+  /// In fr, this message translates to:
+  /// **'T-shirts'**
+  String get tshirts;
+
+  /// No description provided for @caps.
+  ///
+  /// In fr, this message translates to:
+  /// **'Casquettes'**
+  String get caps;
+
+  /// No description provided for @stickers.
+  ///
+  /// In fr, this message translates to:
+  /// **'Stickers'**
+  String get stickers;
+
+  /// No description provided for @accessories.
+  ///
+  /// In fr, this message translates to:
+  /// **'Accessoires'**
+  String get accessories;
+
+  /// No description provided for @group.
+  ///
+  /// In fr, this message translates to:
+  /// **'Groupe'**
+  String get group;
+
+  /// No description provided for @filters.
+  ///
+  /// In fr, this message translates to:
+  /// **'Filtres'**
+  String get filters;
+
+  /// No description provided for @newest.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouveautés'**
+  String get newest;
+
+  /// No description provided for @priceAsc.
+  ///
+  /// In fr, this message translates to:
+  /// **'Prix ↑'**
+  String get priceAsc;
+
+  /// No description provided for @priceDesc.
+  ///
+  /// In fr, this message translates to:
+  /// **'Prix ↓'**
+  String get priceDesc;
+
+  /// No description provided for @azSort.
+  ///
+  /// In fr, this message translates to:
+  /// **'A → Z'**
+  String get azSort;
+
+  /// No description provided for @noProductsFound.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun produit trouvé'**
+  String get noProductsFound;
+
+  /// No description provided for @changeCategoryOrGroup.
+  ///
+  /// In fr, this message translates to:
+  /// **'Change de catégorie, de groupe ou de recherche.'**
+  String get changeCategoryOrGroup;
 }
 
 class _AppLocalizationsDelegate

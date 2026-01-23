@@ -1,12 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:get/get.dart';
 
 import '../ui/theme/maslive_theme.dart';
 import '../ui/widgets/gradient_header.dart';
@@ -22,7 +23,9 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/geolocation_service.dart';
 import '../services/localization_service.dart';
+import '../services/language_service.dart';
 import '../services/map_presets_service.dart';
+import '../l10n/app_localizations.dart' as l10n;
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
 
 enum _MapAction { ville, tracking, visiter, encadrement, food, wc, parking }
@@ -79,7 +82,11 @@ class _HomeMapPageState extends State<HomeMapPage>
     );
     _menuSlideAnimation =
         Tween<Offset>(begin: const Offset(1.0, 0.0), end: Offset.zero).animate(
-          CurvedAnimation(parent: _menuAnimController, curve: Curves.easeOut),
+          CurvedAnimation(
+            parent: _menuAnimController,
+            curve: Curves.easeOut,
+            reverseCurve: Curves.easeIn,
+          ),
         );
 
     _pulseController = AnimationController(
@@ -438,7 +445,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                         IconButton(
                           icon: const Icon(Icons.close_rounded),
                           onPressed: () => Navigator.pop(context),
-                          tooltip: 'Fermer',
+                          tooltip: l10n.AppLocalizations.of(context)!.close,
                         ),
                         const Spacer(),
                         TextButton.icon(
@@ -658,48 +665,52 @@ class _HomeMapPageState extends State<HomeMapPage>
     );
   }
 
-  Color _headerLanguageColor() {
-    final loc = LocalizationService();
-    switch (loc.language) {
-      case AppLanguage.fr:
-        return const Color(0xFF0066FF); // bleu France plus vif
-      case AppLanguage.en:
-        return const Color(0xFFEE0000); // rouge UK plus vif
-      case AppLanguage.es:
-        return const Color(0xFFFFD700); // jaune Espagne plus vif
-    }
-  }
-
-  Color _headerLanguageTextColor() {
-    final loc = LocalizationService();
-    switch (loc.language) {
-      case AppLanguage.es:
-        return Colors.black; // meilleur contraste sur jaune
-      case AppLanguage.fr:
-      case AppLanguage.en:
-        return Colors.white;
+  Gradient _headerLanguageFlagGradient() {
+    final langService = Get.find<LanguageService>();
+    switch (langService.currentLanguageCode) {
+      case 'fr':
+        // Drapeau France: bleu, blanc, rouge (vertical)
+        return const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [Color(0xFF0055A4), Color(0xFFFFFFFF), Color(0xFFEF4135)],
+          stops: [0.0, 0.5, 1.0],
+        );
+      case 'en':
+        // Drapeau UK simplifié: bleu et rouge
+        return const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF012169), Color(0xFFC8102E)],
+          stops: [0.4, 0.6],
+        );
+      case 'es':
+        // Drapeau Espagne: rouge, jaune, rouge (horizontal)
+        return const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFC60B1E), Color(0xFFFFC400), Color(0xFFC60B1E)],
+          stops: [0.0, 0.5, 1.0],
+        );
+      default:
+        return const LinearGradient(
+          colors: [Color(0xFF0066FF), Color(0xFF0066FF)],
+        );
     }
   }
 
   String _headerLanguageCode() {
-    final loc = LocalizationService();
-    switch (loc.language) {
-      case AppLanguage.fr:
-        return 'FR';
-      case AppLanguage.en:
-        return 'EN';
-      case AppLanguage.es:
-        return 'ES';
-    }
+    final langService = Get.find<LanguageService>();
+    return langService.currentLanguageCode.toUpperCase();
   }
 
   void _cycleLanguage() {
-    final loc = LocalizationService();
-    final langs = [AppLanguage.fr, AppLanguage.en, AppLanguage.es];
-    final current = loc.language;
+    final langService = Get.find<LanguageService>();
+    final langs = ['fr', 'en', 'es'];
+    final current = langService.currentLanguageCode;
     final idx = langs.indexOf(current);
     final next = langs[(idx + 1) % langs.length];
-    loc.setLanguage(next);
+    langService.changeLanguage(next);
     setState(() {});
   }
 
@@ -813,7 +824,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.settings),
-                    tooltip: 'Ouvrir le sélecteur avancé',
+                    tooltip: l10n.AppLocalizations.of(context)!.openAdvancedSelector,
                     onPressed: () {
                       Navigator.pop(context);
                       _openMapSelector();
@@ -1028,11 +1039,15 @@ class _HomeMapPageState extends State<HomeMapPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        top: false,
-        bottom: false,
-        child: HoneycombBackground(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+      ),
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
+        body: HoneycombBackground(
           opacity: 0.08,
           child: Stack(
             children: [
@@ -1217,7 +1232,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                                       vertical: 10,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.86),
+                                      color: Colors.white.withValues(alpha: 0.65),
                                       borderRadius: const BorderRadius.vertical(
                                         top: Radius.circular(24),
                                         bottom: Radius.circular(24),
@@ -1249,7 +1264,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                                             ),
                                             const SizedBox(height: 8),
                                             _ActionItem(
-                                              label: 'Tracking',
+                                              label: l10n.AppLocalizations.of(context)!.tracking,
                                               icon: Icons.track_changes_rounded,
                                               selected:
                                                   _selected ==
@@ -1264,7 +1279,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                                             ),
                                             const SizedBox(height: 8),
                                             _ActionItem(
-                                              label: 'Visiter',
+                                              label: l10n.AppLocalizations.of(context)!.visit,
                                               icon: Icons.map_outlined,
                                               selected:
                                                   _selected ==
@@ -1279,7 +1294,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                                             ),
                                             const SizedBox(height: 8),
                                             _ActionItem(
-                                              label: 'Food',
+                                              label: l10n.AppLocalizations.of(context)!.food,
                                               icon: Icons.fastfood_rounded,
                                               selected:
                                                   _selected == _MapAction.food,
@@ -1292,7 +1307,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                                             ),
                                             const SizedBox(height: 8),
                                             _ActionItem(
-                                              label: 'Assistance',
+                                              label: l10n.AppLocalizations.of(context)!.assistance,
                                               icon: Icons.shield_outlined,
                                               selected:
                                                   _selected ==
@@ -1307,7 +1322,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                                             ),
                                             const SizedBox(height: 8),
                                             _ActionItem(
-                                              label: 'Parking',
+                                              label: l10n.AppLocalizations.of(context)!.parking,
                                               icon: Icons.local_parking_rounded,
                                               customText: 'P',
                                               color: const Color(0xFF0D97EB),
@@ -1374,7 +1389,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                     height: 60,
                     borderRadius: BorderRadius.zero,
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                    backgroundColor: Colors.white.withValues(alpha: 0.85),
+                    backgroundColor: Colors.white.withValues(alpha: 0.65),
                     child: Row(
                       children: [
                         StreamBuilder<User?>(
@@ -1408,7 +1423,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                         const SizedBox(width: 12),
                         const Spacer(),
                         Tooltip(
-                          message: 'Langue',
+                          message: l10n.AppLocalizations.of(context)!.language,
                           child: Material(
                             color: Colors.transparent,
                             child: InkWell(
@@ -1420,7 +1435,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                                 height: 46,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: _headerLanguageColor(),
+                                  gradient: _headerLanguageFlagGradient(),
                                   boxShadow: [
                                     BoxShadow(
                                       color: const Color(0xFF9B6BFF)
@@ -1438,13 +1453,20 @@ class _HomeMapPageState extends State<HomeMapPage>
                                   ],
                                 ),
                                 child: Center(
-                                  child: Text(
-                                    _headerLanguageCode(),
-                                    style: TextStyle(
-                                      color: _headerLanguageTextColor(),
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 13,
-                                      letterSpacing: 0.5,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.5),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      _headerLanguageCode(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 14,
+                                        letterSpacing: 0.5,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -1455,13 +1477,13 @@ class _HomeMapPageState extends State<HomeMapPage>
                         const SizedBox(width: 10),
                         MasliveGradientIconButton(
                           icon: Icons.shopping_bag_rounded,
-                          tooltip: 'Shop',
+                          tooltip: l10n.AppLocalizations.of(context)!.shop,
                           onTap: () => Navigator.pushNamed(context, '/shop-ui'),
                         ),
                         const SizedBox(width: 10),
                         MasliveGradientIconButton(
                           icon: Icons.menu_rounded,
-                          tooltip: 'Menu',
+                          tooltip: l10n.AppLocalizations.of(context)!.menu,
                           onTap: () {
                             setState(() => _showActionsMenu = !_showActionsMenu);
                             if (_showActionsMenu) {
@@ -1513,7 +1535,9 @@ class _ActionItem extends StatelessWidget {
             height: 60,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withValues(alpha: 0.92),
+              color: customText != null 
+                  ? (color ?? MasliveTheme.pink)
+                  : Colors.white.withValues(alpha: 0.92),
               border: Border.all(
                 color: selected
                     ? (color ?? MasliveTheme.pink)
@@ -1525,18 +1549,31 @@ class _ActionItem extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (customText != null)
+                if (customText != null) ...[
                   Text(
                     customText!,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w900,
-                      color: selected
-                          ? (color ?? MasliveTheme.pink)
-                          : (color ?? MasliveTheme.textPrimary),
+                      color: Colors.white,
+                      height: 1.0,
                     ),
-                  )
-                else
+                  ),
+                  if (label.isNotEmpty) const SizedBox(height: 2),
+                  if (label.isNotEmpty)
+                    Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 9,
+                        height: 1.0,
+                      ),
+                    ),
+                ] else ...[
                   Icon(
                     icon,
                     size: label.isEmpty ? 32 : 28,
@@ -1544,24 +1581,25 @@ class _ActionItem extends StatelessWidget {
                         ? (color ?? MasliveTheme.pink)
                         : (color ?? MasliveTheme.textPrimary),
                   ),
-                if (label.isNotEmpty) const SizedBox(height: 4),
-                if (label.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: selected
-                          ? (color ?? MasliveTheme.pink)
-                          : (color ?? MasliveTheme.textSecondary),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 8,
+                  if (label.isNotEmpty) const SizedBox(height: 4),
+                  if (label.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: selected
+                              ? (color ?? MasliveTheme.pink)
+                              : (color ?? MasliveTheme.textSecondary),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 8,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                ],
               ],
             ),
           ),

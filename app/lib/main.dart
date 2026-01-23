@@ -36,12 +36,15 @@ import 'admin/super_admin_space.dart';
 import 'admin/category_management_page.dart';
 import 'admin/role_management_page.dart';
 import 'admin/admin_circuits_page.dart';
+import 'admin/map_projects_library_page.dart';
 import 'services/cart_service.dart';
 import 'services/notifications_service.dart';
 import 'services/premium_service.dart';
 import 'ui/theme/maslive_theme.dart';
 import 'ui/widgets/honeycomb_background.dart';
+import 'ui/google_light_map_page_entry.dart';
 import 'l10n/app_localizations.dart';
+import 'pages/circuit_editor_workflow_page.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -109,6 +112,7 @@ class MasLiveApp extends StatelessWidget {
               '/splash': (_) => const SplashWrapperPage(),
               '/router': (_) => const RoleRouterPage(),
               '/': (_) => const HomeMapPage(),
+              '/mapbox-google-light': (_) => const GoogleLightMapPage(),
               '/account-ui': (_) => const AccountUiPage(),
               '/shop-ui': (_) => const ShopUiPage(),
               '/group-ui': (_) => const GroupProfilePage(groupId: 'demo'),
@@ -138,6 +142,8 @@ class MasLiveApp extends StatelessWidget {
               },
               '/admin': (_) => const AdminDashboardPage(),
               '/admin/circuits': (_) => const AdminCircuitsPage(),
+              '/admin/track-editor': (_) => const CircuitEditorWorkflowPage(),
+              '/admin/map-library': (_) => const MapProjectsLibraryPage(),
               '/admin/superadmin': (_) => const SuperAdminSpace(),
               '/admin/categories': (_) => const CategoryManagementPage(),
               '/admin/roles': (_) => const RoleManagementPage(),
