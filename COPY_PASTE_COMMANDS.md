@@ -16,6 +16,7 @@ firebase functions:config:set stripe.secret_key="sk_test_YOUR_KEY_HERE"
 
 Exemple complet :
 ```bash
+# ⚠️ NE PARTAGE JAMAIS TA VRAIE CLÉ
 firebase functions:config:set stripe.secret_key="sk_test_YOUR_ACTUAL_KEY_FROM_STRIPE_DASHBOARD"
 ```
 

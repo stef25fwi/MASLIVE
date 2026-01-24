@@ -129,3 +129,14 @@ app.*.symbols
 !**/ios/**/default.perspectivev3
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 !/dev/ci/**/Gemfile.lock
+
+# Stripe & API secrets (NEVER commit)
+# These patterns prevent accidentally committing secrets even if they appear in docs
+**/sk_test_*
+**/sk_live_*
+**/stripe_secret*
+**/STRIPE_SECRET*
+
+# Firebase secrets
+firebase-debug.log
+.runtimeconfig.json
