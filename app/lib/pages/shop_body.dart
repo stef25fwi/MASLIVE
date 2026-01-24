@@ -511,12 +511,12 @@ class _GalleryBlueCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _PillDark(icon: Icons.photo_library_outlined, label: "Boutique Photos", fontSize: fsPill),
+                  _PillDark(icon: Icons.photo_library_outlined, label: "Galerie photos", fontSize: fsPill),
                   const SizedBox(height: 18),
-                  _PillDarkPlain(label: "Photos événements", fontSize: fsPill),
+                  _PillDarkPlain(label: "Photographes only", fontSize: fsPill),
                   const SizedBox(height: 14),
                   Text(
-                    "Achète tes\nphotos",
+                    "Photos par les\nphotographes",
                     style: TextStyle(
                       fontSize: fsTitle,
                       height: 1.08,
@@ -527,7 +527,7 @@ class _GalleryBlueCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    "Carnaval & événements",
+                    "Filtre: Tous les groupes",
                     style: TextStyle(
                       fontSize: fsLine,
                       fontWeight: FontWeight.w700,
@@ -536,7 +536,7 @@ class _GalleryBlueCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    "Photos haute qualité",
+                    "Photos à venir",
                     style: TextStyle(
                       fontSize: fsLine,
                       fontWeight: FontWeight.w700,

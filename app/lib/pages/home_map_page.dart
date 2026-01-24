@@ -715,10 +715,17 @@ class _HomeMapPageState extends State<HomeMapPage>
   }
 
   void _closeNavWithDelay() {
-    Future.delayed(const Duration(seconds: 2), () {
+    // Attendre 1,5 secondes avant de lancer l'animation de fermeture
+    Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted && _showActionsMenu) {
-        setState(() => _showActionsMenu = false);
         _menuAnimController.reverse();
+        
+        // Attendre la fin de l'animation de glissement
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted && _showActionsMenu) {
+            setState(() => _showActionsMenu = false);
+          }
+        });
       }
     });
   }

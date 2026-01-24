@@ -114,6 +114,11 @@ firebase-debug.log
 # Firebase service account key (NEVER commit this!)
 serviceAccountKey.json
 
+# Firebase Functions / Node
+functions/node_modules/
+functions/.env*
+functions/.runtimeconfig.json
+
 # Symbols
 app.*.symbols
 

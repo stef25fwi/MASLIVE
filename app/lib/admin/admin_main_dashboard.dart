@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/app_user.dart';
 import '../services/auth_claims_service.dart';
 import '../theme/maslive_theme.dart';
@@ -182,6 +186,14 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            _buildDashboardCard(
+              title: 'Test Stripe',
+              subtitle: 'Vérifier la connexion Stripe',
+              icon: Icons.payment,
+              color: Colors.deepPurple,
+              onTap: () => _showStripeTestDialog(),
+            ),
             const SizedBox(height: 24),
 
             // Section Utilisateurs
@@ -250,6 +262,188 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                     builder: (_) => const AdminSystemSettingsPage(),
                   ),
                 ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showStripeTestDialog() async {
+    bool isLoading = false;
+    String status = 'Préparation du test...';
+    String? result;
+
+    showDialog(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Test de connexion Stripe'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (isLoading)
+                  const SizedBox(
+                    height: 100,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Ce test appelle la Cloud Function Stripe et vérifie la connexion au service de paiement.',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          status,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontFamily: 'monospace',
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ),
+                      if (result != null) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: result!.contains('Erreur')
+                                ? Colors.red[50]
+                                : Colors.green[50],
+                            border: Border.all(
+                              color: result!.contains('Erreur')
+                                  ? Colors.red
+                                  : Colors.green,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    result!.contains('Erreur')
+                                        ? Icons.error
+                                        : Icons.check_circle,
+                                    color: result!.contains('Erreur')
+                                        ? Colors.red
+                                        : Colors.green,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      result!.contains('Erreur')
+                                          ? 'Erreur'
+                                          : 'Succès',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: result!.contains('Erreur')
+                                            ? Colors.red
+                                            : Colors.green,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                result!,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            if (!isLoading)
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Fermer'),
+              ),
+            if (!isLoading && result == null)
+              ElevatedButton.icon(
+                onPressed: () async {
+                  setState(() {
+                    isLoading = true;
+                    status = 'Appel de la Cloud Function...';
+                  });
+
+                  try {
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user == null) {
+                      setState(() {
+                        result =
+                            'Erreur: Utilisateur non authentifié\n\nVous devez être connecté pour lancer le test.';
+                        isLoading = false;
+                      });
+                      return;
+                    }
+
+                    setState(() {
+                      status = 'Création d\'une commande de test...';
+                    });
+
+                    final functionsInstance =
+                        FirebaseFunctions.instanceFor(region: 'europe-west1');
+                    final callable = functionsInstance
+                        .httpsCallable('createCheckoutSessionForOrder');
+
+                    setState(() {
+                      status = 'Appel de createCheckoutSessionForOrder...';
+                    });
+
+                    final response = await callable.call({
+                      'orderId': 'test_${DateTime.now().millisecondsSinceEpoch}',
+                    }).timeout(
+                      const Duration(seconds: 10),
+                      onTimeout: () => throw TimeoutException(
+                          'Le test a dépassé le délai (10s)'),
+                    );
+
+                    setState(() {
+                      status = 'Test terminé avec succès';
+                      result = '''✓ Connexion Stripe établie
+
+Réponse reçue:
+${response.data.toString()}
+
+La Cloud Function a réussi à communiquer avec Stripe.''';
+                      isLoading = false;
+                    });
+                  } catch (e) {
+                    setState(() {
+                      result = '''Erreur lors du test Stripe
+
+$e
+
+Vérifiez:
+• La clé Stripe est configurée
+• La connexion Internet fonctionne
+• Les Cloud Functions sont déployées''';
+                      isLoading = false;
+                    });
+                  }
+                },
+                icon: const Icon(Icons.play_arrow),
+                label: const Text('Lancer le test'),
               ),
           ],
         ),

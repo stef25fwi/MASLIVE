@@ -266,3 +266,73 @@ Une fois tous les points cochés, votre nouvelle page médias est prête !
 Date de déploiement: _______________
 Version: v2.0.0
 Déployé par: _______________
+
+---
+
+# ✅ NOUVELLE : Checklist V2.1 - Monétisation + Stripe
+
+## 🎯 Nouvelles fonctionnalités V2.1
+
+- [x] Recherche textuelle (événement, groupe, photographe, pays)
+- [x] Système de packs discount (3/5/10 photos)
+- [x] Long-press pour sélection rapide
+- [x] Precache d'images visibles
+- [x] Intégration Stripe pour paiement
+- [x] Affichage discount dans panier
+
+## 📋 Étapes d'activation
+
+### Phase 1 : Activation du code V2.1
+
+- [ ] Activer media_shop_page_v21.dart
+  ```bash
+  bash /workspaces/MASLIVE/activate_shop_v21.sh
+  ```
+
+- [ ] Vérifier la compilation
+  ```bash
+  cd /workspaces/MASLIVE/app && flutter analyze
+  ```
+
+### Phase 2 : Configuration Stripe
+
+- [ ] Récupérer clé Stripe Secret (sk_test_...)
+- [ ] Déployer Cloud Functions
+  ```bash
+  bash /workspaces/MASLIVE/deploy_functions_stripe.sh
+  ```
+
+### Phase 3 : Déploiement
+
+- [ ] Build web + déployer
+  ```bash
+  cd /workspaces/MASLIVE && firebase deploy --only hosting,functions
+  ```
+
+### Phase 4 : Tests
+
+- [ ] Test recherche textuelle
+- [ ] Test filtres en cascade
+- [ ] Test long-press sur photos
+- [ ] Test panier et discounts (3/5/10 photos)
+- [ ] Test création commande
+- [ ] Test paiement Stripe (carte 4242 4242 4242 4242)
+- [ ] Vérifier commande "paid" en Firestore
+- [ ] Vérifier purchases créées
+
+## 📂 Fichiers V2.1
+
+- [x] `app/lib/pages/media_shop_page_v21.dart` (1945 lignes)
+- [x] `functions/index.js` - Callable Stripe
+- [x] `functions/package.json` - Stripe SDK
+- [x] `activate_shop_v21.sh` - Script d'activation
+- [x] `deploy_functions_stripe.sh` - Script de déploiement
+- [x] `V21_DEPLOYMENT.md` - Guide complet
+- [x] `QUICK_STRIPE_DEPLOY.md` - Guide rapide
+- [x] `STRIPE_SETUP.md` - Documentation Stripe
+
+## 🎉 V2.1 déploiement prêt !
+
+Version: v2.1.0  
+Date: _______________  
+Déployé par: _______________

@@ -32,11 +32,15 @@ import 'pages/circuit_calculs_validation_page.dart';
 import 'pages/circuit_save_page.dart';
 import 'pages/favorites_page.dart';
 import 'pages/circuit_draw_page.dart';
+import 'pages/purchase_history_page.dart';
+import 'pages/business_account_page.dart';
+import 'pages/business_request_page.dart';
 import 'admin/super_admin_space.dart';
 import 'admin/category_management_page.dart';
 import 'admin/role_management_page.dart';
 import 'admin/admin_circuits_page.dart';
 import 'admin/map_projects_library_page.dart';
+import 'admin/business_requests_page.dart';
 import 'services/cart_service.dart';
 import 'services/notifications_service.dart';
 import 'services/premium_service.dart';
@@ -158,6 +162,10 @@ class MasLiveApp extends StatelessWidget {
               '/cart': (_) => const CartPage(),
               '/paywall': (_) => const PaywallPage(),
               '/pending-products': (_) => const PendingProductsPage(),
+              '/purchase-history': (_) => const PurchaseHistoryPage(),
+              '/business': (_) => const BusinessAccountPage(),
+              '/business-request': (_) => const BusinessRequestPage(),
+              '/admin/business-requests': (_) => const BusinessRequestsPage(),
             },
             builder: (context, child) => HoneycombBackground(
               opacity: 0.08,

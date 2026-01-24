@@ -14,6 +14,34 @@ const {
 } = require("firebase-functions/v2/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 
+// Stripe SDK (lazy initialization)
+const stripeModule = require("stripe");
+let stripe = null;
+
+function getStripe() {
+  if (!stripe) {
+    // Try Firebase config first, then environment variables
+    let apiKey = null;
+    
+    try {
+      const config = require("firebase-functions").config();
+      apiKey = config.stripe?.secret_key || process.env.STRIPE_SECRET_KEY;
+    } catch (e) {
+      apiKey = process.env.STRIPE_SECRET_KEY;
+    }
+    
+    if (!apiKey) {
+      throw new Error(
+        "STRIPE_SECRET_KEY not configured. Run: " +
+        "firebase functions:config:set stripe.secret_key=\"sk_test_...\""
+      );
+    }
+    stripe = stripeModule(apiKey);
+  }
+  return stripe;
+}
+
+
 setGlobalOptions({ region: "us-east1" });
 
 admin.initializeApp();
@@ -1065,4 +1093,284 @@ exports.revokeUserCategory = onCall(
   }
 );
 
+/**
+ * createCheckoutSessionForOrder
+ * Crée une Stripe Checkout Session pour une commande en attente
+ * { orderId: string }
+ * Returns: { checkoutUrl: string }
+ */
+exports.createCheckoutSessionForOrder = onCall(
+  {
+    region: "us-east1",
+    cpu: 1,
+    memory: "256MiB",
+    timeoutSeconds: 30,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
 
+    const { orderId } = request.data || {};
+    const uid = request.auth.uid;
+
+    if (!orderId || typeof orderId !== "string") {
+      throw new HttpsError("invalid-argument", "orderId is required");
+    }
+
+    // 1. Récupère la commande depuis Firestore
+    const orderRef = db.collection("users").doc(uid).collection("orders").doc(orderId);
+    const orderSnap = await orderRef.get();
+
+    if (!orderSnap.exists) {
+      throw new HttpsError("not-found", `Order ${orderId} not found`);
+    }
+
+    const orderData = orderSnap.data();
+
+    if (orderData.status !== "pending") {
+      throw new HttpsError(
+        "failed-precondition",
+        `Order ${orderId} is not in pending status (current: ${orderData.status})`
+      );
+    }
+
+    // 2. Prépare les line_items pour Stripe
+    const items = orderData.items || [];
+    if (items.length === 0) {
+      throw new HttpsError("invalid-argument", "Order has no items");
+    }
+
+    const lineItems = items.map((item) => ({
+      price_data: {
+        currency: "eur",
+        product_data: {
+          name: `Photo - ${item.eventName || "Événement"}`,
+          description: `${item.groupName || "Groupe"} • ${item.photographerName || "Photographe"}`,
+          metadata: {
+            photoId: item.photoId,
+            eventName: item.eventName || "",
+            groupName: item.groupName || "",
+          },
+        },
+        unit_amount: item.priceCents, // Prix en centimes
+      },
+      quantity: 1,
+    }));
+
+    // Applique le discount si présent
+    const discountCents = orderData.discountCents || 0;
+    if (discountCents > 0) {
+      // Ajoute une ligne négative pour le discount
+      lineItems.push({
+        price_data: {
+          currency: "eur",
+          product_data: {
+            name: `Réduction ${orderData.discountRule || "Pack"} (-${orderData.discountPercent || 0}%)`,
+            description: `Pack discount appliqué`,
+          },
+          unit_amount: -discountCents, // Montant négatif
+        },
+        quantity: 1,
+      });
+    }
+
+    // 3. Crée une Checkout Session Stripe
+    try {
+      const stripeClient = getStripe();
+      const session = await stripeClient.checkout.sessions.create({
+        mode: "payment",
+        line_items: lineItems,
+        success_url: `https://maslive.web.app/success?orderId=${orderId}`,
+        cancel_url: `https://maslive.web.app/cancel?orderId=${orderId}`,
+        metadata: {
+          orderId,
+          uid,
+          itemCount: items.length,
+          totalCents: orderData.totalCents || 0,
+        },
+        customer_email: request.auth.token.email || undefined,
+      });
+
+      // 4. Sauvegarde le sessionId dans la commande
+      await orderRef.update({
+        stripeSessionId: session.id,
+        stripeSessionUrl: session.url,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return { checkoutUrl: session.url };
+    } catch (error) {
+      console.error("Stripe error:", error);
+      throw new HttpsError(
+        "internal",
+        `Failed to create checkout session: ${error.message}`
+      );
+    }
+  }
+);
+
+/**
+ * createBusinessConnectOnboardingLink
+ * Démarre / poursuit l'onboarding Stripe Connect Express pour un compte business.
+ * {}
+ * Returns: { url: string, accountId: string }
+ */
+exports.createBusinessConnectOnboardingLink = onCall(
+  {
+    region: "us-east1",
+    cpu: 1,
+    memory: "256MiB",
+    timeoutSeconds: 30,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+
+    const uid = request.auth.uid;
+    const businessRef = db.collection("businesses").doc(uid);
+    const businessSnap = await businessRef.get();
+
+    if (!businessSnap.exists) {
+      throw new HttpsError("not-found", "Business profile not found");
+    }
+
+    const business = businessSnap.data() || {};
+    if (business.ownerUid !== uid) {
+      throw new HttpsError("permission-denied", "Not allowed");
+    }
+
+    if (business.status !== "approved") {
+      throw new HttpsError(
+        "failed-precondition",
+        `Business status must be approved (current: ${business.status || "unknown"})`
+      );
+    }
+
+    const stripeClient = getStripe();
+
+    let accountId = business.stripe && business.stripe.accountId;
+
+    // Crée le compte Stripe Express si absent
+    if (!accountId) {
+      const email = business.email || request.auth.token.email;
+      const country = business.country === "France" ? "FR" : "FR";
+      const companyName = business.companyName || undefined;
+
+      const account = await stripeClient.accounts.create({
+        type: "express",
+        country,
+        email,
+        business_type: "company",
+        company: {
+          name: companyName,
+        },
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
+        metadata: {
+          uid,
+        },
+      });
+
+      accountId = account.id;
+
+      await businessRef.set(
+        {
+          stripe: {
+            accountId,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
+
+    // URLs de retour / refresh (doivent être https)
+    const baseUrl = "https://maslive.web.app/";
+    const refreshUrl = `${baseUrl}?stripeConnect=refresh`;
+    const returnUrl = `${baseUrl}?stripeConnect=return`;
+
+    const link = await stripeClient.accountLinks.create({
+      account: accountId,
+      refresh_url: refreshUrl,
+      return_url: returnUrl,
+      type: "account_onboarding",
+    });
+
+    return { url: link.url, accountId };
+  }
+);
+
+/**
+ * refreshBusinessConnectStatus
+ * Rafraîchit l'état Stripe du compte Connect (charges/payouts/details)
+ * {}
+ * Returns: { accountId, detailsSubmitted, chargesEnabled, payoutsEnabled }
+ */
+exports.refreshBusinessConnectStatus = onCall(
+  {
+    region: "us-east1",
+    cpu: 1,
+    memory: "256MiB",
+    timeoutSeconds: 30,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+
+    const uid = request.auth.uid;
+    const businessRef = db.collection("businesses").doc(uid);
+    const businessSnap = await businessRef.get();
+
+    if (!businessSnap.exists) {
+      throw new HttpsError("not-found", "Business profile not found");
+    }
+
+    const business = businessSnap.data() || {};
+    if (business.ownerUid !== uid) {
+      throw new HttpsError("permission-denied", "Not allowed");
+    }
+
+    const accountId = business.stripe && business.stripe.accountId;
+    if (!accountId) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Stripe accountId not found for this business"
+      );
+    }
+
+    const stripeClient = getStripe();
+    const account = await stripeClient.accounts.retrieve(accountId);
+
+    const detailsSubmitted = !!account.details_submitted;
+    const chargesEnabled = !!account.charges_enabled;
+    const payoutsEnabled = !!account.payouts_enabled;
+    const requirements = account.requirements || {};
+
+    await businessRef.set(
+      {
+        stripe: {
+          accountId,
+          detailsSubmitted,
+          chargesEnabled,
+          payoutsEnabled,
+          currentlyDue: requirements.currently_due || [],
+          eventuallyDue: requirements.eventually_due || [],
+          pastDue: requirements.past_due || [],
+          currentDeadline: requirements.current_deadline || null,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return { accountId, detailsSubmitted, chargesEnabled, payoutsEnabled };
+  }
+);

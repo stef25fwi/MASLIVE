@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'dart:math' as math;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
@@ -13,6 +14,7 @@ class BusinessSignupPage extends StatefulWidget {
 
 class _BusinessSignupPageState extends State<BusinessSignupPage> {
   final _formKey = GlobalKey<FormState>();
+  final _db = FirebaseFirestore.instance;
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _companyNameCtrl = TextEditingController();
@@ -23,7 +25,7 @@ class _BusinessSignupPageState extends State<BusinessSignupPage> {
   final _phoneCtrl = TextEditingController();
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
-  
+
   bool _obscure = true;
   bool _loading = false;
   String? _error;
@@ -148,17 +150,52 @@ class _BusinessSignupPageState extends State<BusinessSignupPage> {
 
     try {
       // 1. Créer le compte utilisateur
-      await AuthService.instance.createUserWithEmailPassword(
+      final cred = await AuthService.instance.createUserWithEmailPassword(
         email: _emailCtrl.text.trim(),
         password: _passwordCtrl.text,
       );
 
+      final uid = cred.user?.uid;
+      if (uid == null) {
+        throw Exception('Impossible de récupérer l\'utilisateur créé');
+      }
+
       // 2. Enregistrer les données entreprise dans Firestore
-      // TODO: Ajouter l'enregistrement dans Firestore avec les données:
-      // - Informations entreprise (nom, SIRET, forme juridique, etc.)
-      // - Informations contact (adresse, téléphone, etc.)
-      // - Responsable (prénom, nom)
-      // - Secteur d'activité, effectif, régime TVA
+      final businessRef = _db.collection('businesses').doc(uid);
+      final businessSnap = await businessRef.get();
+      if (businessSnap.exists) {
+        throw Exception('Un profil professionnel existe déjà pour ce compte');
+      }
+
+      await businessRef.set({
+        'ownerUid': uid,
+        'email': _emailCtrl.text.trim(),
+        'status': 'pending',
+        'companyName': _companyNameCtrl.text.trim(),
+        'siret': _siretCtrl.text.trim(),
+        'legalForm': _legalForm,
+        'activitySector': _activitySector,
+        'numberOfEmployees': _numberOfEmployees,
+        'tvaRegime': _tvaRegime,
+        'address': _addressCtrl.text.trim(),
+        'city': _cityCtrl.text.trim(),
+        'postalCode': _postalCodeCtrl.text.trim(),
+        'region': _region,
+        'country': _country,
+        'phone': _phoneCtrl.text.trim(),
+        'firstName': _firstNameCtrl.text.trim(),
+        'lastName': _lastNameCtrl.text.trim(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Optionnel: enrichir le profil user (autorisé par rules)
+      await AuthService.instance.createOrUpdateUserProfile(
+        userId: uid,
+        email: _emailCtrl.text.trim(),
+        phone: _phoneCtrl.text.trim(),
+        region: _region,
+      );
 
       if (!mounted) return;
 
@@ -256,8 +293,8 @@ class _BusinessSignupPageState extends State<BusinessSignupPage> {
                       validator: (v) => v?.isEmpty ?? true
                           ? 'Email requis'
                           : !v!.contains('@')
-                              ? 'Email invalide'
-                              : null,
+                          ? 'Email invalide'
+                          : null,
                     ),
                     const SizedBox(height: 12),
                     _FormField(
@@ -266,9 +303,11 @@ class _BusinessSignupPageState extends State<BusinessSignupPage> {
                       icon: Icons.lock_outline,
                       obscureText: _obscure,
                       suffix: IconButton(
-                        icon: Icon(_obscure
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined),
+                        icon: Icon(
+                          _obscure
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                        ),
                         onPressed: () => setState(() => _obscure = !_obscure),
                       ),
                       validator: (v) => v == null || v.length < 6
@@ -311,8 +350,8 @@ class _BusinessSignupPageState extends State<BusinessSignupPage> {
                       validator: (v) => v?.isEmpty ?? true
                           ? 'SIRET requis'
                           : v!.length != 14
-                              ? 'SIRET doit contenir 14 chiffres'
-                              : null,
+                          ? 'SIRET doit contenir 14 chiffres'
+                          : null,
                     ),
                     const SizedBox(height: 12),
                     _DropdownField(
@@ -483,7 +522,8 @@ class _BusinessSignupPageState extends State<BusinessSignupPage> {
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white),
+                                    Colors.white,
+                                  ),
                                 ),
                               )
                             : const Text(
@@ -683,7 +723,13 @@ class _HexPatternPainter extends CustomPainter {
     }
   }
 
-  void _drawHexagon(Canvas canvas, Paint paint, double x, double y, double size) {
+  void _drawHexagon(
+    Canvas canvas,
+    Paint paint,
+    double x,
+    double y,
+    double size,
+  ) {
     final path = Path();
     for (int i = 0; i < 6; i++) {
       final angle = (60 * i - 30) * 3.14159 / 180;

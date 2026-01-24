@@ -742,37 +742,25 @@ class _MediaShopPageState extends State<MediaShopPage> {
                         else
                           SliverPadding(
                             padding: const EdgeInsets.fromLTRB(12, 12, 12, 120),
-                            sliver: SliverLayoutBuilder(
-                              builder: (context, constraints) {
-                                final width = constraints.crossAxisExtent;
-                                final crossAxisCount = _gridColumnsForWidth(width);
-
-                                return SliverGrid(
-                                  delegate: SliverChildBuilderDelegate(
-                                    (context, index) {
-                                      final item = results[index];
-                                      final purchased = _purchased.contains(item.id);
-                                      return SelectablePhotoCardV21(
-                                        item: item,
-                                        purchased: purchased,
-                                        onOpen: () => _openPreview(
-                                          context,
-                                          item,
-                                          purchased: purchased,
-                                          cart: cart,
-                                        ),
-                                      );
-                                    },
-                                    childCount: results.length,
-                                  ),
-                                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: crossAxisCount,
-                                    mainAxisSpacing: 12,
-                                    crossAxisSpacing: 12,
-                                    childAspectRatio: crossAxisCount >= 4 ? 0.80 : 0.78,
-                                  ),
-                                );
-                              },
+                            sliver: SliverGrid(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  final item = results[index];
+                                  final purchased = _purchased.contains(item.id);
+                                  return SelectablePhotoCardV21(
+                                    item: item,
+                                    purchased: purchased,
+                                    onOpen: () => _openPreview(context, item, purchased: purchased, cart: cart),
+                                  );
+                                },
+                                childCount: results.length,
+                              ),
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 12,
+                                crossAxisSpacing: 12,
+                                childAspectRatio: 0.78,
+                              ),
                             ),
                           ),
 
@@ -1002,7 +990,7 @@ class FilterBarStickyV21 extends StatelessWidget {
 /// -----------------------------------------------------------------------------
 /// GRID CARD V2.1 (long press pour sélection)
 /// -----------------------------------------------------------------------------
-class SelectablePhotoCardV21 extends StatefulWidget {
+class SelectablePhotoCardV21 extends StatelessWidget {
   const SelectablePhotoCardV21({
     super.key,
     required this.item,
@@ -1015,190 +1003,90 @@ class SelectablePhotoCardV21 extends StatefulWidget {
   final VoidCallback onOpen;
 
   @override
-  State<SelectablePhotoCardV21> createState() => _SelectablePhotoCardV21State();
-}
-
-class _SelectablePhotoCardV21State extends State<SelectablePhotoCardV21> {
-  bool _hovered = false;
-
-  @override
   Widget build(BuildContext context) {
     final cart = CartScope.of(context);
 
     return AnimatedBuilder(
       animation: cart,
       builder: (context, _) {
-        final selected = cart.isSelected(widget.item.id);
-        final inCart = cart.isInCart(widget.item.id);
+        final selected = cart.isSelected(item.id);
+        final inCart = cart.isInCart(item.id);
 
-        final isInteractive = !widget.purchased;
-        final shadowOpacity = _hovered ? 0.10 : 0.07;
-        final borderOpacity = _hovered ? 0.12 : 0.08;
-
-        return MouseRegion(
-          onEnter: (_) {
-            if (!mounted) return;
-            setState(() => _hovered = true);
-          },
-          onExit: (_) {
-            if (!mounted) return;
-            setState(() => _hovered = false);
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 140),
-            curve: Curves.easeOut,
+        return InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onOpen,
+          onLongPress: purchased ? null : () => cart.toggleSelected(item),
+          child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.black.withOpacity(borderOpacity)),
-              boxShadow: [
-                BoxShadow(
-                  blurRadius: _hovered ? 22 : 16,
-                  offset: const Offset(0, 10),
-                  color: Colors.black.withOpacity(shadowOpacity),
+              border: Border.all(color: Colors.black.withOpacity(0.08)),
+              color: Colors.white,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+                          child: _StorageImage(path: item.thumbPath),
+                        ),
+                      ),
+
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: GestureDetector(
+                          onTap: purchased ? null : () => cart.toggleSelected(item),
+                          child: _CheckBadge(isOn: selected, disabled: purchased),
+                        ),
+                      ),
+
+                      if (inCart) const Positioned(left: 10, top: 10, child: _Pill(text: 'Au panier')),
+                      if (purchased) const Positioned(left: 10, bottom: 10, child: _Pill(text: 'Achetée')),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.eventName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${item.groupName} • ${item.photographerName}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: Colors.black.withOpacity(0.7), fontSize: 12),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Text(_money(item.priceCents), style: const TextStyle(fontWeight: FontWeight.w800)),
+                          const Spacer(),
+                          IconButton(
+                            tooltip: purchased ? 'Déjà achetée' : 'Ajouter au panier',
+                            onPressed: (purchased || inCart) ? null : () => cart.addToCart(item),
+                            icon: const Icon(Icons.add_shopping_cart),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(18),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(18),
-                onTap: widget.onOpen,
-                onLongPress: isInteractive ? () => cart.toggleSelected(widget.item) : null,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Stack(
-                        children: [
-                          Positioned.fill(
-                            child: ClipRRect(
-                              borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-                              child: _StorageImage(path: widget.item.thumbPath),
-                            ),
-                          ),
-
-                          Positioned(
-                            top: 10,
-                            right: 10,
-                            child: GestureDetector(
-                              onTap: isInteractive ? () => cart.toggleSelected(widget.item) : null,
-                              child: _CheckBadge(isOn: selected, disabled: widget.purchased),
-                            ),
-                          ),
-
-                          if (inCart)
-                            Positioned(
-                              left: 10,
-                              top: 10,
-                              child: _PremiumPill(text: 'Au panier'),
-                            ),
-                          if (widget.purchased)
-                            Positioned(
-                              left: 10,
-                              bottom: 10,
-                              child: _PremiumPill(text: 'Achetée'),
-                            ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.item.eventName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${widget.item.groupName} • ${widget.item.photographerName}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.black.withOpacity(0.62),
-                              fontSize: 12,
-                              height: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Text(
-                                _money(widget.item.priceCents),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.2,
-                                ),
-                              ),
-                              const Spacer(),
-                              IconButton(
-                                tooltip: widget.purchased ? 'Déjà achetée' : 'Ajouter au panier',
-                                onPressed: (widget.purchased || inCart) ? null : () => cart.addToCart(widget.item),
-                                style: IconButton.styleFrom(
-                                  backgroundColor: Colors.black.withOpacity(0.05),
-                                  padding: const EdgeInsets.all(10),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                icon: const Icon(Icons.add_shopping_cart_rounded, size: 20),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ),
           ),
         );
       },
-    );
-  }
-}
-
-int _gridColumnsForWidth(double width) {
-  if (width >= 1400) return 5;
-  if (width >= 1100) return 4;
-  if (width >= 820) return 3;
-  return 2;
-}
-
-class _PremiumPill extends StatelessWidget {
-  const _PremiumPill({required this.text});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.92),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.black.withOpacity(0.10)),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 10,
-            offset: const Offset(0, 6),
-            color: Colors.black.withOpacity(0.08),
-          ),
-        ],
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: -0.1),
-      ),
     );
   }
 }
@@ -1787,6 +1675,24 @@ class _CheckBadge extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: Icon(isOn ? Icons.check : Icons.circle_outlined, size: 18, color: fg),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.black.withOpacity(0.10)),
+      ),
+      child: Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
     );
   }
 }
