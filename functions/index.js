@@ -12,11 +12,20 @@ const {
   onDocumentCreated,
   onDocumentUpdated,
 } = require("firebase-functions/v2/firestore");
-const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 
 // Stripe SDK (lazy initialization)
 const stripeModule = require("stripe");
 let stripe = null;
+
+function getStripeWebhookSecret() {
+  try {
+    const config = require("firebase-functions").config();
+    return config.stripe?.webhook_secret || process.env.STRIPE_WEBHOOK_SECRET;
+  } catch (e) {
+    return process.env.STRIPE_WEBHOOK_SECRET;
+  }
+}
 
 function getStripe() {
   if (!stripe) {
@@ -83,7 +92,7 @@ function geohashPrecisionForRadius(radiusKm) {
  */
 exports.updateGroupLocation = onCall(
   {
-    cpu: 1,
+    cpu: 0.083,
     memory: "256MiB",
     timeoutSeconds: 30,
     maxInstances: 20,
@@ -168,7 +177,7 @@ exports.updateGroupLocation = onCall(
  */
 exports.nearbySearch = onCall(
   {
-    cpu: 1,
+    cpu: 0.083,
     memory: "256MiB",
     timeoutSeconds: 60,
     maxInstances: 20,
@@ -1102,7 +1111,7 @@ exports.revokeUserCategory = onCall(
 exports.createCheckoutSessionForOrder = onCall(
   {
     region: "us-east1",
-    cpu: 1,
+    cpu: 0.083,
     memory: "256MiB",
     timeoutSeconds: 30,
   },
@@ -1185,7 +1194,7 @@ exports.createCheckoutSessionForOrder = onCall(
         cancel_url: `https://maslive.web.app/cancel?orderId=${orderId}`,
         metadata: {
           orderId,
-          uid,
+          userId: uid,
           itemCount: items.length,
           totalCents: orderData.totalCents || 0,
         },
@@ -1219,7 +1228,7 @@ exports.createCheckoutSessionForOrder = onCall(
 exports.createBusinessConnectOnboardingLink = onCall(
   {
     region: "us-east1",
-    cpu: 1,
+    cpu: 0.083,
     memory: "256MiB",
     timeoutSeconds: 30,
   },
@@ -1315,7 +1324,7 @@ exports.createBusinessConnectOnboardingLink = onCall(
 exports.refreshBusinessConnectStatus = onCall(
   {
     region: "us-east1",
-    cpu: 1,
+    cpu: 0.083,
     memory: "256MiB",
     timeoutSeconds: 30,
   },
@@ -1374,3 +1383,208 @@ exports.refreshBusinessConnectStatus = onCall(
     return { accountId, detailsSubmitted, chargesEnabled, payoutsEnabled };
   }
 );
+
+/**
+ * stripeWebhook
+ * Endpoint pour recevoir les événements webhook de Stripe.
+ * Configure dans le dashboard Stripe: https://dashboard.stripe.com/webhooks
+ * URL: https://us-east1-maslive.cloudfunctions.net/stripeWebhook
+ * 
+ * Événements écoutés:
+ * - checkout.session.completed: Commande payée (Media Shop)
+ * - payment_intent.succeeded: Paiement réussi
+ * - account.updated: Statut du compte Connect changé
+ */
+exports.stripeWebhook = onRequest(
+  {
+    region: "us-east1",
+    cpu: 0.083,
+    memory: "256MiB",
+    timeoutSeconds: 30,
+    // CORS non nécessaire pour les webhooks (appelés par Stripe directement)
+  },
+  async (req, res) => {
+    // Seul POST est accepté
+    if (req.method !== "POST") {
+      res.status(405).send("Method Not Allowed");
+      return;
+    }
+
+    const sig = req.headers["stripe-signature"];
+    const webhookSecret = getStripeWebhookSecret();
+
+    if (!webhookSecret) {
+      console.error("STRIPE_WEBHOOK_SECRET not configured");
+      res.status(500).send("Webhook secret not configured");
+      return;
+    }
+
+    let event;
+
+    try {
+      const stripeClient = getStripe();
+      // Vérification de la signature du webhook (sécurité)
+      event = stripeClient.webhooks.constructEvent(
+        req.rawBody,
+        sig,
+        webhookSecret
+      );
+    } catch (err) {
+      console.error("Webhook signature verification failed:", err.message);
+      res.status(400).send(`Webhook Error: ${err.message}`);
+      return;
+    }
+
+    console.log("Webhook event received:", event.type, event.id);
+
+    try {
+      switch (event.type) {
+        case "checkout.session.completed":
+          await handleCheckoutSessionCompleted(event.data.object);
+          break;
+
+        case "payment_intent.succeeded":
+          await handlePaymentIntentSucceeded(event.data.object);
+          break;
+
+        case "account.updated":
+          await handleAccountUpdated(event.data.object);
+          break;
+
+        case "account.application.authorized":
+        case "account.application.deauthorized":
+          console.log("Account application event:", event.type);
+          break;
+
+        default:
+          console.log("Unhandled event type:", event.type);
+      }
+
+      res.status(200).json({ received: true, eventType: event.type });
+    } catch (error) {
+      console.error("Error processing webhook:", error);
+      res.status(500).send("Webhook handler error");
+    }
+  }
+);
+
+/**
+ * Traite l'événement checkout.session.completed
+ * Commande payée via le Media Shop
+ */
+async function handleCheckoutSessionCompleted(session) {
+  console.log("Processing checkout.session.completed:", session.id);
+
+  const orderId = session.metadata?.orderId;
+  const userId = session.metadata?.userId;
+
+  if (!orderId || !userId) {
+    console.warn("Missing orderId or userId in session metadata");
+    return;
+  }
+
+  const orderRef = db.collection("users").doc(userId).collection("orders").doc(orderId);
+  const orderSnap = await orderRef.get();
+
+  if (!orderSnap.exists) {
+    console.warn(`Order ${orderId} not found for user ${userId}`);
+    return;
+  }
+
+  const order = orderSnap.data();
+
+  // Met à jour le statut de la commande
+  await orderRef.update({
+    status: "paid",
+    paidAt: admin.firestore.FieldValue.serverTimestamp(),
+    stripeSessionId: session.id,
+    stripePaymentIntentId: session.payment_intent,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // Crée les documents purchases pour chaque photo
+  const items = order.items || [];
+  const batch = db.batch();
+
+  for (const item of items) {
+    const photoId = item.photoId;
+    if (!photoId) continue;
+
+    const purchaseRef = db.collection("users").doc(userId).collection("purchases").doc(photoId);
+    batch.set(purchaseRef, {
+      photoId,
+      orderId,
+      priceCents: item.priceCents || 0,
+      purchasedAt: admin.firestore.FieldValue.serverTimestamp(),
+      eventName: item.eventName || "",
+      groupName: item.groupName || "",
+      photographerName: item.photographerName || "",
+      photographerId: item.photographerId || null,
+      thumbnailUrl: item.thumbPath || null,
+      fullPath: item.fullPath || null,
+      stripeSessionId: session.id,
+    });
+  }
+
+  await batch.commit();
+
+  console.log(`Order ${orderId} marked as paid, ${items.length} purchases created`);
+}
+
+/**
+ * Traite l'événement payment_intent.succeeded
+ * Paiement réussi (confirmation supplémentaire)
+ */
+async function handlePaymentIntentSucceeded(paymentIntent) {
+  console.log("Processing payment_intent.succeeded:", paymentIntent.id);
+
+  // Logique additionnelle si nécessaire (notifications, analytics, etc.)
+  // La plupart du traitement est fait dans checkout.session.completed
+}
+
+/**
+ * Traite l'événement account.updated
+ * Statut du compte Stripe Connect changé
+ */
+async function handleAccountUpdated(account) {
+  console.log("Processing account.updated:", account.id);
+
+  const uid = account.metadata?.uid;
+  if (!uid) {
+    console.warn("No uid in account metadata, cannot update Firestore");
+    return;
+  }
+
+  const businessRef = db.collection("businesses").doc(uid);
+  const businessSnap = await businessRef.get();
+
+  if (!businessSnap.exists) {
+    console.warn(`Business profile ${uid} not found`);
+    return;
+  }
+
+  const detailsSubmitted = !!account.details_submitted;
+  const chargesEnabled = !!account.charges_enabled;
+  const payoutsEnabled = !!account.payouts_enabled;
+  const requirements = account.requirements || {};
+
+  await businessRef.set(
+    {
+      stripe: {
+        accountId: account.id,
+        detailsSubmitted,
+        chargesEnabled,
+        payoutsEnabled,
+        currentlyDue: requirements.currently_due || [],
+        eventuallyDue: requirements.eventually_due || [],
+        pastDue: requirements.past_due || [],
+        currentDeadline: requirements.current_deadline || null,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  console.log(`Business ${uid} Stripe status auto-updated via webhook`);
+}

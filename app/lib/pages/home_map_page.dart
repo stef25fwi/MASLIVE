@@ -1412,9 +1412,19 @@ class _HomeMapPageState extends State<HomeMapPage>
                               child: InkWell(
                                 onTap: () {
                                   if (user != null) {
-                                    Navigator.pushNamed(context, '/account-ui');
+                                    _closeNavWithDelay();
+                                    Future.delayed(const Duration(milliseconds: 500), () {
+                                      if (mounted) {
+                                        Navigator.pushNamed(context, '/account-ui');
+                                      }
+                                    });
                                   } else {
-                                    Navigator.pushNamed(context, '/login');
+                                    _closeNavWithDelay();
+                                    Future.delayed(const Duration(milliseconds: 500), () {
+                                      if (mounted) {
+                                        Navigator.pushNamed(context, '/login');
+                                      }
+                                    });
                                   }
                                 },
                                 customBorder: const CircleBorder(),
@@ -1485,7 +1495,14 @@ class _HomeMapPageState extends State<HomeMapPage>
                         MasliveGradientIconButton(
                           icon: Icons.shopping_bag_rounded,
                           tooltip: l10n.AppLocalizations.of(context)!.shop,
-                          onTap: () => Navigator.pushNamed(context, '/shop-ui'),
+                          onTap: () {
+                            _closeNavWithDelay();
+                            Future.delayed(const Duration(milliseconds: 500), () {
+                              if (mounted) {
+                                Navigator.pushNamed(context, '/shop-ui');
+                              }
+                            });
+                          },
                         ),
                         const SizedBox(width: 10),
                         MasliveGradientIconButton(

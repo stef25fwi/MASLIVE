@@ -14,6 +14,7 @@ import 'admin_analytics_page.dart';
 import 'admin_logs_page.dart';
 import 'admin_system_settings_page.dart';
 import 'user_management_page.dart';
+import 'business_requests_page.dart';
 
 /// Dashboard admin principal 10/10 avec toutes les fonctionnalités
 class AdminMainDashboard extends StatefulWidget {
@@ -208,6 +209,23 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => const UserManagementPage(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Section Comptes Professionnels
+            _buildSectionTitle('Comptes Professionnels', Icons.business),
+            const SizedBox(height: 12),
+            _buildDashboardCard(
+              title: 'Demandes Pro',
+              subtitle: 'Valider les demandes de comptes professionnels',
+              icon: Icons.request_page,
+              color: Colors.deepOrange,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const BusinessRequestsPage(),
                 ),
               ),
             ),
