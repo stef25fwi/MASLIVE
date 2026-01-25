@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
@@ -22,7 +21,8 @@ class MapboxNativeCircuitMap extends StatefulWidget {
   final List<LngLat> route;
 
   /// segments = portions du tracé (ex: de i..j) + couleur
-  final List<({int startIndex, int endIndex, Color color, String name})> segments;
+  final List<({int startIndex, int endIndex, Color color, String name})>
+  segments;
 
   final bool locked;
   final ValueChanged<LngLat> onTapLngLat;
@@ -62,7 +62,10 @@ class _MapboxNativeCircuitMapState extends State<MapboxNativeCircuitMap> {
 
   void _onMapTap(MapContentGestureContext context) {
     final coords = context.point.coordinates;
-    widget.onTapLngLat((lng: coords.lng.toDouble(), lat: coords.lat.toDouble()));
+    widget.onTapLngLat((
+      lng: coords.lng.toDouble(),
+      lat: coords.lat.toDouble(),
+    ));
   }
 
   Future<void> _onStyleLoaded(StyleLoadedEventData data) async {
@@ -85,7 +88,15 @@ class _MapboxNativeCircuitMapState extends State<MapboxNativeCircuitMap> {
     // addStyleImage(imageId, scale, image, sdf, stretchX, stretchY, content)
     // SDF=false ici.
     try {
-      await _map?.style.addStyleImage(_imgArrow, 1.0, img, false, const [], const [], null);
+      await _map?.style.addStyleImage(
+        _imgArrow,
+        1.0,
+        img,
+        false,
+        const [],
+        const [],
+        null,
+      );
     } catch (_) {
       // si déjà présent / ou selon versions, ignore
     }
@@ -99,57 +110,67 @@ class _MapboxNativeCircuitMapState extends State<MapboxNativeCircuitMap> {
     await _tryAddSource(_srcSegments, _emptyFeatureCollection());
 
     // 2) Layers : masque gris hors périmètre
-    await _tryAddLayer(FillLayer(
-      id: _layerMask,
-      sourceId: _srcMask,
-      fillColor: const Color(0xFF000000).toARGB32(),
-      fillOpacity: 0.35,
-    ));
+    await _tryAddLayer(
+      FillLayer(
+        id: _layerMask,
+        sourceId: _srcMask,
+        fillColor: const Color(0xFF000000).toARGB32(),
+        fillOpacity: 0.35,
+      ),
+    );
 
     // 3) Périmètre (bord)
-    await _tryAddLayer(LineLayer(
-      id: _layerPerimeter,
-      sourceId: _srcPerimeter,
-      lineColor: const Color(0xFFFF3B30).toARGB32(),
-      lineWidth: 3.0,
-      lineJoin: LineJoin.ROUND,
-      lineCap: LineCap.ROUND,
-    ));
+    await _tryAddLayer(
+      LineLayer(
+        id: _layerPerimeter,
+        sourceId: _srcPerimeter,
+        lineColor: const Color(0xFFFF3B30).toARGB32(),
+        lineWidth: 3.0,
+        lineJoin: LineJoin.ROUND,
+        lineCap: LineCap.ROUND,
+      ),
+    );
 
     // 4) Route (ligne principale)
-    await _tryAddLayer(LineLayer(
-      id: _layerRoute,
-      sourceId: _srcRoute,
-      lineColor: const Color(0xFF1A73E8).toARGB32(),
-      lineWidth: 6.0,
-      lineJoin: LineJoin.ROUND,
-      lineCap: LineCap.ROUND,
-    ));
+    await _tryAddLayer(
+      LineLayer(
+        id: _layerRoute,
+        sourceId: _srcRoute,
+        lineColor: const Color(0xFF1A73E8).toARGB32(),
+        lineWidth: 6.0,
+        lineJoin: LineJoin.ROUND,
+        lineCap: LineCap.ROUND,
+      ),
+    );
 
     // 5) Segments (surcouche)
     // Utiliser les expressions Mapbox (Array syntax) pour accéder aux propriétés des features
     // Syntaxe: ['get', 'propertyName'] pour récupérer les valeurs
     // Note: Les couleurs doivent être converties en hex string dans les propriétés GeoJSON
-    await _tryAddLayer(LineLayer(
-      id: _layerSegments,
-      sourceId: _srcSegments,
-      lineColor: 0xFF1A73E8, // Couleur par défaut (bleu)
-      lineWidth: 8.0, // Largeur par défaut
-      lineJoin: LineJoin.ROUND,
-      lineCap: LineCap.ROUND,
-    ));
+    await _tryAddLayer(
+      LineLayer(
+        id: _layerSegments,
+        sourceId: _srcSegments,
+        lineColor: 0xFF1A73E8, // Couleur par défaut (bleu)
+        lineWidth: 8.0, // Largeur par défaut
+        lineJoin: LineJoin.ROUND,
+        lineCap: LineCap.ROUND,
+      ),
+    );
 
     // 6) Flèches sens (symbol sur la ligne)
-    await _tryAddLayer(SymbolLayer(
-      id: _layerArrows,
-      sourceId: _srcRoute,
-      symbolPlacement: SymbolPlacement.LINE,
-      iconImage: _imgArrow,
-      iconRotationAlignment: IconRotationAlignment.MAP,
-      iconAllowOverlap: true,
-      symbolSpacing: 120.0,
-      iconSize: 0.35,
-    ));
+    await _tryAddLayer(
+      SymbolLayer(
+        id: _layerArrows,
+        sourceId: _srcRoute,
+        symbolPlacement: SymbolPlacement.LINE,
+        iconImage: _imgArrow,
+        iconRotationAlignment: IconRotationAlignment.MAP,
+        iconAllowOverlap: true,
+        symbolSpacing: 120.0,
+        iconSize: 0.35,
+      ),
+    );
   }
 
   Future<void> _renderAll() async {
@@ -187,12 +208,14 @@ class _MapboxNativeCircuitMapState extends State<MapboxNativeCircuitMap> {
       if (route.length < 2 || b <= a) continue;
       final coords = route.sublist(a, b + 1).map(_toCoord).toList();
       // Convertir la couleur en format hex string pour Mapbox
-      final colorHex = '#${s.color.toARGB32().toRadixString(16).padLeft(8, '0')}';
-      segFeatures.add(_lineFeature(coords, props: {
-        "color": colorHex,
-        "width": 8.0,
-        "name": s.name,
-      }));
+      final colorHex =
+          '#${s.color.toARGB32().toRadixString(16).padLeft(8, '0')}';
+      segFeatures.add(
+        _lineFeature(
+          coords,
+          props: {"color": colorHex, "width": 8.0, "name": s.name},
+        ),
+      );
     }
     final segmentsFc = _featureCollection(segFeatures);
 
@@ -218,7 +241,7 @@ class _MapboxNativeCircuitMapState extends State<MapboxNativeCircuitMap> {
   }
 
   Future<void> _updateGeoJson(String sourceId, String fcJson) async {
-    // Update la source GeoJSON 
+    // Update la source GeoJSON
     // Utiliser setStyleSourceProperties pour mettre à jour les données
     try {
       // Supprimer et recréer pour mettre à jour les données
@@ -229,22 +252,29 @@ class _MapboxNativeCircuitMapState extends State<MapboxNativeCircuitMap> {
 
   // ---- geojson builders ----
 
-  String _emptyFeatureCollection() => jsonEncode({"type": "FeatureCollection", "features": []});
+  String _emptyFeatureCollection() =>
+      jsonEncode({"type": "FeatureCollection", "features": []});
 
   String _featureCollection(List<Map<String, dynamic>> features) =>
       jsonEncode({"type": "FeatureCollection", "features": features});
 
-  Map<String, dynamic> _lineFeature(List<List<double>> coords, {Map<String, dynamic>? props}) => {
-        "type": "Feature",
-        "properties": props ?? {},
-        "geometry": {"type": "LineString", "coordinates": coords},
-      };
+  Map<String, dynamic> _lineFeature(
+    List<List<double>> coords, {
+    Map<String, dynamic>? props,
+  }) => {
+    "type": "Feature",
+    "properties": props ?? {},
+    "geometry": {"type": "LineString", "coordinates": coords},
+  };
 
-  Map<String, dynamic> _polygonFeature(List<List<List<double>>> rings, {Map<String, dynamic>? props}) => {
-        "type": "Feature",
-        "properties": props ?? {},
-        "geometry": {"type": "Polygon", "coordinates": rings},
-      };
+  Map<String, dynamic> _polygonFeature(
+    List<List<List<double>>> rings, {
+    Map<String, dynamic>? props,
+  }) => {
+    "type": "Feature",
+    "properties": props ?? {},
+    "geometry": {"type": "Polygon", "coordinates": rings},
+  };
 
   List<double> _toCoord(LngLat p) => [p.lng, p.lat];
 
@@ -264,8 +294,15 @@ class _MapboxNativeCircuitMapState extends State<MapboxNativeCircuitMap> {
       cameraOptions: CameraOptions(
         zoom: 12.0,
         center: (widget.route.isNotEmpty)
-            ? Point(coordinates: Position(widget.route.first.lng, widget.route.first.lat))
-            : Point(coordinates: Position(-61.551, 16.265)), // défaut Guadeloupe
+            ? Point(
+                coordinates: Position(
+                  widget.route.first.lng,
+                  widget.route.first.lat,
+                ),
+              )
+            : Point(
+                coordinates: Position(-61.551, 16.265),
+              ), // défaut Guadeloupe
       ),
       onMapCreated: _onMapCreated,
       onStyleLoadedListener: _onStyleLoaded,

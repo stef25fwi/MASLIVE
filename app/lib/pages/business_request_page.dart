@@ -105,9 +105,9 @@ class _BusinessRequestPageState extends State<BusinessRequestPage> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Demande supprimée.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Demande supprimée.')));
       }
     } catch (e) {
       setState(() {
@@ -175,9 +175,9 @@ class _BusinessRequestPageState extends State<BusinessRequestPage> {
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Demande envoyée.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Demande envoyée.')));
       Navigator.pop(context);
     } catch (e) {
       setState(() => _error = e.toString());
@@ -251,7 +251,10 @@ class _BusinessRequestPageState extends State<BusinessRequestPage> {
                   const SizedBox(height: 8),
                   Text(
                     'Ou supprimez-la complètement et réinscrivez-vous.',
-                    style: TextStyle(color: Colors.orange.shade700, fontSize: 12),
+                    style: TextStyle(
+                      color: Colors.orange.shade700,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),

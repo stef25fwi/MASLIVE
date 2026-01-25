@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_web_libraries_in_flutter
+// ignore_for_file: avoid_web_libraries_in_flutter, unsafe_html
 import 'dart:html' as html;
 import 'dart:js' as js;
 import 'package:flutter/material.dart';
@@ -41,31 +41,28 @@ class _MapboxWebViewState extends State<MapboxWebView> {
   }
 
   void _registerFactory() {
-    registerMapboxViewFactory(
-      _viewType,
-      (int viewId) {
-        final container = html.DivElement()
-          ..id = 'mapbox-container-$viewId'
-          ..style.width = '100%'
-          ..style.height = '100%';
+    registerMapboxViewFactory(_viewType, (int viewId) {
+      final container = html.DivElement()
+        ..id = 'mapbox-container-$viewId'
+        ..style.width = '100%'
+        ..style.height = '100%';
 
-        // Initialiser Mapbox GL JS après un court délai pour s'assurer que le DOM est prêt
-        Future.delayed(const Duration(milliseconds: 100), () {
-          _initMapbox(container);
-        });
+      // Initialiser Mapbox GL JS après un court délai pour s'assurer que le DOM est prêt
+      Future.delayed(const Duration(milliseconds: 100), () {
+        _initMapbox(container);
+      });
 
-        return container;
-      },
-    );
+      return container;
+    });
   }
 
   void _initMapbox(html.DivElement container) {
     // Vérifier que mapboxgl est disponible
-    final mapboxgl = js.context['mapboxgl'];
-    if (mapboxgl == null) return;
-    
+    final mapboxglObj = js.context['mapboxgl'];
+    if (mapboxglObj == null) return;
+
     // Définir le token
-    mapboxgl['accessToken'] = widget.accessToken;
+    mapboxglObj['accessToken'] = widget.accessToken;
 
     // Créer la configuration de la carte
     final mapConfig = js.JsObject.jsify({
@@ -79,16 +76,19 @@ class _MapboxWebViewState extends State<MapboxWebView> {
     });
 
     // Créer la carte
-    final map = js.JsObject(mapboxgl['Map'], [mapConfig]);
+    final map = js.JsObject(mapboxglObj['Map'], [mapConfig]);
 
     // Ajouter les contrôles de navigation après le chargement
-    map.callMethod('on', ['load', (dynamic _) {
-      final navigationControl = js.JsObject(mapboxgl['NavigationControl']);
-      map.callMethod('addControl', [navigationControl]);
+    map.callMethod('on', [
+      'load',
+      (dynamic _) {
+        final navigationControl = js.JsObject(mapboxglObj['NavigationControl']);
+        map.callMethod('addControl', [navigationControl]);
 
-      // Ajouter les bâtiments 3D si disponible
-      _add3dBuildings(map);
-    }]);
+        // Ajouter les bâtiments 3D si disponible
+        _add3dBuildings(map);
+      },
+    ]);
   }
 
   void _add3dBuildings(js.JsObject map) {
@@ -118,8 +118,6 @@ class _MapboxWebViewState extends State<MapboxWebView> {
 
   @override
   Widget build(BuildContext context) {
-    return HtmlElementView(
-      viewType: _viewType,
-    );
+    return HtmlElementView(viewType: _viewType);
   }
 }
