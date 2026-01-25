@@ -1,6 +1,6 @@
 // Stub implementation for non-web platforms
-import 'dart:html' as html show Element;
+// Pas d'imports de dart:html/dart:js pour éviter les incompatibilités WebAssembly
 
-void registerMapboxViewFactory(String viewType, html.Element Function(int) factory) {
+void registerMapboxViewFactory(String viewType, dynamic Function(int) factory) {
   throw UnsupportedError('Cannot register view factory on non-web platform');
 }

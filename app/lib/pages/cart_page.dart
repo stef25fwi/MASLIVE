@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/cart_service.dart';
 import '../session/require_signin.dart';
 import '../session/session_scope.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CartPage extends StatelessWidget {
   const CartPage({super.key});
@@ -225,9 +226,14 @@ class CartPage extends StatelessWidget {
                             context,
                             session: session,
                             onSignedIn: () {
-                              final userId = session.authUser?.uid;
+                              // Utiliser FirebaseAuth pour récupérer l’uid
+                              final userId = FirebaseAuth.instance.currentUser?.uid;
                               if (userId != null) {
                                 _checkout(context, userId);
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Utilisateur introuvable')),
+                                );
                               }
                             },
                           ),

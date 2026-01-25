@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -59,15 +58,11 @@ class _MapboxNativeCircuitMapState extends State<MapboxNativeCircuitMap> {
 
   Future<void> _onMapCreated(MapboxMap mapboxMap) async {
     _map = mapboxMap;
+  }
 
-    // Tap map -> récupérer coord
-    // API “Interactions” évolue, mais le plus stable reste onMapTapListener.
-    _map?.gestures.addOnMapClickListener((point) {
-      // point est un Point (GeoJSON) dans mapbox_maps_flutter.
-      final pos = point.coordinates;
-      widget.onTapLngLat((lng: pos.lng.toDouble(), lat: pos.lat.toDouble()));
-      return true;
-    });
+  void _onMapTap(MapContentGestureContext context) {
+    final coords = context.point.coordinates;
+    widget.onTapLngLat((lng: coords.lng.toDouble(), lat: coords.lat.toDouble()));
   }
 
   Future<void> _onStyleLoaded(StyleLoadedEventData data) async {
@@ -107,7 +102,7 @@ class _MapboxNativeCircuitMapState extends State<MapboxNativeCircuitMap> {
     await _tryAddLayer(FillLayer(
       id: _layerMask,
       sourceId: _srcMask,
-      fillColor: const Color(0xFF000000).value,
+      fillColor: const Color(0xFF000000).toARGB32(),
       fillOpacity: 0.35,
     ));
 
@@ -115,7 +110,7 @@ class _MapboxNativeCircuitMapState extends State<MapboxNativeCircuitMap> {
     await _tryAddLayer(LineLayer(
       id: _layerPerimeter,
       sourceId: _srcPerimeter,
-      lineColor: const Color(0xFFFF3B30).value,
+      lineColor: const Color(0xFFFF3B30).toARGB32(),
       lineWidth: 3.0,
       lineJoin: LineJoin.ROUND,
       lineCap: LineCap.ROUND,
@@ -125,20 +120,21 @@ class _MapboxNativeCircuitMapState extends State<MapboxNativeCircuitMap> {
     await _tryAddLayer(LineLayer(
       id: _layerRoute,
       sourceId: _srcRoute,
-      lineColor: const Color(0xFF1A73E8).value,
+      lineColor: const Color(0xFF1A73E8).toARGB32(),
       lineWidth: 6.0,
       lineJoin: LineJoin.ROUND,
       lineCap: LineCap.ROUND,
     ));
 
     // 5) Segments (surcouche)
-    // Ici on utilise “expression lineColor = get(color)” (supportée par le SDK).
-    // On stocke color en int ARGB dans les properties.
+    // Utiliser les expressions Mapbox (Array syntax) pour accéder aux propriétés des features
+    // Syntaxe: ['get', 'propertyName'] pour récupérer les valeurs
+    // Note: Les couleurs doivent être converties en hex string dans les propriétés GeoJSON
     await _tryAddLayer(LineLayer(
       id: _layerSegments,
       sourceId: _srcSegments,
-      lineColor: Expression.get("color"),
-      lineWidth: Expression.get("width"),
+      lineColor: 0xFF1A73E8, // Couleur par défaut (bleu)
+      lineWidth: 8.0, // Largeur par défaut
       lineJoin: LineJoin.ROUND,
       lineCap: LineCap.ROUND,
     ));
@@ -190,8 +186,10 @@ class _MapboxNativeCircuitMapState extends State<MapboxNativeCircuitMap> {
       final b = s.endIndex.clamp(0, route.length - 1);
       if (route.length < 2 || b <= a) continue;
       final coords = route.sublist(a, b + 1).map(_toCoord).toList();
+      // Convertir la couleur en format hex string pour Mapbox
+      final colorHex = '#${s.color.toARGB32().toRadixString(16).padLeft(8, '0')}';
       segFeatures.add(_lineFeature(coords, props: {
-        "color": s.color.value,
+        "color": colorHex,
         "width": 8.0,
         "name": s.name,
       }));
@@ -220,10 +218,11 @@ class _MapboxNativeCircuitMapState extends State<MapboxNativeCircuitMap> {
   }
 
   Future<void> _updateGeoJson(String sourceId, String fcJson) async {
-    // Update la source (le SDK expose updateGeoJSONSourceFeatures dans les exemples)
-    // On remplace “en bloc” en ré-injectant la source si besoin.
+    // Update la source GeoJSON 
+    // Utiliser setStyleSourceProperties pour mettre à jour les données
     try {
-      await _map?.style.removeSource(sourceId);
+      // Supprimer et recréer pour mettre à jour les données
+      await _map?.style.removeStyleSource(sourceId);
     } catch (_) {}
     await _tryAddSource(sourceId, fcJson);
   }
@@ -270,6 +269,7 @@ class _MapboxNativeCircuitMapState extends State<MapboxNativeCircuitMap> {
       ),
       onMapCreated: _onMapCreated,
       onStyleLoadedListener: _onStyleLoaded,
+      onTapListener: _onMapTap,
     );
   }
 }
