@@ -58,6 +58,65 @@ class _BusinessRequestPageState extends State<BusinessRequestPage> {
     }
   }
 
+  Future<void> _deleteBusiness() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Supprimer la demande'),
+        content: const Text(
+          'Êtes-vous sûr de vouloir supprimer votre demande professionnelle? '
+          'Vous pourrez la soumettre à nouveau après.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _loading = true);
+
+    try {
+      final ref = FirebaseFirestore.instance
+          .collection('businesses')
+          .doc(user.uid);
+      await ref.delete();
+
+      if (!mounted) return;
+      setState(() {
+        _hasExisting = false;
+        _existingStatus = null;
+        _companyCtrl.clear();
+        _siretCtrl.clear();
+        _error = null;
+        _loading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Demande supprimée.')),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -182,9 +241,19 @@ class _BusinessRequestPageState extends State<BusinessRequestPage> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.orange.shade200),
               ),
-              child: Text(
-                'Votre demande a été refusée. En appuyant sur “Re-soumettre”, elle repassera automatiquement en attente (pending).',
-                style: TextStyle(color: Colors.orange.shade900),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Votre demande a été refusée. En appuyant sur "Re-soumettre", elle repassera automatiquement en attente (pending).',
+                    style: TextStyle(color: Colors.orange.shade900),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Ou supprimez-la complètement et réinscrivez-vous.',
+                    style: TextStyle(color: Colors.orange.shade700, fontSize: 12),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 12),
@@ -278,6 +347,20 @@ class _BusinessRequestPageState extends State<BusinessRequestPage> {
                           ),
                   ),
                 ),
+                if (_hasExisting && !locked) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: _loading ? null : _deleteBusiness,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                      ),
+                      child: const Text('Supprimer ma demande'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
