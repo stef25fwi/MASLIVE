@@ -4,7 +4,7 @@ import '../ui/theme/maslive_theme.dart';
 import '../ui/widgets/gradient_header.dart';
 import '../ui/widgets/honeycomb_background.dart';
 import '../ui/widgets/maslive_card.dart';
-import 'shop_page.dart';
+import 'shop_page_new.dart';
 
 class GroupProfilePage extends StatefulWidget {
   const GroupProfilePage({super.key, required this.groupId});

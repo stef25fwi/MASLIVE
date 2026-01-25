@@ -23,7 +23,7 @@ import 'pages/account_admin_page.dart';
 import 'pages/account_page.dart';
 import 'pages/orders_page.dart';
 import 'pages/map_admin_editor_page.dart';
-import 'pages/shop_page.dart';
+import 'pages/shop_page_new.dart';
 import 'pages/pending_products_page.dart';
 import 'pages/search_page.dart';
 import 'pages/circuit_import_export_page.dart';
