@@ -1,16 +1,9 @@
 import 'dart:ui';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../models/product_model.dart';
-import 'media_shop_page.dart';
-import 'product_detail_page.dart';
-
 class ShopPixelPerfectPage extends StatefulWidget {
-  const ShopPixelPerfectPage({super.key, this.groupId});
-
-  final String? groupId;
+  const ShopPixelPerfectPage({super.key});
 
   @override
   State<ShopPixelPerfectPage> createState() => _ShopPixelPerfectPageState();
@@ -20,37 +13,24 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
   int catIndex = 0;
   String selectedGroup = "Tous les groupes";
 
+  // --- Ajustements pixel-perfect (tuning) ---
   static const double pageHPad = 16;
   static const double gap12 = 12;
-  static const double headerExpandedH = 170;
-  static const double filterPinnedH = 86;
+
+  // Hauteurs (tu peux micro-ajuster si besoin)
+  static const double headerExpandedH = 170; // header
+  static const double filterPinnedH = 86; // chips + dropdown (réduit)
+
+  // Bouton +
   static const double addBtnSize = 44;
   static const double addBtnRadius = 16;
+
+  // Cards
   static const double cardRadius = 22;
   static const double cardInnerRadius = 18;
 
   final cats = const ["Tous", "T-shirts", "Casquettes", "Stickers"];
   final groups = const ["Tous les groupes", "Akiyo", "Kassav", "MasK"];
-
-  Query<Map<String, dynamic>> _buildQuery() {
-    Query<Map<String, dynamic>> q = FirebaseFirestore.instance
-        .collectionGroup('products')
-        .where('isActive', isEqualTo: true)
-        .where('moderationStatus', isEqualTo: 'approved');
-
-    if (catIndex > 0 && catIndex < cats.length) {
-      String selectedCat = cats[catIndex];
-      if (selectedCat != 'Tous') {
-        q = q.where('category', isEqualTo: selectedCat);
-      }
-    }
-
-    if (widget.groupId != null) {
-      q = q.where('groupId', isEqualTo: widget.groupId);
-    }
-
-    return q.orderBy('updatedAt', descending: true).limit(50);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -100,9 +80,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                             title: "Boutique photos",
                             subtitle: "Photographes only",
                             priceText: "20,000 €",
-                            onTap: () {
-                              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MediaShopPage()));
-                            },
+                            onTap: () {},
                           ),
                         ),
                         SizedBox(width: gap12),
@@ -189,73 +167,32 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                 ),
               ),
             ),
+            // Titre "Articles"
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(pageHPad, 0, pageHPad, 10),
-                child: const Text(
+                padding: const EdgeInsets.fromLTRB(pageHPad, 0, pageHPad, 10),
+                child: Text(
                   "Articles",
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF111827)),
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF111827),
+                  ),
                 ),
               ),
             ),
-            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _buildQuery().snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SliverToBoxAdapter(
-                    child: Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator())),
-                  );
-                }
 
-                final docs = snapshot.data?.docs ?? [];
-                if (docs.isEmpty) {
-                  return SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(pageHPad, 0, pageHPad, 18),
-                      child: _EmptyStateCard(
-                        title: "Aucun produit disponible",
-                        subtitle: "Reviens plus tard ou change de catégorie.",
-                      ),
-                    ),
-                  );
-                }
-
-                final products = docs.map((doc) => GroupProduct.fromMap(doc.id, doc.data())).toList();
-                return SliverPadding(
-                  padding: EdgeInsets.fromLTRB(pageHPad, 0, pageHPad, 24),
-                  sliver: SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                      childAspectRatio: 0.74,
-                    ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, i) {
-                        final product = products[i];
-                        return GestureDetector(
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => ProductDetailPage(groupId: widget.groupId ?? 'all', product: product),
-                              ),
-                            );
-                          },
-                          child: _FirestoreProductCard(
-                            category: product.category,
-                            title: product.title,
-                            price: product.priceLabel,
-                            imageUrl: product.imageUrl,
-                            onAdd: () {},
-                          ),
-                        );
-                      },
-                      childCount: products.length,
-                    ),
-                  ),
-                );
-              },
+            // Empty state card
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(pageHPad, 0, pageHPad, 18),
+                child: _EmptyStateCard(
+                  title: "Aucun produit disponible",
+                  subtitle: "Reviens plus tard ou change de catégorie.",
+                ),
+              ),
             ),
+
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
         ),
@@ -263,92 +200,9 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
     );
   }
 }
-
-class _FirestoreProductCard extends StatelessWidget {
-  const _FirestoreProductCard({
-    required this.category,
-    required this.title,
-    required this.price,
-    required this.imageUrl,
-    required this.onAdd,
-  });
-
-  final String category;
-  final String title;
-  final String price;
-  final String? imageUrl;
-  final VoidCallback onAdd;
-
-  @override
-  Widget build(BuildContext context) {
-    return _BaseCard(
-      child: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(_ShopPixelPerfectPageState.cardInnerRadius),
-                  child: SizedBox(
-                    height: 86,
-                    width: double.infinity,
-                    child: (imageUrl != null && imageUrl!.isNotEmpty)
-                        ? Image.network(
-                            imageUrl!,
-                            fit: BoxFit.cover,
-                            filterQuality: FilterQuality.high,
-                            errorBuilder: (_, __, ___) => Container(
-                              color: const Color(0xFFF1F3F8),
-                              child: const Center(
-                                child: Icon(Icons.broken_image_outlined, color: Colors.black26, size: 34),
-                              ),
-                            ),
-                          )
-                        : Container(
-                            color: const Color(0xFFF1F3F8),
-                            child: const Center(
-                              child: Icon(Icons.image_outlined, color: Colors.black26, size: 34),
-                            ),
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F3F8).withValues(alpha: 0.95),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: const Color(0xFFDDE2EE), width: 1),
-                  ),
-                  child: Text(
-                    category,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFF2B3445)),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  title,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, height: 1.05, color: Color(0xFF111827)),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  price,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF111827)),
-                ),
-              ],
-            ),
-          ),
-          Positioned(right: 12, bottom: 12, child: _AddButton(onTap: onAdd)),
-        ],
-      ),
-    );
-  }
-}
-
+/// --------------------------------------------
+/// HEADER (dégradé + titre + gros panier)
+/// --------------------------------------------
 class _ShopHeaderSliver extends StatelessWidget {
   const _ShopHeaderSliver({required this.expandedHeight, required this.onCartTap});
 
