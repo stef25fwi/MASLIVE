@@ -57,9 +57,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -146,6 +144,28 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                     onTap: () => Navigator.pushNamed(context, '/mapbox-web'),
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildDashboardCard(
+                    title: 'Assistant Wizard',
+                    subtitle: 'Création guidée de circuits étape par étape',
+                    icon: Icons.assistant,
+                    color: Colors.purple,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            const AdminAssistantStepByStepHomePage(),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(child: SizedBox()),
               ],
             ),
             const SizedBox(height: 24),
@@ -263,9 +283,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
               color: Colors.indigo,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const UserManagementPage(),
-                ),
+                MaterialPageRoute(builder: (_) => const UserManagementPage()),
               ),
             ),
             const SizedBox(height: 24),
@@ -280,9 +298,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
               color: Colors.deepOrange,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const BusinessRequestsPage(),
-                ),
+                MaterialPageRoute(builder: (_) => const BusinessRequestsPage()),
               ),
             ),
             const SizedBox(height: 24),
@@ -315,9 +331,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                     color: Colors.blueGrey,
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => const AdminLogsPage(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const AdminLogsPage()),
                     ),
                   ),
                 ),
@@ -337,7 +351,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                   ),
                 ),
               ),
-            
+
             const SizedBox(height: 24),
 
             // Section Déploiement & CI/CD
@@ -399,8 +413,10 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
   }
 
   Future<void> _showCommitPushDialog() async {
-    final messageController = TextEditingController(text: 'Update via dashboard');
-    
+    final messageController = TextEditingController(
+      text: 'Update via dashboard',
+    );
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -432,12 +448,19 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.orange.shade700, size: 20),
+                  Icon(
+                    Icons.info_outline,
+                    color: Colors.orange.shade700,
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       'Cette action va committer tous les changements et les pousser vers GitHub',
-                      style: TextStyle(fontSize: 12, color: Colors.orange.shade900),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange.shade900,
+                      ),
                     ),
                   ),
                 ],
@@ -486,27 +509,27 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
     try {
       // Exécuter les commandes Git
       final workingDir = '/workspaces/MASLIVE';
-      
+
       // Git add
       await Process.run('git', ['add', '.'], workingDirectory: workingDir);
-      
+
       // Git commit
-      final commitResult = await Process.run(
-        'git',
-        ['commit', '-m', message],
-        workingDirectory: workingDir,
-      );
-      
+      await Process.run('git', [
+        'commit',
+        '-m',
+        message,
+      ], workingDirectory: workingDir);
+
       // Git push
-      final pushResult = await Process.run(
-        'git',
-        ['push', 'origin', 'main'],
-        workingDirectory: workingDir,
-      );
-      
+      final pushResult = await Process.run('git', [
+        'push',
+        'origin',
+        'main',
+      ], workingDirectory: workingDir);
+
       if (!mounted) return;
       Navigator.pop(context);
-      
+
       if (pushResult.exitCode == 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -527,7 +550,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -581,7 +604,11 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                  Icon(
+                    Icons.info_outline,
+                    color: Colors.blue.shade700,
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
                   const Expanded(
                     child: Text(
@@ -616,18 +643,27 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
     );
   }
 
-  Futufinal workingDir = '/workspaces/MASLIVE/app';
-      
+  Future<void> _executeBuild() async {
+    // Afficher le dialogue de progression
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final workingDir = '/workspaces/MASLIVE/app';
+
       // Flutter build web
-      final result = await Process.run(
-        'flutter',
-        ['build', 'web', '--release'],
-        workingDirectory: workingDir,
-      );
-      
+      final result = await Process.run('flutter', [
+        'build',
+        'web',
+        '--release',
+      ], workingDirectory: workingDir);
+
       if (!mounted) return;
       Navigator.pop(context);
-      
+
       if (result.exitCode == 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -648,34 +684,12 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Erreur de build: ${e.toString()}'),
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5)
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 12),
-              Text('Build réussi: app/build/web/'),
-            ],
-          ),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 3),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.pop(context);
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur de build: $e'),
-          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
         ),
       );
     }
@@ -707,7 +721,10 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('firebase deploy --only hosting', style: TextStyle(fontFamily: 'monospace')),
+                  Text(
+                    'firebase deploy --only hosting',
+                    style: TextStyle(fontFamily: 'monospace'),
+                  ),
                 ],
               ),
             ),
@@ -759,19 +776,22 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const AlertDialog(
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
       final workingDir = '/workspaces/MASLIVE';
-      
+
       // Firebase deploy
-      final result = await Process.run(
-        'firebase',
-        ['deploy', '--only', 'hosting'],
-        workingDirectory: workingDir,
-      );
-      
+      final result = await Process.run('firebase', [
+        'deploy',
+        '--only',
+        'hosting',
+      ], workingDirectory: workingDir);
+
       if (!mounted) return;
       Navigator.pop(context);
-      
+
       if (result.exitCode == 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -792,32 +812,22 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Erreur de déploiement: ${e.toString()}'),
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5)
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 3),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.pop(context);
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur de déploiement: $e'),
-          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
         ),
       );
     }
   }
 
   Future<void> _showFullPipelineDialog() async {
-    final messageController = TextEditingController(text: 'Deploy via dashboard');
-    
+    final messageController = TextEditingController(
+      text: 'Deploy via dashboard',
+    );
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -852,7 +862,11 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.info_outline, color: Colors.green.shade700, size: 20),
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.green.shade700,
+                        size: 20,
+                      ),
                       const SizedBox(width: 12),
                       const Text(
                         'Étapes:',
@@ -861,9 +875,18 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  const Text('1. Git commit & push', style: TextStyle(fontSize: 12)),
-                  const Text('2. Flutter build web', style: TextStyle(fontSize: 12)),
-                  const Text('3. Firebase deploy', style: TextStyle(fontSize: 12)),
+                  const Text(
+                    '1. Git commit & push',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  const Text(
+                    '2. Flutter build web',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  const Text(
+                    '3. Firebase deploy',
+                    style: TextStyle(fontSize: 12),
+                  ),
                   const SizedBox(height: 8),
                   const Text(
                     '⏱️ Durée estimée: 2-3 minutes',
@@ -874,8 +897,33 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
             ),
           ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              final message = messageController.text;
+              Navigator.pop(context);
+              _executeFullPipeline(message);
+            },
+            icon: const Icon(Icons.rocket_launch),
+            label: const Text('Lancer'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _executeFullPipeline(String message) async {
+    String currentStep = 'Initialisation...';
     late StateSetter dialogSetState;
-    
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -911,130 +959,100 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
     try {
       final workingDir = '/workspaces/MASLIVE';
       final appDir = '/workspaces/MASLIVE/app';
-      
+
       // Étape 1: Git commit & push
       dialogSetState(() => currentStep = '1/3 Git commit & push...');
-      
+
       await Process.run('git', ['add', '.'], workingDirectory: workingDir);
-      await Process.run('git', ['commit', '-m', message], workingDirectory: workingDir);
-      final pushResult = await Process.run('git', ['push', 'origin', 'main'], workingDirectory: workingDir);
-      
+      await Process.run('git', [
+        'commit',
+        '-m',
+        message,
+      ], workingDirectory: workingDir);
+      final pushResult = await Process.run('git', [
+        'push',
+        'origin',
+        'main',
+      ], workingDirectory: workingDir);
+
       if (pushResult.exitCode != 0) {
         throw Exception('Git push failed: ${pushResult.stderr}');
       }
-      
+
       if (!mounted) return;
       dialogSetState(() => currentStep = '✓ Git commit & push');
-      
+
       // Étape 2: Build
       dialogSetState(() => currentStep = '2/3 Flutter build web...');
-      
-      final buildResult = await Process.run(
-        'flutter',
-        ['build', 'web', '--release'],
-        workingDirectory: appDir,
-      );
-      
+
+      final buildResult = await Process.run('flutter', [
+        'build',
+        'web',
+        '--release',
+      ], workingDirectory: appDir);
+
       if (buildResult.exitCode != 0) {
         throw Exception('Build failed: ${buildResult.stderr}');
       }
-      
+
       if (!mounted) return;
       dialogSetState(() => currentStep = '✓ Flutter build web');
-      
+
       // Étape 3: Deploy
       dialogSetState(() => currentStep = '3/3 Firebase deploy...');
-      
-      final deployResult = await Process.run(
-        'firebase',
-        ['deploy', '--only', 'hosting'],
-        workingDirectory: workingDir,
-      );
-      
+
+      final deployResult = await Process.run('firebase', [
+        'deploy',
+        '--only',
+        'hosting',
+      ], workingDirectory: workingDir);
+
       if (deployResult.exitCode != 0) {
         throw Exception('Deploy failed: ${deployResult.stderr}');
       }
-      
-      if (!mounted) return;
-      dialogSetState(() => currentStep = '✓ Firebase deploy')fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              const LinearProgressIndicator(),
-            ],
-          ),
-        ),
-      ),
-    );
 
-    try {
-      // Étape 1: Commit & Push
-      await Future.delayed(const Duration(seconds: 1));
       if (!mounted) return;
-      currentStep = '✓ Git commit & push';
-      
-      // Étape 2: Build
-      await Future.delayed(const Duration(seconds: 2));
-      if (!mounted) return;
-      currentStep = '✓ Flutter build web';
-      
-      // Étape 3: Deploy
-      await Future.delayed(const Duration(seconds: 2));
-      if (!mounted) return;
-      currentStep = '✓ Firebase deploy';
-      
+      dialogSetState(() => currentStep = '✓ Firebase deploy');
+
       await Future.delayed(const Duration(milliseconds: 500));
       if (!mounted) return;
-      
+
       Navigator.pop(context); // Fermer loading dialog
-      
+
       // Afficher succès
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.green, size: 32),
-              SizedBox(width: 12),
-              Text('Pipeline terminé !'),
-            ],
-          ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('✓ Commit & Push réussi'),
-              const Text('✓ Build réussi'),
-              const Text('✓ Déploiement réussi'),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'Message: "$message"',
-                  style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
-                ),
+              const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white),
+                  SizedBox(width: 12),
+                  Text(
+                    'Pipeline terminé !',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
+              const SizedBox(height: 8),
+              Text('Commit: "$message"', style: const TextStyle(fontSize: 12)),
             ],
           ),
-          actions: [
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 5),
         ),
       );
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erreur pipeline: $e'),
+          content: Text('Erreur pipeline: ${e.toString()}'),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
         ),
       );
     }
@@ -1172,26 +1190,33 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                       status = 'Création d\'une commande de test...';
                     });
 
-                    final functionsInstance =
-                        FirebaseFunctions.instanceFor(region: 'europe-west1');
-                    final callable = functionsInstance
-                        .httpsCallable('createCheckoutSessionForOrder');
+                    final functionsInstance = FirebaseFunctions.instanceFor(
+                      region: 'europe-west1',
+                    );
+                    final callable = functionsInstance.httpsCallable(
+                      'createCheckoutSessionForOrder',
+                    );
 
                     setState(() {
                       status = 'Appel de createCheckoutSessionForOrder...';
                     });
 
-                    final response = await callable.call({
-                      'orderId': 'test_${DateTime.now().millisecondsSinceEpoch}',
-                    }).timeout(
-                      const Duration(seconds: 10),
-                      onTimeout: () => throw TimeoutException(
-                          'Le test a dépassé le délai (10s)'),
-                    );
+                    final response = await callable
+                        .call({
+                          'orderId':
+                              'test_${DateTime.now().millisecondsSinceEpoch}',
+                        })
+                        .timeout(
+                          const Duration(seconds: 10),
+                          onTimeout: () => throw TimeoutException(
+                            'Le test a dépassé le délai (10s)',
+                          ),
+                        );
 
                     setState(() {
                       status = 'Test terminé avec succès';
-                      result = '''✓ Connexion Stripe établie
+                      result =
+                          '''✓ Connexion Stripe établie
 
 Réponse reçue:
 ${response.data.toString()}
@@ -1201,7 +1226,8 @@ La Cloud Function a réussi à communiquer avec Stripe.''';
                     });
                   } catch (e) {
                     setState(() {
-                      result = '''Erreur lors du test Stripe
+                      result =
+                          '''Erreur lors du test Stripe
 
 $e
 
@@ -1230,7 +1256,9 @@ Vérifiez:
           children: [
             CircleAvatar(
               radius: 30,
-              backgroundColor: MasLiveTheme.getRoleColor(_currentUser?.role ?? 'admin'),
+              backgroundColor: MasLiveTheme.getRoleColor(
+                _currentUser?.role ?? 'admin',
+              ),
               child: Text(
                 _currentUser?.initials ?? 'AD',
                 style: const TextStyle(
@@ -1256,7 +1284,9 @@ Vérifiez:
                   Text(
                     _currentUser?.roleLabel ?? 'Administrateur',
                     style: TextStyle(
-                      color: MasLiveTheme.getRoleColor(_currentUser?.role ?? 'admin'),
+                      color: MasLiveTheme.getRoleColor(
+                        _currentUser?.role ?? 'admin',
+                      ),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1276,10 +1306,7 @@ Vérifiez:
         const SizedBox(width: 8),
         Text(
           title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ],
     );
@@ -1321,10 +1348,7 @@ Vérifiez:
               const SizedBox(height: 4),
               Text(
                 subtitle,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
             ],
           ),
@@ -1341,26 +1365,31 @@ class AdminAssistantStepByStepHomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7FB),
-      appBar: AppBar(
-        title: const Text('Assistant (step-by-step)'),
-      ),
+      appBar: AppBar(title: const Text('Assistant (step-by-step)')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           _AssistantCard(
             title: 'Créer un circuit (Wizard)',
-            subtitle: 'Périmètre → Offline → Tracé → Segments → Flèches → Styles → Publier',
+            subtitle:
+                'Périmètre → Offline → Tracé → Segments → Flèches → Styles → Publier',
             icon: Icons.route_rounded,
             color: const Color(0xFF1A73E8),
             badge: 'New',
             onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateCircuitAssistantPage()));
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const CreateCircuitAssistantPage(),
+                ),
+              );
             },
           ),
           const SizedBox(height: 12),
           _AssistantCard(
             title: 'Assistant POI (bientôt)',
-            subtitle: 'Création guidée de points d\'intérêt + médias + validation',
+            subtitle:
+                'Création guidée de points d\'intérêt + médias + validation',
             icon: Icons.place_rounded,
             color: const Color(0xFFFF7A00),
             onTap: () => ScaffoldMessenger.of(context).showSnackBar(
@@ -1427,7 +1456,10 @@ class _AssistantCard extends StatelessWidget {
                         ),
                         if (badge != null)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: color,
                               borderRadius: BorderRadius.circular(4),
@@ -1446,10 +1478,7 @@ class _AssistantCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ],
                 ),
