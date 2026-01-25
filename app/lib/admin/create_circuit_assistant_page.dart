@@ -5,18 +5,18 @@ class CreateCircuitAssistantPage extends StatefulWidget {
   const CreateCircuitAssistantPage({super.key});
 
   @override
-  State<CreateCircuitAssistantPage> createState() => _CreateCircuitAssistantPageState();
+  State<CreateCircuitAssistantPage> createState() =>
+      _CreateCircuitAssistantPageState();
 }
 
-class _CreateCircuitAssistantPageState extends State<CreateCircuitAssistantPage> {
+class _CreateCircuitAssistantPageState
+    extends State<CreateCircuitAssistantPage> {
   int _step = 0;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_getStepTitle(_step)),
-      ),
+      appBar: AppBar(title: Text(_getStepTitle(_step))),
       body: _buildStepContent(),
       bottomNavigationBar: _buildBottomBar(),
     );
@@ -62,15 +62,9 @@ class _CreateCircuitAssistantPageState extends State<CreateCircuitAssistantPage>
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           if (_step > 0)
-            TextButton(
-              onPressed: _prevStep,
-              child: const Text('Précédent'),
-            ),
+            TextButton(onPressed: _prevStep, child: const Text('Précédent')),
           if (_step < 4)
-            ElevatedButton(
-              onPressed: _nextStep,
-              child: const Text('Suivant'),
-            ),
+            ElevatedButton(onPressed: _nextStep, child: const Text('Suivant')),
         ],
       ),
     );
@@ -136,7 +130,9 @@ class _StepPerimetreState extends State<_StepPerimetre> {
     if (_selectedMode == 'draw' && _polygonPoints.length < 3) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('⚠️ Au moins 3 points requis pour définir un périmètre'),
+          content: Text(
+            '⚠️ Au moins 3 points requis pour définir un périmètre',
+          ),
           backgroundColor: Colors.orange,
         ),
       );
@@ -189,8 +185,16 @@ class _StepPerimetreState extends State<_StepPerimetre> {
           padding: const EdgeInsets.all(16),
           child: SegmentedButton<String>(
             segments: const [
-              ButtonSegment(value: 'draw', label: Text('Dessiner'), icon: Icon(Icons.draw)),
-              ButtonSegment(value: 'preset', label: Text('Zone prédéfinie'), icon: Icon(Icons.map_outlined)),
+              ButtonSegment(
+                value: 'draw',
+                label: Text('Dessiner'),
+                icon: Icon(Icons.draw),
+              ),
+              ButtonSegment(
+                value: 'preset',
+                label: Text('Zone prédéfinie'),
+                icon: Icon(Icons.map_outlined),
+              ),
             ],
             selected: {_selectedMode},
             onSelectionChanged: (Set<String> newSelection) {
@@ -203,11 +207,14 @@ class _StepPerimetreState extends State<_StepPerimetre> {
 
         // Content
         Expanded(
-          child: _selectedMode == 'draw' ? _buildDrawMode() : _buildPresetMode(),
+          child: _selectedMode == 'draw'
+              ? _buildDrawMode()
+              : _buildPresetMode(),
         ),
 
         // Footer avec stats et bouton validation
-        if (_selectedMode == 'draw' && _polygonPoints.isNotEmpty || _selectedMode == 'preset' && _selectedPreset != null)
+        if (_selectedMode == 'draw' && _polygonPoints.isNotEmpty ||
+            _selectedMode == 'preset' && _selectedPreset != null)
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -227,7 +234,10 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                   const SizedBox(width: 8),
                   Text(
                     '${_polygonPoints.length} points',
-                    style: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(width: 16),
                 ],
@@ -235,8 +245,13 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                   Icon(Icons.location_on, color: Colors.grey[700], size: 20),
                   const SizedBox(width: 8),
                   Text(
-                    _presets.firstWhere((p) => p['id'] == _selectedPreset)['name']!,
-                    style: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w600),
+                    _presets.firstWhere(
+                      (p) => p['id'] == _selectedPreset,
+                    )['name']!,
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(width: 16),
                 ],
@@ -248,7 +263,10 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _isValidated ? Colors.green : Colors.blue,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                   ),
                 ),
               ],
@@ -270,10 +288,15 @@ class _StepPerimetreState extends State<_StepPerimetre> {
             border: Border.all(color: Colors.grey[400]!),
           ),
           child: InkWell(
-            onTap: _isValidated ? null : () {
-              // Simuler ajout de point (à remplacer par vraie carte)
-              _addPoint(16.0 + _polygonPoints.length * 0.01, -61.0 + _polygonPoints.length * 0.01);
-            },
+            onTap: _isValidated
+                ? null
+                : () {
+                    // Simuler ajout de point (à remplacer par vraie carte)
+                    _addPoint(
+                      16.0 + _polygonPoints.length * 0.01,
+                      -61.0 + _polygonPoints.length * 0.01,
+                    );
+                  },
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -281,7 +304,9 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                   Icon(Icons.touch_app, size: 48, color: Colors.grey[400]),
                   const SizedBox(height: 16),
                   Text(
-                    _isValidated ? 'Périmètre validé' : 'Tapez pour ajouter des points',
+                    _isValidated
+                        ? 'Périmètre validé'
+                        : 'Tapez pour ajouter des points',
                     style: TextStyle(color: Colors.grey[600], fontSize: 16),
                   ),
                   if (_polygonPoints.isNotEmpty) ...[
@@ -294,7 +319,10 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                   if (_isValidated) ...[
                     const SizedBox(height: 16),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.green.shade100,
                         borderRadius: BorderRadius.circular(20),
@@ -302,11 +330,18 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.check_circle, color: Colors.green.shade700, size: 20),
+                          Icon(
+                            Icons.check_circle,
+                            color: Colors.green.shade700,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'Périmètre verrouillé',
-                            style: TextStyle(color: Colors.green.shade900, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              color: Colors.green.shade900,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ),
@@ -351,7 +386,9 @@ class _StepPerimetreState extends State<_StepPerimetre> {
       children: [
         Text(
           'Zones prédéfinies',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
         ..._presets.map((preset) {
@@ -374,11 +411,13 @@ class _StepPerimetreState extends State<_StepPerimetre> {
               trailing: isSelected
                   ? Icon(Icons.check_circle, color: Colors.blue.shade700)
                   : const Icon(Icons.chevron_right),
-              onTap: _isValidated ? null : () {
-                setState(() {
-                  _selectedPreset = preset['id'];
-                });
-              },
+              onTap: _isValidated
+                  ? null
+                  : () {
+                      setState(() {
+                        _selectedPreset = preset['id'];
+                      });
+                    },
             ),
           );
         }),
@@ -514,7 +553,7 @@ class _StepTuileState extends State<_StepTuile> {
   double _zoomMax = 16;
   String _quality = 'standard'; // 'low', 'standard', 'high'
   bool _isValidated = false;
-  
+
   // Configuration des textures de bâtiments 3D
   bool _buildingsTexturesEnabled = false;
   String _facadeTextureId = 'windows_modern';
@@ -522,16 +561,16 @@ class _StepTuileState extends State<_StepTuile> {
   double _facadeTextureScale = 1.0;
   double _roofTextureScale = 1.0;
   double _textureOpacity = 1.0;
-  
+
   // Photos personnalisées
   bool _useCustomFacadePhoto = false;
   String? _customFacadePhotoUrl;
   String? _customFacadePhotoName;
-  
+
   // Bâtiments spécifiques avec textures personnalisées
   final List<Map<String, dynamic>> _specificBuildings = [];
   bool _showSpecificBuildingsMode = false;
-  
+
   // Textures prédéfinies pour façades
   final List<Map<String, dynamic>> _facadeTextures = [
     {
@@ -599,7 +638,7 @@ class _StepTuileState extends State<_StepTuile> {
       'preview': '🔩',
     },
   ];
-  
+
   // Textures prédéfinies pour toits
   final List<Map<String, dynamic>> _roofTextures = [
     {
@@ -739,7 +778,9 @@ class _StepTuileState extends State<_StepTuile> {
                 },
                 child: Container(
                   decoration: BoxDecoration(
-                    color: isSelected ? style['color'].withOpacity(0.1) : Colors.white,
+                    color: isSelected
+                        ? style['color'].withOpacity(0.1)
+                        : Colors.white,
                     border: Border.all(
                       color: isSelected ? style['color'] : Colors.grey.shade300,
                       width: isSelected ? 2 : 1,
@@ -752,15 +793,21 @@ class _StepTuileState extends State<_StepTuile> {
                       Icon(
                         style['icon'],
                         size: 40,
-                        color: isSelected ? style['color'] : Colors.grey.shade600,
+                        color: isSelected
+                            ? style['color']
+                            : Colors.grey.shade600,
                       ),
                       const SizedBox(height: 8),
                       Text(
                         style['name'],
                         style: TextStyle(
                           fontSize: 14,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          color: isSelected ? style['color'] : Colors.grey.shade800,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: isSelected
+                              ? style['color']
+                              : Colors.grey.shade800,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -779,7 +826,11 @@ class _StepTuileState extends State<_StepTuile> {
                       ),
                       if (isSelected) ...[
                         const SizedBox(height: 4),
-                        Icon(Icons.check_circle, color: style['color'], size: 20),
+                        Icon(
+                          Icons.check_circle,
+                          color: style['color'],
+                          size: 20,
+                        ),
                       ],
                     ],
                   ),
@@ -813,7 +864,9 @@ class _StepTuileState extends State<_StepTuile> {
               padding: const EdgeInsets.only(bottom: 12),
               child: Container(
                 decoration: BoxDecoration(
-                  color: isSelected ? layer['color'].withOpacity(0.1) : Colors.grey.shade50,
+                  color: isSelected
+                      ? layer['color'].withOpacity(0.1)
+                      : Colors.grey.shade50,
                   border: Border.all(
                     color: isSelected ? layer['color'] : Colors.grey.shade300,
                   ),
@@ -850,7 +903,10 @@ class _StepTuileState extends State<_StepTuile> {
                     padding: const EdgeInsets.only(left: 36, top: 4),
                     child: Text(
                       layer['description'],
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                   ),
                   activeColor: layer['color'],
@@ -865,8 +921,7 @@ class _StepTuileState extends State<_StepTuile> {
           if (_selectedLayers.contains('buildings'))
             _buildBuildingTexturesSection(),
 
-          if (_selectedLayers.contains('buildings'))
-            const SizedBox(height: 32),
+          if (_selectedLayers.contains('buildings')) const SizedBox(height: 32),
 
           // Section: Niveaux de zoom
           Text(
@@ -897,7 +952,10 @@ class _StepTuileState extends State<_StepTuile> {
                   children: [
                     Text(
                       'Zoom minimum',
-                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.blue.shade900),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue.shade900,
+                      ),
                     ),
                     Text(
                       '${_zoomMin.toInt()}',
@@ -929,7 +987,10 @@ class _StepTuileState extends State<_StepTuile> {
                   children: [
                     Text(
                       'Zoom maximum',
-                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.blue.shade900),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue.shade900,
+                      ),
                     ),
                     Text(
                       '${_zoomMax.toInt()}',
@@ -1010,12 +1071,19 @@ class _StepTuileState extends State<_StepTuile> {
             ),
             child: Row(
               children: [
-                Icon(Icons.info_outline, color: Colors.amber.shade700, size: 20),
+                Icon(
+                  Icons.info_outline,
+                  color: Colors.amber.shade700,
+                  size: 20,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     _getQualityInfo(),
-                    style: TextStyle(fontSize: 12, color: Colors.amber.shade900),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.amber.shade900,
+                    ),
                   ),
                 ),
               ],
@@ -1051,13 +1119,28 @@ class _StepTuileState extends State<_StepTuile> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                _buildEstimationRow('Style', _mapStyles.firstWhere((s) => s['id'] == _selectedStyleId)['name']),
+                _buildEstimationRow(
+                  'Style',
+                  _mapStyles.firstWhere(
+                    (s) => s['id'] == _selectedStyleId,
+                  )['name'],
+                ),
                 if (_selectedLayers.isNotEmpty)
-                  _buildEstimationRow('Couches', '${_selectedLayers.length} activée(s)'),
-                _buildEstimationRow('Zoom', '${_zoomMin.toInt()} - ${_zoomMax.toInt()}'),
+                  _buildEstimationRow(
+                    'Couches',
+                    '${_selectedLayers.length} activée(s)',
+                  ),
+                _buildEstimationRow(
+                  'Zoom',
+                  '${_zoomMin.toInt()} - ${_zoomMax.toInt()}',
+                ),
                 _buildEstimationRow('Qualité', _getQualityLabel()),
                 const Divider(height: 24),
-                _buildEstimationRow('Taille estimée', _calculateEstimatedSize(), isHighlight: true),
+                _buildEstimationRow(
+                  'Taille estimée',
+                  _calculateEstimatedSize(),
+                  isHighlight: true,
+                ),
               ],
             ),
           ),
@@ -1078,7 +1161,9 @@ class _StepTuileState extends State<_StepTuile> {
                           children: [
                             const Icon(Icons.check_circle, color: Colors.white),
                             const SizedBox(width: 12),
-                            Text('Configuration validée : ${_mapStyles.firstWhere((s) => s['id'] == _selectedStyleId)['name']}'),
+                            Text(
+                              'Configuration validée : ${_mapStyles.firstWhere((s) => s['id'] == _selectedStyleId)['name']}',
+                            ),
                           ],
                         ),
                         backgroundColor: Colors.green,
@@ -1090,7 +1175,10 @@ class _StepTuileState extends State<_StepTuile> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
                   ),
                 ),
               if (_isValidated) ...[
@@ -1113,7 +1201,10 @@ class _StepTuileState extends State<_StepTuile> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
                   ),
                 ),
               ],
@@ -1217,7 +1308,11 @@ class _StepTuileState extends State<_StepTuile> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.architecture, color: Colors.deepPurple.shade700, size: 24),
+                  Icon(
+                    Icons.architecture,
+                    color: Colors.deepPurple.shade700,
+                    size: 24,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -1291,9 +1386,13 @@ class _StepTuileState extends State<_StepTuile> {
         // Activation des textures
         Container(
           decoration: BoxDecoration(
-            color: _buildingsTexturesEnabled ? Colors.purple.shade50 : Colors.grey.shade100,
+            color: _buildingsTexturesEnabled
+                ? Colors.purple.shade50
+                : Colors.grey.shade100,
             border: Border.all(
-              color: _buildingsTexturesEnabled ? Colors.purple.shade300 : Colors.grey.shade300,
+              color: _buildingsTexturesEnabled
+                  ? Colors.purple.shade300
+                  : Colors.grey.shade300,
               width: 2,
             ),
             borderRadius: BorderRadius.circular(12),
@@ -1310,17 +1409,16 @@ class _StepTuileState extends State<_StepTuile> {
               children: [
                 Icon(
                   Icons.texture,
-                  color: _buildingsTexturesEnabled ? Colors.purple.shade700 : Colors.grey.shade600,
+                  color: _buildingsTexturesEnabled
+                      ? Colors.purple.shade700
+                      : Colors.grey.shade600,
                   size: 24,
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
                   child: Text(
                     'Activer les textures personnalisées',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
                   ),
                 ),
               ],
@@ -1358,224 +1456,90 @@ class _StepTuileState extends State<_StepTuile> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Textures de façades
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.indigo.shade50, Colors.indigo.shade100],
-              ),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.indigo.shade200),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.indigo.shade50, Colors.indigo.shade100],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.business, color: Colors.indigo.shade700, size: 24),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Texture des façades',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.indigo.shade900,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Choix entre texture prédéfinie et photo personnalisée
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(
-                      value: false,
-                      label: Text('Textures'),
-                      icon: Icon(Icons.texture),
-                    ),
-                    ButtonSegment(
-                      value: true,
-                      label: Text('Photo perso'),
-                      icon: Icon(Icons.photo_library),
-                    ),
-                  ],
-                  selected: {_useCustomFacadePhoto},
-                  onSelectionChanged: (Set<bool> newSelection) {
-                    setState(() {
-                      _useCustomFacadePhoto = newSelection.first;
-                      _isValidated = false;
-                    });
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
-                // Grille de sélection de textures façades ou upload photo
-                if (!_useCustomFacadePhoto)
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
-                      childAspectRatio: 0.85,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
-                    ),
-                    itemCount: _facadeTextures.length,
-                    itemBuilder: (context, index) {
-                      final texture = _facadeTextures[index];
-                      final isSelected = _facadeTextureId == texture['id'];
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _facadeTextureId = texture['id'];
-                            _isValidated = false;
-                          });
-                        },
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: isSelected ? Colors.white : Colors.indigo.shade50,
-                            border: Border.all(
-                              color: isSelected ? texture['color'] : Colors.indigo.shade200,
-                              width: isSelected ? 3 : 1,
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                texture['preview'],
-                                style: const TextStyle(fontSize: 28),
-                              ),
-                              const SizedBox(height: 4),
-                              Icon(
-                                texture['icon'],
-                                size: 20,
-                                color: isSelected ? texture['color'] : Colors.grey.shade600,
-                              ),
-                              const SizedBox(height: 4),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
-                                child: Text(
-                                  texture['name'],
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                    color: isSelected ? texture['color'] : Colors.grey.shade700,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  )
-                else
-                  // Section photo personnalisée
-                  _buildCustomPhotoSection(),
-
-                const SizedBox(height: 16),
-
-                // Échelle de la texture façade (seulement si pas de photo perso ou si photo chargée)
-                if (!_useCustomFacadePhoto || _customFacadePhotoUrl != null)
-                  Column(
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.straighten, color: Colors.indigo.shade700, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Échelle: ${_facadeTextureScale.toStringAsFixed(1)}x',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.indigo.shade800,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Slider(
-                        value: _facadeTextureScale,
-                        min: 0.5,
-                        max: 3.0,
-                        divisions: 25,
-                        label: '${_facadeTextureScale.toStringAsFixed(1)}x',
-                        activeColor: Colors.indigo.shade600,
-                        onChanged: (value) {
-                          setState(() {
-                            _facadeTextureScale = value;
-                            _isValidated = false;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-              ],
-            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.indigo.shade200),
           ),
-
-          const SizedBox(height: 16),
-
-          // Textures de toits
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.orange.shade50, Colors.orange.shade100],
-              ),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.orange.shade200),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.roofing, color: Colors.orange.shade700, size: 24),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Texture des toits',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.orange.shade900,
-                      ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.business, color: Colors.indigo.shade700, size: 24),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Texture des façades',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.indigo.shade900,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
 
-                // Grille de sélection de textures toits
+              // Choix entre texture prédéfinie et photo personnalisée
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                    value: false,
+                    label: Text('Textures'),
+                    icon: Icon(Icons.texture),
+                  ),
+                  ButtonSegment(
+                    value: true,
+                    label: Text('Photo perso'),
+                    icon: Icon(Icons.photo_library),
+                  ),
+                ],
+                selected: {_useCustomFacadePhoto},
+                onSelectionChanged: (Set<bool> newSelection) {
+                  setState(() {
+                    _useCustomFacadePhoto = newSelection.first;
+                    _isValidated = false;
+                  });
+                },
+              ),
+
+              const SizedBox(height: 16),
+
+              // Grille de sélection de textures façades ou upload photo
+              if (!_useCustomFacadePhoto)
                 GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    childAspectRatio: 0.9,
+                    crossAxisCount: 4,
+                    childAspectRatio: 0.85,
                     crossAxisSpacing: 8,
                     mainAxisSpacing: 8,
                   ),
-                  itemCount: _roofTextures.length,
+                  itemCount: _facadeTextures.length,
                   itemBuilder: (context, index) {
-                    final texture = _roofTextures[index];
-                    final isSelected = _roofTextureId == texture['id'];
+                    final texture = _facadeTextures[index];
+                    final isSelected = _facadeTextureId == texture['id'];
                     return GestureDetector(
                       onTap: () {
                         setState(() {
-                          _roofTextureId = texture['id'];
+                          _facadeTextureId = texture['id'];
                           _isValidated = false;
                         });
                       },
                       child: Container(
                         decoration: BoxDecoration(
-                          color: isSelected ? Colors.white : Colors.orange.shade50,
+                          color: isSelected
+                              ? Colors.white
+                              : Colors.indigo.shade50,
                           border: Border.all(
-                            color: isSelected ? texture['color'] : Colors.orange.shade200,
+                            color: isSelected
+                                ? texture['color']
+                                : Colors.indigo.shade200,
                             width: isSelected ? 3 : 1,
                           ),
                           borderRadius: BorderRadius.circular(8),
@@ -1591,18 +1555,26 @@ class _StepTuileState extends State<_StepTuile> {
                             Icon(
                               texture['icon'],
                               size: 20,
-                              color: isSelected ? texture['color'] : Colors.grey.shade600,
+                              color: isSelected
+                                  ? texture['color']
+                                  : Colors.grey.shade600,
                             ),
                             const SizedBox(height: 4),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
                               child: Text(
                                 texture['name'],
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 10,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                  color: isSelected ? texture['color'] : Colors.grey.shade700,
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  color: isSelected
+                                      ? texture['color']
+                                      : Colors.grey.shade700,
                                 ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -1613,181 +1585,348 @@ class _StepTuileState extends State<_StepTuile> {
                       ),
                     );
                   },
-                ),
+                )
+              else
+                // Section photo personnalisée
+                _buildCustomPhotoSection(),
 
-                const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-                // Échelle de la texture toit
-                Row(
+              // Échelle de la texture façade (seulement si pas de photo perso ou si photo chargée)
+              if (!_useCustomFacadePhoto || _customFacadePhotoUrl != null)
+                Column(
                   children: [
-                    Icon(Icons.straighten, color: Colors.orange.shade700, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Échelle: ${_roofTextureScale.toStringAsFixed(1)}x',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.orange.shade800,
-                      ),
-                    ),
-                  ],
-                ),
-                Slider(
-                  value: _roofTextureScale,
-                  min: 0.5,
-                  max: 3.0,
-                  divisions: 25,
-                  label: '${_roofTextureScale.toStringAsFixed(1)}x',
-                  activeColor: Colors.orange.shade600,
-                  onChanged: (value) {
-                    setState(() {
-                      _roofTextureScale = value;
-                      _isValidated = false;
-                    });
-                  },
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Paramètres avancés
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.deepPurple.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.deepPurple.shade200),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.tune, color: Colors.deepPurple.shade700, size: 24),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Paramètres avancés',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.deepPurple.shade900,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Opacité des textures
-                Row(
-                  children: [
-                    Icon(Icons.opacity, color: Colors.deepPurple.shade700, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Opacité: ${(_textureOpacity * 100).toInt()}%',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.deepPurple.shade800,
-                      ),
-                    ),
-                  ],
-                ),
-                Slider(
-                  value: _textureOpacity,
-                  min: 0.3,
-                  max: 1.0,
-                  divisions: 14,
-                  label: '${(_textureOpacity * 100).toInt()}%',
-                  activeColor: Colors.deepPurple.shade600,
-                  onChanged: (value) {
-                    setState(() {
-                      _textureOpacity = value;
-                      _isValidated = false;
-                    });
-                  },
-                ),
-
-                const SizedBox(height: 8),
-
-                // Info technique
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.deepPurple.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.deepPurple.shade700, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Les textures seront appliquées via fill-extrusion-pattern dans Mapbox GL JS',
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.straighten,
+                          color: Colors.indigo.shade700,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Échelle: ${_facadeTextureScale.toStringAsFixed(1)}x',
                           style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.deepPurple.shade900,
-                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.indigo.shade800,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                    Slider(
+                      value: _facadeTextureScale,
+                      min: 0.5,
+                      max: 3.0,
+                      divisions: 25,
+                      label: '${_facadeTextureScale.toStringAsFixed(1)}x',
+                      activeColor: Colors.indigo.shade600,
+                      onChanged: (value) {
+                        setState(() {
+                          _facadeTextureScale = value;
+                          _isValidated = false;
+                        });
+                      },
+                    ),
+                  ],
                 ),
-              ],
-            ),
+            ],
           ),
+        ),
 
-          const SizedBox(height: 16),
+        const SizedBox(height: 16),
 
-          // Aperçu de la configuration
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.teal.shade50, Colors.teal.shade100],
-              ),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.teal.shade300, width: 2),
+        // Textures de toits
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.orange.shade50, Colors.orange.shade100],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.orange.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.roofing, color: Colors.orange.shade700, size: 24),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Texture des toits',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange.shade900,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Grille de sélection de textures toits
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  childAspectRatio: 0.9,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                itemCount: _roofTextures.length,
+                itemBuilder: (context, index) {
+                  final texture = _roofTextures[index];
+                  final isSelected = _roofTextureId == texture['id'];
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _roofTextureId = texture['id'];
+                        _isValidated = false;
+                      });
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? Colors.white
+                            : Colors.orange.shade50,
+                        border: Border.all(
+                          color: isSelected
+                              ? texture['color']
+                              : Colors.orange.shade200,
+                          width: isSelected ? 3 : 1,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            texture['preview'],
+                            style: const TextStyle(fontSize: 28),
+                          ),
+                          const SizedBox(height: 4),
+                          Icon(
+                            texture['icon'],
+                            size: 20,
+                            color: isSelected
+                                ? texture['color']
+                                : Colors.grey.shade600,
+                          ),
+                          const SizedBox(height: 4),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: Text(
+                              texture['name'],
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: isSelected
+                                    ? texture['color']
+                                    : Colors.grey.shade700,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 16),
+
+              // Échelle de la texture toit
+              Row(
+                children: [
+                  Icon(
+                    Icons.straighten,
+                    color: Colors.orange.shade700,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Échelle: ${_roofTextureScale.toStringAsFixed(1)}x',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.orange.shade800,
+                    ),
+                  ),
+                ],
+              ),
+              Slider(
+                value: _roofTextureScale,
+                min: 0.5,
+                max: 3.0,
+                divisions: 25,
+                label: '${_roofTextureScale.toStringAsFixed(1)}x',
+                activeColor: Colors.orange.shade600,
+                onChanged: (value) {
+                  setState(() {
+                    _roofTextureScale = value;
+                    _isValidated = false;
+                  });
+                },
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // Paramètres avancés
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.deepPurple.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.deepPurple.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.tune, color: Colors.deepPurple.shade700, size: 24),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Paramètres avancés',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple.shade900,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Opacité des textures
+              Row(
+                children: [
+                  Icon(
+                    Icons.opacity,
+                    color: Colors.deepPurple.shade700,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Opacité: ${(_textureOpacity * 100).toInt()}%',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.deepPurple.shade800,
+                    ),
+                  ),
+                ],
+              ),
+              Slider(
+                value: _textureOpacity,
+                min: 0.3,
+                max: 1.0,
+                divisions: 14,
+                label: '${(_textureOpacity * 100).toInt()}%',
+                activeColor: Colors.deepPurple.shade600,
+                onChanged: (value) {
+                  setState(() {
+                    _textureOpacity = value;
+                    _isValidated = false;
+                  });
+                },
+              ),
+
+              const SizedBox(height: 8),
+
+              // Info technique
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.deepPurple.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
                   children: [
-                    Icon(Icons.preview, color: Colors.teal.shade700, size: 24),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Configuration actuelle',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.teal.shade900,
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.deepPurple.shade700,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Les textures seront appliquées via fill-extrusion-pattern dans Mapbox GL JS',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.deepPurple.shade900,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                _buildTextureConfigRow(
-                  'Façades',
-                  _facadeTextures.firstWhere((t) => t['id'] == _facadeTextureId)['name'],
-                  '${_facadeTextures.firstWhere((t) => t['id'] == _facadeTextureId)['preview']} ${_facadeTextureScale.toStringAsFixed(1)}x',
-                ),
-                const SizedBox(height: 8),
-                _buildTextureConfigRow(
-                  'Toits',
-                  _roofTextures.firstWhere((t) => t['id'] == _roofTextureId)['name'],
-                  '${_roofTextures.firstWhere((t) => t['id'] == _roofTextureId)['preview']} ${_roofTextureScale.toStringAsFixed(1)}x',
-                ),
-                const SizedBox(height: 8),
-                _buildTextureConfigRow(
-                  'Opacité',
-                  '${(_textureOpacity * 100).toInt()}%',
-                  _textureOpacity > 0.7 ? '✓ Visible' : '⚠️ Transparent',
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
+
+        const SizedBox(height: 16),
+
+        // Aperçu de la configuration
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.teal.shade50, Colors.teal.shade100],
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.teal.shade300, width: 2),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.preview, color: Colors.teal.shade700, size: 24),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Configuration actuelle',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.teal.shade900,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _buildTextureConfigRow(
+                'Façades',
+                _facadeTextures.firstWhere(
+                  (t) => t['id'] == _facadeTextureId,
+                )['name'],
+                '${_facadeTextures.firstWhere((t) => t['id'] == _facadeTextureId)['preview']} ${_facadeTextureScale.toStringAsFixed(1)}x',
+              ),
+              const SizedBox(height: 8),
+              _buildTextureConfigRow(
+                'Toits',
+                _roofTextures.firstWhere(
+                  (t) => t['id'] == _roofTextureId,
+                )['name'],
+                '${_roofTextures.firstWhere((t) => t['id'] == _roofTextureId)['preview']} ${_roofTextureScale.toStringAsFixed(1)}x',
+              ),
+              const SizedBox(height: 8),
+              _buildTextureConfigRow(
+                'Opacité',
+                '${(_textureOpacity * 100).toInt()}%',
+                _textureOpacity > 0.7 ? '✓ Visible' : '⚠️ Transparent',
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -1844,7 +1983,10 @@ class _StepTuileState extends State<_StepTuile> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.cyan.shade600,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                   ),
                 ],
@@ -1858,7 +2000,11 @@ class _StepTuileState extends State<_StepTuile> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.touch_app, color: Colors.cyan.shade700, size: 20),
+                    Icon(
+                      Icons.touch_app,
+                      color: Colors.cyan.shade700,
+                      size: 20,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -1886,12 +2032,19 @@ class _StepTuileState extends State<_StepTuile> {
             decoration: BoxDecoration(
               color: Colors.grey.shade50,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+              border: Border.all(
+                color: Colors.grey.shade300,
+                style: BorderStyle.solid,
+              ),
             ),
             child: Center(
               child: Column(
                 children: [
-                  Icon(Icons.location_city_outlined, size: 64, color: Colors.grey.shade400),
+                  Icon(
+                    Icons.location_city_outlined,
+                    size: 64,
+                    color: Colors.grey.shade400,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'Aucun bâtiment spécifique',
@@ -1905,10 +2058,7 @@ class _StepTuileState extends State<_StepTuile> {
                   Text(
                     'Ajoutez des bâtiments pour leur appliquer\ndes textures personnalisées',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey.shade500,
-                    ),
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
                   ),
                 ],
               ),
@@ -1990,7 +2140,11 @@ class _StepTuileState extends State<_StepTuile> {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(Icons.location_on, size: 14, color: Colors.indigo.shade600),
+                          Icon(
+                            Icons.location_on,
+                            size: 14,
+                            color: Colors.indigo.shade600,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             'Lat: ${building['lat']?.toStringAsFixed(4) ?? 'N/A'}, '
@@ -2023,7 +2177,10 @@ class _StepTuileState extends State<_StepTuile> {
                         children: const [
                           Icon(Icons.delete, size: 18, color: Colors.red),
                           SizedBox(width: 8),
-                          Text('Supprimer', style: TextStyle(color: Colors.red)),
+                          Text(
+                            'Supprimer',
+                            style: TextStyle(color: Colors.red),
+                          ),
                         ],
                       ),
                       onTap: () {
@@ -2077,7 +2234,10 @@ class _StepTuileState extends State<_StepTuile> {
                           return Container(
                             color: Colors.grey.shade200,
                             child: Center(
-                              child: Icon(Icons.error_outline, color: Colors.red.shade400),
+                              child: Icon(
+                                Icons.error_outline,
+                                color: Colors.red.shade400,
+                              ),
                             ),
                           );
                         },
@@ -2116,7 +2276,12 @@ class _StepTuileState extends State<_StepTuile> {
     );
   }
 
-  Widget _buildBuildingInfoRow(IconData icon, String label, String value, Color color) {
+  Widget _buildBuildingInfoRow(
+    IconData icon,
+    String label,
+    String value,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       decoration: BoxDecoration(
@@ -2133,7 +2298,7 @@ class _StepTuileState extends State<_StepTuile> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: color.shade700,
+              color: Color.lerp(color, Colors.black, 0.3)!,
             ),
           ),
           const Spacer(),
@@ -2142,7 +2307,7 @@ class _StepTuileState extends State<_StepTuile> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.bold,
-              color: color.shade900,
+              color: Color.lerp(color, Colors.black, 0.7)!,
             ),
           ),
         ],
@@ -2227,10 +2392,7 @@ class _StepTuileState extends State<_StepTuile> {
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.teal.shade900,
-              ),
+              style: TextStyle(fontSize: 13, color: Colors.teal.shade900),
             ),
           ),
           Text(
@@ -2277,13 +2439,10 @@ class _StepTuileState extends State<_StepTuile> {
             Text(
               'Importez une photo pour l\'appliquer sur les façades',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
             ),
             const SizedBox(height: 20),
-            
+
             // Boutons d'import
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -2295,7 +2454,10 @@ class _StepTuileState extends State<_StepTuile> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.indigo.shade600,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -2306,14 +2468,17 @@ class _StepTuileState extends State<_StepTuile> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.indigo.shade400,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                   ),
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Info technique
             Container(
               padding: const EdgeInsets.all(12),
@@ -2323,7 +2488,11 @@ class _StepTuileState extends State<_StepTuile> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.amber.shade700, size: 20),
+                  Icon(
+                    Icons.info_outline,
+                    color: Colors.amber.shade700,
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -2357,7 +2526,11 @@ class _StepTuileState extends State<_StepTuile> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.error_outline, color: Colors.red.shade400, size: 48),
+                                Icon(
+                                  Icons.error_outline,
+                                  color: Colors.red.shade400,
+                                  size: 48,
+                                ),
                                 const SizedBox(height: 8),
                                 Text(
                                   'Erreur de chargement',
@@ -2372,7 +2545,11 @@ class _StepTuileState extends State<_StepTuile> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.image, color: Colors.indigo.shade400, size: 48),
+                            Icon(
+                              Icons.image,
+                              color: Colors.indigo.shade400,
+                              size: 48,
+                            ),
                             const SizedBox(height: 8),
                             Text(
                               _customFacadePhotoName ?? 'Image locale',
@@ -2383,9 +2560,9 @@ class _StepTuileState extends State<_StepTuile> {
                       ),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Infos photo
             Container(
               padding: const EdgeInsets.all(12),
@@ -2396,7 +2573,11 @@ class _StepTuileState extends State<_StepTuile> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.check_circle, color: Colors.green.shade700, size: 20),
+                  Icon(
+                    Icons.check_circle,
+                    color: Colors.green.shade700,
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -2412,7 +2593,8 @@ class _StepTuileState extends State<_StepTuile> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (_customFacadePhotoUrl != null && _customFacadePhotoUrl!.startsWith('http'))
+                        if (_customFacadePhotoUrl != null &&
+                            _customFacadePhotoUrl!.startsWith('http'))
                           Text(
                             _customFacadePhotoUrl!.length > 50
                                 ? '${_customFacadePhotoUrl!.substring(0, 50)}...'
@@ -2430,9 +2612,9 @@ class _StepTuileState extends State<_StepTuile> {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // Boutons d'action
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -2475,11 +2657,13 @@ class _StepTuileState extends State<_StepTuile> {
     // En production, utiliser image_picker package
     // Pour l'instant, simulation avec une URL de démo
     setState(() {
-      _customFacadePhotoUrl = 'https://picsum.photos/512/512?random=${DateTime.now().millisecondsSinceEpoch}';
-      _customFacadePhotoName = 'facade_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      _customFacadePhotoUrl =
+          'https://picsum.photos/512/512?random=${DateTime.now().millisecondsSinceEpoch}';
+      _customFacadePhotoName =
+          'facade_${DateTime.now().millisecondsSinceEpoch}.jpg';
       _isValidated = false;
     });
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Row(
@@ -2497,7 +2681,7 @@ class _StepTuileState extends State<_StepTuile> {
   // Dialog pour entrer une URL d'image
   void _showUrlInputDialog() {
     final controller = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -2538,7 +2722,11 @@ class _StepTuileState extends State<_StepTuile> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.lightbulb_outline, color: Colors.blue.shade700, size: 16),
+                  Icon(
+                    Icons.lightbulb_outline,
+                    color: Colors.blue.shade700,
+                    size: 16,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -2562,7 +2750,8 @@ class _StepTuileState extends State<_StepTuile> {
           ElevatedButton.icon(
             onPressed: () {
               final url = controller.text.trim();
-              if (url.isNotEmpty && (url.startsWith('http://') || url.startsWith('https://'))) {
+              if (url.isNotEmpty &&
+                  (url.startsWith('http://') || url.startsWith('https://'))) {
                 setState(() {
                   _customFacadePhotoUrl = url;
                   _customFacadePhotoName = url.split('/').last.split('?').first;
@@ -2584,7 +2773,9 @@ class _StepTuileState extends State<_StepTuile> {
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('URL invalide. Doit commencer par http:// ou https://'),
+                    content: Text(
+                      'URL invalide. Doit commencer par http:// ou https://',
+                    ),
                     backgroundColor: Colors.red,
                   ),
                 );
@@ -2602,7 +2793,11 @@ class _StepTuileState extends State<_StepTuile> {
     );
   }
 
-  Widget _buildEstimationRow(String label, String value, {bool isHighlight = false}) {
+  Widget _buildEstimationRow(
+    String label,
+    String value, {
+    bool isHighlight = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -2659,10 +2854,10 @@ class _StepTuileState extends State<_StepTuile> {
     // Calcul approximatif basé sur le zoom et la qualité
     final zoomRange = _zoomMax - _zoomMin + 1;
     double baseSize = 50.0; // Mo de base
-    
+
     // Facteur zoom (exponentiel)
     final zoomFactor = zoomRange * 2.5;
-    
+
     // Facteur qualité
     double qualityFactor = 1.0;
     switch (_quality) {
@@ -2676,12 +2871,12 @@ class _StepTuileState extends State<_StepTuile> {
         qualityFactor = 1.8;
         break;
     }
-    
+
     // Facteur couches (chaque couche ajoute ~30%)
     final layerFactor = 1.0 + (_selectedLayers.length * 0.3);
-    
+
     final estimatedSize = baseSize * zoomFactor * qualityFactor * layerFactor;
-    
+
     if (estimatedSize < 100) {
       return '~${estimatedSize.toStringAsFixed(0)} Mo';
     } else if (estimatedSize < 1024) {
@@ -2705,17 +2900,16 @@ class _StepTracer extends StatefulWidget {
 class _StepTracerState extends State<_StepTracer> {
   // Points du tracé
   final List<Map<String, dynamic>> _tracePoints = [];
-  
+
   // Configuration
   String _traceMode = 'manual'; // 'manual', 'follow_roads', 'straight'
   bool _showElevation = false;
   bool _snapToRoads = true;
   double _simplificationTolerance = 0.0001;
-  
+
   // État
   bool _isValidated = false;
-  String? _selectedPointId;
-  
+
   // Statistiques
   double _totalDistance = 0.0;
   double _elevationGain = 0.0;
@@ -2779,7 +2973,7 @@ class _StepTracerState extends State<_StepTracer> {
             ),
           ),
           const SizedBox(height: 12),
-          
+
           SegmentedButton<String>(
             segments: const [
               ButtonSegment(
@@ -2867,7 +3061,7 @@ class _StepTracerState extends State<_StepTracer> {
                     ],
                   ),
                 ),
-                
+
                 // Boutons flottants sur la carte
                 Positioned(
                   top: 16,
@@ -2910,7 +3104,9 @@ class _StepTracerState extends State<_StepTracer> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       ElevatedButton.icon(
-                        onPressed: _tracePoints.isEmpty ? null : () => _undoLastPoint(),
+                        onPressed: _tracePoints.isEmpty
+                            ? null
+                            : () => _undoLastPoint(),
                         icon: const Icon(Icons.undo, size: 18),
                         label: const Text('Annuler'),
                         style: ElevatedButton.styleFrom(
@@ -2920,7 +3116,9 @@ class _StepTracerState extends State<_StepTracer> {
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton.icon(
-                        onPressed: _tracePoints.isEmpty ? null : () => _clearTrace(),
+                        onPressed: _tracePoints.isEmpty
+                            ? null
+                            : () => _clearTrace(),
                         icon: const Icon(Icons.delete, size: 18),
                         label: const Text('Effacer tout'),
                         style: ElevatedButton.styleFrom(
@@ -2958,7 +3156,7 @@ class _StepTracerState extends State<_StepTracer> {
               ),
             ),
             const SizedBox(height: 12),
-            
+
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -3037,7 +3235,9 @@ class _StepTracerState extends State<_StepTracer> {
               });
             },
             title: const Text('Aimanter aux routes'),
-            subtitle: const Text('Les points s\'alignent automatiquement sur les routes'),
+            subtitle: const Text(
+              'Les points s\'alignent automatiquement sur les routes',
+            ),
             activeColor: Colors.green,
           ),
 
@@ -3069,7 +3269,11 @@ class _StepTracerState extends State<_StepTracer> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.show_chart, size: 48, color: Colors.grey.shade400),
+                    Icon(
+                      Icons.show_chart,
+                      size: 48,
+                      color: Colors.grey.shade400,
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       'Profil d\'élévation',
@@ -3128,7 +3332,9 @@ class _StepTracerState extends State<_StepTracer> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: _simplificationTolerance == 0 ? Colors.grey : Colors.green,
+                  color: _simplificationTolerance == 0
+                      ? Colors.grey
+                      : Colors.green,
                 ),
               ),
             ],
@@ -3138,7 +3344,9 @@ class _StepTracerState extends State<_StepTracer> {
             min: 0,
             max: 0.001,
             divisions: 20,
-            label: _simplificationTolerance == 0 ? 'OFF' : '${(_simplificationTolerance * 10000).toStringAsFixed(1)}',
+            label: _simplificationTolerance == 0
+                ? 'OFF'
+                : '${(_simplificationTolerance * 10000).toStringAsFixed(1)}',
             onChanged: (value) {
               setState(() {
                 _simplificationTolerance = value;
@@ -3184,7 +3392,7 @@ class _StepTracerState extends State<_StepTracer> {
                   final point = _tracePoints[index];
                   final isStart = index == 0;
                   final isEnd = index == _tracePoints.length - 1;
-                  
+
                   return ListTile(
                     leading: Container(
                       width: 40,
@@ -3193,13 +3401,17 @@ class _StepTracerState extends State<_StepTracer> {
                         color: isStart
                             ? Colors.green
                             : isEnd
-                                ? Colors.red
-                                : Colors.blue,
+                            ? Colors.red
+                            : Colors.blue,
                         shape: BoxShape.circle,
                       ),
                       child: Center(
                         child: Text(
-                          isStart ? 'D' : isEnd ? 'A' : '${index + 1}',
+                          isStart
+                              ? 'D'
+                              : isEnd
+                              ? 'A'
+                              : '${index + 1}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -3212,8 +3424,15 @@ class _StepTracerState extends State<_StepTracer> {
                       style: const TextStyle(fontSize: 13),
                     ),
                     subtitle: Text(
-                      isStart ? 'Départ' : isEnd ? 'Arrivée' : 'Point intermédiaire',
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      isStart
+                          ? 'Départ'
+                          : isEnd
+                          ? 'Arrivée'
+                          : 'Point intermédiaire',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete, size: 20),
@@ -3247,7 +3466,9 @@ class _StepTracerState extends State<_StepTracer> {
                           children: [
                             const Icon(Icons.check_circle, color: Colors.white),
                             const SizedBox(width: 12),
-                            Text('Tracé validé : ${_tracePoints.length} points, ${_totalDistance.toStringAsFixed(2)} km'),
+                            Text(
+                              'Tracé validé : ${_tracePoints.length} points, ${_totalDistance.toStringAsFixed(2)} km',
+                            ),
                           ],
                         ),
                         backgroundColor: Colors.green,
@@ -3259,7 +3480,10 @@ class _StepTracerState extends State<_StepTracer> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
                   ),
                 ),
               if (_isValidated) ...[
@@ -3282,7 +3506,10 @@ class _StepTracerState extends State<_StepTracer> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
                   ),
                 ),
               ],
@@ -3373,7 +3600,12 @@ class _StepTracerState extends State<_StepTracer> {
     );
   }
 
-  Widget _buildStatItem(IconData icon, String label, String value, Color color) {
+  Widget _buildStatItem(
+    IconData icon,
+    String label,
+    String value,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -3389,16 +3621,13 @@ class _StepTracerState extends State<_StepTracer> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: color.shade900,
+              color: Color.lerp(color, Colors.black, 0.7)!,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade700,
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
           ),
         ],
       ),
@@ -3461,9 +3690,9 @@ class _StepTracerState extends State<_StepTracer> {
 
   void _addDemoPoint() {
     // Simulation: ajout d'un point de démo
-    final baseL at = 16.2500 + (_tracePoints.length * 0.001);
+    final baseLat = 16.2500 + (_tracePoints.length * 0.001);
     final baseLng = -61.5833 + (_tracePoints.length * 0.001);
-    
+
     setState(() {
       _tracePoints.add({
         'lat': baseLat,
@@ -3478,13 +3707,15 @@ class _StepTracerState extends State<_StepTracer> {
   void _recalculateStats() {
     // Calcul simplifié de la distance
     _totalDistance = _tracePoints.length * 0.5; // ~500m par point
-    
+
     // Calcul du dénivelé
     _elevationGain = 0.0;
     _elevationLoss = 0.0;
-    
+
     for (int i = 1; i < _tracePoints.length; i++) {
-      final diff = (_tracePoints[i]['elevation'] ?? 0.0) - (_tracePoints[i - 1]['elevation'] ?? 0.0);
+      final diff =
+          (_tracePoints[i]['elevation'] ?? 0.0) -
+          (_tracePoints[i - 1]['elevation'] ?? 0.0);
       if (diff > 0) {
         _elevationGain += diff;
       } else {
@@ -3497,7 +3728,9 @@ class _StepTracerState extends State<_StepTracer> {
     // Export simulé
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Export JSON: coordonnées copiées dans le presse-papier'),
+        content: const Text(
+          'Export JSON: coordonnées copiées dans le presse-papier',
+        ),
         backgroundColor: Colors.blue,
         action: SnackBarAction(
           label: 'Voir',
@@ -3524,7 +3757,7 @@ class _StepVerrouSegment extends StatefulWidget {
 class _StepVerrouSegmentState extends State<_StepVerrouSegment> {
   bool _isLocked = false;
   final List<Map<String, dynamic>> _segments = [];
-  
+
   // Styles disponibles
   final List<Map<String, dynamic>> _lineStyles = [
     {'id': 'solid', 'name': 'Continu', 'icon': Icons.remove},
@@ -3600,7 +3833,9 @@ class _StepVerrouSegmentState extends State<_StepVerrouSegment> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _isLocked ? 'Circuit verrouillé' : 'Circuit déverrouillé',
+                              _isLocked
+                                  ? 'Circuit verrouillé'
+                                  : 'Circuit déverrouillé',
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -3630,7 +3865,9 @@ class _StepVerrouSegmentState extends State<_StepVerrouSegment> {
                                     ? 'Circuit verrouillé - Création de segments possible'
                                     : 'Circuit déverrouillé',
                               ),
-                              backgroundColor: value ? Colors.red : Colors.green,
+                              backgroundColor: value
+                                  ? Colors.red
+                                  : Colors.green,
                             ),
                           );
                         },
@@ -3647,7 +3884,11 @@ class _StepVerrouSegmentState extends State<_StepVerrouSegment> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.info_outline, color: Colors.orange.shade700, size: 20),
+                          Icon(
+                            Icons.info_outline,
+                            color: Colors.orange.shade700,
+                            size: 20,
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
@@ -3703,7 +3944,11 @@ class _StepVerrouSegmentState extends State<_StepVerrouSegment> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.lightbulb_outline, color: Colors.blue.shade700, size: 20),
+                  Icon(
+                    Icons.lightbulb_outline,
+                    color: Colors.blue.shade700,
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -3726,12 +3971,19 @@ class _StepVerrouSegmentState extends State<_StepVerrouSegment> {
                 decoration: BoxDecoration(
                   color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+                  border: Border.all(
+                    color: Colors.grey.shade300,
+                    style: BorderStyle.solid,
+                  ),
                 ),
                 child: Center(
                   child: Column(
                     children: [
-                      Icon(Icons.segment, size: 64, color: Colors.grey.shade400),
+                      Icon(
+                        Icons.segment,
+                        size: 64,
+                        color: Colors.grey.shade400,
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         'Aucun segment créé',
@@ -3873,15 +4125,16 @@ class _StepVerrouSegmentState extends State<_StepVerrouSegment> {
                 label: const Text('Étape précédente'),
               ),
               ElevatedButton.icon(
-                onPressed: _isLocked
-                    ? widget.onNext
-                    : null,
+                onPressed: _isLocked ? widget.onNext : null,
                 icon: const Icon(Icons.arrow_forward),
                 label: const Text('Étape suivante'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
                 ),
               ),
             ],
@@ -3990,35 +4243,38 @@ class _StepVerrouSegmentState extends State<_StepVerrouSegment> {
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
-                  children: [
-                    Colors.red,
-                    Colors.blue,
-                    Colors.green,
-                    Colors.orange,
-                    Colors.purple,
-                    Colors.pink,
-                    Colors.teal,
-                    Colors.amber,
-                  ].map((c) {
-                    return GestureDetector(
-                      onTap: () => setDialogState(() => color = c),
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: c,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: color == c ? Colors.black : Colors.transparent,
-                            width: 3,
+                  children:
+                      [
+                        Colors.red,
+                        Colors.blue,
+                        Colors.green,
+                        Colors.orange,
+                        Colors.purple,
+                        Colors.pink,
+                        Colors.teal,
+                        Colors.amber,
+                      ].map((c) {
+                        return GestureDetector(
+                          onTap: () => setDialogState(() => color = c),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: c,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: color == c
+                                    ? Colors.black
+                                    : Colors.transparent,
+                                width: 3,
+                              ),
+                            ),
+                            child: color == c
+                                ? const Icon(Icons.check, color: Colors.white)
+                                : null,
                           ),
-                        ),
-                        child: color == c
-                            ? const Icon(Icons.check, color: Colors.white)
-                            : null,
-                      ),
-                    );
-                  }).toList(),
+                        );
+                      }).toList(),
                 ),
                 const SizedBox(height: 16),
 
@@ -4029,11 +4285,15 @@ class _StepVerrouSegmentState extends State<_StepVerrouSegment> {
                 ),
                 const SizedBox(height: 8),
                 SegmentedButton<String>(
-                  segments: _lineStyles.map((s) => ButtonSegment<String>(
-                    value: s['id'],
-                    label: Text(s['name']),
-                    icon: Icon(s['icon']),
-                  )).toList(),
+                  segments: _lineStyles
+                      .map(
+                        (s) => ButtonSegment<String>(
+                          value: s['id'],
+                          label: Text(s['name']),
+                          icon: Icon(s['icon']),
+                        ),
+                      )
+                      .toList(),
                   selected: {style},
                   onSelectionChanged: (Set<String> newSelection) {
                     setDialogState(() => style = newSelection.first);
@@ -4080,7 +4340,9 @@ class _StepVerrouSegmentState extends State<_StepVerrouSegment> {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(isEdit ? 'Segment modifié' : 'Segment ajouté'),
+                    content: Text(
+                      isEdit ? 'Segment modifié' : 'Segment ajouté',
+                    ),
                     backgroundColor: Colors.green,
                   ),
                 );
@@ -4106,15 +4368,15 @@ class _StepPublier extends StatefulWidget {
 class _StepPublierState extends State<_StepPublier> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
-  
+
   String _visibility = 'public'; // public, private, unlisted
   String _category = 'randonnee';
   String _difficulty = 'facile';
   int _estimatedDuration = 60; // minutes
-  
+
   final List<String> _tags = [];
   final _tagController = TextEditingController();
-  
+
   bool _termsAccepted = false;
   bool _dataVerified = false;
   bool _isPublishing = false;
@@ -4210,7 +4472,8 @@ class _StepPublierState extends State<_StepPublier> {
             controller: _descriptionController,
             decoration: const InputDecoration(
               labelText: 'Description *',
-              hintText: 'Décrivez le circuit, ses points d\'intérêt, sa difficulté...',
+              hintText:
+                  'Décrivez le circuit, ses points d\'intérêt, sa difficulté...',
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.description),
             ),
@@ -4445,9 +4708,17 @@ class _StepPublierState extends State<_StepPublier> {
             ),
             child: Column(
               children: [
-                _buildSummaryRow(Icons.check_circle, 'Périmètre défini', Colors.green),
+                _buildSummaryRow(
+                  Icons.check_circle,
+                  'Périmètre défini',
+                  Colors.green,
+                ),
                 const Divider(),
-                _buildSummaryRow(Icons.map, 'Carte offline configurée', Colors.green),
+                _buildSummaryRow(
+                  Icons.map,
+                  'Carte offline configurée',
+                  Colors.green,
+                ),
                 const Divider(),
                 _buildSummaryRow(Icons.route, 'Tracé validé', Colors.green),
                 const Divider(),
@@ -4542,10 +4813,7 @@ class _StepPublierState extends State<_StepPublier> {
                   SizedBox(height: 16),
                   Text(
                     'Publication en cours...',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -4594,7 +4862,7 @@ class _StepPublierState extends State<_StepPublier> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: color.shade800,
+              color: Color.lerp(color, Colors.black, 0.5)!,
             ),
           ),
         ),
@@ -4755,10 +5023,7 @@ class _BuildingConfigDialog extends StatefulWidget {
   final Map<String, dynamic>? initialData;
   final Function(Map<String, dynamic>) onSave;
 
-  const _BuildingConfigDialog({
-    this.initialData,
-    required this.onSave,
-  });
+  const _BuildingConfigDialog({this.initialData, required this.onSave});
 
   @override
   State<_BuildingConfigDialog> createState() => _BuildingConfigDialogState();
@@ -4769,7 +5034,7 @@ class _BuildingConfigDialogState extends State<_BuildingConfigDialog> {
   late TextEditingController _latController;
   late TextEditingController _lngController;
   late TextEditingController _photoUrlController;
-  
+
   String _facadeTexture = 'windows_modern';
   String _roofTexture = 'concrete';
   double _scale = 1.0;
@@ -4778,10 +5043,18 @@ class _BuildingConfigDialogState extends State<_BuildingConfigDialog> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.initialData?['name'] ?? '');
-    _latController = TextEditingController(text: widget.initialData?['lat']?.toString() ?? '16.2500');
-    _lngController = TextEditingController(text: widget.initialData?['lng']?.toString() ?? '-61.5833');
-    _photoUrlController = TextEditingController(text: widget.initialData?['facadePhotoUrl'] ?? '');
+    _nameController = TextEditingController(
+      text: widget.initialData?['name'] ?? '',
+    );
+    _latController = TextEditingController(
+      text: widget.initialData?['lat']?.toString() ?? '16.2500',
+    );
+    _lngController = TextEditingController(
+      text: widget.initialData?['lng']?.toString() ?? '-61.5833',
+    );
+    _photoUrlController = TextEditingController(
+      text: widget.initialData?['facadePhotoUrl'] ?? '',
+    );
     _facadeTexture = widget.initialData?['facadeTexture'] ?? 'windows_modern';
     _roofTexture = widget.initialData?['roofTexture'] ?? 'concrete';
     _scale = widget.initialData?['scale'] ?? 1.0;
@@ -4822,7 +5095,9 @@ class _BuildingConfigDialogState extends State<_BuildingConfigDialog> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      widget.initialData == null ? 'Ajouter un bâtiment' : 'Modifier le bâtiment',
+                      widget.initialData == null
+                          ? 'Ajouter un bâtiment'
+                          : 'Modifier le bâtiment',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -4920,7 +5195,9 @@ class _BuildingConfigDialogState extends State<_BuildingConfigDialog> {
                         });
                       },
                       title: const Text('Utiliser une photo personnalisée'),
-                      subtitle: const Text('Appliquée sur les façades de ce bâtiment'),
+                      subtitle: const Text(
+                        'Appliquée sur les façades de ce bâtiment',
+                      ),
                       activeColor: Colors.indigo,
                     ),
                     if (_hasCustomPhoto) ...[
@@ -4938,7 +5215,8 @@ class _BuildingConfigDialogState extends State<_BuildingConfigDialog> {
                             icon: const Icon(Icons.image),
                             onPressed: () {
                               // Simulation: générer une URL de démo
-                              _photoUrlController.text = 'https://picsum.photos/512/512?random=${DateTime.now().millisecondsSinceEpoch}';
+                              _photoUrlController.text =
+                                  'https://picsum.photos/512/512?random=${DateTime.now().millisecondsSinceEpoch}';
                               setState(() {});
                             },
                             tooltip: 'Générer une image de test',
@@ -4962,7 +5240,11 @@ class _BuildingConfigDialogState extends State<_BuildingConfigDialog> {
                                 return Container(
                                   color: Colors.grey.shade200,
                                   child: const Center(
-                                    child: Icon(Icons.error_outline, size: 48, color: Colors.red),
+                                    child: Icon(
+                                      Icons.error_outline,
+                                      size: 48,
+                                      color: Colors.red,
+                                    ),
                                   ),
                                 );
                               },
@@ -4994,15 +5276,34 @@ class _BuildingConfigDialogState extends State<_BuildingConfigDialog> {
                           ),
                         ),
                         items: const [
-                          DropdownMenuItem(value: 'windows_modern', child: Text('🏢 Fenêtres modernes')),
-                          DropdownMenuItem(value: 'windows_classic', child: Text('🏛️ Fenêtres classiques')),
-                          DropdownMenuItem(value: 'brick_red', child: Text('🧱 Brique rouge')),
-                          DropdownMenuItem(value: 'brick_brown', child: Text('🟫 Brique marron')),
-                          DropdownMenuItem(value: 'concrete', child: Text('⬜ Béton')),
-                          DropdownMenuItem(value: 'glass_blue', child: Text('💎 Verre bleuté')),
+                          DropdownMenuItem(
+                            value: 'windows_modern',
+                            child: Text('🏢 Fenêtres modernes'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'windows_classic',
+                            child: Text('🏛️ Fenêtres classiques'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'brick_red',
+                            child: Text('🧱 Brique rouge'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'brick_brown',
+                            child: Text('🟫 Brique marron'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'concrete',
+                            child: Text('⬜ Béton'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'glass_blue',
+                            child: Text('💎 Verre bleuté'),
+                          ),
                         ],
                         onChanged: (value) {
-                          if (value != null) setState(() => _facadeTexture = value);
+                          if (value != null)
+                            setState(() => _facadeTexture = value);
                         },
                       ),
                       const SizedBox(height: 16),
@@ -5026,12 +5327,30 @@ class _BuildingConfigDialogState extends State<_BuildingConfigDialog> {
                         ),
                       ),
                       items: const [
-                        DropdownMenuItem(value: 'concrete', child: Text('⬜ Béton')),
-                        DropdownMenuItem(value: 'tiles_red', child: Text('🔴 Tuiles rouges')),
-                        DropdownMenuItem(value: 'tiles_brown', child: Text('🟤 Tuiles brunes')),
-                        DropdownMenuItem(value: 'slate', child: Text('⬛ Ardoise')),
-                        DropdownMenuItem(value: 'metal_gray', child: Text('🔧 Métal gris')),
-                        DropdownMenuItem(value: 'green_roof', child: Text('🌿 Toit végétalisé')),
+                        DropdownMenuItem(
+                          value: 'concrete',
+                          child: Text('⬜ Béton'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'tiles_red',
+                          child: Text('🔴 Tuiles rouges'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'tiles_brown',
+                          child: Text('🟤 Tuiles brunes'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'slate',
+                          child: Text('⬛ Ardoise'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'metal_gray',
+                          child: Text('🔧 Métal gris'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'green_roof',
+                          child: Text('🌿 Toit végétalisé'),
+                        ),
                       ],
                       onChanged: (value) {
                         if (value != null) setState(() => _roofTexture = value);
@@ -5069,9 +5388,7 @@ class _BuildingConfigDialogState extends State<_BuildingConfigDialog> {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.grey.shade50,
-                border: Border(
-                  top: BorderSide(color: Colors.grey.shade300),
-                ),
+                border: Border(top: BorderSide(color: Colors.grey.shade300)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -5085,7 +5402,7 @@ class _BuildingConfigDialogState extends State<_BuildingConfigDialog> {
                     onPressed: () {
                       final lat = double.tryParse(_latController.text);
                       final lng = double.tryParse(_lngController.text);
-                      
+
                       if (lat == null || lng == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -5097,13 +5414,16 @@ class _BuildingConfigDialogState extends State<_BuildingConfigDialog> {
                       }
 
                       final buildingData = {
-                        'name': _nameController.text.isEmpty ? 'Bâtiment' : _nameController.text,
+                        'name': _nameController.text.isEmpty
+                            ? 'Bâtiment'
+                            : _nameController.text,
                         'lat': lat,
                         'lng': lng,
                         'facadeTexture': _facadeTexture,
                         'roofTexture': _roofTexture,
                         'scale': _scale,
-                        if (_hasCustomPhoto && _photoUrlController.text.isNotEmpty)
+                        if (_hasCustomPhoto &&
+                            _photoUrlController.text.isNotEmpty)
                           'facadePhotoUrl': _photoUrlController.text,
                       };
 
@@ -5115,7 +5435,10 @@ class _BuildingConfigDialogState extends State<_BuildingConfigDialog> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.indigo,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
                     ),
                   ),
                 ],
@@ -5127,4 +5450,3 @@ class _BuildingConfigDialogState extends State<_BuildingConfigDialog> {
     );
   }
 }
-
