@@ -13,12 +13,12 @@ class CartPage extends StatelessWidget {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
-      final checkoutUrl = await CartService.instance.createCheckoutSession(userId);
+      final checkoutUrl = await CartService.instance.createCheckoutSession(
+        userId,
+      );
 
       if (!context.mounted) return;
       Navigator.of(context).pop();
@@ -36,12 +36,9 @@ class CartPage extends StatelessWidget {
     } catch (e) {
       if (!context.mounted) return;
       Navigator.of(context).pop();
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -76,7 +73,10 @@ class CartPage extends StatelessWidget {
                     const SizedBox(height: 10),
                     const Text(
                       'Votre panier est vide',
-                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 6),
@@ -142,25 +142,34 @@ class CartPage extends StatelessWidget {
                           children: [
                             _QtyButton(
                               icon: Icons.remove,
-                              onTap: () => CartService.instance
-                                  .setQuantity(item.key, item.quantity - 1),
+                              onTap: () => CartService.instance.setQuantity(
+                                item.key,
+                                item.quantity - 1,
+                              ),
                             ),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
                               child: Text(
                                 '${item.quantity}',
-                                style: const TextStyle(fontWeight: FontWeight.w900),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                ),
                               ),
                             ),
                             _QtyButton(
                               icon: Icons.add,
-                              onTap: () => CartService.instance
-                                  .setQuantity(item.key, item.quantity + 1),
+                              onTap: () => CartService.instance.setQuantity(
+                                item.key,
+                                item.quantity + 1,
+                              ),
                             ),
                             const Spacer(),
                             IconButton(
                               tooltip: 'Supprimer',
-                              onPressed: () => CartService.instance.removeKey(item.key),
+                              onPressed: () =>
+                                  CartService.instance.removeKey(item.key),
                               icon: const Icon(Icons.close_rounded),
                             ),
                           ],
@@ -223,20 +232,23 @@ class CartPage extends StatelessWidget {
                   onPressed: CartService.instance.items.isEmpty
                       ? null
                       : () => requireSignIn(
-                            context,
-                            session: session,
-                            onSignedIn: () {
-                              // Utiliser FirebaseAuth pour récupérer l’uid
-                              final userId = FirebaseAuth.instance.currentUser?.uid;
-                              if (userId != null) {
-                                _checkout(context, userId);
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Utilisateur introuvable')),
-                                );
-                              }
-                            },
-                          ),
+                          context,
+                          session: session,
+                          onSignedIn: () {
+                            // Utiliser FirebaseAuth pour récupérer l’uid
+                            final userId =
+                                FirebaseAuth.instance.currentUser?.uid;
+                            if (userId != null) {
+                              _checkout(context, userId);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Utilisateur introuvable'),
+                                ),
+                              );
+                            }
+                          },
+                        ),
                   child: const Text('Commander'),
                 ),
               ],
@@ -261,11 +273,7 @@ class _QtyButton extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
-        child: SizedBox(
-          width: 36,
-          height: 36,
-          child: Icon(icon, size: 18),
-        ),
+        child: SizedBox(width: 36, height: 36, child: Icon(icon, size: 18)),
       ),
     );
   }

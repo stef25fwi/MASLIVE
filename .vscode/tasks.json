@@ -57,6 +57,16 @@
       "type": "shell",
       "command": "cd /workspaces/MASLIVE/app && flutter analyze",
       "problemMatcher": []
+    },
+    {
+      "label": "🚀 MASLIVE: ADD → COMMIT → PUSH → BUILD → DEPLOY",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add . && git commit -m \"update: wizard circuit avec prévisualisations\" && git push origin main && cd app && flutter build web --release && cd .. && firebase deploy --only hosting",
+      "problemMatcher": [],
+      "isBackground": false,
+      "group": {
+        "kind": "build"
+      }
     }
   ]
 }
