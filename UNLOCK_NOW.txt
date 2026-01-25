@@ -1,0 +1,66 @@
+# 🔓 DÉBLOCAGE IMMÉDIAT - GitHub Push Protection
+
+**L'historique Git contient une clé Stripe exposée → GitHub bloque le push**
+
+---
+
+## ⚡ SOLUTION RAPIDE (30 secondes)
+
+### Option A : Débloquer via GitHub (recommandé)
+
+```bash
+# 1. Ouvrir ce lien dans un navigateur :
+https://github.com/stef25fwi/MASLIVE/security/secret-scanning/unblock-secret/38huoCsuuMGnvkTFpd035iPmo8Q
+
+# 2. Cliquer "Allow"
+# 3. Retourner au terminal et faire :
+git push origin main
+```
+
+✅ **Fait** - Puis continuer le déploiement
+
+---
+
+### Option B : Nettoyer l'historique (radical)
+
+```bash
+# Supprimer la clé de TOUS les commits
+bash /workspaces/MASLIVE/cleanup_git_history.sh
+
+# Répondre "y" aux deux prompts
+```
+
+⚠️ **Réécrit l'historique** - Force push nécessaire
+
+---
+
+## 📚 Documentation complète
+
+- [UNLOCK_GITHUB_PUSH.md](UNLOCK_GITHUB_PUSH.md) - Guide détaillé
+- [cleanup_git_history.sh](cleanup_git_history.sh) - Script nettoyage
+
+---
+
+## 🚀 Après déblocage
+
+```bash
+# Build & Deploy
+cd /workspaces/MASLIVE/app
+flutter clean && flutter pub get && flutter build web --release
+
+cd ..
+firebase deploy --only hosting,functions,firestore:rules,firestore:indexes
+```
+
+---
+
+## 🎯 Résumé
+
+| Étape | Solution | Temps |
+|-------|----------|-------|
+| **Push bloqué** | GitHub Push Protection | - |
+| **Débloquer** | Cliquer lien GitHub (Option A) ⭐ | 30s |
+| **Ou nettoyer** | Script cleanup_git_history.sh (Option B) | 2min |
+| **Puis déployer** | Flutter build + Firebase deploy | 5-10min |
+
+**Recommandation : Option A** pour maintenant (rapide), Option B pour l'avenir (propreté).

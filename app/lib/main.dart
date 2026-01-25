@@ -14,7 +14,6 @@ import 'pages/group_profile_page.dart';
 import 'pages/group_shop_page.dart';
 import 'pages/role_router_page.dart';
 import 'pages/group_member_page.dart';
-import 'pages/admin_dashboard_page.dart';
 import 'pages/login_page.dart';
 import 'pages/tracking_live_page.dart';
 import 'pages/app_shell.dart';
@@ -35,12 +34,14 @@ import 'pages/circuit_draw_page.dart';
 import 'pages/purchase_history_page.dart';
 import 'pages/business_account_page.dart';
 import 'pages/business_request_page.dart';
+import 'pages/mapbox_web_map_page.dart';
 import 'admin/super_admin_space.dart';
 import 'admin/category_management_page.dart';
 import 'admin/role_management_page.dart';
 import 'admin/admin_circuits_page.dart';
 import 'admin/map_projects_library_page.dart';
 import 'admin/business_requests_page.dart';
+import 'admin/admin_main_dashboard.dart';
 import 'services/cart_service.dart';
 import 'services/notifications_service.dart';
 import 'services/premium_service.dart';
@@ -117,6 +118,7 @@ class MasLiveApp extends StatelessWidget {
               '/router': (_) => const RoleRouterPage(),
               '/': (_) => const HomeMapPage(),
               '/mapbox-google-light': (_) => const GoogleLightMapPage(),
+              '/mapbox-web': (_) => const MapboxWebMapPage(),
               '/account-ui': (_) => const AccountUiPage(),
               '/shop-ui': (_) => const ShopUiPage(),
               '/group-ui': (_) => const GroupProfilePage(groupId: 'demo'),
@@ -144,7 +146,7 @@ class MasLiveApp extends StatelessWidget {
                     : null;
                 return GroupMemberPage(groupId: groupId);
               },
-              '/admin': (_) => const AdminDashboardPage(),
+              '/admin': (_) => const AdminMainDashboard(),
               '/admin/circuits': (_) => const AdminCircuitsPage(),
               '/admin/track-editor': (_) => const CircuitEditorWorkflowPage(),
               '/admin/map-library': (_) => const MapProjectsLibraryPage(),
