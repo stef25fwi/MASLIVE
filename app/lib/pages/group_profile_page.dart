@@ -43,7 +43,7 @@ class _GroupProfilePageState extends State<GroupProfilePage> {
                           onPressed: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => ShopUiPage(groupId: widget.groupId)),
+                              MaterialPageRoute(builder: (_) => ShopPixelPerfectPage(groupId: widget.groupId)),
                             );
                           },
                           icon: const Icon(Icons.shopping_bag_outlined),

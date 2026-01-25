@@ -599,10 +599,14 @@ class _GalleryImage extends StatelessWidget {
       return Image.network(
         src,
         fit: fit,
-        errorBuilder: (_, __, ___) => _fallback(),
+        errorBuilder: (context, error, stackTrace) => _fallback(),
       );
     }
-    return Image.asset(src, fit: fit, errorBuilder: (_, __, ___) => _fallback());
+    return Image.asset(
+      src,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) => _fallback(),
+    );
   }
 
   Widget _fallback() {

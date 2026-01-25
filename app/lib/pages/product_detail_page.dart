@@ -42,7 +42,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       return Image.network(
         urls.first,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Image.asset(
+        errorBuilder: (context, error, stackTrace) => Image.asset(
           'assets/splash/maslivesmall.png',
           fit: BoxFit.cover,
         ),
@@ -55,7 +55,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         return Image.network(
           urls[i],
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Image.asset(
+          errorBuilder: (context, error, stackTrace) => Image.asset(
             'assets/splash/maslivesmall.png',
             fit: BoxFit.cover,
           ),

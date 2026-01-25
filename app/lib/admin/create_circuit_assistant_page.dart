@@ -18,6 +18,8 @@ class _CreateCircuitAssistantPageState
   bool _isFocusMode = false;
   Timer? _autoSaveTimer;
   DateTime? _lastAutoSave;
+  String _mapName = '';
+  final List<bool> _stepValidated = List<bool>.filled(5, false);
 
   @override
   void initState() {
@@ -40,14 +42,18 @@ class _CreateCircuitAssistantPageState
   }
 
   // Sauvegarder le brouillon
-  Future<void> _saveDraft() async {
+  Future<void> _saveDraft({String? mapName}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final nameToSave = mapName ?? _mapName;
       final draftData = {
         'step': _step,
         'timestamp': DateTime.now().toIso8601String(),
         'isFocusMode': _isFocusMode,
+        'mapName': nameToSave,
+        'stepValidated': _stepValidated,
       };
+      _mapName = nameToSave;
       await prefs.setString('circuit_draft', jsonEncode(draftData));
       setState(() {
         _lastAutoSave = DateTime.now();
@@ -98,6 +104,16 @@ class _CreateCircuitAssistantPageState
             setState(() {
               _step = draftData['step'] ?? 0;
               _isFocusMode = draftData['isFocusMode'] ?? false;
+                _mapName = draftData['mapName'] ?? '';
+              final restoredValidated = draftData['stepValidated'];
+              if (restoredValidated is List) {
+                for (int i = 0; i < _stepValidated.length && i < restoredValidated.length; i++) {
+                  final val = restoredValidated[i];
+                  if (val is bool) {
+                    _stepValidated[i] = val;
+                  }
+                }
+              }
             });
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -145,6 +161,7 @@ class _CreateCircuitAssistantPageState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 52,
         title: Text(_getStepTitle(_step)),
         actions: [
           // Auto-save indicator
@@ -176,24 +193,77 @@ class _CreateCircuitAssistantPageState
             IconButton(
               icon: const Icon(Icons.save),
               tooltip: 'Sauvegarder manuellement',
-              onPressed: () async {
-                await _saveDraft();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('💾 Brouillon sauvegardé'),
-                      backgroundColor: Colors.blue,
-                      duration: Duration(seconds: 1),
-                    ),
-                  );
-                }
-              },
+              onPressed: _showSaveDialog,
             ),
         ],
       ),
-      body: _buildStepContent(),
+      body: Column(
+        children: [
+          _buildStepSelector(),
+          Expanded(child: _buildStepContent()),
+        ],
+      ),
       bottomNavigationBar: _buildBottomBar(),
     );
+  }
+
+  Future<void> _showSaveDialog() async {
+    final controller = TextEditingController(text: _mapName);
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Nommer la carte'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              labelText: 'Nom de la carte',
+              hintText: 'Ex: Circuit volcan vert',
+            ),
+            autofocus: true,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final value = controller.text.trim();
+                if (value.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('⚠️ Donnez un nom à la carte'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                  return;
+                }
+                Navigator.pop(context, value);
+              },
+              child: const Text('Sauvegarder'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result != null) {
+      setState(() {
+        _mapName = result;
+      });
+      await _saveDraft(mapName: result);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('💾 Carte "${result}" sauvegardée'),
+            backgroundColor: Colors.blue,
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+    }
   }
 
   String _getStepTitle(int step) {
@@ -232,14 +302,50 @@ class _CreateCircuitAssistantPageState
 
   Widget _buildBottomBar() {
     return BottomAppBar(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          if (_step > 0)
-            TextButton(onPressed: _prevStep, child: const Text('Précédent')),
-          if (_step < 4)
-            ElevatedButton(onPressed: _nextStep, child: const Text('Suivant')),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.verified_outlined, size: 18),
+                    const SizedBox(width: 8),
+                    Text('Étape validée', style: Theme.of(context).textTheme.bodyMedium),
+                  ],
+                ),
+                Switch(
+                  value: _stepValidated[_step],
+                  onChanged: (val) {
+                    setState(() {
+                      _stepValidated[_step] = val;
+                    });
+                    _saveDraft();
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (_step > 0)
+                  TextButton(onPressed: _prevStep, child: const Text('Précédent')),
+                Row(
+                  children: [
+                    Text('Étape ${_step + 1}/5', style: Theme.of(context).textTheme.bodySmall),
+                    const SizedBox(width: 12),
+                    if (_step < 4)
+                      ElevatedButton(onPressed: _nextStep, child: const Text('Suivant')),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -254,6 +360,58 @@ class _CreateCircuitAssistantPageState
     setState(() {
       if (_step > 0) _step--;
     });
+  }
+
+  void _goToStep(int step) {
+    if (step < 0 || step > 4) return;
+    setState(() {
+      _step = step;
+    });
+  }
+
+  Widget _buildStepSelector() {
+    final steps = [
+      'Périmètre',
+      'Mode hors-ligne',
+      'Tracer',
+      'Segments',
+      'Publier',
+    ];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: List.generate(steps.length, (index) {
+            final isActive = index == _step;
+            final isValidated = _stepValidated[index];
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('${index + 1} • ${steps[index]}'),
+                    if (isValidated) ...[
+                      const SizedBox(width: 6),
+                      const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                    ],
+                  ],
+                ),
+                selected: isActive,
+                onSelected: (_) => _goToStep(index),
+                selectedColor: Colors.blue.shade100,
+              ),
+            );
+          }),
+        ),
+      ),
+    );
   }
 }
 
@@ -982,7 +1140,7 @@ class _StepTuileState extends State<_StepTuile> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? style['color'].withOpacity(0.1)
+                        ? style['color'].withValues(alpha: 0.1)
                         : Colors.white,
                     border: Border.all(
                       color: isSelected ? style['color'] : Colors.grey.shade300,
@@ -1068,7 +1226,7 @@ class _StepTuileState extends State<_StepTuile> {
               child: Container(
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? layer['color'].withOpacity(0.1)
+                      ? layer['color'].withValues(alpha: 0.1)
                       : Colors.grey.shade50,
                   border: Border.all(
                     color: isSelected ? layer['color'] : Colors.grey.shade300,
@@ -1722,7 +1880,7 @@ class _StepTuileState extends State<_StepTuile> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -1802,7 +1960,7 @@ class _StepTuileState extends State<_StepTuile> {
                 style: TextStyle(fontSize: 12),
               ),
             ),
-            activeColor: Colors.purple.shade600,
+            activeThumbColor: Colors.purple.shade600,
           ),
         ),
 
@@ -2365,7 +2523,7 @@ class _StepTuileState extends State<_StepTuile> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withValues(alpha: 0.8),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -2456,7 +2614,7 @@ class _StepTuileState extends State<_StepTuile> {
         border: Border.all(color: Colors.indigo.shade300, width: 2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -2657,7 +2815,7 @@ class _StepTuileState extends State<_StepTuile> {
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -3755,7 +3913,7 @@ class _StepTracerState extends State<_StepTracer> {
             subtitle: const Text(
               'Les points s\'alignent automatiquement sur les routes',
             ),
-            activeColor: Colors.green,
+            activeThumbColor: Colors.green,
           ),
 
           const SizedBox(height: 8),
@@ -3769,7 +3927,7 @@ class _StepTracerState extends State<_StepTracer> {
             },
             title: const Text('Afficher le profil d\'élévation'),
             subtitle: const Text('Visualiser les montées et descentes'),
-            activeColor: Colors.green,
+            activeThumbColor: Colors.green,
           ),
 
           if (_showElevation) ...[
@@ -6095,7 +6253,7 @@ class _BuildingConfigDialogState extends State<_BuildingConfigDialog> {
                       subtitle: const Text(
                         'Appliquée sur les façades de ce bâtiment',
                       ),
-                      activeColor: Colors.indigo,
+                      activeThumbColor: Colors.indigo,
                     ),
                     if (_hasCustomPhoto) ...[
                       const SizedBox(height: 12),

@@ -78,7 +78,7 @@ class LanguageExamplePage extends StatelessWidget {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: languages.length,
-                separatorBuilder: (_, __) => const Divider(),
+                separatorBuilder: (context, index) => const Divider(),
                 itemBuilder: (context, index) {
                   final lang = languages[index];
                   final code = lang['code']!;
@@ -111,7 +111,7 @@ class LanguageExamplePage extends StatelessWidget {
                 onPressed: () {
                   showDialog(
                     context: context,
-                    builder: (_) => LanguageSelectionDialog(),
+                    builder: (dialogContext) => LanguageSelectionDialog(),
                   );
                 },
               ),

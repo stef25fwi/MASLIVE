@@ -609,7 +609,7 @@ class _MediaGalleriesPageState extends State<MediaGalleriesPage> {
                       child: ListView.separated(
                         shrinkWrap: true,
                         itemCount: items.length,
-                        separatorBuilder: (_, __) => const Divider(height: 16),
+                        separatorBuilder: (context, index) => const Divider(height: 16),
                         itemBuilder: (context, i) {
                           final gallery = items[i];
                           return Row(
@@ -1055,7 +1055,7 @@ class _Img extends StatelessWidget {
                 ),
               ),
             ),
-      errorBuilder: (_, __, ___) => Container(
+      errorBuilder: (context, error, stackTrace) => Container(
         color: Colors.black.withOpacity(0.06),
         alignment: Alignment.center,
         child: const Icon(Icons.image_not_supported_outlined),
