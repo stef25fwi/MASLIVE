@@ -120,7 +120,7 @@ class MasLiveApp extends StatelessWidget {
               '/mapbox-google-light': (_) => const GoogleLightMapPage(),
               '/mapbox-web': (_) => const MapboxWebMapPage(),
               '/account-ui': (_) => const AccountUiPage(),
-              '/shop-ui': (_) => const ShopUiPage(),
+              '/shop-ui': (_) => const ShopPixelPerfectPage(),
               '/group-ui': (_) => const GroupProfilePage(groupId: 'demo'),
               '/app': (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments as Map?;

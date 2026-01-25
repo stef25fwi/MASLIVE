@@ -58,27 +58,27 @@ class PhotoDoc {
 
   static PhotoDoc fromDoc(DocumentSnapshot<Map<String, dynamic>> d) {
     final m = d.data() ?? {};
-    DateTime _ts(dynamic v) {
+    DateTime parseTimestamp(dynamic v) {
       if (v is Timestamp) return v.toDate();
       if (v is DateTime) return v;
       return DateTime.fromMillisecondsSinceEpoch(0);
     }
 
-    int _i(dynamic v, [int def = 0]) => (v is int) ? v : def;
-    String _s(dynamic v, [String def = '']) => (v is String) ? v : def;
+    int parseInt(dynamic v, [int def = 0]) => (v is int) ? v : def;
+    String parseString(dynamic v, [String def = '']) => (v is String) ? v : def;
 
     return PhotoDoc(
       id: d.id,
-      country: _s(m['country']),
-      eventDate: _ts(m['eventDate']),
-      eventName: _s(m['eventName']),
-      groupName: _s(m['groupName']),
-      photographerName: _s(m['photographerName']),
+      country: parseString(m['country']),
+      eventDate: parseTimestamp(m['eventDate']),
+      eventName: parseString(m['eventName']),
+      groupName: parseString(m['groupName']),
+      photographerName: parseString(m['photographerName']),
       photographerId: m['photographerId'] is String ? m['photographerId'] as String : null,
-      priceCents: _i(m['priceCents'], 0),
-      thumbPath: _s(m['thumbPath']),
-      fullPath: _s(m['fullPath']),
-      popularity: _i(m['popularity'], 0),
+      priceCents: parseInt(m['priceCents'], 0),
+      thumbPath: parseString(m['thumbPath']),
+      fullPath: parseString(m['fullPath']),
+      popularity: parseInt(m['popularity'], 0),
     );
   }
 }
@@ -194,8 +194,8 @@ class CartProvider extends ChangeNotifier {
   int get selectedCount => _selected.length;
   int get cartCount => _cart.length;
 
-  int get selectedTotalCents => _selected.values.fold(0, (sum, p) => sum + p.priceCents);
-  int get cartTotalCentsBeforeDiscount => _cart.values.fold(0, (sum, p) => sum + p.priceCents);
+  int get selectedTotalCents => _selected.values.fold(0, (total, p) => total + p.priceCents);
+  int get cartTotalCentsBeforeDiscount => _cart.values.fold(0, (total, p) => total + p.priceCents);
 
   DiscountResult get cartDiscount => computePackDiscount(
         itemCount: cartCount,
