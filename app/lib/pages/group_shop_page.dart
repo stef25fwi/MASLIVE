@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'shop_page.dart';
+import 'shop_page_new.dart';
 
 class GroupShopPage extends StatelessWidget {
   const GroupShopPage({super.key, required this.groupId});
