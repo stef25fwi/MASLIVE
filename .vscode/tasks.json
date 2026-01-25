@@ -2,6 +2,15 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "MASLIVE: Commit admin wizard",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/admin/admin_main_dashboard.dart app/lib/admin/create_circuit_assistant_page.dart && git commit -m \"admin: ajout Assistant Wizard + cleanup wizard circuit\"",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build"
+      }
+    },
+    {
       "label": "MASLIVE: Flutter pub get",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE/app && flutter pub get",
