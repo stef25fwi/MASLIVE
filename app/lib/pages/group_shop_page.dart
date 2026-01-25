@@ -8,6 +8,6 @@ class GroupShopPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ShopPixelPerfectPage(groupId: groupId);
+    return const ShopPixelPerfectPage();
   }
 }
