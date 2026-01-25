@@ -56,6 +56,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
           slivers: [
             _Header(
               height: _headerH,
+              onBackTap: () => Navigator.of(context).maybePop(),
               onCartTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const CartPage()),
@@ -220,8 +221,9 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
 
 /// -------------------- HEADER --------------------
 class _Header extends StatelessWidget {
-  const _Header({required this.height, required this.onCartTap});
+  const _Header({required this.height, required this.onBackTap, required this.onCartTap});
   final double height;
+  final VoidCallback onBackTap;
   final VoidCallback onCartTap;
 
   @override
@@ -255,6 +257,7 @@ class _Header extends StatelessWidget {
                   children: [
                     Row(
                       children: [
+                        _BackButton(onTap: onBackTap),
                         const Spacer(),
                         _CartButton(onTap: onCartTap),
                       ],
@@ -328,6 +331,33 @@ class _CartButton extends StatelessWidget {
             border: Border.all(color: Colors.white.withOpacity(0.22)),
           ),
           child: const Icon(Icons.shopping_bag_outlined, color: Colors.white, size: 34),
+        ),
+      ),
+    );
+  }
+}
+
+class _BackButton extends StatelessWidget {
+  const _BackButton({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withOpacity(0.16),
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          width: 52,
+          height: 52,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Colors.white.withOpacity(0.22)),
+          ),
+          child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
         ),
       ),
     );
