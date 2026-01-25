@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'account_admin_page.dart';
 import '../services/auth_service.dart';
@@ -18,11 +19,13 @@ class AccountUiPage extends StatefulWidget {
 
 class _AccountUiPageState extends State<AccountUiPage> {
   bool _isAdmin = false;
+  bool _hasBusiness = false;
 
   @override
   void initState() {
     super.initState();
     _checkAdminStatus();
+    _checkBusinessStatus();
   }
 
   Future<void> _checkAdminStatus() async {
@@ -44,6 +47,18 @@ class _AccountUiPageState extends State<AccountUiPage> {
           _isAdmin = profile?.isAdmin ?? false;
         });
       }
+    }
+  }
+
+  Future<void> _checkBusinessStatus() async {
+    try {
+      final user = AuthService.instance.currentUser;
+      if (user == null) return;
+      final doc = await FirebaseFirestore.instance.collection('businesses').doc(user.uid).get();
+      if (!mounted) return;
+      setState(() => _hasBusiness = doc.exists);
+    } catch (_) {
+      // ignore silent failures for optional tile
     }
   }
 
@@ -73,27 +88,15 @@ class _AccountUiPageState extends State<AccountUiPage> {
     final tiles = <_AccountTileData>[
       _AccountTileData(
         icon: Icons.favorite_border,
-        title: l10n.myFavorites,
-        subtitle: l10n.savedPlacesGroups,
+        title: 'Mes favoris & groupes',
+        subtitle: 'Lieux et communautés enregistrés',
         route: '/favorites',
-      ),
-      _AccountTileData(
-        icon: Icons.business_center_outlined,
-        title: 'Compte professionnel',
-        subtitle: 'Demande + paiements Stripe',
-        route: '/business',
       ),
       _AccountTileData(
         icon: Icons.shopping_bag_outlined,
         title: 'Historique des achats',
         subtitle: 'Mes commandes et photos',
         route: '/purchase-history',
-      ),
-      _AccountTileData(
-        icon: Icons.groups_2_rounded,
-        title: l10n.myGroups,
-        subtitle: l10n.accessYourCommunities,
-        route: '/groups',
       ),
       _AccountTileData(
         icon: Icons.notifications_none_rounded,
@@ -115,25 +118,27 @@ class _AccountUiPageState extends State<AccountUiPage> {
       ),
     ];
 
-    if (_isAdmin) {
-      tiles.add(
-        _AccountTileData(
-          icon: Icons.verified_user_outlined,
-          title: 'Demandes pro',
-          subtitle: 'Valider/refuser les comptes professionnels',
-          route: '/admin/business-requests',
-        ),
-      );
+    if (_hasBusiness) {
+      tiles.insert(1, _AccountTileData(
+        icon: Icons.business_center_outlined,
+        title: 'Compte professionnel',
+        subtitle: 'Demande + paiements Stripe',
+        route: '/business',
+      ));
     }
 
     return Scaffold(
       body: HoneycombBackground(
         child: CustomScrollView(
           slivers: [
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: RainbowHeader(
                 title: 'Mon Profil',
-                trailing: Icon(
+                leading: IconButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+                ),
+                trailing: const Icon(
                   Icons.account_circle_outlined,
                   color: Colors.white,
                 ),

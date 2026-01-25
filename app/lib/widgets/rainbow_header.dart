@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class RainbowHeader extends StatelessWidget {
   final String title;
+  final Widget? leading;
   final Widget? trailing;
   final double height;
   final TextStyle? titleStyle;
@@ -9,6 +10,7 @@ class RainbowHeader extends StatelessWidget {
   const RainbowHeader({
     super.key,
     required this.title,
+    this.leading,
     this.trailing,
     this.height = 150,
     this.titleStyle,
@@ -73,6 +75,12 @@ class RainbowHeader extends StatelessWidget {
                     right: 16,
                     top: 14,
                     child: trailing!,
+                  ),
+                if (leading != null)
+                  Positioned(
+                    left: 16,
+                    top: 14,
+                    child: leading!,
                   ),
               ],
             ),

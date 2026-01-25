@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:async';
 
+import '../ui/widgets/mapbox_web_view.dart';
+
 /// Assistant step-by-step pour la création de circuit
+const _mapboxToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+
 class CreateCircuitAssistantPage extends StatefulWidget {
   const CreateCircuitAssistantPage({super.key});
 
@@ -628,78 +633,183 @@ class _StepPerimetreState extends State<_StepPerimetre> {
   Widget _buildDrawMode() {
     return Stack(
       children: [
-        // Zone carte (placeholder - à remplacer par Flutter Map)
-        Container(
-          margin: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.grey[200],
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey[400]!),
-          ),
-          child: InkWell(
-            onTap: _isValidated
-                ? null
-                : () {
-                    // Simuler ajout de point (à remplacer par vraie carte)
-                    _addPoint(
-                      16.0 + _polygonPoints.length * 0.01,
-                      -61.0 + _polygonPoints.length * 0.01,
-                    );
-                  },
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.touch_app, size: 48, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    _isValidated
-                        ? 'Périmètre validé'
-                        : 'Tapez pour ajouter des points',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 16),
-                  ),
-                  if (_polygonPoints.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      '${_polygonPoints.length} points placés',
-                      style: TextStyle(color: Colors.grey[500], fontSize: 14),
+        // Zone carte : Mapbox si dispo, sinon placeholder
+        Stack(
+          children: [
+            Container(
+              margin: const EdgeInsets.all(16),
+              height: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[400]!),
+              ),
+              clipBehavior: Clip.hardEdge,
+              child: kIsWeb && _mapboxToken.isNotEmpty
+                  ? MapboxWebView(
+                      accessToken: _mapboxToken,
+                      initialLat: 16.242,
+                      initialLng: -61.534,
+                      initialZoom: 12.5,
+                      styleUrl: 'mapbox://styles/mapbox/streets-v12',
+                    )
+                  : Center(
+                      child: Text(
+                        'Mapbox nécessite MAPBOX_ACCESS_TOKEN',
+                        style: TextStyle(color: Colors.grey[600]),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
-                  ],
-                  if (_isValidated) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade100,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+            ),
+            
+            // Overlay pour capturer les clics (sauf si Mapbox est actif et détection native)
+            if (!kIsWeb || _mapboxToken.isEmpty)
+              Positioned.fill(
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _isValidated
+                        ? null
+                        : () {
+                            _addPoint(
+                              16.0 + _polygonPoints.length * 0.01,
+                              -61.0 + _polygonPoints.length * 0.01,
+                            );
+                          },
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.check_circle,
-                            color: Colors.green.shade700,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Périmètre verrouillé',
-                            style: TextStyle(
-                              color: Colors.green.shade900,
-                              fontWeight: FontWeight.w600,
+                          Icon(Icons.touch_app, size: 48, color: Colors.white.withOpacity(0.8)),
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.45),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              _isValidated
+                                  ? 'Périmètre validé'
+                                  : 'Clique sur la carte pour ajouter des points',
+                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
                             ),
                           ),
+                          if (_polygonPoints.isNotEmpty) ...[
+                            const SizedBox(height: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.4),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '${_polygonPoints.length} points placés',
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ],
+                          if (_isValidated) ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade600.withOpacity(0.9),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  Icon(Icons.check_circle, color: Colors.white, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Périmètre verrouillé',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
-                  ],
-                ],
-              ),
-            ),
-          ),
+                  ),
+                ),
+              )
+            else
+              // Overlay instructions pour Mapbox (Web avec token)
+              if (!_isValidated)
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  right: 16,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.95),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Mapbox actif - Cliquez sur la carte pour ajouter des points (${_polygonPoints.length})',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  right: 16,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50.withOpacity(0.95),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.green.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green.shade700, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Périmètre validé (${_polygonPoints.length} points)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.green.shade900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+          ],
         ),
 
         // Floating action buttons (undo, clear)
@@ -6854,8 +6964,10 @@ class _MapPreviewWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final useMapbox = kIsWeb && _mapboxToken.isNotEmpty;
+
     return Container(
-      height: 180,
+      height: 220,
       margin: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -6878,26 +6990,38 @@ class _MapPreviewWidget extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Fond de carte avec grille
-            CustomPaint(
-              painter: _GridPainter(),
-              child: Container(),
-            ),
+            if (useMapbox)
+              MapboxWebView(
+                accessToken: _mapboxToken,
+                initialLat: (polygonPoints?.isNotEmpty ?? false)
+                    ? polygonPoints!.first['lat'] ?? 16.241
+                    : 16.241,
+                initialLng: (polygonPoints?.isNotEmpty ?? false)
+                    ? polygonPoints!.first['lng'] ?? -61.534
+                    : -61.534,
+                initialZoom: 11.8,
+                styleUrl: 'mapbox://styles/mapbox/outdoors-v12',
+              )
+            else
+              CustomPaint(
+                painter: _GridPainter(),
+                child: Container(),
+              ),
             
             // Dessiner le périmètre si présent
-            if (polygonPoints != null && polygonPoints!.isNotEmpty)
+            if (!useMapbox && polygonPoints != null && polygonPoints!.isNotEmpty)
               CustomPaint(
                 painter: _PolygonPreviewPainter(points: polygonPoints!),
               ),
             
             // Dessiner le tracé si présent
-            if (routePoints != null && routePoints!.isNotEmpty)
+            if (!useMapbox && routePoints != null && routePoints!.isNotEmpty)
               CustomPaint(
                 painter: _RoutePreviewPainter(points: routePoints!),
               ),
             
             // Dessiner les segments si présents
-            if (segments != null && segments!.isNotEmpty)
+            if (!useMapbox && segments != null && segments!.isNotEmpty)
               CustomPaint(
                 painter: _SegmentsPreviewPainter(segments: segments!),
               ),
@@ -6957,17 +7081,53 @@ class _MapPreviewWidget extends StatelessWidget {
               ),
             ),
             
-            // Informations overlay
+            // Informations overlay avec statut Mapbox
             Positioned(
               bottom: 8,
               left: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: _buildInfoText(),
+              right: 8,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: _buildInfoText(),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: useMapbox 
+                          ? Colors.green.shade700.withOpacity(0.8)
+                          : Colors.orange.shade700.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          useMapbox ? Icons.cloud_done : Icons.cloud_off,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          useMapbox ? 'Mapbox' : 'Aperçu',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
