@@ -95,8 +95,12 @@ class _BusinessRequestPageState extends State<BusinessRequestPage> {
         await ref.update({
           'companyName': _companyCtrl.text.trim(),
           'siret': _siretCtrl.text.trim(),
-          if (status == 'rejected') 'status': 'pending',
-          if (status == 'rejected') 'rejectionReason': FieldValue.delete(),
+          if (status == 'rejected') ...{
+            'status': 'pending',
+            'rejectionReason': FieldValue.delete(),
+            'reviewedAt': FieldValue.delete(),
+            'reviewedBy': FieldValue.delete(),
+          },
           'updatedAt': FieldValue.serverTimestamp(),
         });
       } else {
@@ -112,9 +116,9 @@ class _BusinessRequestPageState extends State<BusinessRequestPage> {
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Demande envoyée.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Demande envoyée.')),
+      );
       Navigator.pop(context);
     } catch (e) {
       setState(() => _error = e.toString());

@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../models/cart_item.dart';
 import '../models/product_model.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 class CartService extends ChangeNotifier {
   CartService._();
@@ -177,6 +178,26 @@ class CartService extends ChangeNotifier {
   void clear() {
     _itemsByKey.clear();
     _afterLocalMutation();
+  }
+
+  /// Créer une commande et obtenir l'URL de checkout Stripe
+  Future<String?> createCheckoutSession(String userId) async {
+    if (_itemsByKey.isEmpty) return null;
+
+    try {
+      final callable = FirebaseFunctions.instanceFor(region: 'us-east1')
+          .httpsCallable('createMediaShopCheckout');
+
+      final result = await callable.call<Map<String, dynamic>>({
+        'userId': userId,
+      });
+
+      final data = result.data;
+      return data['checkoutUrl'] as String?;
+    } catch (e) {
+      debugPrint('Error creating checkout: $e');
+      rethrow;
+    }
   }
 
   @override
