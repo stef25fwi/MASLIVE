@@ -1,0 +1,177 @@
+[1mdiff --git a/app/lib/admin/business_requests_page.dart b/app/lib/admin/business_requests_page.dart[m
+[1mindex cb52d04..f5760ed 100644[m
+[1m--- a/app/lib/admin/business_requests_page.dart[m
+[1m+++ b/app/lib/admin/business_requests_page.dart[m
+[36m@@ -53,9 +53,9 @@[m [mclass _BusinessRequestsPageState extends State<BusinessRequestsPage> {[m
+     });[m
+ [m
+     if (!mounted) return;[m
+[31m-    ScaffoldMessenger.of([m
+[31m-      context,[m
+[31m-    ).showSnackBar(const SnackBar(content: Text('Demande approuvée')));[m
+[32m+[m[32m    ScaffoldMessenger.of(context).showSnackBar([m
+[32m+[m[32m      const SnackBar(content: Text('Demande approuvée')),[m
+[32m+[m[32m    );[m
+   }[m
+ [m
+   Future<void> _reject(String uid) async {[m
+[36m@@ -63,45 +63,51 @@[m [mclass _BusinessRequestsPageState extends State<BusinessRequestsPage> {[m
+     if (adminUid == null) return;[m
+ [m
+     final ctrl = TextEditingController();[m
+[31m-    final res = await showDialog<String?>([m
+[31m-      context: context,[m
+[31m-      builder: (context) {[m
+[31m-        return AlertDialog([m
+[31m-          title: const Text('Refuser la demande'),[m
+[31m-          content: TextField([m
+[31m-            controller: ctrl,[m
+[31m-            decoration: const InputDecoration(labelText: 'Motif (optionnel)'),[m
+[31m-            maxLines: 3,[m
+[31m-          ),[m
+[31m-          actions: [[m
+[31m-            TextButton([m
+[31m-              onPressed: () => Navigator.pop(context, null),[m
+[31m-              child: const Text('Annuler'),[m
+[31m-            ),[m
+[31m-            ElevatedButton([m
+[31m-              onPressed: () => Navigator.pop(context, ctrl.text.trim()),[m
+[31m-              child: const Text('Refuser'),[m
+[32m+[m[41m    [m
+[32m+[m[32m    try {[m
+[32m+[m[32m      final res = await showDialog<String?>([m
+[32m+[m[32m        context: context,[m
+[32m+[m[32m        builder: (context) {[m
+[32m+[m[32m          return AlertDialog([m
+[32m+[m[32m            title: const Text('Refuser la demande'),[m
+[32m+[m[32m            content: TextField([m
+[32m+[m[32m              controller: ctrl,[m
+[32m+[m[32m              decoration: const InputDecoration(labelText: 'Motif (optionnel)'),[m
+[32m+[m[32m              maxLines: 3,[m
+             ),[m
+[31m-          ],[m
+[31m-        );[m
+[31m-      },[m
+[31m-    );[m
+[32m+[m[32m            actions: [[m
+[32m+[m[32m              TextButton([m
+[32m+[m[32m                onPressed: () => Navigator.pop(context, null),[m
+[32m+[m[32m                child: const Text('Annuler'),[m
+[32m+[m[32m              ),[m
+[32m+[m[32m              ElevatedButton([m
+[32m+[m[32m                onPressed: () => Navigator.pop(context, ctrl.text.trim()),[m
+[32m+[m[32m                child: const Text('Refuser'),[m
+[32m+[m[32m              ),[m
+[32m+[m[32m            ],[m
+[32m+[m[32m          );[m
+[32m+[m[32m        },[m
+[32m+[m[32m      );[m
+ [m
+[31m-    final reason = res ?? '';[m
+[32m+[m[32m      if (res == null) return; // Dialog annulé[m
+ [m
+[31m-    await FirebaseFirestore.instance.collection('businesses').doc(uid).update({[m
+[31m-      'status': 'rejected',[m
+[31m-      'reviewedAt': FieldValue.serverTimestamp(),[m
+[31m-      'reviewedBy': adminUid,[m
+[31m-      if (reason.isNotEmpty) 'rejectionReason': reason,[m
+[31m-      if (reason.isEmpty) 'rejectionReason': FieldValue.delete(),[m
+[31m-      'updatedAt': FieldValue.serverTimestamp(),[m
+[31m-    });[m
+[32m+[m[32m      final reason = res.trim();[m
+ [m
+[31m-    if (!mounted) return;[m
+[31m-    ScaffoldMessenger.of([m
+[31m-      context,[m
+[31m-    ).showSnackBar(const SnackBar(content: Text('Demande refusée')));[m
+[32m+[m[32m      await FirebaseFirestore.instance.collection('businesses').doc(uid).update({[m
+[32m+[m[32m        'status': 'rejected',[m
+[32m+[m[32m        'reviewedAt': FieldValue.serverTimestamp(),[m
+[32m+[m[32m        'reviewedBy': adminUid,[m
+[32m+[m[32m        if (reason.isNotEmpty) 'rejectionReason': reason,[m
+[32m+[m[32m        'updatedAt': FieldValue.serverTimestamp(),[m
+[32m+[m[32m      });[m
+[32m+[m
+[32m+[m[32m      if (!mounted) return;[m
+[32m+[m[32m      ScaffoldMessenger.of(context).showSnackBar([m
+[32m+[m[32m        const SnackBar(content: Text('Demande refusée')),[m
+[32m+[m[32m      );[m
+[32m+[m[32m    } finally {[m
+[32m+[m[32m      ctrl.dispose();[m
+[32m+[m[32m    }[m
+   }[m
+ [m
+   @override[m
+[36m@@ -126,7 +132,8 @@[m [mclass _BusinessRequestsPageState extends State<BusinessRequestsPage> {[m
+     final q = FirebaseFirestore.instance[m
+         .collection('businesses')[m
+         .where('status', isEqualTo: 'pending')[m
+[31m-        .orderBy('createdAt', descending: true);[m
+[32m+[m[32m        .orderBy('createdAt', descending: true)[m
+[32m+[m[32m        .limit(100); // Limite pour éviter trop de données[m
+ [m
+     return Scaffold([m
+       appBar: AppBar(title: const Text('Demandes pro (pending)')),[m
+[1mdiff --git a/app/lib/pages/business_request_page.dart b/app/lib/pages/business_request_page.dart[m
+[1mindex 91127aa..5881efc 100644[m
+[1m--- a/app/lib/pages/business_request_page.dart[m
+[1m+++ b/app/lib/pages/business_request_page.dart[m
+[36m@@ -95,8 +95,12 @@[m [mclass _BusinessRequestPageState extends State<BusinessRequestPage> {[m
+         await ref.update({[m
+           'companyName': _companyCtrl.text.trim(),[m
+           'siret': _siretCtrl.text.trim(),[m
+[31m-          if (status == 'rejected') 'status': 'pending',[m
+[31m-          if (status == 'rejected') 'rejectionReason': FieldValue.delete(),[m
+[32m+[m[32m          if (status == 'rejected') ...{[m
+[32m+[m[32m            'status': 'pending',[m
+[32m+[m[32m            'rejectionReason': FieldValue.delete(),[m
+[32m+[m[32m            'reviewedAt': FieldValue.delete(),[m
+[32m+[m[32m            'reviewedBy': FieldValue.delete(),[m
+[32m+[m[32m          },[m
+           'updatedAt': FieldValue.serverTimestamp(),[m
+         });[m
+       } else {[m
+[36m@@ -112,9 +116,9 @@[m [mclass _BusinessRequestPageState extends State<BusinessRequestPage> {[m
+       }[m
+ [m
+       if (!mounted) return;[m
+[31m-      ScaffoldMessenger.of([m
+[31m-        context,[m
+[31m-      ).showSnackBar(const SnackBar(content: Text('Demande envoyée.')));[m
+[32m+[m[32m      ScaffoldMessenger.of(context).showSnackBar([m
+[32m+[m[32m        const SnackBar(content: Text('Demande envoyée.')),[m
+[32m+[m[32m      );[m
+       Navigator.pop(context);[m
+     } catch (e) {[m
+       setState(() => _error = e.toString());[m
+[1mdiff --git a/app/lib/pages/cart_page.dart b/app/lib/pages/cart_page.dart[m
+[1mindex 14a99a7..4bb889c 100644[m
+[1m--- a/app/lib/pages/cart_page.dart[m
+[1m+++ b/app/lib/pages/cart_page.dart[m
+[36m@@ -1,4 +1,5 @@[m
+ import 'package:flutter/material.dart';[m
+[32m+[m[32mimport 'package:url_launcher/url_launcher.dart';[m
+ import '../services/cart_service.dart';[m
+ import '../session/require_signin.dart';[m
+ import '../session/session_scope.dart';[m
+[36m@@ -6,6 +7,44 @@[m [mimport '../session/session_scope.dart';[m
+ class CartPage extends StatelessWidget {[m
+   const CartPage({super.key});[m
+ [m
+[32m+[m[32m  Future<void> _checkout(BuildContext context, String userId) async {[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      showDialog([m
+[32m+[m[32m        context: context,[m
+[32m+[m[32m        barrierDismissible: false,[m
+[32m+[m[32m        builder: (context) => const Center([m
+[32m+[m[32m          child: CircularProgressIndicator(),[m
+[32m+[m[32m        ),[m
+[32m+[m[32m      );[m
+[32m+[m
+[32m+[m[32m      final checkoutUrl = await CartService.instance.createCheckoutSession(userId);[m
+[32m+[m
+[32m+[m[32m      if (!context.mounted) return;[m
+[32m+[m[32m      Navigator.of(context).pop();[m
+[32m+[m
+[32m+[m[32m      if (checkoutUrl == null || checkoutUrl.isEmpty) {[m
+[32m+[m[32m        throw Exception('URL de c

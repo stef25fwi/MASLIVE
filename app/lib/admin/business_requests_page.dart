@@ -53,9 +53,9 @@ class _BusinessRequestsPageState extends State<BusinessRequestsPage> {
     });
 
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Demande approuvée')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Demande approuvée')),
+    );
   }
 
   Future<void> _reject(String uid) async {
@@ -63,45 +63,51 @@ class _BusinessRequestsPageState extends State<BusinessRequestsPage> {
     if (adminUid == null) return;
 
     final ctrl = TextEditingController();
-    final res = await showDialog<String?>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Refuser la demande'),
-          content: TextField(
-            controller: ctrl,
-            decoration: const InputDecoration(labelText: 'Motif (optionnel)'),
-            maxLines: 3,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, null),
-              child: const Text('Annuler'),
+    
+    try {
+      final res = await showDialog<String?>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Refuser la demande'),
+            content: TextField(
+              controller: ctrl,
+              decoration: const InputDecoration(labelText: 'Motif (optionnel)'),
+              maxLines: 3,
             ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, ctrl.text.trim()),
-              child: const Text('Refuser'),
-            ),
-          ],
-        );
-      },
-    );
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, null),
+                child: const Text('Annuler'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, ctrl.text.trim()),
+                child: const Text('Refuser'),
+              ),
+            ],
+          );
+        },
+      );
 
-    final reason = res ?? '';
+      if (res == null) return; // Dialog annulé
 
-    await FirebaseFirestore.instance.collection('businesses').doc(uid).update({
-      'status': 'rejected',
-      'reviewedAt': FieldValue.serverTimestamp(),
-      'reviewedBy': adminUid,
-      if (reason.isNotEmpty) 'rejectionReason': reason,
-      if (reason.isEmpty) 'rejectionReason': FieldValue.delete(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+      final reason = res.trim();
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Demande refusée')));
+      await FirebaseFirestore.instance.collection('businesses').doc(uid).update({
+        'status': 'rejected',
+        'reviewedAt': FieldValue.serverTimestamp(),
+        'reviewedBy': adminUid,
+        if (reason.isNotEmpty) 'rejectionReason': reason,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Demande refusée')),
+      );
+    } finally {
+      ctrl.dispose();
+    }
   }
 
   @override
@@ -126,7 +132,8 @@ class _BusinessRequestsPageState extends State<BusinessRequestsPage> {
     final q = FirebaseFirestore.instance
         .collection('businesses')
         .where('status', isEqualTo: 'pending')
-        .orderBy('createdAt', descending: true);
+        .orderBy('createdAt', descending: true)
+        .limit(100); // Limite pour éviter trop de données
 
     return Scaffold(
       appBar: AppBar(title: const Text('Demandes pro (pending)')),

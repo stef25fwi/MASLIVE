@@ -1220,6 +1220,144 @@ exports.createCheckoutSessionForOrder = onCall(
 );
 
 /**
+ * createMediaShopCheckout
+ * Crée une Checkout Session Stripe pour le Media Shop (photos vendues)
+ * { userId: string }
+ * Returns: { checkoutUrl: string }
+ */
+exports.createMediaShopCheckout = onCall(
+  {
+    region: "us-east1",
+    cpu: 0.083,
+    memory: "256MiB",
+    timeoutSeconds: 30,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+
+    const uid = request.auth.uid;
+    const { userId } = request.data;
+
+    // Sécurité: l'utilisateur ne peut créer une commande que pour lui-même
+    if (uid !== userId) {
+      throw new HttpsError(
+        "permission-denied",
+        "You can only create orders for yourself"
+      );
+    }
+
+    // 1. Récupère le panier de l'utilisateur depuis Firestore
+    const cartRef = db.collection("users").doc(uid).collection("cart");
+    const cartSnap = await cartRef.get();
+
+    if (cartSnap.empty) {
+      throw new HttpsError("failed-precondition", "Cart is empty");
+    }
+
+    const cartItems = [];
+    cartSnap.forEach((doc) => {
+      cartItems.push({ id: doc.id, ...doc.data() });
+    });
+
+    // 2. Crée la commande dans Firestore
+    const orderRef = db.collection("users").doc(uid).collection("orders").doc();
+    const orderId = orderRef.id;
+
+    const items = cartItems.map((item) => ({
+      photoId: item.photoId || item.id,
+      priceCents: item.priceCents || 0,
+      thumbPath: item.imageUrl || item.thumbPath || "",
+      fullPath: item.fullPath || "",
+      eventName: item.eventName || "",
+      groupName: item.groupName || "",
+      photographerName: item.photographerName || "",
+      photographerId: item.photographerId || null,
+      title: item.title || "",
+      size: item.size || "",
+      color: item.color || "",
+      quantity: item.quantity || 1,
+    }));
+
+    const totalCents = items.reduce((sum, item) => {
+      return sum + (item.priceCents * (item.quantity || 1));
+    }, 0);
+
+    const orderData = {
+      userId: uid,
+      items,
+      totalCents,
+      discountCents: 0,
+      discountPercent: 0,
+      discountRule: null,
+      status: "pending",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await orderRef.set(orderData);
+
+    // 3. Crée les line_items pour Stripe
+    const lineItems = items.map((item) => ({
+      price_data: {
+        currency: "eur",
+        product_data: {
+          name: item.title || `Photo ${item.photoId}`,
+          description: `${item.eventName || ""} ${item.groupName || ""}`.trim(),
+          images: item.thumbPath ? [item.thumbPath] : [],
+          metadata: {
+            photoId: item.photoId,
+            eventName: item.eventName || "",
+            groupName: item.groupName || "",
+          },
+        },
+        unit_amount: item.priceCents,
+      },
+      quantity: item.quantity || 1,
+    }));
+
+    // 4. Crée une Checkout Session Stripe
+    try {
+      const stripeClient = getStripe();
+      const session = await stripeClient.checkout.sessions.create({
+        mode: "payment",
+        line_items: lineItems,
+        success_url: `https://maslive.web.app/success?orderId=${orderId}`,
+        cancel_url: `https://maslive.web.app/cancel?orderId=${orderId}`,
+        metadata: {
+          orderId,
+          userId: uid,
+          itemCount: items.length,
+          totalCents,
+        },
+        customer_email: request.auth.token.email || undefined,
+      });
+
+      // 5. Met à jour la commande avec le sessionId
+      await orderRef.update({
+        stripeSessionId: session.id,
+        stripeSessionUrl: session.url,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // 6. Vide le panier après création de la commande
+      const batch = db.batch();
+      cartSnap.forEach((doc) => batch.delete(doc.ref));
+      await batch.commit();
+
+      return { checkoutUrl: session.url };
+    } catch (error) {
+      console.error("Stripe error:", error);
+      throw new HttpsError(
+        "internal",
+        `Failed to create checkout session: ${error.message}`
+      );
+    }
+  }
+);
+
+/**
  * createBusinessConnectOnboardingLink
  * Démarre / poursuit l'onboarding Stripe Connect Express pour un compte business.
  * {}
