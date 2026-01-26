@@ -268,6 +268,7 @@ class _POIAssistantPageState extends State<POIAssistantPage> {
             });
             _saveDraft();
           },
+          onMapDelete: _showDeleteConfirmation,
           onNext: _nextStep,
         );
       case 1:
@@ -447,12 +448,14 @@ class _StepSelectMap extends StatelessWidget {
   final List<Map<String, dynamic>> availableMaps;
   final String? selectedMapId;
   final Function(String) onMapSelected;
+  final Function(String, String)? onMapDelete;
   final VoidCallback onNext;
 
   const _StepSelectMap({
     required this.availableMaps,
     required this.selectedMapId,
     required this.onMapSelected,
+    this.onMapDelete,
     required this.onNext,
   });
 
@@ -519,9 +522,43 @@ class _StepSelectMap extends StatelessWidget {
                       ),
                     ],
                   ),
-                  trailing: isSelected
-                      ? Icon(Icons.check_circle, color: Colors.blue.shade700)
-                      : const Icon(Icons.chevron_right),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isSelected)
+                        Icon(Icons.check_circle, color: Colors.blue.shade700),
+                      if (isSelected)
+                        const SizedBox(width: 8),
+                      PopupMenuButton<String>(
+                        onSelected: (value) {
+                          if (value == 'delete' && onMapDelete != null) {
+                            onMapDelete!(map['id'], map['name']);
+                          }
+                        },
+                        itemBuilder: (BuildContext context) => [
+                          const PopupMenuItem<String>(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete, color: Colors.red, size: 18),
+                                SizedBox(width: 8),
+                                Text('Supprimer', style: TextStyle(color: Colors.red)),
+                              ],
+                            ),
+                          ),
+                        ],
+                        child: Tooltip(
+                          message: 'Options',
+                          child: Icon(
+                            Icons.more_vert,
+                            color: isSelected ? Colors.blue : Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                      if (!isSelected)
+                        const Icon(Icons.chevron_right),
+                    ],
+                  ),
                   onTap: () {
                     onMapSelected(map['id']);
                   },
@@ -862,6 +899,86 @@ class _StepEditPOIsState extends State<_StepEditPOIs> {
       _pois.removeAt(index);
     });
     widget.onPOIsChanged(_pois);
+  }
+
+  /// Affiche un dialog de confirmation de suppression de carte avec demande d'écriture "delete"
+  void _showDeleteConfirmation(String mapId, String mapName) {
+    final confirmCtrl = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('⚠️ Supprimer cette carte'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Êtes-vous sûr de vouloir supprimer la carte "$mapName" ?',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Cette action est irréversible. Tapez "delete" pour confirmer :',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirmCtrl,
+              decoration: InputDecoration(
+                hintText: 'Tapez "delete"',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                prefixIcon: const Icon(Icons.warning_amber),
+              ),
+              textCapitalization: TextCapitalization.lowercase,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              confirmCtrl.dispose();
+              Navigator.pop(context);
+            },
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: confirmCtrl.text.trim() != 'delete'
+                ? null
+                : () {
+                    confirmCtrl.dispose();
+                    Navigator.pop(context);
+                    _deleteMap(mapId);
+                  },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: confirmCtrl.text.trim() == 'delete'
+                  ? Colors.red
+                  : Colors.grey,
+            ),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Supprime la carte de la liste
+  void _deleteMap(String mapId) {
+    setState(() {
+      _availableMaps.removeWhere((map) => map['id'] == mapId);
+      if (_selectedMapId == mapId) {
+        _selectedMapId = null;
+      }
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('✓ Carte supprimée'),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   @override
