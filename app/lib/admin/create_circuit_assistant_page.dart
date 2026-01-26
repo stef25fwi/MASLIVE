@@ -5565,11 +5565,40 @@ class _StepPublierState extends State<_StepPublier> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Aperçu final de la carte
-        _MapPreviewWidget(
-          title: 'Aperçu final du circuit "${_nameController.text.isEmpty ? "Sans titre" : _nameController.text}"',
-          routePoints: const [],
-          segments: const [],
+        // Aperçu final de la carte (affichage conditonnel)
+        Container(
+          height: 300,
+          margin: EdgeInsets.zero,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.map, size: 48, color: Colors.grey.shade400),
+                const SizedBox(height: 12),
+                Text(
+                  'Aperçu final du circuit',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Enregistrez pour visualiser sur la carte',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
         
         Expanded(
