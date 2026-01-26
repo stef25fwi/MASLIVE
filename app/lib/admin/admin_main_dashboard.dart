@@ -21,6 +21,7 @@ import 'business_requests_page.dart';
 import 'map_projects_library_page.dart';
 import '../pages/pending_products_page.dart';
 import 'create_circuit_assistant_page.dart';
+import 'poi_assistant_page.dart';
 
 /// Dashboard admin principal 10/10 avec toutes les fonctionnalités
 class AdminMainDashboard extends StatefulWidget {
@@ -1387,14 +1388,20 @@ class AdminAssistantStepByStepHomePage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _AssistantCard(
-            title: 'Assistant POI (bientôt)',
+            title: 'Assistant POI (Wizard)',
             subtitle:
-                'Création guidée de points d\'intérêt + médias + validation',
+                'Sélectionner carte → Charger → Couche → Éditer POIs → Apparence',
             icon: Icons.place_rounded,
             color: const Color(0xFFFF7A00),
-            onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Assistant POI à venir')),
-            ),
+            badge: 'New',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const POIAssistantPage(),
+                ),
+              );
+            },
           ),
         ],
       ),
