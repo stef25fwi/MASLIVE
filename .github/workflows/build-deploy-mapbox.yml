@@ -1,0 +1,50 @@
+name: Build & Deploy Flutter Web with Mapbox
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout code
+      - uses: actions/checkout@v3
+
+      # Setup Flutter
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'latest'
+
+      # Get dependencies
+      - name: Install dependencies
+        run: cd app && flutter pub get
+
+      # Build Web with Mapbox Token
+      - name: Build Flutter Web with Mapbox
+        run: |
+          cd app
+          flutter build web --release \
+            --dart-define=MAPBOX_ACCESS_TOKEN=${{ secrets.MAPBOX_PUBLIC_TOKEN }}
+
+      # Deploy to Firebase Hosting
+      - name: Deploy to Firebase Hosting
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          npm install -g firebase-tools
+          firebase deploy --only hosting --token ${{ secrets.FIREBASE_TOKEN }}
+
+      # Notify on success
+      - name: Deployment Success
+        if: success()
+        run: echo "✅ Deployment to Firebase complete!"
+
+      # Notify on failure
+      - name: Deployment Failed
+        if: failure()
+        run: |
+          echo "❌ Deployment failed"
+          echo "Check MAPBOX_PUBLIC_TOKEN and FIREBASE_TOKEN secrets"
