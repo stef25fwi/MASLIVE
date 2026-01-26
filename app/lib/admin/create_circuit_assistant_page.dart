@@ -497,41 +497,52 @@ class _StepPerimetreState extends State<_StepPerimetre> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Aperçu carte en direct
-        _MapPreviewWidget(
-          title: 'Aperçu du périmètre',
-          polygonPoints: _polygonPoints,
-          selectedPreset: _selectedPreset,
-          presetName: _selectedPreset != null
-              ? _presets.firstWhere((p) => p['id'] == _selectedPreset)['name']
-              : null,
-        ),
-        
-        // Header avec instructions
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.blue.shade50, Colors.cyan.shade50],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          // Aperçu carte en direct (première)
+          _MapPreviewWidget(
+            title: 'Aperçu du périmètre',
+            polygonPoints: _polygonPoints,
+            selectedPreset: _selectedPreset,
+            presetName: _selectedPreset != null
+                ? _presets.firstWhere((p) => p['id'] == _selectedPreset)['name']
+                : null,
+          ),
+          
+          // Deuxième carte pour meilleure visibilité
+          _MapPreviewWidget(
+            title: 'Détail du périmètre',
+            polygonPoints: _polygonPoints,
+            selectedPreset: _selectedPreset,
+            presetName: _selectedPreset != null
+                ? _presets.firstWhere((p) => p['id'] == _selectedPreset)['name']
+                : null,
+          ),
+          
+          // Header avec instructions
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.blue.shade50, Colors.cyan.shade50],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.blue.shade700),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Définissez la zone géographique de votre circuit pour préparer le mode hors-ligne',
+                    style: TextStyle(fontSize: 13, color: Colors.blue.shade900),
+                  ),
+                ),
+              ],
             ),
           ),
-          child: Row(
-            children: [
-              Icon(Icons.info_outline, color: Colors.blue.shade700),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Définissez la zone géographique de votre circuit pour préparer le mode hors-ligne',
-                  style: TextStyle(fontSize: 13, color: Colors.blue.shade900),
-                ),
-              ),
-            ],
-          ),
-        ),
 
         // Mode selector
         Padding(
@@ -906,7 +917,7 @@ class _StepPerimetreState extends State<_StepPerimetre> {
             ),
           ),
         ],
-      ],
+      ),
     );
   }
 }
@@ -6967,8 +6978,8 @@ class _MapPreviewWidget extends StatelessWidget {
     final useMapbox = kIsWeb && _mapboxToken.isNotEmpty;
 
     return Container(
-      height: 220,
-      margin: const EdgeInsets.all(12),
+      height: 660,
+      margin: EdgeInsets.zero,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [Colors.grey.shade100, Colors.grey.shade200],
