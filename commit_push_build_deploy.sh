@@ -41,7 +41,19 @@ if [[ -z "$commit_msg" ]]; then
 fi
 
 echo "[1/5] 📝 Stage des fichiers (en excluant node_modules)..."
-git add -A -- . ':!functions/node_modules' ':!functions/node_modules/**'
+git add -A
+
+# Guard: ne jamais stager de secrets (même si présents en untracked)
+if git diff --cached --name-only -- "serviceAccountKey.json" | head -n 1 | grep -q .; then
+	echo "❌ ERREUR: serviceAccountKey.json est stagé (secret)."
+	echo "   Fix: git reset -- serviceAccountKey.json && ajoute-le à .gitignore"
+	exit 1
+fi
+if git diff --cached --name-only -- "functions/.env" "functions/.env."* "functions/.runtimeconfig.json" | head -n 1 | grep -q .; then
+	echo "❌ ERREUR: un fichier secret Functions est stagé (functions/.env* ou functions/.runtimeconfig.json)."
+	echo "   Fix: git reset -- functions/.env functions/.env.* functions/.runtimeconfig.json && ajoute-les à .gitignore"
+	exit 1
+fi
 echo "✅ Stagés"
 echo ""
 

@@ -8,14 +8,18 @@ typedef LngLat = ({double lng, double lat});
 Widget buildCircuitMap({
   required List<LngLat> perimeter,
   required List<LngLat> route,
-  required List<({int startIndex, int endIndex, Color color, String name})> segments,
+  required List<({int startIndex, int endIndex, Color color, String name})>
+      segments,
   required bool locked,
   required ValueChanged<LngLat> onTap,
   String? mapboxToken,
 }) {
   if (kIsWeb) {
+    final envToken = const String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+    final legacyEnvToken = const String.fromEnvironment('MAPBOX_TOKEN');
     return MapboxWebCircuitMap(
-      mapboxToken: mapboxToken ?? const String.fromEnvironment('MAPBOX_TOKEN'),
+      mapboxToken:
+          mapboxToken ?? (envToken.isNotEmpty ? envToken : legacyEnvToken),
       perimeter: perimeter,
       route: route,
       segments: segments,

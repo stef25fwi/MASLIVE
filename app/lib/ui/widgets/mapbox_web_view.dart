@@ -1,4 +1,5 @@
 // ignore_for_file: avoid_web_libraries_in_flutter, unsafe_html
+import 'dart:async';
 import 'dart:html' as html;
 import 'dart:js' as js;
 import 'package:flutter/material.dart';
@@ -15,6 +16,7 @@ class MapboxWebView extends StatefulWidget {
   final double initialPitch;
   final double initialBearing;
   final String? styleUrl;
+  final ValueChanged<({double lng, double lat})>? onTapLngLat;
 
   const MapboxWebView({
     super.key,
@@ -25,6 +27,7 @@ class MapboxWebView extends StatefulWidget {
     this.initialPitch = 45.0,
     this.initialBearing = 0.0,
     this.styleUrl,
+    this.onTapLngLat,
   });
 
   @override
@@ -32,12 +35,32 @@ class MapboxWebView extends StatefulWidget {
 }
 
 class _MapboxWebViewState extends State<MapboxWebView> {
-  final String _viewType = 'mapbox-web-view';
+  late final String _viewType;
+  String? _containerId;
+  js.JsObject? _map;
+  StreamSubscription<html.MessageEvent>? _messageSub;
 
   @override
   void initState() {
     super.initState();
+    _viewType = 'mapbox-web-view-${DateTime.now().microsecondsSinceEpoch}';
     _registerFactory();
+
+    _messageSub = html.window.onMessage.listen((evt) {
+      final data = evt.data;
+      if (widget.onTapLngLat == null) return;
+      if (data is Map) {
+        final type = data['type'];
+        final containerId = data['containerId'];
+        if (type != 'MASLIVE_MAP_TAP') return;
+        if (_containerId != null && containerId != _containerId) return;
+        final lng = data['lng'];
+        final lat = data['lat'];
+        if (lng is num && lat is num) {
+          widget.onTapLngLat?.call((lng: lng.toDouble(), lat: lat.toDouble()));
+        }
+      }
+    });
   }
 
   void _registerFactory() {
@@ -46,6 +69,8 @@ class _MapboxWebViewState extends State<MapboxWebView> {
         ..id = 'mapbox-container-$viewId'
         ..style.width = '100%'
         ..style.height = '100%';
+
+      _containerId ??= container.id;
 
       // Initialiser Mapbox GL JS après un court délai pour s'assurer que le DOM est prêt
       Future.delayed(const Duration(milliseconds: 100), () {
@@ -77,6 +102,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
 
     // Créer la carte
     final map = js.JsObject(mapboxglObj['Map'], [mapConfig]);
+    _map = map;
 
     // Ajouter les contrôles de navigation après le chargement
     map.callMethod('on', [
@@ -87,6 +113,27 @@ class _MapboxWebViewState extends State<MapboxWebView> {
 
         // Ajouter les bâtiments 3D si disponible
         _add3dBuildings(map);
+
+        // Installer un handler JS de click qui publie vers Flutter via postMessage
+        if (widget.onTapLngLat != null && _containerId != null) {
+          final id = _containerId!;
+          try {
+            js.context['__maslive_map_$id'] = map;
+            js.context.callMethod('eval', [
+              """(function(){
+  try {
+    var m = window['__maslive_map_$id'];
+    if(!m) return;
+    m.on('click', function(e){
+      window.postMessage({type:'MASLIVE_MAP_TAP', containerId:'$id', lng:e.lngLat.lng, lat:e.lngLat.lat}, '*');
+    });
+  } catch(e) {}
+})();""",
+            ]);
+          } catch (_) {
+            // ignore
+          }
+        }
       },
     ]);
   }
@@ -119,5 +166,25 @@ class _MapboxWebViewState extends State<MapboxWebView> {
   @override
   Widget build(BuildContext context) {
     return HtmlElementView(viewType: _viewType);
+  }
+
+  @override
+  void dispose() {
+    _messageSub?.cancel();
+    _messageSub = null;
+    try {
+      _map?.callMethod('remove');
+    } catch (_) {
+      // ignore
+    }
+    if (_containerId != null) {
+      try {
+        js.context.deleteProperty('__maslive_map_${_containerId!}');
+      } catch (_) {
+        // ignore
+      }
+    }
+    _map = null;
+    super.dispose();
   }
 }

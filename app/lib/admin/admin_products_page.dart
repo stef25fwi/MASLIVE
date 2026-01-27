@@ -62,16 +62,20 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                       FilterChip(
                         label: const Text('Tous'),
                         selected: _filterCategory == null,
-                        onSelected: (_) => setState(() => _filterCategory = null),
+                        onSelected: (_) =>
+                            setState(() => _filterCategory = null),
                       ),
-                      ..._categories.map((category) => Padding(
-                            padding: const EdgeInsets.only(left: 8),
-                            child: FilterChip(
-                              label: Text(category),
-                              selected: _filterCategory == category,
-                              onSelected: (_) => setState(() => _filterCategory = category),
-                            ),
-                          )),
+                      ..._categories.map(
+                        (category) => Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: FilterChip(
+                            label: Text(category),
+                            selected: _filterCategory == category,
+                            onSelected: (_) =>
+                                setState(() => _filterCategory = category),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -102,8 +106,12 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                   final category = data['category'] as String?;
 
                   if (_searchQuery.isNotEmpty &&
-                      !name.toLowerCase().contains(_searchQuery.toLowerCase()) &&
-                      !description.toLowerCase().contains(_searchQuery.toLowerCase())) {
+                      !name.toLowerCase().contains(
+                        _searchQuery.toLowerCase(),
+                      ) &&
+                      !description.toLowerCase().contains(
+                        _searchQuery.toLowerCase(),
+                      )) {
                     return false;
                   }
 
@@ -119,7 +127,11 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[400]),
+                        Icon(
+                          Icons.inventory_2_outlined,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
                         const SizedBox(height: 16),
                         Text(
                           'Aucun produit trouvé',
@@ -269,8 +281,8 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
           title: const Text('Créer un produit'),
           content: SingleChildScrollView(
             child: Column(
@@ -326,7 +338,9 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                     border: OutlineInputBorder(),
                   ),
                   items: _categories
-                      .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                      .map(
+                        (cat) => DropdownMenuItem(value: cat, child: Text(cat)),
+                      )
                       .toList(),
                   onChanged: (value) {
                     if (value != null) {
@@ -346,20 +360,24 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                 SwitchListTile(
                   title: const Text('Disponible'),
                   value: isAvailable,
-                  onChanged: (value) => setDialogState(() => isAvailable = value),
+                  onChanged: (value) =>
+                      setDialogState(() => isAvailable = value),
                 ),
               ],
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Annuler'),
             ),
             FilledButton(
               onPressed: () async {
+                final navigator = Navigator.of(dialogContext);
+                final messenger = ScaffoldMessenger.of(this.context);
+
                 if (nameController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     const SnackBar(content: Text('Le nom est requis')),
                   );
                   return;
@@ -383,18 +401,14 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                     'updatedAt': FieldValue.serverTimestamp(),
                   });
 
-                  if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Produit créé avec succès')),
-                    );
-                  }
+                  if (!mounted) return;
+                  navigator.pop();
+                  messenger.showSnackBar(
+                    const SnackBar(content: Text('Produit créé avec succès')),
+                  );
                 } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e')),
-                    );
-                  }
+                  if (!mounted) return;
+                  messenger.showSnackBar(SnackBar(content: Text('Erreur: $e')));
                 }
               },
               child: const Text('Créer'),
@@ -408,16 +422,20 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
   void _showEditProductDialog(String productId, Map<String, dynamic> data) {
     final nameController = TextEditingController(text: data['name']);
     final descController = TextEditingController(text: data['description']);
-    final priceController = TextEditingController(text: data['price']?.toString());
-    final stockController = TextEditingController(text: data['stock']?.toString() ?? '0');
+    final priceController = TextEditingController(
+      text: data['price']?.toString(),
+    );
+    final stockController = TextEditingController(
+      text: data['stock']?.toString() ?? '0',
+    );
     final imageController = TextEditingController(text: data['imageUrl']);
     String selectedCategory = data['category'] ?? _categories.first;
     bool isAvailable = data['isAvailable'] ?? true;
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
           title: const Text('Modifier le produit'),
           content: SingleChildScrollView(
             child: Column(
@@ -473,7 +491,9 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                     border: OutlineInputBorder(),
                   ),
                   items: _categories
-                      .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                      .map(
+                        (cat) => DropdownMenuItem(value: cat, child: Text(cat)),
+                      )
                       .toList(),
                   onChanged: (value) {
                     if (value != null) {
@@ -493,7 +513,8 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                 SwitchListTile(
                   title: const Text('Disponible'),
                   value: isAvailable,
-                  onChanged: (value) => setDialogState(() => isAvailable = value),
+                  onChanged: (value) =>
+                      setDialogState(() => isAvailable = value),
                 ),
                 const SizedBox(height: 16),
                 TextButton.icon(
@@ -502,47 +523,54 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                     await _deleteProduct(productId, data['name']);
                   },
                   icon: const Icon(Icons.delete, color: Colors.red),
-                  label: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+                  label: const Text(
+                    'Supprimer',
+                    style: TextStyle(color: Colors.red),
+                  ),
                 ),
               ],
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Annuler'),
             ),
             FilledButton(
               onPressed: () async {
+                final navigator = Navigator.of(dialogContext);
+                final messenger = ScaffoldMessenger.of(this.context);
+
                 try {
                   final price = double.tryParse(priceController.text) ?? 0.0;
                   final stock = int.tryParse(stockController.text) ?? 0;
 
-                  await _firestore.collection('products').doc(productId).update({
-                    'name': nameController.text.trim(),
-                    'description': descController.text.trim(),
-                    'price': price,
-                    'stock': stock,
-                    'category': selectedCategory,
-                    'imageUrl': imageController.text.trim().isNotEmpty
-                        ? imageController.text.trim()
-                        : null,
-                    'isAvailable': isAvailable,
-                    'updatedAt': FieldValue.serverTimestamp(),
-                  });
+                  await _firestore
+                      .collection('products')
+                      .doc(productId)
+                      .update({
+                        'name': nameController.text.trim(),
+                        'description': descController.text.trim(),
+                        'price': price,
+                        'stock': stock,
+                        'category': selectedCategory,
+                        'imageUrl': imageController.text.trim().isNotEmpty
+                            ? imageController.text.trim()
+                            : null,
+                        'isAvailable': isAvailable,
+                        'updatedAt': FieldValue.serverTimestamp(),
+                      });
 
-                  if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Produit modifié avec succès')),
-                    );
-                  }
+                  if (!mounted) return;
+                  navigator.pop();
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Produit modifié avec succès'),
+                    ),
+                  );
                 } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e')),
-                    );
-                  }
+                  if (!mounted) return;
+                  messenger.showSnackBar(SnackBar(content: Text('Erreur: $e')));
                 }
               },
               child: const Text('Enregistrer'),
@@ -578,15 +606,15 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
         await _firestore.collection('products').doc(productId).delete();
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Produit supprimé')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Produit supprimé')));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erreur: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
         }
       }
     }

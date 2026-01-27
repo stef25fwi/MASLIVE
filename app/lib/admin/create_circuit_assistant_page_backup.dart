@@ -1,3 +1,9 @@
+/*
+Backup local (NE PAS IMPORTER / NE PAS UTILISER).
+Ce fichier est volontairement commenté pour éviter les erreurs d'analyse/compilation.
+
+Pour restaurer une ancienne version, recopier le contenu dans un nouveau fichier de travail.
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7006,6 +7012,7 @@ class _RoutePainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
+
 // Widget de prévisualisation de carte pour toutes les étapes
 class _MapPreviewWidget extends StatelessWidget {
   final String title;
@@ -7423,3 +7430,5 @@ class _SegmentsPreviewPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
+
+*/
