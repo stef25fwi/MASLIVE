@@ -113,9 +113,11 @@ class CartPage extends StatelessWidget {
                       width: 72,
                       height: 72,
                       color: Colors.black.withValues(alpha: 0.06),
-                      child: item.imageUrl.isEmpty
+                      child: item.displayImage.isEmpty
                           ? const Icon(Icons.image_outlined)
-                          : Image.network(item.imageUrl, fit: BoxFit.cover),
+                          : item.isLocalAsset
+                              ? Image.asset(item.displayImage, fit: BoxFit.cover)
+                              : Image.network(item.displayImage, fit: BoxFit.cover),
                     ),
                   ),
                   const SizedBox(width: 12),

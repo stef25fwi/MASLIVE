@@ -91,7 +91,7 @@ class LanguageSelectionPage extends StatelessWidget {
             () => Card(
               elevation: isSelected ? 4 : 0,
               color: isSelected
-                  ? Colors.blue.withOpacity(0.1)
+                  ? Colors.blue.withValues(alpha: 0.1)
                   : Colors.transparent,
               child: ListTile(
                 leading: Text(
@@ -169,8 +169,8 @@ class LanguageSelectionDialog extends StatelessWidget {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? Colors.blue.withOpacity(0.2)
-                        : Colors.transparent,
+                      ? Colors.blue.withValues(alpha: 0.2)
+                      : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: isSelected ? Colors.blue : Colors.grey[300]!,

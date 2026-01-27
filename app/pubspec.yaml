@@ -38,6 +38,9 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
+  # Pour Mapbox web interop
+  web: any
+
   # Carte OSM
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
@@ -105,7 +108,8 @@ flutter:
     - assets/splash/
     - assets/textures/
     - assets/map_styles/google_light.json
-    - assets/images/maslivesmall.png
+    - assets/images/
+    - assets/shop/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

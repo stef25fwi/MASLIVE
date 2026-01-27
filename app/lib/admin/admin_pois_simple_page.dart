@@ -302,10 +302,11 @@ class _AdminPOIsSimplePageState extends State<AdminPOIsSimplePage> {
     final lngController = TextEditingController();
     String selectedType = _types.first;
 
+    if (!mounted) return;
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+      builder: (_) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
           title: const Text('Créer un POI'),
           content: SingleChildScrollView(
             child: Column(
@@ -376,13 +377,13 @@ class _AdminPOIsSimplePageState extends State<AdminPOIsSimplePage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Annuler'),
             ),
             FilledButton(
               onPressed: () async {
                 if (nameController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
                     const SnackBar(content: Text('Le nom est requis')),
                   );
                   return;
@@ -403,20 +404,16 @@ class _AdminPOIsSimplePageState extends State<AdminPOIsSimplePage> {
                     'createdAt': FieldValue.serverTimestamp(),
                   });
 
-                  if (mounted) {
-                    final nav = Navigator.of(context);
-                    final messenger = ScaffoldMessenger.of(context);
-                    nav.pop();
-                    messenger.showSnackBar(
-                      const SnackBar(content: Text('POI créé avec succès')),
-                    );
-                  }
+                  if (!mounted || !dialogContext.mounted) return;
+                  Navigator.of(dialogContext).pop();
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(content: Text('POI créé avec succès')),
+                  );
                 } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e')),
-                    );
-                  }
+                  if (!mounted || !dialogContext.mounted) return;
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    SnackBar(content: Text('Erreur: $e')),
+                  );
                 }
               },
               child: const Text('Créer'),
@@ -434,10 +431,11 @@ class _AdminPOIsSimplePageState extends State<AdminPOIsSimplePage> {
     final lngController = TextEditingController(text: data['lng']?.toString());
     String selectedType = data['type'] ?? _types.first;
 
+    if (!mounted) return;
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+      builder: (_) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
           title: const Text('Modifier le POI'),
           content: SingleChildScrollView(
             child: Column(
@@ -517,7 +515,7 @@ class _AdminPOIsSimplePageState extends State<AdminPOIsSimplePage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Annuler'),
             ),
             FilledButton(
@@ -535,20 +533,16 @@ class _AdminPOIsSimplePageState extends State<AdminPOIsSimplePage> {
                     'updatedAt': FieldValue.serverTimestamp(),
                   });
 
-                  if (mounted) {
-                    final nav = Navigator.of(context);
-                    final messenger = ScaffoldMessenger.of(context);
-                    nav.pop();
-                    messenger.showSnackBar(
-                      const SnackBar(content: Text('POI modifié avec succès')),
-                    );
-                  }
+                  if (!mounted || !dialogContext.mounted) return;
+                  Navigator.of(dialogContext).pop();
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(content: Text('POI modifié avec succès')),
+                  );
                 } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Erreur: $e')),
-                    );
-                  }
+                  if (!mounted || !dialogContext.mounted) return;
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    SnackBar(content: Text('Erreur: $e')),
+                  );
                 }
               },
               child: const Text('Enregistrer'),

@@ -39,14 +39,12 @@ class _CreateCircuitAssistantPageState
     super.dispose();
   }
 
-  // Auto-save toutes les 30 secondes
   void _startAutoSave() {
     _autoSaveTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       _saveDraft();
     });
   }
 
-  // Sauvegarder le brouillon
   Future<void> _saveDraft({String? mapName}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -68,7 +66,6 @@ class _CreateCircuitAssistantPageState
     }
   }
 
-  // Charger le brouillon
   Future<void> _loadDraft() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -77,7 +74,7 @@ class _CreateCircuitAssistantPageState
         final draftData = jsonDecode(draftJson);
         final draftTime = DateTime.parse(draftData['timestamp']);
         final isRecent = DateTime.now().difference(draftTime).inHours < 24;
-        
+
         if (isRecent && mounted) {
           final shouldRestore = await showDialog<bool>(
             context: context,
@@ -109,7 +106,7 @@ class _CreateCircuitAssistantPageState
             setState(() {
               _step = draftData['step'] ?? 0;
               _isFocusMode = draftData['isFocusMode'] ?? false;
-                _mapName = draftData['mapName'] ?? '';
+              _mapName = draftData['mapName'] ?? '';
               final restoredValidated = draftData['stepValidated'];
               if (restoredValidated is List) {
                 for (int i = 0; i < _stepValidated.length && i < restoredValidated.length; i++) {
@@ -262,7 +259,7 @@ class _CreateCircuitAssistantPageState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('💾 Carte "${result}" sauvegardée'),
+            content: Text('💾 Carte "$result" sauvegardée'),
             backgroundColor: Colors.blue,
             duration: const Duration(seconds: 1),
           ),
@@ -497,30 +494,28 @@ class _StepPerimetreState extends State<_StepPerimetre> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          // Aperçu carte en direct (première)
-          _MapPreviewWidget(
-            title: 'Aperçu du périmètre',
-            polygonPoints: _polygonPoints,
-            selectedPreset: _selectedPreset,
-            presetName: _selectedPreset != null
-                ? _presets.firstWhere((p) => p['id'] == _selectedPreset)['name']
-                : null,
-          ),
-          
-          // Deuxième carte pour meilleure visibilité
-          _MapPreviewWidget(
-            title: 'Détail du périmètre',
-            polygonPoints: _polygonPoints,
-            selectedPreset: _selectedPreset,
-            presetName: _selectedPreset != null
-                ? _presets.firstWhere((p) => p['id'] == _selectedPreset)['name']
-                : null,
-          ),
-          
-          // Header avec instructions
+    return Column(
+      children: [
+        // Aperçu carte en direct (première)
+        _MapPreviewWidget(
+          title: 'Aperçu du périmètre',
+          polygonPoints: _polygonPoints,
+          selectedPreset: _selectedPreset,
+          presetName: _selectedPreset != null
+              ? _presets.firstWhere((p) => p['id'] == _selectedPreset)['name']
+              : null,
+        ),
+        // Deuxième carte pour meilleure visibilité
+        _MapPreviewWidget(
+          title: 'Détail du périmètre',
+          polygonPoints: _polygonPoints,
+          selectedPreset: _selectedPreset,
+          presetName: _selectedPreset != null
+              ? _presets.firstWhere((p) => p['id'] == _selectedPreset)['name']
+              : null,
+        ),
+        // Header avec instructions
+        if (_isValidated && _selectedPreset != null)
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -529,67 +524,83 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
-                Icon(Icons.info_outline, color: Colors.blue.shade700),
+                Icon(Icons.check_circle, color: Colors.green.shade700),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Définissez la zone géographique de votre circuit pour préparer le mode hors-ligne',
-                    style: TextStyle(fontSize: 13, color: Colors.blue.shade900),
+                    'Zone "${_presets.firstWhere((p) => p['id'] == _selectedPreset)['name']}" validée',
+                    style: TextStyle(
+                      color: Colors.green.shade900,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-
-        // Mode selector
+        // Sélecteur de mode (dessiner/prédéfini)
         Padding(
-          padding: const EdgeInsets.all(16),
-          child: SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(
-                value: 'draw',
-                label: Text('Dessiner'),
-                icon: Icon(Icons.draw),
-              ),
-              ButtonSegment(
-                value: 'preset',
-                label: Text('Zone prédéfinie'),
-                icon: Icon(Icons.map_outlined),
-              ),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: ToggleButtons(
+            isSelected: [
+              _selectedMode == 'draw',
+              _selectedMode == 'preset',
             ],
-            selected: {_selectedMode},
-            onSelectionChanged: (Set<String> newSelection) {
+            onPressed: (int index) {
               setState(() {
-                _selectedMode = newSelection.first;
+                _selectedMode = index == 0 ? 'draw' : 'preset';
               });
             },
+            borderRadius: BorderRadius.circular(8),
+            children: const [
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Icon(Icons.draw),
+                    SizedBox(width: 8),
+                    Text('Dessiner'),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Icon(Icons.map_outlined),
+                    SizedBox(width: 8),
+                    Text('Zone prédéfinie'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-
         // Content
         Expanded(
           child: _selectedMode == 'draw'
               ? _buildDrawMode()
               : _buildPresetMode(),
         ),
-
         // Footer avec stats et bouton validation
-        if (_selectedMode == 'draw' && _polygonPoints.isNotEmpty ||
-            _selectedMode == 'preset' && _selectedPreset != null)
+        if ((_selectedMode == 'draw' && _polygonPoints.isNotEmpty) ||
+            (_selectedMode == 'preset' && _selectedPreset != null))
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
+                  color: Colors.black.withOpacity(0.1),
                   blurRadius: 4,
                   offset: const Offset(0, -2),
                 ),
               ],
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
@@ -625,7 +636,8 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                   icon: Icon(_isValidated ? Icons.arrow_forward : Icons.check),
                   label: Text(_isValidated ? 'Continuer' : 'Valider périmètre'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _isValidated ? Colors.teal : Colors.blue.shade600,
+                    backgroundColor:
+                        _isValidated ? Colors.teal : Colors.blue.shade600,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
@@ -691,10 +703,12 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.touch_app, size: 48, color: Colors.white.withOpacity(0.8)),
+                          Icon(Icons.touch_app,
+                              size: 48, color: Colors.white.withOpacity(0.8)),
                           const SizedBox(height: 16),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               color: Colors.black.withOpacity(0.45),
                               borderRadius: BorderRadius.circular(12),
@@ -703,13 +717,17 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                               _isValidated
                                   ? 'Périmètre validé'
                                   : 'Clique sur la carte pour ajouter des points',
-                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600),
                             ),
                           ),
                           if (_polygonPoints.isNotEmpty) ...[
                             const SizedBox(height: 10),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
                                 color: Colors.black.withOpacity(0.4),
                                 borderRadius: BorderRadius.circular(10),
@@ -734,7 +752,8 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: const [
-                                  Icon(Icons.check_circle, color: Colors.white, size: 20),
+                                  Icon(Icons.check_circle,
+                                      color: Colors.white, size: 20),
                                   SizedBox(width: 8),
                                   Text(
                                     'Périmètre verrouillé',
@@ -753,73 +772,75 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                   ),
                 ),
               )
-            else
+            else if (!_isValidated)
               // Overlay instructions pour Mapbox (Web avec token)
-              if (!_isValidated)
-                Positioned(
-                  top: 16,
-                  left: 16,
-                  right: 16,
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.95),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Mapbox actif - Cliquez sur la carte pour ajouter des points (${_polygonPoints.length})',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+              Positioned(
+                top: 16,
+                left: 16,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.95),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                )
-              else
-                Positioned(
-                  top: 16,
-                  left: 16,
-                  right: 16,
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50.withOpacity(0.95),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.green.shade300),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.check_circle, color: Colors.green.shade700, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Périmètre validé (${_polygonPoints.length} points)',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.green.shade900,
-                            ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline,
+                          color: Colors.blue.shade700, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Mapbox actif - Cliquez sur la carte pour ajouter des points (${_polygonPoints.length})',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
+              )
+            else
+              // Validated state for Mapbox
+              Positioned(
+                top: 16,
+                left: 16,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50.withOpacity(0.95),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle,
+                          color: Colors.green.shade700, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Périmètre validé (${_polygonPoints.length} points)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.green.shade900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
 
@@ -4142,7 +4163,7 @@ class _StepTracerState extends State<_StepTracer> {
             divisions: 20,
             label: _simplificationTolerance == 0
                 ? 'OFF'
-                : '${(_simplificationTolerance * 10000).toStringAsFixed(1)}',
+                : (_simplificationTolerance * 10000).toStringAsFixed(1),
             onChanged: (value) {
               setState(() {
                 _simplificationTolerance = value;
@@ -6473,7 +6494,7 @@ class _BuildingConfigDialogState extends State<_BuildingConfigDialog> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: _facadeTexture,
+                        initialValue: _facadeTexture,
                         decoration: InputDecoration(
                           prefixIcon: const Icon(Icons.texture),
                           border: OutlineInputBorder(
@@ -6507,8 +6528,9 @@ class _BuildingConfigDialogState extends State<_BuildingConfigDialog> {
                           ),
                         ],
                         onChanged: (value) {
-                          if (value != null)
+                          if (value != null) {
                             setState(() => _facadeTexture = value);
+                          }
                         },
                       ),
                       const SizedBox(height: 16),
@@ -6524,7 +6546,7 @@ class _BuildingConfigDialogState extends State<_BuildingConfigDialog> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: _roofTexture,
+                      initialValue: _roofTexture,
                       decoration: InputDecoration(
                         prefixIcon: const Icon(Icons.roofing),
                         border: OutlineInputBorder(

@@ -19,8 +19,9 @@ class PendingProductsPage extends StatelessWidget {
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _pendingProductsStream() {
     return FirebaseFirestore.instance
-        .collectionGroup('products')
+        .collection('products')
         .where('moderationStatus', isEqualTo: 'pending')
+        .orderBy('createdAt', descending: true)
         .snapshots();
   }
 

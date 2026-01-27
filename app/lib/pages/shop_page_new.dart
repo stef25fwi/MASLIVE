@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'cart_page.dart';
+import 'media_shop_wrapper.dart';
 
 class ShopPixelPerfectPage extends StatefulWidget {
   const ShopPixelPerfectPage({super.key});
@@ -21,8 +22,8 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
   static const double _pageHPad = 16;
   static const double _gridGap = 12;
 
-  static const double _headerH = 178;          // hauteur header
-  static const double _filtersPinnedH = 78;    // chips + dropdown plus bas
+  static const double _headerH = 178; // hauteur header
+  static const double _filtersPinnedH = 78; // chips + dropdown plus bas
 
   static const double _cardRadius = 24;
   static const double _innerRadius = 18;
@@ -33,6 +34,25 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
   final cats = const ["Tous", "T-shirts", "Casquettes", "Stickers"];
   final groups = const ["Tous les groupes", "Akiyo", "Kassav", "MasK"];
 
+  void _openArticle(String title, String price) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Article: $title - $price'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _addToCart(String title, String price) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$title ajouté au panier'),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
@@ -40,8 +60,8 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
     final tileW = (contentW - _gridGap) / 2;
 
     // ✅ Hauteurs qui matchent mieux ta capture (A54)
-    final bigTileH = tileW * 0.78;      // plus haut => image plus grande
-    final smallTileH = tileW * 0.46;    // bandanas plus bas
+    final bigTileH = tileW * 0.78; // plus haut => image plus grande
+    final smallTileH = tileW * 0.46; // bandanas plus bas
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
@@ -58,9 +78,9 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
               height: _headerH,
               onBackTap: () => Navigator.of(context).maybePop(),
               onCartTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const CartPage()),
-                );
+                Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const CartPage()));
               },
             ),
 
@@ -82,7 +102,12 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
 
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(_pageHPad, 12, _pageHPad, 10),
+                padding: const EdgeInsets.fromLTRB(
+                  _pageHPad,
+                  12,
+                  _pageHPad,
+                  10,
+                ),
                 child: Column(
                   children: [
                     Row(
@@ -93,7 +118,14 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                           child: _PhotoTile(
                             title: "Boutique photos",
                             subtitle: "Photographes only",
-                            onTap: () {},
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const MediaShopWrapper(groupId: 'all'),
+                                ),
+                              );
+                            },
                           ),
                         ),
                         const SizedBox(width: _gridGap),
@@ -107,8 +139,10 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                               assetPath: "assets/shop/casquette.jpg",
                               fallbackIcon: Icons.checkroom_outlined,
                             ),
-                            onAdd: () {},
-                            onTap: () {},
+                            onAdd: () =>
+                                _addToCart("Casquette MASLIVE", "25,00 €"),
+                            onTap: () =>
+                                _openArticle("Casquette MASLIVE", "25,00 €"),
                             compact: false,
                           ),
                         ),
@@ -127,8 +161,10 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                               assetPath: "assets/shop/tshirt.jpg",
                               fallbackIcon: Icons.checkroom_outlined,
                             ),
-                            onAdd: () {},
-                            onTap: () {},
+                            onAdd: () =>
+                                _addToCart("T-shirt MASLIVE", "25,00 €"),
+                            onTap: () =>
+                                _openArticle("T-shirt MASLIVE", "25,00 €"),
                             compact: false,
                           ),
                         ),
@@ -143,8 +179,10 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                               assetPath: "assets/shop/porte_cle.jpg",
                               fallbackIcon: Icons.key_outlined,
                             ),
-                            onAdd: () {},
-                            onTap: () {},
+                            onAdd: () =>
+                                _addToCart("Porte-clé MASLIVE", "8,00 €"),
+                            onTap: () =>
+                                _openArticle("Porte-clé MASLIVE", "8,00 €"),
                             compact: false,
                           ),
                         ),
@@ -163,8 +201,10 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                               assetPath: "assets/shop/bandana.jpg",
                               fallbackIcon: Icons.auto_awesome_outlined,
                             ),
-                            onAdd: () {},
-                            onTap: () {},
+                            onAdd: () =>
+                                _addToCart("Bandana MASLIVE", "20,00 €"),
+                            onTap: () =>
+                                _openArticle("Bandana MASLIVE", "20,00 €"),
                             compact: true,
                           ),
                         ),
@@ -179,8 +219,10 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                               assetPath: "assets/shop/bandana2.jpg",
                               fallbackIcon: Icons.auto_awesome_outlined,
                             ),
-                            onAdd: () {},
-                            onTap: () {},
+                            onAdd: () =>
+                                _addToCart("Bandana MASLIVE", "10,00 €"),
+                            onTap: () =>
+                                _openArticle("Bandana MASLIVE", "10,00 €"),
                             compact: true,
                           ),
                         ),
@@ -221,7 +263,11 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
 
 /// -------------------- HEADER --------------------
 class _Header extends StatelessWidget {
-  const _Header({required this.height, required this.onBackTap, required this.onCartTap});
+  const _Header({
+    required this.height,
+    required this.onBackTap,
+    required this.onCartTap,
+  });
   final double height;
   final VoidCallback onBackTap;
   final VoidCallback onCartTap;
@@ -280,11 +326,16 @@ class _Header extends StatelessWidget {
                         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                         child: Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.18),
                             borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: Colors.white.withOpacity(0.22)),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.22),
+                            ),
                           ),
                           child: const Text(
                             "Trouve des produits officiels et des photos\nd'événements.",
@@ -330,7 +381,11 @@ class _CartButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(22),
             border: Border.all(color: Colors.white.withOpacity(0.22)),
           ),
-          child: const Icon(Icons.shopping_bag_outlined, color: Colors.white, size: 34),
+          child: const Icon(
+            Icons.shopping_bag_outlined,
+            color: Colors.white,
+            size: 34,
+          ),
         ),
       ),
     );
@@ -357,7 +412,11 @@ class _BackButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(22),
             border: Border.all(color: Colors.white.withOpacity(0.22)),
           ),
-          child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
+          child: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: Colors.white,
+            size: 22,
+          ),
         ),
       ),
     );
@@ -376,7 +435,11 @@ class _PinnedDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => height;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => child;
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) => child;
 
   @override
   bool shouldRebuild(covariant _PinnedDelegate oldDelegate) =>
@@ -445,7 +508,11 @@ class _FiltersBar extends StatelessWidget {
 }
 
 class _SelectedChip extends StatelessWidget {
-  const _SelectedChip({required this.label, required this.selected, required this.onTap});
+  const _SelectedChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -477,7 +544,11 @@ class _SelectedChip extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Color(0xFF111827)),
+          style: const TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 18,
+            color: Color(0xFF111827),
+          ),
         ),
       ),
     );
@@ -506,7 +577,11 @@ class _TabText extends StatelessWidget {
 }
 
 class _GroupDropdown extends StatelessWidget {
-  const _GroupDropdown({required this.value, required this.items, required this.onChanged});
+  const _GroupDropdown({
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
   final String value;
   final List<String> items;
   final ValueChanged<String> onChanged;
@@ -534,10 +609,18 @@ class _GroupDropdown extends StatelessWidget {
             isExpanded: true,
             icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 28),
             items: items
-                .map((e) => DropdownMenuItem(
-                      value: e,
-                      child: Text(e, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20)),
-                    ))
+                .map(
+                  (e) => DropdownMenuItem(
+                    value: e,
+                    child: Text(
+                      e,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 20,
+                      ),
+                    ),
+                  ),
+                )
                 .toList(),
             onChanged: (v) {
               if (v != null) onChanged(v);
@@ -559,7 +642,9 @@ class _BaseCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(_ShopPixelPerfectPageState._cardRadius),
+        borderRadius: BorderRadius.circular(
+          _ShopPixelPerfectPageState._cardRadius,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.08),
@@ -569,7 +654,9 @@ class _BaseCard extends StatelessWidget {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(_ShopPixelPerfectPageState._cardRadius),
+        borderRadius: BorderRadius.circular(
+          _ShopPixelPerfectPageState._cardRadius,
+        ),
         child: child,
       ),
     );
@@ -577,7 +664,11 @@ class _BaseCard extends StatelessWidget {
 }
 
 class _PhotoTile extends StatelessWidget {
-  const _PhotoTile({required this.title, required this.subtitle, required this.onTap});
+  const _PhotoTile({
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
   final String title;
   final String subtitle;
   final VoidCallback onTap;
@@ -623,16 +714,24 @@ class _PhotoTile extends StatelessWidget {
                             title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 20),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 20,
+                            ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             subtitle,
-                            style: TextStyle(color: Colors.white.withOpacity(0.92), fontWeight: FontWeight.w800, fontSize: 16),
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.92),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 16,
+                            ),
                           ),
                         ],
                       ),
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -691,9 +790,13 @@ class _ProductTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(_ShopPixelPerfectPageState._innerRadius),
+                    borderRadius: BorderRadius.circular(
+                      _ShopPixelPerfectPageState._innerRadius,
+                    ),
                     child: SizedBox(
-                      height: compact ? 54 : 96, // ✅ image plus grande sur grandes tuiles
+                      height: compact
+                          ? 54
+                          : 96, // ✅ image plus grande sur grandes tuiles
                       width: double.infinity,
                       child: image,
                     ),
@@ -724,11 +827,7 @@ class _ProductTile extends StatelessWidget {
             ),
 
             // ✅ Bouton + overlay (fini le "+" dans l'image)
-            Positioned(
-              right: 12,
-              bottom: 12,
-              child: _AddButton(onTap: onAdd),
-            ),
+            Positioned(right: 12, bottom: 12, child: _AddButton(onTap: onAdd)),
           ],
         ),
       ),
@@ -744,7 +843,9 @@ class _AddButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(_ShopPixelPerfectPageState._addRadius),
+      borderRadius: BorderRadius.circular(
+        _ShopPixelPerfectPageState._addRadius,
+      ),
       child: Ink(
         width: _ShopPixelPerfectPageState._addSize,
         height: _ShopPixelPerfectPageState._addSize,
@@ -754,7 +855,9 @@ class _AddButton extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(_ShopPixelPerfectPageState._addRadius),
+          borderRadius: BorderRadius.circular(
+            _ShopPixelPerfectPageState._addRadius,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.16),
@@ -787,19 +890,31 @@ class _EmptyStateCard extends StatelessWidget {
                 color: Colors.black.withOpacity(0.05),
                 borderRadius: BorderRadius.circular(22),
               ),
-              child: Icon(Icons.shopping_bag_outlined, size: 42, color: Colors.black.withOpacity(0.35)),
+              child: Icon(
+                Icons.shopping_bag_outlined,
+                size: 42,
+                color: Colors.black.withOpacity(0.35),
+              ),
             ),
             const SizedBox(height: 16),
             const Text(
               "Aucun produit disponible",
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF111827)),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF111827),
+              ),
             ),
             const SizedBox(height: 10),
             Text(
               "Reviens plus tard ou change de catégorie.",
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black.withOpacity(0.55)),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.black.withOpacity(0.55),
+              ),
             ),
           ],
         ),
@@ -812,10 +927,7 @@ class _EmptyStateCard extends StatelessWidget {
 /// Mets tes vraies images dans assets/shop/*.jpg
 /// Si absent => fallback propre (pas de + fantôme)
 class _AssetOrFallback extends StatelessWidget {
-  const _AssetOrFallback({
-    required this.assetPath,
-    required this.fallbackIcon,
-  });
+  const _AssetOrFallback({required this.assetPath, required this.fallbackIcon});
 
   final String assetPath;
   final IconData fallbackIcon;
@@ -835,7 +947,11 @@ class _AssetOrFallback extends StatelessWidget {
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) {
           return Center(
-            child: Icon(fallbackIcon, size: 34, color: Colors.black.withOpacity(0.35)),
+            child: Icon(
+              fallbackIcon,
+              size: 34,
+              color: Colors.black.withOpacity(0.35),
+            ),
           );
         },
       ),

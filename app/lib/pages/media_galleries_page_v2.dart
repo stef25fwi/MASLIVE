@@ -194,9 +194,9 @@ class GalleryCartProvider extends ChangeNotifier {
 class GalleryCartScope extends InheritedNotifier<GalleryCartProvider> {
   const GalleryCartScope({
     super.key,
-    required GalleryCartProvider notifier,
-    required Widget child,
-  }) : super(notifier: notifier, child: child);
+    required GalleryCartProvider super.notifier,
+    required super.child,
+  });
 
   static GalleryCartProvider of(BuildContext context) {
     final scope = 

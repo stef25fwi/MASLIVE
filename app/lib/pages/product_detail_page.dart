@@ -22,10 +22,32 @@ class ProductDetailPage extends StatefulWidget {
 class _ProductDetailPageState extends State<ProductDetailPage> {
   String size = 'M';
   String color = 'Noir';
+  int quantity = 1; // Nouvelle variable pour la quantité
 
   static const _bg = Color(0xFFF4F5F8);
 
+  @override
+  void initState() {
+    super.initState();
+    // Initialiser avec les valeurs par défaut du produit
+    size = widget.product.sizes.first;
+    color = widget.product.colors.first;
+  }
+
   Widget _productImageGallery(GroupProduct p) {
+    // Vérifier si c'est un asset local
+    if (p.imagePath != null && p.imagePath!.isNotEmpty) {
+      return Image.asset(
+        p.imagePath!,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Image.asset(
+          'assets/splash/maslivesmall.png',
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+
+    // URLs réseau
     final urls = <String>[
       if (p.imageUrl.isNotEmpty) p.imageUrl,
       if ((p.imageUrl2 ?? '').isNotEmpty) p.imageUrl2!,
@@ -162,16 +184,75 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                           _rowSelector(
                             label: 'Taille',
                             value: size,
-                            choices: const ['XS', 'S', 'M', 'L', 'XL'],
-                            onPick: (v) => setState(() => size = v),
+                            choices: p.sizes,
+                            onPick: (v) => setState(() {
+                              size = v;
+                              quantity = 1; // Reset quantité lors du changement
+                            }),
                           ),
                           const SizedBox(height: 10),
                           _rowSelector(
                             label: 'Couleur',
                             value: color,
-                            choices: const ['Noir', 'Blanc', 'Gris'],
-                            onPick: (v) => setState(() => color = v),
+                            choices: p.colors,
+                            onPick: (v) => setState(() {
+                              color = v;
+                              quantity = 1; // Reset quantité lors du changement
+                            }),
                           ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // Stock et Quantité
+                    _card(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Text(
+                                'Disponibilité',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              _StockPill(stock: p.stockFor(size, color)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            p.stockFor(size, color) > 0
+                                ? '${p.stockFor(size, color)} disponible(s) pour $size / $color'
+                                : 'Rupture de stock pour $size / $color',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: p.stockFor(size, color) > 0
+                                  ? const Color(0xFF0F766E)
+                                  : const Color(0xFFB42318),
+                            ),
+                          ),
+                          if (p.stockFor(size, color) > 0) ...[
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Quantité',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _QtySelector(
+                              value: quantity,
+                              max: p.stockFor(size, color),
+                              onChanged: (v) => setState(() => quantity = v),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -252,20 +333,33 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           ),
           const SizedBox(width: 12),
           _gradientButton(
-            text: 'Ajouter',
-            onTap: () {
+            text: p.stockFor(size, color) > 0 ? 'Ajouter ($quantity)' : 'Indisponible',
+            onTap: p.stockFor(size, color) > 0 ? () {
+              if (quantity > p.stockFor(size, color)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('❌ Quantité indisponible'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
               CartService.instance.addProduct(
                 groupId: widget.groupId,
                 product: p,
                 size: size,
                 color: color,
+                quantity: quantity, // Utiliser la quantité sélectionnée
               );
 
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Ajouté: ${p.title} ($size, $color)'),
+                  content: Text('✅ Ajouté: $quantity x ${p.title} ($size, $color)'),
+                  backgroundColor: const Color(0xFF0F766E),
                   action: SnackBarAction(
                     label: 'Panier',
+                    textColor: Colors.white,
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const CartPage()),
@@ -274,7 +368,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   ),
                 ),
               );
-            },
+              
+              // Reset quantité après ajout
+              setState(() => quantity = 1);
+            } : null,
           ),
         ],
       ),
@@ -357,7 +454,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     );
   }
 
-  Widget _gradientButton({required String text, required VoidCallback onTap}) {
+  Widget _gradientButton({required String text, VoidCallback? onTap}) {
+    final enabled = onTap != null;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
@@ -365,27 +463,36 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFFFE36A),
-              Color(0xFFFF7BC5),
-              Color(0xFF7CE0FF),
-            ],
-          ),
-          boxShadow: [
-            BoxShadow(
-              blurRadius: 16,
-              offset: const Offset(0, 10),
-              color: Colors.black.withValues(alpha: 0.12),
-            ),
-          ],
+          gradient: enabled
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFFFE36A),
+                    Color(0xFFFF7BC5),
+                    Color(0xFF7CE0FF),
+                  ],
+                )
+              : LinearGradient(
+                  colors: [
+                    Colors.grey.shade300,
+                    Colors.grey.shade400,
+                  ],
+                ),
+          boxShadow: enabled
+              ? [
+                  BoxShadow(
+                    blurRadius: 16,
+                    offset: const Offset(0, 10),
+                    color: Colors.black.withValues(alpha: 0.12),
+                  ),
+                ]
+              : null,
         ),
         child: Text(
           text,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: enabled ? Colors.white : Colors.grey.shade600,
             fontWeight: FontWeight.w900,
             fontSize: 15,
           ),
@@ -406,6 +513,105 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Icon(icon, size: 22, color: Colors.black.withValues(alpha: 0.75)),
+        ),
+      ),
+    );
+  }
+}
+
+// Widgets pour gestion stock et quantité
+class _StockPill extends StatelessWidget {
+  const _StockPill({required this.stock});
+  final int stock;
+
+  @override
+  Widget build(BuildContext context) {
+    final ok = stock > 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: ok ? const Color(0xFFD1FAE5) : const Color(0xFFFEE4E2),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        ok ? 'En stock' : 'Rupture',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+          color: ok ? const Color(0xFF065F46) : const Color(0xFF7A271A),
+        ),
+      ),
+    );
+  }
+}
+
+class _QtySelector extends StatelessWidget {
+  const _QtySelector({
+    required this.value,
+    required this.max,
+    required this.onChanged,
+  });
+
+  final int value;
+  final int max;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _QtyBtn(
+          icon: Icons.remove_rounded,
+          onTap: value > 1 ? () => onChanged(value - 1) : null,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Container(
+            height: 42,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+            ),
+            child: Text(
+              '$value',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        _QtyBtn(
+          icon: Icons.add_rounded,
+          onTap: value < max ? () => onChanged(value + 1) : null,
+        ),
+      ],
+    );
+  }
+}
+
+class _QtyBtn extends StatelessWidget {
+  const _QtyBtn({required this.icon, required this.onTap});
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: onTap == null ? Colors.black.withValues(alpha: 0.04) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+        ),
+        child: Icon(
+          icon,
+          color: onTap == null ? Colors.black26 : Colors.black87,
+          size: 20,
         ),
       ),
     );

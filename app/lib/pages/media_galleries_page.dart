@@ -42,7 +42,7 @@ class _MediaGalleriesPageState extends State<MediaGalleriesPage> {
                   border: Border.all(color: Colors.grey.shade200),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -661,7 +661,7 @@ class _FilterDropdown extends StatelessWidget {
     return Container(
       constraints: const BoxConstraints(minWidth: 140),
       child: DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         decoration: InputDecoration(
           labelText: label,
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
