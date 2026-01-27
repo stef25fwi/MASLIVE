@@ -46,7 +46,7 @@ class RainbowHeader extends StatelessWidget {
                 'assets/textures/maslive_honeycomb_2048.png',
                 fit: BoxFit.cover,
                 filterQuality: FilterQuality.low,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
               ),
             ),
           ),

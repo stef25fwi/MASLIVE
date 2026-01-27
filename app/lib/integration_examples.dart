@@ -2,6 +2,7 @@
 ///
 /// Ce fichier montre comment intégrer la nouvelle page média
 /// dans votre application existante.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';

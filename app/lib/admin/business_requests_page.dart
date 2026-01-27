@@ -154,7 +154,7 @@ class _BusinessRequestsPageState extends State<BusinessRequestsPage> {
 
           return ListView.separated(
             itemCount: docs.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (context, index) => const Divider(height: 1),
             itemBuilder: (context, i) {
               final d = docs[i];
               final data = d.data();

@@ -67,6 +67,7 @@ class CartService extends ChangeNotifier {
               title: (data['title'] ?? '') as String,
               priceCents: (data['priceCents'] ?? 0) as int,
               imageUrl: (data['imageUrl'] ?? '') as String,
+              imagePath: data['imagePath'] as String?, // Support assets locaux
               size: (data['size'] ?? 'M') as String,
               color: (data['color'] ?? 'Noir') as String,
               quantity: (data['quantity'] ?? 1) as int,
@@ -119,6 +120,7 @@ class CartService extends ChangeNotifier {
           'title': item.title,
           'priceCents': item.priceCents,
           'imageUrl': item.imageUrl,
+          'imagePath': item.imagePath, // Support assets locaux
           'size': item.size,
           'color': item.color,
           'quantity': item.quantity,

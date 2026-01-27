@@ -6,10 +6,14 @@ class GroupProduct {
   final int priceCents;
   final String imageUrl;
   final String? imageUrl2;
+  final String? imagePath; // Pour assets locaux
   final String category;
   final bool isActive;
   final String moderationStatus; // 'pending' | 'approved' | 'rejected'
   final String? moderationReason;
+  final Map<String, int>? stockByVariant; // 'taille|couleur' -> stock
+  final List<String>? availableSizes;
+  final List<String>? availableColors;
 
   const GroupProduct({
     required this.id,
@@ -17,16 +21,50 @@ class GroupProduct {
     required this.priceCents,
     required this.imageUrl,
     this.imageUrl2,
+    this.imagePath,
     required this.category,
     required this.isActive,
     this.moderationStatus = 'approved',
     this.moderationReason,
+    this.stockByVariant,
+    this.availableSizes,
+    this.availableColors,
   });
 
   String get priceLabel => '€${(priceCents / 100).toStringAsFixed(0)}';
+  
+  // Récupère le stock pour une variante donnée
+  int stockFor(String size, String color) {
+    if (stockByVariant == null) return 999; // Stock illimité si non géré
+    return stockByVariant!['$size|$color'] ?? 0;
+  }
+  
+  // Liste des tailles disponibles
+  List<String> get sizes => availableSizes ?? const ['XS', 'S', 'M', 'L', 'XL'];
+  
+  // Liste des couleurs disponibles
+  List<String> get colors => availableColors ?? const ['Noir', 'Blanc', 'Gris'];
 
   factory GroupProduct.fromMap(String id, Map<String, dynamic> data) {
     final status = (data['moderationStatus'] ?? '').toString().trim();
+    
+    // Parser le stock par variante
+    Map<String, int>? stockByVariant;
+    if (data['stockByVariant'] != null) {
+      stockByVariant = Map<String, int>.from(data['stockByVariant'] as Map);
+    }
+    
+    // Parser les tailles et couleurs disponibles
+    List<String>? availableSizes;
+    if (data['availableSizes'] != null) {
+      availableSizes = List<String>.from(data['availableSizes'] as List);
+    }
+    
+    List<String>? availableColors;
+    if (data['availableColors'] != null) {
+      availableColors = List<String>.from(data['availableColors'] as List);
+    }
+    
     return GroupProduct(
       id: id,
       title: (data['title'] ?? '') as String,
@@ -35,6 +73,9 @@ class GroupProduct {
       imageUrl2: (data['imageUrl2'] as String?)?.trim().isEmpty == true
           ? null
           : data['imageUrl2'] as String?,
+      imagePath: (data['imagePath'] as String?)?.trim().isEmpty == true
+          ? null
+          : data['imagePath'] as String?,
       category: (data['category'] ?? 'T-shirts') as String,
       isActive: (data['isActive'] ?? true) as bool,
       moderationStatus: status.isEmpty
@@ -43,6 +84,9 @@ class GroupProduct {
         moderationReason: (data['moderationReason'] as String?)?.trim().isEmpty == true
           ? null
           : (data['moderationReason'] as String?),
+      stockByVariant: stockByVariant,
+      availableSizes: availableSizes,
+      availableColors: availableColors,
     );
   }
 
@@ -58,11 +102,15 @@ class GroupProduct {
       'priceCents': priceCents,
       'imageUrl': imageUrl,
       if (imageUrl2 != null && imageUrl2!.isNotEmpty) 'imageUrl2': imageUrl2,
+      if (imagePath != null && imagePath!.isNotEmpty) 'imagePath': imagePath,
       'category': category,
       'isActive': isActive,
       'moderationStatus': moderationStatus,
       if (moderationReason != null && moderationReason!.isNotEmpty)
         'moderationReason': moderationReason,
+      if (stockByVariant != null) 'stockByVariant': stockByVariant,
+      if (availableSizes != null) 'availableSizes': availableSizes,
+      if (availableColors != null) 'availableColors': availableColors,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };

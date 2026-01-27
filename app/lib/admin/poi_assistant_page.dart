@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 import 'dart:async';
 
@@ -145,9 +147,11 @@ class _POIAssistantPageState extends State<POIAssistantPage> {
               );
               final restoredValidated = draftData['stepValidated'];
               if (restoredValidated is List) {
-                for (int i = 0;
-                    i < _stepValidated.length && i < restoredValidated.length;
-                    i++) {
+                for (
+                  int i = 0;
+                  i < _stepValidated.length && i < restoredValidated.length;
+                  i++
+                ) {
                   final val = restoredValidated[i];
                   if (val is bool) {
                     _stepValidated[i] = val;
@@ -209,10 +213,14 @@ class _POIAssistantPageState extends State<POIAssistantPage> {
               padding: const EdgeInsets.only(right: 8),
               child: Center(
                 child: Tooltip(
-                  message: 'Dernière sauvegarde: ${_formatTime(_lastAutoSave!)}',
+                  message:
+                      'Dernière sauvegarde: ${_formatTime(_lastAutoSave!)}',
                   child: Chip(
-                    avatar:
-                        const Icon(Icons.cloud_done, size: 16, color: Colors.green),
+                    avatar: const Icon(
+                      Icons.cloud_done,
+                      size: 16,
+                      color: Colors.green,
+                    ),
                     label: Text(
                       'Auto-save',
                       style: Theme.of(context).textTheme.bodySmall,
@@ -224,7 +232,9 @@ class _POIAssistantPageState extends State<POIAssistantPage> {
             ),
           IconButton(
             icon: Icon(_isFocusMode ? Icons.visibility : Icons.visibility_off),
-            tooltip: _isFocusMode ? 'Désactiver mode focus' : 'Activer mode focus',
+            tooltip: _isFocusMode
+                ? 'Désactiver mode focus'
+                : 'Activer mode focus',
             onPressed: _toggleFocusMode,
           ),
         ],
@@ -274,8 +284,10 @@ class _POIAssistantPageState extends State<POIAssistantPage> {
       case 1:
         return _StepLoadMap(
           selectedMapId: _selectedMapId,
-          selectedMapName: _availableMaps
-              .firstWhere((m) => m['id'] == _selectedMapId, orElse: () => {})['name'],
+          selectedMapName: _availableMaps.firstWhere(
+            (m) => m['id'] == _selectedMapId,
+            orElse: () => {},
+          )['name'],
           onNext: _nextStep,
           onPrev: _prevStep,
         );
@@ -337,7 +349,10 @@ class _POIAssistantPageState extends State<POIAssistantPage> {
                   children: [
                     const Icon(Icons.verified_outlined, size: 18),
                     const SizedBox(width: 8),
-                    Text('Étape validée', style: Theme.of(context).textTheme.bodyMedium),
+                    Text(
+                      'Étape validée',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
                   ],
                 ),
                 Switch(
@@ -356,13 +371,22 @@ class _POIAssistantPageState extends State<POIAssistantPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 if (_step > 0)
-                  TextButton(onPressed: _prevStep, child: const Text('Précédent')),
+                  TextButton(
+                    onPressed: _prevStep,
+                    child: const Text('Précédent'),
+                  ),
                 Row(
                   children: [
-                    Text('Étape ${_step + 1}/5', style: Theme.of(context).textTheme.bodySmall),
+                    Text(
+                      'Étape ${_step + 1}/5',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                     const SizedBox(width: 12),
                     if (_step < 4)
-                      ElevatedButton(onPressed: _nextStep, child: const Text('Suivant')),
+                      ElevatedButton(
+                        onPressed: _nextStep,
+                        child: const Text('Suivant'),
+                      ),
                     if (_step == 4)
                       ElevatedButton(
                         onPressed: _publishPOIs,
@@ -378,24 +402,179 @@ class _POIAssistantPageState extends State<POIAssistantPage> {
     );
   }
 
-  void _publishPOIs() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('✅ POIs publiés avec succès !'),
-        backgroundColor: Colors.green,
+  void _publishPOIs() async {
+    if (_selectedMapId == null || _mapName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ Veuillez sélectionner une carte'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Afficher un loader
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final db = FirebaseFirestore.instance;
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user == null) throw Exception('Non authentifié');
+
+      // Récupérer la carte sélectionnée pour extraire le pays
+      final selectedMap = _availableMaps.firstWhere(
+        (map) => map['id'] == _selectedMapId,
+        orElse: () => {},
+      );
+
+      final mapName = selectedMap['name'] as String? ?? _mapName;
+
+      // Extraire le pays du nom (ex: "Guadeloupe - Attractions" -> "Guadeloupe")
+      final countryFromName = mapName.contains(' - ')
+          ? mapName.split(' - ').first.trim()
+          : 'Autre';
+
+      // Créer le document de la carte dans Firestore
+      final mapDocRef = db.collection('poi_maps').doc();
+
+      await mapDocRef.set({
+        'id': mapDocRef.id,
+        'name': mapName,
+        'title': _mapName,
+        'country': countryFromName,
+        'description': 'Carte créée via le wizard POI',
+        'poiCount': _currentPOIs.length,
+        'pois': _currentPOIs.map((poi) {
+          return {
+            'name': poi['name'] ?? '',
+            'icon': poi['icon'] ?? 'pin',
+            'color': poi['color']?.toString() ?? '',
+            'type': poi['type'] ?? 'point',
+          };
+        }).toList(),
+        'status': 'draft',
+        'createdBy': user.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Fermer le loader
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('✅ Carte sauvegardée dans la bibliothèque !'),
+          backgroundColor: Colors.green,
+          action: SnackBarAction(
+            label: 'Voir',
+            onPressed: () {
+              // Naviguer vers la bibliothèque
+              Navigator.of(context).pushNamed('/library');
+            },
+          ),
+        ),
+      );
+
+      // Attendre 1 seconde puis fermer
+      await Future.delayed(const Duration(seconds: 1));
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Fermer le loader
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('❌ Erreur: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  /// Affiche un dialog de confirmation de suppression de carte avec demande d'écriture "delete"
+  void _showDeleteConfirmation(String mapId, String mapName) {
+    final confirmCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('⚠️ Supprimer cette carte'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Êtes-vous sûr de vouloir supprimer la carte "$mapName" ?',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Cette action est irréversible. Tapez "delete" pour confirmer :',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirmCtrl,
+              decoration: InputDecoration(
+                hintText: 'Tapez "delete"',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                prefixIcon: const Icon(Icons.warning_amber),
+              ),
+              textCapitalization: TextCapitalization.none,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              confirmCtrl.dispose();
+              Navigator.pop(context);
+            },
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: confirmCtrl.text.trim() != 'delete'
+                ? null
+                : () {
+                    confirmCtrl.dispose();
+                    Navigator.pop(context);
+                    _deleteMap(mapId);
+                  },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: confirmCtrl.text.trim() == 'delete'
+                  ? Colors.red
+                  : Colors.grey,
+            ),
+            child: const Text('Supprimer'),
+          ),
+        ],
       ),
     );
-    Navigator.of(context).pop();
+  }
+
+  /// Supprime la carte de la liste
+  void _deleteMap(String mapId) {
+    setState(() {
+      _availableMaps.removeWhere((map) => map['id'] == mapId);
+      if (_selectedMapId == mapId) {
+        _selectedMapId = null;
+      }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('✓ Carte supprimée'),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   Widget _buildStepSelector() {
-    final steps = [
-      'Sélectionner',
-      'Charger',
-      'Couche',
-      'Éditer',
-      'Apparence',
-    ];
+    final steps = ['Sélectionner', 'Charger', 'Couche', 'Éditer', 'Apparence'];
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -504,7 +683,9 @@ class _StepSelectMap extends StatelessWidget {
                   title: Text(
                     map['name'],
                     style: TextStyle(
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                     ),
                   ),
                   subtitle: Column(
@@ -527,8 +708,7 @@ class _StepSelectMap extends StatelessWidget {
                     children: [
                       if (isSelected)
                         Icon(Icons.check_circle, color: Colors.blue.shade700),
-                      if (isSelected)
-                        const SizedBox(width: 8),
+                      if (isSelected) const SizedBox(width: 8),
                       PopupMenuButton<String>(
                         onSelected: (value) {
                           if (value == 'delete' && onMapDelete != null) {
@@ -542,7 +722,10 @@ class _StepSelectMap extends StatelessWidget {
                               children: [
                                 Icon(Icons.delete, color: Colors.red, size: 18),
                                 SizedBox(width: 8),
-                                Text('Supprimer', style: TextStyle(color: Colors.red)),
+                                Text(
+                                  'Supprimer',
+                                  style: TextStyle(color: Colors.red),
+                                ),
                               ],
                             ),
                           ),
@@ -555,8 +738,7 @@ class _StepSelectMap extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (!isSelected)
-                        const Icon(Icons.chevron_right),
+                      if (!isSelected) const Icon(Icons.chevron_right),
                     ],
                   ),
                   onTap: () {
@@ -586,11 +768,10 @@ class _StepSelectMap extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    availableMaps
-                        .firstWhere((m) => m['id'] == selectedMapId)['name'],
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    availableMaps.firstWhere(
+                      (m) => m['id'] == selectedMapId,
+                    )['name'],
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
                 ElevatedButton(
@@ -694,12 +875,19 @@ class _StepLoadMap extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.fullscreen, color: Colors.blue.shade700, size: 20),
+                      Icon(
+                        Icons.fullscreen,
+                        color: Colors.blue.shade700,
+                        size: 20,
+                      ),
                       const SizedBox(width: 10),
                       const Expanded(
                         child: Text(
                           'La carte s\'ouvre en plein écran\nChoisissez la couche ensuite',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
@@ -745,8 +933,10 @@ class _StepSelectLayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final map =
-        availableMaps.firstWhere((m) => m['id'] == selectedMapId, orElse: () => {});
+    final map = availableMaps.firstWhere(
+      (m) => m['id'] == selectedMapId,
+      orElse: () => {},
+    );
     final layers = (map['layers'] as List<dynamic>?)?.cast<String>() ?? [];
 
     return Column(
@@ -796,14 +986,18 @@ class _StepSelectLayer extends StatelessWidget {
                       Icon(
                         Icons.layers_outlined,
                         size: 32,
-                        color: isSelected ? Colors.purple.shade700 : Colors.grey[600],
+                        color: isSelected
+                            ? Colors.purple.shade700
+                            : Colors.grey[600],
                       ),
                       const SizedBox(height: 12),
                       Text(
                         layer,
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.w500,
                           fontSize: 13,
                         ),
                       ),
@@ -901,86 +1095,6 @@ class _StepEditPOIsState extends State<_StepEditPOIs> {
     widget.onPOIsChanged(_pois);
   }
 
-  /// Affiche un dialog de confirmation de suppression de carte avec demande d'écriture "delete"
-  void _showDeleteConfirmation(String mapId, String mapName) {
-    final confirmCtrl = TextEditingController();
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('⚠️ Supprimer cette carte'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Êtes-vous sûr de vouloir supprimer la carte "$mapName" ?',
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Cette action est irréversible. Tapez "delete" pour confirmer :',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: confirmCtrl,
-              decoration: InputDecoration(
-                hintText: 'Tapez "delete"',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                prefixIcon: const Icon(Icons.warning_amber),
-              ),
-              textCapitalization: TextCapitalization.lowercase,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              confirmCtrl.dispose();
-              Navigator.pop(context);
-            },
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: confirmCtrl.text.trim() != 'delete'
-                ? null
-                : () {
-                    confirmCtrl.dispose();
-                    Navigator.pop(context);
-                    _deleteMap(mapId);
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: confirmCtrl.text.trim() == 'delete'
-                  ? Colors.red
-                  : Colors.grey,
-            ),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Supprime la carte de la liste
-  void _deleteMap(String mapId) {
-    setState(() {
-      _availableMaps.removeWhere((map) => map['id'] == mapId);
-      if (_selectedMapId == mapId) {
-        _selectedMapId = null;
-      }
-    });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('✓ Carte supprimée'),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -1013,7 +1127,11 @@ class _StepEditPOIsState extends State<_StepEditPOIs> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.location_off, size: 64, color: Colors.grey[400]),
+                      Icon(
+                        Icons.location_off,
+                        size: 64,
+                        color: Colors.grey[400],
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         'Aucun POI encore',
@@ -1037,9 +1155,14 @@ class _StepEditPOIsState extends State<_StepEditPOIs> {
                       margin: const EdgeInsets.only(bottom: 12),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: _hexToColor(poi['color'] ?? '#FF0000'),
-                          child: const Icon(Icons.location_on,
-                              color: Colors.white, size: 18),
+                          backgroundColor: _hexToColor(
+                            poi['color'] ?? '#FF0000',
+                          ),
+                          child: const Icon(
+                            Icons.location_on,
+                            color: Colors.white,
+                            size: 18,
+                          ),
                         ),
                         title: Text(poi['name'] ?? 'POI'),
                         subtitle: Text(
@@ -1236,10 +1359,14 @@ class _StepStylePOIsState extends State<_StepStylePOIs> {
                       color: isSelected ? Colors.orange.shade50 : null,
                       child: ExpansionTile(
                         leading: CircleAvatar(
-                          backgroundColor:
-                              _hexToColor(poi['color'] ?? '#FF0000'),
-                          child: const Icon(Icons.location_on,
-                              color: Colors.white, size: 18),
+                          backgroundColor: _hexToColor(
+                            poi['color'] ?? '#FF0000',
+                          ),
+                          child: const Icon(
+                            Icons.location_on,
+                            color: Colors.white,
+                            size: 18,
+                          ),
                         ),
                         title: Text(poi['name'] ?? 'POI'),
                         onExpansionChanged: (expanded) {
@@ -1263,11 +1390,14 @@ class _StepStylePOIsState extends State<_StepStylePOIs> {
                                         height: 40,
                                         decoration: BoxDecoration(
                                           color: _hexToColor(
-                                              poi['color'] ?? '#FF0000'),
-                                          borderRadius:
-                                              BorderRadius.circular(8),
+                                            poi['color'] ?? '#FF0000',
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                           border: Border.all(
-                                              color: Colors.grey.shade300),
+                                            color: Colors.grey.shade300,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -1279,17 +1409,18 @@ class _StepStylePOIsState extends State<_StepStylePOIs> {
                                 Wrap(
                                   spacing: 8,
                                   children: ['pin', 'star', 'heart', 'flag']
-                                      .map((icon) => ChoiceChip(
-                                            label: Text(icon),
-                                            selected: poi['icon'] == icon,
-                                            onSelected: (selected) {
-                                              setState(() {
-                                                _pois[index]['icon'] = icon;
-                                              });
-                                              widget
-                                                  .onStyleChanged(_pois);
-                                            },
-                                          ))
+                                      .map(
+                                        (icon) => ChoiceChip(
+                                          label: Text(icon),
+                                          selected: poi['icon'] == icon,
+                                          onSelected: (selected) {
+                                            setState(() {
+                                              _pois[index]['icon'] = icon;
+                                            });
+                                            widget.onStyleChanged(_pois);
+                                          },
+                                        ),
+                                      )
                                       .toList(),
                                 ),
                                 const SizedBox(height: 12),
@@ -1299,12 +1430,10 @@ class _StepStylePOIsState extends State<_StepStylePOIs> {
                                   min: 16,
                                   max: 40,
                                   divisions: 12,
-                                  label:
-                                      '${(poi['size'] ?? 24).toInt()} px',
+                                  label: '${(poi['size'] ?? 24).toInt()} px',
                                   onChanged: (value) {
                                     setState(() {
-                                      _pois[index]['size'] =
-                                          value.toInt();
+                                      _pois[index]['size'] = value.toInt();
                                     });
                                     widget.onStyleChanged(_pois);
                                   },
@@ -1376,24 +1505,26 @@ class _StepStylePOIsState extends State<_StepStylePOIs> {
         content: Wrap(
           spacing: 8,
           children: colors
-              .map((color) => GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _pois[index]['color'] = color;
-                      });
-                      widget.onStyleChanged(_pois);
-                      Navigator.pop(context);
-                    },
-                    child: Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: _hexToColor(color),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
+              .map(
+                (color) => GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _pois[index]['color'] = color;
+                    });
+                    widget.onStyleChanged(_pois);
+                    Navigator.pop(context);
+                  },
+                  child: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: _hexToColor(color),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
                     ),
-                  ))
+                  ),
+                ),
+              )
               .toList(),
         ),
       ),

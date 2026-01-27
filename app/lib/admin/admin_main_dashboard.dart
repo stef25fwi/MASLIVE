@@ -20,6 +20,7 @@ import 'user_management_page.dart';
 import 'business_requests_page.dart';
 import 'map_projects_library_page.dart';
 import '../pages/pending_products_page.dart';
+import '../pages/orders_page.dart';
 import 'create_circuit_assistant_page.dart';
 import 'poi_assistant_page.dart';
 
@@ -231,14 +232,15 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                 Expanded(
                   child: _buildDashboardCard(
                     title: 'Commandes',
-                    subtitle: 'Suivi des commandes',
+                    subtitle: 'Suivi & historique',
                     icon: Icons.receipt_long,
                     color: Colors.amber,
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Page commandes à venir')),
-                      );
-                    },
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const OrdersPage(),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -249,9 +251,9 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                 Expanded(
                   child: _buildDashboardCard(
                     title: 'Articles à valider',
-                    subtitle: 'Fonction article à valider',
-                    icon: Icons.check_circle_outline,
-                    color: Colors.red,
+                    subtitle: 'Modération des produits',
+                    icon: Icons.pending_actions,
+                    color: Colors.orange,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -263,8 +265,32 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildDashboardCard(
+                    title: 'Stock',
+                    subtitle: 'Gestion des stocks',
+                    icon: Icons.warehouse,
+                    color: Colors.indigo,
+                    onTap: () => _showStockManagement(),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildDashboardCard(
+                    title: 'Catégories',
+                    subtitle: 'Organiser les produits',
+                    icon: Icons.category,
+                    color: Colors.purple,
+                    onTap: () => _showCategoryManagement(),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildDashboardCard(
                     title: 'Test Stripe',
-                    subtitle: 'Vérifier la connexion Stripe',
+                    subtitle: 'Vérifier paiements',
                     icon: Icons.payment,
                     color: Colors.deepPurple,
                     onTap: () => _showStripeTestDialog(),
@@ -1057,6 +1083,232 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
         ),
       );
     }
+  }
+
+  void _showStockManagement() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warehouse, color: Colors.indigo),
+            SizedBox(width: 8),
+            Text('Gestion des stocks'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Fonctionnalités de gestion du stock :',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              _stockFeatureTile(
+                icon: Icons.inventory_2,
+                title: 'Stock par variante',
+                description: 'Gérer le stock pour chaque taille/couleur',
+              ),
+              _stockFeatureTile(
+                icon: Icons.warning_amber,
+                title: 'Alertes rupture',
+                description: 'Notifications automatiques si stock faible',
+              ),
+              _stockFeatureTile(
+                icon: Icons.history,
+                title: 'Historique',
+                description: 'Suivi des mouvements de stock',
+              ),
+              _stockFeatureTile(
+                icon: Icons.file_download,
+                title: 'Import/Export',
+                description: 'Importer ou exporter les données',
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 20, color: Colors.blue),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Le système de stock est déjà configuré dans les modèles de produits',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fermer'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AdminProductsPage(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.inventory),
+            label: const Text('Gérer produits'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCategoryManagement() {
+    final categories = [
+      {'name': 'T-shirts', 'icon': Icons.checkroom, 'count': 0},
+      {'name': 'Sweats', 'icon': Icons.dry_cleaning, 'count': 0},
+      {'name': 'Accessoires', 'icon': Icons.shopping_bag, 'count': 0},
+      {'name': 'Casquettes', 'icon': Icons.sports_baseball, 'count': 0},
+      {'name': 'Posters', 'icon': Icons.image, 'count': 0},
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.category, color: Colors.purple),
+            SizedBox(width: 8),
+            Text('Catégories de produits'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ...categories.map((cat) => ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        cat['icon'] as IconData,
+                        color: Colors.purple,
+                        size: 24,
+                      ),
+                    ),
+                    title: Text(
+                      cat['name'] as String,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text('${cat['count']} produits'),
+                    trailing: PopupMenuButton(
+                      icon: const Icon(Icons.more_vert),
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 20),
+                              SizedBox(width: 8),
+                              Text('Modifier'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, size: 20, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text('Supprimer', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
+                      ],
+                      onSelected: (value) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('$value: ${cat['name']}'),
+                          ),
+                        );
+                      },
+                    ),
+                  )),
+              const Divider(height: 24),
+              ElevatedButton.icon(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Ajout de catégorie à venir')),
+                  );
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Nouvelle catégorie'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fermer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stockFeatureTile({
+    required IconData icon,
+    required String title,
+    required String description,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.indigo.shade50,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 20, color: Colors.indigo),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  description,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _showStripeTestDialog() async {

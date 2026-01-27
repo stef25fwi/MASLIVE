@@ -258,9 +258,10 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
     final nameController = TextEditingController();
     final descController = TextEditingController();
 
+    if (!mounted) return;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Créer un parcours'),
         content: SingleChildScrollView(
           child: Column(
@@ -292,13 +293,13 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Annuler'),
           ),
           FilledButton(
             onPressed: () async {
               if (nameController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
                   const SnackBar(content: Text('Le nom est requis')),
                 );
                 return;
@@ -314,18 +315,16 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
                   'updatedAt': FieldValue.serverTimestamp(),
                 });
 
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Parcours créé avec succès')),
-                  );
-                }
+                if (!mounted || !dialogContext.mounted) return;
+                Navigator.pop(dialogContext);
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(content: Text('Parcours créé avec succès')),
+                );
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Erreur: $e')),
-                  );
-                }
+                if (!mounted || !dialogContext.mounted) return;
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  SnackBar(content: Text('Erreur: $e')),
+                );
               }
             },
             child: const Text('Créer'),
@@ -339,9 +338,10 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
     final nameController = TextEditingController(text: circuit.title);
     final descController = TextEditingController(text: circuit.description);
 
+    if (!mounted) return;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Modifier le parcours'),
         content: SingleChildScrollView(
           child: Column(
@@ -368,7 +368,7 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Annuler'),
           ),
           FilledButton(
@@ -380,18 +380,16 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
                   'updatedAt': FieldValue.serverTimestamp(),
                 });
 
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Parcours modifié avec succès')),
-                  );
-                }
+                if (!mounted || !dialogContext.mounted) return;
+                Navigator.pop(dialogContext);
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(content: Text('Parcours modifié avec succès')),
+                );
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Erreur: $e')),
-                  );
-                }
+                if (!mounted || !dialogContext.mounted) return;
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  SnackBar(content: Text('Erreur: $e')),
+                );
               }
             },
             child: const Text('Enregistrer'),
@@ -429,6 +427,7 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
   }
 
   Future<void> _deleteCircuit(Circuit circuit) async {
+    if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

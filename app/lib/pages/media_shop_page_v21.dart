@@ -296,8 +296,7 @@ class CartProvider extends ChangeNotifier {
 /// CART SCOPE
 /// -----------------------------------------------------------------------------
 class CartScope extends InheritedNotifier<CartProvider> {
-  const CartScope({super.key, required CartProvider notifier, required Widget child})
-      : super(notifier: notifier, child: child);
+  const CartScope({super.key, required CartProvider super.notifier, required super.child});
 
   static CartProvider of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<CartScope>();

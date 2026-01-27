@@ -22,6 +22,11 @@ class _GroupAddItemPageState extends State<GroupAddItemPage> with SingleTickerPr
   bool _saving = false;
   String _category = 'T-shirts';
 
+  // Nouvelles variables pour variantes et stock
+  final List<String> _selectedSizes = [];
+  final List<String> _selectedColors = [];
+  final Map<String, int> _stockByVariant = {}; // "taille|couleur" -> quantité
+
   Uint8List? _photo1;
   String? _photo1Name;
   Uint8List? _photo2;
@@ -33,6 +38,9 @@ class _GroupAddItemPageState extends State<GroupAddItemPage> with SingleTickerPr
     'Stickers',
     'Accessoires',
   ];
+
+  final List<String> _availableSizes = const ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+  final List<String> _availableColors = const ['Noir', 'Blanc', 'Gris', 'Bleu', 'Rouge', 'Vert'];
 
   @override
   void dispose() {
@@ -112,11 +120,9 @@ class _GroupAddItemPageState extends State<GroupAddItemPage> with SingleTickerPr
 
     try {
       final db = FirebaseFirestore.instance;
-      final productRef = db
-          .collection('groups')
-          .doc(widget.groupId)
-          .collection('products')
-          .doc();
+      
+      // Créer dans la collection globale 'products'
+      final productRef = db.collection('products').doc();
 
       // Upload Storage (2 photos)
       final base = 'groups/${widget.groupId}/products/${productRef.id}';
@@ -124,6 +130,7 @@ class _GroupAddItemPageState extends State<GroupAddItemPage> with SingleTickerPr
       final url2 = await _uploadBytes(path: '$base/2.jpg', bytes: _photo2!);
 
       await productRef.set({
+        'groupId': widget.groupId, // IMPORTANT: lier au groupe
         'title': title,
         'priceCents': priceCents,
         'category': _category,
@@ -134,6 +141,10 @@ class _GroupAddItemPageState extends State<GroupAddItemPage> with SingleTickerPr
         'imageUrl2': url2,
         'photo1Name': _photo1Name,
         'photo2Name': _photo2Name,
+        // Ajout des variantes et stock
+        'availableSizes': _selectedSizes.isNotEmpty ? _selectedSizes : null,
+        'availableColors': _selectedColors.isNotEmpty ? _selectedColors : null,
+        'stockByVariant': _stockByVariant.isNotEmpty ? _stockByVariant : null,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -231,6 +242,110 @@ class _GroupAddItemPageState extends State<GroupAddItemPage> with SingleTickerPr
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        Text(
+          'Variantes et stock',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Tailles disponibles',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _availableSizes.map((size) {
+            final isSelected = _selectedSizes.contains(size);
+            return FilterChip(
+              label: Text(size),
+              selected: isSelected,
+              onSelected: _saving ? null : (selected) {
+                setState(() {
+                  if (selected) {
+                    _selectedSizes.add(size);
+                  } else {
+                    _selectedSizes.remove(size);
+                  }
+                });
+              },
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Couleurs disponibles',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _availableColors.map((color) {
+            final isSelected = _selectedColors.contains(color);
+            return FilterChip(
+              label: Text(color),
+              selected: isSelected,
+              onSelected: _saving ? null : (selected) {
+                setState(() {
+                  if (selected) {
+                    _selectedColors.add(color);
+                  } else {
+                    _selectedColors.remove(color);
+                  }
+                });
+              },
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 12),
+        if (_selectedSizes.isNotEmpty && _selectedColors.isNotEmpty) ...[
+          Text(
+            'Stock par variante',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          ..._selectedSizes.expand((size) {
+            return _selectedColors.map((color) {
+              final key = '$size|$color';
+              final stock = _stockByVariant[key] ?? 0;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        '$size - $color',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 80,
+                      child: TextField(
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Stock',
+                          hintText: '0',
+                          isDense: true,
+                        ),
+                        controller: TextEditingController(text: stock.toString())
+                          ..selection = TextSelection.fromPosition(
+                            TextPosition(offset: stock.toString().length),
+                          ),
+                        onChanged: (value) {
+                          final qty = int.tryParse(value) ?? 0;
+                          _stockByVariant[key] = qty;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            });
+          }),
+        ],
         const SizedBox(height: 12),
         Text(
           'Ce produit sera visible dans la boutique après validation par un admin master.\n'

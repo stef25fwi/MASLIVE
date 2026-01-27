@@ -7,6 +7,7 @@ class CartItem {
   final String title;
   final int priceCents;
   final String imageUrl;
+  final String? imagePath; // Pour les assets locaux (ex: assets/shop/image.png)
   final String size;
   final String color;
   final int quantity;
@@ -16,7 +17,8 @@ class CartItem {
     required this.productId,
     required this.title,
     required this.priceCents,
-    required this.imageUrl,
+    this.imageUrl = '',
+    this.imagePath, // Optionnel
     required this.size,
     required this.color,
     required this.quantity,
@@ -24,13 +26,20 @@ class CartItem {
 
   String get key => '$groupId::$productId::$size::$color';
 
-  CartItem copyWith({int? quantity}) {
+  // Retourne l'image à utiliser (priorité à imagePath si défini)
+  String get displayImage => imagePath ?? imageUrl;
+  
+  // Vérifie si c'est un asset local
+  bool get isLocalAsset => imagePath != null && imagePath!.startsWith('assets/');
+
+  CartItem copyWith({int? quantity, String? imagePath, String? imageUrl}) {
     return CartItem(
       groupId: groupId,
       productId: productId,
       title: title,
       priceCents: priceCents,
-      imageUrl: imageUrl,
+      imageUrl: imageUrl ?? this.imageUrl,
+      imagePath: imagePath ?? this.imagePath,
       size: size,
       color: color,
       quantity: quantity ?? this.quantity,

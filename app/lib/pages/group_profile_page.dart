@@ -5,6 +5,8 @@ import '../ui/widgets/gradient_header.dart';
 import '../ui/widgets/honeycomb_background.dart';
 import '../ui/widgets/maslive_card.dart';
 import 'shop_page_new.dart';
+import 'group_add_item_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class GroupProfilePage extends StatefulWidget {
   const GroupProfilePage({super.key, required this.groupId});
@@ -20,7 +22,7 @@ class _GroupProfilePageState extends State<GroupProfilePage> {
     final group = _MockGroup.byId(widget.groupId);
 
     return DefaultTabController(
-      length: 4,
+      length: 5, // Ajout onglet Commerce
       child: Scaffold(
         body: HoneycombBackground(
           opacity: 0.08,
@@ -154,6 +156,7 @@ class _GroupProfilePageState extends State<GroupProfilePage> {
                     Tab(text: 'Planning'),
                     Tab(text: 'Médias'),
                     Tab(text: 'Membres'),
+                    Tab(text: 'Commerce'),
                   ],
                 ),
               ),
@@ -165,6 +168,7 @@ class _GroupProfilePageState extends State<GroupProfilePage> {
                     _PlanningTab(group: group),
                     _MediaTab(group: group),
                     _MembersTab(group: group),
+                    _CommerceTab(groupId: widget.groupId),
                   ],
                 ),
               ),
@@ -439,4 +443,263 @@ class _MockMember {
     required this.name,
     required this.role,
   });
+}
+
+// Onglet Commerce pour gérer les articles du shop
+class _CommerceTab extends StatelessWidget {
+  const _CommerceTab({required this.groupId});
+  final String groupId;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Card d'information
+        MasliveCard(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Icon(
+                Icons.store,
+                size: 48,
+                color: Colors.teal.shade600,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Boutique du groupe',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Gérez les articles de votre groupe. Les articles ajoutés seront soumis à validation avant publication.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: MasliveTheme.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Bouton Ajouter un article
+        ElevatedButton.icon(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GroupAddItemPage(groupId: groupId),
+              ),
+            );
+          },
+          icon: const Icon(Icons.add_photo_alternate),
+          label: const Text('Ajouter un article'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.teal,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Liste des articles du groupe
+        const Text(
+          'Mes articles',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // StreamBuilder pour afficher les produits
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('products')
+              .where('groupId', isEqualTo: groupId)
+              .orderBy('createdAt', descending: true)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return MasliveCard(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text('Erreur: ${snapshot.error}'),
+                ),
+              );
+            }
+
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+
+            final products = snapshot.data?.docs ?? [];
+
+            if (products.isEmpty) {
+              return MasliveCard(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.inventory_2_outlined,
+                      size: 48,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Aucun article',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Ajoutez votre premier article',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return Column(
+              children: products.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                final title = data['title'] as String? ?? 'Sans titre';
+                final priceCents = data['priceCents'] as int? ?? 0;
+                final imageUrl = data['imageUrl'] as String? ?? '';
+                final status = data['moderationStatus'] as String? ?? 'pending';
+                final isActive = data['isActive'] as bool? ?? false;
+
+                Color statusColor;
+                String statusText;
+                IconData statusIcon;
+
+                if (status == 'approved' && isActive) {
+                  statusColor = Colors.green;
+                  statusText = 'Publié';
+                  statusIcon = Icons.check_circle;
+                } else if (status == 'rejected') {
+                  statusColor = Colors.red;
+                  statusText = 'Refusé';
+                  statusIcon = Icons.cancel;
+                } else {
+                  statusColor = Colors.orange;
+                  statusText = 'En attente';
+                  statusIcon = Icons.pending;
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: MasliveCard(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        // Image
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            width: 72,
+                            height: 72,
+                            color: Colors.grey.shade200,
+                            child: imageUrl.isNotEmpty
+                                ? Image.network(
+                                    imageUrl,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const Icon(
+                                      Icons.image_not_supported,
+                                      color: Colors.grey,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.image_outlined,
+                                    color: Colors.grey,
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        
+                        // Info
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 14,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '€${(priceCents / 100).toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: MasliveTheme.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      statusIcon,
+                                      size: 14,
+                                      color: statusColor,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      statusText,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: statusColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
 }

@@ -352,6 +352,7 @@ class _RoleManagementPageState extends State<RoleManagementPage> {
   Future<void> _initializeRoles() async {
     try {
 
+      if (!mounted) return;
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -361,27 +362,32 @@ class _RoleManagementPageState extends State<RoleManagementPage> {
       final callable = _functions.httpsCallable('initializeRoles');
       final result = await callable.call();
 
-      Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+      }
 
       final stats = result.data['stats'] as Map<String, dynamic>;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '✅ Rôles initialisés: ${stats['created']} créés, ${stats['updated']} mis à jour',
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '✅ Rôles initialisés: ${stats['created']} créés, ${stats['updated']} mis à jour',
+            ),
+            backgroundColor: Colors.green,
           ),
-          backgroundColor: Colors.green,
-        ),
-      );
+        );
+      }
     } catch (e) {
-      Navigator.pop(context);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Erreur: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Erreur: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }
