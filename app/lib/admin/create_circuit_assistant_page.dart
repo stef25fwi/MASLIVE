@@ -109,7 +109,11 @@ class _CreateCircuitAssistantPageState
               _mapName = draftData['mapName'] ?? '';
               final restoredValidated = draftData['stepValidated'];
               if (restoredValidated is List) {
-                for (int i = 0; i < _stepValidated.length && i < restoredValidated.length; i++) {
+                for (
+                  int i = 0;
+                  i < _stepValidated.length && i < restoredValidated.length;
+                  i++
+                ) {
                   final val = restoredValidated[i];
                   if (val is bool) {
                     _stepValidated[i] = val;
@@ -149,9 +153,9 @@ class _CreateCircuitAssistantPageState
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          _isFocusMode 
-            ? '🎯 Mode focus activé - Distractions masquées'
-            : '👁️ Mode normal restauré',
+          _isFocusMode
+              ? '🎯 Mode focus activé - Distractions masquées'
+              : '👁️ Mode normal restauré',
         ),
         backgroundColor: _isFocusMode ? Colors.deepPurple : Colors.grey,
         duration: const Duration(seconds: 2),
@@ -172,9 +176,14 @@ class _CreateCircuitAssistantPageState
               padding: const EdgeInsets.only(right: 8),
               child: Center(
                 child: Tooltip(
-                  message: 'Dernière sauvegarde: ${_formatTime(_lastAutoSave!)}',
+                  message:
+                      'Dernière sauvegarde: ${_formatTime(_lastAutoSave!)}',
                   child: Chip(
-                    avatar: const Icon(Icons.cloud_done, size: 16, color: Colors.green),
+                    avatar: const Icon(
+                      Icons.cloud_done,
+                      size: 16,
+                      color: Colors.green,
+                    ),
                     label: Text(
                       'Auto-save',
                       style: Theme.of(context).textTheme.bodySmall,
@@ -187,7 +196,9 @@ class _CreateCircuitAssistantPageState
           // Focus mode toggle
           IconButton(
             icon: Icon(_isFocusMode ? Icons.visibility : Icons.visibility_off),
-            tooltip: _isFocusMode ? 'Désactiver mode focus' : 'Activer mode focus',
+            tooltip: _isFocusMode
+                ? 'Désactiver mode focus'
+                : 'Activer mode focus',
             onPressed: _toggleFocusMode,
           ),
           // Manual save
@@ -316,7 +327,10 @@ class _CreateCircuitAssistantPageState
                   children: [
                     const Icon(Icons.verified_outlined, size: 18),
                     const SizedBox(width: 8),
-                    Text('Étape validée', style: Theme.of(context).textTheme.bodyMedium),
+                    Text(
+                      'Étape validée',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
                   ],
                 ),
                 Switch(
@@ -335,13 +349,22 @@ class _CreateCircuitAssistantPageState
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 if (_step > 0)
-                  TextButton(onPressed: _prevStep, child: const Text('Précédent')),
+                  TextButton(
+                    onPressed: _prevStep,
+                    child: const Text('Précédent'),
+                  ),
                 Row(
                   children: [
-                    Text('Étape ${_step + 1}/5', style: Theme.of(context).textTheme.bodySmall),
+                    Text(
+                      'Étape ${_step + 1}/5',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                     const SizedBox(width: 12),
                     if (_step < 4)
-                      ElevatedButton(onPressed: _nextStep, child: const Text('Suivant')),
+                      ElevatedButton(
+                        onPressed: _nextStep,
+                        child: const Text('Suivant'),
+                      ),
                   ],
                 ),
               ],
@@ -401,7 +424,11 @@ class _CreateCircuitAssistantPageState
                     Text('${index + 1} • ${steps[index]}'),
                     if (isValidated) ...[
                       const SizedBox(width: 6),
-                      const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                      const Icon(
+                        Icons.check_circle,
+                        size: 16,
+                        color: Colors.green,
+                      ),
                     ],
                   ],
                 ),
@@ -532,7 +559,7 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Zone "${_presets.firstWhere((p) => p['id'] == _selectedPreset)['name']}" validée',
+                    "Zone \"${_presets.firstWhere((p) => p['id'] == _selectedPreset)['name']}\" validée",
                     style: TextStyle(
                       color: Colors.green.shade900,
                       fontWeight: FontWeight.w600,
@@ -546,10 +573,7 @@ class _StepPerimetreState extends State<_StepPerimetre> {
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: ToggleButtons(
-            isSelected: [
-              _selectedMode == 'draw',
-              _selectedMode == 'preset',
-            ],
+            isSelected: [_selectedMode == 'draw', _selectedMode == 'preset'],
             onPressed: (int index) {
               setState(() {
                 _selectedMode = index == 0 ? 'draw' : 'preset';
@@ -636,8 +660,9 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                   icon: Icon(_isValidated ? Icons.arrow_forward : Icons.check),
                   label: Text(_isValidated ? 'Continuer' : 'Valider périmètre'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        _isValidated ? Colors.teal : Colors.blue.shade600,
+                    backgroundColor: _isValidated
+                        ? Colors.teal
+                        : Colors.blue.shade600,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
@@ -675,6 +700,11 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                       initialLng: -61.534,
                       initialZoom: 12.5,
                       styleUrl: 'mapbox://styles/mapbox/streets-v12',
+                      onTapLngLat: _isValidated
+                          ? null
+                          : (p) {
+                              _addPoint(p.lat, p.lng);
+                            },
                     )
                   : Center(
                       child: Text(
@@ -684,7 +714,7 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                       ),
                     ),
             ),
-            
+
             // Overlay pour capturer les clics (sauf si Mapbox est actif et détection native)
             if (!kIsWeb || _mapboxToken.isEmpty)
               Positioned.fill(
@@ -703,12 +733,17 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.touch_app,
-                              size: 48, color: Colors.white.withOpacity(0.8)),
+                          Icon(
+                            Icons.touch_app,
+                            size: 48,
+                            color: Colors.white.withOpacity(0.8),
+                          ),
                           const SizedBox(height: 16),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.black.withOpacity(0.45),
                               borderRadius: BorderRadius.circular(12),
@@ -718,16 +753,19 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                                   ? 'Périmètre validé'
                                   : 'Clique sur la carte pour ajouter des points',
                               style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600),
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                           if (_polygonPoints.isNotEmpty) ...[
                             const SizedBox(height: 10),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 6),
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.black.withOpacity(0.4),
                                 borderRadius: BorderRadius.circular(10),
@@ -752,8 +790,11 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: const [
-                                  Icon(Icons.check_circle,
-                                      color: Colors.white, size: 20),
+                                  Icon(
+                                    Icons.check_circle,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
                                   SizedBox(width: 8),
                                   Text(
                                     'Périmètre verrouillé',
@@ -793,8 +834,11 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline,
-                          color: Colors.blue.shade700, size: 20),
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.blue.shade700,
+                        size: 20,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
@@ -824,8 +868,11 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.check_circle,
-                          color: Colors.green.shade700, size: 20),
+                      Icon(
+                        Icons.check_circle,
+                        color: Colors.green.shade700,
+                        size: 20,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
@@ -938,7 +985,7 @@ class _StepPerimetreState extends State<_StepPerimetre> {
             ),
           ),
         ],
-      ),
+      ],
     );
   }
 }
@@ -1194,7 +1241,7 @@ class _StepTuileState extends State<_StepTuile> {
           title: 'Aperçu de la configuration',
           selectedStyle: _selectedStyleId,
         ),
-        
+
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
@@ -1212,7 +1259,11 @@ class _StepTuileState extends State<_StepTuile> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.map_outlined, color: Colors.blue.shade700, size: 32),
+                      Icon(
+                        Icons.map_outlined,
+                        color: Colors.blue.shade700,
+                        size: 32,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -1227,688 +1278,714 @@ class _StepTuileState extends State<_StepTuile> {
                               ),
                             ),
                             const SizedBox(height: 4),
-                      Text(
-                        'Choisissez le style et les couches pour votre circuit',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.blue.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Section: Style de carte
-          Text(
-            'Style de carte Mapbox',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Sélectionnez le style de base pour votre carte',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 16),
-
-          // Grille de styles
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 1.2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-            ),
-            itemCount: _mapStyles.length,
-            itemBuilder: (context, index) {
-              final style = _mapStyles[index];
-              final isSelected = _selectedStyleId == style['id'];
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedStyleId = style['id'];
-                    _isValidated = false;
-                  });
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? style['color'].withValues(alpha: 0.1)
-                        : Colors.white,
-                    border: Border.all(
-                      color: isSelected ? style['color'] : Colors.grey.shade300,
-                      width: isSelected ? 2 : 1,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        style['icon'],
-                        size: 40,
-                        color: isSelected
-                            ? style['color']
-                            : Colors.grey.shade600,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        style['name'],
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          color: isSelected
-                              ? style['color']
-                              : Colors.grey.shade800,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Text(
-                          style['description'],
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey.shade600,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (isSelected) ...[
-                        const SizedBox(height: 4),
-                        Icon(
-                          Icons.check_circle,
-                          color: style['color'],
-                          size: 20,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-
-          const SizedBox(height: 32),
-
-          // Section: Couches supplémentaires
-          Text(
-            'Couches supplémentaires',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Activez des couches additionnelles (optionnel)',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 16),
-
-          // Liste des couches
-          ..._layers.map((layer) {
-            final isSelected = _selectedLayers.contains(layer['id']);
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? layer['color'].withValues(alpha: 0.1)
-                      : Colors.grey.shade50,
-                  border: Border.all(
-                    color: isSelected ? layer['color'] : Colors.grey.shade300,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: CheckboxListTile(
-                  value: isSelected,
-                  onChanged: (value) {
-                    setState(() {
-                      if (value == true) {
-                        _selectedLayers.add(layer['id']);
-                      } else {
-                        _selectedLayers.remove(layer['id']);
-                      }
-                      _isValidated = false;
-                    });
-                  },
-                  title: Row(
-                    children: [
-                      Icon(layer['icon'], color: layer['color'], size: 24),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          layer['name'],
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  subtitle: Padding(
-                    padding: const EdgeInsets.only(left: 36, top: 4),
-                    child: Text(
-                      layer['description'],
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ),
-                  activeColor: layer['color'],
-                ),
-              ),
-            );
-          }),
-
-          const SizedBox(height: 32),
-
-          // Section: Textures de bâtiments 3D (Premium Advanced)
-          if (_selectedLayers.contains('buildings'))
-            _buildBuildingTexturesSection(),
-
-          if (_selectedLayers.contains('buildings')) const SizedBox(height: 32),
-
-          // Section: Niveaux de zoom
-          Text(
-            'Niveaux de zoom',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Définissez les niveaux de zoom min/max pour les tuiles hors-ligne',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 16),
-
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Zoom minimum',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.blue.shade900,
-                      ),
-                    ),
-                    Text(
-                      '${_zoomMin.toInt()}',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-                Slider(
-                  value: _zoomMin,
-                  min: 8,
-                  max: 15,
-                  divisions: 7,
-                  label: _zoomMin.toInt().toString(),
-                  onChanged: (value) {
-                    setState(() {
-                      _zoomMin = value;
-                      if (_zoomMax < _zoomMin) _zoomMax = _zoomMin;
-                      _isValidated = false;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Zoom maximum',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.blue.shade900,
-                      ),
-                    ),
-                    Text(
-                      '${_zoomMax.toInt()}',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-                Slider(
-                  value: _zoomMax,
-                  min: 8,
-                  max: 18,
-                  divisions: 10,
-                  label: _zoomMax.toInt().toString(),
-                  onChanged: (value) {
-                    setState(() {
-                      _zoomMax = value;
-                      if (_zoomMin > _zoomMax) _zoomMin = _zoomMax;
-                      _isValidated = false;
-                    });
-                  },
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 32),
-
-          // Section: Qualité des tuiles
-          Text(
-            'Qualité des tuiles',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(
-                value: 'low',
-                label: Text('Économique'),
-                icon: Icon(Icons.data_saver_on),
-              ),
-              ButtonSegment(
-                value: 'standard',
-                label: Text('Standard'),
-                icon: Icon(Icons.check),
-              ),
-              ButtonSegment(
-                value: 'high',
-                label: Text('Haute'),
-                icon: Icon(Icons.hd),
-              ),
-            ],
-            selected: {_quality},
-            onSelectionChanged: (Set<String> newSelection) {
-              setState(() {
-                _quality = newSelection.first;
-                _isValidated = false;
-              });
-            },
-          ),
-
-          const SizedBox(height: 16),
-
-          // Info qualité
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.amber.shade50,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  color: Colors.amber.shade700,
-                  size: 20,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    _getQualityInfo(),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.amber.shade900,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 32),
-
-          // Estimation
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.purple.shade50, Colors.purple.shade100],
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.info, color: Colors.purple.shade700, size: 24),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Estimation',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.purple.shade900,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _buildEstimationRow(
-                  'Style',
-                  _mapStyles.firstWhere(
-                    (s) => s['id'] == _selectedStyleId,
-                  )['name'],
-                ),
-                if (_selectedLayers.isNotEmpty)
-                  _buildEstimationRow(
-                    'Couches',
-                    '${_selectedLayers.length} activée(s)',
-                  ),
-                _buildEstimationRow(
-                  'Zoom',
-                  '${_zoomMin.toInt()} - ${_zoomMax.toInt()}',
-                ),
-                _buildEstimationRow('Qualité', _getQualityLabel()),
-                const Divider(height: 24),
-                _buildEstimationRow(
-                  'Taille estimée',
-                  _calculateEstimatedSize(),
-                  isHighlight: true,
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Boutons d'action
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              if (!_isValidated)
-                ElevatedButton.icon(
-                  onPressed: () {
-                    setState(() => _isValidated = true);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Row(
-                          children: [
-                            const Icon(Icons.check_circle, color: Colors.white),
-                            const SizedBox(width: 12),
                             Text(
-                              'Configuration validée : ${_mapStyles.firstWhere((s) => s['id'] == _selectedStyleId)['name']}',
+                              'Choisissez le style et les couches pour votre circuit',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.blue.shade700,
+                              ),
                             ),
                           ],
                         ),
-                        backgroundColor: Colors.green,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Section: Style de carte
+                Text(
+                  'Style de carte Mapbox',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Sélectionnez le style de base pour votre carte',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 16),
+
+                // Grille de styles
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 1.2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                  ),
+                  itemCount: _mapStyles.length,
+                  itemBuilder: (context, index) {
+                    final style = _mapStyles[index];
+                    final isSelected = _selectedStyleId == style['id'];
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedStyleId = style['id'];
+                          _isValidated = false;
+                        });
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? style['color'].withValues(alpha: 0.1)
+                              : Colors.white,
+                          border: Border.all(
+                            color: isSelected
+                                ? style['color']
+                                : Colors.grey.shade300,
+                            width: isSelected ? 2 : 1,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              style['icon'],
+                              size: 40,
+                              color: isSelected
+                                  ? style['color']
+                                  : Colors.grey.shade600,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              style['name'],
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: isSelected
+                                    ? style['color']
+                                    : Colors.grey.shade800,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              child: Text(
+                                style['description'],
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade600,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (isSelected) ...[
+                              const SizedBox(height: 4),
+                              Icon(
+                                Icons.check_circle,
+                                color: style['color'],
+                                size: 20,
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                     );
                   },
-                  icon: const Icon(Icons.check),
-                  label: const Text('Valider la configuration'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
-                    ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Section: Couches supplémentaires
+                Text(
+                  'Couches supplémentaires',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade800,
                   ),
                 ),
-              if (_isValidated) ...[
-                if (!_isDownloading)
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() => _isValidated = false);
-                    },
-                    icon: const Icon(Icons.edit),
-                    label: const Text('Modifier'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey.shade600,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                if (!_isDownloading) const SizedBox(width: 12),
-                if (!_isDownloading)
-                  ElevatedButton.icon(
-                    onPressed: _startDownload,
-                    icon: const Icon(Icons.download),
-                    label: const Text('Télécharger maintenant'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 16,
-                      ),
-                    ),
-                  ),
-                if (!_isDownloading) const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: widget.onNext,
-                  icon: const Icon(Icons.arrow_forward),
-                  label: Text(_isDownloading && _downloadProgress >= 1.0 ? 'Étape suivante' : 'Passer'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
-                    ),
-                  ),
+                const SizedBox(height: 8),
+                Text(
+                  'Activez des couches additionnelles (optionnel)',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                 ),
-              ],
-            ],
-          ),
+                const SizedBox(height: 16),
 
-          if (_isValidated && !_isDownloading) ...[
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                border: Border.all(color: Colors.green),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.green.shade700),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Configuration validée et prête pour le téléchargement',
-                      style: TextStyle(
-                        color: Colors.green.shade900,
-                        fontWeight: FontWeight.w600,
+                // Liste des couches
+                ..._layers.map((layer) {
+                  final isSelected = _selectedLayers.contains(layer['id']);
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? layer['color'].withValues(alpha: 0.1)
+                            : Colors.grey.shade50,
+                        border: Border.all(
+                          color: isSelected
+                              ? layer['color']
+                              : Colors.grey.shade300,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-
-          // Barre de progression du téléchargement
-          if (_isDownloading) ...[
-            const SizedBox(height: 24),
-            Card(
-              elevation: 3,
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          _downloadProgress >= 1.0
-                              ? Icons.check_circle
-                              : Icons.downloading,
-                          color: _downloadProgress >= 1.0
-                              ? Colors.green.shade700
-                              : Colors.blue.shade700,
-                          size: 28,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _downloadProgress >= 1.0
-                                    ? 'Téléchargement terminé !'
-                                    : _downloadPaused
-                                        ? 'Téléchargement en pause'
-                                        : 'Téléchargement en cours',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: _downloadProgress >= 1.0
-                                      ? Colors.green.shade900
-                                      : Colors.grey.shade900,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${(_downloadProgress * 100).toInt()}% - ${_calculateDownloadedSize()}',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: LinearProgressIndicator(
-                        value: _downloadProgress,
-                        minHeight: 10,
-                        backgroundColor: Colors.grey.shade200,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          _downloadProgress >= 1.0
-                              ? Colors.green.shade600
-                              : Colors.blue.shade600,
-                        ),
-                      ),
-                    ),
-                    if (_downloadProgress < 1.0) ...[
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: () {
-                              setState(() {
-                                _downloadPaused = !_downloadPaused;
-                              });
-                              if (!_downloadPaused) _continueDownload();
-                            },
-                            icon: Icon(
-                              _downloadPaused ? Icons.play_arrow : Icons.pause,
-                              size: 20,
-                            ),
-                            label: Text(_downloadPaused ? 'Reprendre' : 'Pause'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.blue.shade700,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          OutlinedButton.icon(
-                            onPressed: () {
-                              setState(() {
-                                _isDownloading = false;
-                                _downloadProgress = 0.0;
-                                _downloadPaused = false;
-                              });
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Téléchargement annulé'),
-                                  backgroundColor: Colors.orange,
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.close, size: 20),
-                            label: const Text('Annuler'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.red.shade700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                    if (_downloadProgress >= 1.0) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
+                      child: CheckboxListTile(
+                        value: isSelected,
+                        onChanged: (value) {
+                          setState(() {
+                            if (value == true) {
+                              _selectedLayers.add(layer['id']);
+                            } else {
+                              _selectedLayers.remove(layer['id']);
+                            }
+                            _isValidated = false;
+                          });
+                        },
+                        title: Row(
                           children: [
                             Icon(
-                              Icons.offline_pin,
-                              color: Colors.green.shade700,
-                              size: 20,
+                              layer['icon'],
+                              color: layer['color'],
+                              size: 24,
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                'Les tuiles sont maintenant disponibles hors ligne',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.green.shade900,
+                                layer['name'],
+                                style: const TextStyle(
                                   fontWeight: FontWeight.w600,
+                                  fontSize: 14,
                                 ),
                               ),
                             ),
                           ],
                         ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(left: 36, top: 4),
+                          child: Text(
+                            layer['description'],
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                        activeColor: layer['color'],
+                      ),
+                    ),
+                  );
+                }),
+
+                const SizedBox(height: 32),
+
+                // Section: Textures de bâtiments 3D (Premium Advanced)
+                if (_selectedLayers.contains('buildings'))
+                  _buildBuildingTexturesSection(),
+
+                if (_selectedLayers.contains('buildings'))
+                  const SizedBox(height: 32),
+
+                // Section: Niveaux de zoom
+                Text(
+                  'Niveaux de zoom',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Définissez les niveaux de zoom min/max pour les tuiles hors-ligne',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 16),
+
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Zoom minimum',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue.shade900,
+                            ),
+                          ),
+                          Text(
+                            '${_zoomMin.toInt()}',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Slider(
+                        value: _zoomMin,
+                        min: 8,
+                        max: 15,
+                        divisions: 7,
+                        label: _zoomMin.toInt().toString(),
+                        onChanged: (value) {
+                          setState(() {
+                            _zoomMin = value;
+                            if (_zoomMax < _zoomMin) _zoomMax = _zoomMin;
+                            _isValidated = false;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Zoom maximum',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue.shade900,
+                            ),
+                          ),
+                          Text(
+                            '${_zoomMax.toInt()}',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Slider(
+                        value: _zoomMax,
+                        min: 8,
+                        max: 18,
+                        divisions: 10,
+                        label: _zoomMax.toInt().toString(),
+                        onChanged: (value) {
+                          setState(() {
+                            _zoomMax = value;
+                            if (_zoomMin > _zoomMax) _zoomMin = _zoomMax;
+                            _isValidated = false;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Section: Qualité des tuiles
+                Text(
+                  'Qualité des tuiles',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(
+                      value: 'low',
+                      label: Text('Économique'),
+                      icon: Icon(Icons.data_saver_on),
+                    ),
+                    ButtonSegment(
+                      value: 'standard',
+                      label: Text('Standard'),
+                      icon: Icon(Icons.check),
+                    ),
+                    ButtonSegment(
+                      value: 'high',
+                      label: Text('Haute'),
+                      icon: Icon(Icons.hd),
+                    ),
+                  ],
+                  selected: {_quality},
+                  onSelectionChanged: (Set<String> newSelection) {
+                    setState(() {
+                      _quality = newSelection.first;
+                      _isValidated = false;
+                    });
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                // Info qualité
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.amber.shade700,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _getQualityInfo(),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.amber.shade900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Estimation
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.purple.shade50, Colors.purple.shade100],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.info,
+                            color: Colors.purple.shade700,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Estimation',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.purple.shade900,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _buildEstimationRow(
+                        'Style',
+                        _mapStyles.firstWhere(
+                          (s) => s['id'] == _selectedStyleId,
+                        )['name'],
+                      ),
+                      if (_selectedLayers.isNotEmpty)
+                        _buildEstimationRow(
+                          'Couches',
+                          '${_selectedLayers.length} activée(s)',
+                        ),
+                      _buildEstimationRow(
+                        'Zoom',
+                        '${_zoomMin.toInt()} - ${_zoomMax.toInt()}',
+                      ),
+                      _buildEstimationRow('Qualité', _getQualityLabel()),
+                      const Divider(height: 24),
+                      _buildEstimationRow(
+                        'Taille estimée',
+                        _calculateEstimatedSize(),
+                        isHighlight: true,
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Boutons d'action
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (!_isValidated)
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          setState(() => _isValidated = true);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.check_circle,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    'Configuration validée : ${_mapStyles.firstWhere((s) => s['id'] == _selectedStyleId)['name']}',
+                                  ),
+                                ],
+                              ),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.check),
+                        label: const Text('Valider la configuration'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 16,
+                          ),
+                        ),
+                      ),
+                    if (_isValidated) ...[
+                      if (!_isDownloading)
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            setState(() => _isValidated = false);
+                          },
+                          icon: const Icon(Icons.edit),
+                          label: const Text('Modifier'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey.shade600,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      if (!_isDownloading) const SizedBox(width: 12),
+                      if (!_isDownloading)
+                        ElevatedButton.icon(
+                          onPressed: _startDownload,
+                          icon: const Icon(Icons.download),
+                          label: const Text('Télécharger maintenant'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 16,
+                            ),
+                          ),
+                        ),
+                      if (!_isDownloading) const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: widget.onNext,
+                        icon: const Icon(Icons.arrow_forward),
+                        label: Text(
+                          _isDownloading && _downloadProgress >= 1.0
+                              ? 'Étape suivante'
+                              : 'Passer',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 16,
+                          ),
+                        ),
                       ),
                     ],
                   ],
                 ),
-              ),
+
+                if (_isValidated && !_isDownloading) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      border: Border.all(color: Colors.green),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green.shade700),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Configuration validée et prête pour le téléchargement',
+                            style: TextStyle(
+                              color: Colors.green.shade900,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // Barre de progression du téléchargement
+                if (_isDownloading) ...[
+                  const SizedBox(height: 24),
+                  Card(
+                    elevation: 3,
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                _downloadProgress >= 1.0
+                                    ? Icons.check_circle
+                                    : Icons.downloading,
+                                color: _downloadProgress >= 1.0
+                                    ? Colors.green.shade700
+                                    : Colors.blue.shade700,
+                                size: 28,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _downloadProgress >= 1.0
+                                          ? 'Téléchargement terminé !'
+                                          : _downloadPaused
+                                          ? 'Téléchargement en pause'
+                                          : 'Téléchargement en cours',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: _downloadProgress >= 1.0
+                                            ? Colors.green.shade900
+                                            : Colors.grey.shade900,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${(_downloadProgress * 100).toInt()}% - ${_calculateDownloadedSize()}',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: LinearProgressIndicator(
+                              value: _downloadProgress,
+                              minHeight: 10,
+                              backgroundColor: Colors.grey.shade200,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                _downloadProgress >= 1.0
+                                    ? Colors.green.shade600
+                                    : Colors.blue.shade600,
+                              ),
+                            ),
+                          ),
+                          if (_downloadProgress < 1.0) ...[
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    setState(() {
+                                      _downloadPaused = !_downloadPaused;
+                                    });
+                                    if (!_downloadPaused) _continueDownload();
+                                  },
+                                  icon: Icon(
+                                    _downloadPaused
+                                        ? Icons.play_arrow
+                                        : Icons.pause,
+                                    size: 20,
+                                  ),
+                                  label: Text(
+                                    _downloadPaused ? 'Reprendre' : 'Pause',
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.blue.shade700,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    setState(() {
+                                      _isDownloading = false;
+                                      _downloadProgress = 0.0;
+                                      _downloadPaused = false;
+                                    });
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Téléchargement annulé'),
+                                        backgroundColor: Colors.orange,
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.close, size: 20),
+                                  label: const Text('Annuler'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.red.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                          if (_downloadProgress >= 1.0) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.offline_pin,
+                                    color: Colors.green.shade700,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      'Les tuiles sont maintenant disponibles hors ligne',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.green.shade900,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ],
-          ],
+          ),
         ),
-      ),
-    ),
-  ],
+      ],
     );
   }
 
@@ -3555,7 +3632,7 @@ class _StepTuileState extends State<_StepTuile> {
       return '~${(estimatedSize / 1024).toStringAsFixed(1)} Go';
     }
   }
-  
+
   String _calculateDownloadedSize() {
     final total = _calculateEstimatedSize();
     final match = RegExp(r'~([\d.]+)\s*(Mo|Go)').firstMatch(total);
@@ -3567,7 +3644,7 @@ class _StepTuileState extends State<_StepTuile> {
     }
     return total;
   }
-  
+
   void _startDownload() async {
     setState(() {
       _isDownloading = true;
@@ -3576,7 +3653,7 @@ class _StepTuileState extends State<_StepTuile> {
     });
     _continueDownload();
   }
-  
+
   void _continueDownload() async {
     // Simulation de téléchargement
     while (_downloadProgress < 1.0 && !_downloadPaused && _isDownloading) {
@@ -3588,7 +3665,7 @@ class _StepTuileState extends State<_StepTuile> {
         });
       }
     }
-    
+
     if (_downloadProgress >= 1.0 && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -3644,12 +3721,13 @@ class _StepTracerState extends State<_StepTracer> {
         // Aperçu carte en direct
         _MapPreviewWidget(
           title: 'Aperçu du tracé',
-          routePoints: _tracePoints.map((p) => {
-            'lat': p['lat'] as double,
-            'lng': p['lng'] as double,
-          }).toList(),
+          routePoints: _tracePoints
+              .map(
+                (p) => {'lat': p['lat'] as double, 'lng': p['lng'] as double},
+              )
+              .toList(),
         ),
-        
+
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
@@ -3683,761 +3761,804 @@ class _StepTracerState extends State<_StepTracer> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                        'Dessinez l\'itinéraire sur la carte',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.green.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Mode de tracé avec long-press hint
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Mode de tracé',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade800,
-                ),
-              ),
-              Tooltip(
-                message: 'Long-press sur un mode pour voir les détails',
-                child: Icon(
-                  Icons.info_outline,
-                  size: 18,
-                  color: Colors.grey.shade600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          GestureDetector(
-            onLongPress: () {
-              _showTraceModeHelp(context);
-            },
-            child: SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(
-                  value: 'manual',
-                  label: Text('Manuel'),
-                  icon: Icon(Icons.gesture),
-                ),
-                ButtonSegment(
-                  value: 'follow_roads',
-                  label: Text('Suivre routes'),
-                  icon: Icon(Icons.alt_route),
-                ),
-                ButtonSegment(
-                  value: 'straight',
-                  label: Text('Ligne droite'),
-                  icon: Icon(Icons.straight),
-                ),
-              ],
-              selected: {_traceMode},
-              onSelectionChanged: (Set<String> newSelection) {
-                setState(() {
-                  _traceMode = newSelection.first;
-                  _isValidated = false;
-                });
-              },
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Info sur le mode
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    _getTraceModeDescription(),
-                    style: TextStyle(fontSize: 12, color: Colors.blue.shade900),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Carte interactive (placeholder)
-          Container(
-            height: 400,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade400, width: 2),
-            ),
-            child: Stack(
-              children: [
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.map, size: 80, color: Colors.grey.shade400),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Carte interactive Mapbox',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _movePointMode && _selectedPointIndex != null
-                            ? 'Cliquez pour déplacer le point sélectionné'
-                            : 'Cliquez pour ajouter des points',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: _movePointMode && _selectedPointIndex != null
-                              ? Colors.blue.shade700
-                              : Colors.grey.shade500,
-                          fontWeight: _movePointMode && _selectedPointIndex != null
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Boutons flottants sur la carte
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: Column(
-                    children: [
-                      _buildMapButton(
-                        icon: Icons.my_location,
-                        tooltip: 'Centrer sur ma position',
-                        onPressed: () => _centerOnLocation(),
-                      ),
-                      const SizedBox(height: 8),
-                      _buildMapButton(
-                        icon: Icons.zoom_in,
-                        tooltip: 'Zoom +',
-                        onPressed: () {},
-                      ),
-                      const SizedBox(height: 8),
-                      _buildMapButton(
-                        icon: Icons.zoom_out,
-                        tooltip: 'Zoom -',
-                        onPressed: () {},
-                      ),
-                      const SizedBox(height: 8),
-                      _buildMapButton(
-                        icon: Icons.layers,
-                        tooltip: 'Changer de fond',
-                        onPressed: () {},
-                      ),
-                      const SizedBox(height: 8),
-                      _buildMapButton(
-                        icon: _movePointMode ? Icons.pan_tool : Icons.open_with,
-                        tooltip: _movePointMode ? 'Désactiver déplacement' : 'Déplacer un point',
-                        onPressed: () {
-                          setState(() {
-                            _movePointMode = !_movePointMode;
-                            _selectedPointIndex = null;
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                _movePointMode
-                                    ? 'Mode déplacement activé - Sélectionnez un point'
-                                    : 'Mode déplacement désactivé',
+                              'Dessinez l\'itinéraire sur la carte',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.green.shade700,
                               ),
-                              backgroundColor: _movePointMode ? Colors.blue : Colors.grey,
-                              duration: const Duration(seconds: 2),
                             ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Boutons d'action en bas
-                Positioned(
-                  bottom: 16,
-                  left: 16,
-                  right: 16,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: _tracePoints.isEmpty
-                            ? null
-                            : () => _undoLastPoint(),
-                        icon: const Icon(Icons.undo, size: 18),
-                        label: const Text('Annuler'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      ElevatedButton.icon(
-                        onPressed: _tracePoints.isEmpty
-                            ? null
-                            : () => _clearTrace(),
-                        icon: const Icon(Icons.delete, size: 18),
-                        label: const Text('Effacer tout'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      ElevatedButton.icon(
-                        onPressed: () => _addDemoPoint(),
-                        icon: Icon(
-                          _movePointMode && _selectedPointIndex != null
-                              ? Icons.open_with
-                              : Icons.add_location,
-                          size: 18,
-                        ),
-                        label: Text(
-                          _movePointMode && _selectedPointIndex != null
-                              ? 'Déplacer ici'
-                              : 'Ajouter point',
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _movePointMode && _selectedPointIndex != null
-                              ? Colors.blue
-                              : Colors.green,
-                          foregroundColor: Colors.white,
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
+                const SizedBox(height: 24),
 
-          const SizedBox(height: 24),
-
-          // Mini-map preview
-          if (_tracePoints.isNotEmpty)
-            _MiniMapPreview(
-              routePoints: _tracePoints.map((p) => {
-                'lat': p['lat'] as double? ?? 0.0,
-                'lng': p['lng'] as double? ?? 0.0,
-              }).toList(),
-              onPointTap: (index) {
-                setState(() {
-                  _selectedPointIndex = index;
-                  _movePointMode = true;
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('📍 Point ${index + 1} sélectionné - Cliquez sur "Déplacer ici" pour le repositionner'),
-                    backgroundColor: Colors.blue,
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
-              },
-            ),
-
-          if (_tracePoints.isNotEmpty)
-            const SizedBox(height: 16),
-
-          // Statistiques du tracé
-          if (_tracePoints.isNotEmpty) ...[
-            Text(
-              'Statistiques du tracé',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade800,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.purple.shade50, Colors.purple.shade100],
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatItem(
-                          Icons.straighten,
-                          'Distance',
-                          '${_totalDistance.toStringAsFixed(2)} km',
-                          Colors.purple,
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildStatItem(
-                          Icons.place,
-                          'Points',
-                          '${_tracePoints.length}',
-                          Colors.blue,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatItem(
-                          Icons.trending_up,
-                          'Dénivelé +',
-                          '${_elevationGain.toStringAsFixed(0)} m',
-                          Colors.green,
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildStatItem(
-                          Icons.trending_down,
-                          'Dénivelé -',
-                          '${_elevationLoss.toStringAsFixed(0)} m',
-                          Colors.orange,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-          ],
-
-          // Options avancées
-          Text(
-            'Options avancées',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          SwitchListTile(
-            value: _snapToRoads,
-            onChanged: (value) {
-              setState(() {
-                _snapToRoads = value;
-                _isValidated = false;
-              });
-            },
-            title: const Text('Aimanter aux routes'),
-            subtitle: const Text(
-              'Les points s\'alignent automatiquement sur les routes',
-            ),
-            activeThumbColor: Colors.green,
-          ),
-
-          const SizedBox(height: 8),
-
-          SwitchListTile(
-            value: _showElevation,
-            onChanged: (value) {
-              setState(() {
-                _showElevation = value;
-              });
-            },
-            title: const Text('Afficher le profil d\'élévation'),
-            subtitle: const Text('Visualiser les montées et descentes'),
-            activeThumbColor: Colors.green,
-          ),
-
-          if (_showElevation) ...[
-            const SizedBox(height: 16),
-            Container(
-              height: 150,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                // Mode de tracé avec long-press hint
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(
-                      Icons.show_chart,
-                      size: 48,
-                      color: Colors.grey.shade400,
-                    ),
-                    const SizedBox(height: 8),
                     Text(
-                      'Profil d\'élévation',
+                      'Mode de tracé',
                       style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade800,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Graphique des altitudes le long du parcours',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade500,
+                    Tooltip(
+                      message: 'Long-press sur un mode pour voir les détails',
+                      child: Icon(
+                        Icons.info_outline,
+                        size: 18,
+                        color: Colors.grey.shade600,
                       ),
                     ),
                   ],
                 ),
-              ),
-            ),
-          ],
+                const SizedBox(height: 12),
 
-          const SizedBox(height: 24),
-
-          // Simplification du tracé
-          Text(
-            'Simplification du tracé',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Réduire le nombre de points tout en conservant la forme (algorithme Douglas-Peucker)',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 12),
-
-          Row(
-            children: [
-              Icon(Icons.tune, color: Colors.indigo.shade700, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Tolérance: ${(_simplificationTolerance * 10000).toStringAsFixed(1)}',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.indigo.shade800,
+                GestureDetector(
+                  onLongPress: () {
+                    _showTraceModeHelp(context);
+                  },
+                  child: SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(
+                        value: 'manual',
+                        label: Text('Manuel'),
+                        icon: Icon(Icons.gesture),
+                      ),
+                      ButtonSegment(
+                        value: 'follow_roads',
+                        label: Text('Suivre routes'),
+                        icon: Icon(Icons.alt_route),
+                      ),
+                      ButtonSegment(
+                        value: 'straight',
+                        label: Text('Ligne droite'),
+                        icon: Icon(Icons.straight),
+                      ),
+                    ],
+                    selected: {_traceMode},
+                    onSelectionChanged: (Set<String> newSelection) {
+                      setState(() {
+                        _traceMode = newSelection.first;
+                        _isValidated = false;
+                      });
+                    },
+                  ),
                 ),
-              ),
-              const Spacer(),
-              Text(
-                _simplificationTolerance == 0 ? 'Désactivée' : 'Active',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: _simplificationTolerance == 0
-                      ? Colors.grey
-                      : Colors.green,
+
+                const SizedBox(height: 16),
+
+                // Info sur le mode
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.blue.shade700,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _getTraceModeDescription(),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue.shade900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-          Slider(
-            value: _simplificationTolerance,
-            min: 0,
-            max: 0.001,
-            divisions: 20,
-            label: _simplificationTolerance == 0
-                ? 'OFF'
-                : (_simplificationTolerance * 10000).toStringAsFixed(1),
-            onChanged: (value) {
-              setState(() {
-                _simplificationTolerance = value;
-                _isValidated = false;
-              });
-            },
-          ),
 
-          const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-          // Liste des points
-          if (_tracePoints.isNotEmpty) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
+                // Carte interactive (placeholder)
+                Container(
+                  height: 400,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade400, width: 2),
+                  ),
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.map,
+                              size: 80,
+                              color: Colors.grey.shade400,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Carte interactive Mapbox',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _movePointMode && _selectedPointIndex != null
+                                  ? 'Cliquez pour déplacer le point sélectionné'
+                                  : 'Cliquez pour ajouter des points',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color:
+                                    _movePointMode &&
+                                        _selectedPointIndex != null
+                                    ? Colors.blue.shade700
+                                    : Colors.grey.shade500,
+                                fontWeight:
+                                    _movePointMode &&
+                                        _selectedPointIndex != null
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Boutons flottants sur la carte
+                      Positioned(
+                        top: 16,
+                        right: 16,
+                        child: Column(
+                          children: [
+                            _buildMapButton(
+                              icon: Icons.my_location,
+                              tooltip: 'Centrer sur ma position',
+                              onPressed: () => _centerOnLocation(),
+                            ),
+                            const SizedBox(height: 8),
+                            _buildMapButton(
+                              icon: Icons.zoom_in,
+                              tooltip: 'Zoom +',
+                              onPressed: () {},
+                            ),
+                            const SizedBox(height: 8),
+                            _buildMapButton(
+                              icon: Icons.zoom_out,
+                              tooltip: 'Zoom -',
+                              onPressed: () {},
+                            ),
+                            const SizedBox(height: 8),
+                            _buildMapButton(
+                              icon: Icons.layers,
+                              tooltip: 'Changer de fond',
+                              onPressed: () {},
+                            ),
+                            const SizedBox(height: 8),
+                            _buildMapButton(
+                              icon: _movePointMode
+                                  ? Icons.pan_tool
+                                  : Icons.open_with,
+                              tooltip: _movePointMode
+                                  ? 'Désactiver déplacement'
+                                  : 'Déplacer un point',
+                              onPressed: () {
+                                setState(() {
+                                  _movePointMode = !_movePointMode;
+                                  _selectedPointIndex = null;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      _movePointMode
+                                          ? 'Mode déplacement activé - Sélectionnez un point'
+                                          : 'Mode déplacement désactivé',
+                                    ),
+                                    backgroundColor: _movePointMode
+                                        ? Colors.blue
+                                        : Colors.grey,
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Boutons d'action en bas
+                      Positioned(
+                        bottom: 16,
+                        left: 16,
+                        right: 16,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: _tracePoints.isEmpty
+                                  ? null
+                                  : () => _undoLastPoint(),
+                              icon: const Icon(Icons.undo, size: 18),
+                              label: const Text('Annuler'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            ElevatedButton.icon(
+                              onPressed: _tracePoints.isEmpty
+                                  ? null
+                                  : () => _clearTrace(),
+                              icon: const Icon(Icons.delete, size: 18),
+                              label: const Text('Effacer tout'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            ElevatedButton.icon(
+                              onPressed: () => _addDemoPoint(),
+                              icon: Icon(
+                                _movePointMode && _selectedPointIndex != null
+                                    ? Icons.open_with
+                                    : Icons.add_location,
+                                size: 18,
+                              ),
+                              label: Text(
+                                _movePointMode && _selectedPointIndex != null
+                                    ? 'Déplacer ici'
+                                    : 'Ajouter point',
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor:
+                                    _movePointMode &&
+                                        _selectedPointIndex != null
+                                    ? Colors.blue
+                                    : Colors.green,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Mini-map preview
+                if (_tracePoints.isNotEmpty)
+                  _MiniMapPreview(
+                    routePoints: _tracePoints
+                        .map(
+                          (p) => {
+                            'lat': p['lat'] as double? ?? 0.0,
+                            'lng': p['lng'] as double? ?? 0.0,
+                          },
+                        )
+                        .toList(),
+                    onPointTap: (index) {
+                      setState(() {
+                        _selectedPointIndex = index;
+                        _movePointMode = true;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            '📍 Point ${index + 1} sélectionné - Cliquez sur "Déplacer ici" pour le repositionner',
+                          ),
+                          backgroundColor: Colors.blue,
+                          duration: const Duration(seconds: 3),
+                        ),
+                      );
+                    },
+                  ),
+
+                if (_tracePoints.isNotEmpty) const SizedBox(height: 16),
+
+                // Statistiques du tracé
+                if (_tracePoints.isNotEmpty) ...[
+                  Text(
+                    'Statistiques du tracé',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade800,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.purple.shade50, Colors.purple.shade100],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatItem(
+                                Icons.straighten,
+                                'Distance',
+                                '${_totalDistance.toStringAsFixed(2)} km',
+                                Colors.purple,
+                              ),
+                            ),
+                            Expanded(
+                              child: _buildStatItem(
+                                Icons.place,
+                                'Points',
+                                '${_tracePoints.length}',
+                                Colors.blue,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatItem(
+                                Icons.trending_up,
+                                'Dénivelé +',
+                                '${_elevationGain.toStringAsFixed(0)} m',
+                                Colors.green,
+                              ),
+                            ),
+                            Expanded(
+                              child: _buildStatItem(
+                                Icons.trending_down,
+                                'Dénivelé -',
+                                '${_elevationLoss.toStringAsFixed(0)} m',
+                                Colors.orange,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+                ],
+
+                // Options avancées
                 Text(
-                  'Points du tracé',
+                  'Options avancées',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey.shade800,
                   ),
                 ),
-                TextButton.icon(
-                  onPressed: () => _exportTraceToJson(),
-                  icon: const Icon(Icons.code, size: 18),
-                  label: const Text('Exporter JSON'),
+                const SizedBox(height: 12),
+
+                SwitchListTile(
+                  value: _snapToRoads,
+                  onChanged: (value) {
+                    setState(() {
+                      _snapToRoads = value;
+                      _isValidated = false;
+                    });
+                  },
+                  title: const Text('Aimanter aux routes'),
+                  subtitle: const Text(
+                    'Les points s\'alignent automatiquement sur les routes',
+                  ),
+                  activeThumbColor: Colors.green,
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
 
-            Container(
-              constraints: const BoxConstraints(maxHeight: 300),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: _tracePoints.length,
-                itemBuilder: (context, index) {
-                  final point = _tracePoints[index];
-                  final isStart = index == 0;
-                  final isEnd = index == _tracePoints.length - 1;
+                const SizedBox(height: 8),
 
-                  return ListTile(
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: isStart
-                            ? Colors.green
-                            : isEnd
-                            ? Colors.red
-                            : Colors.blue,
-                        shape: BoxShape.circle,
+                SwitchListTile(
+                  value: _showElevation,
+                  onChanged: (value) {
+                    setState(() {
+                      _showElevation = value;
+                    });
+                  },
+                  title: const Text('Afficher le profil d\'élévation'),
+                  subtitle: const Text('Visualiser les montées et descentes'),
+                  activeThumbColor: Colors.green,
+                ),
+
+                if (_showElevation) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    height: 150,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.show_chart,
+                            size: 48,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Profil d\'élévation',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Graphique des altitudes le long du parcours',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                        ],
                       ),
-                      child: Center(
-                        child: Text(
-                          isStart
-                              ? 'D'
-                              : isEnd
-                              ? 'A'
-                              : '${index + 1}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 24),
+
+                // Simplification du tracé
+                Text(
+                  'Simplification du tracé',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Réduire le nombre de points tout en conservant la forme (algorithme Douglas-Peucker)',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    Icon(Icons.tune, color: Colors.indigo.shade700, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Tolérance: ${(_simplificationTolerance * 10000).toStringAsFixed(1)}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.indigo.shade800,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      _simplificationTolerance == 0 ? 'Désactivée' : 'Active',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: _simplificationTolerance == 0
+                            ? Colors.grey
+                            : Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+                Slider(
+                  value: _simplificationTolerance,
+                  min: 0,
+                  max: 0.001,
+                  divisions: 20,
+                  label: _simplificationTolerance == 0
+                      ? 'OFF'
+                      : (_simplificationTolerance * 10000).toStringAsFixed(1),
+                  onChanged: (value) {
+                    setState(() {
+                      _simplificationTolerance = value;
+                      _isValidated = false;
+                    });
+                  },
+                ),
+
+                const SizedBox(height: 24),
+
+                // Liste des points
+                if (_tracePoints.isNotEmpty) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Points du tracé',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey.shade800,
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => _exportTraceToJson(),
+                        icon: const Icon(Icons.code, size: 18),
+                        label: const Text('Exporter JSON'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 300),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: _tracePoints.length,
+                      itemBuilder: (context, index) {
+                        final point = _tracePoints[index];
+                        final isStart = index == 0;
+                        final isEnd = index == _tracePoints.length - 1;
+
+                        return ListTile(
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: isStart
+                                  ? Colors.green
+                                  : isEnd
+                                  ? Colors.red
+                                  : Colors.blue,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                isStart
+                                    ? 'D'
+                                    : isEnd
+                                    ? 'A'
+                                    : '${index + 1}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          title: Text(
+                            'Lat: ${point['lat'].toStringAsFixed(5)}, Lng: ${point['lng'].toStringAsFixed(5)}',
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                          subtitle: Text(
+                            isStart
+                                ? 'Départ'
+                                : isEnd
+                                ? 'Arrivée'
+                                : 'Point intermédiaire',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_movePointMode)
+                                IconButton(
+                                  icon: Icon(
+                                    _selectedPointIndex == index
+                                        ? Icons.check_circle
+                                        : Icons.open_with,
+                                    color: _selectedPointIndex == index
+                                        ? Colors.blue
+                                        : Colors.grey,
+                                    size: 20,
+                                  ),
+                                  tooltip: _selectedPointIndex == index
+                                      ? 'Point sélectionné'
+                                      : 'Déplacer ce point',
+                                  onPressed: () {
+                                    if (_selectedPointIndex == index) {
+                                      // Désélectionner
+                                      setState(
+                                        () => _selectedPointIndex = null,
+                                      );
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Point désélectionné'),
+                                          duration: Duration(seconds: 1),
+                                        ),
+                                      );
+                                    } else {
+                                      // Sélectionner pour déplacement
+                                      setState(
+                                        () => _selectedPointIndex = index,
+                                      );
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Point ${isStart
+                                                ? 'Départ'
+                                                : isEnd
+                                                ? 'Arrivée'
+                                                : index + 1} sélectionné - Cliquez sur la carte pour le déplacer',
+                                          ),
+                                          duration: const Duration(seconds: 2),
+                                          backgroundColor: Colors.blue,
+                                        ),
+                                      );
+                                    }
+                                  },
+                                ),
+                              IconButton(
+                                icon: const Icon(Icons.delete, size: 20),
+                                onPressed: () {
+                                  setState(() {
+                                    _tracePoints.removeAt(index);
+                                    if (_selectedPointIndex == index) {
+                                      _selectedPointIndex = null;
+                                    }
+                                    _recalculateStats();
+                                    _isValidated = false;
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+                ],
+
+                // Validation
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (!_isValidated && _tracePoints.length >= 2)
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          setState(() => _isValidated = true);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.check_circle,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    'Tracé validé : ${_tracePoints.length} points, ${_totalDistance.toStringAsFixed(2)} km',
+                                  ),
+                                ],
+                              ),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.check),
+                        label: const Text('Valider le tracé'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 16,
                           ),
                         ),
                       ),
-                    ),
-                    title: Text(
-                      'Lat: ${point['lat'].toStringAsFixed(5)}, Lng: ${point['lng'].toStringAsFixed(5)}',
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                    subtitle: Text(
-                      isStart
-                          ? 'Départ'
-                          : isEnd
-                          ? 'Arrivée'
-                          : 'Point intermédiaire',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade600,
+                    if (_isValidated) ...[
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          setState(() => _isValidated = false);
+                        },
+                        icon: const Icon(Icons.edit),
+                        label: const Text('Modifier'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey.shade600,
+                          foregroundColor: Colors.white,
+                        ),
                       ),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (_movePointMode)
-                          IconButton(
-                            icon: Icon(
-                              _selectedPointIndex == index
-                                  ? Icons.check_circle
-                                  : Icons.open_with,
-                              color: _selectedPointIndex == index
-                                  ? Colors.blue
-                                  : Colors.grey,
-                              size: 20,
-                            ),
-                            tooltip: _selectedPointIndex == index
-                                ? 'Point sélectionné'
-                                : 'Déplacer ce point',
-                            onPressed: () {
-                              if (_selectedPointIndex == index) {
-                                // Désélectionner
-                                setState(() => _selectedPointIndex = null);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Point désélectionné'),
-                                    duration: Duration(seconds: 1),
-                                  ),
-                                );
-                              } else {
-                                // Sélectionner pour déplacement
-                                setState(() => _selectedPointIndex = index);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Point ${isStart ? 'Départ' : isEnd ? 'Arrivée' : index + 1} sélectionné - Cliquez sur la carte pour le déplacer',
-                                    ),
-                                    duration: const Duration(seconds: 2),
-                                    backgroundColor: Colors.blue,
-                                  ),
-                                );
-                              }
-                            },
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: widget.onNext,
+                        icon: const Icon(Icons.arrow_forward),
+                        label: const Text('Étape suivante'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 16,
                           ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, size: 20),
-                          onPressed: () {
-                            setState(() {
-                              _tracePoints.removeAt(index);
-                              if (_selectedPointIndex == index) {
-                                _selectedPointIndex = null;
-                              }
-                              _recalculateStats();
-                              _isValidated = false;
-                            });
-                          },
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+
+                if (_tracePoints.length < 2) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      border: Border.all(color: Colors.orange),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning, color: Colors.orange.shade700),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Ajoutez au moins 2 points pour valider le tracé',
+                            style: TextStyle(
+                              color: Colors.orange.shade900,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                  );
-                },
-              ),
-            ),
+                  ),
+                ],
 
-            const SizedBox(height: 24),
-          ],
-
-          // Validation
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              if (!_isValidated && _tracePoints.length >= 2)
-                ElevatedButton.icon(
-                  onPressed: () {
-                    setState(() => _isValidated = true);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Row(
-                          children: [
-                            const Icon(Icons.check_circle, color: Colors.white),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Tracé validé : ${_tracePoints.length} points, ${_totalDistance.toStringAsFixed(2)} km',
+                if (_isValidated) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      border: Border.all(color: Colors.green),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green.shade700),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Tracé validé et prêt pour la configuration avancée',
+                            style: TextStyle(
+                              color: Colors.green.shade900,
+                              fontWeight: FontWeight.w600,
                             ),
-                          ],
+                          ),
                         ),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.check),
-                  label: const Text('Valider le tracé'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
+                      ],
                     ),
                   ),
-                ),
-              if (_isValidated) ...[
-                ElevatedButton.icon(
-                  onPressed: () {
-                    setState(() => _isValidated = false);
-                  },
-                  icon: const Icon(Icons.edit),
-                  label: const Text('Modifier'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey.shade600,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: widget.onNext,
-                  icon: const Icon(Icons.arrow_forward),
-                  label: const Text('Étape suivante'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
-                    ),
-                  ),
-                ),
+                ],
               ],
-            ],
+            ),
           ),
-
-          if (_tracePoints.length < 2) ...[
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                border: Border.all(color: Colors.orange),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.warning, color: Colors.orange.shade700),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Ajoutez au moins 2 points pour valider le tracé',
-                      style: TextStyle(
-                        color: Colors.orange.shade900,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-
-          if (_isValidated) ...[
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                border: Border.all(color: Colors.green),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.green.shade700),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Tracé validé et prêt pour la configuration avancée',
-                      style: TextStyle(
-                        color: Colors.green.shade900,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          ],
         ),
-      ),
-    ),
-  ],
+      ],
     );
   }
 
@@ -4460,21 +4581,24 @@ class _StepTracerState extends State<_StepTracer> {
             _buildModeHelpItem(
               icon: Icons.gesture,
               title: 'Manuel',
-              description: 'Cliquez sur la carte pour ajouter des points un par un. Contrôle total sur le tracé.',
+              description:
+                  'Cliquez sur la carte pour ajouter des points un par un. Contrôle total sur le tracé.',
               color: Colors.blue,
             ),
             const SizedBox(height: 12),
             _buildModeHelpItem(
               icon: Icons.alt_route,
               title: 'Suivre routes',
-              description: 'Les points sont automatiquement alignés sur les routes existantes.',
+              description:
+                  'Les points sont automatiquement alignés sur les routes existantes.',
               color: Colors.green,
             ),
             const SizedBox(height: 12),
             _buildModeHelpItem(
               icon: Icons.straight,
               title: 'Ligne droite',
-              description: 'Les points sont reliés par des lignes droites, ignorant les routes.',
+              description:
+                  'Les points sont reliés par des lignes droites, ignorant les routes.',
               color: Colors.orange,
             ),
           ],
@@ -4522,10 +4646,7 @@ class _StepTracerState extends State<_StepTracer> {
               const SizedBox(height: 4),
               Text(
                 description,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade700,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
               ),
             ],
           ),
@@ -4664,7 +4785,7 @@ class _StepTracerState extends State<_StepTracer> {
     if (_movePointMode && _selectedPointIndex != null) {
       final baseLat = 16.2500 + (_tracePoints.length * 0.002);
       final baseLng = -61.5833 + (_tracePoints.length * 0.002);
-      
+
       setState(() {
         _tracePoints[_selectedPointIndex!] = {
           'lat': baseLat,
@@ -4674,7 +4795,7 @@ class _StepTracerState extends State<_StepTracer> {
         _recalculateStats();
         _isValidated = false;
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Point ${_selectedPointIndex! + 1} déplacé'),
@@ -4684,7 +4805,7 @@ class _StepTracerState extends State<_StepTracer> {
       );
       return;
     }
-    
+
     // Sinon, ajouter un nouveau point
     final baseLat = 16.2500 + (_tracePoints.length * 0.001);
     final baseLng = -61.5833 + (_tracePoints.length * 0.001);
@@ -4753,7 +4874,7 @@ class _StepVerrouSegment extends StatefulWidget {
 class _StepVerrouSegmentState extends State<_StepVerrouSegment> {
   bool _isLocked = false;
   final List<Map<String, dynamic>> _segments = [];
-  
+
   // Configuration des flèches directionnelles
   bool _showArrows = true;
   double _arrowSpacing = 50.0; // mètres
@@ -4767,7 +4888,7 @@ class _StepVerrouSegmentState extends State<_StepVerrouSegment> {
     {'id': 'dashed', 'name': 'Tirets', 'icon': Icons.linear_scale},
     {'id': 'dotted', 'name': 'Pointillés', 'icon': Icons.more_horiz},
   ];
-  
+
   final List<Map<String, dynamic>> _arrowStyles = [
     {'id': 'chevron', 'name': 'Chevron', 'icon': Icons.arrow_forward_ios},
     {'id': 'triangle', 'name': 'Triangle', 'icon': Icons.play_arrow},
@@ -4779,11 +4900,8 @@ class _StepVerrouSegmentState extends State<_StepVerrouSegment> {
     return Column(
       children: [
         // Aperçu carte en direct
-        _MapPreviewWidget(
-          title: 'Aperçu des segments',
-          segments: _segments,
-        ),
-        
+        _MapPreviewWidget(title: 'Aperçu des segments', segments: _segments),
+
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
@@ -4801,7 +4919,11 @@ class _StepVerrouSegmentState extends State<_StepVerrouSegment> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.segment, color: Colors.purple.shade700, size: 32),
+                      Icon(
+                        Icons.segment,
+                        color: Colors.purple.shade700,
+                        size: 32,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -4833,525 +4955,539 @@ class _StepVerrouSegmentState extends State<_StepVerrouSegment> {
 
                 // Verrouillage
                 Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        _isLocked ? Icons.lock : Icons.lock_open,
-                        color: _isLocked ? Colors.red : Colors.green,
-                        size: 28,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Row(
                           children: [
-                            Text(
-                              _isLocked
-                                  ? 'Circuit verrouillé'
-                                  : 'Circuit déverrouillé',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                            Icon(
+                              _isLocked ? Icons.lock : Icons.lock_open,
+                              color: _isLocked ? Colors.red : Colors.green,
+                              size: 28,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _isLocked
+                                        ? 'Circuit verrouillé'
+                                        : 'Circuit déverrouillé',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _isLocked
+                                        ? 'Le tracé ne peut plus être modifié'
+                                        : 'Le tracé peut encore être modifié',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _isLocked
-                                  ? 'Le tracé ne peut plus être modifié'
-                                  : 'Le tracé peut encore être modifié',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                              ),
+                            Switch(
+                              value: _isLocked,
+                              onChanged: (value) {
+                                setState(() => _isLocked = value);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      value
+                                          ? 'Circuit verrouillé - Création de segments possible'
+                                          : 'Circuit déverrouillé',
+                                    ),
+                                    backgroundColor: value
+                                        ? Colors.red
+                                        : Colors.green,
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),
-                      ),
-                      Switch(
-                        value: _isLocked,
-                        onChanged: (value) {
-                          setState(() => _isLocked = value);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                value
-                                    ? 'Circuit verrouillé - Création de segments possible'
-                                    : 'Circuit déverrouillé',
-                              ),
-                              backgroundColor: value
-                                  ? Colors.red
-                                  : Colors.green,
+                        if (!_isLocked) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  if (!_isLocked) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: Colors.orange.shade700,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Verrouillez le circuit pour créer des segments',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.orange.shade900,
-                              ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Colors.orange.shade700,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Verrouillez le circuit pour créer des segments',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.orange.shade900,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Section Flèches directionnelles
-          if (_isLocked) ...[
-            Text(
-              'Flèches directionnelles',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade800,
-              ),
-            ),
-            const SizedBox(height: 12),
-            
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SwitchListTile(
-                      value: _showArrows,
-                      onChanged: (value) {
-                        setState(() => _showArrows = value);
-                      },
-                      title: const Text('Afficher les flèches'),
-                      subtitle: const Text('Indique le sens de parcours'),
-                      secondary: const Icon(Icons.arrow_forward),
-                    ),
-                    
-                    if (_showArrows) ...[
-                      const Divider(),
-                      const SizedBox(height: 8),
-                      
-                      Text(
-                        'Style des flèches',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      
-                      Wrap(
-                        spacing: 8,
-                        children: _arrowStyles.map((style) {
-                          final isSelected = _arrowStyle == style['id'];
-                          return FilterChip(
-                            label: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  style['icon'],
-                                  size: 16,
-                                  color: isSelected ? Colors.white : Colors.grey,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(style['name']),
-                              ],
-                            ),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              setState(() => _arrowStyle = style['id']);
-                            },
-                            selectedColor: Colors.blue,
-                            labelStyle: TextStyle(
-                              color: isSelected ? Colors.white : Colors.grey.shade700,
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                      
-                      const SizedBox(height: 16),
-                      
-                      Text(
-                        'Espacement: ${_arrowSpacing.toInt()} mètres',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                      Slider(
-                        value: _arrowSpacing,
-                        min: 20,
-                        max: 200,
-                        divisions: 18,
-                        label: '${_arrowSpacing.toInt()}m',
-                        onChanged: (value) {
-                          setState(() => _arrowSpacing = value);
-                        },
-                      ),
-                      
-                      const SizedBox(height: 8),
-                      
-                      Text(
-                        'Taille: ${(_arrowSize * 100).toInt()}%',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                      Slider(
-                        value: _arrowSize,
-                        min: 0.5,
-                        max: 2.0,
-                        divisions: 15,
-                        label: '${(_arrowSize * 100).toInt()}%',
-                        onChanged: (value) {
-                          setState(() => _arrowSize = value);
-                        },
-                      ),
-                      
-                      const SizedBox(height: 8),
-                      
-                      Text(
-                        'Couleur des flèches',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      
-                      Wrap(
-                        spacing: 8,
-                        children: [
-                          Colors.blue,
-                          Colors.red,
-                          Colors.green,
-                          Colors.orange,
-                          Colors.purple,
-                          Colors.black,
-                          Colors.white,
-                        ].map((color) {
-                          return GestureDetector(
-                            onTap: () => setState(() => _arrowColor = color),
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: _arrowColor == color
-                                      ? Colors.black
-                                      : Colors.grey.shade300,
-                                  width: _arrowColor == color ? 3 : 1,
-                                ),
-                              ),
-                              child: _arrowColor == color
-                                  ? const Icon(Icons.check, color: Colors.white)
-                                  : null,
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 24),
-          ],
-          
-          // Sections des segments
-          if (_isLocked) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Segments du circuit',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
-                  ),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () => _addSegment(),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Ajouter segment'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purple,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.lightbulb_outline,
-                    color: Colors.blue.shade700,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Les segments permettent d\'appliquer des styles différents sur des portions du tracé',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.blue.shade900,
-                      ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            if (_segments.isEmpty)
-              Container(
-                padding: const EdgeInsets.all(40),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.grey.shade300,
-                    style: BorderStyle.solid,
-                  ),
                 ),
-                child: Center(
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.segment,
-                        size: 64,
-                        color: Colors.grey.shade400,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Aucun segment créé',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Cliquez sur "Ajouter segment" pour commencer',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
-                    ],
+
+                const SizedBox(height: 24),
+
+                // Section Flèches directionnelles
+                if (_isLocked) ...[
+                  Text(
+                    'Flèches directionnelles',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade800,
+                    ),
                   ),
-                ),
-              )
-            else
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _segments.length,
-                itemBuilder: (context, index) {
-                  final segment = _segments[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
+                  const SizedBox(height: 12),
+
+                  Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: segment['color'],
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    '${index + 1}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      segment['name'],
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          _getStyleIcon(segment['style']),
-                                          size: 14,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          _getStyleName(segment['style']),
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey.shade600,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Icon(
-                                          Icons.line_weight,
-                                          size: 14,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          '${segment['width']}px',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey.shade600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.edit, size: 20),
-                                onPressed: () => _editSegment(index),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete, size: 20),
-                                color: Colors.red,
-                                onPressed: () {
-                                  setState(() => _segments.removeAt(index));
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Segment supprimé'),
-                                      backgroundColor: Colors.orange,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
+                          SwitchListTile(
+                            value: _showArrows,
+                            onChanged: (value) {
+                              setState(() => _showArrows = value);
+                            },
+                            title: const Text('Afficher les flèches'),
+                            subtitle: const Text('Indique le sens de parcours'),
+                            secondary: const Icon(Icons.arrow_forward),
                           ),
+
+                          if (_showArrows) ...[
+                            const Divider(),
+                            const SizedBox(height: 8),
+
+                            Text(
+                              'Style des flèches',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            Wrap(
+                              spacing: 8,
+                              children: _arrowStyles.map((style) {
+                                final isSelected = _arrowStyle == style['id'];
+                                return FilterChip(
+                                  label: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        style['icon'],
+                                        size: 16,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : Colors.grey,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(style['name']),
+                                    ],
+                                  ),
+                                  selected: isSelected,
+                                  onSelected: (selected) {
+                                    setState(() => _arrowStyle = style['id']);
+                                  },
+                                  selectedColor: Colors.blue,
+                                  labelStyle: TextStyle(
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Colors.grey.shade700,
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            Text(
+                              'Espacement: ${_arrowSpacing.toInt()} mètres',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                            Slider(
+                              value: _arrowSpacing,
+                              min: 20,
+                              max: 200,
+                              divisions: 18,
+                              label: '${_arrowSpacing.toInt()}m',
+                              onChanged: (value) {
+                                setState(() => _arrowSpacing = value);
+                              },
+                            ),
+
+                            const SizedBox(height: 8),
+
+                            Text(
+                              'Taille: ${(_arrowSize * 100).toInt()}%',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                            Slider(
+                              value: _arrowSize,
+                              min: 0.5,
+                              max: 2.0,
+                              divisions: 15,
+                              label: '${(_arrowSize * 100).toInt()}%',
+                              onChanged: (value) {
+                                setState(() => _arrowSize = value);
+                              },
+                            ),
+
+                            const SizedBox(height: 8),
+
+                            Text(
+                              'Couleur des flèches',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+
+                            Wrap(
+                              spacing: 8,
+                              children:
+                                  [
+                                    Colors.blue,
+                                    Colors.red,
+                                    Colors.green,
+                                    Colors.orange,
+                                    Colors.purple,
+                                    Colors.black,
+                                    Colors.white,
+                                  ].map((color) {
+                                    return GestureDetector(
+                                      onTap: () =>
+                                          setState(() => _arrowColor = color),
+                                      child: Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          color: color,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: _arrowColor == color
+                                                ? Colors.black
+                                                : Colors.grey.shade300,
+                                            width: _arrowColor == color ? 3 : 1,
+                                          ),
+                                        ),
+                                        child: _arrowColor == color
+                                            ? const Icon(
+                                                Icons.check,
+                                                color: Colors.white,
+                                              )
+                                            : null,
+                                      ),
+                                    );
+                                  }).toList(),
+                            ),
+                          ],
                         ],
                       ),
                     ),
-                  );
-                },
-              ),
-
-            const SizedBox(height: 24),
-          ],
-
-          // Navigation
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              OutlinedButton.icon(
-                onPressed: widget.onPrev,
-                icon: const Icon(Icons.arrow_back),
-                label: const Text('Étape précédente'),
-              ),
-              ElevatedButton.icon(
-                onPressed: _isLocked ? widget.onNext : null,
-                icon: const Icon(Icons.arrow_forward),
-                label: const Text('Étape suivante'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 16,
                   ),
-                ),
-              ),
-            ],
-          ),
 
-          if (!_isLocked) ...[
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                border: Border.all(color: Colors.orange),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.warning, color: Colors.orange.shade700),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Verrouillez le circuit pour passer à l\'étape suivante',
-                      style: TextStyle(
-                        color: Colors.orange.shade900,
-                        fontWeight: FontWeight.w600,
+                  const SizedBox(height: 24),
+                ],
+
+                // Sections des segments
+                if (_isLocked) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Segments du circuit',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey.shade800,
+                        ),
                       ),
+                      ElevatedButton.icon(
+                        onPressed: () => _addSegment(),
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Ajouter segment'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.purple,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.lightbulb_outline,
+                          color: Colors.blue.shade700,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Les segments permettent d\'appliquer des styles différents sur des portions du tracé',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blue.shade900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  if (_segments.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(40),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.grey.shade300,
+                          style: BorderStyle.solid,
+                        ),
+                      ),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.segment,
+                              size: 64,
+                              color: Colors.grey.shade400,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Aucun segment créé',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Cliquez sur "Ajouter segment" pour commencer',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _segments.length,
+                      itemBuilder: (context, index) {
+                        final segment = _segments[index];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: segment['color'],
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '${index + 1}',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            segment['name'],
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                _getStyleIcon(segment['style']),
+                                                size: 14,
+                                                color: Colors.grey.shade600,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                _getStyleName(segment['style']),
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey.shade600,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Icon(
+                                                Icons.line_weight,
+                                                size: 14,
+                                                color: Colors.grey.shade600,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '${segment['width']}px',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey.shade600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.edit, size: 20),
+                                      onPressed: () => _editSegment(index),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete, size: 20),
+                                      color: Colors.red,
+                                      onPressed: () {
+                                        setState(
+                                          () => _segments.removeAt(index),
+                                        );
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Segment supprimé'),
+                                            backgroundColor: Colors.orange,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+
+                  const SizedBox(height: 24),
+                ],
+
+                // Navigation
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: widget.onPrev,
+                      icon: const Icon(Icons.arrow_back),
+                      label: const Text('Étape précédente'),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _isLocked ? widget.onNext : null,
+                      icon: const Icon(Icons.arrow_forward),
+                      label: const Text('Étape suivante'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 16,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                if (!_isLocked) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      border: Border.all(color: Colors.orange),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning, color: Colors.orange.shade700),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Verrouillez le circuit pour passer à l\'étape suivante',
+                            style: TextStyle(
+                              color: Colors.orange.shade900,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
-              ),
+              ],
             ),
-          ],
-        ],
+          ),
         ),
-      ),
-    ),
-  ],
+      ],
     );
   }
 
@@ -5612,16 +5748,13 @@ class _StepPublierState extends State<_StepPublier> {
                 const SizedBox(height: 4),
                 Text(
                   'Enregistrez pour visualiser sur la carte',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade500,
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                 ),
               ],
             ),
           ),
         ),
-        
+
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
@@ -5639,441 +5772,475 @@ class _StepPublierState extends State<_StepPublier> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.publish, color: Colors.green.shade700, size: 32),
+                      Icon(
+                        Icons.publish,
+                        color: Colors.green.shade700,
+                        size: 32,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                        'Publication du circuit',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green.shade900,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Dernière étape avant la mise en ligne',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.green.shade700,
+                              'Publication du circuit',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green.shade900,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Dernière étape avant la mise en ligne',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.green.shade700,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-          // Informations générales
-          Text(
-            'Informations générales',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
-            ),
-          ),
-          const SizedBox(height: 12),
+                // Informations générales
+                Text(
+                  'Informations générales',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                const SizedBox(height: 12),
 
-          TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Nom du circuit *',
-              hintText: 'Ex: Tour des Trois Îlets',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.title),
-            ),
-          ),
-          const SizedBox(height: 16),
+                TextField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nom du circuit *',
+                    hintText: 'Ex: Tour des Trois Îlets',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.title),
+                  ),
+                ),
+                const SizedBox(height: 16),
 
-          TextField(
-            controller: _descriptionController,
-            decoration: const InputDecoration(
-              labelText: 'Description *',
-              hintText:
-                  'Décrivez le circuit, ses points d\'intérêt, sa difficulté...',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.description),
-            ),
-            maxLines: 4,
-          ),
-          const SizedBox(height: 24),
+                TextField(
+                  controller: _descriptionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Description *',
+                    hintText:
+                        'Décrivez le circuit, ses points d\'intérêt, sa difficulté...',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.description),
+                  ),
+                  maxLines: 4,
+                ),
+                const SizedBox(height: 24),
 
-          // Catégorie
-          Text(
-            'Catégorie',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
-            ),
-          ),
-          const SizedBox(height: 12),
+                // Catégorie
+                Text(
+                  'Catégorie',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                const SizedBox(height: 12),
 
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _categories.map((cat) {
-              final isSelected = _category == cat['id'];
-              return FilterChip(
-                label: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      cat['icon'],
-                      size: 18,
-                      color: isSelected ? Colors.white : Colors.grey.shade700,
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _categories.map((cat) {
+                    final isSelected = _category == cat['id'];
+                    return FilterChip(
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            cat['icon'],
+                            size: 18,
+                            color: isSelected
+                                ? Colors.white
+                                : Colors.grey.shade700,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(cat['name']),
+                        ],
+                      ),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() => _category = cat['id']);
+                      },
+                      selectedColor: Colors.blue,
+                      labelStyle: TextStyle(
+                        color: isSelected ? Colors.white : Colors.grey.shade700,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                    );
+                  }).toList(),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Difficulté
+                Text(
+                  'Difficulté',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(
+                      value: 'facile',
+                      label: Text('Facile'),
+                      icon: Icon(Icons.sentiment_satisfied),
                     ),
-                    const SizedBox(width: 4),
-                    Text(cat['name']),
+                    ButtonSegment(
+                      value: 'moyen',
+                      label: Text('Moyen'),
+                      icon: Icon(Icons.sentiment_neutral),
+                    ),
+                    ButtonSegment(
+                      value: 'difficile',
+                      label: Text('Difficile'),
+                      icon: Icon(Icons.sentiment_dissatisfied),
+                    ),
+                  ],
+                  selected: {_difficulty},
+                  onSelectionChanged: (Set<String> newSelection) {
+                    setState(() => _difficulty = newSelection.first);
+                  },
+                ),
+
+                const SizedBox(height: 24),
+
+                // Durée estimée
+                Text(
+                  'Durée estimée: $_estimatedDuration minutes',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                Slider(
+                  value: _estimatedDuration.toDouble(),
+                  min: 15,
+                  max: 480,
+                  divisions: 31,
+                  label: '$_estimatedDuration min',
+                  onChanged: (value) {
+                    setState(() => _estimatedDuration = value.toInt());
+                  },
+                ),
+
+                const SizedBox(height: 24),
+
+                // Visibilité
+                Text(
+                  'Visibilité',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                Card(
+                  child: Column(
+                    children: [
+                      RadioListTile<String>(
+                        value: 'public',
+                        groupValue: _visibility,
+                        onChanged: (value) =>
+                            setState(() => _visibility = value!),
+                        title: const Text('Public'),
+                        subtitle: const Text(
+                          'Visible par tous les utilisateurs',
+                        ),
+                        secondary: const Icon(Icons.public),
+                      ),
+                      const Divider(height: 1),
+                      RadioListTile<String>(
+                        value: 'unlisted',
+                        groupValue: _visibility,
+                        onChanged: (value) =>
+                            setState(() => _visibility = value!),
+                        title: const Text('Non répertorié'),
+                        subtitle: const Text(
+                          'Accessible uniquement via le lien',
+                        ),
+                        secondary: const Icon(Icons.link),
+                      ),
+                      const Divider(height: 1),
+                      RadioListTile<String>(
+                        value: 'private',
+                        groupValue: _visibility,
+                        onChanged: (value) =>
+                            setState(() => _visibility = value!),
+                        title: const Text('Privé'),
+                        subtitle: const Text('Uniquement vous'),
+                        secondary: const Icon(Icons.lock),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Tags
+                Text(
+                  'Tags',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Ajoutez des mots-clés pour faciliter la recherche',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _tagController,
+                        decoration: const InputDecoration(
+                          labelText: 'Nouveau tag',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.label),
+                        ),
+                        onSubmitted: (value) => _addTag(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: _addTag,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Ajouter'),
+                    ),
                   ],
                 ),
-                selected: isSelected,
-                onSelected: (selected) {
-                  setState(() => _category = cat['id']);
-                },
-                selectedColor: Colors.blue,
-                labelStyle: TextStyle(
-                  color: isSelected ? Colors.white : Colors.grey.shade700,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                ),
-              );
-            }).toList(),
-          ),
 
-          const SizedBox(height: 24),
-
-          // Difficulté
-          Text(
-            'Difficulté',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(
-                value: 'facile',
-                label: Text('Facile'),
-                icon: Icon(Icons.sentiment_satisfied),
-              ),
-              ButtonSegment(
-                value: 'moyen',
-                label: Text('Moyen'),
-                icon: Icon(Icons.sentiment_neutral),
-              ),
-              ButtonSegment(
-                value: 'difficile',
-                label: Text('Difficile'),
-                icon: Icon(Icons.sentiment_dissatisfied),
-              ),
-            ],
-            selected: {_difficulty},
-            onSelectionChanged: (Set<String> newSelection) {
-              setState(() => _difficulty = newSelection.first);
-            },
-          ),
-
-          const SizedBox(height: 24),
-
-          // Durée estimée
-          Text(
-            'Durée estimée: $_estimatedDuration minutes',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
-            ),
-          ),
-          Slider(
-            value: _estimatedDuration.toDouble(),
-            min: 15,
-            max: 480,
-            divisions: 31,
-            label: '$_estimatedDuration min',
-            onChanged: (value) {
-              setState(() => _estimatedDuration = value.toInt());
-            },
-          ),
-
-          const SizedBox(height: 24),
-
-          // Visibilité
-          Text(
-            'Visibilité',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          Card(
-            child: Column(
-              children: [
-                RadioListTile<String>(
-                  value: 'public',
-                  groupValue: _visibility,
-                  onChanged: (value) => setState(() => _visibility = value!),
-                  title: const Text('Public'),
-                  subtitle: const Text('Visible par tous les utilisateurs'),
-                  secondary: const Icon(Icons.public),
-                ),
-                const Divider(height: 1),
-                RadioListTile<String>(
-                  value: 'unlisted',
-                  groupValue: _visibility,
-                  onChanged: (value) => setState(() => _visibility = value!),
-                  title: const Text('Non répertorié'),
-                  subtitle: const Text('Accessible uniquement via le lien'),
-                  secondary: const Icon(Icons.link),
-                ),
-                const Divider(height: 1),
-                RadioListTile<String>(
-                  value: 'private',
-                  groupValue: _visibility,
-                  onChanged: (value) => setState(() => _visibility = value!),
-                  title: const Text('Privé'),
-                  subtitle: const Text('Uniquement vous'),
-                  secondary: const Icon(Icons.lock),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Tags
-          Text(
-            'Tags',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Ajoutez des mots-clés pour faciliter la recherche',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 12),
-
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _tagController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nouveau tag',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.label),
-                  ),
-                  onSubmitted: (value) => _addTag(),
-                ),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                onPressed: _addTag,
-                icon: const Icon(Icons.add),
-                label: const Text('Ajouter'),
-              ),
-            ],
-          ),
-
-          if (_tags.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _tags.map((tag) {
-                return Chip(
-                  label: Text(tag),
-                  deleteIcon: const Icon(Icons.close, size: 18),
-                  onDeleted: () {
-                    setState(() => _tags.remove(tag));
-                  },
-                );
-              }).toList(),
-            ),
-          ],
-
-          const SizedBox(height: 24),
-
-          // Résumé de la configuration
-          Text(
-            'Résumé du circuit',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.blue.shade50, Colors.blue.shade100],
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              children: [
-                _buildSummaryRow(
-                  Icons.check_circle,
-                  'Périmètre défini',
-                  Colors.green,
-                ),
-                const Divider(),
-                _buildSummaryRow(
-                  Icons.map,
-                  'Carte offline configurée',
-                  Colors.green,
-                ),
-                const Divider(),
-                _buildSummaryRow(Icons.route, 'Tracé validé', Colors.green),
-                const Divider(),
-                _buildSummaryRow(Icons.segment, 'Segments créés', Colors.green),
-                const Divider(),
-                _buildSummaryRow(Icons.publish, 'Prêt à publier', Colors.blue),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Checklist finale
-          Text(
-            'Checklist finale',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          Card(
-            child: Column(
-              children: [
-                CheckboxListTile(
-                  value: _dataVerified,
-                  onChanged: (value) => setState(() => _dataVerified = value!),
-                  title: const Text('J\'ai vérifié toutes les données'),
-                  subtitle: const Text('Tracé, segments, informations'),
-                ),
-                const Divider(height: 1),
-                CheckboxListTile(
-                  value: _termsAccepted,
-                  onChanged: (value) => setState(() => _termsAccepted = value!),
-                  title: const Text('J\'accepte les conditions'),
-                  subtitle: const Text('Charte de publication des circuits'),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Boutons d'action
-          if (!_isPublishing) ...[
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: widget.onPrev,
-                    icon: const Icon(Icons.arrow_back),
-                    label: const Text('Étape précédente'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _canPublish() ? _publishCircuit : null,
-                    icon: const Icon(Icons.publish),
-                    label: const Text('Publier le circuit'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _saveAsDraft,
-                icon: const Icon(Icons.save),
-                label: const Text('Enregistrer comme brouillon'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-              ),
-            ),
-          ] else ...[
-            const Center(
-              child: Column(
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text(
-                    'Publication en cours...',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                if (_tags.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _tags.map((tag) {
+                      return Chip(
+                        label: Text(tag),
+                        deleteIcon: const Icon(Icons.close, size: 18),
+                        onDeleted: () {
+                          setState(() => _tags.remove(tag));
+                        },
+                      );
+                    }).toList(),
                   ),
                 ],
-              ),
-            ),
-          ],
 
-          if (!_canPublish()) ...[
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                border: Border.all(color: Colors.orange),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.warning, color: Colors.orange.shade700),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      _getPublishError(),
-                      style: TextStyle(
-                        color: Colors.orange.shade900,
-                        fontWeight: FontWeight.w600,
+                const SizedBox(height: 24),
+
+                // Résumé de la configuration
+                Text(
+                  'Résumé du circuit',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.blue.shade50, Colors.blue.shade100],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildSummaryRow(
+                        Icons.check_circle,
+                        'Périmètre défini',
+                        Colors.green,
+                      ),
+                      const Divider(),
+                      _buildSummaryRow(
+                        Icons.map,
+                        'Carte offline configurée',
+                        Colors.green,
+                      ),
+                      const Divider(),
+                      _buildSummaryRow(
+                        Icons.route,
+                        'Tracé validé',
+                        Colors.green,
+                      ),
+                      const Divider(),
+                      _buildSummaryRow(
+                        Icons.segment,
+                        'Segments créés',
+                        Colors.green,
+                      ),
+                      const Divider(),
+                      _buildSummaryRow(
+                        Icons.publish,
+                        'Prêt à publier',
+                        Colors.blue,
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Checklist finale
+                Text(
+                  'Checklist finale',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                Card(
+                  child: Column(
+                    children: [
+                      CheckboxListTile(
+                        value: _dataVerified,
+                        onChanged: (value) =>
+                            setState(() => _dataVerified = value!),
+                        title: const Text('J\'ai vérifié toutes les données'),
+                        subtitle: const Text('Tracé, segments, informations'),
+                      ),
+                      const Divider(height: 1),
+                      CheckboxListTile(
+                        value: _termsAccepted,
+                        onChanged: (value) =>
+                            setState(() => _termsAccepted = value!),
+                        title: const Text('J\'accepte les conditions'),
+                        subtitle: const Text(
+                          'Charte de publication des circuits',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Boutons d'action
+                if (!_isPublishing) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: widget.onPrev,
+                          icon: const Icon(Icons.arrow_back),
+                          label: const Text('Étape précédente'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _canPublish() ? _publishCircuit : null,
+                          icon: const Icon(Icons.publish),
+                          label: const Text('Publier le circuit'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _saveAsDraft,
+                      icon: const Icon(Icons.save),
+                      label: const Text('Enregistrer comme brouillon'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
                     ),
                   ),
+                ] else ...[
+                  const Center(
+                    child: Column(
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text(
+                          'Publication en cours...',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
-              ),
+
+                if (!_canPublish()) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      border: Border.all(color: Colors.orange),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning, color: Colors.orange.shade700),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _getPublishError(),
+                            style: TextStyle(
+                              color: Colors.orange.shade900,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ],
-        ],
+          ),
         ),
-      ),
-    ),
-  ],
+      ],
     );
   }
 
@@ -6683,10 +6850,7 @@ class _MiniMapPreview extends StatelessWidget {
   final List<Map<String, double>> routePoints;
   final Function(int)? onPointTap;
 
-  const _MiniMapPreview({
-    required this.routePoints,
-    this.onPointTap,
-  });
+  const _MiniMapPreview({required this.routePoints, this.onPointTap});
 
   @override
   Widget build(BuildContext context) {
@@ -6731,12 +6895,9 @@ class _MiniMapPreview extends StatelessWidget {
                 ),
               ),
             ),
-            
+
             // Grid pattern
-            CustomPaint(
-              size: Size.infinite,
-              painter: _GridPainter(),
-            ),
+            CustomPaint(size: Size.infinite, painter: _GridPainter()),
 
             // Route visualization
             Padding(
@@ -6837,7 +6998,7 @@ class _MiniMapPreview extends StatelessWidget {
   ) {
     final point = routePoints[index];
     final normalizedPos = _normalizePoint(point, constraints);
-    
+
     final isFirst = index == 0;
     final isLast = index == routePoints.length - 1;
 
@@ -6853,15 +7014,12 @@ class _MiniMapPreview extends StatelessWidget {
             color: isFirst
                 ? Colors.green
                 : isLast
-                    ? Colors.red
-                    : Colors.blue,
+                ? Colors.red
+                : Colors.blue,
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 2),
             boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 4,
-              ),
+              BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4),
             ],
           ),
           child: Center(
@@ -6869,8 +7027,8 @@ class _MiniMapPreview extends StatelessWidget {
               isFirst
                   ? Icons.play_arrow
                   : isLast
-                      ? Icons.flag
-                      : Icons.circle,
+                  ? Icons.flag
+                  : Icons.circle,
               size: isFirst || isLast ? 10 : 6,
               color: Colors.white,
             ),
@@ -6880,17 +7038,20 @@ class _MiniMapPreview extends StatelessWidget {
     );
   }
 
-  Offset _normalizePoint(Map<String, double> point, BoxConstraints constraints) {
+  Offset _normalizePoint(
+    Map<String, double> point,
+    BoxConstraints constraints,
+  ) {
     // Simple normalization for demo - in production use real map projection
     final lat = point['lat'] ?? 0.0;
     final lng = point['lng'] ?? 0.0;
-    
+
     // Find bounds
     double minLat = routePoints.first['lat']!;
     double maxLat = minLat;
     double minLng = routePoints.first['lng']!;
     double maxLng = minLng;
-    
+
     for (final p in routePoints) {
       final pLat = p['lat']!;
       final pLng = p['lng']!;
@@ -6899,18 +7060,18 @@ class _MiniMapPreview extends StatelessWidget {
       if (pLng < minLng) minLng = pLng;
       if (pLng > maxLng) maxLng = pLng;
     }
-    
+
     // Add padding
     final latRange = maxLat - minLat;
     final lngRange = maxLng - minLng;
-    
+
     final normalizedX = lngRange > 0
         ? ((lng - minLng) / lngRange) * constraints.maxWidth
         : constraints.maxWidth / 2;
     final normalizedY = latRange > 0
         ? ((maxLat - lat) / latRange) * constraints.maxHeight
         : constraints.maxHeight / 2;
-    
+
     return Offset(normalizedX, normalizedY);
   }
 }
@@ -6954,30 +7115,30 @@ class _RoutePainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round;
 
     final path = Path();
-    
+
     // Normalize first point
     final firstPoint = _normalizePoint(routePoints.first, size);
     path.moveTo(firstPoint.dx, firstPoint.dy);
-    
+
     // Draw line through all points
     for (int i = 1; i < routePoints.length; i++) {
       final point = _normalizePoint(routePoints[i], size);
       path.lineTo(point.dx, point.dy);
     }
-    
+
     canvas.drawPath(path, paint);
   }
 
   Offset _normalizePoint(Map<String, double> point, Size size) {
     final lat = point['lat'] ?? 0.0;
     final lng = point['lng'] ?? 0.0;
-    
+
     // Find bounds
     double minLat = routePoints.first['lat']!;
     double maxLat = minLat;
     double minLng = routePoints.first['lng']!;
     double maxLng = minLng;
-    
+
     for (final p in routePoints) {
       final pLat = p['lat']!;
       final pLng = p['lng']!;
@@ -6986,17 +7147,17 @@ class _RoutePainter extends CustomPainter {
       if (pLng < minLng) minLng = pLng;
       if (pLng > maxLng) maxLng = pLng;
     }
-    
+
     final latRange = maxLat - minLat;
     final lngRange = maxLng - minLng;
-    
+
     final normalizedX = lngRange > 0
         ? ((lng - minLng) / lngRange) * size.width
         : size.width / 2;
     final normalizedY = latRange > 0
         ? ((maxLat - lat) / latRange) * size.height
         : size.height / 2;
-    
+
     return Offset(normalizedX, normalizedY);
   }
 
@@ -7065,36 +7226,36 @@ class _MapPreviewWidget extends StatelessWidget {
                 styleUrl: 'mapbox://styles/mapbox/outdoors-v12',
               )
             else
-              CustomPaint(
-                painter: _GridPainter(),
-                child: Container(),
-              ),
-            
+              CustomPaint(painter: _GridPainter(), child: Container()),
+
             // Dessiner le périmètre si présent
-            if (!useMapbox && polygonPoints != null && polygonPoints!.isNotEmpty)
+            if (!useMapbox &&
+                polygonPoints != null &&
+                polygonPoints!.isNotEmpty)
               CustomPaint(
                 painter: _PolygonPreviewPainter(points: polygonPoints!),
               ),
-            
+
             // Dessiner le tracé si présent
             if (!useMapbox && routePoints != null && routePoints!.isNotEmpty)
-              CustomPaint(
-                painter: _RoutePreviewPainter(points: routePoints!),
-              ),
-            
+              CustomPaint(painter: _RoutePreviewPainter(points: routePoints!)),
+
             // Dessiner les segments si présents
             if (!useMapbox && segments != null && segments!.isNotEmpty)
               CustomPaint(
                 painter: _SegmentsPreviewPainter(segments: segments!),
               ),
-            
+
             // Header avec titre
             Positioned(
               top: 0,
               left: 0,
               right: 0,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -7117,7 +7278,10 @@ class _MapPreviewWidget extends StatelessWidget {
                     ),
                     const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.cyan.shade600,
                         borderRadius: BorderRadius.circular(12),
@@ -7142,7 +7306,7 @@ class _MapPreviewWidget extends StatelessWidget {
                 ),
               ),
             ),
-            
+
             // Informations overlay avec statut Mapbox
             Positioned(
               bottom: 8,
@@ -7152,7 +7316,10 @@ class _MapPreviewWidget extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.7),
                         borderRadius: BorderRadius.circular(8),
@@ -7162,9 +7329,12 @@ class _MapPreviewWidget extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
-                      color: useMapbox 
+                      color: useMapbox
                           ? Colors.green.shade700.withOpacity(0.8)
                           : Colors.orange.shade700.withOpacity(0.8),
                       borderRadius: BorderRadius.circular(8),
@@ -7200,7 +7370,7 @@ class _MapPreviewWidget extends StatelessWidget {
 
   Widget _buildInfoText() {
     final infos = <String>[];
-    
+
     if (polygonPoints != null && polygonPoints!.isNotEmpty) {
       infos.add('${polygonPoints!.length} points périmètre');
     }
@@ -7216,21 +7386,25 @@ class _MapPreviewWidget extends StatelessWidget {
     if (segments != null && segments!.isNotEmpty) {
       infos.add('${segments!.length} segments');
     }
-    
+
     if (infos.isEmpty) {
       return const Text(
         'Aucune donnée',
         style: TextStyle(color: Colors.white70, fontSize: 11),
       );
     }
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
-      children: infos.map((info) => Text(
-        info,
-        style: const TextStyle(color: Colors.white, fontSize: 11),
-      )).toList(),
+      children: infos
+          .map(
+            (info) => Text(
+              info,
+              style: const TextStyle(color: Colors.white, fontSize: 11),
+            ),
+          )
+          .toList(),
     );
   }
 }
@@ -7300,7 +7474,7 @@ class _PolygonPreviewPainter extends CustomPainter {
 
     final latRange = (maxLat - minLat).abs();
     final lngRange = (maxLng - minLng).abs();
-    
+
     // Add padding
     final padding = 20.0;
     final normalizedX = lngRange > 0
@@ -7376,7 +7550,7 @@ class _RoutePreviewPainter extends CustomPainter {
 
     final latRange = (maxLat - minLat).abs();
     final lngRange = (maxLng - minLng).abs();
-    
+
     final padding = 20.0;
     final normalizedX = lngRange > 0
         ? padding + ((lng - minLng) / lngRange) * (size.width - 2 * padding)
