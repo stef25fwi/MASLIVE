@@ -14,19 +14,17 @@ import '../ui/widgets/mapbox_token_dialog.dart';
 const _mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
 const _legacyMapboxToken = String.fromEnvironment('MAPBOX_TOKEN');
 
-String get _effectiveMapboxToken =>
-  _mapboxAccessToken.isNotEmpty
+String get _effectiveMapboxToken => _mapboxAccessToken.isNotEmpty
     ? _mapboxAccessToken
     : (_legacyMapboxToken.isNotEmpty
-        ? _legacyMapboxToken
-        : MapboxTokenService.cachedToken);
+          ? _legacyMapboxToken
+          : MapboxTokenService.cachedToken);
 
-String get _mapboxTokenSource =>
-  _mapboxAccessToken.isNotEmpty
+String get _mapboxTokenSource => _mapboxAccessToken.isNotEmpty
     ? 'dart-define MAPBOX_ACCESS_TOKEN'
     : (_legacyMapboxToken.isNotEmpty
-        ? 'dart-define MAPBOX_TOKEN (legacy)'
-        : MapboxTokenService.cachedSource);
+          ? 'dart-define MAPBOX_TOKEN (legacy)'
+          : MapboxTokenService.cachedSource);
 
 class CreateCircuitAssistantPage extends StatefulWidget {
   const CreateCircuitAssistantPage({super.key});
@@ -557,12 +555,25 @@ class _StepPerimetreState extends State<_StepPerimetre> {
   String? _selectedPreset;
   bool _isValidated = false;
   bool _showOutOfBounds = false;
+  bool _snapToRoads = false; // Option snapping aux routes
 
-  final List<Map<String, String>> _presets = [
-    {'name': 'Guadeloupe', 'id': 'gp'},
-    {'name': 'Martinique', 'id': 'mq'},
-    {'name': 'Pointe-à-Pitre', 'id': 'pap'},
-    {'name': 'Fort-de-France', 'id': 'fdf'},
+  final List<Map<String, dynamic>> _presets = [
+    // Îles principales
+    {'name': 'Guadeloupe', 'id': 'gp', 'icon': '🏝️'},
+    {'name': 'Martinique', 'id': 'mq', 'icon': '🏝️'},
+    // Villes principales
+    {'name': 'Pointe-à-Pitre', 'id': 'pap', 'icon': '🏙️'},
+    {'name': 'Fort-de-France', 'id': 'fdf', 'icon': '🏙️'},
+    // Dépendances
+    {'name': 'Basse-Terre', 'id': 'bt', 'icon': '🗻'},
+    {'name': 'Les Saintes', 'id': 'ls', 'icon': '🏝️'},
+    {'name': 'La Désirade', 'id': 'ld', 'icon': '🏝️'},
+    {'name': 'Marie-Galante', 'id': 'mg', 'icon': '🏝️'},
+    {'name': 'Saint-Barth', 'id': 'sb', 'icon': '🏝️'},
+    {'name': 'Saint-Martin', 'id': 'sm', 'icon': '🏝️'},
+    // Autres zones
+    {'name': 'Guadeloupe continentale', 'id': 'gpc', 'icon': '📍'},
+    {'name': 'Zone nord-est', 'id': 'zne', 'icon': '🧭'},
   ];
 
   @override
@@ -580,9 +591,7 @@ class _StepPerimetreState extends State<_StepPerimetre> {
 
   void _notifyState() {
     widget.onStateChanged(
-      _polygonPoints
-          .map((p) => {'lat': p['lat']!, 'lng': p['lng']!})
-          .toList(),
+      _polygonPoints.map((p) => {'lat': p['lat']!, 'lng': p['lng']!}).toList(),
       _selectedPreset,
       _isValidated,
     );
@@ -666,6 +675,191 @@ class _StepPerimetreState extends State<_StepPerimetre> {
         _showOutOfBounds = false;
       });
     });
+  }
+
+  /// Calcule la surface d'un polygone (formule de Shoelace en km²)
+  double _calculatePolygonArea() {
+    if (_polygonPoints.length < 3) return 0.0;
+
+    double area = 0.0;
+    for (int i = 0; i < _polygonPoints.length; i++) {
+      final lat1 = _polygonPoints[i]['lat']!;
+      final lng1 = _polygonPoints[i]['lng']!;
+      final lat2 = _polygonPoints[(i + 1) % _polygonPoints.length]['lat']!;
+      final lng2 = _polygonPoints[(i + 1) % _polygonPoints.length]['lng']!;
+
+      area += (lng1 * lat2 - lng2 * lat1);
+    }
+
+    // Résultat en degrés carrés, convertir en km² (approximation pour Caraïbes)
+    area = (area.abs() / 2) * 111 * 111; // ~111 km par degré
+    return area;
+  }
+
+  /// Formate la surface en km² avec unité appropriée
+  String _formatArea(double area) {
+    if (area < 1) {
+      return '${(area * 100).toStringAsFixed(1)} m²';
+    } else if (area < 1000) {
+      return '${area.toStringAsFixed(2)} km²';
+    } else {
+      return '${(area / 1000).toStringAsFixed(2)} 1000 km²';
+    }
+  }
+
+  /// Exporte le périmètre en GeoJSON
+  Map<String, dynamic> _exportAsGeoJSON() {
+    final coordinates = _polygonPoints
+        .map((p) => [p['lng'], p['lat']])
+        .toList();
+
+    // Fermer le polygon si pas fermé
+    if (coordinates.isNotEmpty && (coordinates.first != coordinates.last)) {
+      coordinates.add(coordinates.first);
+    }
+
+    return {
+      'type': 'FeatureCollection',
+      'features': [
+        {
+          'type': 'Feature',
+          'properties': {
+            'name': _selectedPreset ?? 'Custom Perimeter',
+            'area': _calculatePolygonArea(),
+            'points': _polygonPoints.length,
+            'createdAt': DateTime.now().toIso8601String(),
+          },
+          'geometry': {
+            'type': 'Polygon',
+            'coordinates': [coordinates],
+          },
+        },
+      ],
+    };
+  }
+
+  /// Exporte en JSON et copie dans le presse-papier
+  Future<void> _exportGeoJSON() async {
+    try {
+      final geoJson = _exportAsGeoJSON();
+      final jsonStr = jsonEncode(geoJson);
+
+      await Clipboard.setData(ClipboardData(text: jsonStr));
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('✓ GeoJSON copié dans le presse-papier'),
+          backgroundColor: Colors.green,
+          action: SnackBarAction(
+            label: 'Voir',
+            textColor: Colors.white,
+            onPressed: () {
+              _showGeoJSONDialog(geoJson);
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erreur export: $e')));
+    }
+  }
+
+  /// Affiche le GeoJSON généré
+  void _showGeoJSONDialog(Map<String, dynamic> geoJson) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('GeoJSON généré'),
+        content: SingleChildScrollView(
+          child: SelectableText(
+            jsonEncode(geoJson),
+            style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fermer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Importe un périmètre depuis GeoJSON
+  Future<void> _importGeoJSON() async {
+    final textController = TextEditingController();
+
+    if (!mounted) return;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Importer GeoJSON'),
+        content: TextField(
+          controller: textController,
+          minLines: 6,
+          maxLines: 10,
+          decoration: const InputDecoration(
+            hintText: 'Collez le GeoJSON ici...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Importer'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != true) return;
+
+    try {
+      final geoJson = jsonDecode(textController.text);
+      final feature = geoJson['features']?[0];
+      final coordinates = feature?['geometry']?['coordinates']?[0];
+
+      if (coordinates == null) {
+        throw Exception('Format GeoJSON invalide');
+      }
+
+      setState(() {
+        _polygonPoints = (coordinates as List)
+            .map(
+              (coord) => {'lng': coord[0] as double, 'lat': coord[1] as double},
+            )
+            .toList();
+      });
+
+      _notifyState();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✓ Périmètre importé'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur import: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -767,57 +961,161 @@ class _StepPerimetreState extends State<_StepPerimetre> {
               ],
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                if (_selectedMode == 'draw') ...[
-                  Icon(Icons.polyline, color: Colors.grey[700], size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${_polygonPoints.length} points',
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                ],
-                if (_selectedMode == 'preset' && _selectedPreset != null) ...[
-                  Icon(Icons.location_on, color: Colors.grey[700], size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    _presets.firstWhere(
-                      (p) => p['id'] == _selectedPreset,
-                    )['name']!,
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                ],
-                const Spacer(),
-                if (_isValidated)
-                  ElevatedButton.icon(
-                    onPressed: widget.onNext,
-                    icon: const Icon(Icons.arrow_forward),
-                    label: const Text('Continuer'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
+                // Stats et boutons
+                Row(
+                  children: [
+                    if (_selectedMode == 'draw') ...[
+                      Icon(Icons.polyline, color: Colors.grey[700], size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${_polygonPoints.length} points',
+                        style: TextStyle(
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                      elevation: 4,
-                    ),
-                  )
-                else
-                  Text(
-                    'Validez le périmètre avec ✓',
-                    style: TextStyle(
-                      color: Colors.grey.shade700,
-                      fontWeight: FontWeight.w600,
-                    ),
+                      const SizedBox(width: 12),
+                      // Affichage surface
+                      if (_polygonPoints.length >= 3) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            _formatArea(_calculatePolygonArea()),
+                            style: TextStyle(
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                    ],
+                    if (_selectedMode == 'preset' &&
+                        _selectedPreset != null) ...[
+                      Icon(
+                        Icons.location_on,
+                        color: Colors.grey[700],
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _presets.firstWhere(
+                          (p) => p['id'] == _selectedPreset,
+                        )['name']!,
+                        style: TextStyle(
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                    const Spacer(),
+                    // Boutons d'export/import (draw mode)
+                    if (_selectedMode == 'draw' &&
+                        _polygonPoints.length >= 3) ...[
+                      IconButton(
+                        icon: const Icon(Icons.file_download, size: 20),
+                        tooltip: 'Exporter en GeoJSON',
+                        onPressed: _exportGeoJSON,
+                        iconSize: 20,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.file_upload, size: 20),
+                        tooltip: 'Importer depuis GeoJSON',
+                        onPressed: _importGeoJSON,
+                        iconSize: 20,
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Options avancées
+                if (_selectedMode == 'draw')
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Checkbox(
+                              value: _snapToRoads,
+                              onChanged: (value) {
+                                setState(() {
+                                  _snapToRoads = value ?? false;
+                                });
+                              },
+                            ),
+                            const Text(
+                              'Snapper aux routes',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_isValidated)
+                        ElevatedButton.icon(
+                          onPressed: widget.onNext,
+                          icon: const Icon(Icons.arrow_forward, size: 18),
+                          label: const Text('Continuer'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.teal,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            elevation: 4,
+                          ),
+                        )
+                      else
+                        Text(
+                          'Validez avec ✓',
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                    ],
+                  ),
+                if (_selectedMode == 'preset')
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (_isValidated)
+                        ElevatedButton.icon(
+                          onPressed: widget.onNext,
+                          icon: const Icon(Icons.arrow_forward, size: 18),
+                          label: const Text('Continuer'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.teal,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            elevation: 4,
+                          ),
+                        )
+                      else
+                        Text(
+                          'Validez le périmètre avec ✓',
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                    ],
                   ),
               ],
             ),
@@ -849,7 +1147,8 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                         mapboxToken: _effectiveMapboxToken,
                         perimeter: _polygonPoints
                             .map(
-                              (p) => (lng: p['lng'] ?? 0.0, lat: p['lat'] ?? 0.0),
+                              (p) =>
+                                  (lng: p['lng'] ?? 0.0, lat: p['lat'] ?? 0.0),
                             )
                             .toList(),
                         route: const [],
@@ -1030,15 +1329,19 @@ class _StepPerimetreState extends State<_StepPerimetre> {
             elevation: isSelected ? 4 : 1,
             color: isSelected ? Colors.blue.shade50 : null,
             child: ListTile(
-              leading: Icon(
-                Icons.location_city,
-                color: isSelected ? Colors.blue : Colors.grey[600],
+              leading: Text(
+                preset['icon'] as String? ?? '📍',
+                style: const TextStyle(fontSize: 24),
               ),
               title: Text(
                 preset['name']!,
                 style: TextStyle(
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
+              ),
+              subtitle: Text(
+                preset['id']!,
+                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
               ),
               trailing: isSelected
                   ? Icon(Icons.check_circle, color: Colors.blue.shade700)
@@ -3421,20 +3724,24 @@ class _StepTuileState extends State<_StepTuile> {
     // Simulation réaliste de téléchargement par zoom levels
     final zoomLevels = (_zoomMax - _zoomMin + 1).toInt();
     final progressPerZoom = 1.0 / zoomLevels;
-    
-    for (int z = _zoomMin.toInt(); z <= _zoomMax.toInt() && _isDownloading; z++) {
+
+    for (
+      int z = _zoomMin.toInt();
+      z <= _zoomMax.toInt() && _isDownloading;
+      z++
+    ) {
       // Pause handling
       while (_downloadPaused && _isDownloading) {
         await Future.delayed(const Duration(milliseconds: 500));
       }
-      
+
       if (!_isDownloading) return;
-      
+
       // Simulation de téléchargement pour ce zoom level
       // Chaque zoom level prend entre 1-3 secondes selon la qualité
       int tiles = _getTileCountForZoom(z);
       double tileProgress = 0;
-      
+
       while (tileProgress < 1.0 && !_downloadPaused && _isDownloading) {
         // Simulation du téléchargement d'une tuile
         int delayMs = 100;
@@ -3444,13 +3751,17 @@ class _StepTuileState extends State<_StepTuile> {
           delayMs = 150;
         }
         await Future.delayed(Duration(milliseconds: delayMs));
-        
+
         if (_isDownloading && !_downloadPaused) {
           tileProgress += 1.0 / tiles;
           final zoomProgress = (z - _zoomMin) / zoomLevels;
-          
+
           setState(() {
-            _downloadProgress = (zoomProgress + (tileProgress * progressPerZoom)).clamp(0.0, 1.0);
+            _downloadProgress =
+                (zoomProgress + (tileProgress * progressPerZoom)).clamp(
+                  0.0,
+                  1.0,
+                );
           });
         }
       }
@@ -3458,7 +3769,7 @@ class _StepTuileState extends State<_StepTuile> {
 
     if (_downloadProgress >= 1.0 && mounted && _isDownloading) {
       setState(() => _downloadProgress = 1.0);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Row(
@@ -3733,16 +4044,23 @@ class _StepTracerState extends State<_StepTracer> {
                           children: [
                             _buildMapButton(
                               icon: Icons.undo,
-                              tooltip: _undoStack.isEmpty ? 'Aucune action à annuler' : 'Annuler (Undo)',
-                              onPressed: (_undoStack.isEmpty && _tracePoints.isEmpty)
+                              tooltip: _undoStack.isEmpty
+                                  ? 'Aucune action à annuler'
+                                  : 'Annuler (Undo)',
+                              onPressed:
+                                  (_undoStack.isEmpty && _tracePoints.isEmpty)
                                   ? null
                                   : _undoLastPoint,
                             ),
                             const SizedBox(height: 8),
                             _buildMapButton(
                               icon: Icons.redo,
-                              tooltip: _redoStack.isEmpty ? 'Aucune action à rétablir' : 'Rétablir (Redo)',
-                              onPressed: _redoStack.isEmpty ? null : _redoLastPoint,
+                              tooltip: _redoStack.isEmpty
+                                  ? 'Aucune action à rétablir'
+                                  : 'Rétablir (Redo)',
+                              onPressed: _redoStack.isEmpty
+                                  ? null
+                                  : _redoLastPoint,
                             ),
                           ],
                         ),
@@ -4200,17 +4518,25 @@ class _StepTracerState extends State<_StepTracer> {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
-                                        'Point ${isStart ? 'Départ' : isEnd ? 'Arrivée' : index + 1} sélectionné - Cliquez sur la carte pour le déplacer',
+                                        'Point ${isStart
+                                            ? 'Départ'
+                                            : isEnd
+                                            ? 'Arrivée'
+                                            : index + 1} sélectionné - Cliquez sur la carte pour le déplacer',
                                       ),
                                       backgroundColor: Colors.blue,
                                       duration: const Duration(seconds: 2),
                                     ),
                                   );
                                   break;
-                                  
+
                                 case 'delete':
                                   // Sauvegarde pour undo
-                                  _undoStack.add(List<Map<String, dynamic>>.from(_tracePoints));
+                                  _undoStack.add(
+                                    List<Map<String, dynamic>>.from(
+                                      _tracePoints,
+                                    ),
+                                  );
                                   setState(() {
                                     _tracePoints.removeAt(index);
                                     if (_selectedPointIndex == index) {
@@ -4223,7 +4549,11 @@ class _StepTracerState extends State<_StepTracer> {
                                     SnackBar(
                                       content: Row(
                                         children: const [
-                                          Icon(Icons.delete, color: Colors.white, size: 18),
+                                          Icon(
+                                            Icons.delete,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
                                           SizedBox(width: 8),
                                           Text('Point supprimé'),
                                         ],
@@ -4233,7 +4563,7 @@ class _StepTracerState extends State<_StepTracer> {
                                     ),
                                   );
                                   break;
-                                  
+
                                 case 'change_type':
                                   // Dialog pour changer le type
                                   _showPointTypeDialog(index, isStart, isEnd);
@@ -4266,7 +4596,11 @@ class _StepTracerState extends State<_StepTracer> {
                                 value: 'delete',
                                 child: Row(
                                   children: [
-                                    Icon(Icons.delete, size: 18, color: Colors.red),
+                                    Icon(
+                                      Icons.delete,
+                                      size: 18,
+                                      color: Colors.red,
+                                    ),
                                     SizedBox(width: 12),
                                     Text('Supprimer'),
                                   ],
@@ -4425,7 +4759,11 @@ class _StepTracerState extends State<_StepTracer> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.touch_app, color: Colors.indigo.shade700, size: 20),
+                          Icon(
+                            Icons.touch_app,
+                            color: Colors.indigo.shade700,
+                            size: 20,
+                          ),
                           const SizedBox(width: 12),
                           Text(
                             'Mode de saisie',
@@ -4453,7 +4791,9 @@ class _StepTracerState extends State<_StepTracer> {
                                 setState(() => _addMode = 'point');
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('Mode: Ajouter des points intermédiaires'),
+                                    content: Text(
+                                      'Mode: Ajouter des points intermédiaires',
+                                    ),
                                     backgroundColor: Colors.blue,
                                     duration: Duration(seconds: 1),
                                   ),
@@ -4474,7 +4814,9 @@ class _StepTracerState extends State<_StepTracer> {
                                 setState(() => _addMode = 'start');
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('Mode: Placer le point de départ'),
+                                    content: Text(
+                                      'Mode: Placer le point de départ',
+                                    ),
                                     backgroundColor: Colors.green,
                                     duration: Duration(seconds: 1),
                                   ),
@@ -4495,7 +4837,9 @@ class _StepTracerState extends State<_StepTracer> {
                                 setState(() => _addMode = 'end');
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('Mode: Placer le point d\'arrivée'),
+                                    content: Text(
+                                      'Mode: Placer le point d\'arrivée',
+                                    ),
                                     backgroundColor: Colors.red,
                                     duration: Duration(seconds: 1),
                                   ),
@@ -4707,15 +5051,17 @@ class _StepTracerState extends State<_StepTracer> {
     required VoidCallback? onPressed,
   }) {
     return GestureDetector(
-      onLongPress: onPressed != null ? () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('🎯 $tooltip'),
-            backgroundColor: Colors.blue,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      } : null,
+      onLongPress: onPressed != null
+          ? () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('🎯 $tooltip'),
+                  backgroundColor: Colors.blue,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+          : null,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -4732,7 +5078,9 @@ class _StepTracerState extends State<_StepTracer> {
           icon: Icon(icon),
           tooltip: tooltip,
           onPressed: onPressed,
-          color: onPressed != null ? Colors.grey.shade700 : Colors.grey.shade300,
+          color: onPressed != null
+              ? Colors.grey.shade700
+              : Colors.grey.shade300,
         ),
       ),
     );
@@ -4796,10 +5144,10 @@ class _StepTracerState extends State<_StepTracer> {
 
   void _undoLastPoint() {
     if (_tracePoints.isEmpty) return;
-    
+
     // Sauvegarder l'état actuel dans redo stack
     _redoStack.add(List<Map<String, dynamic>>.from(_tracePoints));
-    
+
     // Restaurer depuis undo stack ou simplement retirer le dernier
     if (_undoStack.isNotEmpty) {
       setState(() {
@@ -4815,7 +5163,7 @@ class _StepTracerState extends State<_StepTracer> {
         _isValidated = false;
       });
     }
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Row(
@@ -4833,10 +5181,10 @@ class _StepTracerState extends State<_StepTracer> {
 
   void _redoLastPoint() {
     if (_redoStack.isEmpty) return;
-    
+
     // Sauvegarder l'état actuel dans undo stack
     _undoStack.add(List<Map<String, dynamic>>.from(_tracePoints));
-    
+
     // Restaurer depuis redo stack
     setState(() {
       _tracePoints.clear();
@@ -4844,7 +5192,7 @@ class _StepTracerState extends State<_StepTracer> {
       _recalculateStats();
       _isValidated = false;
     });
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Row(
@@ -4913,8 +5261,7 @@ class _StepTracerState extends State<_StepTracer> {
     }
 
     // Chercher départ et arrivée
-    final hasStart =
-        _tracePoints.any((p) => p['type'] == 'start');
+    final hasStart = _tracePoints.any((p) => p['type'] == 'start');
     final hasEnd = _tracePoints.any((p) => p['type'] == 'end');
     final hasAtLeastTwo = _tracePoints.length >= 2;
 
@@ -4977,7 +5324,10 @@ class _StepTracerState extends State<_StepTracer> {
                 child: const Center(
                   child: Text(
                     'D',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
@@ -5019,7 +5369,10 @@ class _StepTracerState extends State<_StepTracer> {
                 child: const Center(
                   child: Text(
                     '+',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
@@ -5061,7 +5414,10 @@ class _StepTracerState extends State<_StepTracer> {
                 child: const Center(
                   child: Text(
                     'A',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
@@ -5105,7 +5461,8 @@ class _StepTracerState extends State<_StepTracer> {
 
   // Fonction pour vérifier si un point est dans un polygone (Ray casting algorithm)
   bool _pointInPolygon(double lat, double lng) {
-    if (widget.perimeterPoints.isEmpty) return true; // Pas de périmètre = accepter
+    if (widget.perimeterPoints.isEmpty)
+      return true; // Pas de périmètre = accepter
 
     final points = widget.perimeterPoints;
     int crossings = 0;
@@ -5165,9 +5522,7 @@ class _StepTracerState extends State<_StepTracer> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            '💡 Place d\'abord un départ',
-          ),
+          content: Text('💡 Place d\'abord un départ'),
           backgroundColor: Colors.blue,
           duration: Duration(seconds: 2),
         ),
