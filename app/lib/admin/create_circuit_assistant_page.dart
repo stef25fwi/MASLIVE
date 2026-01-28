@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -43,6 +44,9 @@ class _CreateCircuitAssistantPageState
   DateTime? _lastAutoSave;
   String _mapName = '';
   final List<bool> _stepValidated = List<bool>.filled(5, false);
+  List<Map<String, double>> _perimeterPoints = [];
+  String? _perimeterPreset;
+  bool _perimeterValidated = false;
 
   @override
   void initState() {
@@ -86,6 +90,9 @@ class _CreateCircuitAssistantPageState
         'isFocusMode': _isFocusMode,
         'mapName': nameToSave,
         'stepValidated': _stepValidated,
+        'perimeterPoints': _perimeterPoints,
+        'perimeterPreset': _perimeterPreset,
+        'perimeterValidated': _perimeterValidated,
       };
       _mapName = nameToSave;
       await prefs.setString('circuit_draft', jsonEncode(draftData));
@@ -139,6 +146,10 @@ class _CreateCircuitAssistantPageState
               _isFocusMode = draftData['isFocusMode'] ?? false;
               _mapName = draftData['mapName'] ?? '';
               final restoredValidated = draftData['stepValidated'];
+              final restoredPerimeter = draftData['perimeterPoints'];
+              final restoredPreset = draftData['perimeterPreset'];
+              final restoredPerimeterValidated =
+                  draftData['perimeterValidated'];
               if (restoredValidated is List) {
                 for (
                   int i = 0;
@@ -150,6 +161,28 @@ class _CreateCircuitAssistantPageState
                     _stepValidated[i] = val;
                   }
                 }
+              }
+              if (restoredPerimeter is List) {
+                final restoredPoints = <Map<String, double>>[];
+                for (final item in restoredPerimeter) {
+                  if (item is Map) {
+                    final lat = item['lat'];
+                    final lng = item['lng'];
+                    if (lat is num && lng is num) {
+                      restoredPoints.add({
+                        'lat': lat.toDouble(),
+                        'lng': lng.toDouble(),
+                      });
+                    }
+                  }
+                }
+                _perimeterPoints = restoredPoints;
+              }
+              if (restoredPreset is String) {
+                _perimeterPreset = restoredPreset;
+              }
+              if (restoredPerimeterValidated is bool) {
+                _perimeterValidated = restoredPerimeterValidated;
               }
             });
             if (mounted) {
@@ -330,11 +363,29 @@ class _CreateCircuitAssistantPageState
   Widget _buildStepContent() {
     switch (_step) {
       case 0:
-        return _StepPerimetre(onNext: _nextStep);
+        return _StepPerimetre(
+          onNext: _nextStep,
+          initialPoints: _perimeterPoints,
+          initialPreset: _perimeterPreset,
+          initialValidated: _perimeterValidated,
+          onStateChanged: (points, preset, validated) {
+            setState(() {
+              _perimeterPoints = points;
+              _perimeterPreset = preset;
+              _perimeterValidated = validated;
+            });
+            _saveDraft();
+          },
+        );
       case 1:
         return _StepTuile(onNext: _nextStep, onPrev: _prevStep);
       case 2:
-        return _StepTracer(onNext: _nextStep, onPrev: _prevStep);
+        return _StepTracer(
+          onNext: _nextStep,
+          onPrev: _prevStep,
+          perimeterPoints: _perimeterPoints,
+          isPerimeterValidated: _perimeterValidated,
+        );
       case 3:
         return _StepVerrouSegment(onNext: _nextStep, onPrev: _prevStep);
       case 4:
@@ -478,17 +529,34 @@ class _CreateCircuitAssistantPageState
 // --- Step 1: Définir le périmètre (10/10 Premium) ---
 class _StepPerimetre extends StatefulWidget {
   final VoidCallback onNext;
-  const _StepPerimetre({required this.onNext});
+  final List<Map<String, double>> initialPoints;
+  final String? initialPreset;
+  final bool initialValidated;
+  final void Function(
+    List<Map<String, double>> points,
+    String? preset,
+    bool validated,
+  )
+  onStateChanged;
+
+  const _StepPerimetre({
+    required this.onNext,
+    required this.initialPoints,
+    required this.initialPreset,
+    required this.initialValidated,
+    required this.onStateChanged,
+  });
 
   @override
   State<_StepPerimetre> createState() => _StepPerimetreState();
 }
 
 class _StepPerimetreState extends State<_StepPerimetre> {
-  final List<Map<String, double>> _polygonPoints = [];
+  late List<Map<String, double>> _polygonPoints;
   String _selectedMode = 'draw'; // 'draw' ou 'preset'
   String? _selectedPreset;
   bool _isValidated = false;
+  bool _showOutOfBounds = false;
 
   final List<Map<String, String>> _presets = [
     {'name': 'Guadeloupe', 'id': 'gp'},
@@ -497,11 +565,38 @@ class _StepPerimetreState extends State<_StepPerimetre> {
     {'name': 'Fort-de-France', 'id': 'fdf'},
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _polygonPoints = widget.initialPoints
+        .map((p) => {'lat': p['lat']!, 'lng': p['lng']!})
+        .toList();
+    _selectedPreset = widget.initialPreset;
+    _isValidated = widget.initialValidated;
+    if (_selectedPreset != null) {
+      _selectedMode = 'preset';
+    }
+  }
+
+  void _notifyState() {
+    widget.onStateChanged(
+      _polygonPoints
+          .map((p) => {'lat': p['lat']!, 'lng': p['lng']!})
+          .toList(),
+      _selectedPreset,
+      _isValidated,
+    );
+  }
+
   void _addPoint(double lat, double lng) {
-    if (_isValidated) return;
+    if (_isValidated) {
+      _triggerOutOfBounds('Hors périmètre');
+      return;
+    }
     setState(() {
       _polygonPoints.add({'lat': lat, 'lng': lng});
     });
+    _notifyState();
   }
 
   void _undoLastPoint() {
@@ -509,6 +604,7 @@ class _StepPerimetreState extends State<_StepPerimetre> {
     setState(() {
       _polygonPoints.removeLast();
     });
+    _notifyState();
   }
 
   void _clearPolygon() {
@@ -516,6 +612,7 @@ class _StepPerimetreState extends State<_StepPerimetre> {
     setState(() {
       _polygonPoints.clear();
     });
+    _notifyState();
   }
 
   void _validatePerimeter() {
@@ -542,6 +639,7 @@ class _StepPerimetreState extends State<_StepPerimetre> {
     setState(() {
       _isValidated = true;
     });
+    _notifyState();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('✓ Périmètre validé et sauvegardé'),
@@ -550,22 +648,33 @@ class _StepPerimetreState extends State<_StepPerimetre> {
     );
   }
 
+  void _triggerOutOfBounds(String message) {
+    if (!mounted) return;
+    setState(() {
+      _showOutOfBounds = true;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('⚠️ $message'),
+        backgroundColor: Colors.orange.shade700,
+        duration: const Duration(seconds: 1),
+      ),
+    );
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      setState(() {
+        _showOutOfBounds = false;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Aperçu carte en direct (première)
+        // Aperçu carte en direct
         _MapPreviewWidget(
           title: 'Aperçu du périmètre',
-          polygonPoints: _polygonPoints,
-          selectedPreset: _selectedPreset,
-          presetName: _selectedPreset != null
-              ? _presets.firstWhere((p) => p['id'] == _selectedPreset)['name']
-              : null,
-        ),
-        // Deuxième carte pour meilleure visibilité
-        _MapPreviewWidget(
-          title: 'Détail du périmètre',
           polygonPoints: _polygonPoints,
           selectedPreset: _selectedPreset,
           presetName: _selectedPreset != null
@@ -609,6 +718,7 @@ class _StepPerimetreState extends State<_StepPerimetre> {
               setState(() {
                 _selectedMode = index == 0 ? 'draw' : 'preset';
               });
+              _notifyState();
             },
             borderRadius: BorderRadius.circular(8),
             children: const [
@@ -686,22 +796,29 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                   const SizedBox(width: 16),
                 ],
                 const Spacer(),
-                ElevatedButton.icon(
-                  onPressed: _isValidated ? widget.onNext : _validatePerimeter,
-                  icon: Icon(_isValidated ? Icons.arrow_forward : Icons.check),
-                  label: Text(_isValidated ? 'Continuer' : 'Valider périmètre'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _isValidated
-                        ? Colors.teal
-                        : Colors.blue.shade600,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
+                if (_isValidated)
+                  ElevatedButton.icon(
+                    onPressed: widget.onNext,
+                    icon: const Icon(Icons.arrow_forward),
+                    label: const Text('Continuer'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      elevation: 4,
                     ),
-                    elevation: 4,
+                  )
+                else
+                  Text(
+                    'Validez le périmètre avec ✓',
+                    style: TextStyle(
+                      color: Colors.grey.shade700,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -715,69 +832,73 @@ class _StepPerimetreState extends State<_StepPerimetre> {
         // Zone carte : Mapbox si dispo, sinon placeholder
         Stack(
           children: [
-            Container(
-              margin: const EdgeInsets.all(16),
-              height: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[400]!),
-              ),
-              clipBehavior: Clip.hardEdge,
-              child: _effectiveMapboxToken.isNotEmpty
-                  ? buildCircuitMap(
-                      mapboxToken: _effectiveMapboxToken,
-                      perimeter: _polygonPoints
-                          .map(
-                            (p) => (lng: p['lng'] ?? 0.0, lat: p['lat'] ?? 0.0),
-                          )
-                          .toList(),
-                      route: const [],
-                      segments: const [],
-                      locked: _isValidated,
-                      onTap: (p) {
-                        if (_isValidated) return;
-                        _addPoint(p.lat, p.lng);
-                      },
-                    )
-                  : Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Mapbox nécessite MAPBOX_ACCESS_TOKEN (ou MAPBOX_TOKEN legacy)',
-                              style: TextStyle(color: Colors.grey[600]),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Source: $_mapboxTokenSource',
-                              style: TextStyle(color: Colors.grey[600]),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 12),
-                            FilledButton.icon(
-                              onPressed: () async {
-                                final newToken = await MapboxTokenDialog.show(
-                                  context,
-                                  initialValue: _effectiveMapboxToken,
-                                );
-                                if (newToken == null) return;
-                                await MapboxTokenService.warmUp();
-                                if (!mounted) return;
-                                setState(() {
-                                  // rebuild après config token
-                                });
-                              },
-                              icon: const Icon(Icons.vpn_key),
-                              label: const Text('Configurer le token'),
-                            ),
-                          ],
+            AnimatedScale(
+              scale: _showOutOfBounds ? 0.98 : 1.0,
+              duration: const Duration(milliseconds: 180),
+              child: Container(
+                margin: const EdgeInsets.all(16),
+                height: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[400]!),
+                ),
+                clipBehavior: Clip.hardEdge,
+                child: _effectiveMapboxToken.isNotEmpty
+                    ? buildCircuitMap(
+                        mapboxToken: _effectiveMapboxToken,
+                        perimeter: _polygonPoints
+                            .map(
+                              (p) => (lng: p['lng'] ?? 0.0, lat: p['lat'] ?? 0.0),
+                            )
+                            .toList(),
+                        route: const [],
+                        segments: const [],
+                        locked: _isValidated,
+                        showMask: _isValidated,
+                        onTap: (p) {
+                          _addPoint(p.lat, p.lng);
+                        },
+                      )
+                    : Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Mapbox nécessite MAPBOX_ACCESS_TOKEN (ou MAPBOX_TOKEN legacy)',
+                                style: TextStyle(color: Colors.grey[600]),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Source: $_mapboxTokenSource',
+                                style: TextStyle(color: Colors.grey[600]),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 12),
+                              FilledButton.icon(
+                                onPressed: () async {
+                                  final newToken = await MapboxTokenDialog.show(
+                                    context,
+                                    initialValue: _effectiveMapboxToken,
+                                  );
+                                  if (newToken == null) return;
+                                  await MapboxTokenService.warmUp();
+                                  if (!mounted) return;
+                                  setState(() {
+                                    // rebuild après config token
+                                  });
+                                },
+                                icon: const Icon(Icons.vpn_key),
+                                label: const Text('Configurer le token'),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
+              ),
             ),
             if (_effectiveMapboxToken.isNotEmpty && !_isValidated)
               // Overlay instructions pour Mapbox (Web avec token)
@@ -857,8 +978,8 @@ class _StepPerimetreState extends State<_StepPerimetre> {
           ],
         ),
 
-        // Floating action buttons (undo, clear)
-        if (!_isValidated && _polygonPoints.isNotEmpty)
+        // Floating action buttons (undo, recommencer, valider)
+        if (!_isValidated)
           Positioned(
             right: 24,
             top: 24,
@@ -866,16 +987,23 @@ class _StepPerimetreState extends State<_StepPerimetre> {
               children: [
                 FloatingActionButton.small(
                   heroTag: 'undo',
-                  onPressed: _undoLastPoint,
+                  onPressed: _polygonPoints.isEmpty ? null : _undoLastPoint,
                   backgroundColor: Colors.orange,
                   child: const Icon(Icons.undo),
                 ),
                 const SizedBox(height: 8),
                 FloatingActionButton.small(
                   heroTag: 'clear',
-                  onPressed: _clearPolygon,
+                  onPressed: _polygonPoints.isEmpty ? null : _clearPolygon,
                   backgroundColor: Colors.red,
-                  child: const Icon(Icons.delete_outline),
+                  child: const Icon(Icons.restart_alt),
+                ),
+                const SizedBox(height: 8),
+                FloatingActionButton.small(
+                  heroTag: 'validate',
+                  onPressed: _validatePerimeter,
+                  backgroundColor: Colors.green,
+                  child: const Icon(Icons.check),
                 ),
               ],
             ),
@@ -920,7 +1048,9 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                   : () {
                       setState(() {
                         _selectedPreset = preset['id'];
+                        _isValidated = false;
                       });
+                      _notifyState();
                     },
             ),
           );
@@ -1053,9 +1183,9 @@ class _StepTuileState extends State<_StepTuile> {
 
   String _selectedStyleId = 'outdoors-v12';
   final Set<String> _selectedLayers = {};
-  double _zoomMin = 10;
-  double _zoomMax = 16;
-  String _quality = 'standard'; // 'low', 'standard', 'high'
+  double _zoomMin = 12;
+  double _zoomMax = 18;
+  String _quality = 'max'; // 'standard', 'high', 'max'
   bool _isValidated = false;
   bool _isDownloading = false;
   double _downloadProgress = 0.0;
@@ -1202,33 +1332,30 @@ class _StepTuileState extends State<_StepTuile> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Aperçu carte en direct
         _MapPreviewWidget(
-          title: 'Aperçu de la configuration',
-          selectedStyle: _selectedStyleId,
+          title: 'Aperçu hors-ligne',
+          selectedStyle: _getQualityLabel(),
         ),
-
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // En-tête
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Colors.blue.shade50, Colors.blue.shade100],
+                      colors: [Colors.indigo.shade50, Colors.indigo.shade100],
                     ),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        Icons.map_outlined,
-                        color: Colors.blue.shade700,
-                        size: 32,
+                        Icons.cloud_download,
+                        color: Colors.indigo.shade700,
+                        size: 30,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1236,19 +1363,19 @@ class _StepTuileState extends State<_StepTuile> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Configuration de la carte',
+                              'Mode hors-ligne',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.blue.shade900,
+                                color: Colors.indigo.shade900,
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Choisissez le style et les couches pour votre circuit',
+                              'Téléchargez les tuiles pour travailler sans réseau',
                               style: TextStyle(
                                 fontSize: 13,
-                                color: Colors.blue.shade700,
+                                color: Colors.indigo.shade700,
                               ),
                             ),
                           ],
@@ -1258,319 +1385,17 @@ class _StepTuileState extends State<_StepTuile> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // Section: Style de carte
                 Text(
-                  'Style de carte Mapbox',
+                  'Qualité',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey.shade800,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Sélectionnez le style de base pour votre carte',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-                ),
-                const SizedBox(height: 16),
-
-                // Grille de styles
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 1.2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                  ),
-                  itemCount: _mapStyles.length,
-                  itemBuilder: (context, index) {
-                    final style = _mapStyles[index];
-                    final isSelected = _selectedStyleId == style['id'];
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedStyleId = style['id'];
-                          _isValidated = false;
-                        });
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? style['color'].withValues(alpha: 0.1)
-                              : Colors.white,
-                          border: Border.all(
-                            color: isSelected
-                                ? style['color']
-                                : Colors.grey.shade300,
-                            width: isSelected ? 2 : 1,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              style['icon'],
-                              size: 40,
-                              color: isSelected
-                                  ? style['color']
-                                  : Colors.grey.shade600,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              style['name'],
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                                color: isSelected
-                                    ? style['color']
-                                    : Colors.grey.shade800,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                              ),
-                              child: Text(
-                                style['description'],
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey.shade600,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            if (isSelected) ...[
-                              const SizedBox(height: 4),
-                              Icon(
-                                Icons.check_circle,
-                                color: style['color'],
-                                size: 20,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 32),
-
-                // Section: Couches supplémentaires
-                Text(
-                  'Couches supplémentaires',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Activez des couches additionnelles (optionnel)',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-                ),
-                const SizedBox(height: 16),
-
-                // Liste des couches
-                ..._layers.map((layer) {
-                  final isSelected = _selectedLayers.contains(layer['id']);
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? layer['color'].withValues(alpha: 0.1)
-                            : Colors.grey.shade50,
-                        border: Border.all(
-                          color: isSelected
-                              ? layer['color']
-                              : Colors.grey.shade300,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: CheckboxListTile(
-                        value: isSelected,
-                        onChanged: (value) {
-                          setState(() {
-                            if (value == true) {
-                              _selectedLayers.add(layer['id']);
-                            } else {
-                              _selectedLayers.remove(layer['id']);
-                            }
-                            _isValidated = false;
-                          });
-                        },
-                        title: Row(
-                          children: [
-                            Icon(
-                              layer['icon'],
-                              color: layer['color'],
-                              size: 24,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                layer['name'],
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(left: 36, top: 4),
-                          child: Text(
-                            layer['description'],
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ),
-                        activeColor: layer['color'],
-                      ),
-                    ),
-                  );
-                }),
-
-                const SizedBox(height: 32),
-
-                // Section: Textures de bâtiments 3D (Premium Advanced)
-                if (_selectedLayers.contains('buildings'))
-                  _buildBuildingTexturesSection(),
-
-                if (_selectedLayers.contains('buildings'))
-                  const SizedBox(height: 32),
-
-                // Section: Niveaux de zoom
-                Text(
-                  'Niveaux de zoom',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Définissez les niveaux de zoom min/max pour les tuiles hors-ligne',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-                ),
-                const SizedBox(height: 16),
-
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Zoom minimum',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.blue.shade900,
-                            ),
-                          ),
-                          Text(
-                            '${_zoomMin.toInt()}',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue.shade700,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Slider(
-                        value: _zoomMin,
-                        min: 8,
-                        max: 15,
-                        divisions: 7,
-                        label: _zoomMin.toInt().toString(),
-                        onChanged: (value) {
-                          setState(() {
-                            _zoomMin = value;
-                            if (_zoomMax < _zoomMin) _zoomMax = _zoomMin;
-                            _isValidated = false;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Zoom maximum',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.blue.shade900,
-                            ),
-                          ),
-                          Text(
-                            '${_zoomMax.toInt()}',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue.shade700,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Slider(
-                        value: _zoomMax,
-                        min: 8,
-                        max: 18,
-                        divisions: 10,
-                        label: _zoomMax.toInt().toString(),
-                        onChanged: (value) {
-                          setState(() {
-                            _zoomMax = value;
-                            if (_zoomMin > _zoomMax) _zoomMin = _zoomMax;
-                            _isValidated = false;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 32),
-
-                // Section: Qualité des tuiles
-                Text(
-                  'Qualité des tuiles',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade800,
-                  ),
-                ),
-                const SizedBox(height: 16),
-
+                const SizedBox(height: 12),
                 SegmentedButton<String>(
                   segments: const [
-                    ButtonSegment(
-                      value: 'low',
-                      label: Text('Économique'),
-                      icon: Icon(Icons.data_saver_on),
-                    ),
                     ButtonSegment(
                       value: 'standard',
                       label: Text('Standard'),
@@ -1581,30 +1406,29 @@ class _StepTuileState extends State<_StepTuile> {
                       label: Text('Haute'),
                       icon: Icon(Icons.hd),
                     ),
+                    ButtonSegment(
+                      value: 'max',
+                      label: Text('Max ⭐'),
+                      icon: Icon(Icons.auto_awesome),
+                    ),
                   ],
                   selected: {_quality},
                   onSelectionChanged: (Set<String> newSelection) {
-                    setState(() {
-                      _quality = newSelection.first;
-                      _isValidated = false;
-                    });
+                    setState(() => _quality = newSelection.first);
                   },
                 ),
-
-                const SizedBox(height: 16),
-
-                // Info qualité
+                const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.amber.shade50,
+                    color: Colors.blueGrey.shade50,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         Icons.info_outline,
-                        color: Colors.amber.shade700,
+                        color: Colors.blueGrey.shade700,
                         size: 20,
                       ),
                       const SizedBox(width: 12),
@@ -1613,17 +1437,70 @@ class _StepTuileState extends State<_StepTuile> {
                           _getQualityInfo(),
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.amber.shade900,
+                            color: Colors.blueGrey.shade900,
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
-
-                const SizedBox(height: 32),
-
-                // Estimation
+                const SizedBox(height: 24),
+                Text(
+                  'Niveau de zoom max',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Z12 → Z18',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Zoom max',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.indigo.shade900,
+                            ),
+                          ),
+                          Text(
+                            'Z${_zoomMax.toInt()}',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.indigo.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Slider(
+                        value: _zoomMax,
+                        min: 12,
+                        max: 18,
+                        divisions: 6,
+                        label: 'Z${_zoomMax.toInt()}',
+                        onChanged: (value) {
+                          setState(() => _zoomMax = value);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -1654,151 +1531,52 @@ class _StepTuileState extends State<_StepTuile> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      _buildEstimationRow(
-                        'Style',
-                        _mapStyles.firstWhere(
-                          (s) => s['id'] == _selectedStyleId,
-                        )['name'],
-                      ),
-                      if (_selectedLayers.isNotEmpty)
-                        _buildEstimationRow(
-                          'Couches',
-                          '${_selectedLayers.length} activée(s)',
-                        ),
-                      _buildEstimationRow(
-                        'Zoom',
-                        '${_zoomMin.toInt()} - ${_zoomMax.toInt()}',
-                      ),
                       _buildEstimationRow('Qualité', _getQualityLabel()),
-                      const Divider(height: 24),
+                      _buildEstimationRow('Zoom max', 'Z${_zoomMax.toInt()}'),
                       _buildEstimationRow(
-                        'Taille estimée',
+                        'Taille',
                         _calculateEstimatedSize(),
+                        isHighlight: true,
+                      ),
+                      _buildEstimationRow(
+                        'Temps',
+                        _calculateEstimatedTime(),
                         isHighlight: true,
                       ),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
-                // Boutons d'action
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (!_isValidated)
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          setState(() => _isValidated = true);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.check_circle,
-                                    color: Colors.white,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    'Configuration validée : ${_mapStyles.firstWhere((s) => s['id'] == _selectedStyleId)['name']}',
-                                  ),
-                                ],
-                              ),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.check),
-                        label: const Text('Valider la configuration'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 16,
-                          ),
-                        ),
-                      ),
-                    if (_isValidated) ...[
-                      if (!_isDownloading)
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            setState(() => _isValidated = false);
-                          },
-                          icon: const Icon(Icons.edit),
-                          label: const Text('Modifier'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey.shade600,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      if (!_isDownloading) const SizedBox(width: 12),
-                      if (!_isDownloading)
-                        ElevatedButton.icon(
+                if (!_isDownloading)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
                           onPressed: _startDownload,
                           icon: const Icon(Icons.download),
                           label: const Text('Télécharger maintenant'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange,
+                            backgroundColor: Colors.indigo,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 16,
-                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
                         ),
-                      if (!_isDownloading) const SizedBox(width: 12),
-                      ElevatedButton.icon(
-                        onPressed: widget.onNext,
-                        icon: const Icon(Icons.arrow_forward),
-                        label: Text(
-                          _isDownloading && _downloadProgress >= 1.0
-                              ? 'Étape suivante'
-                              : 'Passer',
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 16,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: widget.onNext,
+                          icon: const Icon(Icons.arrow_forward),
+                          label: const Text('Plus tard'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
                         ),
                       ),
                     ],
-                  ],
-                ),
-
-                if (_isValidated && !_isDownloading) ...[
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      border: Border.all(color: Colors.green),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.check_circle, color: Colors.green.shade700),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Configuration validée et prête pour le téléchargement',
-                            style: TextStyle(
-                              color: Colors.green.shade900,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
-                ],
-
-                // Barre de progression du téléchargement
                 if (_isDownloading) ...[
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 8),
                   Card(
                     elevation: 3,
                     child: Padding(
@@ -1814,7 +1592,7 @@ class _StepTuileState extends State<_StepTuile> {
                                     : Icons.downloading,
                                 color: _downloadProgress >= 1.0
                                     ? Colors.green.shade700
-                                    : Colors.blue.shade700,
+                                    : Colors.indigo.shade700,
                                 size: 28,
                               ),
                               const SizedBox(width: 12),
@@ -1859,7 +1637,7 @@ class _StepTuileState extends State<_StepTuile> {
                               valueColor: AlwaysStoppedAnimation<Color>(
                                 _downloadProgress >= 1.0
                                     ? Colors.green.shade600
-                                    : Colors.blue.shade600,
+                                    : Colors.indigo.shade600,
                               ),
                             ),
                           ),
@@ -1885,7 +1663,7 @@ class _StepTuileState extends State<_StepTuile> {
                                     _downloadPaused ? 'Reprendre' : 'Pause',
                                   ),
                                   style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.blue.shade700,
+                                    foregroundColor: Colors.indigo.shade700,
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -1939,6 +1717,19 @@ class _StepTuileState extends State<_StepTuile> {
                                     ),
                                   ),
                                 ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: ElevatedButton.icon(
+                                onPressed: widget.onNext,
+                                icon: const Icon(Icons.arrow_forward),
+                                label: const Text('Continuer'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
+                                ),
                               ),
                             ),
                           ],
@@ -3539,12 +3330,12 @@ class _StepTuileState extends State<_StepTuile> {
 
   String _getQualityLabel() {
     switch (_quality) {
-      case 'low':
-        return 'Économique';
       case 'standard':
         return 'Standard';
       case 'high':
         return 'Haute';
+      case 'max':
+        return 'Max (recommandé)';
       default:
         return 'Standard';
     }
@@ -3552,43 +3343,37 @@ class _StepTuileState extends State<_StepTuile> {
 
   String _getQualityInfo() {
     switch (_quality) {
-      case 'low':
-        return 'Économique : Fichiers plus légers, idéal pour une connexion limitée (qualité réduite)';
       case 'standard':
-        return 'Standard : Bon équilibre entre qualité et taille de fichier';
+        return 'Standard : rapide et léger pour un téléchargement sans stress.';
       case 'high':
-        return 'Haute : Meilleure qualité, fichiers plus volumineux (recommandé pour Wi-Fi)';
+        return 'Haute : meilleure qualité, plus de détails sur la carte.';
+      case 'max':
+        return 'Max : qualité maximale recommandée (⚡ plutôt Wi‑Fi).';
       default:
-        return '';
+        return 'Standard : rapide et léger.';
     }
   }
 
   String _calculateEstimatedSize() {
-    // Calcul approximatif basé sur le zoom et la qualité
-    final zoomRange = _zoomMax - _zoomMin + 1;
-    double baseSize = 50.0; // Mo de base
+    // Estimation simplifiée basée sur le zoom max et la qualité
+    final zoomSteps = (_zoomMax - _zoomMin + 1).clamp(1, 10);
+    double baseSize = 80.0; // Mo de base pour Z12
 
-    // Facteur zoom (exponentiel)
-    final zoomFactor = zoomRange * 2.5;
-
-    // Facteur qualité
     double qualityFactor = 1.0;
     switch (_quality) {
-      case 'low':
-        qualityFactor = 0.6;
-        break;
       case 'standard':
         qualityFactor = 1.0;
         break;
       case 'high':
-        qualityFactor = 1.8;
+        qualityFactor = 1.5;
+        break;
+      case 'max':
+        qualityFactor = 2.2;
         break;
     }
 
-    // Facteur couches (chaque couche ajoute ~30%)
-    final layerFactor = 1.0 + (_selectedLayers.length * 0.3);
-
-    final estimatedSize = baseSize * zoomFactor * qualityFactor * layerFactor;
+    final zoomFactor = zoomSteps * 2.8;
+    final estimatedSize = baseSize * zoomFactor * qualityFactor;
 
     if (estimatedSize < 100) {
       return '~${estimatedSize.toStringAsFixed(0)} Mo';
@@ -3597,6 +3382,18 @@ class _StepTuileState extends State<_StepTuile> {
     } else {
       return '~${(estimatedSize / 1024).toStringAsFixed(1)} Go';
     }
+  }
+
+  String _calculateEstimatedTime() {
+    final total = _calculateEstimatedSize();
+    final match = RegExp(r'~([\d.]+)\s*(Mo|Go)').firstMatch(total);
+    if (match == null) return '~ 5–10 min';
+    final size = double.parse(match.group(1)!);
+    final unit = match.group(2);
+    final sizeMb = unit == 'Go' ? size * 1024 : size;
+    final fast = (sizeMb / 100).clamp(2, 60);
+    final slow = (sizeMb / 50).clamp(4, 90);
+    return '~ ${fast.round()}–${slow.round()} min';
   }
 
   String _calculateDownloadedSize() {
@@ -3621,25 +3418,54 @@ class _StepTuileState extends State<_StepTuile> {
   }
 
   void _continueDownload() async {
-    // Simulation de téléchargement
-    while (_downloadProgress < 1.0 && !_downloadPaused && _isDownloading) {
-      await Future.delayed(const Duration(milliseconds: 200));
-      if (mounted && _isDownloading && !_downloadPaused) {
-        setState(() {
-          _downloadProgress += 0.02;
-          if (_downloadProgress > 1.0) _downloadProgress = 1.0;
-        });
+    // Simulation réaliste de téléchargement par zoom levels
+    final zoomLevels = (_zoomMax - _zoomMin + 1).toInt();
+    final progressPerZoom = 1.0 / zoomLevels;
+    
+    for (int z = _zoomMin.toInt(); z <= _zoomMax.toInt() && _isDownloading; z++) {
+      // Pause handling
+      while (_downloadPaused && _isDownloading) {
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+      
+      if (!_isDownloading) return;
+      
+      // Simulation de téléchargement pour ce zoom level
+      // Chaque zoom level prend entre 1-3 secondes selon la qualité
+      int tiles = _getTileCountForZoom(z);
+      double tileProgress = 0;
+      
+      while (tileProgress < 1.0 && !_downloadPaused && _isDownloading) {
+        // Simulation du téléchargement d'une tuile
+        int delayMs = 100;
+        if (_quality == 'max') {
+          delayMs = 200;
+        } else if (_quality == 'high') {
+          delayMs = 150;
+        }
+        await Future.delayed(Duration(milliseconds: delayMs));
+        
+        if (_isDownloading && !_downloadPaused) {
+          tileProgress += 1.0 / tiles;
+          final zoomProgress = (z - _zoomMin) / zoomLevels;
+          
+          setState(() {
+            _downloadProgress = (zoomProgress + (tileProgress * progressPerZoom)).clamp(0.0, 1.0);
+          });
+        }
       }
     }
 
-    if (_downloadProgress >= 1.0 && mounted) {
+    if (_downloadProgress >= 1.0 && mounted && _isDownloading) {
+      setState(() => _downloadProgress = 1.0);
+      
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Row(
             children: [
               Icon(Icons.check_circle, color: Colors.white),
               SizedBox(width: 12),
-              Text('Tuiles téléchargées avec succès !'),
+              Expanded(child: Text('Tuiles téléchargées avec succès !')),
             ],
           ),
           backgroundColor: Colors.green,
@@ -3648,13 +3474,28 @@ class _StepTuileState extends State<_StepTuile> {
       );
     }
   }
+
+  int _getTileCountForZoom(int zoom) {
+    // Nombre de tuiles estimé pour un zoom level donné
+    // Formula: 4^(z-12) pour le basehttps://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
+    if (zoom <= 12) return 4;
+    return (4 * (1 << (zoom - 12))).clamp(4, 256);
+  }
 }
 
 // --- Step 3: Tracer le circuit (10/10 Premium) ---
 class _StepTracer extends StatefulWidget {
   final VoidCallback onNext;
   final VoidCallback onPrev;
-  const _StepTracer({required this.onNext, required this.onPrev});
+  final List<Map<String, double>> perimeterPoints;
+  final bool isPerimeterValidated;
+
+  const _StepTracer({
+    required this.onNext,
+    required this.onPrev,
+    required this.perimeterPoints,
+    required this.isPerimeterValidated,
+  });
 
   @override
   State<_StepTracer> createState() => _StepTracerState();
@@ -3663,19 +3504,23 @@ class _StepTracer extends StatefulWidget {
 class _StepTracerState extends State<_StepTracer> {
   // Points du tracé
   final List<Map<String, dynamic>> _tracePoints = [];
+  final List<List<Map<String, dynamic>>> _undoStack = [];
+  final List<List<Map<String, dynamic>>> _redoStack = [];
 
   // Configuration
+  String _addMode = 'point'; // 'point', 'start', 'end'
+  bool _movePointMode = false;
+  int? _selectedPointIndex;
+  bool _showOutOfBounds = false;
   String _traceMode = 'manual'; // 'manual', 'follow_roads', 'straight'
+  bool _snapToRoads = false;
   bool _showElevation = false;
-  bool _snapToRoads = true;
-  double _simplificationTolerance = 0.0001;
-  bool _movePointMode = false; // Mode déplacement de point
-  int? _selectedPointIndex; // Index du point sélectionné pour déplacement
+  double _simplificationTolerance = 0.0; // Simplification du tracé
 
   // État
   bool _isValidated = false;
 
-  // Statistiques
+  // Statistiques (simulées)
   double _totalDistance = 0.0;
   double _elevationGain = 0.0;
   double _elevationLoss = 0.0;
@@ -3875,6 +3720,29 @@ class _StepTracerState extends State<_StepTracer> {
                                     ? FontWeight.bold
                                     : FontWeight.normal,
                               ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Boutons Undo/Redo flottants à gauche
+                      Positioned(
+                        left: 16,
+                        top: 16,
+                        child: Column(
+                          children: [
+                            _buildMapButton(
+                              icon: Icons.undo,
+                              tooltip: _undoStack.isEmpty ? 'Aucune action à annuler' : 'Annuler (Undo)',
+                              onPressed: (_undoStack.isEmpty && _tracePoints.isEmpty)
+                                  ? null
+                                  : _undoLastPoint,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildMapButton(
+                              icon: Icons.redo,
+                              tooltip: _redoStack.isEmpty ? 'Aucune action à rétablir' : 'Rétablir (Redo)',
+                              onPressed: _redoStack.isEmpty ? null : _redoLastPoint,
                             ),
                           ],
                         ),
@@ -4323,63 +4191,26 @@ class _StepTracerState extends State<_StepTracer> {
                               color: Colors.grey.shade600,
                             ),
                           ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (_movePointMode)
-                                IconButton(
-                                  icon: Icon(
-                                    _selectedPointIndex == index
-                                        ? Icons.check_circle
-                                        : Icons.open_with,
-                                    color: _selectedPointIndex == index
-                                        ? Colors.blue
-                                        : Colors.grey,
-                                    size: 20,
-                                  ),
-                                  tooltip: _selectedPointIndex == index
-                                      ? 'Point sélectionné'
-                                      : 'Déplacer ce point',
-                                  onPressed: () {
-                                    if (_selectedPointIndex == index) {
-                                      // Désélectionner
-                                      setState(
-                                        () => _selectedPointIndex = null,
-                                      );
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Point désélectionné'),
-                                          duration: Duration(seconds: 1),
-                                        ),
-                                      );
-                                    } else {
-                                      // Sélectionner pour déplacement
-                                      setState(
-                                        () => _selectedPointIndex = index,
-                                      );
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Point ${isStart
-                                                ? 'Départ'
-                                                : isEnd
-                                                ? 'Arrivée'
-                                                : index + 1} sélectionné - Cliquez sur la carte pour le déplacer',
-                                          ),
-                                          duration: const Duration(seconds: 2),
-                                          backgroundColor: Colors.blue,
-                                        ),
-                                      );
-                                    }
-                                  },
-                                ),
-                              IconButton(
-                                icon: const Icon(Icons.delete, size: 20),
-                                onPressed: () {
+                          trailing: PopupMenuButton<String>(
+                            onSelected: (value) async {
+                              switch (value) {
+                                case 'move':
+                                  setState(() => _selectedPointIndex = index);
+                                  setState(() => _movePointMode = true);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Point ${isStart ? 'Départ' : isEnd ? 'Arrivée' : index + 1} sélectionné - Cliquez sur la carte pour le déplacer',
+                                      ),
+                                      backgroundColor: Colors.blue,
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                  break;
+                                  
+                                case 'delete':
+                                  // Sauvegarde pour undo
+                                  _undoStack.add(List<Map<String, dynamic>>.from(_tracePoints));
                                   setState(() {
                                     _tracePoints.removeAt(index);
                                     if (_selectedPointIndex == index) {
@@ -4388,7 +4219,58 @@ class _StepTracerState extends State<_StepTracer> {
                                     _recalculateStats();
                                     _isValidated = false;
                                   });
-                                },
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: const [
+                                          Icon(Icons.delete, color: Colors.white, size: 18),
+                                          SizedBox(width: 8),
+                                          Text('Point supprimé'),
+                                        ],
+                                      ),
+                                      backgroundColor: Colors.red,
+                                      duration: const Duration(seconds: 1),
+                                    ),
+                                  );
+                                  break;
+                                  
+                                case 'change_type':
+                                  // Dialog pour changer le type
+                                  _showPointTypeDialog(index, isStart, isEnd);
+                                  break;
+                              }
+                            },
+                            itemBuilder: (BuildContext context) => [
+                              const PopupMenuItem(
+                                value: 'move',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.drag_indicator, size: 18),
+                                    SizedBox(width: 12),
+                                    Text('Déplacer'),
+                                  ],
+                                ),
+                              ),
+                              const PopupMenuItem(
+                                value: 'change_type',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.edit, size: 18),
+                                    SizedBox(width: 12),
+                                    Text('Changer type'),
+                                  ],
+                                ),
+                              ),
+                              const PopupMenuDivider(),
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.delete, size: 18, color: Colors.red),
+                                    SizedBox(width: 12),
+                                    Text('Supprimer'),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
@@ -4482,7 +4364,7 @@ class _StepTracerState extends State<_StepTracer> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Ajoutez au moins 2 points pour valider le tracé',
+                            _getValidationError(),
                             style: TextStyle(
                               color: Colors.orange.shade900,
                               fontWeight: FontWeight.w600,
@@ -4520,11 +4402,209 @@ class _StepTracerState extends State<_StepTracer> {
                     ),
                   ),
                 ],
+
+                const SizedBox(height: 24),
+
+                // Barre du bas: Mode de saisie des points
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.indigo.shade50, Colors.indigo.shade100],
+                    ),
+                    border: Border(
+                      top: BorderSide(color: Colors.indigo.shade300, width: 2),
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      topRight: Radius.circular(12),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.touch_app, color: Colors.indigo.shade700, size: 20),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Mode de saisie',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.indigo.shade900,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Boutons des 3 modes
+                      Row(
+                        children: [
+                          // Bouton "+ Point"
+                          Expanded(
+                            child: _buildModeButton(
+                              label: '+ Point',
+                              icon: Icons.add_location,
+                              isActive: _addMode == 'point',
+                              color: Colors.blue,
+                              onPressed: () {
+                                setState(() => _addMode = 'point');
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Mode: Ajouter des points intermédiaires'),
+                                    backgroundColor: Colors.blue,
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+
+                          // Bouton "Départ"
+                          Expanded(
+                            child: _buildModeButton(
+                              label: 'Départ',
+                              icon: Icons.play_circle,
+                              isActive: _addMode == 'start',
+                              color: Colors.green,
+                              onPressed: () {
+                                setState(() => _addMode = 'start');
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Mode: Placer le point de départ'),
+                                    backgroundColor: Colors.green,
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+
+                          // Bouton "Arrivée"
+                          Expanded(
+                            child: _buildModeButton(
+                              label: 'Arrivée',
+                              icon: Icons.stop_circle,
+                              isActive: _addMode == 'end',
+                              color: Colors.red,
+                              onPressed: () {
+                                setState(() => _addMode = 'end');
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Mode: Placer le point d\'arrivée'),
+                                    backgroundColor: Colors.red,
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Infobox contextuelle
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.indigo.shade700,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _addMode == 'start'
+                                    ? 'Placer le point de départ du circuit'
+                                    : _addMode == 'end'
+                                    ? 'Placer le point d\'arrivée du circuit'
+                                    : 'Ajouter des points intermédiaires',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.indigo.shade800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+
+  /// Boutton de mode avec état actif/inactif
+  Widget _buildModeButton({
+    required String label,
+    required IconData icon,
+    required bool isActive,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          gradient: isActive
+              ? LinearGradient(
+                  colors: [color.withOpacity(0.3), color.withOpacity(0.1)],
+                )
+              : null,
+          color: !isActive ? Colors.white.withOpacity(0.6) : null,
+          border: Border.all(
+            color: isActive ? color : Colors.grey.shade300,
+            width: isActive ? 2 : 1,
+          ),
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: color.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : [],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: isActive ? color : Colors.grey.shade600,
+              size: 28,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isActive ? FontWeight.bold : FontWeight.w600,
+                color: isActive ? color : Colors.grey.shade700,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -4624,10 +4704,10 @@ class _StepTracerState extends State<_StepTracer> {
   Widget _buildMapButton({
     required IconData icon,
     required String tooltip,
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
   }) {
     return GestureDetector(
-      onLongPress: () {
+      onLongPress: onPressed != null ? () {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('🎯 $tooltip'),
@@ -4635,7 +4715,7 @@ class _StepTracerState extends State<_StepTracer> {
             duration: const Duration(seconds: 2),
           ),
         );
-      },
+      } : null,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -4652,7 +4732,7 @@ class _StepTracerState extends State<_StepTracer> {
           icon: Icon(icon),
           tooltip: tooltip,
           onPressed: onPressed,
-          color: Colors.grey.shade700,
+          color: onPressed != null ? Colors.grey.shade700 : Colors.grey.shade300,
         ),
       ),
     );
@@ -4715,16 +4795,66 @@ class _StepTracerState extends State<_StepTracer> {
   }
 
   void _undoLastPoint() {
-    setState(() {
-      if (_tracePoints.isNotEmpty) {
+    if (_tracePoints.isEmpty) return;
+    
+    // Sauvegarder l'état actuel dans redo stack
+    _redoStack.add(List<Map<String, dynamic>>.from(_tracePoints));
+    
+    // Restaurer depuis undo stack ou simplement retirer le dernier
+    if (_undoStack.isNotEmpty) {
+      setState(() {
+        _tracePoints.clear();
+        _tracePoints.addAll(_undoStack.removeLast());
+        _recalculateStats();
+        _isValidated = false;
+      });
+    } else {
+      setState(() {
         _tracePoints.removeLast();
         _recalculateStats();
         _isValidated = false;
-      }
-    });
+      });
+    }
+    
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Dernier point supprimé'),
+        content: Row(
+          children: [
+            Icon(Icons.undo, color: Colors.white, size: 18),
+            SizedBox(width: 8),
+            Text('Point annulé'),
+          ],
+        ),
+        backgroundColor: Colors.orange,
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _redoLastPoint() {
+    if (_redoStack.isEmpty) return;
+    
+    // Sauvegarder l'état actuel dans undo stack
+    _undoStack.add(List<Map<String, dynamic>>.from(_tracePoints));
+    
+    // Restaurer depuis redo stack
+    setState(() {
+      _tracePoints.clear();
+      _tracePoints.addAll(_redoStack.removeLast());
+      _recalculateStats();
+      _isValidated = false;
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.redo, color: Colors.white, size: 18),
+            SizedBox(width: 8),
+            Text('Point rétabli'),
+          ],
+        ),
+        backgroundColor: Colors.green,
         duration: Duration(seconds: 1),
       ),
     );
@@ -4766,25 +4896,39 @@ class _StepTracerState extends State<_StepTracer> {
         SnackBar(
           content: Text('Point ${_selectedPointIndex! + 1} déplacé'),
           backgroundColor: Colors.blue,
-          duration: const Duration(seconds: 1),
         ),
       );
       return;
     }
 
-    // Sinon, ajouter un nouveau point
-    final baseLat = 16.2500 + (_tracePoints.length * 0.001);
-    final baseLng = -61.5833 + (_tracePoints.length * 0.001);
+    // Ajouter un nouveau point avec validation
+    final baseLat = 16.2500 + (_tracePoints.length * 0.002);
+    final baseLng = -61.5833 + (_tracePoints.length * 0.002);
+    _addPointWithValidation(baseLat, baseLng);
+  }
 
-    setState(() {
-      _tracePoints.add({
-        'lat': baseLat,
-        'lng': baseLng,
-        'elevation': 50.0 + (_tracePoints.length * 10),
-      });
-      _recalculateStats();
-      _isValidated = false;
-    });
+  String _getValidationError() {
+    if (_tracePoints.isEmpty) {
+      return '📍 Aucun point - Commencez par placer un point de départ';
+    }
+
+    // Chercher départ et arrivée
+    final hasStart =
+        _tracePoints.any((p) => p['type'] == 'start');
+    final hasEnd = _tracePoints.any((p) => p['type'] == 'end');
+    final hasAtLeastTwo = _tracePoints.length >= 2;
+
+    if (!hasStart) {
+      return '🚩 Manquant: Départ - Placez un point de départ';
+    }
+    if (!hasEnd) {
+      return '🏁 Manquant: Arrivée - Placez un point d\'arrivée';
+    }
+    if (!hasAtLeastTwo) {
+      return '✏️ Tracé incomplet - Ajoutez au moins 2 points';
+    }
+
+    return 'Validation incomplète';
   }
 
   void _recalculateStats() {
@@ -4804,6 +4948,258 @@ class _StepTracerState extends State<_StepTracer> {
       } else {
         _elevationLoss += diff.abs();
       }
+    }
+  }
+
+  /// Dialog pour changer le type d'un point (départ/normal/arrivée)
+  void _showPointTypeDialog(int index, bool isStart, bool isEnd) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.edit, color: Colors.blue),
+            SizedBox(width: 12),
+            Text('Changer le type du point'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Text(
+                    'D',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              title: const Text('Départ'),
+              subtitle: const Text('Point de départ du circuit'),
+              selected: isStart,
+              onTap: () {
+                // Sauvegarder pour undo
+                _undoStack.add(List<Map<String, dynamic>>.from(_tracePoints));
+                setState(() {
+                  _tracePoints[index]['type'] = 'start';
+                  _isValidated = false;
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Row(
+                      children: [
+                        Icon(Icons.check, color: Colors.white, size: 18),
+                        SizedBox(width: 8),
+                        Text('Type changé: Départ'),
+                      ],
+                    ),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  color: Colors.blue,
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Text(
+                    '+',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              title: const Text('Point intermédiaire'),
+              subtitle: const Text('Point normal du tracé'),
+              selected: !isStart && !isEnd,
+              onTap: () {
+                // Sauvegarder pour undo
+                _undoStack.add(List<Map<String, dynamic>>.from(_tracePoints));
+                setState(() {
+                  _tracePoints[index]['type'] = 'point';
+                  _isValidated = false;
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Row(
+                      children: [
+                        Icon(Icons.check, color: Colors.white, size: 18),
+                        SizedBox(width: 8),
+                        Text('Type changé: Point intermédiaire'),
+                      ],
+                    ),
+                    backgroundColor: Colors.blue,
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Text(
+                    'A',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              title: const Text('Arrivée'),
+              subtitle: const Text('Point d\'arrivée du circuit'),
+              selected: isEnd,
+              onTap: () {
+                // Sauvegarder pour undo
+                _undoStack.add(List<Map<String, dynamic>>.from(_tracePoints));
+                setState(() {
+                  _tracePoints[index]['type'] = 'end';
+                  _isValidated = false;
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Row(
+                      children: [
+                        Icon(Icons.check, color: Colors.white, size: 18),
+                        SizedBox(width: 8),
+                        Text('Type changé: Arrivée'),
+                      ],
+                    ),
+                    backgroundColor: Colors.red,
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Fonction pour vérifier si un point est dans un polygone (Ray casting algorithm)
+  bool _pointInPolygon(double lat, double lng) {
+    if (widget.perimeterPoints.isEmpty) return true; // Pas de périmètre = accepter
+
+    final points = widget.perimeterPoints;
+    int crossings = 0;
+
+    for (int i = 0; i < points.length; i++) {
+      final p1 = points[i];
+      final p2 = points[(i + 1) % points.length];
+
+      final lat1 = p1['lat']!;
+      final lng1 = p1['lng']!;
+      final lat2 = p2['lat']!;
+      final lng2 = p2['lng']!;
+
+      if ((lng1 <= lng && lng < lng2) || (lng2 <= lng && lng < lng1)) {
+        final latIntersection =
+            lat1 + (lng - lng1) * (lat2 - lat1) / (lng2 - lng1);
+        if (lat < latIntersection) {
+          crossings++;
+        }
+      }
+    }
+
+    return crossings % 2 == 1;
+  }
+
+  void _addPointWithValidation(double lat, double lng) {
+    // Vérifier si le point est dans le périmètre
+    if (widget.isPerimeterValidated && !_pointInPolygon(lat, lng)) {
+      // Vibration de refus
+      HapticFeedback.lightImpact();
+      setState(() {
+        _showOutOfBounds = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('📍 Point hors périmètre'),
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      // Cacher le message après quelques secondes
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) {
+          setState(() {
+            _showOutOfBounds = false;
+          });
+        }
+      });
+      return;
+    }
+
+    // Vérifier que le départ est le premier point
+    if (_tracePoints.isEmpty && _addMode == 'point') {
+      // Auto-switch to "start" mode
+      setState(() {
+        _addMode = 'start';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '💡 Place d\'abord un départ',
+          ),
+          backgroundColor: Colors.blue,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    // Ajouter le point
+    HapticFeedback.mediumImpact(); // Mini haptique
+    setState(() {
+      _tracePoints.add({
+        'lat': lat,
+        'lng': lng,
+        'type': _addMode, // 'start', 'point', 'end'
+        'index': _tracePoints.length + 1,
+      });
+      _recalculateStats();
+    });
+
+    // Message avec le numéro du point
+    if (_tracePoints.length > 1) {
+      final msg = _addMode == 'start'
+          ? 'Départ'
+          : _addMode == 'end'
+          ? 'Arrivée'
+          : '${_tracePoints.length}';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✓ Point $msg ajouté'),
+          duration: const Duration(milliseconds: 800),
+        ),
+      );
     }
   }
 

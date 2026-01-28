@@ -13,6 +13,7 @@ class MapboxNativeCircuitMap extends StatefulWidget {
     required this.route, // liste de points
     required this.segments, // segments colorés
     required this.locked,
+    this.showMask = false,
     required this.onTapLngLat, // tap sur la carte -> ajout point / etc
     this.styleUri = MapboxStyles.MAPBOX_STREETS,
   });
@@ -25,6 +26,7 @@ class MapboxNativeCircuitMap extends StatefulWidget {
   segments;
 
   final bool locked;
+  final bool showMask;
   final ValueChanged<LngLat> onTapLngLat;
   final String styleUri;
 
@@ -191,9 +193,11 @@ class _MapboxNativeCircuitMapState extends State<MapboxNativeCircuitMap> {
       [-180, -85],
     ];
     final hole = perimeter.map(_toCoord).toList();
-    final maskFc = _featureCollection([
-      _polygonFeature([outer, hole]),
-    ]);
+    final maskFc = widget.showMask && perimeter.length >= 3
+        ? _featureCollection([
+            _polygonFeature([outer, hole]),
+          ])
+        : _emptyFeatureCollection();
 
     // C) Route
     final route = widget.route;
