@@ -13,6 +13,7 @@ Widget buildCircuitMap({
   segments,
   required bool locked,
   required ValueChanged<LngLat> onTap,
+  bool showMask = false,
   String? mapboxToken,
 }) {
   if (kIsWeb) {
@@ -42,6 +43,7 @@ Widget buildCircuitMap({
     route: route,
     segments: segments,
     locked: locked,
+    showMask: showMask,
     onTapLngLat: onTap,
   );
 }
