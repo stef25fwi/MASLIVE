@@ -33,6 +33,7 @@ class _MapboxWebCircuitMapState extends State<MapboxWebCircuitMap> {
   late final String _divId;
   StreamSubscription<html.MessageEvent>? _messageSub;
   bool _jsInitialized = false;
+  String? _error;
 
   @override
   void initState() {
@@ -83,10 +84,26 @@ class _MapboxWebCircuitMapState extends State<MapboxWebCircuitMap> {
 
   void _initJsIfNeeded() {
     if (_jsInitialized) return;
-    if (widget.mapboxToken.isEmpty) return;
+    if (widget.mapboxToken.isEmpty) {
+      if (_error == null) {
+        setState(() {
+          _error =
+              'Token Mapbox manquant. Configure MAPBOX_ACCESS_TOKEN (ou MAPBOX_TOKEN legacy).';
+        });
+      }
+      return;
+    }
 
     final api = js.context['masliveMapbox'];
-    if (api == null) return;
+    if (api == null) {
+      if (_error == null) {
+        setState(() {
+          _error =
+              'Mapbox JS non chargé (masliveMapbox absent). Vérifie app/web/mapbox_circuit.js et app/web/index.html.';
+        });
+      }
+      return;
+    }
 
     final center = _centerFor(widget.perimeter, widget.route);
 
@@ -98,8 +115,17 @@ class _MapboxWebCircuitMapState extends State<MapboxWebCircuitMap> {
         12,
       ]);
       _jsInitialized = true;
+      if (_error != null) {
+        setState(() {
+          _error = null;
+        });
+      }
     } catch (_) {
-      // ignore
+      if (_error == null) {
+        setState(() {
+          _error = 'Erreur d\'initialisation Mapbox (JS).';
+        });
+      }
     }
   }
 
@@ -203,6 +229,16 @@ class _MapboxWebCircuitMapState extends State<MapboxWebCircuitMap> {
 
   @override
   Widget build(BuildContext context) {
+    final error = _error;
+    if (error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(error, textAlign: TextAlign.center),
+        ),
+      );
+    }
+
     return HtmlElementView(viewType: _viewType);
   }
 

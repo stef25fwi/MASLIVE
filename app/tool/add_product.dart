@@ -21,9 +21,7 @@ Future<void> main() async {
     'description': 'Casquette noire MASLIVE Premium',
     'availableSizes': ['One Size'],
     'availableColors': ['Noir'],
-    'stockByVariant': {
-      'One Size|Noir': 50,
-    },
+    'stockByVariant': {'One Size|Noir': 50},
     'moderationStatus': 'approved',
     'isActive': true,
     'groupId': 'maslive_official',
@@ -31,6 +29,6 @@ Future<void> main() async {
     'updatedAt': FieldValue.serverTimestamp(),
   });
 
-  print('✅ Produit Casquette ajouté avec succès!');
+  debugPrint('✅ Produit Casquette ajouté avec succès!');
   exit(0);
 }

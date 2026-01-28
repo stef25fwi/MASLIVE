@@ -42,7 +42,7 @@ class LaBoutiqueHeader extends StatelessWidget {
         borderRadius: BorderRadius.zero,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.10),
+            color: Colors.black.withValues(alpha: 0.10),
             blurRadius: 18,
             offset: const Offset(0, 10),
           ),
@@ -107,11 +107,17 @@ class LaBoutiqueHeader extends StatelessWidget {
                       right: -2,
                       top: -2,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFF111827),
                           borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: Colors.white.withOpacity(0.8), width: 1),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            width: 1,
+                          ),
                         ),
                         child: Text(
                           '${(cartCount ?? 0) > 99 ? '99+' : cartCount}',
@@ -132,10 +138,7 @@ class LaBoutiqueHeader extends StatelessWidget {
           const SizedBox(height: 14),
 
           // Search pill
-          _SearchPillExact(
-            hintText: hintText,
-            onChanged: onQueryChanged,
-          ),
+          _SearchPillExact(hintText: hintText, onChanged: onQueryChanged),
         ],
       ),
     );
@@ -143,10 +146,7 @@ class LaBoutiqueHeader extends StatelessWidget {
 }
 
 class _RoundIconGlassButton extends StatelessWidget {
-  const _RoundIconGlassButton({
-    required this.icon,
-    required this.onTap,
-  });
+  const _RoundIconGlassButton({required this.icon, required this.onTap});
 
   final IconData icon;
   final VoidCallback onTap;
@@ -160,9 +160,12 @@ class _RoundIconGlassButton extends StatelessWidget {
         width: 46,
         height: 46,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.20),
+          color: Colors.white.withValues(alpha: 0.20),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: Colors.white.withOpacity(0.28), width: 1),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.28),
+            width: 1,
+          ),
         ),
         child: Icon(icon, size: 22, color: const Color(0xFF111827)),
       ),
@@ -171,10 +174,7 @@ class _RoundIconGlassButton extends StatelessWidget {
 }
 
 class _SearchPillExact extends StatelessWidget {
-  const _SearchPillExact({
-    required this.hintText,
-    required this.onChanged,
-  });
+  const _SearchPillExact({required this.hintText, required this.onChanged});
 
   final String hintText;
   final ValueChanged<String> onChanged;
@@ -185,12 +185,15 @@ class _SearchPillExact extends StatelessWidget {
       height: 54,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.90),
+        color: Colors.white.withValues(alpha: 0.90),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withOpacity(0.70), width: 1),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.70),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 10),
           ),

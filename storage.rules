@@ -73,6 +73,16 @@ service firebase.storage {
                       isValidImageSize();
       allow delete: if isMasterAdmin();
     }
+
+    // ✅ Images produits boutique (admin seulement)
+    // Utilisé par le dialog de création produit: shops/{shopId}/products/{productId}/...
+    match /shops/{shopId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isMasterAdmin() &&
+                      isValidImageType() &&
+                      isValidImageSize();
+      allow delete: if isMasterAdmin();
+    }
     
     // ✅ Tout refuser par défaut
     match /{allPaths=**} {

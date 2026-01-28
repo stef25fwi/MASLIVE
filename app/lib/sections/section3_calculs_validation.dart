@@ -48,7 +48,10 @@ class Section3CalculsValidation extends StatelessWidget {
 
               const _BulletLine(dotColor: _blue, text: "Distance & Dénivelé"),
               const _BulletLine(dotColor: _blue, text: "Temps estimé"),
-              const _BulletLine(dotColor: _blue, text: "Validation automatique"),
+              const _BulletLine(
+                dotColor: _blue,
+                text: "Validation automatique",
+              ),
             ],
           ),
         ),
@@ -61,10 +64,7 @@ class _AppIconSquare extends StatelessWidget {
   final Color color;
   final IconData icon;
 
-  const _AppIconSquare({
-    required this.color,
-    required this.icon,
-  });
+  const _AppIconSquare({required this.color, required this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -92,14 +92,12 @@ class _AppIconSquare extends StatelessWidget {
               width: 22,
               height: 22,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.18),
+                color: Colors.white.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
           ),
-          Center(
-            child: Icon(icon, size: 30, color: Colors.white),
-          ),
+          Center(child: Icon(icon, size: 30, color: Colors.white)),
         ],
       ),
     );
@@ -110,10 +108,7 @@ class _BulletLine extends StatelessWidget {
   final String text;
   final Color dotColor;
 
-  const _BulletLine({
-    required this.text,
-    required this.dotColor,
-  });
+  const _BulletLine({required this.text, required this.dotColor});
 
   @override
   Widget build(BuildContext context) {
@@ -126,10 +121,7 @@ class _BulletLine extends StatelessWidget {
             margin: const EdgeInsets.only(top: 7),
             width: 8,
             height: 8,
-            decoration: BoxDecoration(
-              color: dotColor,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
           ),
           const SizedBox(width: 10),
           Expanded(

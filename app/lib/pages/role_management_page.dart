@@ -48,6 +48,8 @@ class _RoleManagementPageState extends State<RoleManagementPage> {
   Future<void> _initializeRoles() async {
     try {
       await PermissionService.instance.initializeDefaultRoles();
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Rôles initialisés avec succès'),
@@ -56,11 +58,9 @@ class _RoleManagementPageState extends State<RoleManagementPage> {
       );
       await _loadRoles();
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -217,10 +217,7 @@ class _RoleCard extends StatelessWidget {
               children: [
                 const Text(
                   'Permissions:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 const SizedBox(height: 8),
                 ..._buildPermissionsByCategory(),
@@ -267,9 +264,7 @@ class _RoleCard extends StatelessWidget {
               children: [
                 const Icon(Icons.check, size: 16, color: Colors.green),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: Text(permission.displayName),
-                ),
+                Expanded(child: Text(permission.displayName)),
               ],
             ),
           ),
@@ -294,9 +289,7 @@ class _UserRolesManagementPageState extends State<UserRolesManagementPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gestion des Utilisateurs'),
-      ),
+      appBar: AppBar(title: const Text('Gestion des Utilisateurs')),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('users')
@@ -358,10 +351,14 @@ class _UserCard extends StatelessWidget {
       userId,
     );
 
+    if (!context.mounted) return;
+
     if (!canManage) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Vous n\'avez pas la permission de modifier cet utilisateur'),
+          content: Text(
+            'Vous n\'avez pas la permission de modifier cet utilisateur',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -375,11 +372,14 @@ class _UserCard extends StatelessWidget {
       ),
     );
 
+    if (!context.mounted) return;
+
     if (selectedRole != null) {
       try {
         String? groupId;
         if (selectedRole == UserRoleType.group) {
           groupId = await _selectGroup(context);
+          if (!context.mounted) return;
           if (groupId == null) return; // Annulé
         }
 
@@ -388,6 +388,8 @@ class _UserCard extends StatelessWidget {
           roleType: selectedRole,
           groupId: groupId,
         );
+
+        if (!context.mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -398,11 +400,9 @@ class _UserCard extends StatelessWidget {
 
         onRoleChanged();
       } catch (e) {
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -412,6 +412,8 @@ class _UserCard extends StatelessWidget {
     final groupsSnapshot = await FirebaseFirestore.instance
         .collection('groups')
         .get();
+
+    if (!context.mounted) return null;
 
     if (groupsSnapshot.docs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -488,14 +490,17 @@ class _RoleSelectionDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: UserRoleType.values.map((roleType) {
-            final roleDef = RoleDefinition.defaultRoles
-                .firstWhere((r) => r.roleType == roleType);
+            final roleDef = RoleDefinition.defaultRoles.firstWhere(
+              (r) => r.roleType == roleType,
+            );
 
             return RadioListTile<UserRoleType>(
               title: Text(roleDef.name),
               subtitle: Text(roleDef.description),
               value: roleType,
+              // ignore: deprecated_member_use
               groupValue: _getCurrentRoleType(),
+              // ignore: deprecated_member_use
               onChanged: (value) {
                 if (value != null) {
                   Navigator.of(context).pop(value);

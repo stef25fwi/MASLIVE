@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show debugPrint;
+
 /// Local draft cache pour brouillons de circuits/routes
 class DraftManager {
   /// Sauvegarde un brouillon de circuit (données sérialisées)
@@ -15,7 +17,7 @@ class DraftManager {
     };
     // En vrai, il faudrait Hive/SharedPrefs ici
     // Pour la démo: on affiche juste dans les logs
-    print('💾 Draft circuit sauvegardé: $data');
+    debugPrint('💾 Draft circuit sauvegardé: $data');
   }
 
   /// Charge un brouillon de circuit
@@ -23,13 +25,13 @@ class DraftManager {
     required String? groupId,
   }) async {
     // Retourner null si absent
-    print('📂 Chargement brouillon circuit ${groupId ?? "global"}...');
+    debugPrint('📂 Chargement brouillon circuit ${groupId ?? "global"}...');
     return null;
   }
 
   /// Supprime un brouillon
   static Future<void> clearCircuitDraft({required String? groupId}) async {
-    print('🗑️ Brouillon circuit effacé: ${groupId ?? "global"}');
+    debugPrint('🗑️ Brouillon circuit effacé: ${groupId ?? "global"}');
   }
 
   /// Idem pour routes
@@ -45,17 +47,17 @@ class DraftManager {
       'points': points,
       'savedAt': DateTime.now().toIso8601String(),
     };
-    print('💾 Draft route sauvegardé: $data');
+    debugPrint('💾 Draft route sauvegardé: $data');
   }
 
   static Future<Map<String, dynamic>?> loadRouteDraft({
     required String? groupId,
   }) async {
-    print('📂 Chargement brouillon route ${groupId ?? "global"}...');
+    debugPrint('📂 Chargement brouillon route ${groupId ?? "global"}...');
     return null;
   }
 
   static Future<void> clearRouteDraft({required String? groupId}) async {
-    print('🗑️ Brouillon route effacé: ${groupId ?? "global"}');
+    debugPrint('🗑️ Brouillon route effacé: ${groupId ?? "global"}');
   }
 }

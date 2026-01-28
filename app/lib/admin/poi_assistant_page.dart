@@ -7,9 +7,13 @@ import 'dart:convert';
 import 'dart:async';
 
 import '../ui/widgets/mapbox_web_view.dart';
+import '../ui/widgets/mapbox_native_simple_map.dart';
+import '../services/mapbox_token_service.dart';
+import '../ui/widgets/mapbox_token_dialog.dart';
 
 /// Assistant step-by-step pour la gestion des POIs
-const _mapboxToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+const _mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+const _legacyMapboxToken = String.fromEnvironment('MAPBOX_TOKEN');
 
 class POIAssistantPage extends StatefulWidget {
   const POIAssistantPage({super.key});
@@ -27,6 +31,16 @@ class _POIAssistantPageState extends State<POIAssistantPage> {
   String? _selectedMapId;
   String? _selectedLayer;
   final List<bool> _stepValidated = List<bool>.filled(5, false);
+
+  String _runtimeMapboxToken = '';
+  String _mapboxTokenSource = '...';
+
+  String get _effectiveMapboxToken =>
+      _mapboxAccessToken.isNotEmpty
+          ? _mapboxAccessToken
+          : (_legacyMapboxToken.isNotEmpty
+                ? _legacyMapboxToken
+                : _runtimeMapboxToken);
 
   // Liste fictive des cartes disponibles
   final List<Map<String, dynamic>> _availableMaps = [
@@ -61,6 +75,34 @@ class _POIAssistantPageState extends State<POIAssistantPage> {
     super.initState();
     _loadDraft();
     _startAutoSave();
+    _loadMapboxToken();
+  }
+
+  Future<void> _loadMapboxToken() async {
+    try {
+      final info = await MapboxTokenService.getTokenInfo();
+      if (!mounted) return;
+      setState(() {
+        _runtimeMapboxToken = info.token;
+        _mapboxTokenSource = info.source;
+      });
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  Future<void> _configureMapboxToken() async {
+    final newToken = await MapboxTokenDialog.show(
+      context,
+      initialValue: _effectiveMapboxToken,
+    );
+    if (!mounted || newToken == null) return;
+    final info = await MapboxTokenService.getTokenInfo();
+    if (!mounted) return;
+    setState(() {
+      _runtimeMapboxToken = newToken;
+      _mapboxTokenSource = info.source;
+    });
   }
 
   @override
@@ -288,6 +330,9 @@ class _POIAssistantPageState extends State<POIAssistantPage> {
             (m) => m['id'] == _selectedMapId,
             orElse: () => {},
           )['name'],
+          mapboxToken: _effectiveMapboxToken,
+          mapboxTokenSource: _mapboxTokenSource,
+          onConfigureMapboxToken: _configureMapboxToken,
           onNext: _nextStep,
           onPrev: _prevStep,
         );
@@ -790,12 +835,18 @@ class _StepSelectMap extends StatelessWidget {
 class _StepLoadMap extends StatelessWidget {
   final String? selectedMapId;
   final String? selectedMapName;
+  final String mapboxToken;
+  final String mapboxTokenSource;
+  final VoidCallback onConfigureMapboxToken;
   final VoidCallback onNext;
   final VoidCallback onPrev;
 
   const _StepLoadMap({
     required this.selectedMapId,
     required this.selectedMapName,
+    required this.mapboxToken,
+    required this.mapboxTokenSource,
+    required this.onConfigureMapboxToken,
     required this.onNext,
     required this.onPrev,
   });
@@ -828,14 +879,21 @@ class _StepLoadMap extends StatelessWidget {
           child: Stack(
             children: [
               // Mapbox en plein écran
-              if (kIsWeb && _mapboxToken.isNotEmpty)
-                MapboxWebView(
-                  accessToken: _mapboxToken,
-                  initialLat: 16.241,
-                  initialLng: -61.534,
-                  initialZoom: 11.0,
-                  styleUrl: 'mapbox://styles/mapbox/streets-v12',
-                )
+              if (mapboxToken.isNotEmpty)
+                kIsWeb
+                    ? MapboxWebView(
+                        accessToken: mapboxToken,
+                        initialLat: 16.241,
+                        initialLng: -61.534,
+                        initialZoom: 11.0,
+                        styleUrl: 'mapbox://styles/mapbox/streets-v12',
+                      )
+                    : MapboxNativeSimpleMap(
+                        accessToken: mapboxToken,
+                        initialLat: 16.241,
+                        initialLng: -61.534,
+                        initialZoom: 11.0,
+                      )
               else
                 Container(
                   color: Colors.grey[200],
@@ -846,9 +904,21 @@ class _StepLoadMap extends StatelessWidget {
                         Icon(Icons.map, size: 64, color: Colors.grey[400]),
                         const SizedBox(height: 16),
                         Text(
-                          'Mapbox nécessite MAPBOX_ACCESS_TOKEN',
+                          'Mapbox nécessite MAPBOX_ACCESS_TOKEN (ou MAPBOX_TOKEN legacy)',
                           style: TextStyle(color: Colors.grey[600]),
                           textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Source: $mapboxTokenSource',
+                          style: TextStyle(color: Colors.grey[600]),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton.icon(
+                          onPressed: onConfigureMapboxToken,
+                          icon: const Icon(Icons.vpn_key),
+                          label: const Text('Configurer le token'),
                         ),
                       ],
                     ),

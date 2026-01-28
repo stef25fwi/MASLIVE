@@ -189,6 +189,51 @@ service cloud.firestore {
       allow create, update, delete: if canManageContent();
     }
 
+    // ========== COLLECTION: PRODUCT CATEGORIES ==========
+    match /productCategories/{categoryId} {
+      // Lecture: OK public (sert au filtrage UI). Ajuste à isSignedIn() si besoin.
+      allow read: if true;
+      // Écriture: admins master uniquement
+      allow create, update, delete: if isMasterAdmin();
+    }
+
+    // Helpers produits (compat legacy/admin)
+    function _productIsActive(data) {
+      return (('isActive' in data) && data.isActive == true)
+        || (('isAvailable' in data) && data.isAvailable == true);
+    }
+
+    function _productIsApproved(data) {
+      return !('moderationStatus' in data) || data.moderationStatus == 'approved';
+    }
+
+    function _productIsPublic(data) {
+      return _productIsActive(data) && _productIsApproved(data);
+    }
+
+    // ========== COLLECTION: PRODUCTS (Admin + compat) ==========
+    match /products/{productId} {
+      // Lecture: public uniquement si actif + approved (ou legacy sans moderationStatus)
+      allow read: if _productIsPublic(resource.data) || isMasterAdmin();
+
+      // CRUD: réservé aux admins master (dashboard Admin)
+      allow create, update, delete: if isMasterAdmin();
+    }
+
+    // ========== COLLECTION: SHOPS (boutique) ==========
+    match /shops/{shopId} {
+      // Lecture shop doc: publique (si tu stockes des infos de vitrine)
+      allow read: if true;
+      // Écriture shop doc: admins master uniquement
+      allow create, update, delete: if isMasterAdmin();
+
+      // Produits shop (utilisés via collectionGroup('products'))
+      match /products/{productId} {
+        allow read: if _productIsPublic(resource.data) || isMasterAdmin();
+        allow create, update, delete: if isMasterAdmin();
+      }
+    }
+
     // ========== COLLECTION: BUSINESSES (Comptes professionnels) ==========
     match /businesses/{uid} {
       // Lecture: propriétaire ou admins master

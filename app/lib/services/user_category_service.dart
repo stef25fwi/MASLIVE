@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import '../models/user_category_model.dart';
 
 /// Service pour gérer les catégories d'utilisateurs
@@ -20,20 +21,24 @@ class UserCategoryService {
         .where('isActive', isEqualTo: true)
         .orderBy('priority')
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => UserCategoryDefinition.fromFirestore(doc))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => UserCategoryDefinition.fromFirestore(doc))
+              .toList(),
+        );
   }
 
   /// Récupérer une catégorie spécifique
   Future<UserCategoryDefinition?> getCategory(String categoryId) async {
     try {
-      final doc =
-          await _firestore.collection('userCategories').doc(categoryId).get();
+      final doc = await _firestore
+          .collection('userCategories')
+          .doc(categoryId)
+          .get();
       if (!doc.exists) return null;
       return UserCategoryDefinition.fromFirestore(doc);
     } catch (e) {
-      print('Erreur lors de la récupération de la catégorie: $e');
+      debugPrint('Erreur lors de la récupération de la catégorie: $e');
       return null;
     }
   }
@@ -46,10 +51,12 @@ class UserCategoryService {
         .collection('categories')
         .where('isActive', isEqualTo: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => UserCategoryAssignment.fromMap(doc.data()))
-            .where((assignment) => assignment.isValid)
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => UserCategoryAssignment.fromMap(doc.data()))
+              .where((assignment) => assignment.isValid)
+              .toList(),
+        );
   }
 
   /// Initialiser les catégories par défaut (admin uniquement)
@@ -60,7 +67,8 @@ class UserCategoryService {
       return result.data as Map<String, dynamic>;
     } catch (e) {
       throw Exception(
-          'Erreur lors de l\'initialisation des catégories: ${e.toString()}');
+        'Erreur lors de l\'initialisation des catégories: ${e.toString()}',
+      );
     }
   }
 
@@ -82,7 +90,8 @@ class UserCategoryService {
       return result.data as Map<String, dynamic>;
     } catch (e) {
       throw Exception(
-          'Erreur lors de l\'assignation de la catégorie: ${e.toString()}');
+        'Erreur lors de l\'assignation de la catégorie: ${e.toString()}',
+      );
     }
   }
 
@@ -100,7 +109,8 @@ class UserCategoryService {
       return result.data as Map<String, dynamic>;
     } catch (e) {
       throw Exception(
-          'Erreur lors de la révocation de la catégorie: ${e.toString()}');
+        'Erreur lors de la révocation de la catégorie: ${e.toString()}',
+      );
     }
   }
 
@@ -119,7 +129,7 @@ class UserCategoryService {
       final assignment = UserCategoryAssignment.fromMap(doc.data()!);
       return assignment.isValid;
     } catch (e) {
-      print('Erreur lors de la vérification de la catégorie: $e');
+      debugPrint('Erreur lors de la vérification de la catégorie: $e');
       return false;
     }
   }
@@ -138,7 +148,7 @@ class UserCategoryService {
           .map((doc) => UserCategoryDefinition.fromFirestore(doc))
           .toList();
     } catch (e) {
-      print('Erreur lors de la récupération des catégories: $e');
+      debugPrint('Erreur lors de la récupération des catégories: $e');
       return [];
     }
   }

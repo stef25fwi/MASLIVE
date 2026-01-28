@@ -4,10 +4,28 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:async';
 
+import 'assistant_step_by_step/build_circuit_map.dart';
 import '../ui/widgets/mapbox_web_view.dart';
+import '../services/mapbox_token_service.dart';
+import '../ui/widgets/mapbox_token_dialog.dart';
 
 /// Assistant step-by-step pour la création de circuit
-const _mapboxToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+const _mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+const _legacyMapboxToken = String.fromEnvironment('MAPBOX_TOKEN');
+
+String get _effectiveMapboxToken =>
+  _mapboxAccessToken.isNotEmpty
+    ? _mapboxAccessToken
+    : (_legacyMapboxToken.isNotEmpty
+        ? _legacyMapboxToken
+        : MapboxTokenService.cachedToken);
+
+String get _mapboxTokenSource =>
+  _mapboxAccessToken.isNotEmpty
+    ? 'dart-define MAPBOX_ACCESS_TOKEN'
+    : (_legacyMapboxToken.isNotEmpty
+        ? 'dart-define MAPBOX_TOKEN (legacy)'
+        : MapboxTokenService.cachedSource);
 
 class CreateCircuitAssistantPage extends StatefulWidget {
   const CreateCircuitAssistantPage({super.key});
@@ -31,6 +49,19 @@ class _CreateCircuitAssistantPageState
     super.initState();
     _loadDraft();
     _startAutoSave();
+    _warmUpMapboxToken();
+  }
+
+  Future<void> _warmUpMapboxToken() async {
+    try {
+      await MapboxTokenService.warmUp();
+      if (!mounted) return;
+      setState(() {
+        // force rebuild pour que les étapes voient le cache
+      });
+    } catch (_) {
+      // ignore
+    }
   }
 
   @override
@@ -241,7 +272,7 @@ class _CreateCircuitAssistantPageState
               onPressed: () => Navigator.pop(context),
               child: const Text('Annuler'),
             ),
-            ElevatedButton(
+            FilledButton(
               onPressed: () {
                 final value = controller.text.trim();
                 if (value.isEmpty) {
@@ -693,127 +724,62 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                 border: Border.all(color: Colors.grey[400]!),
               ),
               clipBehavior: Clip.hardEdge,
-              child: kIsWeb && _mapboxToken.isNotEmpty
-                  ? MapboxWebView(
-                      accessToken: _mapboxToken,
-                      initialLat: 16.242,
-                      initialLng: -61.534,
-                      initialZoom: 12.5,
-                      styleUrl: 'mapbox://styles/mapbox/streets-v12',
-                      onTapLngLat: _isValidated
-                          ? null
-                          : (p) {
-                              _addPoint(p.lat, p.lng);
-                            },
+              child: _effectiveMapboxToken.isNotEmpty
+                  ? buildCircuitMap(
+                      mapboxToken: _effectiveMapboxToken,
+                      perimeter: _polygonPoints
+                          .map(
+                            (p) => (lng: p['lng'] ?? 0.0, lat: p['lat'] ?? 0.0),
+                          )
+                          .toList(),
+                      route: const [],
+                      segments: const [],
+                      locked: _isValidated,
+                      onTap: (p) {
+                        if (_isValidated) return;
+                        _addPoint(p.lat, p.lng);
+                      },
                     )
                   : Center(
-                      child: Text(
-                        'Mapbox nécessite MAPBOX_ACCESS_TOKEN',
-                        style: TextStyle(color: Colors.grey[600]),
-                        textAlign: TextAlign.center,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Mapbox nécessite MAPBOX_ACCESS_TOKEN (ou MAPBOX_TOKEN legacy)',
+                              style: TextStyle(color: Colors.grey[600]),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Source: $_mapboxTokenSource',
+                              style: TextStyle(color: Colors.grey[600]),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 12),
+                            FilledButton.icon(
+                              onPressed: () async {
+                                final newToken = await MapboxTokenDialog.show(
+                                  context,
+                                  initialValue: _effectiveMapboxToken,
+                                );
+                                if (newToken == null) return;
+                                await MapboxTokenService.warmUp();
+                                if (!mounted) return;
+                                setState(() {
+                                  // rebuild après config token
+                                });
+                              },
+                              icon: const Icon(Icons.vpn_key),
+                              label: const Text('Configurer le token'),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
             ),
-
-            // Overlay pour capturer les clics (sauf si Mapbox est actif et détection native)
-            if (!kIsWeb || _mapboxToken.isEmpty)
-              Positioned.fill(
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _isValidated
-                        ? null
-                        : () {
-                            _addPoint(
-                              16.0 + _polygonPoints.length * 0.01,
-                              -61.0 + _polygonPoints.length * 0.01,
-                            );
-                          },
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.touch_app,
-                            size: 48,
-                            color: Colors.white.withOpacity(0.8),
-                          ),
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.45),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              _isValidated
-                                  ? 'Périmètre validé'
-                                  : 'Clique sur la carte pour ajouter des points',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          if (_polygonPoints.isNotEmpty) ...[
-                            const SizedBox(height: 10),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.4),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                '${_polygonPoints.length} points placés',
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ),
-                          ],
-                          if (_isValidated) ...[
-                            const SizedBox(height: 16),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.green.shade600.withOpacity(0.9),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: const [
-                                  Icon(
-                                    Icons.check_circle,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Périmètre verrouillé',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              )
-            else if (!_isValidated)
+            if (_effectiveMapboxToken.isNotEmpty && !_isValidated)
               // Overlay instructions pour Mapbox (Web avec token)
               Positioned(
                 top: 16,
@@ -853,7 +819,7 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                   ),
                 ),
               )
-            else
+            else if (_effectiveMapboxToken.isNotEmpty)
               // Validated state for Mapbox
               Positioned(
                 top: 16,
@@ -7187,7 +7153,7 @@ class _MapPreviewWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final useMapbox = kIsWeb && _mapboxToken.isNotEmpty;
+    final useMapbox = kIsWeb && _effectiveMapboxToken.isNotEmpty;
 
     return Container(
       height: 660,
@@ -7215,7 +7181,7 @@ class _MapPreviewWidget extends StatelessWidget {
           children: [
             if (useMapbox)
               MapboxWebView(
-                accessToken: _mapboxToken,
+                accessToken: _effectiveMapboxToken,
                 initialLat: (polygonPoints?.isNotEmpty ?? false)
                     ? polygonPoints!.first['lat'] ?? 16.241
                     : 16.241,

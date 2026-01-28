@@ -17,9 +17,34 @@
       "problemMatcher": []
     },
     {
+      "label": "MASLIVE: Flutter build web (verbose)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && flutter build web --release -v",
+      "problemMatcher": [],
+      "isBackground": false
+    },
+    {
       "label": "MASLIVE: Firebase deploy",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE && firebase deploy --only firestore:rules,functions",
+      "command": "cd /workspaces/MASLIVE && firebase deploy --only firestore:rules,storage,functions",
+      "problemMatcher": []
+    },
+    {
+      "label": "MASLIVE: Deploy Storage Rules",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && firebase deploy --only storage",
+      "problemMatcher": []
+    },
+    {
+      "label": "MASLIVE: Promote admin (s-stephane@live.fr)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/functions && node ../scripts/create_admin.js s-stephane@live.fr admin",
+      "problemMatcher": []
+    },
+    {
+      "label": "MASLIVE: Promote superAdmin (s-stephane@live.fr)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/functions && node ../scripts/create_admin.js s-stephane@live.fr superAdmin",
       "problemMatcher": []
     },
     {
@@ -31,14 +56,14 @@
     {
       "label": "MASLIVE: Build Web & Deploy Hosting",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE/app && flutter build web --release && cd .. && firebase deploy --only hosting",
+      "command": "cd /workspaces/MASLIVE/app && flutter pub get && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -n \"$TOKEN\" ]; then flutter build web --release --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\"; else flutter build web --release; fi && cd .. && firebase deploy --only hosting",
       "problemMatcher": [],
       "isBackground": false
     },
     {
       "label": "MASLIVE: Déployer Hosting (1 clic)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE/app && flutter pub get && flutter build web --release && cd .. && firebase deploy --only hosting",
+      "command": "cd /workspaces/MASLIVE/app && flutter pub get && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -n \"$TOKEN\" ]; then flutter build web --release --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\"; else flutter build web --release; fi && cd .. && firebase deploy --only hosting",
       "problemMatcher": [],
       "isBackground": false,
       "group": {
@@ -68,6 +93,21 @@
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy",
       "type": "shell",
       "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat: amélioration shop (stock, assets, admin commerce)\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "group": {
+        "kind": "build"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (Token Mapbox)",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/git_commit_push_build_deploy.sh",
       "problemMatcher": [],
       "isBackground": false,
       "group": {

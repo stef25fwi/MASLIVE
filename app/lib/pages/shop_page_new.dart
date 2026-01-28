@@ -1,20 +1,39 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'cart_page.dart';
 import 'media_shop_wrapper.dart';
+import 'product_detail_page.dart';
+import '../models/group_product.dart';
+import '../services/cart_service.dart';
+import '../shop/widgets/product_tile.dart';
 
 class ShopPixelPerfectPage extends StatefulWidget {
-  const ShopPixelPerfectPage({super.key});
+  const ShopPixelPerfectPage({super.key, this.shopId});
+
+  /// Optionnel: si fourni, filtre les articles de ce shop.
+  final String? shopId;
 
   @override
   State<ShopPixelPerfectPage> createState() => _ShopPixelPerfectPageState();
 }
 
 class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
+  bool _listEquals(List<String> a, List<String> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
   int catIndex = 0;
   String selectedGroup = "Tous les groupes";
+
+  static const String _allGroupsLabel = 'Tous les groupes';
 
   static const _bg = Color(0xFFF6F7FB);
 
@@ -31,24 +50,175 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
   static const double _addSize = 44;
   static const double _addRadius = 16;
 
-  final cats = const ["Tous", "T-shirts", "Casquettes", "Stickers"];
-  final groups = const ["Tous les groupes", "Akiyo", "Kassav", "MasK"];
+  // Fallback (aligné avec l'admin) si Firestore ne renvoie rien.
+  static const _fallbackCats = <String>[
+    "Tous",
+    "Vêtements",
+    "Accessoires",
+    "Nourriture",
+    "Boissons",
+    "Souvenirs",
+    "Artisanat",
+    "Autre",
+  ];
 
-  void _openArticle(String title, String price) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Article: $title - $price'),
-        duration: const Duration(seconds: 2),
+  List<String> _cats = _fallbackCats;
+
+  // Groupes (si le champ Firestore `groupId` est renseigné)
+  static const _fallbackGroups = <String>[
+    _allGroupsLabel,
+    'Akiyo',
+    'Kassav',
+    'MasK',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    CartService.instance.start();
+  }
+
+  Query<Map<String, dynamic>> _buildProductsQuery() {
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+        .collectionGroup('products')
+        .where('isActive', isEqualTo: true)
+        .where('moderationStatus', isEqualTo: 'approved');
+
+    final selectedCat = _cats[catIndex.clamp(0, _cats.length - 1)];
+    if (selectedCat != 'Tous') {
+      query = query.where('category', isEqualTo: selectedCat);
+    }
+
+    if (widget.shopId != null && widget.shopId!.trim().isNotEmpty) {
+      query = query.where('shopId', isEqualTo: widget.shopId);
+    }
+
+    if (selectedGroup != _allGroupsLabel) {
+      query = query.where('groupId', isEqualTo: selectedGroup);
+    }
+
+    return query.orderBy('updatedAt', descending: true).limit(60);
+  }
+
+  Query<Map<String, dynamic>> _buildCategoriesQuery() {
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+        .collectionGroup('products')
+        .where('isActive', isEqualTo: true)
+        .where('moderationStatus', isEqualTo: 'approved');
+
+    if (widget.shopId != null && widget.shopId!.trim().isNotEmpty) {
+      query = query.where('shopId', isEqualTo: widget.shopId);
+    }
+
+    if (selectedGroup != _allGroupsLabel) {
+      query = query.where('groupId', isEqualTo: selectedGroup);
+    }
+
+    return query.orderBy('updatedAt', descending: true).limit(200);
+  }
+
+  List<String> _extractCategories(
+    Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    final set = <String>{};
+    for (final d in docs) {
+      final raw = d.data()['category'];
+      final c = (raw is String) ? raw.trim() : '';
+      if (c.isNotEmpty) set.add(c);
+    }
+    final cats = set.toList()..sort();
+    return ['Tous', ...cats];
+  }
+
+  Query<Map<String, dynamic>> _buildGroupsQuery() {
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+        .collectionGroup('products')
+        .where('isActive', isEqualTo: true)
+        .where('moderationStatus', isEqualTo: 'approved');
+
+    // Les groupes proposés doivent rester cohérents avec le shop sélectionné.
+    if (widget.shopId != null && widget.shopId!.trim().isNotEmpty) {
+      query = query.where('shopId', isEqualTo: widget.shopId);
+    }
+
+    // On lit un échantillon récent et on déduplique.
+    return query.orderBy('updatedAt', descending: true).limit(200);
+  }
+
+  List<String> _extractGroups(
+    Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    final set = <String>{};
+    for (final d in docs) {
+      final raw = d.data()['groupId'];
+      final g = (raw is String) ? raw.trim() : '';
+      if (g.isNotEmpty) set.add(g);
+    }
+    final groups = set.toList()..sort();
+    return [_allGroupsLabel, ...groups];
+  }
+
+  String _effectiveGroupId() {
+    return selectedGroup == _allGroupsLabel ? 'all' : selectedGroup;
+  }
+
+  GroupProduct _demoProduct({
+    required String id,
+    required String title,
+    required int priceCents,
+    required String category,
+    String? imagePath,
+  }) {
+    return GroupProduct(
+      id: id,
+      title: title.replaceAll('\n', ' '),
+      priceCents: priceCents,
+      imageUrl: '',
+      imagePath: imagePath,
+      category: category,
+      isActive: true,
+      moderationStatus: 'approved',
+      stockByVariant: const {'default|default': 999},
+      availableSizes: const ['Unique'],
+      availableColors: const ['Default'],
+    );
+  }
+
+  void _openProductDetail(GroupProduct product) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProductDetailPage(
+          groupId: _effectiveGroupId(),
+          product: product,
+          heroTag: 'product-${product.id}',
+        ),
       ),
     );
   }
 
-  void _addToCart(String title, String price) {
+  void _addProductToCart(GroupProduct product) {
+    final size = product.sizes.isNotEmpty ? product.sizes.first : 'Unique';
+    final color = product.colors.isNotEmpty ? product.colors.first : 'Default';
+
+    CartService.instance.addProduct(
+      groupId: _effectiveGroupId(),
+      product: product,
+      size: size,
+      color: color,
+      quantity: 1,
+    );
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$title ajouté au panier'),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 2),
+        content: Text('${product.title} ajouté au panier'),
+        action: SnackBarAction(
+          label: 'Voir',
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CartPage()),
+          ),
+        ),
       ),
     );
   }
@@ -89,13 +259,54 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
               pinned: true,
               delegate: _PinnedDelegate(
                 height: _filtersPinnedH,
-                child: _FiltersBar(
-                  cats: cats,
-                  selectedIndex: catIndex,
-                  onCatChanged: (i) => setState(() => catIndex = i),
-                  groups: groups,
-                  selectedGroup: selectedGroup,
-                  onGroupChanged: (v) => setState(() => selectedGroup = v),
+                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: _buildGroupsQuery().snapshots(),
+                  builder: (context, snap) {
+                    final dynamicGroups = (snap.hasData)
+                        ? _extractGroups(snap.data!.docs)
+                        : _fallbackGroups;
+
+                    // Si l'utilisateur avait un groupe sélectionné qui n'existe plus,
+                    // on revient à "Tous les groupes".
+                    if (!dynamicGroups.contains(selectedGroup)) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (!mounted) return;
+                        setState(() => selectedGroup = _allGroupsLabel);
+                      });
+                    }
+
+                    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: _buildCategoriesQuery().snapshots(),
+                      builder: (context, catSnap) {
+                        final dynamicCats = (catSnap.hasData)
+                            ? _extractCategories(catSnap.data!.docs)
+                            : _fallbackCats;
+
+                        if (!_listEquals(dynamicCats, _cats)) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (!mounted) return;
+                            setState(() {
+                              _cats = dynamicCats;
+                              if (catIndex >= _cats.length) catIndex = 0;
+                            });
+                          });
+                        }
+
+                        return _FiltersBar(
+                          cats: _cats,
+                          selectedIndex: catIndex,
+                          onCatChanged: (i) => setState(() => catIndex = i),
+                          groups: dynamicGroups,
+                          selectedGroup: selectedGroup,
+                          onGroupChanged: (v) => setState(() {
+                            selectedGroup = v;
+                            // Quand on change de groupe, on revient sur Tous côté catégories.
+                            catIndex = 0;
+                          }),
+                        );
+                      },
+                    );
+                  },
                 ),
               ),
             ),
@@ -121,8 +332,9 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) =>
-                                      const MediaShopWrapper(groupId: 'all'),
+                                  builder: (_) => MediaShopWrapper(
+                                    groupId: _effectiveGroupId(),
+                                  ),
                                 ),
                               );
                             },
@@ -139,10 +351,24 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                               assetPath: "assets/shop/casquette.jpg",
                               fallbackIcon: Icons.checkroom_outlined,
                             ),
-                            onAdd: () =>
-                                _addToCart("Casquette MASLIVE", "25,00 €"),
-                            onTap: () =>
-                                _openArticle("Casquette MASLIVE", "25,00 €"),
+                            onAdd: () => _addProductToCart(
+                              _demoProduct(
+                                id: 'demo-casquette',
+                                title: 'Casquette MASLIVE',
+                                priceCents: 2500,
+                                category: 'Accessoires',
+                                imagePath: 'assets/shop/casquette.jpg',
+                              ),
+                            ),
+                            onTap: () => _openProductDetail(
+                              _demoProduct(
+                                id: 'demo-casquette',
+                                title: 'Casquette MASLIVE',
+                                priceCents: 2500,
+                                category: 'Accessoires',
+                                imagePath: 'assets/shop/casquette.jpg',
+                              ),
+                            ),
                             compact: false,
                           ),
                         ),
@@ -161,10 +387,24 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                               assetPath: "assets/shop/tshirt.jpg",
                               fallbackIcon: Icons.checkroom_outlined,
                             ),
-                            onAdd: () =>
-                                _addToCart("T-shirt MASLIVE", "25,00 €"),
-                            onTap: () =>
-                                _openArticle("T-shirt MASLIVE", "25,00 €"),
+                            onAdd: () => _addProductToCart(
+                              _demoProduct(
+                                id: 'demo-tshirt',
+                                title: 'T-shirt MASLIVE',
+                                priceCents: 2500,
+                                category: 'Vêtements',
+                                imagePath: 'assets/shop/tshirt.jpg',
+                              ),
+                            ),
+                            onTap: () => _openProductDetail(
+                              _demoProduct(
+                                id: 'demo-tshirt',
+                                title: 'T-shirt MASLIVE',
+                                priceCents: 2500,
+                                category: 'Vêtements',
+                                imagePath: 'assets/shop/tshirt.jpg',
+                              ),
+                            ),
                             compact: false,
                           ),
                         ),
@@ -179,10 +419,24 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                               assetPath: "assets/shop/porte_cle.jpg",
                               fallbackIcon: Icons.key_outlined,
                             ),
-                            onAdd: () =>
-                                _addToCart("Porte-clé MASLIVE", "8,00 €"),
-                            onTap: () =>
-                                _openArticle("Porte-clé MASLIVE", "8,00 €"),
+                            onAdd: () => _addProductToCart(
+                              _demoProduct(
+                                id: 'demo-porte-cle',
+                                title: 'Porte-clé MASLIVE',
+                                priceCents: 800,
+                                category: 'Accessoires',
+                                imagePath: 'assets/shop/porte_cle.jpg',
+                              ),
+                            ),
+                            onTap: () => _openProductDetail(
+                              _demoProduct(
+                                id: 'demo-porte-cle',
+                                title: 'Porte-clé MASLIVE',
+                                priceCents: 800,
+                                category: 'Accessoires',
+                                imagePath: 'assets/shop/porte_cle.jpg',
+                              ),
+                            ),
                             compact: false,
                           ),
                         ),
@@ -201,10 +455,24 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                               assetPath: "assets/shop/bandana.jpg",
                               fallbackIcon: Icons.auto_awesome_outlined,
                             ),
-                            onAdd: () =>
-                                _addToCart("Bandana MASLIVE", "20,00 €"),
-                            onTap: () =>
-                                _openArticle("Bandana MASLIVE", "20,00 €"),
+                            onAdd: () => _addProductToCart(
+                              _demoProduct(
+                                id: 'demo-bandana-1',
+                                title: 'Bandana MASLIVE',
+                                priceCents: 2000,
+                                category: 'Accessoires',
+                                imagePath: 'assets/shop/bandana.jpg',
+                              ),
+                            ),
+                            onTap: () => _openProductDetail(
+                              _demoProduct(
+                                id: 'demo-bandana-1',
+                                title: 'Bandana MASLIVE',
+                                priceCents: 2000,
+                                category: 'Accessoires',
+                                imagePath: 'assets/shop/bandana.jpg',
+                              ),
+                            ),
                             compact: true,
                           ),
                         ),
@@ -219,10 +487,24 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                               assetPath: "assets/shop/bandana2.jpg",
                               fallbackIcon: Icons.auto_awesome_outlined,
                             ),
-                            onAdd: () =>
-                                _addToCart("Bandana MASLIVE", "10,00 €"),
-                            onTap: () =>
-                                _openArticle("Bandana MASLIVE", "10,00 €"),
+                            onAdd: () => _addProductToCart(
+                              _demoProduct(
+                                id: 'demo-bandana-2',
+                                title: 'Bandana MASLIVE',
+                                priceCents: 1000,
+                                category: 'Accessoires',
+                                imagePath: 'assets/shop/bandana2.jpg',
+                              ),
+                            ),
+                            onTap: () => _openProductDetail(
+                              _demoProduct(
+                                id: 'demo-bandana-2',
+                                title: 'Bandana MASLIVE',
+                                priceCents: 1000,
+                                category: 'Accessoires',
+                                imagePath: 'assets/shop/bandana2.jpg',
+                              ),
+                            ),
                             compact: true,
                           ),
                         ),
@@ -247,11 +529,177 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
               ),
             ),
 
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(_pageHPad, 0, _pageHPad, 18),
-                child: const _EmptyStateCard(),
-              ),
+            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: _buildProductsQuery().snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(_pageHPad, 0, _pageHPad, 18),
+                      child: Center(
+                        child: SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: CircularProgressIndicator(strokeWidth: 3),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        _pageHPad,
+                        0,
+                        _pageHPad,
+                        18,
+                      ),
+                      child: const _EmptyStateCard(
+                        title: "Impossible de charger les articles",
+                        subtitle:
+                            "Vérifie la connexion et les règles Firestore.",
+                      ),
+                    ),
+                  );
+                }
+
+                final docs = snapshot.data?.docs ?? const [];
+                if (docs.isEmpty) {
+                  return SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        _pageHPad,
+                        0,
+                        _pageHPad,
+                        18,
+                      ),
+                      child: const _EmptyStateCard(
+                        title: "Aucun article pour l'instant",
+                        subtitle:
+                            "Ajoute des produits via Admin → Commerce → Produits (isActive + approved).",
+                      ),
+                    ),
+                  );
+                }
+
+                final products = docs
+                    .map((d) => GroupProduct.fromMap(d.id, d.data()))
+                    .toList(growable: false);
+
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    _pageHPad,
+                    0,
+                    _pageHPad,
+                    18,
+                  ),
+                  sliver: SliverGrid(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: _gridGap,
+                          crossAxisSpacing: _gridGap,
+                          childAspectRatio: 0.78,
+                        ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final product = products[index];
+                      final raw = docs[index].data();
+                      final groupId =
+                          ((raw['groupId'] as String?)?.trim().isNotEmpty ==
+                              true)
+                          ? (raw['groupId'] as String)
+                          : 'all';
+
+                      final hasStock =
+                          product.stockByVariant?.values.any(
+                            (qty) => qty > 0,
+                          ) ??
+                          false;
+
+                      final options = <String>[];
+                      if (product.sizes.isNotEmpty) {
+                        options.add(
+                          product.sizes.length == 1
+                              ? product.sizes.first
+                              : '${product.sizes.first}-${product.sizes.last}',
+                        );
+                      }
+                      if (product.colors.isNotEmpty) {
+                        options.add(
+                          product.colors.length == 1
+                              ? product.colors.first
+                              : '${product.colors.first}/${product.colors.last}',
+                        );
+                      }
+
+                      final tileData = ProductTileData(
+                        title: product.title,
+                        subtitle: product.category.isNotEmpty
+                            ? product.category
+                            : 'Article',
+                        price: product.priceCents / 100.0,
+                        currency: '€',
+                        imageUrl: product.imageUrl,
+                        isAvailable: product.isActive && hasStock,
+                        stockLabel: hasStock ? 'En stock' : 'Rupture',
+                        badges: [
+                          if (product.category.isNotEmpty) product.category,
+                        ],
+                        options: options,
+                      );
+
+                      return ProductTile(
+                        data: tileData,
+                        heroTag: 'product-${product.id}',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ProductDetailPage(
+                              groupId: groupId,
+                              product: product,
+                              heroTag: 'product-${product.id}',
+                            ),
+                          ),
+                        ),
+                        onAdd: () {
+                          final size = product.sizes.isNotEmpty
+                              ? product.sizes.first
+                              : 'Unique';
+                          final color = product.colors.isNotEmpty
+                              ? product.colors.first
+                              : 'Default';
+
+                          CartService.instance.addProduct(
+                            groupId: groupId,
+                            product: product,
+                            size: size,
+                            color: color,
+                            quantity: 1,
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                '${product.title} ajouté au panier',
+                              ),
+                              action: SnackBarAction(
+                                label: 'Voir',
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const CartPage(),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    }, childCount: products.length),
+                  ),
+                );
+              },
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
@@ -331,10 +779,10 @@ class _Header extends StatelessWidget {
                             vertical: 12,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.18),
+                            color: Colors.white.withValues(alpha: 0.18),
                             borderRadius: BorderRadius.circular(18),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.22),
+                              color: Colors.white.withValues(alpha: 0.22),
                             ),
                           ),
                           child: const Text(
@@ -368,7 +816,7 @@ class _CartButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withOpacity(0.16),
+      color: Colors.white.withValues(alpha: 0.16),
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: onTap,
@@ -379,7 +827,7 @@ class _CartButton extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: Colors.white.withOpacity(0.22)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
           ),
           child: const Icon(
             Icons.shopping_bag_outlined,
@@ -399,7 +847,7 @@ class _BackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withOpacity(0.16),
+      color: Colors.white.withValues(alpha: 0.16),
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: onTap,
@@ -410,7 +858,7 @@ class _BackButton extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: Colors.white.withOpacity(0.22)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
           ),
           child: const Icon(
             Icons.arrow_back_ios_new_rounded,
@@ -476,20 +924,21 @@ class _FiltersBar extends StatelessWidget {
         children: [
           SizedBox(
             height: chipsH,
-            child: Row(
-              children: [
-                _SelectedChip(
-                  label: cats[0],
-                  selected: selectedIndex == 0,
-                  onTap: () => onCatChanged(0),
-                ),
-                const SizedBox(width: 18),
-                _TabText(label: cats[1], onTap: () => onCatChanged(1)),
-                const SizedBox(width: 18),
-                _TabText(label: cats[2], onTap: () => onCatChanged(2)),
-                const SizedBox(width: 18),
-                _TabText(label: cats[3], onTap: () => onCatChanged(3)),
-              ],
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: [
+                  for (int i = 0; i < cats.length; i++) ...[
+                    _SelectedChip(
+                      label: cats[i],
+                      selected: selectedIndex == i,
+                      onTap: () => onCatChanged(i),
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -536,7 +985,7 @@ class _SelectedChip extends StatelessWidget {
           borderRadius: BorderRadius.circular(999),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 14,
               offset: const Offset(0, 8),
             ),
@@ -549,27 +998,6 @@ class _SelectedChip extends StatelessWidget {
             fontSize: 18,
             color: Color(0xFF111827),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TabText extends StatelessWidget {
-  const _TabText({required this.label, required this.onTap});
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w800,
-          color: Color(0xFF111827),
         ),
       ),
     );
@@ -597,7 +1025,7 @@ class _GroupDropdown extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 16,
               offset: const Offset(0, 10),
             ),
@@ -647,7 +1075,7 @@ class _BaseCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 22,
             offset: const Offset(0, 14),
           ),
@@ -701,7 +1129,7 @@ class _PhotoTile extends StatelessWidget {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.22),
+                        color: Colors.white.withValues(alpha: 0.22),
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
@@ -724,7 +1152,7 @@ class _PhotoTile extends StatelessWidget {
                           Text(
                             subtitle,
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.92),
+                              color: Colors.white.withValues(alpha: 0.92),
                               fontWeight: FontWeight.w800,
                               fontSize: 16,
                             ),
@@ -860,7 +1288,7 @@ class _AddButton extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.16),
+              color: Colors.black.withValues(alpha: 0.16),
               blurRadius: 16,
               offset: const Offset(0, 10),
             ),
@@ -874,7 +1302,13 @@ class _AddButton extends StatelessWidget {
 
 /// -------------------- EMPTY STATE --------------------
 class _EmptyStateCard extends StatelessWidget {
-  const _EmptyStateCard();
+  const _EmptyStateCard({
+    this.title = "Aucun produit disponible",
+    this.subtitle = "Reviens plus tard ou change de catégorie.",
+  });
+
+  final String title;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -887,18 +1321,18 @@ class _EmptyStateCard extends StatelessWidget {
               width: 76,
               height: 76,
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(22),
               ),
               child: Icon(
                 Icons.shopping_bag_outlined,
                 size: 42,
-                color: Colors.black.withOpacity(0.35),
+                color: Colors.black.withValues(alpha: 0.35),
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              "Aucun produit disponible",
+            Text(
+              title,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 20,
@@ -908,12 +1342,12 @@ class _EmptyStateCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              "Reviens plus tard ou change de catégorie.",
+              subtitle,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: Colors.black.withOpacity(0.55),
+                color: Colors.black.withValues(alpha: 0.55),
               ),
             ),
           ],
@@ -945,12 +1379,12 @@ class _AssetOrFallback extends StatelessWidget {
       child: Image.asset(
         assetPath,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) {
+        errorBuilder: (context, error, stackTrace) {
           return Center(
             child: Icon(
               fallbackIcon,
               size: 34,
-              color: Colors.black.withOpacity(0.35),
+              color: Colors.black.withValues(alpha: 0.35),
             ),
           );
         },

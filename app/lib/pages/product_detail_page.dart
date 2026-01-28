@@ -8,11 +8,13 @@ import '../widgets/rainbow_header.dart';
 class ProductDetailPage extends StatefulWidget {
   final String groupId;
   final GroupProduct product;
+  final String? heroTag;
 
   const ProductDetailPage({
     super.key,
     required this.groupId,
     required this.product,
+    this.heroTag,
   });
 
   @override
@@ -24,14 +26,27 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   String color = 'Noir';
   int quantity = 1; // Nouvelle variable pour la quantité
 
+  final PageController _galleryController = PageController();
+  int _galleryIndex = 0;
+
   static const _bg = Color(0xFFF4F5F8);
 
   @override
   void initState() {
     super.initState();
     // Initialiser avec les valeurs par défaut du produit
-    size = widget.product.sizes.first;
-    color = widget.product.colors.first;
+    size = widget.product.sizes.isNotEmpty
+        ? widget.product.sizes.first
+        : 'Unique';
+    color = widget.product.colors.isNotEmpty
+        ? widget.product.colors.first
+        : 'Default';
+  }
+
+  @override
+  void dispose() {
+    _galleryController.dispose();
+    super.dispose();
   }
 
   Widget _productImageGallery(GroupProduct p) {
@@ -40,10 +55,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       return Image.asset(
         p.imagePath!,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Image.asset(
-          'assets/splash/maslivesmall.png',
-          fit: BoxFit.cover,
-        ),
+        errorBuilder: (context, error, stackTrace) =>
+            Image.asset('assets/splash/maslivesmall.png', fit: BoxFit.cover),
       );
     }
 
@@ -54,35 +67,86 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     ];
 
     if (urls.isEmpty) {
-      return Image.asset(
-        'assets/splash/maslivesmall.png',
-        fit: BoxFit.cover,
-      );
+      return Image.asset('assets/splash/maslivesmall.png', fit: BoxFit.cover);
     }
 
     if (urls.length == 1) {
-      return Image.network(
-        urls.first,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Image.asset(
-          'assets/splash/maslivesmall.png',
+      final u = urls.first;
+      if (u.startsWith('assets/')) {
+        return Image.asset(
+          u,
           fit: BoxFit.cover,
-        ),
+          errorBuilder: (context, error, stackTrace) =>
+              Image.asset('assets/splash/maslivesmall.png', fit: BoxFit.cover),
+        );
+      }
+      return Image.network(
+        u,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            Image.asset('assets/splash/maslivesmall.png', fit: BoxFit.cover),
       );
     }
 
-    return PageView.builder(
-      itemCount: urls.length,
-      itemBuilder: (context, i) {
-        return Image.network(
-          urls[i],
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => Image.asset(
-            'assets/splash/maslivesmall.png',
-            fit: BoxFit.cover,
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        PageView.builder(
+          controller: _galleryController,
+          itemCount: urls.length,
+          onPageChanged: (i) => setState(() => _galleryIndex = i),
+          itemBuilder: (context, i) {
+            final u = urls[i];
+            if (u.startsWith('assets/')) {
+              return Image.asset(
+                u,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Image.asset(
+                  'assets/splash/maslivesmall.png',
+                  fit: BoxFit.cover,
+                ),
+              );
+            }
+            return Image.network(
+              u,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Image.asset(
+                'assets/splash/maslivesmall.png',
+                fit: BoxFit.cover,
+              ),
+            );
+          },
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 10,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(urls.length, (i) {
+              final selected = i == _galleryIndex;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: selected ? 18 : 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? Colors.white.withValues(alpha: 0.95)
+                      : Colors.white.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      blurRadius: 8,
+                      color: Colors.black.withValues(alpha: 0.20),
+                    ),
+                  ],
+                ),
+              );
+            }),
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 
@@ -126,7 +190,12 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         borderRadius: BorderRadius.circular(18),
                         child: AspectRatio(
                           aspectRatio: 1.08,
-                          child: _productImageGallery(p),
+                          child: widget.heroTag == null
+                              ? _productImageGallery(p)
+                              : Hero(
+                                  tag: widget.heroTag!,
+                                  child: _productImageGallery(p),
+                                ),
                         ),
                       ),
                     ),
@@ -333,45 +402,53 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           ),
           const SizedBox(width: 12),
           _gradientButton(
-            text: p.stockFor(size, color) > 0 ? 'Ajouter ($quantity)' : 'Indisponible',
-            onTap: p.stockFor(size, color) > 0 ? () {
-              if (quantity > p.stockFor(size, color)) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('❌ Quantité indisponible'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                return;
-              }
-
-              CartService.instance.addProduct(
-                groupId: widget.groupId,
-                product: p,
-                size: size,
-                color: color,
-                quantity: quantity, // Utiliser la quantité sélectionnée
-              );
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('✅ Ajouté: $quantity x ${p.title} ($size, $color)'),
-                  backgroundColor: const Color(0xFF0F766E),
-                  action: SnackBarAction(
-                    label: 'Panier',
-                    textColor: Colors.white,
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const CartPage()),
+            text: p.stockFor(size, color) > 0
+                ? 'Ajouter ($quantity)'
+                : 'Indisponible',
+            onTap: p.stockFor(size, color) > 0
+                ? () {
+                    if (quantity > p.stockFor(size, color)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('❌ Quantité indisponible'),
+                          backgroundColor: Colors.red,
+                        ),
                       );
-                    },
-                  ),
-                ),
-              );
-              
-              // Reset quantité après ajout
-              setState(() => quantity = 1);
-            } : null,
+                      return;
+                    }
+
+                    CartService.instance.addProduct(
+                      groupId: widget.groupId,
+                      product: p,
+                      size: size,
+                      color: color,
+                      quantity: quantity, // Utiliser la quantité sélectionnée
+                    );
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          '✅ Ajouté: $quantity x ${p.title} ($size, $color)',
+                        ),
+                        backgroundColor: const Color(0xFF0F766E),
+                        action: SnackBarAction(
+                          label: 'Panier',
+                          textColor: Colors.white,
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const CartPage(),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    );
+
+                    // Reset quantité après ajout
+                    setState(() => quantity = 1);
+                  }
+                : null,
           ),
         ],
       ),
@@ -424,7 +501,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 borderRadius: BorderRadius.circular(22),
                 onTap: () => onPick(c),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: on ? Colors.white : const Color(0xFFF0F2F6),
                     borderRadius: BorderRadius.circular(22),
@@ -434,7 +514,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                               blurRadius: 12,
                               offset: const Offset(0, 8),
                               color: Colors.black.withValues(alpha: 0.08),
-                            )
+                            ),
                           ]
                         : null,
                   ),
@@ -442,7 +522,9 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     c,
                     style: TextStyle(
                       fontWeight: FontWeight.w900,
-                      color: on ? const Color(0xFF1A73E8) : Colors.black.withValues(alpha: 0.60),
+                      color: on
+                          ? const Color(0xFF1A73E8)
+                          : Colors.black.withValues(alpha: 0.60),
                     ),
                   ),
                 ),
@@ -474,10 +556,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   ],
                 )
               : LinearGradient(
-                  colors: [
-                    Colors.grey.shade300,
-                    Colors.grey.shade400,
-                  ],
+                  colors: [Colors.grey.shade300, Colors.grey.shade400],
                 ),
           boxShadow: enabled
               ? [
@@ -512,7 +591,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(10),
-          child: Icon(icon, size: 22, color: Colors.black.withValues(alpha: 0.75)),
+          child: Icon(
+            icon,
+            size: 22,
+            color: Colors.black.withValues(alpha: 0.75),
+          ),
         ),
       ),
     );
@@ -604,7 +687,9 @@ class _QtyBtn extends StatelessWidget {
         width: 42,
         height: 42,
         decoration: BoxDecoration(
-          color: onTap == null ? Colors.black.withValues(alpha: 0.04) : Colors.white,
+          color: onTap == null
+              ? Colors.black.withValues(alpha: 0.04)
+              : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
         ),

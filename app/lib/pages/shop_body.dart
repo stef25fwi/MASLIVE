@@ -3,8 +3,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../models/product_model.dart';
+import '../shop/widgets/product_tile.dart';
 import 'media_shop_page.dart';
 import 'product_detail_page.dart';
+import '../services/cart_service.dart';
+import 'cart_page.dart';
 
 class ShopBodyUnderHeader extends StatefulWidget {
   const ShopBodyUnderHeader({
@@ -25,6 +28,20 @@ class ShopBodyUnderHeader extends StatefulWidget {
 class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
   late int selectedChip = widget.initialChip;
 
+  static const String _allGroupsId = 'all';
+  static const String _allGroupsLabel = 'Tous les groupes';
+
+  static const _fallbackCategories = <String>[
+    'Tous',
+    'T-shirts',
+    'Casquettes',
+    'Stickers',
+  ];
+
+  List<String> _categories = _fallbackCategories;
+
+  late String _selectedGroupId = widget.groupId ?? _allGroupsId;
+
   Query<Map<String, dynamic>> _buildQuery() {
     Query<Map<String, dynamic>> q = FirebaseFirestore.instance
         .collectionGroup('products')
@@ -32,16 +49,161 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
         .where('moderationStatus', isEqualTo: 'approved');
 
     // Filter by category
-    if (widget.category != 'Tous') {
-      q = q.where('category', isEqualTo: widget.category);
+    final selectedCategory =
+        _categories[selectedChip.clamp(0, _categories.length - 1)];
+    if (selectedCategory != 'Tous') {
+      q = q.where('category', isEqualTo: selectedCategory);
     }
 
     // Filter by group
-    if (widget.groupId != null) {
-      q = q.where('groupId', isEqualTo: widget.groupId);
+    if (_selectedGroupId != _allGroupsId) {
+      q = q.where('groupId', isEqualTo: _selectedGroupId);
     }
 
     return q.orderBy('updatedAt', descending: true).limit(50);
+  }
+
+  Query<Map<String, dynamic>> _buildCategoriesQuery() {
+    Query<Map<String, dynamic>> q = FirebaseFirestore.instance
+        .collectionGroup('products')
+        .where('isActive', isEqualTo: true)
+        .where('moderationStatus', isEqualTo: 'approved');
+
+    if (_selectedGroupId != _allGroupsId) {
+      q = q.where('groupId', isEqualTo: _selectedGroupId);
+    }
+
+    return q.orderBy('updatedAt', descending: true).limit(200);
+  }
+
+  List<String> _extractCategories(
+    Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    final set = <String>{};
+    for (final d in docs) {
+      final raw = d.data()['category'];
+      final c = (raw is String) ? raw.trim() : '';
+      if (c.isNotEmpty) set.add(c);
+    }
+    final list = set.toList()..sort();
+    return ['Tous', ...list];
+  }
+
+  bool _listEquals(List<String> a, List<String> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  String _groupDropdownLabel() {
+    if (_selectedGroupId == _allGroupsId) return _allGroupsLabel;
+    return _selectedGroupId;
+  }
+
+  Future<void> _pickGroup() async {
+    // Récupère une liste de groupId réellement présents.
+    final groups = await _loadAvailableGroups();
+
+    if (!mounted) return;
+
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              for (final g in groups)
+                ListTile(
+                  title: Text(g),
+                  trailing: (g == _groupDropdownLabel())
+                      ? const Icon(Icons.check_rounded)
+                      : null,
+                  onTap: () => Navigator.pop(context, g),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (!mounted || choice == null) return;
+    setState(() {
+      _selectedGroupId = choice == _allGroupsLabel ? _allGroupsId : choice;
+    });
+  }
+
+  Future<List<String>> _loadAvailableGroups() async {
+    try {
+      Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+          .collectionGroup('products')
+          .where('isActive', isEqualTo: true)
+          .where('moderationStatus', isEqualTo: 'approved')
+          .orderBy('updatedAt', descending: true)
+          .limit(200);
+
+      // Si la page est déjà contextualisée sur un groupe, on garde une sélection cohérente
+      // mais le dropdown doit proposer tous les groupes disponibles.
+      final snap = await query.get();
+      final set = <String>{};
+      for (final d in snap.docs) {
+        final raw = d.data()['groupId'];
+        final g = (raw is String) ? raw.trim() : '';
+        if (g.isNotEmpty) set.add(g);
+      }
+
+      final list = set.toList()..sort();
+      return [_allGroupsLabel, ...list];
+    } catch (_) {
+      return const <String>[_allGroupsLabel, 'Akiyo', 'Kassav', 'MasK'];
+    }
+  }
+
+  void _addMockToCart({
+    required String id,
+    required String title,
+    required int priceCents,
+    required String category,
+    String? imagePath,
+  }) {
+    final product = GroupProduct(
+      id: id,
+      title: title.replaceAll('\n', ' '),
+      priceCents: priceCents,
+      imageUrl: '',
+      imagePath: imagePath,
+      category: category,
+      isActive: true,
+      moderationStatus: 'approved',
+      stockByVariant: const {'default|default': 999},
+      availableSizes: const ['Unique'],
+      availableColors: const ['Default'],
+    );
+
+    CartService.instance.addProduct(
+      groupId: _selectedGroupId,
+      product: product,
+      size: product.sizes.first,
+      color: product.colors.first,
+      quantity: 1,
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${product.title} ajouté au panier'),
+        action: SnackBarAction(
+          label: 'Voir',
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CartPage()),
+          ),
+        ),
+      ),
+    );
   }
 
   // Mock articles (kept for grid header display)
@@ -79,7 +241,12 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
   ];
 
   // ---------- TYPO SCALE (stable, premium) ----------
-  double _fs(BuildContext context, double base, {double min = 0.95, double max = 1.10}) {
+  double _fs(
+    BuildContext context,
+    double base, {
+    double min = 0.95,
+    double max = 1.10,
+  }) {
     final w = MediaQuery.sizeOf(context).width;
     final s = (w / 390.0).clamp(min, max);
     return base * s;
@@ -97,15 +264,35 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
       physics: const BouncingScrollPhysics(),
       slivers: [
         // CHIPS
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: _ChipsRow(
-              selected: selectedChip,
-              onChanged: (i) => setState(() => selectedChip = i),
-              fontSize: _fs(context, 16),
-            ),
-          ),
+        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: _buildCategoriesQuery().snapshots(),
+          builder: (context, snap) {
+            final dynamicCats = (snap.hasData)
+                ? _extractCategories(snap.data!.docs)
+                : _fallbackCategories;
+
+            if (!_listEquals(dynamicCats, _categories)) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                setState(() {
+                  _categories = dynamicCats;
+                  if (selectedChip >= _categories.length) selectedChip = 0;
+                });
+              });
+            }
+
+            return SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: _ChipsRow(
+                  labels: _categories,
+                  selected: selectedChip,
+                  onChanged: (i) => setState(() => selectedChip = i),
+                  fontSize: _fs(context, 16),
+                ),
+              ),
+            );
+          },
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 10)),
 
@@ -114,8 +301,8 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: _GroupDropdown(
-              label: "Tous les groupes",
-              onTap: () {},
+              label: _groupDropdownLabel(),
+              onTap: _pickGroup,
               fontSize: _fs(context, 18),
             ),
           ),
@@ -169,7 +356,13 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
                             price: "29€",
                             imageAsset: "assets/images/maslivesmall.png",
                             imageUrl: null,
-                            onAdd: () {},
+                            onAdd: () => _addMockToCart(
+                              id: 'mock-tshirt-premium',
+                              title: 'T-shirt MASLIVE Premium',
+                              priceCents: 2900,
+                              category: 'T-shirts',
+                              imagePath: 'assets/images/maslivesmall.png',
+                            ),
                             fsTitle: _fs(context, 18),
                             fsPrice: _fs(context, 18),
                           ),
@@ -188,7 +381,13 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
                             price: "24€",
                             imageAsset: "assets/images/maslivesmall.png",
                             imageUrl: null,
-                            onAdd: () {},
+                            onAdd: () => _addMockToCart(
+                              id: 'mock-casquette-pastel',
+                              title: 'Casquette Pastel',
+                              priceCents: 2400,
+                              category: 'Casquettes',
+                              imagePath: 'assets/images/maslivesmall.png',
+                            ),
                             fsTitle: _fs(context, 18),
                             fsPrice: _fs(context, 18),
                           ),
@@ -203,7 +402,13 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
                             price: "9€",
                             imageAsset: "assets/images/maslivesmall.png",
                             imageUrl: null,
-                            onAdd: () {},
+                            onAdd: () => _addMockToCart(
+                              id: 'mock-pack-stickers',
+                              title: 'Pack Stickers',
+                              priceCents: 900,
+                              category: 'Stickers',
+                              imagePath: 'assets/images/maslivesmall.png',
+                            ),
                             fsTitle: _fs(context, 18),
                             fsPrice: _fs(context, 18),
                           ),
@@ -223,11 +428,7 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           sliver: SliverToBoxAdapter(
-            child: Row(
-              children: [
-                Text("Articles", style: h1),
-              ],
-            ),
+            child: Row(children: [Text("Articles", style: h1)]),
           ),
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 10)),
@@ -255,11 +456,19 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
                   child: Center(
                     child: Column(
                       children: const [
-                        Icon(Icons.shopping_bag_outlined, size: 64, color: Colors.black26),
+                        Icon(
+                          Icons.shopping_bag_outlined,
+                          size: 64,
+                          color: Colors.black26,
+                        ),
                         SizedBox(height: 16),
                         Text(
                           'Aucun produit disponible',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black54),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black54,
+                          ),
                         ),
                       ],
                     ),
@@ -268,7 +477,9 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
               );
             }
 
-            final products = docs.map((doc) => GroupProduct.fromMap(doc.id, doc.data())).toList();
+            final products = docs
+                .map((doc) => GroupProduct.fromMap(doc.id, doc.data()))
+                .toList();
 
             return SliverPadding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
@@ -279,36 +490,85 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
                   crossAxisSpacing: 10,
                   childAspectRatio: 0.74,
                 ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, i) {
-                    final product = products[i];
-                    final thumb = product.imageUrl;
+                delegate: SliverChildBuilderDelegate((context, i) {
+                  final product = products[i];
 
-                    final card = _ProductCardImproved(
-                      badge: product.category,
+                  final isAvailable = (product.stockByVariant == null)
+                      ? true
+                      : product.stockByVariant!.values.any((s) => s > 0);
+
+                  final options = <String>[];
+                  if (product.availableSizes != null &&
+                      product.availableSizes!.isNotEmpty) {
+                    final sizes = product.availableSizes!;
+                    options.add(
+                      sizes.length == 1
+                          ? sizes.first
+                          : '${sizes.first}-${sizes.last}',
+                    );
+                  }
+                  if (product.availableColors != null &&
+                      product.availableColors!.isNotEmpty) {
+                    final colors = product.availableColors!;
+                    options.add(colors.take(2).join('/'));
+                  }
+
+                  return ProductTile(
+                    heroTag: 'product-${product.id}',
+                    data: ProductTileData(
                       title: product.title,
-                      price: product.priceLabel,
-                      imageUrl: thumb,
-                      imageAsset: "assets/images/maslivesmall.png",
-                      onAdd: () {},
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => ProductDetailPage(
-                              groupId: widget.groupId ?? 'all',
-                              product: product,
+                      subtitle: product.category,
+                      price: product.priceCents / 100.0,
+                      currency: '€',
+                      imageUrl: product.imageUrl,
+                      isAvailable: isAvailable,
+                      stockLabel: isAvailable ? 'En stock' : 'Rupture',
+                      badges: [product.category],
+                      options: options,
+                    ),
+                    onAdd: () {
+                      final size = product.sizes.isNotEmpty
+                          ? product.sizes.first
+                          : 'Unique';
+                      final color = product.colors.isNotEmpty
+                          ? product.colors.first
+                          : 'Default';
+
+                      CartService.instance.addProduct(
+                        groupId: _selectedGroupId,
+                        product: product,
+                        size: size,
+                        color: color,
+                        quantity: 1,
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${product.title} ajouté au panier'),
+                          action: SnackBarAction(
+                            label: 'Voir',
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const CartPage(),
+                              ),
                             ),
                           ),
-                        );
-                      },
-                      fsTitle: _fs(context, 14),
-                      fsPrice: _fs(context, 16),
-                    );
-
-                    return card;
-                  },
-                  childCount: products.length,
-                ),
+                        ),
+                      );
+                    },
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ProductDetailPage(
+                            groupId: _selectedGroupId,
+                            product: product,
+                            heroTag: 'product-${product.id}',
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                }, childCount: products.length),
               ),
             );
           },
@@ -323,11 +583,13 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
 /// ---------------------
 class _ChipsRow extends StatelessWidget {
   const _ChipsRow({
+    required this.labels,
     required this.selected,
     required this.onChanged,
     required this.fontSize,
   });
 
+  final List<String> labels;
   final int selected;
   final ValueChanged<int> onChanged;
   final double fontSize;
@@ -339,14 +601,15 @@ class _ChipsRow extends StatelessWidget {
       physics: const BouncingScrollPhysics(),
       child: Row(
         children: [
-          _ChipPill(label: "Tous", selected: selected == 0, onTap: () => onChanged(0), fontSize: fontSize),
-          const SizedBox(width: 10),
-          _ChipPill(label: "T-shirts", selected: selected == 1, onTap: () => onChanged(1), fontSize: fontSize),
-          const SizedBox(width: 10),
-          _ChipPill(label: "Casquettes", selected: selected == 2, onTap: () => onChanged(2), fontSize: fontSize),
-          const SizedBox(width: 10),
-          _ChipPill(label: "Stickers", selected: selected == 3, onTap: () => onChanged(3), fontSize: fontSize),
-          const SizedBox(width: 18),
+          for (int i = 0; i < labels.length; i++) ...[
+            _ChipPill(
+              label: labels[i],
+              selected: selected == i,
+              onTap: () => onChanged(i),
+              fontSize: fontSize,
+            ),
+            const SizedBox(width: 10),
+          ],
         ],
       ),
     );
@@ -383,10 +646,12 @@ class _ChipPill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         decoration: BoxDecoration(
           gradient: bg,
-          color: selected ? null : Colors.white.withOpacity(0.45),
+          color: selected ? null : Colors.white.withValues(alpha: 0.45),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? Colors.white.withOpacity(0.40) : Colors.white.withOpacity(0.60),
+            color: selected
+                ? Colors.white.withValues(alpha: 0.40)
+                : Colors.white.withValues(alpha: 0.60),
             width: 1,
           ),
         ),
@@ -426,12 +691,15 @@ class _GroupDropdown extends StatelessWidget {
         height: 54,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.70),
+          color: Colors.white.withValues(alpha: 0.70),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withOpacity(0.75), width: 1),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.75),
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 16,
               offset: const Offset(0, 10),
             ),
@@ -448,8 +716,11 @@ class _GroupDropdown extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            Icon(Icons.keyboard_arrow_down_rounded,
-                size: 28, color: const Color(0xFF121826).withOpacity(0.55)),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 28,
+              color: const Color(0xFF121826).withValues(alpha: 0.55),
+            ),
           ],
         ),
       ),
@@ -511,7 +782,11 @@ class _GalleryBlueCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _PillDark(icon: Icons.photo_library_outlined, label: "Galerie photos", fontSize: fsPill),
+                  _PillDark(
+                    icon: Icons.photo_library_outlined,
+                    label: "Galerie photos",
+                    fontSize: fsPill,
+                  ),
                   const SizedBox(height: 18),
                   _PillDarkPlain(label: "Photographes only", fontSize: fsPill),
                   const SizedBox(height: 14),
@@ -531,7 +806,7 @@ class _GalleryBlueCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: fsLine,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white.withOpacity(0.85),
+                      color: Colors.white.withValues(alpha: 0.85),
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -540,7 +815,7 @@ class _GalleryBlueCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: fsLine,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white.withOpacity(0.85),
+                      color: Colors.white.withValues(alpha: 0.85),
                     ),
                   ),
                 ],
@@ -587,9 +862,15 @@ class _ProductTileCard extends StatelessWidget {
         imageUrl,
         fit: BoxFit.cover,
         filterQuality: FilterQuality.high,
-        errorBuilder: (_, __, ___) => Container(
+        errorBuilder: (context, error, stackTrace) => Container(
           color: const Color(0xFFF1F3F8),
-          child: const Center(child: Icon(Icons.broken_image_outlined, color: Colors.black26, size: 34)),
+          child: const Center(
+            child: Icon(
+              Icons.broken_image_outlined,
+              color: Colors.black26,
+              size: 34,
+            ),
+          ),
         ),
       );
     }
@@ -611,11 +892,11 @@ class _ProductTileCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final content = Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.82),
+        color: Colors.white.withValues(alpha: 0.82),
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.12),
+            color: Colors.black.withValues(alpha: 0.12),
             blurRadius: 18,
             offset: const Offset(0, 8),
             spreadRadius: 0,
@@ -631,10 +912,18 @@ class _ProductTileCard extends StatelessWidget {
                 Expanded(
                   flex: 6,
                   child: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(30),
+                    ),
                     child: Stack(
                       children: [
-                        Positioned.fill(child: _thumbLocal(context: context, imageUrl: imageUrl, imageAsset: imageAsset)),
+                        Positioned.fill(
+                          child: _thumbLocal(
+                            context: context,
+                            imageUrl: imageUrl,
+                            imageAsset: imageAsset,
+                          ),
+                        ),
                         Positioned.fill(
                           child: DecoratedBox(
                             decoration: BoxDecoration(
@@ -642,9 +931,9 @@ class _ProductTileCard extends StatelessWidget {
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
                                 colors: [
-                                  Colors.black.withOpacity(0.00),
-                                  Colors.black.withOpacity(0.06),
-                                  Colors.black.withOpacity(0.10),
+                                  Colors.black.withValues(alpha: 0.00),
+                                  Colors.black.withValues(alpha: 0.06),
+                                  Colors.black.withValues(alpha: 0.10),
                                 ],
                               ),
                             ),
@@ -690,11 +979,7 @@ class _ProductTileCard extends StatelessWidget {
                 ),
               ],
             ),
-            Positioned(
-              right: 14,
-              bottom: 14,
-              child: _AddButton(onTap: onAdd),
-            ),
+            Positioned(right: 14, bottom: 14, child: _AddButton(onTap: onAdd)),
           ],
         ),
       ),
@@ -704,139 +989,11 @@ class _ProductTileCard extends StatelessWidget {
 }
 
 /// ---------------------
-/// CARD - Produit (grille Articles)
-/// ---------------------
-class _ProductCardImproved extends StatelessWidget {
-  const _ProductCardImproved({
-    required this.badge,
-    required this.title,
-    required this.price,
-    this.imageAsset,
-    this.imageUrl,
-    required this.onAdd,
-    this.onTap,
-    required this.fsTitle,
-    required this.fsPrice,
-  });
-
-  final String badge;
-  final String title;
-  final String price;
-  final String? imageAsset;
-  final String? imageUrl;
-  final VoidCallback onAdd;
-  final VoidCallback? onTap;
-  final double fsTitle;
-  final double fsPrice;
-
-  @override
-  Widget build(BuildContext context) {
-    final card = _SoftCard(
-      radius: 20,
-      child: Container(
-        color: Colors.white.withOpacity(0.86),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // IMAGE: 2/3 de la hauteur
-            Expanded(
-              flex: 2,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: (imageUrl != null && imageUrl!.trim().isNotEmpty)
-                          ? Image.network(
-                              imageUrl!,
-                              fit: BoxFit.cover,
-                              filterQuality: FilterQuality.high,
-                              errorBuilder: (_, __, ___) => Container(
-                                color: const Color(0xFFF1F3F8),
-                                child: const Center(
-                                  child: Icon(Icons.broken_image_outlined, color: Colors.black26, size: 34),
-                                ),
-                              ),
-                            )
-                          : Container(
-                              color: const Color(0xFFF1F3F8),
-                              child: Center(
-                                child: Image.asset(
-                                  imageAsset ?? 'assets/images/maslivelogo.png',
-                                  fit: BoxFit.contain,
-                                  filterQuality: FilterQuality.high,
-                                ),
-                              ),
-                            ),
-                    ),
-                    // BADGE en haut gauche
-                    Positioned(
-                      left: 8,
-                      top: 8,
-                      child: _BadgeLightSmall(label: badge),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            // CONTENU: 1/3 de la hauteur
-            Expanded(
-              flex: 1,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title.replaceAll("\n", " "),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: fsTitle,
-                        fontWeight: FontWeight.w900,
-                        color: const Color(0xFF121826),
-                        height: 1.10,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                    const Spacer(),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            price,
-                            style: TextStyle(
-                              fontSize: fsPrice,
-                              fontWeight: FontWeight.w900,
-                              color: const Color(0xFF121826),
-                              height: 1.0,
-                            ),
-                          ),
-                        ),
-                        _AddButton(onTap: onAdd, size: 32),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (onTap != null) return GestureDetector(onTap: onTap, child: card);
-    return card;
-  }
-}
-
-/// ---------------------
 /// UI helpers
 /// ---------------------
 class _AddButton extends StatelessWidget {
-  const _AddButton({required this.onTap, this.size = 48});
+  const _AddButton({required this.onTap});
   final VoidCallback onTap;
-  final double size;
 
   @override
   Widget build(BuildContext context) {
@@ -844,8 +1001,8 @@ class _AddButton extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        width: size,
-        height: size,
+        width: 48,
+        height: 48,
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
@@ -855,13 +1012,13 @@ class _AddButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.12),
+              color: Colors.black.withValues(alpha: 0.12),
               blurRadius: 14,
               offset: const Offset(0, 10),
             ),
           ],
         ),
-        child: Icon(Icons.add_rounded, color: Colors.white, size: size >= 40 ? 26 : 20),
+        child: const Icon(Icons.add_rounded, color: Colors.white, size: 26),
       ),
     );
   }
@@ -880,7 +1037,7 @@ class _SoftCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(radius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 20,
             offset: const Offset(0, 12),
           ),
@@ -895,7 +1052,11 @@ class _SoftCard extends StatelessWidget {
 }
 
 class _PillDark extends StatelessWidget {
-  const _PillDark({required this.icon, required this.label, required this.fontSize});
+  const _PillDark({
+    required this.icon,
+    required this.label,
+    required this.fontSize,
+  });
 
   final IconData icon;
   final String label;
@@ -906,21 +1067,24 @@ class _PillDark extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.18),
+        color: Colors.white.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withOpacity(0.22), width: 1),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.22),
+          width: 1,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18, color: Colors.white.withOpacity(0.95)),
+          Icon(icon, size: 18, color: Colors.white.withValues(alpha: 0.95)),
           const SizedBox(width: 10),
           Text(
             label,
             style: TextStyle(
               fontSize: fontSize,
               fontWeight: FontWeight.w900,
-              color: Colors.white.withOpacity(0.95),
+              color: Colors.white.withValues(alpha: 0.95),
             ),
           ),
         ],
@@ -943,16 +1107,19 @@ class _PillDarkPlain extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.14),
+            color: Colors.white.withValues(alpha: 0.14),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withOpacity(0.16), width: 1),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.16),
+              width: 1,
+            ),
           ),
           child: Text(
             label,
             style: TextStyle(
               fontSize: fontSize,
               fontWeight: FontWeight.w900,
-              color: Colors.white.withOpacity(0.92),
+              color: Colors.white.withValues(alpha: 0.92),
             ),
           ),
         ),
@@ -970,7 +1137,7 @@ class _BadgeLight extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F3F8).withOpacity(0.95),
+        color: const Color(0xFFF1F3F8).withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: const Color(0xFFDDE2EE), width: 1),
       ),
@@ -978,31 +1145,6 @@ class _BadgeLight extends StatelessWidget {
         label,
         style: const TextStyle(
           fontSize: 15,
-          fontWeight: FontWeight.w900,
-          color: Color(0xFF2B3445),
-        ),
-      ),
-    );
-  }
-}
-
-class _BadgeLightSmall extends StatelessWidget {
-  const _BadgeLightSmall({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F3F8).withOpacity(0.95),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFDDE2EE), width: 1),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 12,
           fontWeight: FontWeight.w900,
           color: Color(0xFF2B3445),
         ),

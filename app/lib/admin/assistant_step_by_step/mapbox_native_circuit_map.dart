@@ -61,6 +61,7 @@ class _MapboxNativeCircuitMapState extends State<MapboxNativeCircuitMap> {
   }
 
   void _onMapTap(MapContentGestureContext context) {
+    if (widget.locked) return;
     final coords = context.point.coordinates;
     widget.onTapLngLat((
       lng: coords.lng.toDouble(),

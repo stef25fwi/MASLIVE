@@ -42,8 +42,9 @@ class _GoogleLightMapPageState extends State<GoogleLightMapPage> {
   }
 
   Future<void> _loadStyle() async {
-    final json =
-        await rootBundle.loadString('assets/map_styles/google_light.json');
+    final json = await rootBundle.loadString(
+      'assets/map_styles/google_light.json',
+    );
     if (!mounted) return;
     setState(() => _styleJson = json);
   }
@@ -52,13 +53,10 @@ class _GoogleLightMapPageState extends State<GoogleLightMapPage> {
     try {
       final style = map.style;
 
-      final layer = FillExtrusionLayer(
-        id: _buildingsLayerId,
-        sourceId: 'composite',
-      )
+      final layer = FillExtrusionLayer(id: _buildingsLayerId, sourceId: 'composite')
         ..sourceLayer = 'building'
         ..minZoom = 14.5
-        ..fillExtrusionColor = const Color(0xFFD1D5DB).value
+        ..fillExtrusionColor = const Color(0xFFD1D5DB).toARGB32()
         ..fillExtrusionOpacity = 0.72
         // Note: sur cette version du SDK, height/base sont des doubles (pas d'expressions).
         // On applique une extrusion fixe (effet 3D lisible) sans dépendre des attributs.
@@ -67,7 +65,11 @@ class _GoogleLightMapPageState extends State<GoogleLightMapPage> {
 
       // Affiche uniquement les buildings “extrudables” si la donnée existe.
       // (Sur Mapbox Streets, c'est souvent un champ `extrude`.)
-      layer.filter = const ['==', ['get', 'extrude'], 'true'];
+      layer.filter = const [
+        '==',
+        ['get', 'extrude'],
+        'true',
+      ];
 
       await style.addLayer(layer);
     } catch (_) {
@@ -84,19 +86,14 @@ class _GoogleLightMapPageState extends State<GoogleLightMapPage> {
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Text(
-              _error!,
-              textAlign: TextAlign.center,
-            ),
+            child: Text(_error!, textAlign: TextAlign.center),
           ),
         ),
       );
     }
 
     if (_styleJson == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
