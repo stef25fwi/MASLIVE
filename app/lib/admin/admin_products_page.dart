@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/services.dart';
 
 import 'create_product_dialog.dart';
@@ -312,7 +314,17 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
     'Autre',
   ];
 
+  static const _defaultGroups = [
+    'Tous',
+    'Officiel',
+    'Artisan',
+    'Premium',
+    'Limité',
+  ];
+
   List<String> _categories = List<String>.from(_defaultCategories);
+  List<String> _groups = List<String>.from(_defaultGroups);
+  String _selectedGroup = 'Tous';
 
   @override
   void initState() {
@@ -383,7 +395,9 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Champ de recherche
                 TextField(
                   decoration: InputDecoration(
                     hintText: 'Rechercher un produit...',
@@ -395,10 +409,55 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                   onChanged: (value) => setState(() => _searchQuery = value),
                 ),
                 const SizedBox(height: 12),
+
+                // Filtre groupe
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
+                      const Padding(
+                        padding: EdgeInsets.only(right: 8),
+                        child: Text(
+                          'Groupe:',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      FilterChip(
+                        label: const Text('Tous'),
+                        selected: _selectedGroup == 'Tous',
+                        onSelected: (_) =>
+                            setState(() => _selectedGroup = 'Tous'),
+                      ),
+                      ..._groups
+                          .where((g) => g != 'Tous')
+                          .map(
+                            (group) => Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: FilterChip(
+                                label: Text(group),
+                                selected: _selectedGroup == group,
+                                onSelected: (_) =>
+                                    setState(() => _selectedGroup = group),
+                              ),
+                            ),
+                          ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Filtre catégorie
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(right: 8),
+                        child: Text(
+                          'Catégorie:',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
                       FilterChip(
                         label: const Text('Tous'),
                         selected: _filterCategory == null,
@@ -444,6 +503,7 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                   final name = data['name'] as String? ?? '';
                   final description = data['description'] as String? ?? '';
                   final category = data['category'] as String?;
+                  final groupId = data['groupId'] as String? ?? 'officiel';
 
                   if (_searchQuery.isNotEmpty &&
                       !name.toLowerCase().contains(
@@ -457,6 +517,12 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
 
                   if (_filterCategory != null && category != _filterCategory) {
                     return false;
+                  }
+
+                  if (_selectedGroup != 'Tous') {
+                    final groupMatch =
+                        _selectedGroup.toLowerCase() == groupId.toLowerCase();
+                    if (!groupMatch) return false;
                   }
 
                   return true;
@@ -480,6 +546,14 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                             color: Colors.grey[600],
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${snapshot.data!.docs.length} produit(s) au total',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[500],
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -488,8 +562,8 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                 return GridView.builder(
                   padding: const EdgeInsets.all(16),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.75,
+                    crossAxisCount: 1,
+                    childAspectRatio: 1.2,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
                   ),
@@ -548,85 +622,200 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
 
     return Card(
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => _showEditProductDialog(productId, data),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image
-            AspectRatio(aspectRatio: 1, child: imageWidget()),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image avec bouton d'édition
+          Stack(
+            children: [
+              AspectRatio(
+                aspectRatio: 16 / 9,
+                child: InkWell(
+                  onTap: () => _showEditProductDialog(productId, data),
+                  child: imageWidget(),
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: FloatingActionButton.small(
+                  onPressed: () => _editProductPhoto(productId, data),
+                  backgroundColor: Colors.blue.shade700,
+                  child: const Icon(Icons.edit, size: 18),
+                ),
+              ),
+            ],
+          ),
 
-            // Info
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+          // Info
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
                     ),
-                    const Spacer(),
-                    Text(
-                      '${price.toStringAsFixed(2)} €',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Colors.green,
-                      ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    data['description'] as String? ?? '',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${price.toStringAsFixed(2)} €',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.green,
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            category,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey[600],
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          category,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: isAvailable ? Colors.green : Colors.red,
-                            shape: BoxShape.circle,
-                          ),
+                      ),
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: isAvailable ? Colors.green : Colors.red,
+                          shape: BoxShape.circle,
                         ),
-                      ],
-                    ),
-                    if (stock >= 0) ...[
-                      const SizedBox(height: 2),
+                      ),
+                      const SizedBox(width: 8),
                       Text(
                         'Stock: $stock',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           color: stock > 0 ? Colors.green : Colors.red,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.tonal(
+                      onPressed: () => _showEditProductDialog(productId, data),
+                      child: const Text('Modifier'),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Future<void> _showCreateProductDialog() async {
     await showCreateProductDialog(context: context, shopId: widget.shopId);
+  }
+
+  Future<void> _editProductPhoto(
+    String productId,
+    Map<String, dynamic> data,
+  ) async {
+    final picker = ImagePicker();
+    final source = await showDialog<ImageSource>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Éditer la photo'),
+        content: const Text('Sélectionnez la source :'),
+        actions: [
+          TextButton.icon(
+            icon: const Icon(Icons.photo_camera),
+            label: const Text('Caméra'),
+            onPressed: () => Navigator.pop(context, ImageSource.camera),
+          ),
+          TextButton.icon(
+            icon: const Icon(Icons.photo_library),
+            label: const Text('Galerie'),
+            onPressed: () => Navigator.pop(context, ImageSource.gallery),
+          ),
+        ],
+      ),
+    );
+
+    if (source == null) return;
+
+    try {
+      final file = await picker.pickImage(source: source);
+      if (file == null) return;
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Upload en cours...')));
+
+      // Upload vers Firebase Storage
+      final fileName =
+          'products/$productId/${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final ref = FirebaseStorage.instance.ref(fileName);
+      final uploadTask = ref.putFile(
+        file as dynamic,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+
+      uploadTask.snapshotEvents.listen((event) {
+        if (event.state == TaskState.success) {
+          // L'upload s'est bien passé
+        }
+      });
+
+      await uploadTask;
+      final downloadUrl = await ref.getDownloadURL();
+
+      // Mise à jour du produit
+      await _firestore.collection('products').doc(productId).update({
+        'imageUrl': downloadUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Mise à jour du miroir shop
+      final shopId = (data['shopId'] as String?) ?? widget.shopId;
+      await _firestore
+          .collection('shops')
+          .doc(shopId)
+          .collection('products')
+          .doc(productId)
+          .update({
+            'imageUrl': downloadUrl,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Photo mise à jour ✅')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur upload: $e')));
+      }
+    }
   }
 
   void _showEditProductDialog(String productId, Map<String, dynamic> data) {
@@ -643,6 +832,12 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
     String selectedCategory = (data['category'] ?? '').toString().trim();
     if (selectedCategory.isEmpty || !_categories.contains(selectedCategory)) {
       selectedCategory = _categories.isNotEmpty ? _categories.first : 'Autre';
+    }
+    String selectedGroup = (data['groupId'] ?? data['group'] ?? 'Officiel')
+        .toString()
+        .trim();
+    if (!_groups.contains(selectedGroup)) {
+      selectedGroup = _groups.first;
     }
     bool isAvailable = data['isAvailable'] ?? true;
 
@@ -698,30 +893,158 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedCategory,
-                  decoration: const InputDecoration(
-                    labelText: 'Catégorie',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _categories
-                      .map(
-                        (cat) => DropdownMenuItem(value: cat, child: Text(cat)),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setDialogState(() => selectedCategory = value);
-                    }
-                  },
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: selectedCategory,
+                        decoration: const InputDecoration(
+                          labelText: 'Catégorie',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: _categories
+                            .map(
+                              (cat) => DropdownMenuItem(
+                                value: cat,
+                                child: Text(cat),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setDialogState(() => selectedCategory = value);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: selectedGroup,
+                        decoration: const InputDecoration(
+                          labelText: 'Groupe',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: _groups
+                            .map(
+                              (grp) => DropdownMenuItem(
+                                value: grp,
+                                child: Text(grp),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setDialogState(() => selectedGroup = value);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
-                TextField(
-                  controller: imageController,
-                  decoration: const InputDecoration(
-                    labelText: 'URL de l\'image',
-                    border: OutlineInputBorder(),
+                // Aperçu image amélioré
+                Container(
+                  width: double.infinity,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey[300]!),
+                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.grey[50],
                   ),
+                  child: imageController.text.isNotEmpty
+                      ? (imageController.text.startsWith('assets/')
+                            ? Image.asset(
+                                imageController.text,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Center(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.image,
+                                            size: 48,
+                                            color: Colors.grey[400],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Asset non trouvé',
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                              )
+                            : Image.network(
+                                imageController.text,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Center(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.broken_image,
+                                            size: 48,
+                                            color: Colors.grey[400],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'URL invalide',
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                              ))
+                      : Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.image_not_supported,
+                                size: 48,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Aucune image',
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: imageController,
+                        decoration: const InputDecoration(
+                          labelText: 'URL de l\'image',
+                          border: OutlineInputBorder(),
+                          hintText: 'assets/... ou https://...',
+                        ),
+                        onChanged: (value) => setDialogState(() {}),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton.tonal(
+                      onPressed: () async {
+                        Navigator.pop(dialogContext);
+                        await _editProductPhoto(productId, data);
+                      },
+                      child: const Icon(Icons.upload),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 SwitchListTile(
@@ -775,6 +1098,8 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                       'stock': stock,
                       'stockByVariant': <String, int>{'default|default': stock},
                       'category': selectedCategory,
+                      'groupId': selectedGroup.toLowerCase(),
+                      'group': selectedGroup,
                       'imageUrl': imageController.text.trim().isNotEmpty
                           ? imageController.text.trim()
                           : null,
@@ -804,6 +1129,8 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                             'default|default': stock,
                           },
                           'category': selectedCategory,
+                          'groupId': selectedGroup.toLowerCase(),
+                          'group': selectedGroup,
                           'imageUrl': imageController.text.trim().isNotEmpty
                               ? imageController.text.trim()
                               : null,
