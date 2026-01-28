@@ -47,7 +47,8 @@ class MaintenanceGuard extends StatelessWidget {
     BuildContext context,
     Map<String, dynamic>? data,
   ) {
-    final message = data?['message'] as String? ??
+    final message =
+        data?['message'] as String? ??
         'L\'application est actuellement en maintenance.\nMerci de revenir plus tard.';
     final estimatedEnd = data?['estimatedEnd'] as Timestamp?;
     final title = data?['title'] as String? ?? 'Maintenance en cours';
@@ -59,17 +60,13 @@ class MaintenanceGuard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.construction,
-                size: 100,
-                color: Colors.orange[700],
-              ),
+              Icon(Icons.construction, size: 100, color: Colors.orange[700]),
               const SizedBox(height: 32),
               Text(
                 title,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  fontWeight: FontWeight.bold,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
@@ -168,9 +165,12 @@ class MaintenanceService {
     await _firestore.collection('config').doc('maintenance').set({
       'enabled': true,
       'title': title ?? 'Maintenance en cours',
-      'message': message ??
+      'message':
+          message ??
           'L\'application est actuellement en maintenance.\nMerci de revenir plus tard.',
-      'estimatedEnd': estimatedEnd != null ? Timestamp.fromDate(estimatedEnd) : null,
+      'estimatedEnd': estimatedEnd != null
+          ? Timestamp.fromDate(estimatedEnd)
+          : null,
       'startedAt': FieldValue.serverTimestamp(),
       'startedBy': null, // À remplir avec l'ID de l'admin
     }, SetOptions(merge: true));
@@ -199,11 +199,9 @@ class MaintenanceService {
 
   /// Stream pour écouter les changements du mode maintenance
   Stream<bool> watchMaintenanceStatus() {
-    return _firestore
-        .collection('config')
-        .doc('maintenance')
-        .snapshots()
-        .map((snapshot) {
+    return _firestore.collection('config').doc('maintenance').snapshots().map((
+      snapshot,
+    ) {
       final data = snapshot.data();
       return data?['enabled'] == true;
     });
@@ -347,9 +345,9 @@ class _MaintenanceManagementPageState extends State<MaintenanceManagementPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
       }
     } finally {
       if (mounted) {
@@ -361,15 +359,11 @@ class _MaintenanceManagementPageState extends State<MaintenanceManagementPage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gestion de la maintenance'),
-      ),
+      appBar: AppBar(title: const Text('Gestion de la maintenance')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -381,10 +375,14 @@ class _MaintenanceManagementPageState extends State<MaintenanceManagementPage> {
                 color: _isEnabled ? Colors.orange[50] : Colors.green[50],
                 child: SwitchListTile(
                   title: Text(
-                    _isEnabled ? 'Maintenance activée' : 'Maintenance désactivée',
+                    _isEnabled
+                        ? 'Maintenance activée'
+                        : 'Maintenance désactivée',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: _isEnabled ? Colors.orange[700] : Colors.green[700],
+                      color: _isEnabled
+                          ? Colors.orange[700]
+                          : Colors.green[700],
                     ),
                   ),
                   subtitle: Text(
@@ -451,25 +449,29 @@ class _MaintenanceManagementPageState extends State<MaintenanceManagementPage> {
                       firstDate: DateTime.now(),
                       lastDate: DateTime.now().add(const Duration(days: 365)),
                     );
-                    if (date != null && mounted) {
-                      final time = await showTimePicker(
-                        context: context,
-                        initialTime: TimeOfDay.fromDateTime(
-                          _estimatedEnd ?? DateTime.now(),
-                        ),
+
+                    if (!context.mounted) return;
+                    if (date == null) return;
+
+                    final time = await showTimePicker(
+                      context: context,
+                      initialTime: TimeOfDay.fromDateTime(
+                        _estimatedEnd ?? DateTime.now(),
+                      ),
+                    );
+
+                    if (!context.mounted) return;
+                    if (time == null) return;
+
+                    setState(() {
+                      _estimatedEnd = DateTime(
+                        date.year,
+                        date.month,
+                        date.day,
+                        time.hour,
+                        time.minute,
                       );
-                      if (time != null && mounted) {
-                        setState(() {
-                          _estimatedEnd = DateTime(
-                            date.year,
-                            date.month,
-                            date.day,
-                            time.hour,
-                            time.minute,
-                          );
-                        });
-                      }
-                    }
+                    });
                   },
                 ),
               ),

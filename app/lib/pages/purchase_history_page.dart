@@ -55,7 +55,7 @@ class _PurchaseHistoryPageState extends State<PurchaseHistoryPage>
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
@@ -99,10 +99,7 @@ class _PurchaseHistoryPageState extends State<PurchaseHistoryPage>
             SliverFillRemaining(
               child: TabBarView(
                 controller: _tabController,
-                children: [
-                  _OrdersTab(),
-                  _PurchasesTab(),
-                ],
+                children: [_OrdersTab(), _PurchasesTab()],
               ),
             ),
           ],
@@ -118,9 +115,7 @@ class _OrdersTab extends StatelessWidget {
     final userId = FirebaseAuth.instance.currentUser?.uid;
 
     if (userId == null) {
-      return const Center(
-        child: Text('Veuillez vous connecter'),
-      );
+      return const Center(child: Text('Veuillez vous connecter'));
     }
 
     return StreamBuilder<QuerySnapshot>(
@@ -137,9 +132,7 @@ class _OrdersTab extends StatelessWidget {
         }
 
         if (snapshot.hasError) {
-          return Center(
-            child: Text('Erreur: ${snapshot.error}'),
-          );
+          return Center(child: Text('Erreur: ${snapshot.error}'));
         }
 
         final orders = snapshot.data?.docs ?? [];
@@ -166,10 +159,7 @@ class _OrdersTab extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   'Vos commandes apparaîtront ici',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[500],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                 ),
               ],
             ),
@@ -203,7 +193,7 @@ class _OrdersTab extends StatelessWidget {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: _getStatusColor(status).withOpacity(0.1),
+                          color: _getStatusColor(status).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
                             color: _getStatusColor(status),
@@ -243,10 +233,7 @@ class _OrdersTab extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     '${items.length} photo${items.length > 1 ? 's' : ''}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   ),
                   if (discount > 0) ...[
                     const SizedBox(height: 4),
@@ -274,10 +261,7 @@ class _OrdersTab extends StatelessWidget {
                     children: [
                       Text(
                         'Total: ',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
                       Text(
                         '${totalAmount.toStringAsFixed(2)}€',
@@ -334,9 +318,7 @@ class _PurchasesTab extends StatelessWidget {
     final userId = FirebaseAuth.instance.currentUser?.uid;
 
     if (userId == null) {
-      return const Center(
-        child: Text('Veuillez vous connecter'),
-      );
+      return const Center(child: Text('Veuillez vous connecter'));
     }
 
     return StreamBuilder<QuerySnapshot>(
@@ -353,9 +335,7 @@ class _PurchasesTab extends StatelessWidget {
         }
 
         if (snapshot.hasError) {
-          return Center(
-            child: Text('Erreur: ${snapshot.error}'),
-          );
+          return Center(child: Text('Erreur: ${snapshot.error}'));
         }
 
         final purchases = snapshot.data?.docs ?? [];
@@ -382,10 +362,7 @@ class _PurchasesTab extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   'Vos photos achetées apparaîtront ici',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[500],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                 ),
               ],
             ),
@@ -404,7 +381,8 @@ class _PurchasesTab extends StatelessWidget {
           itemBuilder: (context, index) {
             final purchase = purchases[index].data() as Map<String, dynamic>;
             final thumbnailUrl = purchase['thumbnailUrl'] ?? purchase['url'];
-            final purchasedAt = (purchase['purchasedAt'] as Timestamp?)?.toDate();
+            final purchasedAt = (purchase['purchasedAt'] as Timestamp?)
+                ?.toDate();
             final price = purchase['price'] ?? 0.0;
 
             return MasliveCard(
@@ -422,14 +400,15 @@ class _PurchasesTab extends StatelessWidget {
                           ? Image.network(
                               thumbnailUrl,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                color: Colors.grey[300],
-                                child: const Icon(
-                                  Icons.broken_image,
-                                  size: 48,
-                                  color: Colors.grey,
-                                ),
-                              ),
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Container(
+                                    color: Colors.grey[300],
+                                    child: const Icon(
+                                      Icons.broken_image,
+                                      size: 48,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
                             )
                           : Container(
                               color: Colors.grey[300],

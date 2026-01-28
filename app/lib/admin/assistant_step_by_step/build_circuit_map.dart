@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'mapbox_native_circuit_map.dart';
 import 'mapbox_web_circuit_map.dart';
 
@@ -9,7 +10,7 @@ Widget buildCircuitMap({
   required List<LngLat> perimeter,
   required List<LngLat> route,
   required List<({int startIndex, int endIndex, Color color, String name})>
-      segments,
+  segments,
   required bool locked,
   required ValueChanged<LngLat> onTap,
   String? mapboxToken,
@@ -26,6 +27,16 @@ Widget buildCircuitMap({
       onTapLngLat: onTap,
     );
   }
+
+  final envToken = const String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+  final legacyEnvToken = const String.fromEnvironment('MAPBOX_TOKEN');
+  final token =
+      mapboxToken ?? (envToken.isNotEmpty ? envToken : legacyEnvToken);
+  if (token.isNotEmpty) {
+    // SDK Mapbox natif : token global.
+    MapboxOptions.setAccessToken(token);
+  }
+
   return MapboxNativeCircuitMap(
     perimeter: perimeter,
     route: route,

@@ -25,8 +25,13 @@ import '../services/geolocation_service.dart';
 import '../services/localization_service.dart';
 import '../services/language_service.dart';
 import '../services/map_presets_service.dart';
+import '../services/mapbox_token_service.dart';
 import '../l10n/app_localizations.dart' as l10n;
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
+import '../ui/widgets/mapbox_token_dialog.dart';
+
+const _mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+const _legacyMapboxToken = String.fromEnvironment('MAPBOX_TOKEN');
 
 enum _MapAction { ville, tracking, visiter, encadrement, food, wc, parking }
 
@@ -61,7 +66,9 @@ class _HomeMapPageState extends State<HomeMapPage>
   bool _isTracking = false;
   bool _isMapReady = false;
   bool _isGpsReady = false;
-  
+
+  String _runtimeMapboxToken = '';
+
   // Variables pour la gestion des cartes pré-enregistrées
   MapPresetModel? _selectedPreset;
   List<LayerModel> _currentPresetLayers = [];
@@ -70,6 +77,15 @@ class _HomeMapPageState extends State<HomeMapPage>
   bool _isSuperAdmin = false;
 
   static const LatLng _fallbackCenter = LatLng(16.241, -61.533);
+
+  String get _effectiveMapboxToken =>
+      _mapboxAccessToken.isNotEmpty
+        ? _mapboxAccessToken
+        : (_legacyMapboxToken.isNotEmpty
+          ? _legacyMapboxToken
+          : _runtimeMapboxToken);
+
+  bool get _useMapboxTiles => _effectiveMapboxToken.isNotEmpty;
 
   @override
   void initState() {
@@ -100,6 +116,30 @@ class _HomeMapPageState extends State<HomeMapPage>
 
     _bootstrapLocation();
     _loadUserGroupId();
+    _loadRuntimeMapboxToken();
+  }
+
+  Future<void> _loadRuntimeMapboxToken() async {
+    try {
+      final info = await MapboxTokenService.getTokenInfo();
+      if (!mounted) return;
+      setState(() {
+        _runtimeMapboxToken = info.token;
+      });
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  Future<void> _configureMapboxToken() async {
+    final newToken = await MapboxTokenDialog.show(
+      context,
+      initialValue: _effectiveMapboxToken,
+    );
+    if (!mounted || newToken == null) return;
+    setState(() {
+      _runtimeMapboxToken = newToken;
+    });
   }
 
   @override
@@ -112,6 +152,16 @@ class _HomeMapPageState extends State<HomeMapPage>
 
   Future<void> _bootstrapLocation() async {
     final ok = await _ensureLocationPermission(request: true);
+
+    // Le splashscreen attend mapReadyNotifier.
+    // Même sans GPS (permission refusée/service désactivé), on doit pouvoir afficher la carte.
+    if (mounted) {
+      setState(() => _isGpsReady = true);
+    } else {
+      _isGpsReady = true;
+    }
+    _checkIfReady();
+
     if (!ok) return;
     _startUserPositionStream();
   }
@@ -183,10 +233,12 @@ class _HomeMapPageState extends State<HomeMapPage>
           }
         });
   }
-  
+
   void _checkIfReady() {
     if (_isMapReady && _isGpsReady && !mapReadyNotifier.value) {
-      debugPrint('✅ HomeMapPage: Carte et GPS prêts, notification du splashscreen');
+      debugPrint(
+        '✅ HomeMapPage: Carte et GPS prêts, notification du splashscreen',
+      );
       // Petit délai pour assurer le rendu complet avant de notifier
       Future.delayed(const Duration(milliseconds: 300), () {
         mapReadyNotifier.value = true;
@@ -467,7 +519,9 @@ class _HomeMapPageState extends State<HomeMapPage>
                           height: 56,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: _placeColor(place.type).withValues(alpha: 0.14),
+                            color: _placeColor(
+                              place.type,
+                            ).withValues(alpha: 0.14),
                           ),
                           child: Icon(
                             _placeIcon(place.type),
@@ -719,7 +773,7 @@ class _HomeMapPageState extends State<HomeMapPage>
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted && _showActionsMenu) {
         _menuAnimController.reverse();
-        
+
         // Attendre la fin de l'animation de glissement
         Future.delayed(const Duration(milliseconds: 300), () {
           if (mounted && _showActionsMenu) {
@@ -740,16 +794,18 @@ class _HomeMapPageState extends State<HomeMapPage>
           .collection('users')
           .doc(user.uid)
           .get();
-      
+
       if (doc.exists && mounted) {
         final groupId = doc.data()?['groupId'] as String?;
         final role = doc.data()?['role'] as String?;
         final isAdmin = doc.data()?['isAdmin'] as bool? ?? false;
-        
+
         // Vérifie si l'utilisateur est superadmin
-        final isSuperAdmin = role == 'superAdmin' || role == 'superadmin' || 
-                             (isAdmin && (role == 'admin' || role == 'Admin'));
-        
+        final isSuperAdmin =
+            role == 'superAdmin' ||
+            role == 'superadmin' ||
+            (isAdmin && (role == 'admin' || role == 'Admin'));
+
         if (groupId != null) {
           setState(() {
             _userGroupId = groupId;
@@ -769,9 +825,7 @@ class _HomeMapPageState extends State<HomeMapPage>
   void _openMapSelector() {
     if (_userGroupId == null || _userGroupId!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Aucun groupe associé à ton profil.'),
-        ),
+        const SnackBar(content: Text('Aucun groupe associé à ton profil.')),
       );
       return;
     }
@@ -831,7 +885,9 @@ class _HomeMapPageState extends State<HomeMapPage>
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.settings),
-                    tooltip: l10n.AppLocalizations.of(context)!.openAdvancedSelector,
+                    tooltip: l10n.AppLocalizations.of(
+                      context,
+                    )!.openAdvancedSelector,
                     onPressed: () {
                       Navigator.pop(context);
                       _openMapSelector();
@@ -844,10 +900,12 @@ class _HomeMapPageState extends State<HomeMapPage>
                 stream: _presetService.getGroupPresetsStream(_userGroupId!),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: CircularProgressIndicator(),
-                    ));
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
                   }
 
                   final presets = snapshot.data ?? const <MapPresetModel>[];
@@ -868,23 +926,41 @@ class _HomeMapPageState extends State<HomeMapPage>
 
                       return ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: const Color(0xFFB66CFF).withValues(alpha: 0.16),
-                          child: Icon(Icons.map_rounded, color: const Color(0xFF7C3AED)),
+                          backgroundColor: const Color(
+                            0xFFB66CFF,
+                          ).withValues(alpha: 0.16),
+                          child: Icon(
+                            Icons.map_rounded,
+                            color: const Color(0xFF7C3AED),
+                          ),
                         ),
-                        title: Text(preset.title, style: const TextStyle(fontWeight: FontWeight.w800)),
-                        subtitle: Text(preset.description.isNotEmpty ? preset.description : 'Centre: ${preset.center.latitude.toStringAsFixed(3)}, ${preset.center.longitude.toStringAsFixed(3)}'),
+                        title: Text(
+                          preset.title,
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        subtitle: Text(
+                          preset.description.isNotEmpty
+                              ? preset.description
+                              : 'Centre: ${preset.center.latitude.toStringAsFixed(3)}, ${preset.center.longitude.toStringAsFixed(3)}',
+                        ),
                         trailing: isSelected
-                            ? const Icon(Icons.check_circle, color: Colors.green)
+                            ? const Icon(
+                                Icons.check_circle,
+                                color: Colors.green,
+                              )
                             : const Icon(Icons.chevron_right),
                         onTap: () async {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (_) => AlertDialog(
                               title: const Text('Confirmer le chargement ?'),
-                              content: Text('Charger "${preset.title}" et ses couches associées ?'),
+                              content: Text(
+                                'Charger "${preset.title}" et ses couches associées ?',
+                              ),
                               actions: [
                                 TextButton(
-                                  onPressed: () => Navigator.pop(context, false),
+                                  onPressed: () =>
+                                      Navigator.pop(context, false),
                                   child: const Text('Annuler'),
                                 ),
                                 FilledButton(
@@ -921,9 +997,7 @@ class _HomeMapPageState extends State<HomeMapPage>
     setState(() {
       _selectedPreset = preset;
       _currentPresetLayers = List<LayerModel>.from(preset.layers);
-      _activeLayers = {
-        for (final layer in layers) layer.id: layer.visible,
-      };
+      _activeLayers = {for (final layer in layers) layer.id: layer.visible};
       _mapController.move(preset.center, preset.zoom);
     });
 
@@ -1078,7 +1152,9 @@ class _HomeMapPageState extends State<HomeMapPage>
                                     initialCenter: _userPos ?? _fallbackCenter,
                                     initialZoom: _userPos != null ? 14.5 : 12.5,
                                     onMapReady: () {
-                                      debugPrint('🗺️ HomeMapPage: Carte FlutterMap prête');
+                                      debugPrint(
+                                        '🗺️ HomeMapPage: Carte FlutterMap prête',
+                                      );
                                       setState(() {
                                         _isMapReady = true;
                                         _checkIfReady();
@@ -1090,9 +1166,24 @@ class _HomeMapPageState extends State<HomeMapPage>
                                   ),
                                   children: [
                                     TileLayer(
-                                      urlTemplate:
-                                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                      urlTemplate: _useMapboxTiles
+                                          ? 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${_effectiveMapboxToken}'
+                                          : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                                       userAgentPackageName: 'com.maslive.app',
+                                    ),
+
+                                    RichAttributionWidget(
+                                      alignment:
+                                          AttributionAlignment.bottomLeft,
+                                      attributions: [
+                                        if (_useMapboxTiles)
+                                          const TextSourceAttribution(
+                                            '© Mapbox',
+                                          ),
+                                        const TextSourceAttribution(
+                                          '© OpenStreetMap contributors',
+                                        ),
+                                      ],
                                     ),
 
                                     if (_userPos != null)
@@ -1134,7 +1225,9 @@ class _HomeMapPageState extends State<HomeMapPage>
                                                   (c) => Polyline(
                                                     points: _circuitPoints(c),
                                                     color: Colors.black
-                                                        .withValues(alpha: 0.65),
+                                                        .withValues(
+                                                          alpha: 0.65,
+                                                        ),
                                                     strokeWidth: 4,
                                                   ),
                                                 )
@@ -1203,6 +1296,47 @@ class _HomeMapPageState extends State<HomeMapPage>
                                     ],
                                   ],
                                 ),
+
+                                if (!_useMapboxTiles)
+                                  Positioned(
+                                    top:
+                                        MediaQuery.of(context).padding.top +
+                                        12,
+                                    left: 12,
+                                    right: 12,
+                                    child: MasliveCard(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 10,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.info_outline_rounded,
+                                            size: 18,
+                                            color: Colors.black87,
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Text(
+                                              'Mapbox inactif: MAPBOX_ACCESS_TOKEN manquant.\nAffichage temporaire OpenStreetMap.',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.copyWith(
+                                                    fontWeight:
+                                                        FontWeight.w700,
+                                                  ),
+                                            ),
+                                          ),
+                                          TextButton(
+                                            onPressed: _configureMapboxToken,
+                                            child: const Text('Configurer'),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -1239,7 +1373,9 @@ class _HomeMapPageState extends State<HomeMapPage>
                                       vertical: 10,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.65),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.65,
+                                      ),
                                       borderRadius: const BorderRadius.vertical(
                                         top: Radius.circular(24),
                                         bottom: Radius.circular(24),
@@ -1248,8 +1384,8 @@ class _HomeMapPageState extends State<HomeMapPage>
                                     ),
                                     child: SingleChildScrollView(
                                       child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
                                           // Bouton Cartes - visible seulement pour les superadmins
                                           if (_isSuperAdmin)
                                             _ActionItem(
@@ -1261,122 +1397,130 @@ class _HomeMapPageState extends State<HomeMapPage>
                                           if (_isSuperAdmin)
                                             const SizedBox(height: 8),
                                           _ActionItem(
-                                              label: 'Centrer',
-                                              icon: Icons.my_location_rounded,
-                                              selected: false,
-                                              onTap: () {
-                                                _recenterOnUser();
-                                                _closeNavWithDelay();
-                                              },
-                                            ),
-                                            const SizedBox(height: 8),
-                                            _ActionItem(
-                                              label: l10n.AppLocalizations.of(context)!.tracking,
-                                              icon: Icons.track_changes_rounded,
-                                              selected:
-                                                  _selected ==
-                                                  _MapAction.tracking,
-                                              onTap: () {
-                                                setState(() {
-                                                  _selected =
-                                                      _MapAction.tracking;
-                                                });
-                                                _closeNavWithDelay();
-                                              },
-                                            ),
-                                            const SizedBox(height: 8),
-                                            _ActionItem(
-                                              label: l10n.AppLocalizations.of(context)!.visit,
-                                              icon: Icons.map_outlined,
-                                              selected:
-                                                  _selected ==
-                                                  _MapAction.visiter,
-                                              onTap: () {
-                                                setState(() {
-                                                  _selected =
-                                                      _MapAction.visiter;
-                                                });
-                                                _closeNavWithDelay();
-                                              },
-                                            ),
-                                            const SizedBox(height: 8),
-                                            _ActionItem(
-                                              label: l10n.AppLocalizations.of(context)!.food,
-                                              icon: Icons.fastfood_rounded,
-                                              selected:
-                                                  _selected == _MapAction.food,
-                                              onTap: () {
-                                                setState(() {
-                                                  _selected = _MapAction.food;
-                                                });
-                                                _closeNavWithDelay();
-                                              },
-                                            ),
-                                            const SizedBox(height: 8),
-                                            _ActionItem(
-                                              label: l10n.AppLocalizations.of(context)!.assistance,
-                                              icon: Icons.shield_outlined,
-                                              selected:
-                                                  _selected ==
-                                                  _MapAction.encadrement,
-                                              onTap: () {
-                                                setState(() {
-                                                  _selected =
-                                                      _MapAction.encadrement;
-                                                });
-                                                _closeNavWithDelay();
-                                              },
-                                            ),
-                                            const SizedBox(height: 8),
-                                            _ActionItem(
-                                              label: l10n.AppLocalizations.of(context)!.parking,
-                                              icon: Icons.local_parking_rounded,
-                                              customText: 'P',
-                                              color: const Color(0xFF0D97EB),
-                                              selected:
-                                                  _selected == _MapAction.parking,
-                                              onTap: () {
-                                                setState(() {
-                                                  _selected = _MapAction.parking;
-                                                });
-                                                _closeNavWithDelay();
-                                              },
-                                            ),
-                                            const SizedBox(height: 8),
-                                            _ActionItem(
-                                              label: '',
-                                              icon: Icons.wc_rounded,
-                                              selected:
-                                                  _selected == _MapAction.wc,
-                                              onTap: () {
-                                                setState(() {
-                                                  _selected = _MapAction.wc;
-                                                });
-                                                _closeNavWithDelay();
-                                              },
-                                            ),
-                                          ],
-                                        ),
+                                            label: 'Centrer',
+                                            icon: Icons.my_location_rounded,
+                                            selected: false,
+                                            onTap: () {
+                                              _recenterOnUser();
+                                              _closeNavWithDelay();
+                                            },
+                                          ),
+                                          const SizedBox(height: 8),
+                                          _ActionItem(
+                                            label: l10n.AppLocalizations.of(
+                                              context,
+                                            )!.tracking,
+                                            icon: Icons.track_changes_rounded,
+                                            selected:
+                                                _selected ==
+                                                _MapAction.tracking,
+                                            onTap: () {
+                                              setState(() {
+                                                _selected = _MapAction.tracking;
+                                              });
+                                              _closeNavWithDelay();
+                                            },
+                                          ),
+                                          const SizedBox(height: 8),
+                                          _ActionItem(
+                                            label: l10n.AppLocalizations.of(
+                                              context,
+                                            )!.visit,
+                                            icon: Icons.map_outlined,
+                                            selected:
+                                                _selected == _MapAction.visiter,
+                                            onTap: () {
+                                              setState(() {
+                                                _selected = _MapAction.visiter;
+                                              });
+                                              _closeNavWithDelay();
+                                            },
+                                          ),
+                                          const SizedBox(height: 8),
+                                          _ActionItem(
+                                            label: l10n.AppLocalizations.of(
+                                              context,
+                                            )!.food,
+                                            icon: Icons.fastfood_rounded,
+                                            selected:
+                                                _selected == _MapAction.food,
+                                            onTap: () {
+                                              setState(() {
+                                                _selected = _MapAction.food;
+                                              });
+                                              _closeNavWithDelay();
+                                            },
+                                          ),
+                                          const SizedBox(height: 8),
+                                          _ActionItem(
+                                            label: l10n.AppLocalizations.of(
+                                              context,
+                                            )!.assistance,
+                                            icon: Icons.shield_outlined,
+                                            selected:
+                                                _selected ==
+                                                _MapAction.encadrement,
+                                            onTap: () {
+                                              setState(() {
+                                                _selected =
+                                                    _MapAction.encadrement;
+                                              });
+                                              _closeNavWithDelay();
+                                            },
+                                          ),
+                                          const SizedBox(height: 8),
+                                          _ActionItem(
+                                            label: l10n.AppLocalizations.of(
+                                              context,
+                                            )!.parking,
+                                            icon: Icons.local_parking_rounded,
+                                            customText: 'P',
+                                            color: const Color(0xFF0D97EB),
+                                            selected:
+                                                _selected == _MapAction.parking,
+                                            onTap: () {
+                                              setState(() {
+                                                _selected = _MapAction.parking;
+                                              });
+                                              _closeNavWithDelay();
+                                            },
+                                          ),
+                                          const SizedBox(height: 8),
+                                          _ActionItem(
+                                            label: '',
+                                            icon: Icons.wc_rounded,
+                                            selected:
+                                                _selected == _MapAction.wc,
+                                            onTap: () {
+                                              setState(() {
+                                                _selected = _MapAction.wc;
+                                              });
+                                              _closeNavWithDelay();
+                                            },
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
+                            ),
                           ),
                         ),
 
-                      // Panneau rapide des couches actives (si un preset est chargé)
-                      if (_selectedPreset != null && _currentPresetLayers.isNotEmpty)
-                        Positioned(
-                          left: 14,
-                          right: 14,
-                          bottom: _selected == _MapAction.tracking ? 96 : 36,
-                          child: _LayerQuickPanel(
-                            layers: _currentPresetLayers,
-                            activeLayers: _activeLayers,
-                            onToggle: _toggleLayer,
+                        // Panneau rapide des couches actives (si un preset est chargé)
+                        if (_selectedPreset != null &&
+                            _currentPresetLayers.isNotEmpty)
+                          Positioned(
+                            left: 14,
+                            right: 14,
+                            bottom: _selected == _MapAction.tracking ? 96 : 36,
+                            child: _LayerQuickPanel(
+                              layers: _currentPresetLayers,
+                              activeLayers: _activeLayers,
+                              onToggle: _toggleLayer,
+                            ),
                           ),
-                        ),
 
                         if (_selected == _MapAction.tracking)
                           Positioned(
@@ -1413,18 +1557,30 @@ class _HomeMapPageState extends State<HomeMapPage>
                                 onTap: () {
                                   if (user != null) {
                                     _closeNavWithDelay();
-                                    Future.delayed(const Duration(milliseconds: 500), () {
-                                      if (mounted) {
-                                        Navigator.pushNamed(context, '/account-ui');
-                                      }
-                                    });
+                                    Future.delayed(
+                                      const Duration(milliseconds: 500),
+                                      () {
+                                        if (mounted) {
+                                          Navigator.pushNamed(
+                                            context,
+                                            '/account-ui',
+                                          );
+                                        }
+                                      },
+                                    );
                                   } else {
                                     _closeNavWithDelay();
-                                    Future.delayed(const Duration(milliseconds: 500), () {
-                                      if (mounted) {
-                                        Navigator.pushNamed(context, '/login');
-                                      }
-                                    });
+                                    Future.delayed(
+                                      const Duration(milliseconds: 500),
+                                      () {
+                                        if (mounted) {
+                                          Navigator.pushNamed(
+                                            context,
+                                            '/login',
+                                          );
+                                        }
+                                      },
+                                    );
                                   }
                                 },
                                 customBorder: const CircleBorder(),
@@ -1455,15 +1611,17 @@ class _HomeMapPageState extends State<HomeMapPage>
                                   gradient: _headerLanguageFlagGradient(),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFF9B6BFF)
-                                          .withValues(alpha: 0.22),
+                                      color: const Color(
+                                        0xFF9B6BFF,
+                                      ).withValues(alpha: 0.22),
                                       blurRadius: 18,
                                       spreadRadius: 1,
                                       offset: const Offset(0, 10),
                                     ),
                                     BoxShadow(
-                                      color: const Color(0xFFFF7AAE)
-                                          .withValues(alpha: 0.16),
+                                      color: const Color(
+                                        0xFFFF7AAE,
+                                      ).withValues(alpha: 0.16),
                                       blurRadius: 12,
                                       offset: const Offset(0, 6),
                                     ),
@@ -1471,9 +1629,14 @@ class _HomeMapPageState extends State<HomeMapPage>
                                 ),
                                 child: Center(
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 3,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.5),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.5,
+                                      ),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
@@ -1497,11 +1660,14 @@ class _HomeMapPageState extends State<HomeMapPage>
                           tooltip: l10n.AppLocalizations.of(context)!.shop,
                           onTap: () {
                             _closeNavWithDelay();
-                            Future.delayed(const Duration(milliseconds: 500), () {
-                              if (mounted) {
-                                Navigator.pushNamed(context, '/shop-ui');
-                              }
-                            });
+                            Future.delayed(
+                              const Duration(milliseconds: 500),
+                              () {
+                                if (mounted) {
+                                  Navigator.pushNamed(context, '/shop-ui');
+                                }
+                              },
+                            );
                           },
                         ),
                         const SizedBox(width: 10),
@@ -1509,7 +1675,9 @@ class _HomeMapPageState extends State<HomeMapPage>
                           icon: Icons.menu_rounded,
                           tooltip: l10n.AppLocalizations.of(context)!.menu,
                           onTap: () {
-                            setState(() => _showActionsMenu = !_showActionsMenu);
+                            setState(
+                              () => _showActionsMenu = !_showActionsMenu,
+                            );
                             if (_showActionsMenu) {
                               _menuAnimController.forward();
                             } else {
@@ -1559,7 +1727,7 @@ class _ActionItem extends StatelessWidget {
             height: 60,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: customText != null 
+              color: customText != null
                   ? (color ?? MasliveTheme.pink)
                   : Colors.white.withValues(alpha: 0.92),
               border: Border.all(
@@ -1710,14 +1878,17 @@ class _LayerQuickPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container
-    (
+    return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
-          BoxShadow(color: Color(0x14000000), blurRadius: 18, offset: Offset(0, 10)),
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
         ],
       ),
       child: Column(
@@ -1741,14 +1912,19 @@ class _LayerQuickPanel extends StatelessWidget {
             children: [
               for (final layer in layers)
                 FilterChip(
-                  label: Text(layer.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  label: Text(
+                    layer.name,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
                   avatar: Icon(
                     layer.iconName != null ? Icons.checklist_rtl : Icons.layers,
                     size: 18,
                   ),
                   selected: activeLayers[layer.id] ?? layer.visible,
                   onSelected: (value) => onToggle(layer.id, value),
-                  selectedColor: const Color(0xFFB66CFF).withValues(alpha: 0.18),
+                  selectedColor: const Color(
+                    0xFFB66CFF,
+                  ).withValues(alpha: 0.18),
                   checkmarkColor: const Color(0xFF7C3AED),
                   side: BorderSide(
                     color: (activeLayers[layer.id] ?? layer.visible)

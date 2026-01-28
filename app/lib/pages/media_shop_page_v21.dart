@@ -74,7 +74,9 @@ class PhotoDoc {
       eventName: parseString(m['eventName']),
       groupName: parseString(m['groupName']),
       photographerName: parseString(m['photographerName']),
-      photographerId: m['photographerId'] is String ? m['photographerId'] as String : null,
+      photographerId: m['photographerId'] is String
+          ? m['photographerId'] as String
+          : null,
       priceCents: parseInt(m['priceCents'], 0),
       thumbPath: parseString(m['thumbPath']),
       fullPath: parseString(m['fullPath']),
@@ -127,7 +129,9 @@ class FilterState {
       dateRange: clearDate ? null : (dateRange ?? this.dateRange),
       eventName: clearEvent ? null : (eventName ?? this.eventName),
       groupName: clearGroup ? null : (groupName ?? this.groupName),
-      photographerName: clearPhotographer ? null : (photographerName ?? this.photographerName),
+      photographerName: clearPhotographer
+          ? null
+          : (photographerName ?? this.photographerName),
       sort: sort ?? this.sort,
       hidePurchased: hidePurchased ?? this.hidePurchased,
       searchText: searchText ?? this.searchText,
@@ -149,7 +153,12 @@ class FacetData {
     required this.photographers,
   });
 
-  static const empty = FacetData(countries: [], events: [], groups: [], photographers: []);
+  static const empty = FacetData(
+    countries: [],
+    events: [],
+    groups: [],
+    photographers: [],
+  );
 }
 
 /// -----------------------------------------------------------------------------
@@ -161,10 +170,17 @@ class DiscountResult {
   final String rule; // PACK_3 / PACK_5 / PACK_10 / ""
   final int percent; // 0/10/20/30
 
-  const DiscountResult({required this.discountCents, required this.rule, required this.percent});
+  const DiscountResult({
+    required this.discountCents,
+    required this.rule,
+    required this.percent,
+  });
 }
 
-DiscountResult computePackDiscount({required int itemCount, required int totalCents}) {
+DiscountResult computePackDiscount({
+  required int itemCount,
+  required int totalCents,
+}) {
   int percent = 0;
   String rule = '';
   if (itemCount >= 10) {
@@ -194,15 +210,21 @@ class CartProvider extends ChangeNotifier {
   int get selectedCount => _selected.length;
   int get cartCount => _cart.length;
 
-  int get selectedTotalCents => _selected.values.fold(0, (total, p) => total + p.priceCents);
-  int get cartTotalCentsBeforeDiscount => _cart.values.fold(0, (total, p) => total + p.priceCents);
+  int get selectedTotalCents =>
+      _selected.values.fold(0, (total, p) => total + p.priceCents);
+  int get cartTotalCentsBeforeDiscount =>
+      _cart.values.fold(0, (total, p) => total + p.priceCents);
 
   DiscountResult get cartDiscount => computePackDiscount(
-        itemCount: cartCount,
-        totalCents: cartTotalCentsBeforeDiscount,
-      );
+    itemCount: cartCount,
+    totalCents: cartTotalCentsBeforeDiscount,
+  );
 
-  int get cartTotalCents => (cartTotalCentsBeforeDiscount - cartDiscount.discountCents).clamp(0, 1 << 30);
+  int get cartTotalCents =>
+      (cartTotalCentsBeforeDiscount - cartDiscount.discountCents).clamp(
+        0,
+        1 << 30,
+      );
 
   bool isSelected(String id) => _selected.containsKey(id);
   bool isInCart(String id) => _cart.containsKey(id);
@@ -250,7 +272,11 @@ class CartProvider extends ChangeNotifier {
 
     final uid = user.uid;
     final now = FieldValue.serverTimestamp();
-    final orderRef = FirebaseFirestore.instance.collection('users').doc(uid).collection('orders').doc();
+    final orderRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('orders')
+        .doc();
 
     final items = _cart.values.map((p) {
       return {
@@ -284,10 +310,14 @@ class CartProvider extends ChangeNotifier {
   }
 
   Future<String?> createCheckoutSessionUrl({required String orderId}) async {
-    final callable = FirebaseFunctions.instance.httpsCallable('createCheckoutSessionForOrder');
+    final callable = FirebaseFunctions.instance.httpsCallable(
+      'createCheckoutSessionForOrder',
+    );
     final res = await callable.call(<String, dynamic>{'orderId': orderId});
     final data = res.data;
-    if (data is Map && data['checkoutUrl'] is String) return data['checkoutUrl'] as String;
+    if (data is Map && data['checkoutUrl'] is String) {
+      return data['checkoutUrl'] as String;
+    }
     return null;
   }
 }
@@ -296,7 +326,11 @@ class CartProvider extends ChangeNotifier {
 /// CART SCOPE
 /// -----------------------------------------------------------------------------
 class CartScope extends InheritedNotifier<CartProvider> {
-  const CartScope({super.key, required CartProvider super.notifier, required super.child});
+  const CartScope({
+    super.key,
+    required CartProvider super.notifier,
+    required super.child,
+  });
 
   static CartProvider of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<CartScope>();
@@ -326,14 +360,18 @@ class PhotoRepository {
     final pending = _pending[path];
     if (pending != null) return pending;
 
-    final fut = _storage.ref(path).getDownloadURL().then((u) {
-      _urlCache[path] = u;
-      _pending.remove(path);
-      return u;
-    }).catchError((_) {
-      _pending.remove(path);
-      return '';
-    });
+    final fut = _storage
+        .ref(path)
+        .getDownloadURL()
+        .then((u) {
+          _urlCache[path] = u;
+          _pending.remove(path);
+          return u;
+        })
+        .catchError((_) {
+          _pending.remove(path);
+          return '';
+        });
 
     _pending[path] = fut;
     return fut;
@@ -345,13 +383,25 @@ class PhotoRepository {
         .where('isActive', isEqualTo: true)
         .where('moderationStatus', isEqualTo: 'approved');
 
-    if (f.country != null) q = q.where('country', isEqualTo: f.country);
-    if (f.eventName != null) q = q.where('eventName', isEqualTo: f.eventName);
-    if (f.groupName != null) q = q.where('groupName', isEqualTo: f.groupName);
-    if (f.photographerName != null) q = q.where('photographerName', isEqualTo: f.photographerName);
+    if (f.country != null) {
+      q = q.where('country', isEqualTo: f.country);
+    }
+    if (f.eventName != null) {
+      q = q.where('eventName', isEqualTo: f.eventName);
+    }
+    if (f.groupName != null) {
+      q = q.where('groupName', isEqualTo: f.groupName);
+    }
+    if (f.photographerName != null) {
+      q = q.where('photographerName', isEqualTo: f.photographerName);
+    }
 
     if (f.dateRange != null) {
-      final start = DateTime(f.dateRange!.start.year, f.dateRange!.start.month, f.dateRange!.start.day);
+      final start = DateTime(
+        f.dateRange!.start.year,
+        f.dateRange!.start.month,
+        f.dateRange!.start.day,
+      );
       final end = DateTime(
         f.dateRange!.end.year,
         f.dateRange!.end.month,
@@ -361,28 +411,46 @@ class PhotoRepository {
         59,
         999,
       );
-      q = q.where('eventDate', isGreaterThanOrEqualTo: Timestamp.fromDate(start));
+      q = q.where(
+        'eventDate',
+        isGreaterThanOrEqualTo: Timestamp.fromDate(start),
+      );
       q = q.where('eventDate', isLessThanOrEqualTo: Timestamp.fromDate(end));
     }
 
     if (f.dateRange != null) {
-      q = q.orderBy('eventDate', descending: f.sort == SortMode.recent || f.sort == SortMode.popular);
-      if (f.sort == SortMode.popular) q = q.orderBy('popularity', descending: true);
-      if (f.sort == SortMode.priceAsc) q = q.orderBy('priceCents', descending: false);
-      if (f.sort == SortMode.priceDesc) q = q.orderBy('priceCents', descending: true);
+      q = q.orderBy(
+        'eventDate',
+        descending: f.sort == SortMode.recent || f.sort == SortMode.popular,
+      );
+      if (f.sort == SortMode.popular) {
+        q = q.orderBy('popularity', descending: true);
+      }
+      if (f.sort == SortMode.priceAsc) {
+        q = q.orderBy('priceCents', descending: false);
+      }
+      if (f.sort == SortMode.priceDesc) {
+        q = q.orderBy('priceCents', descending: true);
+      }
     } else {
       switch (f.sort) {
         case SortMode.recent:
           q = q.orderBy('eventDate', descending: true);
           break;
         case SortMode.popular:
-          q = q.orderBy('popularity', descending: true).orderBy('eventDate', descending: true);
+          q = q
+              .orderBy('popularity', descending: true)
+              .orderBy('eventDate', descending: true);
           break;
         case SortMode.priceAsc:
-          q = q.orderBy('priceCents', descending: false).orderBy('eventDate', descending: true);
+          q = q
+              .orderBy('priceCents', descending: false)
+              .orderBy('eventDate', descending: true);
           break;
         case SortMode.priceDesc:
-          q = q.orderBy('priceCents', descending: true).orderBy('eventDate', descending: true);
+          q = q
+              .orderBy('priceCents', descending: true)
+              .orderBy('eventDate', descending: true);
           break;
       }
     }
@@ -412,14 +480,29 @@ class PhotoRepository {
     if (f.country != null) q = q.where('country', isEqualTo: f.country);
 
     if (f.dateRange != null) {
-      final start = DateTime(f.dateRange!.start.year, f.dateRange!.start.month, f.dateRange!.start.day);
-      final end = DateTime(f.dateRange!.end.year, f.dateRange!.end.month, f.dateRange!.end.day, 23, 59, 59, 999);
+      final start = DateTime(
+        f.dateRange!.start.year,
+        f.dateRange!.start.month,
+        f.dateRange!.start.day,
+      );
+      final end = DateTime(
+        f.dateRange!.end.year,
+        f.dateRange!.end.month,
+        f.dateRange!.end.day,
+        23,
+        59,
+        59,
+        999,
+      );
       q = q
           .where('eventDate', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
           .where('eventDate', isLessThanOrEqualTo: Timestamp.fromDate(end));
     }
 
-    final eventsSnap = await q.orderBy('eventDate', descending: true).limit(300).get();
+    final eventsSnap = await q
+        .orderBy('eventDate', descending: true)
+        .limit(300)
+        .get();
     final events = <String>{};
     for (final d in eventsSnap.docs) {
       final e = d.data()['eventName'];
@@ -427,8 +510,13 @@ class PhotoRepository {
     }
 
     Query<Map<String, dynamic>> qGroups = q;
-    if (f.eventName != null) qGroups = qGroups.where('eventName', isEqualTo: f.eventName);
-    final groupsSnap = await qGroups.orderBy('eventDate', descending: true).limit(300).get();
+    if (f.eventName != null) {
+      qGroups = qGroups.where('eventName', isEqualTo: f.eventName);
+    }
+    final groupsSnap = await qGroups
+        .orderBy('eventDate', descending: true)
+        .limit(300)
+        .get();
     final groups = <String>{};
     for (final d in groupsSnap.docs) {
       final g = d.data()['groupName'];
@@ -436,8 +524,13 @@ class PhotoRepository {
     }
 
     Query<Map<String, dynamic>> qPhot = qGroups;
-    if (f.groupName != null) qPhot = qPhot.where('groupName', isEqualTo: f.groupName);
-    final photSnap = await qPhot.orderBy('eventDate', descending: true).limit(300).get();
+    if (f.groupName != null) {
+      qPhot = qPhot.where('groupName', isEqualTo: f.groupName);
+    }
+    final photSnap = await qPhot
+        .orderBy('eventDate', descending: true)
+        .limit(300)
+        .get();
     final photographers = <String>{};
     for (final d in photSnap.docs) {
       final p = d.data()['photographerName'];
@@ -615,7 +708,9 @@ class _MediaShopPageState extends State<MediaShopPage> {
     final s = _filters.searchText.trim().toLowerCase();
     if (s.isNotEmpty) {
       list = list.where((p) {
-        final hay = '${p.eventName} ${p.groupName} ${p.photographerName} ${p.country}'.toLowerCase();
+        final hay =
+            '${p.eventName} ${p.groupName} ${p.photographerName} ${p.country}'
+                .toLowerCase();
         return hay.contains(s);
       });
     }
@@ -625,25 +720,28 @@ class _MediaShopPageState extends State<MediaShopPage> {
 
   void _schedulePrecache({bool force = false}) {
     _precacheDebounce?.cancel();
-    _precacheDebounce = Timer(Duration(milliseconds: force ? 50 : 220), () async {
-      if (!mounted) return;
-      final items = _visibleItems;
-      if (items.isEmpty) return;
-
-      final pos = _scroll.hasClients ? _scroll.position.pixels : 0.0;
-      final idx = (pos / 320).floor() * 2;
-      final start = (idx - 6).clamp(0, items.length - 1);
-      final end = (idx + 16).clamp(0, items.length - 1);
-
-      for (int i = start; i <= end; i++) {
-        final p = items[i];
-        final url = await _repo.storageUrl(p.thumbPath);
+    _precacheDebounce = Timer(
+      Duration(milliseconds: force ? 50 : 220),
+      () async {
         if (!mounted) return;
-        if (url.isEmpty) continue;
-        // ignore: unawaited_futures
-        precacheImage(NetworkImage(url), context);
-      }
-    });
+        final items = _visibleItems;
+        if (items.isEmpty) return;
+
+        final pos = _scroll.hasClients ? _scroll.position.pixels : 0.0;
+        final idx = (pos / 320).floor() * 2;
+        final start = (idx - 6).clamp(0, items.length - 1);
+        final end = (idx + 16).clamp(0, items.length - 1);
+
+        for (int i = start; i <= end; i++) {
+          final p = items[i];
+          final url = await _repo.storageUrl(p.thumbPath);
+          if (!mounted) return;
+          if (url.isEmpty) continue;
+          // ignore: unawaited_futures
+          precacheImage(NetworkImage(url), context);
+        }
+      },
+    );
   }
 
   @override
@@ -673,16 +771,22 @@ class _MediaShopPageState extends State<MediaShopPage> {
                               children: [
                                 IconButton(
                                   tooltip: 'Panier',
-                                  onPressed: () => _openCartSheet(context, cart),
+                                  onPressed: () =>
+                                      _openCartSheet(context, cart),
                                   icon: Stack(
                                     clipBehavior: Clip.none,
                                     children: [
-                                      const Icon(Icons.shopping_bag_outlined, color: Colors.white),
+                                      const Icon(
+                                        Icons.shopping_bag_outlined,
+                                        color: Colors.white,
+                                      ),
                                       if (cart.cartCount > 0)
                                         Positioned(
                                           right: -4,
                                           top: -4,
-                                          child: _Badge(text: '${cart.cartCount}'),
+                                          child: _Badge(
+                                            text: '${cart.cartCount}',
+                                          ),
                                         ),
                                     ],
                                   ),
@@ -690,7 +794,10 @@ class _MediaShopPageState extends State<MediaShopPage> {
                                 IconButton(
                                   tooltip: 'Rafraîchir',
                                   onPressed: _refreshAll,
-                                  icon: const Icon(Icons.refresh, color: Colors.white),
+                                  icon: const Icon(
+                                    Icons.refresh,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ],
                             ),
@@ -723,7 +830,10 @@ class _MediaShopPageState extends State<MediaShopPage> {
                             child: Center(
                               child: Padding(
                                 padding: const EdgeInsets.all(18),
-                                child: Text('Erreur:\n$_error', textAlign: TextAlign.center),
+                                child: Text(
+                                  'Erreur:\n$_error',
+                                  textAlign: TextAlign.center,
+                                ),
                               ),
                             ),
                           )
@@ -734,7 +844,9 @@ class _MediaShopPageState extends State<MediaShopPage> {
                               child: Text(
                                 'Aucune photo trouvée.\nEssaie d\'élargir les filtres.',
                                 textAlign: TextAlign.center,
-                                style: TextStyle(color: MasliveTheme.textSecondary),
+                                style: TextStyle(
+                                  color: MasliveTheme.textSecondary,
+                                ),
                               ),
                             ),
                           )
@@ -742,24 +854,30 @@ class _MediaShopPageState extends State<MediaShopPage> {
                           SliverPadding(
                             padding: const EdgeInsets.fromLTRB(12, 12, 12, 120),
                             sliver: SliverGrid(
-                              delegate: SliverChildBuilderDelegate(
-                                (context, index) {
-                                  final item = results[index];
-                                  final purchased = _purchased.contains(item.id);
-                                  return SelectablePhotoCardV21(
-                                    item: item,
+                              delegate: SliverChildBuilderDelegate((
+                                context,
+                                index,
+                              ) {
+                                final item = results[index];
+                                final purchased = _purchased.contains(item.id);
+                                return SelectablePhotoCardV21(
+                                  item: item,
+                                  purchased: purchased,
+                                  onOpen: () => _openPreview(
+                                    context,
+                                    item,
                                     purchased: purchased,
-                                    onOpen: () => _openPreview(context, item, purchased: purchased, cart: cart),
-                                  );
-                                },
-                                childCount: results.length,
-                              ),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                mainAxisSpacing: 12,
-                                crossAxisSpacing: 12,
-                                childAspectRatio: 0.78,
-                              ),
+                                    cart: cart,
+                                  ),
+                                );
+                              }, childCount: results.length),
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    mainAxisSpacing: 12,
+                                    crossAxisSpacing: 12,
+                                    childAspectRatio: 0.78,
+                                  ),
                             ),
                           ),
 
@@ -770,27 +888,37 @@ class _MediaShopPageState extends State<MediaShopPage> {
                                 ? const Center(
                                     child: Padding(
                                       padding: EdgeInsets.all(16),
-                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
                                     ),
                                   )
                                 : (!_hasMore
-                                    ? Center(
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(16),
-                                          child: Text(
-                                            'Fin des résultats',
-                                            style: TextStyle(color: MasliveTheme.textSecondary),
+                                      ? Center(
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(16),
+                                            child: Text(
+                                              'Fin des résultats',
+                                              style: TextStyle(
+                                                color:
+                                                    MasliveTheme.textSecondary,
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                      )
-                                    : const SizedBox.shrink()),
+                                        )
+                                      : const SizedBox.shrink()),
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  const Positioned(left: 0, right: 0, bottom: 0, child: BottomSelectionBarV21()),
+                  const Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: BottomSelectionBarV21(),
+                  ),
                 ],
               ),
             ),
@@ -800,12 +928,18 @@ class _MediaShopPageState extends State<MediaShopPage> {
     );
   }
 
-  void _openPreview(BuildContext context, PhotoDoc item, {required bool purchased, required CartProvider cart}) {
+  void _openPreview(
+    BuildContext context,
+    PhotoDoc item, {
+    required bool purchased,
+    required CartProvider cart,
+  }) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => _PhotoPreviewSheetV21(item: item, purchased: purchased, cart: cart),
+      builder: (_) =>
+          _PhotoPreviewSheetV21(item: item, purchased: purchased, cart: cart),
     );
   }
 
@@ -850,7 +984,10 @@ class FilterBarStickyV21 extends StatelessWidget {
             _SearchField(
               initialValue: filters.searchText,
               onChanged: onSearchChanged,
-              onClear: () => onChanged(filters.copyWith(searchText: ''), resetResults: false),
+              onClear: () => onChanged(
+                filters.copyWith(searchText: ''),
+                resetResults: false,
+              ),
             ),
             const SizedBox(height: 10),
 
@@ -909,7 +1046,11 @@ class FilterBarStickyV21 extends StatelessWidget {
                     value: filters.eventName,
                     items: facets.events,
                     onChanged: (v) => onChanged(
-                      filters.copyWith(eventName: v, clearGroup: true, clearPhotographer: true),
+                      filters.copyWith(
+                        eventName: v,
+                        clearGroup: true,
+                        clearPhotographer: true,
+                      ),
                       resetResults: true,
                     ),
                   ),
@@ -937,14 +1078,20 @@ class FilterBarStickyV21 extends StatelessWidget {
                     label: 'Photographe',
                     value: filters.photographerName,
                     items: facets.photographers,
-                    onChanged: (v) => onChanged(filters.copyWith(photographerName: v), resetResults: true),
+                    onChanged: (v) => onChanged(
+                      filters.copyWith(photographerName: v),
+                      resetResults: true,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: _SortDrop(
                     value: filters.sort,
-                    onChanged: (m) => onChanged(filters.copyWith(sort: m), resetResults: true),
+                    onChanged: (m) => onChanged(
+                      filters.copyWith(sort: m),
+                      resetResults: true,
+                    ),
                   ),
                 ),
               ],
@@ -956,9 +1103,15 @@ class FilterBarStickyV21 extends StatelessWidget {
                 Expanded(
                   child: InkWell(
                     borderRadius: BorderRadius.circular(14),
-                    onTap: () => onChanged(filters.copyWith(hidePurchased: !filters.hidePurchased), resetResults: false),
+                    onTap: () => onChanged(
+                      filters.copyWith(hidePurchased: !filters.hidePurchased),
+                      resetResults: false,
+                    ),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: MasliveTheme.divider),
@@ -966,12 +1119,17 @@ class FilterBarStickyV21 extends StatelessWidget {
                       child: Row(
                         children: [
                           Icon(
-                            filters.hidePurchased ? Icons.check_box : Icons.check_box_outline_blank,
+                            filters.hidePurchased
+                                ? Icons.check_box
+                                : Icons.check_box_outline_blank,
                             size: 18,
                           ),
                           const SizedBox(width: 10),
                           const Expanded(child: Text('Masquer déjà achetées')),
-                          TextButton(onPressed: onReset, child: const Text('Réinitialiser')),
+                          TextButton(
+                            onPressed: onReset,
+                            child: const Text('Réinitialiser'),
+                          ),
                         ],
                       ),
                     ),
@@ -1018,7 +1176,7 @@ class SelectablePhotoCardV21 extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.black.withOpacity(0.08)),
+              border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
               color: Colors.white,
             ),
             child: Column(
@@ -1029,7 +1187,9 @@ class SelectablePhotoCardV21 extends StatelessWidget {
                     children: [
                       Positioned.fill(
                         child: ClipRRect(
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(18),
+                          ),
                           child: _StorageImage(path: item.thumbPath),
                         ),
                       ),
@@ -1038,13 +1198,28 @@ class SelectablePhotoCardV21 extends StatelessWidget {
                         top: 10,
                         right: 10,
                         child: GestureDetector(
-                          onTap: purchased ? null : () => cart.toggleSelected(item),
-                          child: _CheckBadge(isOn: selected, disabled: purchased),
+                          onTap: purchased
+                              ? null
+                              : () => cart.toggleSelected(item),
+                          child: _CheckBadge(
+                            isOn: selected,
+                            disabled: purchased,
+                          ),
                         ),
                       ),
 
-                      if (inCart) const Positioned(left: 10, top: 10, child: _Pill(text: 'Au panier')),
-                      if (purchased) const Positioned(left: 10, bottom: 10, child: _Pill(text: 'Achetée')),
+                      if (inCart)
+                        const Positioned(
+                          left: 10,
+                          top: 10,
+                          child: _Pill(text: 'Au panier'),
+                        ),
+                      if (purchased)
+                        const Positioned(
+                          left: 10,
+                          bottom: 10,
+                          child: _Pill(text: 'Achetée'),
+                        ),
                     ],
                   ),
                 ),
@@ -1064,16 +1239,26 @@ class SelectablePhotoCardV21 extends StatelessWidget {
                         '${item.groupName} • ${item.photographerName}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: Colors.black.withOpacity(0.7), fontSize: 12),
+                        style: TextStyle(
+                          color: Colors.black.withValues(alpha: 0.7),
+                          fontSize: 12,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          Text(_money(item.priceCents), style: const TextStyle(fontWeight: FontWeight.w800)),
+                          Text(
+                            _money(item.priceCents),
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
                           const Spacer(),
                           IconButton(
-                            tooltip: purchased ? 'Déjà achetée' : 'Ajouter au panier',
-                            onPressed: (purchased || inCart) ? null : () => cart.addToCart(item),
+                            tooltip: purchased
+                                ? 'Déjà achetée'
+                                : 'Ajouter au panier',
+                            onPressed: (purchased || inCart)
+                                ? null
+                                : () => cart.addToCart(item),
                             icon: const Icon(Icons.add_shopping_cart),
                           ),
                         ],
@@ -1111,12 +1296,14 @@ class BottomSelectionBarV21 extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
             decoration: BoxDecoration(
               color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.black.withOpacity(0.08))),
+              border: Border(
+                top: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
+              ),
               boxShadow: [
                 BoxShadow(
                   blurRadius: 18,
                   offset: const Offset(0, -6),
-                  color: Colors.black.withOpacity(0.06),
+                  color: Colors.black.withValues(alpha: 0.06),
                 ),
               ],
             ),
@@ -1129,7 +1316,10 @@ class BottomSelectionBarV21 extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                OutlinedButton(onPressed: cart.clearSelected, child: const Text('Décocher')),
+                OutlinedButton(
+                  onPressed: cart.clearSelected,
+                  child: const Text('Décocher'),
+                ),
                 const SizedBox(width: 10),
                 ElevatedButton.icon(
                   onPressed: cart.addSelectedToCart,
@@ -1191,16 +1381,27 @@ class _PhotoPreviewSheetV21State extends State<_PhotoPreviewSheetV21> {
             ),
           ),
           const SizedBox(height: 12),
-          Text(item.eventName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+          Text(
+            item.eventName,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
           const SizedBox(height: 6),
-          Text('${item.groupName} • ${item.photographerName}',
-              style: TextStyle(color: Colors.black.withOpacity(0.7))),
+          Text(
+            '${item.groupName} • ${item.photographerName}',
+            style: TextStyle(color: Colors.black.withValues(alpha: 0.7)),
+          ),
           const SizedBox(height: 6),
           Row(
             children: [
-              Text('Prix: ${_money(item.priceCents)}', style: const TextStyle(fontWeight: FontWeight.w800)),
+              Text(
+                'Prix: ${_money(item.priceCents)}',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
               const Spacer(),
-              Text(_fmtDate(item.eventDate), style: TextStyle(color: Colors.black.withOpacity(0.6))),
+              Text(
+                _fmtDate(item.eventDate),
+                style: TextStyle(color: Colors.black.withValues(alpha: 0.6)),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -1214,8 +1415,14 @@ class _PhotoPreviewSheetV21State extends State<_PhotoPreviewSheetV21> {
                           cart.toggleSelected(item);
                           setState(() {});
                         },
-                  icon: Icon(selected ? Icons.check_circle : Icons.circle_outlined),
-                  label: Text(widget.purchased ? 'Déjà achetée' : (selected ? 'Sélectionnée' : 'Sélectionner')),
+                  icon: Icon(
+                    selected ? Icons.check_circle : Icons.circle_outlined,
+                  ),
+                  label: Text(
+                    widget.purchased
+                        ? 'Déjà achetée'
+                        : (selected ? 'Sélectionnée' : 'Sélectionner'),
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
@@ -1228,7 +1435,11 @@ class _PhotoPreviewSheetV21State extends State<_PhotoPreviewSheetV21> {
                           setState(() {});
                         },
                   icon: const Icon(Icons.add_shopping_cart),
-                  label: Text(widget.purchased ? 'Achetée' : (inCart ? 'Au panier' : 'Ajouter')),
+                  label: Text(
+                    widget.purchased
+                        ? 'Achetée'
+                        : (inCart ? 'Au panier' : 'Ajouter'),
+                  ),
                 ),
               ),
             ],
@@ -1277,9 +1488,18 @@ class _CartSheetV21State extends State<_CartSheetV21> {
             children: [
               Row(
                 children: [
-                  const Text('Panier', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                  const Text(
+                    'Panier',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  ),
                   const Spacer(),
-                  Text(_money(total), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+                  Text(
+                    _money(total),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
@@ -1290,14 +1510,19 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.black.withOpacity(0.10)),
+                    border: Border.all(
+                      color: Colors.black.withValues(alpha: 0.10),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _line('Sous-total', _money(before)),
                       if (disc.discountCents > 0)
-                        _line('Pack (-${disc.percent}%)', '- ${_money(disc.discountCents)}'),
+                        _line(
+                          'Pack (-${disc.percent}%)',
+                          '- ${_money(disc.discountCents)}',
+                        ),
                       const Divider(height: 16),
                       _line('Total', _money(total), bold: true),
                       const SizedBox(height: 6),
@@ -1305,18 +1530,22 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                         disc.discountCents > 0
                             ? 'Pack appliqué: ${disc.rule} • ajoute des photos pour maximiser la réduction.'
                             : 'Astuce: dès 3 photos → -10%, 5 photos → -20%, 10 photos → -30%.',
-                        style: TextStyle(color: Colors.black.withOpacity(0.6)),
+                        style: TextStyle(
+                          color: Colors.black.withValues(alpha: 0.6),
+                        ),
                       ),
                     ],
                   ),
                 ),
 
-              if (_orderId != null || _checkoutUrl != null) const SizedBox(height: 10),
+              if (_orderId != null || _checkoutUrl != null)
+                const SizedBox(height: 10),
 
               if (_orderId != null)
                 _InfoBox(
                   title: 'Commande créée',
-                  body: 'orderId: $_orderId\nstatus: pending\n\n'
+                  body:
+                      'orderId: $_orderId\nstatus: pending\n\n'
                       'Tu peux maintenant créer la Checkout Session (Stripe).',
                 ),
 
@@ -1327,8 +1556,10 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                   actions: [
                     TextButton.icon(
                       onPressed: () async {
-                        await Clipboard.setData(ClipboardData(text: _checkoutUrl!));
-                        if (!mounted) return;
+                        await Clipboard.setData(
+                          ClipboardData(text: _checkoutUrl!),
+                        );
+                        if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Lien copié')),
                         );
@@ -1344,14 +1575,20 @@ class _CartSheetV21State extends State<_CartSheetV21> {
               if (items.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 24),
-                  child: Text('Ton panier est vide.', style: TextStyle(color: Colors.black.withOpacity(0.65))),
+                  child: Text(
+                    'Ton panier est vide.',
+                    style: TextStyle(
+                      color: Colors.black.withValues(alpha: 0.65),
+                    ),
+                  ),
                 )
               else
                 Flexible(
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: items.length,
-                    separatorBuilder: (_, __) => const Divider(height: 16),
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 16),
                     itemBuilder: (context, i) {
                       final it = items[i];
                       final bought = widget.purchased.contains(it.id);
@@ -1359,29 +1596,42 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: SizedBox(width: 64, height: 64, child: _StorageImage(path: it.thumbPath)),
+                            child: SizedBox(
+                              width: 64,
+                              height: 64,
+                              child: _StorageImage(path: it.thumbPath),
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(it.eventName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontWeight: FontWeight.w800)),
+                                Text(
+                                  it.eventName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
                                 const SizedBox(height: 4),
                                 Text(
                                   '${it.photographerName}${bought ? ' • Déjà achetée' : ''}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(color: Colors.black.withOpacity(0.7)),
+                                  style: TextStyle(
+                                    color: Colors.black.withValues(alpha: 0.7),
+                                  ),
                                 ),
                               ],
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text(_money(it.priceCents), style: const TextStyle(fontWeight: FontWeight.w800)),
+                          Text(
+                            _money(it.priceCents),
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
                           IconButton(
                             tooltip: 'Retirer',
                             onPressed: () => cart.removeFromCart(it.id),
@@ -1419,14 +1669,22 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                               setState(() => _creatingOrder = true);
                               try {
                                 final id = await cart.createPendingOrder();
+
+                                if (!mounted) return;
                                 setState(() => _orderId = id);
                               } catch (e) {
-                                if (!mounted) return;
+                                if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Erreur création commande: $e')),
+                                  SnackBar(
+                                    content: Text(
+                                      'Erreur création commande: $e',
+                                    ),
+                                  ),
                                 );
                               } finally {
-                                if (mounted) setState(() => _creatingOrder = false);
+                                if (mounted) {
+                                  setState(() => _creatingOrder = false);
+                                }
                               }
                             },
                       child: _creatingOrder
@@ -1450,18 +1708,26 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                       : () async {
                           setState(() => _creatingCheckout = true);
                           try {
-                            final url = await cart.createCheckoutSessionUrl(orderId: _orderId!);
+                            final url = await cart.createCheckoutSessionUrl(
+                              orderId: _orderId!,
+                            );
+
+                            if (!mounted) return;
                             if (url == null || url.isEmpty) {
-                              throw Exception('checkoutUrl manquant (callable)');
+                              throw Exception(
+                                'checkoutUrl manquant (callable)',
+                              );
                             }
                             setState(() => _checkoutUrl = url);
                           } catch (e) {
-                            if (!mounted) return;
+                            if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('Erreur checkout: $e')),
                             );
                           } finally {
-                            if (mounted) setState(() => _creatingCheckout = false);
+                            if (mounted) {
+                              setState(() => _creatingCheckout = false);
+                            }
                           }
                         },
                   icon: _creatingCheckout
@@ -1471,14 +1737,21 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.lock_outline),
-                  label: Text(_creatingCheckout ? 'Création checkout...' : 'Créer checkout Stripe'),
+                  label: Text(
+                    _creatingCheckout
+                        ? 'Création checkout...'
+                        : 'Créer checkout Stripe',
+                  ),
                 ),
               ),
               const SizedBox(height: 6),
               Text(
                 'Après paiement: ton webhook Stripe doit passer la commande en "paid" '
                 'et écrire /users/{uid}/purchases/{photoId}.',
-                style: TextStyle(color: Colors.black.withOpacity(0.6), fontSize: 12),
+                style: TextStyle(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  fontSize: 12,
+                ),
               ),
             ],
           ),
@@ -1512,7 +1785,7 @@ class _StorageImage extends StatelessWidget {
   Widget build(BuildContext context) {
     if (path.trim().isEmpty) {
       return Container(
-        color: Colors.black.withOpacity(0.06),
+        color: Colors.black.withValues(alpha: 0.06),
         alignment: Alignment.center,
         child: const Icon(Icons.image_not_supported_outlined),
       );
@@ -1524,14 +1797,18 @@ class _StorageImage extends StatelessWidget {
         final url = snap.data ?? '';
         if (snap.connectionState != ConnectionState.done) {
           return Container(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             alignment: Alignment.center,
-            child: const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)),
+            child: const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
           );
         }
         if (url.isEmpty) {
           return Container(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             alignment: Alignment.center,
             child: const Icon(Icons.broken_image_outlined),
           );
@@ -1547,12 +1824,14 @@ class _StorageImage extends StatelessWidget {
                     height: 22,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      value: p.expectedTotalBytes == null ? null : p.cumulativeBytesLoaded / p.expectedTotalBytes!,
+                      value: p.expectedTotalBytes == null
+                          ? null
+                          : p.cumulativeBytesLoaded / p.expectedTotalBytes!,
                     ),
                   ),
                 ),
-          errorBuilder: (_, __, ___) => Container(
-            color: Colors.black.withOpacity(0.06),
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: Colors.black.withValues(alpha: 0.06),
             alignment: Alignment.center,
             child: const Icon(Icons.broken_image_outlined),
           ),
@@ -1581,12 +1860,15 @@ class _SearchField extends StatefulWidget {
 }
 
 class _SearchFieldState extends State<_SearchField> {
-  late final TextEditingController _c = TextEditingController(text: widget.initialValue);
+  late final TextEditingController _c = TextEditingController(
+    text: widget.initialValue,
+  );
 
   @override
   void didUpdateWidget(covariant _SearchField oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialValue != widget.initialValue && _c.text != widget.initialValue) {
+    if (oldWidget.initialValue != widget.initialValue &&
+        _c.text != widget.initialValue) {
       _c.text = widget.initialValue;
     }
   }
@@ -1636,7 +1918,7 @@ class _InfoBox extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black.withOpacity(0.10)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.10)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1661,8 +1943,12 @@ class _CheckBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = disabled ? Colors.black.withOpacity(0.15) : (isOn ? Colors.black : Colors.white);
-    final fg = disabled ? Colors.black.withOpacity(0.35) : (isOn ? Colors.white : Colors.black);
+    final bg = disabled
+        ? Colors.black.withValues(alpha: 0.15)
+        : (isOn ? Colors.black : Colors.white);
+    final fg = disabled
+        ? Colors.black.withValues(alpha: 0.35)
+        : (isOn ? Colors.white : Colors.black);
 
     return Container(
       width: 34,
@@ -1670,10 +1956,14 @@ class _CheckBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.black.withOpacity(0.10)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.10)),
       ),
       alignment: Alignment.center,
-      child: Icon(isOn ? Icons.check : Icons.circle_outlined, size: 18, color: fg),
+      child: Icon(
+        isOn ? Icons.check : Icons.circle_outlined,
+        size: 18,
+        color: fg,
+      ),
     );
   }
 }
@@ -1689,9 +1979,12 @@ class _Pill extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.black.withOpacity(0.10)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.10)),
       ),
-      child: Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+      ),
     );
   }
 }
@@ -1704,14 +1997,29 @@ class _Badge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(999)),
-      child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900)),
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
     );
   }
 }
 
 class _Drop extends StatelessWidget {
-  const _Drop({required this.label, required this.value, required this.items, required this.onChanged});
+  const _Drop({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
 
   final String label;
   final String? value;
@@ -1727,7 +2035,7 @@ class _Drop extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -1759,7 +2067,10 @@ class _Drop extends StatelessWidget {
               value: value,
               hint: const Text('Tout'),
               items: [
-                const DropdownMenuItem<String>(value: null, child: Text('Tout')),
+                const DropdownMenuItem<String>(
+                  value: null,
+                  child: Text('Tout'),
+                ),
                 ...items.map((e) => DropdownMenuItem(value: e, child: Text(e))),
               ],
               onChanged: onChanged,
@@ -1798,7 +2109,7 @@ class _SortDrop extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -1828,7 +2139,9 @@ class _SortDrop extends StatelessWidget {
             child: DropdownButton<SortMode>(
               isExpanded: true,
               value: value,
-              items: SortMode.values.map((e) => DropdownMenuItem(value: e, child: Text(label(e)))).toList(),
+              items: SortMode.values
+                  .map((e) => DropdownMenuItem(value: e, child: Text(label(e))))
+                  .toList(),
               onChanged: (v) {
                 if (v != null) onChanged(v);
               },
@@ -1841,7 +2154,12 @@ class _SortDrop extends StatelessWidget {
 }
 
 class _DateRangeField extends StatelessWidget {
-  const _DateRangeField({required this.label, required this.range, required this.onPick, required this.onClear});
+  const _DateRangeField({
+    required this.label,
+    required this.range,
+    required this.onPick,
+    required this.onClear,
+  });
 
   final String label;
   final DateTimeRange? range;
@@ -1850,7 +2168,9 @@ class _DateRangeField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = range == null ? 'Toutes' : '${_fmt(range!.start)} → ${_fmt(range!.end)}';
+    final text = range == null
+        ? 'Toutes'
+        : '${_fmt(range!.start)} → ${_fmt(range!.end)}';
 
     return SizedBox(
       height: 56,
@@ -1859,7 +2179,7 @@ class _DateRangeField extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -1873,7 +2193,12 @@ class _DateRangeField extends StatelessWidget {
               context: context,
               firstDate: DateTime(now.year - 3),
               lastDate: DateTime(now.year + 3),
-              initialDateRange: range ?? DateTimeRange(start: now.subtract(const Duration(days: 7)), end: now),
+              initialDateRange:
+                  range ??
+                  DateTimeRange(
+                    start: now.subtract(const Duration(days: 7)),
+                    end: now,
+                  ),
             );
             if (picked != null) onPick(picked);
           },
@@ -1898,7 +2223,11 @@ class _DateRangeField extends StatelessWidget {
               fillColor: Colors.white,
               suffixIcon: range == null
                   ? const Icon(Icons.date_range)
-                  : IconButton(tooltip: 'Effacer', onPressed: onClear, icon: const Icon(Icons.close)),
+                  : IconButton(
+                      tooltip: 'Effacer',
+                      onPressed: onClear,
+                      icon: const Icon(Icons.close),
+                    ),
             ),
             child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
@@ -1909,7 +2238,11 @@ class _DateRangeField extends StatelessWidget {
 }
 
 class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
-  _StickyHeaderDelegate({required this.minHeight, required this.maxHeight, required this.child});
+  _StickyHeaderDelegate({
+    required this.minHeight,
+    required this.maxHeight,
+    required this.child,
+  });
   final double minHeight;
   final double maxHeight;
   final Widget child;
@@ -1919,11 +2252,17 @@ class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   @override
   double get maxExtent => maxHeight;
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => child;
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) => child;
 
   @override
   bool shouldRebuild(covariant _StickyHeaderDelegate oldDelegate) =>
-      minHeight != oldDelegate.minHeight || maxHeight != oldDelegate.maxHeight || child != oldDelegate.child;
+      minHeight != oldDelegate.minHeight ||
+      maxHeight != oldDelegate.maxHeight ||
+      child != oldDelegate.child;
 }
 
 /// -----------------------------------------------------------------------------

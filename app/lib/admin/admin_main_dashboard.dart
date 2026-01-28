@@ -4,6 +4,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/app_user.dart';
@@ -13,6 +14,9 @@ import 'admin_circuits_page.dart';
 import 'admin_pois_simple_page.dart';
 import 'admin_tracking_page.dart';
 import 'admin_products_page.dart';
+import 'admin_orders_page.dart';
+import 'admin_stock_page.dart';
+import 'admin_product_categories_page.dart';
 import 'admin_analytics_page.dart';
 import 'admin_logs_page.dart';
 import 'admin_system_settings_page.dart';
@@ -20,7 +24,7 @@ import 'user_management_page.dart';
 import 'business_requests_page.dart';
 import 'map_projects_library_page.dart';
 import '../pages/pending_products_page.dart';
-import '../pages/orders_page.dart';
+import '../pages/shop_page_new.dart';
 import 'create_circuit_assistant_page.dart';
 import 'poi_assistant_page.dart';
 
@@ -34,8 +38,84 @@ class AdminMainDashboard extends StatefulWidget {
 
 class _AdminMainDashboardState extends State<AdminMainDashboard> {
   final _authService = AuthClaimsService.instance;
+  final _firestore = FirebaseFirestore.instance;
   AppUser? _currentUser;
   bool _isLoading = true;
+
+  Stream<int> _watchProductsCount() {
+    return _firestore
+        .collection('products')
+        .snapshots()
+        .map((snap) => snap.size);
+  }
+
+  Stream<int> _watchPendingProductsCount() {
+    return _firestore
+        .collection('products')
+        .where('moderationStatus', isEqualTo: 'pending')
+        .snapshots()
+        .map((snap) => snap.size);
+  }
+
+  int _computeTotalStock(Map<String, dynamic> data) {
+    final raw = data['stockByVariant'];
+    if (raw is Map) {
+      var sum = 0;
+      for (final v in raw.values) {
+        if (v is int) sum += v;
+        if (v is num) sum += v.toInt();
+      }
+      return sum;
+    }
+
+    final stock = data['stock'];
+    if (stock is int) return stock;
+    if (stock is num) return stock.toInt();
+    return int.tryParse(stock?.toString() ?? '') ?? 0;
+  }
+
+  Stream<({int out, int low})> _watchStockAlerts({String? shopId}) {
+    Query<Map<String, dynamic>> q = _firestore
+        .collection('products')
+        .orderBy('updatedAt', descending: true)
+        .limit(400);
+    if (shopId != null && shopId.trim().isNotEmpty) {
+      q = q.where('shopId', isEqualTo: shopId);
+    }
+
+    return q.snapshots().map((snap) {
+      var out = 0;
+      var low = 0;
+      for (final doc in snap.docs) {
+        final stock = _computeTotalStock(doc.data());
+        if (stock <= 0) {
+          out++;
+        } else if (stock <= 5) {
+          low++;
+        }
+      }
+      return (out: out, low: low);
+    });
+  }
+
+  Widget _countBadge({required String text, required Color color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+          color: color,
+        ),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -215,17 +295,27 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
             Row(
               children: [
                 Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Produits',
-                    subtitle: 'Gérer le catalogue',
-                    icon: Icons.inventory,
-                    color: Colors.teal,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AdminProductsPage(),
-                      ),
-                    ),
+                  child: StreamBuilder<int>(
+                    stream: _watchProductsCount(),
+                    builder: (context, snap) {
+                      final count = snap.data;
+                      return _buildDashboardCard(
+                        title: 'Produits',
+                        subtitle: 'Gérer le catalogue',
+                        icon: Icons.inventory,
+                        color: Colors.teal,
+                        badge: count == null
+                            ? null
+                            : _countBadge(text: '$count', color: Colors.teal),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const AdminProductsPage(shopId: 'global'),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -238,7 +328,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const OrdersPage(),
+                        builder: (_) => const AdminOrdersPage(),
                       ),
                     ),
                   ),
@@ -250,26 +340,79 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
               children: [
                 Expanded(
                   child: _buildDashboardCard(
-                    title: 'Articles à valider',
-                    subtitle: 'Modération des produits',
-                    icon: Icons.pending_actions,
-                    color: Colors.orange,
+                    title: 'Aperçu boutique',
+                    subtitle: 'Voir les articles en live',
+                    icon: Icons.storefront,
+                    color: Colors.blue,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const PendingProductsPage(),
+                        builder: (_) =>
+                            const ShopPixelPerfectPage(shopId: 'global'),
                       ),
                     ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: StreamBuilder<int>(
+                    stream: _watchPendingProductsCount(),
+                    builder: (context, snap) {
+                      final count = snap.data ?? 0;
+                      return _buildDashboardCard(
+                        title: 'Articles à valider',
+                        subtitle: 'Modération des produits',
+                        icon: Icons.pending_actions,
+                        color: Colors.orange,
+                        badge: count <= 0
+                            ? null
+                            : _countBadge(
+                                text: '$count',
+                                color: const Color(0xFFB54708),
+                              ),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const PendingProductsPage(),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Stock',
-                    subtitle: 'Gestion des stocks',
-                    icon: Icons.warehouse,
-                    color: Colors.indigo,
-                    onTap: () => _showStockManagement(),
+                  child: StreamBuilder<({int out, int low})>(
+                    stream: _watchStockAlerts(shopId: 'global'),
+                    builder: (context, snap) {
+                      final d = snap.data;
+                      final out = d?.out ?? 0;
+                      final low = d?.low ?? 0;
+                      final badge = out > 0
+                          ? _countBadge(
+                              text: 'Rupture $out',
+                              color: const Color(0xFFB42318),
+                            )
+                          : (low > 0
+                                ? _countBadge(
+                                    text: 'Faible $low',
+                                    color: const Color(0xFFB54708),
+                                  )
+                                : null);
+
+                      return _buildDashboardCard(
+                        title: 'Stock',
+                        subtitle: 'Gestion des stocks',
+                        icon: Icons.warehouse,
+                        color: Colors.indigo,
+                        badge: badge,
+                        onTap: () => _showStockManagement(),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -278,12 +421,57 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
             Row(
               children: [
                 Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Catégories',
-                    subtitle: 'Organiser les produits',
-                    icon: Icons.category,
-                    color: Colors.purple,
-                    onTap: () => _showCategoryManagement(),
+                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: _firestore
+                        .collection('productCategories')
+                        .limit(200)
+                        .snapshots(),
+                    builder: (context, catSnap) {
+                      return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                        stream: _firestore
+                            .collection('products')
+                            .orderBy('updatedAt', descending: true)
+                            .limit(800)
+                            .snapshots(),
+                        builder: (context, prodSnap) {
+                          int? count;
+                          if (catSnap.hasData || prodSnap.hasData) {
+                            final set = <String>{};
+                            if (catSnap.hasData) {
+                              for (final d in catSnap.data!.docs) {
+                                final name = (d.data()['name'] ?? '')
+                                    .toString()
+                                    .trim();
+                                if (name.isNotEmpty) set.add(name);
+                              }
+                            }
+                            if (prodSnap.hasData) {
+                              for (final d in prodSnap.data!.docs) {
+                                final c = (d.data()['category'] ?? '')
+                                    .toString()
+                                    .trim();
+                                if (c.isNotEmpty) set.add(c);
+                              }
+                            }
+                            count = set.length;
+                          }
+
+                          return _buildDashboardCard(
+                            title: 'Catégories',
+                            subtitle: 'Organiser les produits',
+                            icon: Icons.category,
+                            color: Colors.purple,
+                            badge: count == null
+                                ? null
+                                : _countBadge(
+                                    text: '$count',
+                                    color: Colors.purple,
+                                  ),
+                            onTap: () => _showCategoryManagement(),
+                          );
+                        },
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1086,228 +1274,16 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
   }
 
   void _showStockManagement() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.warehouse, color: Colors.indigo),
-            SizedBox(width: 8),
-            Text('Gestion des stocks'),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Fonctionnalités de gestion du stock :',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              _stockFeatureTile(
-                icon: Icons.inventory_2,
-                title: 'Stock par variante',
-                description: 'Gérer le stock pour chaque taille/couleur',
-              ),
-              _stockFeatureTile(
-                icon: Icons.warning_amber,
-                title: 'Alertes rupture',
-                description: 'Notifications automatiques si stock faible',
-              ),
-              _stockFeatureTile(
-                icon: Icons.history,
-                title: 'Historique',
-                description: 'Suivi des mouvements de stock',
-              ),
-              _stockFeatureTile(
-                icon: Icons.file_download,
-                title: 'Import/Export',
-                description: 'Importer ou exporter les données',
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.info_outline, size: 20, color: Colors.blue),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Le système de stock est déjà configuré dans les modèles de produits',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const AdminProductsPage(),
-                ),
-              );
-            },
-            icon: const Icon(Icons.inventory),
-            label: const Text('Gérer produits'),
-          ),
-        ],
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AdminStockPage(shopId: 'global')),
     );
   }
 
   void _showCategoryManagement() {
-    final categories = [
-      {'name': 'T-shirts', 'icon': Icons.checkroom, 'count': 0},
-      {'name': 'Sweats', 'icon': Icons.dry_cleaning, 'count': 0},
-      {'name': 'Accessoires', 'icon': Icons.shopping_bag, 'count': 0},
-      {'name': 'Casquettes', 'icon': Icons.sports_baseball, 'count': 0},
-      {'name': 'Posters', 'icon': Icons.image, 'count': 0},
-    ];
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.category, color: Colors.purple),
-            SizedBox(width: 8),
-            Text('Catégories de produits'),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ...categories.map((cat) => ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.purple.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        cat['icon'] as IconData,
-                        color: Colors.purple,
-                        size: 24,
-                      ),
-                    ),
-                    title: Text(
-                      cat['name'] as String,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text('${cat['count']} produits'),
-                    trailing: PopupMenuButton(
-                      icon: const Icon(Icons.more_vert),
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              Icon(Icons.edit, size: 20),
-                              SizedBox(width: 8),
-                              Text('Modifier'),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(Icons.delete, size: 20, color: Colors.red),
-                              SizedBox(width: 8),
-                              Text('Supprimer', style: TextStyle(color: Colors.red)),
-                            ],
-                          ),
-                        ),
-                      ],
-                      onSelected: (value) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('$value: ${cat['name']}'),
-                          ),
-                        );
-                      },
-                    ),
-                  )),
-              const Divider(height: 24),
-              ElevatedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Ajout de catégorie à venir')),
-                  );
-                },
-                icon: const Icon(Icons.add),
-                label: const Text('Nouvelle catégorie'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purple,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _stockFeatureTile({
-    required IconData icon,
-    required String title,
-    required String description,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.indigo.shade50,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, size: 20, color: Colors.indigo),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  description,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AdminProductCategoriesPage()),
     );
   }
 
@@ -1570,6 +1546,7 @@ Vérifiez:
     required String subtitle,
     required IconData icon,
     required Color color,
+    Widget? badge,
     required VoidCallback onTap,
   }) {
     return Card(
@@ -1591,12 +1568,19 @@ Vérifiez:
                 child: Icon(icon, color: color, size: 28),
               ),
               const SizedBox(height: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  if (badge != null) ...[const SizedBox(width: 10), badge],
+                ],
               ),
               const SizedBox(height: 4),
               Text(
@@ -1649,9 +1633,7 @@ class AdminAssistantStepByStepHomePage extends StatelessWidget {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const POIAssistantPage(),
-                ),
+                MaterialPageRoute(builder: (_) => const POIAssistantPage()),
               );
             },
           ),

@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_web_libraries_in_flutter, unsafe_html
+// ignore_for_file: avoid_web_libraries_in_flutter, unsafe_html, deprecated_member_use
 import 'dart:async';
 import 'dart:html' as html;
 import 'dart:js' as js;
@@ -37,14 +37,21 @@ class MapboxWebView extends StatefulWidget {
 class _MapboxWebViewState extends State<MapboxWebView> {
   late final String _viewType;
   String? _containerId;
+  html.DivElement? _container;
   js.JsObject? _map;
   StreamSubscription<html.MessageEvent>? _messageSub;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     _viewType = 'mapbox-web-view-${DateTime.now().microsecondsSinceEpoch}';
     _registerFactory();
+
+    if (widget.accessToken.trim().isEmpty) {
+      _error =
+          'Token Mapbox manquant. Configure MAPBOX_ACCESS_TOKEN (ou MAPBOX_TOKEN legacy).';
+    }
 
     _messageSub = html.window.onMessage.listen((evt) {
       final data = evt.data;
@@ -63,6 +70,14 @@ class _MapboxWebViewState extends State<MapboxWebView> {
     });
   }
 
+  @override
+  void didUpdateWidget(covariant MapboxWebView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_map == null && _container != null && widget.accessToken.isNotEmpty) {
+      _initMapbox(_container!);
+    }
+  }
+
   void _registerFactory() {
     registerMapboxViewFactory(_viewType, (int viewId) {
       final container = html.DivElement()
@@ -71,6 +86,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
         ..style.height = '100%';
 
       _containerId ??= container.id;
+      _container ??= container;
 
       // Initialiser Mapbox GL JS après un court délai pour s'assurer que le DOM est prêt
       Future.delayed(const Duration(milliseconds: 100), () {
@@ -82,9 +98,27 @@ class _MapboxWebViewState extends State<MapboxWebView> {
   }
 
   void _initMapbox(html.DivElement container) {
+    if (widget.accessToken.trim().isEmpty) {
+      if (_error == null) {
+        setState(() {
+          _error =
+              'Token Mapbox manquant. Configure MAPBOX_ACCESS_TOKEN (ou MAPBOX_TOKEN legacy).';
+        });
+      }
+      return;
+    }
+
     // Vérifier que mapboxgl est disponible
     final mapboxglObj = js.context['mapboxgl'];
-    if (mapboxglObj == null) return;
+    if (mapboxglObj == null) {
+      if (_error == null) {
+        setState(() {
+          _error =
+              'Mapbox GL JS non chargé. Vérifie app/web/index.html (mapbox-gl.css + mapbox-gl.js).';
+        });
+      }
+      return;
+    }
 
     // Définir le token
     mapboxglObj['accessToken'] = widget.accessToken;
@@ -103,6 +137,12 @@ class _MapboxWebViewState extends State<MapboxWebView> {
     // Créer la carte
     final map = js.JsObject(mapboxglObj['Map'], [mapConfig]);
     _map = map;
+
+    if (_error != null) {
+      setState(() {
+        _error = null;
+      });
+    }
 
     // Ajouter les contrôles de navigation après le chargement
     map.callMethod('on', [
@@ -138,6 +178,21 @@ class _MapboxWebViewState extends State<MapboxWebView> {
     ]);
   }
 
+  @override
+  Widget build(BuildContext context) {
+    final error = _error;
+    if (error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(error, textAlign: TextAlign.center),
+        ),
+      );
+    }
+
+    return HtmlElementView(viewType: _viewType);
+  }
+
   void _add3dBuildings(js.JsObject map) {
     try {
       // Insérer la couche 3D buildings
@@ -161,11 +216,6 @@ class _MapboxWebViewState extends State<MapboxWebView> {
       // Si la source composite n'existe pas, ignorer silencieusement
       debugPrint('Could not add 3D buildings: $e');
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return HtmlElementView(viewType: _viewType);
   }
 
   @override
