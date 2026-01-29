@@ -46,6 +46,7 @@ import 'admin/admin_main_dashboard.dart';
 import 'services/cart_service.dart';
 import 'services/notifications_service.dart';
 import 'services/premium_service.dart';
+import 'services/mapbox_token_service.dart';
 import 'ui/theme/maslive_theme.dart';
 import 'ui/widgets/honeycomb_background.dart';
 import 'ui/google_light_map_page_entry.dart';
@@ -69,6 +70,9 @@ Future<void> main() async {
   );
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // ✅ Initialiser le token Mapbox (charge depuis SharedPreferences si dispo)
+  await MapboxTokenService.warmUp();
 
   // ✅ Initialiser le service de langue
   await Get.putAsync(() => LanguageService().init());
