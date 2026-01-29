@@ -38,10 +38,10 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
   static const _bg = Color(0xFFF6F7FB);
 
   // Compact (comme ton mockup)
-  static const double _pageHPad = 16;
-  static const double _gridGap = 12;
+  static const double _pageHPad = 10;
+  static const double _gridGap = 8;
 
-  static const double _headerH = 178; // hauteur header
+  static const double _headerH = 190; // hauteur header (légèrement augmentée)
   static const double _filtersPinnedH = 78; // chips + dropdown plus bas
 
   static const double _cardRadius = 24;
@@ -230,8 +230,8 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
     final tileW = (contentW - _gridGap) / 2;
 
     // ✅ Hauteurs qui matchent mieux ta capture (A54)
-    final bigTileH = tileW * 0.78; // plus haut => image plus grande
-    final smallTileH = tileW * 0.46; // bandanas plus bas
+    final bigTileH = tileW * 0.92; // plus haut => image plus grande
+    final smallTileH = tileW * 0.58; // bandanas plus bas
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
@@ -348,7 +348,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                             title: "Casquette\nMASLIVE",
                             price: "25,00 €",
                             image: const _AssetOrFallback(
-                              assetPath: "assets/shop/casquette.jpg",
+                              assetPath: "assets/shop/capblack1.png",
                               fallbackIcon: Icons.checkroom_outlined,
                             ),
                             onAdd: () => _addProductToCart(
@@ -357,7 +357,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                                 title: 'Casquette MASLIVE',
                                 priceCents: 2500,
                                 category: 'Accessoires',
-                                imagePath: 'assets/shop/casquette.jpg',
+                                imagePath: 'assets/shop/capblack1.png',
                               ),
                             ),
                             onTap: () => _openProductDetail(
@@ -366,7 +366,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                                 title: 'Casquette MASLIVE',
                                 priceCents: 2500,
                                 category: 'Accessoires',
-                                imagePath: 'assets/shop/casquette.jpg',
+                                imagePath: 'assets/shop/capblack1.png',
                               ),
                             ),
                             compact: false,
@@ -384,7 +384,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                             title: "T-shirt\nMASLIVE",
                             price: "25,00 €",
                             image: const _AssetOrFallback(
-                              assetPath: "assets/shop/tshirt.jpg",
+                              assetPath: "assets/shop/tshirtblack.png",
                               fallbackIcon: Icons.checkroom_outlined,
                             ),
                             onAdd: () => _addProductToCart(
@@ -393,7 +393,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                                 title: 'T-shirt MASLIVE',
                                 priceCents: 2500,
                                 category: 'Vêtements',
-                                imagePath: 'assets/shop/tshirt.jpg',
+                                imagePath: 'assets/shop/tshirtblack.png',
                               ),
                             ),
                             onTap: () => _openProductDetail(
@@ -402,7 +402,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                                 title: 'T-shirt MASLIVE',
                                 priceCents: 2500,
                                 category: 'Vêtements',
-                                imagePath: 'assets/shop/tshirt.jpg',
+                                imagePath: 'assets/shop/tshirtblack.png',
                               ),
                             ),
                             compact: false,
@@ -416,7 +416,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                             title: "Porte-clé\nMASLIVE",
                             price: "8,00 €",
                             image: const _AssetOrFallback(
-                              assetPath: "assets/shop/porte_cle.jpg",
+                              assetPath: "assets/shop/porteclésblack01.png",
                               fallbackIcon: Icons.key_outlined,
                             ),
                             onAdd: () => _addProductToCart(
@@ -425,7 +425,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                                 title: 'Porte-clé MASLIVE',
                                 priceCents: 800,
                                 category: 'Accessoires',
-                                imagePath: 'assets/shop/porte_cle.jpg',
+                                imagePath: 'assets/shop/porteclésblack01.png',
                               ),
                             ),
                             onTap: () => _openProductDetail(
@@ -434,7 +434,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                                 title: 'Porte-clé MASLIVE',
                                 priceCents: 800,
                                 category: 'Accessoires',
-                                imagePath: 'assets/shop/porte_cle.jpg',
+                                imagePath: 'assets/shop/porteclésblack01.png',
                               ),
                             ),
                             compact: false,
@@ -452,7 +452,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                             title: "Bandana\nMASLIVE",
                             price: "20,00 €",
                             image: const _AssetOrFallback(
-                              assetPath: "assets/shop/bandana.jpg",
+                              assetPath: "assets/shop/logomockup.jpeg",
                               fallbackIcon: Icons.auto_awesome_outlined,
                             ),
                             onAdd: () => _addProductToCart(
@@ -461,7 +461,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                                 title: 'Bandana MASLIVE',
                                 priceCents: 2000,
                                 category: 'Accessoires',
-                                imagePath: 'assets/shop/bandana.jpg',
+                                imagePath: 'assets/shop/logomockup.jpeg',
                               ),
                             ),
                             onTap: () => _openProductDetail(
@@ -470,7 +470,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                                 title: 'Bandana MASLIVE',
                                 priceCents: 2000,
                                 category: 'Accessoires',
-                                imagePath: 'assets/shop/bandana.jpg',
+                                imagePath: 'assets/shop/logomockup.jpeg',
                               ),
                             ),
                             compact: true,
@@ -484,7 +484,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                             title: "Bandana\nMASLIVE",
                             price: "10,00 €",
                             image: const _AssetOrFallback(
-                              assetPath: "assets/shop/bandana2.jpg",
+                              assetPath: "assets/shop/modelmaslivewhite.png",
                               fallbackIcon: Icons.auto_awesome_outlined,
                             ),
                             onAdd: () => _addProductToCart(
@@ -493,7 +493,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                                 title: 'Bandana MASLIVE',
                                 priceCents: 1000,
                                 category: 'Accessoires',
-                                imagePath: 'assets/shop/bandana2.jpg',
+                                imagePath: 'assets/shop/modelmaslivewhite.png',
                               ),
                             ),
                             onTap: () => _openProductDetail(
@@ -502,7 +502,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                                 title: 'Bandana MASLIVE',
                                 priceCents: 1000,
                                 category: 'Accessoires',
-                                imagePath: 'assets/shop/bandana2.jpg',
+                                imagePath: 'assets/shop/modelmaslivewhite.png',
                               ),
                             ),
                             compact: true,
@@ -601,7 +601,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                           crossAxisCount: 2,
                           mainAxisSpacing: _gridGap,
                           crossAxisSpacing: _gridGap,
-                          childAspectRatio: 0.78,
+                          childAspectRatio: 0.68,
                         ),
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final product = products[index];
@@ -776,7 +776,7 @@ class _Header extends StatelessWidget {
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 14,
-                            vertical: 12,
+                            vertical: 14,
                           ),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.18),
@@ -791,8 +791,8 @@ class _Header extends StatelessWidget {
                             style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
-                              fontSize: 16,
-                              height: 1.15,
+                              fontSize: 17,
+                              height: 1.2,
                             ),
                           ),
                         ),
@@ -1358,7 +1358,7 @@ class _EmptyStateCard extends StatelessWidget {
 }
 
 /// -------------------- IMAGE helper --------------------
-/// Mets tes vraies images dans assets/shop/*.jpg
+/// Mets tes vraies images dans assets/shop/* (png/jpeg)
 /// Si absent => fallback propre (pas de + fantôme)
 class _AssetOrFallback extends StatelessWidget {
   const _AssetOrFallback({required this.assetPath, required this.fallbackIcon});
