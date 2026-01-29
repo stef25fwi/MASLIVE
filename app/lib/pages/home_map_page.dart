@@ -1150,586 +1150,570 @@ class _HomeMapPageState extends State<HomeMapPage>
           opacity: 0.08,
           child: Stack(
             children: [
+              // Carte en plein écran absolu
               Positioned.fill(
-                child: Column(
+                child: Stack(
+                  fit: StackFit.expand,
                   children: [
-                    Expanded(
-                      child: Stack(
-                        children: [
-                        // Carte (réelle) - plein écran
-                        MasliveCard(
-                          radius: 0,
-                          padding: EdgeInsets.zero,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.zero,
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                if (_useMapboxGlWeb)
-                                  Positioned.fill(
-                                    child: Builder(
-                                      builder: (context) {
-                                        _markMapReadyIfNeeded();
-                                        final center =
-                                            _userPos ?? _fallbackCenter;
-                                        return MapboxWebView(
-                                          accessToken: _effectiveMapboxToken,
-                                          initialLat: center.latitude,
-                                          initialLng: center.longitude,
-                                          initialZoom:
-                                              _userPos != null ? 15.0 : 12.5,
-                                          initialPitch: 0.0,
-                                          initialBearing: 0.0,
-                                          styleUrl:
-                                              'mapbox://styles/mapbox/streets-v12',
-                                        );
-                                      },
-                                    ),
-                                  )
-                                else
-                                  FlutterMap(
-                                  mapController: _mapController,
-                                  options: MapOptions(
-                                    initialCenter: _userPos ?? _fallbackCenter,
-                                    initialZoom: _userPos != null ? 14.5 : 12.5,
-                                    onMapReady: () {
-                                      debugPrint(
-                                        '🗺️ HomeMapPage: Carte FlutterMap prête',
-                                      );
-                                      setState(() {
-                                        _isMapReady = true;
-                                        _checkIfReady();
-                                      });
-                                    },
-                                    onPositionChanged: (pos, hasGesture) {
-                                      if (hasGesture) _followUser = false;
-                                    },
-                                  ),
-                                  children: [
-                                    TileLayer(
-                                      urlTemplate: _useMapboxTiles
-                                          ? 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${_effectiveMapboxToken}'
-                                          : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                      userAgentPackageName: 'com.maslive.app',
-                                    ),
+                    if (_useMapboxGlWeb)
+                      Builder(
+                        builder: (context) {
+                          _markMapReadyIfNeeded();
+                          final center = _userPos ?? _fallbackCenter;
+                          return MapboxWebView(
+                            accessToken: _effectiveMapboxToken,
+                            initialLat: center.latitude,
+                            initialLng: center.longitude,
+                            initialZoom: _userPos != null ? 15.0 : 12.5,
+                            initialPitch: 0.0,
+                            initialBearing: 0.0,
+                            styleUrl: 'mapbox://styles/mapbox/streets-v12',
+                          );
+                        },
+                      )
+                    else
+                      FlutterMap(
+                      mapController: _mapController,
+                      options: MapOptions(
+                        initialCenter: _userPos ?? _fallbackCenter,
+                        initialZoom: _userPos != null ? 14.5 : 12.5,
+                        onMapReady: () {
+                          debugPrint(
+                            '🗺️ HomeMapPage: Carte FlutterMap prête',
+                          );
+                          setState(() {
+                            _isMapReady = true;
+                            _checkIfReady();
+                          });
+                        },
+                        onPositionChanged: (pos, hasGesture) {
+                          if (hasGesture) _followUser = false;
+                        },
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate: _useMapboxTiles
+                              ? 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${_effectiveMapboxToken}'
+                              : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName: 'com.maslive.app',
+                        ),
 
-                                    RichAttributionWidget(
-                                      alignment:
-                                          AttributionAlignment.bottomLeft,
-                                      attributions: [
-                                        if (_useMapboxTiles)
-                                          const TextSourceAttribution(
-                                            '© Mapbox',
-                                          ),
-                                        const TextSourceAttribution(
-                                          '© OpenStreetMap contributors',
-                                        ),
-                                      ],
-                                    ),
+                        RichAttributionWidget(
+                          alignment:
+                              AttributionAlignment.bottomLeft,
+                          attributions: [
+                            if (_useMapboxTiles)
+                              const TextSourceAttribution(
+                                '© Mapbox',
+                              ),
+                            const TextSourceAttribution(
+                              '© OpenStreetMap contributors',
+                            ),
+                          ],
+                        ),
 
-                                    if (_userPos != null)
-                                      MarkerLayer(
-                                        markers: [_userMarker(_userPos!)],
-                                      ),
+                        if (_userPos != null)
+                          MarkerLayer(
+                            markers: [_userMarker(_userPos!)],
+                          ),
 
-                                    StreamBuilder<List<Place>>(
-                                      stream: _placesStream(),
-                                      builder: (context, snap) {
-                                        final places =
-                                            snap.data ?? const <Place>[];
-                                        if (places.isEmpty) {
-                                          return const SizedBox.shrink();
-                                        }
-                                        return MarkerLayer(
-                                          markers: places
-                                              .map(_placeMarker)
-                                              .toList(),
-                                        );
-                                      },
-                                    ),
+                        StreamBuilder<List<Place>>(
+                          stream: _placesStream(),
+                          builder: (context, snap) {
+                            final places =
+                                snap.data ?? const <Place>[];
+                            if (places.isEmpty) {
+                              return const SizedBox.shrink();
+                            }
+                            return MarkerLayer(
+                              markers: places
+                                  .map(_placeMarker)
+                                  .toList(),
+                            );
+                          },
+                        ),
 
-                                    if (_selected == _MapAction.tracking) ...[
-                                      StreamBuilder<List<Circuit>>(
-                                        stream: _circuitStream,
-                                        builder: (context, snap) {
-                                          final circuits =
-                                              snap.data ?? const [];
-                                          if (circuits.isEmpty) {
-                                            return const SizedBox.shrink();
-                                          }
-                                          return PolylineLayer(
-                                            polylines: circuits
-                                                .where(
-                                                  (c) => c.points.isNotEmpty,
-                                                )
-                                                .map(
-                                                  (c) => Polyline(
-                                                    points: _circuitPoints(c),
-                                                    color: Colors.black
-                                                        .withValues(
-                                                          alpha: 0.65,
-                                                        ),
-                                                    strokeWidth: 4,
-                                                  ),
-                                                )
-                                                .toList(),
-                                          );
-                                        },
-                                      ),
-                                      StreamBuilder<
-                                        QuerySnapshot<Map<String, dynamic>>
-                                      >(
-                                        stream: FirebaseFirestore.instance
-                                            .collection('groups')
-                                            .snapshots(),
-                                        builder: (context, snap) {
-                                          if (!snap.hasData) {
-                                            return const SizedBox.shrink();
-                                          }
-
-                                          final markers = <Marker>[];
-                                          for (final doc in snap.data!.docs) {
-                                            final d = doc.data();
-                                            final name = (d['name'] ?? doc.id)
-                                                .toString();
-                                            final loc =
-                                                (d['lastLocation']
-                                                    as Map<String, dynamic>?) ??
-                                                const {};
-                                            final lat = (loc['lat'] as num?)
-                                                ?.toDouble();
-                                            final lng = (loc['lng'] as num?)
-                                                ?.toDouble();
-                                            if (lat == null || lng == null) {
-                                              continue;
-                                            }
-
-                                            final heading =
-                                                (loc['heading'] as num?)
-                                                    ?.toDouble();
-                                            final updatedAt = loc['updatedAt'];
-                                            if (updatedAt is Timestamp) {
-                                              final age = DateTime.now()
-                                                  .difference(
-                                                    updatedAt.toDate(),
-                                                  )
-                                                  .inSeconds;
-                                              if (age > 180) continue;
-                                            }
-
-                                            markers.add(
-                                              _groupMarker(
-                                                p: LatLng(lat, lng),
-                                                label: name,
-                                                heading: heading,
-                                                color: _groupColor(doc.id),
-                                              ),
-                                            );
-                                          }
-
-                                          if (markers.isEmpty) {
-                                            return const SizedBox.shrink();
-                                          }
-
-                                          return MarkerLayer(markers: markers);
-                                        },
-                                      ),
-                                    ],
-                                  ],
-                                ),
-
-                                if (!_useMapboxTiles)
-                                  Positioned(
-                                    top:
-                                        MediaQuery.of(context).padding.top +
-                                        12,
-                                    left: 12,
-                                    right: 12,
-                                    child: MasliveCard(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 10,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.info_outline_rounded,
-                                            size: 18,
-                                            color: Colors.black87,
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Expanded(
-                                            child: Text(
-                                              'Mapbox inactif: MAPBOX_ACCESS_TOKEN manquant.\nAffichage temporaire OpenStreetMap.',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodySmall
-                                                  ?.copyWith(
-                                                    fontWeight:
-                                                        FontWeight.w700,
-                                                  ),
+                        if (_selected == _MapAction.tracking) ...[
+                          StreamBuilder<List<Circuit>>(
+                            stream: _circuitStream,
+                            builder: (context, snap) {
+                              final circuits =
+                                  snap.data ?? const [];
+                              if (circuits.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+                              return PolylineLayer(
+                                polylines: circuits
+                                    .where(
+                                      (c) => c.points.isNotEmpty,
+                                    )
+                                    .map(
+                                      (c) => Polyline(
+                                        points: _circuitPoints(c),
+                                        color: Colors.black
+                                            .withValues(
+                                              alpha: 0.65,
                                             ),
-                                          ),
-                                          TextButton(
-                                            onPressed: _configureMapboxToken,
-                                            child: const Text('Configurer'),
-                                          ),
-                                        ],
+                                        strokeWidth: 4,
                                       ),
-                                    ),
+                                    )
+                                    .toList(),
+                              );
+                            },
+                          ),
+                          StreamBuilder<
+                            QuerySnapshot<Map<String, dynamic>>
+                          >(
+                            stream: FirebaseFirestore.instance
+                                .collection('groups')
+                                .snapshots(),
+                            builder: (context, snap) {
+                              if (!snap.hasData) {
+                                return const SizedBox.shrink();
+                              }
+
+                              final markers = <Marker>[];
+                              for (final doc in snap.data!.docs) {
+                                final d = doc.data();
+                                final name = (d['name'] ?? doc.id)
+                                    .toString();
+                                final loc =
+                                    (d['lastLocation']
+                                        as Map<String, dynamic>?) ??
+                                    const {};
+                                final lat = (loc['lat'] as num?)
+                                    ?.toDouble();
+                                final lng = (loc['lng'] as num?)
+                                    ?.toDouble();
+                                if (lat == null || lng == null) {
+                                  continue;
+                                }
+
+                                final heading =
+                                    (loc['heading'] as num?)
+                                        ?.toDouble();
+                                final updatedAt = loc['updatedAt'];
+                                if (updatedAt is Timestamp) {
+                                  final age = DateTime.now()
+                                      .difference(
+                                        updatedAt.toDate(),
+                                      )
+                                      .inSeconds;
+                                  if (age > 180) continue;
+                                }
+
+                                markers.add(
+                                  _groupMarker(
+                                    p: LatLng(lat, lng),
+                                    label: name,
+                                    heading: heading,
+                                    color: _groupColor(doc.id),
                                   ),
+                                );
+                              }
+
+                              if (markers.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+
+                              return MarkerLayer(markers: markers);
+                            },
+                          ),
+                        ],
+                      ],
+                    ),
+
+                    if (!_useMapboxTiles)
+                      Positioned(
+                        top:
+                            MediaQuery.of(context).padding.top +
+                            12,
+                        left: 12,
+                        right: 12,
+                        child: MasliveCard(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.info_outline_rounded,
+                                size: 18,
+                                color: Colors.black87,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Mapbox inactif: MAPBOX_ACCESS_TOKEN manquant.\nAffichage temporaire OpenStreetMap.',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        fontWeight:
+                                            FontWeight.w700,
+                                      ),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: _configureMapboxToken,
+                                child: const Text('Configurer'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+
+              // Overlay actions - affiche quand burger cliqué
+              Positioned.fill(
+                child: Visibility(
+                  visible: _showActionsMenu,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: () {
+                      setState(() => _showActionsMenu = false);
+                      _menuAnimController.reverse();
+                    },
+                    onHorizontalDragEnd: (details) {
+                      if (details.primaryVelocity != null &&
+                          details.primaryVelocity! > 0) {
+                        setState(() => _showActionsMenu = false);
+                        _menuAnimController.reverse();
+                      }
+                    },
+                    child: Align(
+                      alignment: Alignment.topRight,
+                      child: SlideTransition(
+                        position: _menuSlideAnimation,
+                        child: Container(
+                          margin: const EdgeInsets.only(
+                            right: 0,
+                            top: 52,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(
+                              alpha: 0.65,
+                            ),
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(24),
+                              bottom: Radius.circular(24),
+                            ),
+                            boxShadow: const [],
+                          ),
+                          child: SingleChildScrollView(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Bouton Cartes - visible seulement pour les superadmins
+                                if (_isSuperAdmin)
+                                  _ActionItem(
+                                    label: 'Cartes',
+                                    icon: Icons.layers_rounded,
+                                    selected: _selectedPreset != null,
+                                    onTap: _openMapQuickMenu,
+                                  ),
+                                if (_isSuperAdmin)
+                                  const SizedBox(height: 8),
+                                _ActionItem(
+                                  label: 'Centrer',
+                                  icon: Icons.my_location_rounded,
+                                  selected: false,
+                                  onTap: () {
+                                    _recenterOnUser();
+                                    _closeNavWithDelay();
+                                  },
+                                ),
+                                const SizedBox(height: 8),
+                                _ActionItem(
+                                  label: l10n.AppLocalizations.of(
+                                    context,
+                                  )!.tracking,
+                                  icon: Icons.track_changes_rounded,
+                                  selected:
+                                      _selected ==
+                                      _MapAction.tracking,
+                                  onTap: () {
+                                    setState(() {
+                                      _selected = _MapAction.tracking;
+                                    });
+                                    _closeNavWithDelay();
+                                  },
+                                ),
+                                const SizedBox(height: 8),
+                                _ActionItem(
+                                  label: l10n.AppLocalizations.of(
+                                    context,
+                                  )!.visit,
+                                  icon: Icons.map_outlined,
+                                  selected:
+                                      _selected == _MapAction.visiter,
+                                  onTap: () {
+                                    setState(() {
+                                      _selected = _MapAction.visiter;
+                                    });
+                                    _closeNavWithDelay();
+                                  },
+                                ),
+                                const SizedBox(height: 8),
+                                _ActionItem(
+                                  label: l10n.AppLocalizations.of(
+                                    context,
+                                  )!.food,
+                                  icon: Icons.fastfood_rounded,
+                                  selected:
+                                      _selected == _MapAction.food,
+                                  onTap: () {
+                                    setState(() {
+                                      _selected = _MapAction.food;
+                                    });
+                                    _closeNavWithDelay();
+                                  },
+                                ),
+                                const SizedBox(height: 8),
+                                _ActionItem(
+                                  label: l10n.AppLocalizations.of(
+                                    context,
+                                  )!.assistance,
+                                  icon: Icons.shield_outlined,
+                                  selected:
+                                      _selected ==
+                                      _MapAction.encadrement,
+                                  onTap: () {
+                                    setState(() {
+                                      _selected =
+                                          _MapAction.encadrement;
+                                    });
+                                    _closeNavWithDelay();
+                                  },
+                                ),
+                                const SizedBox(height: 8),
+                                _ActionItem(
+                                  label: l10n.AppLocalizations.of(
+                                    context,
+                                  )!.parking,
+                                  icon: Icons.local_parking_rounded,
+                                  customText: 'P',
+                                  color: const Color(0xFF0D97EB),
+                                  selected:
+                                      _selected == _MapAction.parking,
+                                  onTap: () {
+                                    setState(() {
+                                      _selected = _MapAction.parking;
+                                    });
+                                    _closeNavWithDelay();
+                                  },
+                                ),
+                                const SizedBox(height: 8),
+                                _ActionItem(
+                                  label: '',
+                                  icon: Icons.wc_rounded,
+                                  selected:
+                                      _selected == _MapAction.wc,
+                                  onTap: () {
+                                    setState(() {
+                                      _selected = _MapAction.wc;
+                                    });
+                                    _closeNavWithDelay();
+                                  },
+                                ),
                               ],
                             ),
                           ),
                         ),
-
-                        // Overlay actions - affiche quand burger cliqué
-                        Positioned.fill(
-                          child: Visibility(
-                            visible: _showActionsMenu,
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.translucent,
-                              onTap: () {
-                                setState(() => _showActionsMenu = false);
-                                _menuAnimController.reverse();
-                              },
-                              onHorizontalDragEnd: (details) {
-                                if (details.primaryVelocity != null &&
-                                    details.primaryVelocity! > 0) {
-                                  setState(() => _showActionsMenu = false);
-                                  _menuAnimController.reverse();
-                                }
-                              },
-                              child: Align(
-                                alignment: Alignment.topRight,
-                                child: SlideTransition(
-                                  position: _menuSlideAnimation,
-                                  child: Container(
-                                    margin: const EdgeInsets.only(
-                                      right: 0,
-                                      top: 52,
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 10,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.65,
-                                      ),
-                                      borderRadius: const BorderRadius.vertical(
-                                        top: Radius.circular(24),
-                                        bottom: Radius.circular(24),
-                                      ),
-                                      boxShadow: const [],
-                                    ),
-                                    child: SingleChildScrollView(
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          // Bouton Cartes - visible seulement pour les superadmins
-                                          if (_isSuperAdmin)
-                                            _ActionItem(
-                                              label: 'Cartes',
-                                              icon: Icons.layers_rounded,
-                                              selected: _selectedPreset != null,
-                                              onTap: _openMapQuickMenu,
-                                            ),
-                                          if (_isSuperAdmin)
-                                            const SizedBox(height: 8),
-                                          _ActionItem(
-                                            label: 'Centrer',
-                                            icon: Icons.my_location_rounded,
-                                            selected: false,
-                                            onTap: () {
-                                              _recenterOnUser();
-                                              _closeNavWithDelay();
-                                            },
-                                          ),
-                                          const SizedBox(height: 8),
-                                          _ActionItem(
-                                            label: l10n.AppLocalizations.of(
-                                              context,
-                                            )!.tracking,
-                                            icon: Icons.track_changes_rounded,
-                                            selected:
-                                                _selected ==
-                                                _MapAction.tracking,
-                                            onTap: () {
-                                              setState(() {
-                                                _selected = _MapAction.tracking;
-                                              });
-                                              _closeNavWithDelay();
-                                            },
-                                          ),
-                                          const SizedBox(height: 8),
-                                          _ActionItem(
-                                            label: l10n.AppLocalizations.of(
-                                              context,
-                                            )!.visit,
-                                            icon: Icons.map_outlined,
-                                            selected:
-                                                _selected == _MapAction.visiter,
-                                            onTap: () {
-                                              setState(() {
-                                                _selected = _MapAction.visiter;
-                                              });
-                                              _closeNavWithDelay();
-                                            },
-                                          ),
-                                          const SizedBox(height: 8),
-                                          _ActionItem(
-                                            label: l10n.AppLocalizations.of(
-                                              context,
-                                            )!.food,
-                                            icon: Icons.fastfood_rounded,
-                                            selected:
-                                                _selected == _MapAction.food,
-                                            onTap: () {
-                                              setState(() {
-                                                _selected = _MapAction.food;
-                                              });
-                                              _closeNavWithDelay();
-                                            },
-                                          ),
-                                          const SizedBox(height: 8),
-                                          _ActionItem(
-                                            label: l10n.AppLocalizations.of(
-                                              context,
-                                            )!.assistance,
-                                            icon: Icons.shield_outlined,
-                                            selected:
-                                                _selected ==
-                                                _MapAction.encadrement,
-                                            onTap: () {
-                                              setState(() {
-                                                _selected =
-                                                    _MapAction.encadrement;
-                                              });
-                                              _closeNavWithDelay();
-                                            },
-                                          ),
-                                          const SizedBox(height: 8),
-                                          _ActionItem(
-                                            label: l10n.AppLocalizations.of(
-                                              context,
-                                            )!.parking,
-                                            icon: Icons.local_parking_rounded,
-                                            customText: 'P',
-                                            color: const Color(0xFF0D97EB),
-                                            selected:
-                                                _selected == _MapAction.parking,
-                                            onTap: () {
-                                              setState(() {
-                                                _selected = _MapAction.parking;
-                                              });
-                                              _closeNavWithDelay();
-                                            },
-                                          ),
-                                          const SizedBox(height: 8),
-                                          _ActionItem(
-                                            label: '',
-                                            icon: Icons.wc_rounded,
-                                            selected:
-                                                _selected == _MapAction.wc,
-                                            onTap: () {
-                                              setState(() {
-                                                _selected = _MapAction.wc;
-                                              });
-                                              _closeNavWithDelay();
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // Panneau rapide des couches actives (si un preset est chargé)
-                        if (_selectedPreset != null &&
-                            _currentPresetLayers.isNotEmpty)
-                          Positioned(
-                            left: 14,
-                            right: 14,
-                            bottom: _selected == _MapAction.tracking ? 96 : 36,
-                            child: _LayerQuickPanel(
-                              layers: _currentPresetLayers,
-                              activeLayers: _activeLayers,
-                              onToggle: _toggleLayer,
-                            ),
-                          ),
-
-                        if (_selected == _MapAction.tracking)
-                          Positioned(
-                            left: 16,
-                            right: 90,
-                            bottom: 18,
-                            child: _TrackingPill(
-                              isTracking: _isTracking,
-                              onToggle: _toggleTracking,
-                            ),
-                          ),
-                        ],
                       ),
                     ),
-                    // Header déplacé en bas comme bottom bar
-                    MasliveGradientHeader(
-                      height: 60,
-                      borderRadius: BorderRadius.zero,
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                      backgroundColor: Colors.white.withValues(alpha: 0.65),
-                      child: Row(
-                        children: [
-                        StreamBuilder<User?>(
-                          stream: AuthService.instance.authStateChanges,
-                          builder: (context, snap) {
-                            final user = snap.data;
-                            final pseudo =
-                                (user?.displayName ?? user?.email ?? 'Profil')
-                                    .trim();
+                  ),
+                ),
+              ),
 
-                            return Tooltip(
-                              message: pseudo.isEmpty ? 'Profil' : pseudo,
-                              child: InkWell(
-                                onTap: () {
-                                  if (user != null) {
-                                    _closeNavWithDelay();
-                                    Future.delayed(
-                                      const Duration(milliseconds: 500),
-                                      () {
-                                        if (mounted) {
-                                          Navigator.pushNamed(
-                                            context,
-                                            '/account-ui',
-                                          );
-                                        }
-                                      },
-                                    );
-                                  } else {
-                                    _closeNavWithDelay();
-                                    Future.delayed(
-                                      const Duration(milliseconds: 500),
-                                      () {
-                                        if (mounted) {
-                                          Navigator.pushNamed(
-                                            context,
-                                            '/login',
-                                          );
-                                        }
-                                      },
-                                    );
-                                  }
-                                },
-                                customBorder: const CircleBorder(),
-                                child: MasliveProfileIcon(
-                                  size: 46,
-                                  badgeSizeRatio: 0.22,
-                                  showBadge: user != null,
+              // Panneau rapide des couches actives (si un preset est chargé)
+              if (_selectedPreset != null &&
+                  _currentPresetLayers.isNotEmpty)
+                Positioned(
+                  left: 14,
+                  right: 14,
+                  bottom: _selected == _MapAction.tracking ? 96 : 36,
+                  child: _LayerQuickPanel(
+                    layers: _currentPresetLayers,
+                    activeLayers: _activeLayers,
+                    onToggle: _toggleLayer,
+                  ),
+                ),
+
+              if (_selected == _MapAction.tracking)
+                Positioned(
+                  left: 16,
+                  right: 90,
+                  bottom: 18,
+                  child: _TrackingPill(
+                    isTracking: _isTracking,
+                    onToggle: _toggleTracking,
+                  ),
+                ),
+
+              // Header déplacé en bas comme bottom bar
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: MasliveGradientHeader(
+                  height: 60,
+                  borderRadius: BorderRadius.zero,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                  backgroundColor: Colors.white.withValues(alpha: 0.65),
+                  child: Row(
+                    children: [
+                    StreamBuilder<User?>(
+                      stream: AuthService.instance.authStateChanges,
+                      builder: (context, snap) {
+                        final user = snap.data;
+                        final pseudo =
+                            (user?.displayName ?? user?.email ?? 'Profil')
+                                .trim();
+
+                        return Tooltip(
+                          message: pseudo.isEmpty ? 'Profil' : pseudo,
+                          child: InkWell(
+                            onTap: () {
+                              if (user != null) {
+                                _closeNavWithDelay();
+                                Future.delayed(
+                                  const Duration(milliseconds: 500),
+                                  () {
+                                    if (mounted) {
+                                      Navigator.pushNamed(
+                                        context,
+                                        '/account-ui',
+                                      );
+                                    }
+                                  },
+                                );
+                              } else {
+                                _closeNavWithDelay();
+                                Future.delayed(
+                                  const Duration(milliseconds: 500),
+                                  () {
+                                    if (mounted) {
+                                      Navigator.pushNamed(
+                                        context,
+                                        '/login',
+                                      );
+                                    }
+                                  },
+                                );
+                              }
+                            },
+                            customBorder: const CircleBorder(),
+                            child: MasliveProfileIcon(
+                              size: 46,
+                              badgeSizeRatio: 0.22,
+                              showBadge: user != null,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 12),
+                    const Spacer(),
+                    Tooltip(
+                      message: l10n.AppLocalizations.of(context)!.language,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _cycleLanguage,
+                          onLongPress: _openLanguagePicker,
+                          customBorder: const CircleBorder(),
+                          child: Container(
+                            width: 46,
+                            height: 46,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: _headerLanguageFlagGradient(),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(
+                                    0xFF9B6BFF,
+                                  ).withValues(alpha: 0.22),
+                                  blurRadius: 18,
+                                  spreadRadius: 1,
+                                  offset: const Offset(0, 10),
                                 ),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 12),
-                        const Spacer(),
-                        Tooltip(
-                          message: l10n.AppLocalizations.of(context)!.language,
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: _cycleLanguage,
-                              onLongPress: _openLanguagePicker,
-                              customBorder: const CircleBorder(),
+                                BoxShadow(
+                                  color: const Color(
+                                    0xFFFF7AAE,
+                                  ).withValues(alpha: 0.16),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: Center(
                               child: Container(
-                                width: 46,
-                                height: 46,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: _headerLanguageFlagGradient(),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(
-                                        0xFF9B6BFF,
-                                      ).withValues(alpha: 0.22),
-                                      blurRadius: 18,
-                                      spreadRadius: 1,
-                                      offset: const Offset(0, 10),
-                                    ),
-                                    BoxShadow(
-                                      color: const Color(
-                                        0xFFFF7AAE,
-                                      ).withValues(alpha: 0.16),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 6),
-                                    ),
-                                  ],
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 3,
                                 ),
-                                child: Center(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 3,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.5,
-                                      ),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      _headerLanguageCode(),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 14,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  _headerLanguageCode(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 14,
+                                    letterSpacing: 0.5,
                                   ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        MasliveGradientIconButton(
-                          icon: Icons.shopping_bag_rounded,
-                          tooltip: l10n.AppLocalizations.of(context)!.shop,
-                          onTap: () {
-                            _closeNavWithDelay();
-                            Future.delayed(
-                              const Duration(milliseconds: 500),
-                              () {
-                                if (mounted) {
-                                  Navigator.pushNamed(context, '/shop-ui');
-                                }
-                              },
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 10),
-                        MasliveGradientIconButton(
-                          icon: Icons.menu_rounded,
-                          tooltip: l10n.AppLocalizations.of(context)!.menu,
-                          onTap: () {
-                            setState(
-                              () => _showActionsMenu = !_showActionsMenu,
-                            );
-                            if (_showActionsMenu) {
-                              _menuAnimController.forward();
-                            } else {
-                              _menuAnimController.reverse();
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    MasliveGradientIconButton(
+                      icon: Icons.shopping_bag_rounded,
+                      tooltip: l10n.AppLocalizations.of(context)!.shop,
+                      onTap: () {
+                        _closeNavWithDelay();
+                        Future.delayed(
+                          const Duration(milliseconds: 500),
+                          () {
+                            if (mounted) {
+                              Navigator.pushNamed(context, '/shop-ui');
                             }
                           },
-                        ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
-                  ],
+                    const SizedBox(width: 10),
+                    MasliveGradientIconButton(
+                      icon: Icons.menu_rounded,
+                      tooltip: l10n.AppLocalizations.of(context)!.menu,
+                      onTap: () {
+                        setState(
+                          () => _showActionsMenu = !_showActionsMenu,
+                        );
+                        if (_showActionsMenu) {
+                          _menuAnimController.forward();
+                        } else {
+                          _menuAnimController.reverse();
+                        }
+                      },
+                    ),
+                    ],
+                  ),
                 ),
               ),
             ],
