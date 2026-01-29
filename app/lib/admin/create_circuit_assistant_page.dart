@@ -34,8 +34,8 @@ class CreateCircuitAssistantPage extends StatefulWidget {
       _CreateCircuitAssistantPageState();
 }
 
-class _CreateCircuitAssistantPageState
-    extends State<CreateCircuitAssistantPage> {
+class _CreateCircuitAssistantPageState extends State<CreateCircuitAssistantPage>
+    with SingleTickerProviderStateMixin {
   int _step = 0;
   bool _isFocusMode = false;
   Timer? _autoSaveTimer;
@@ -45,13 +45,54 @@ class _CreateCircuitAssistantPageState
   List<Map<String, double>> _perimeterPoints = [];
   String? _perimeterPreset;
   bool _perimeterValidated = false;
+  bool _showTutorial = false;
+  int _tutorialStep = 0;
+  late AnimationController _transitionController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  final FocusNode _keyboardFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
+    _transitionController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _transitionController, curve: Curves.easeInOut),
+    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0.1, 0), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _transitionController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
+    _transitionController.forward();
     _loadDraft();
     _startAutoSave();
     _warmUpMapboxToken();
+    _checkFirstTime();
+  }
+
+  Future<void> _checkFirstTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeenTutorial =
+        prefs.getBool('circuit_wizard_tutorial_seen') ?? false;
+    if (!hasSeenTutorial && mounted) {
+      setState(() {
+        _showTutorial = true;
+      });
+    }
+  }
+
+  Future<void> _completeTutorial() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('circuit_wizard_tutorial_seen', true);
+    setState(() {
+      _showTutorial = false;
+    });
   }
 
   Future<void> _warmUpMapboxToken() async {
@@ -69,6 +110,8 @@ class _CreateCircuitAssistantPageState
   @override
   void dispose() {
     _autoSaveTimer?.cancel();
+    _transitionController.dispose();
+    _keyboardFocusNode.dispose();
     super.dispose();
   }
 
@@ -225,60 +268,192 @@ class _CreateCircuitAssistantPageState
     );
   }
 
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+    final isControl =
+        HardwareKeyboard.instance.isControlPressed ||
+        HardwareKeyboard.instance.isMetaPressed;
+
+    // Ctrl+S : Sauvegarder
+    if (event.logicalKey == LogicalKeyboardKey.keyS && isControl) {
+      _saveDraft();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('💾 Brouillon sauvegardé'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+      return KeyEventResult.handled;
+    }
+
+    // Ctrl+Right : Étape suivante
+    if (event.logicalKey == LogicalKeyboardKey.arrowRight && isControl) {
+      _nextStep();
+      return KeyEventResult.handled;
+    }
+
+    // Ctrl+Left : Étape précédente
+    if (event.logicalKey == LogicalKeyboardKey.arrowLeft && isControl) {
+      _prevStep();
+      return KeyEventResult.handled;
+    }
+
+    // F1 : Aide
+    if (event.logicalKey == LogicalKeyboardKey.f1) {
+      _showHelp();
+      return KeyEventResult.handled;
+    }
+
+    // Ctrl+F : Mode focus
+    if (event.logicalKey == LogicalKeyboardKey.keyF && isControl) {
+      _toggleFocusMode();
+      return KeyEventResult.handled;
+    }
+
+    return KeyEventResult.ignored;
+  }
+
+  void _showHelp() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('📚 Raccourcis clavier'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildShortcutRow('Ctrl + S', 'Sauvegarder le brouillon'),
+              _buildShortcutRow('Ctrl + →', 'Étape suivante'),
+              _buildShortcutRow('Ctrl + ←', 'Étape précédente'),
+              _buildShortcutRow('Ctrl + F', 'Mode focus'),
+              _buildShortcutRow('F1', 'Afficher cette aide'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fermer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShortcutRow(String shortcut, String description) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              shortcut,
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(description)),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: 52,
-        title: Text(_getStepTitle(_step)),
-        actions: [
-          // Auto-save indicator
-          if (_lastAutoSave != null && !_isFocusMode)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Center(
-                child: Tooltip(
-                  message:
-                      'Dernière sauvegarde: ${_formatTime(_lastAutoSave!)}',
-                  child: Chip(
-                    avatar: const Icon(
-                      Icons.cloud_done,
-                      size: 16,
-                      color: Colors.green,
+    return Focus(
+      focusNode: _keyboardFocusNode,
+      onKeyEvent: _handleKeyEvent,
+      autofocus: true,
+      child: Scaffold(
+        appBar: AppBar(
+          toolbarHeight: 52,
+          title: Text(_getStepTitle(_step)),
+          actions: [
+            // Auto-save indicator
+            if (_lastAutoSave != null && !_isFocusMode)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Center(
+                  child: Tooltip(
+                    message:
+                        'Dernière sauvegarde: ${_formatTime(_lastAutoSave!)}',
+                    child: Chip(
+                      avatar: const Icon(
+                        Icons.cloud_done,
+                        size: 16,
+                        color: Colors.green,
+                      ),
+                      label: Text(
+                        'Auto-save',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      visualDensity: VisualDensity.compact,
                     ),
-                    label: Text(
-                      'Auto-save',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    visualDensity: VisualDensity.compact,
                   ),
                 ),
               ),
-            ),
-          // Focus mode toggle
-          IconButton(
-            icon: Icon(_isFocusMode ? Icons.visibility : Icons.visibility_off),
-            tooltip: _isFocusMode
-                ? 'Désactiver mode focus'
-                : 'Activer mode focus',
-            onPressed: _toggleFocusMode,
-          ),
-          // Manual save
-          if (!_isFocusMode)
+            // Focus mode toggle
             IconButton(
-              icon: const Icon(Icons.save),
-              tooltip: 'Sauvegarder manuellement',
-              onPressed: _showSaveDialog,
+              icon: Icon(
+                _isFocusMode ? Icons.visibility : Icons.visibility_off,
+              ),
+              tooltip: _isFocusMode
+                  ? 'Désactiver mode focus'
+                  : 'Activer mode focus',
+              onPressed: _toggleFocusMode,
             ),
-        ],
+            // Manual save
+            if (!_isFocusMode)
+              IconButton(
+                icon: const Icon(Icons.save),
+                tooltip: 'Sauvegarder manuellement',
+                onPressed: _showSaveDialog,
+              ),
+          ],
+        ),
+        body: Stack(
+          children: [
+            Column(
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  height: _isFocusMode ? 0 : null,
+                  child: _isFocusMode
+                      ? const SizedBox.shrink()
+                      : _buildStepSelector(),
+                ),
+                Expanded(
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: SlideTransition(
+                      position: _slideAnimation,
+                      child: _buildStepContent(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (_showTutorial) _buildTutorialOverlay(),
+            _buildFloatingActions(),
+          ],
+        ),
+        bottomNavigationBar: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          height: _isFocusMode ? 0 : null,
+          child: _isFocusMode ? const SizedBox.shrink() : _buildBottomBar(),
+        ),
       ),
-      body: Column(
-        children: [
-          _buildStepSelector(),
-          Expanded(child: _buildStepContent()),
-        ],
-      ),
-      bottomNavigationBar: _buildBottomBar(),
     );
   }
 
@@ -456,69 +631,320 @@ class _CreateCircuitAssistantPageState
   }
 
   void _nextStep() {
-    setState(() {
-      if (_step < 4) _step++;
-    });
+    if (_step < 4) {
+      _transitionController.reset();
+      setState(() {
+        _step++;
+      });
+      _transitionController.forward();
+      HapticFeedback.lightImpact();
+    }
   }
 
   void _prevStep() {
-    setState(() {
-      if (_step > 0) _step--;
-    });
+    if (_step > 0) {
+      _transitionController.reset();
+      setState(() {
+        _step--;
+      });
+      _transitionController.forward();
+      HapticFeedback.lightImpact();
+    }
   }
 
   void _goToStep(int step) {
     if (step < 0 || step > 4) return;
+    _transitionController.reset();
     setState(() {
       _step = step;
     });
+    _transitionController.forward();
   }
 
   Widget _buildStepSelector() {
-    final steps = [
-      'Périmètre',
-      'Mode hors-ligne',
-      'Tracer',
-      'Segments',
-      'Publier',
-    ];
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        color: Theme.of(context).colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
-          children: List.generate(steps.length, (index) {
-            final isActive = index == _step;
-            final isValidated = _stepValidated[index];
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('${index + 1} • ${steps[index]}'),
-                    if (isValidated) ...[
-                      const SizedBox(width: 6),
-                      const Icon(
-                        Icons.check_circle,
-                        size: 16,
-                        color: Colors.green,
+          children: List.generate(5, (index) {
+            final isCurrent = index == _step;
+            final isCompleted = _stepValidated[index];
+            final isPast = index < _step;
+
+            return Row(
+              children: [
+                InkWell(
+                  onTap: () {
+                    _transitionController.reset();
+                    setState(() {
+                      _step = index;
+                    });
+                    _transitionController.forward();
+                    HapticFeedback.selectionClick();
+                  },
+                  borderRadius: BorderRadius.circular(24),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isCurrent
+                          ? Theme.of(context).colorScheme.primaryContainer
+                          : isPast || isCompleted
+                          ? Theme.of(
+                              context,
+                            ).colorScheme.secondaryContainer.withOpacity(0.3)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: isCurrent
+                            ? Theme.of(context).colorScheme.primary
+                            : isPast || isCompleted
+                            ? Theme.of(context).colorScheme.secondary
+                            : Colors.grey.shade300,
+                        width: isCurrent ? 2 : 1,
                       ),
-                    ],
-                  ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isCompleted)
+                          Icon(
+                            Icons.check_circle,
+                            size: 20,
+                            color: Theme.of(context).colorScheme.secondary,
+                          )
+                        else
+                          Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isCurrent
+                                  ? Theme.of(context).colorScheme.primary
+                                  : isPast
+                                  ? Theme.of(context).colorScheme.secondary
+                                  : Colors.grey.shade300,
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${index + 1}',
+                                style: TextStyle(
+                                  color: isCurrent || isPast
+                                      ? Colors.white
+                                      : Colors.grey.shade600,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _getStepShortTitle(index),
+                          style: TextStyle(
+                            fontWeight: isCurrent
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: isCurrent
+                                ? Theme.of(context).colorScheme.primary
+                                : isPast || isCompleted
+                                ? Theme.of(context).colorScheme.secondary
+                                : Colors.grey.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                selected: isActive,
-                onSelected: (_) => _goToStep(index),
-                selectedColor: Colors.blue.shade100,
-              ),
+                if (index < 4)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Icon(
+                      Icons.chevron_right,
+                      size: 20,
+                      color: Colors.grey.shade400,
+                    ),
+                  ),
+              ],
             );
           }),
         ),
+      ),
+    );
+  }
+
+  String _getStepShortTitle(int step) {
+    switch (step) {
+      case 0:
+        return 'Périmètre';
+      case 1:
+        return 'Tuiles';
+      case 2:
+        return 'Tracer';
+      case 3:
+        return 'Segments';
+      case 4:
+        return 'Publier';
+      default:
+        return '';
+    }
+  }
+
+  Widget _buildTutorialOverlay() {
+    final tutorials = [
+      {
+        'title': '🎯 Bienvenue dans le Wizard de Circuit!',
+        'description':
+            'Créez des circuits en 5 étapes simples. Ce tutoriel vous guide à travers chaque étape.',
+      },
+      {
+        'title': '📍 Étape 1: Périmètre',
+        'description':
+            'Dessinez ou choisissez un périmètre pour votre circuit. Utilisez les presets ou dessinez manuellement.',
+      },
+      {
+        'title': '🗺️ Étape 2: Tuiles Offline',
+        'description':
+            'Téléchargez les tuiles de carte pour une utilisation sans connexion. Choisissez les niveaux de zoom.',
+      },
+      {
+        'title': '✏️ Étape 3: Tracer',
+        'description':
+            'Tracez le circuit sur la carte. Utilisez les outils de dessin pour créer votre parcours.',
+      },
+      {
+        'title': '🔒 Étape 4: Segments',
+        'description':
+            'Verrouillez et colorez les segments de votre circuit. Ajoutez des flèches de direction.',
+      },
+      {
+        'title': '🚀 Étape 5: Publier',
+        'description':
+            'Ajoutez les détails finaux et publiez votre circuit. Il sera visible par tous les utilisateurs!',
+      },
+      {
+        'title': '⌨️ Raccourcis Clavier',
+        'description':
+            'Ctrl+S: Sauvegarder\nCtrl+→/←: Navigation\nCtrl+F: Mode focus\nF1: Aide',
+      },
+    ];
+
+    return Container(
+      color: Colors.black54,
+      child: Center(
+        child: Card(
+          margin: const EdgeInsets.all(32),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 500),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  tutorials[_tutorialStep]['title'] as String,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  tutorials[_tutorialStep]['description'] as String,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                LinearProgressIndicator(
+                  value: (_tutorialStep + 1) / tutorials.length,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    if (_tutorialStep > 0)
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _tutorialStep--;
+                          });
+                        },
+                        child: const Text('Précédent'),
+                      )
+                    else
+                      const SizedBox(),
+                    Text(
+                      '${_tutorialStep + 1}/${tutorials.length}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    if (_tutorialStep < tutorials.length - 1)
+                      FilledButton(
+                        onPressed: () {
+                          setState(() {
+                            _tutorialStep++;
+                          });
+                        },
+                        child: const Text('Suivant'),
+                      )
+                    else
+                      FilledButton(
+                        onPressed: _completeTutorial,
+                        child: const Text('Commencer!'),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _completeTutorial,
+                  child: const Text('Passer le tutoriel'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFloatingActions() {
+    return Positioned(
+      right: 16,
+      bottom: _isFocusMode ? 16 : 90,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!_isFocusMode) ...[
+            FloatingActionButton.small(
+              heroTag: 'help',
+              onPressed: _showHelp,
+              tooltip: 'Aide (F1)',
+              child: const Icon(Icons.help_outline),
+            ),
+            const SizedBox(height: 8),
+          ],
+          FloatingActionButton(
+            heroTag: 'focus',
+            onPressed: _toggleFocusMode,
+            tooltip: _isFocusMode
+                ? 'Quitter mode focus (Ctrl+F)'
+                : 'Mode focus (Ctrl+F)',
+            child: Icon(
+              _isFocusMode ? Icons.fullscreen_exit : Icons.fullscreen,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -556,6 +982,7 @@ class _StepPerimetreState extends State<_StepPerimetre> {
   bool _isValidated = false;
   bool _showOutOfBounds = false;
   bool _snapToRoads = false; // Option snapping aux routes
+  bool _tokenPromptShown = false;
 
   final List<Map<String, dynamic>> _presets = [
     // Îles principales
@@ -586,6 +1013,23 @@ class _StepPerimetreState extends State<_StepPerimetre> {
     _isValidated = widget.initialValidated;
     if (_selectedPreset != null) {
       _selectedMode = 'preset';
+    }
+
+    if (_effectiveMapboxToken.isEmpty && !_tokenPromptShown) {
+      _tokenPromptShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        final newToken = await MapboxTokenDialog.show(
+          context,
+          initialValue: _effectiveMapboxToken,
+        );
+        if (!mounted || newToken == null) return;
+        await MapboxTokenService.warmUp();
+        if (!mounted) return;
+        setState(() {
+          // Rebuild pour activer Mapbox
+        });
+      });
     }
   }
 
