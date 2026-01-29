@@ -27,7 +27,7 @@ class _LoginPageState extends State<LoginPage> {
     // Validation
     final email = _emailCtrl.text.trim();
     final password = _passCtrl.text;
-    
+
     setState(() {
       _emailError = email.isEmpty;
       _passwordError = password.isEmpty;
@@ -136,14 +136,18 @@ class _LoginPageState extends State<LoginPage> {
             ),
             Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 16,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const SizedBox(height: 6),
                     Text(
                       AppLocalizations.of(context)!.connection,
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(
                             fontWeight: FontWeight.w700,
                             color: text,
                             letterSpacing: 0.2,
@@ -154,9 +158,9 @@ class _LoginPageState extends State<LoginPage> {
                     Text(
                       AppLocalizations.of(context)!.accessYourSpace,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: subText,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        color: subText,
+                        fontWeight: FontWeight.w500,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 22),
@@ -170,7 +174,10 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         child: Text(
                           _error!,
-                          style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -197,7 +204,9 @@ class _LoginPageState extends State<LoginPage> {
                                     const SizedBox(height: 6),
                                     _PremiumField(
                                       controller: _emailCtrl,
-                                      hintText: AppLocalizations.of(context)!.email,
+                                      hintText: AppLocalizations.of(
+                                        context,
+                                      )!.email,
                                       prefixIcon: Icons.mail_outline_rounded,
                                       borderColor: border,
                                       hasError: _emailError,
@@ -205,13 +214,17 @@ class _LoginPageState extends State<LoginPage> {
                                     const SizedBox(height: 12),
                                     _PremiumField(
                                       controller: _passCtrl,
-                                      hintText: AppLocalizations.of(context)!.password,
+                                      hintText: AppLocalizations.of(
+                                        context,
+                                      )!.password,
                                       prefixIcon: Icons.lock_outline_rounded,
                                       borderColor: border,
                                       obscureText: _obscure,
                                       hasError: _passwordError,
                                       suffix: IconButton(
-                                        onPressed: () => setState(() => _obscure = !_obscure),
+                                        onPressed: () => setState(
+                                          () => _obscure = !_obscure,
+                                        ),
                                         icon: Icon(
                                           _obscure
                                               ? Icons.visibility_off_outlined
@@ -223,23 +236,31 @@ class _LoginPageState extends State<LoginPage> {
                                     const SizedBox(height: 18),
                                     _GradientButton(
                                       gradient: masliveGradient,
-                                      text: _loading ? AppLocalizations.of(context)!.signingIn : AppLocalizations.of(context)!.signIn,
+                                      text: _loading
+                                          ? AppLocalizations.of(
+                                              context,
+                                            )!.signingIn
+                                          : AppLocalizations.of(
+                                              context,
+                                            )!.signIn,
                                       onPressed: _loading
                                           ? () {}
                                           : () => _run(
-                                                () => AuthService.instance
-                                                    .signInWithEmailPassword(
-                                                  email: _emailCtrl.text.trim(),
-                                                  password: _passCtrl.text,
-                                                ),
-                                              ),
+                                              () => AuthService.instance
+                                                  .signInWithEmailPassword(
+                                                    email: _emailCtrl.text
+                                                        .trim(),
+                                                    password: _passCtrl.text,
+                                                  ),
+                                            ),
                                     ),
                                     const SizedBox(height: 10),
                                     Align(
                                       alignment: Alignment.centerRight,
                                       child: TextButton(
-                                        onPressed: () => Navigator.of(context)
-                                            .pushReplacementNamed('/'),
+                                        onPressed: () => Navigator.of(
+                                          context,
+                                        ).pushReplacementNamed('/'),
                                         style: TextButton.styleFrom(
                                           foregroundColor: subText,
                                           padding: const EdgeInsets.symmetric(
@@ -248,8 +269,12 @@ class _LoginPageState extends State<LoginPage> {
                                           ),
                                         ),
                                         child: Text(
-                                          AppLocalizations.of(context)!.continueAsGuest,
-                                          style: const TextStyle(fontWeight: FontWeight.w700),
+                                          AppLocalizations.of(
+                                            context,
+                                          )!.continueAsGuest,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -268,35 +293,48 @@ class _LoginPageState extends State<LoginPage> {
                                     _GradientButton(
                                       gradient: masliveGradient,
                                       text: _loading
-                                          ? AppLocalizations.of(context)!.creating
-                                          : AppLocalizations.of(context)!.createAccountWithEmail,
+                                          ? AppLocalizations.of(
+                                              context,
+                                            )!.creating
+                                          : AppLocalizations.of(
+                                              context,
+                                            )!.createAccountWithEmail,
                                       onPressed: _loading
                                           ? () {}
                                           : () => _run(
-                                                () => AuthService.instance
-                                                    .createUserWithEmailPassword(
-                                                  email: _emailCtrl.text.trim(),
-                                                  password: _passCtrl.text,
-                                                ),
-                                              ),
+                                              () => AuthService.instance
+                                                  .createUserWithEmailPassword(
+                                                    email: _emailCtrl.text
+                                                        .trim(),
+                                                    password: _passCtrl.text,
+                                                  ),
+                                            ),
                                     ),
                                     const SizedBox(height: 12),
                                     _SocialButton(
-                                      label: AppLocalizations.of(context)!.continueWithGoogle,
+                                      label: AppLocalizations.of(
+                                        context,
+                                      )!.continueWithGoogle,
                                       leading: const _GLogo(),
-                                      onPressed:
-                                          _loading ? () {} : () => _runProvider(AuthAction.google),
+                                      onPressed: _loading
+                                          ? () {}
+                                          : () =>
+                                                _runProvider(AuthAction.google),
                                     ),
                                     const SizedBox(height: 10),
                                     _SocialButton(
-                                      label: AppLocalizations.of(context)!.continueWithApple,
+                                      label: AppLocalizations.of(
+                                        context,
+                                      )!.continueWithApple,
                                       leading: const Icon(
                                         Icons.apple,
                                         size: 22,
                                         color: Color(0xFF111827),
                                       ),
-                                      onPressed:
-                                          _loading ? () {} : () => _runProvider(AuthAction.apple),
+                                      onPressed: _loading
+                                          ? () {}
+                                          : () =>
+                                                _runProvider(AuthAction.apple),
                                     ),
                                     const SizedBox(height: 6),
                                   ],
@@ -313,10 +351,7 @@ class _LoginPageState extends State<LoginPage> {
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFFFF6FAE),
-                            Color(0xFF9B7BFF),
-                          ],
+                          colors: [Color(0xFFFF6FAE), Color(0xFF9B7BFF)],
                         ),
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
@@ -329,42 +364,23 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       child: Column(
                         children: [
-                          Row(
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(
-                                  Icons.business,
+                              const Text(
+                                'Vous êtes un professionnel ?',
+                                style: TextStyle(
                                   color: Colors.white,
-                                  size: 28,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Vous êtes un professionnel ?',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Créez votre compte entreprise',
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.9),
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
+                              const SizedBox(height: 4),
+                              Text(
+                                'Créez votre compte entreprise',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontSize: 13,
                                 ),
                               ),
                             ],
@@ -384,7 +400,9 @@ class _LoginPageState extends State<LoginPage> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.white,
                                 foregroundColor: const Color(0xFF9B7BFF),
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14),
                                 ),
@@ -494,11 +512,17 @@ class _PremiumField extends StatelessWidget {
         style: const TextStyle(fontWeight: FontWeight.w600),
         decoration: InputDecoration(
           hintText: hintText,
-          hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontWeight: FontWeight.w600),
+          hintStyle: const TextStyle(
+            color: Color(0xFF9CA3AF),
+            fontWeight: FontWeight.w600,
+          ),
           prefixIcon: Icon(prefixIcon, color: const Color(0xFF6B7280)),
           suffixIcon: suffix,
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
         ),
       ),
     );
@@ -538,7 +562,9 @@ class _GradientButton extends StatelessWidget {
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+            ),
           ),
           child: Text(
             text,
@@ -587,10 +613,7 @@ class _SocialButton extends StatelessWidget {
           children: [
             leading,
             const SizedBox(width: 10),
-            Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
+            Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
           ],
         ),
       ),
@@ -626,13 +649,23 @@ class _MasliveGlowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..shader = gradient.createShader(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..shader = gradient.createShader(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+      )
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 70);
 
-    canvas.drawCircle(Offset(size.width * 0.55, size.height * 0.18), size.width * 0.55, paint);
-    canvas.drawCircle(Offset(size.width * 0.45, size.height * 0.78), size.width * 0.60, paint);
+    canvas.drawCircle(
+      Offset(size.width * 0.55, size.height * 0.18),
+      size.width * 0.55,
+      paint,
+    );
+    canvas.drawCircle(
+      Offset(size.width * 0.45, size.height * 0.78),
+      size.width * 0.60,
+      paint,
+    );
 
-  final veil = Paint()..color = Colors.white.withValues(alpha: 0.55);
+    final veil = Paint()..color = Colors.white.withValues(alpha: 0.55);
     canvas.drawRect(Offset.zero & size, veil);
   }
 
@@ -666,7 +699,10 @@ class _HexPatternPainter extends CustomPainter {
     final path = Path();
     for (int i = 0; i < 6; i++) {
       final angle = (60.0 * i - 30.0) * math.pi / 180.0;
-      final pt = Offset(c.dx + r * 0.95 * math.cos(angle), c.dy + r * 0.95 * math.sin(angle));
+      final pt = Offset(
+        c.dx + r * 0.95 * math.cos(angle),
+        c.dy + r * 0.95 * math.sin(angle),
+      );
       if (i == 0) {
         path.moveTo(pt.dx, pt.dy);
       } else {

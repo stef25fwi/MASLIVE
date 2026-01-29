@@ -5,6 +5,27 @@ window.masliveMapbox = (() => {
   const srcRoute = "maslive_route";
   const srcSegments = "maslive_segments";
 
+  // Attendre que mapboxgl soit disponible
+  function waitForMapboxGL() {
+    return new Promise((resolve) => {
+      if (typeof mapboxgl !== 'undefined') {
+        resolve();
+        return;
+      }
+      const checkInterval = setInterval(() => {
+        if (typeof mapboxgl !== 'undefined') {
+          clearInterval(checkInterval);
+          resolve();
+        }
+      }, 100);
+      // Timeout après 10 secondes
+      setTimeout(() => {
+        clearInterval(checkInterval);
+        resolve();
+      }, 10000);
+    });
+  }
+
   function ensureSourcesAndLayers() {
     if (!map.getSource(srcMask)) map.addSource(srcMask, { type: "geojson", data: fc([]) });
     if (!map.getSource(srcPerimeter)) map.addSource(srcPerimeter, { type: "geojson", data: fc([]) });
@@ -72,6 +93,12 @@ window.masliveMapbox = (() => {
   }
 
   function init(containerId, token, centerLngLat, zoom) {
+    // Vérifier que mapboxgl est disponible
+    if (typeof mapboxgl === 'undefined') {
+      console.error('mapboxgl is not available. Make sure mapbox-gl.js is loaded.');
+      return;
+    }
+    
     mapboxgl.accessToken = token;
     map = new mapboxgl.Map({
       container: containerId,
@@ -81,20 +108,33 @@ window.masliveMapbox = (() => {
     });
 
     map.on("load", () => {
+      console.log('Mapbox map loaded successfully');
       ensureSourcesAndLayers();
       map.on("click", (e) => {
         window.postMessage({ type: "MASLIVE_MAP_TAP", lng: e.lngLat.lng, lat: e.lngLat.lat }, "*");
       });
     });
+    
+    map.on("error", (e) => {
+      console.error('Mapbox error:', e.error);
+    });
   }
 
   function setData({ perimeter, mask, route, segments }) {
-    if (!map) return;
-    ensureSourcesAndLayers();
-    if (perimeter) map.getSource(srcPerimeter).setData(perimeter);
-    if (mask) map.getSource(srcMask).setData(mask);
-    if (route) map.getSource(srcRoute).setData(route);
-    if (segments) map.getSource(srcSegments).setData(segments);
+    if (!map) {
+      console.warn('Map not initialized yet');
+      return;
+    }
+    
+    try {
+      ensureSourcesAndLayers();
+      if (perimeter) map.getSource(srcPerimeter).setData(perimeter);
+      if (mask) map.getSource(srcMask).setData(mask);
+      if (route) map.getSource(srcRoute).setData(route);
+      if (segments) map.getSource(srcSegments).setData(segments);
+    } catch (e) {
+      console.error('Error updating map data:', e);
+    }
   }
 
   function fc(features) { return { type: "FeatureCollection", features }; }

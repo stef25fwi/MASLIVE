@@ -65,7 +65,8 @@ class _MapboxWebCircuitMapState extends State<MapboxWebCircuitMap> {
         ..style.width = '100%'
         ..style.height = '100%';
 
-      Future.delayed(const Duration(milliseconds: 80), () {
+      // Attendre plus longtemps pour que mapboxgl soit disponible
+      Future.delayed(const Duration(milliseconds: 300), () {
         if (!mounted) return;
         _initJsIfNeeded();
         _pushDataToJs();
@@ -108,22 +109,27 @@ class _MapboxWebCircuitMapState extends State<MapboxWebCircuitMap> {
     final center = _centerFor(widget.perimeter, widget.route);
 
     try {
+      debugPrint(
+        '🗺️ Initializing Mapbox with token: ${widget.mapboxToken.substring(0, 10)}...',
+      );
       api.callMethod('init', [
         _divId,
         widget.mapboxToken,
         [center.lng, center.lat],
         12,
       ]);
+      debugPrint('✅ Mapbox initialized successfully');
       _jsInitialized = true;
       if (_error != null) {
         setState(() {
           _error = null;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('❌ Mapbox initialization error: $e');
       if (_error == null) {
         setState(() {
-          _error = 'Erreur d\'initialisation Mapbox (JS).';
+          _error = 'Erreur d\'initialisation Mapbox (JS): $e';
         });
       }
     }
