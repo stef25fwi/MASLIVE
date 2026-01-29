@@ -354,6 +354,7 @@ class _NetworkImageWithSkeletonState extends State<_NetworkImageWithSkeleton>
       return Image.asset(
         widget.url,
         fit: BoxFit.cover,
+        alignment: Alignment.topCenter,
         errorBuilder: (context, error, stackTrace) {
           return Container(
             alignment: Alignment.center,
@@ -371,6 +372,7 @@ class _NetworkImageWithSkeletonState extends State<_NetworkImageWithSkeleton>
     return Image.network(
       widget.url,
       fit: BoxFit.cover,
+      alignment: Alignment.topCenter,
       loadingBuilder: (context, child, loadingProgress) {
         if (loadingProgress == null) return child;
 
