@@ -45,7 +45,6 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
   static const double _filtersPinnedH = 78; // chips + dropdown plus bas
 
   static const double _cardRadius = 24;
-  static const double _innerRadius = 18;
 
   static const double _addSize = 44;
   static const double _addRadius = 16;
@@ -1108,12 +1107,8 @@ class _PhotoTile extends StatelessWidget {
         onTap: onTap,
         child: Stack(
           children: [
-            // bandeau bleu haut
-            Positioned(
-              left: 0,
-              right: 0,
-              top: 0,
-              height: 70,
+            // bandeau bleu entier
+            Positioned.fill(
               child: Container(
                 padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
                 decoration: const BoxDecoration(
@@ -1123,60 +1118,47 @@ class _PhotoTile extends StatelessWidget {
                     end: Alignment.bottomRight,
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.22),
-                        borderRadius: BorderRadius.circular(16),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: const Icon(
+                          Icons.photo_library_rounded,
+                          color: Colors.white,
+                          size: 32,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 20,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            subtitle,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.92),
-                              fontWeight: FontWeight.w800,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 16),
+                      Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 24,
+                          height: 1.1,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // contenu bas
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 82, 14, 14),
-              child: Align(
-                alignment: Alignment.bottomLeft,
-                child: Text(
-                  "Boutique\nphotos",
-                  style: const TextStyle(
-                    fontSize: 28,
-                    height: 1.05,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF111827),
+                      const SizedBox(height: 6),
+                      Text(
+                        subtitle,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -1212,46 +1194,49 @@ class _ProductTile extends StatelessWidget {
         onTap: onTap,
         child: Stack(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(
-                      _ShopPixelPerfectPageState._innerRadius,
-                    ),
-                    child: SizedBox(
-                      height: compact
-                          ? 54
-                          : 96, // ✅ image plus grande sur grandes tuiles
-                      width: double.infinity,
-                      child: image,
-                    ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
                   ),
-                  SizedBox(height: compact ? 8 : 10),
-                  Text(
-                    title,
-                    maxLines: compact ? 2 : 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: compact ? 18 : 26,
-                      height: 1.05,
-                      fontWeight: FontWeight.w900,
-                      color: const Color(0xFF111827),
-                    ),
+                  child: SizedBox(
+                    height: compact ? 80 : 140,
+                    width: double.infinity,
+                    child: image,
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    price,
-                    style: TextStyle(
-                      fontSize: compact ? 16 : 18,
-                      fontWeight: FontWeight.w900,
-                      color: const Color(0xFF111827),
-                    ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: compact ? 2 : 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: compact ? 16 : 22,
+                          height: 1.05,
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFF111827),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        price,
+                        style: TextStyle(
+                          fontSize: compact ? 14 : 16,
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFF111827),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
 
             // ✅ Bouton + overlay (fini le "+" dans l'image)
