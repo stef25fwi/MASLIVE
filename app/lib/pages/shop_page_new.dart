@@ -8,7 +8,6 @@ import 'media_shop_wrapper.dart';
 import 'product_detail_page.dart';
 import '../models/group_product.dart';
 import '../services/cart_service.dart';
-import '../shop/widgets/product_tile.dart';
 
 class ShopPixelPerfectPage extends StatefulWidget {
   const ShopPixelPerfectPage({super.key, this.shopId});
@@ -75,28 +74,6 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
   void initState() {
     super.initState();
     CartService.instance.start();
-  }
-
-  Query<Map<String, dynamic>> _buildProductsQuery() {
-    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
-        .collectionGroup('products')
-        .where('isActive', isEqualTo: true)
-        .where('moderationStatus', isEqualTo: 'approved');
-
-    final selectedCat = _cats[catIndex.clamp(0, _cats.length - 1)];
-    if (selectedCat != 'Tous') {
-      query = query.where('category', isEqualTo: selectedCat);
-    }
-
-    if (widget.shopId != null && widget.shopId!.trim().isNotEmpty) {
-      query = query.where('shopId', isEqualTo: widget.shopId);
-    }
-
-    if (selectedGroup != _allGroupsLabel) {
-      query = query.where('groupId', isEqualTo: selectedGroup);
-    }
-
-    return query.orderBy('updatedAt', descending: true).limit(60);
   }
 
   Query<Map<String, dynamic>> _buildCategoriesQuery() {
@@ -314,7 +291,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
                   _pageHPad,
-                  12,
+                  20,
                   _pageHPad,
                   10,
                 ),
@@ -514,192 +491,6 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
               ),
             ),
 
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(_pageHPad, 0, _pageHPad, 10),
-                child: const Text(
-                  "Articles",
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF111827),
-                  ),
-                ),
-              ),
-            ),
-
-            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _buildProductsQuery().snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(_pageHPad, 0, _pageHPad, 18),
-                      child: Center(
-                        child: SizedBox(
-                          width: 28,
-                          height: 28,
-                          child: CircularProgressIndicator(strokeWidth: 3),
-                        ),
-                      ),
-                    ),
-                  );
-                }
-
-                if (snapshot.hasError) {
-                  return SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        _pageHPad,
-                        0,
-                        _pageHPad,
-                        18,
-                      ),
-                      child: const _EmptyStateCard(
-                        title: "Impossible de charger les articles",
-                        subtitle:
-                            "Vérifie la connexion et les règles Firestore.",
-                      ),
-                    ),
-                  );
-                }
-
-                final docs = snapshot.data?.docs ?? const [];
-                if (docs.isEmpty) {
-                  return SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        _pageHPad,
-                        0,
-                        _pageHPad,
-                        18,
-                      ),
-                      child: const _EmptyStateCard(
-                        title: "Aucun article pour l'instant",
-                        subtitle:
-                            "Ajoute des produits via Admin → Commerce → Produits (isActive + approved).",
-                      ),
-                    ),
-                  );
-                }
-
-                final products = docs
-                    .map((d) => GroupProduct.fromMap(d.id, d.data()))
-                    .toList(growable: false);
-
-                return SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(
-                    _pageHPad,
-                    0,
-                    _pageHPad,
-                    18,
-                  ),
-                  sliver: SliverGrid(
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          mainAxisSpacing: _gridGap,
-                          crossAxisSpacing: _gridGap,
-                          childAspectRatio: 0.75,
-                        ),
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final product = products[index];
-                      final raw = docs[index].data();
-                      final groupId =
-                          ((raw['groupId'] as String?)?.trim().isNotEmpty ==
-                              true)
-                          ? (raw['groupId'] as String)
-                          : 'all';
-
-                      final hasStock =
-                          product.stockByVariant?.values.any(
-                            (qty) => qty > 0,
-                          ) ??
-                          false;
-
-                      final options = <String>[];
-                      if (product.sizes.isNotEmpty) {
-                        options.add(
-                          product.sizes.length == 1
-                              ? product.sizes.first
-                              : '${product.sizes.first}-${product.sizes.last}',
-                        );
-                      }
-                      if (product.colors.isNotEmpty) {
-                        options.add(
-                          product.colors.length == 1
-                              ? product.colors.first
-                              : '${product.colors.first}/${product.colors.last}',
-                        );
-                      }
-
-                      final tileData = ProductTileData(
-                        title: product.title,
-                        subtitle: product.category.isNotEmpty
-                            ? product.category
-                            : 'Article',
-                        price: product.priceCents / 100.0,
-                        currency: '€',
-                        imageUrl: product.imageUrl,
-                        isAvailable: product.isActive && hasStock,
-                        stockLabel: hasStock ? 'En stock' : 'Rupture',
-                        badges: [
-                          if (product.category.isNotEmpty) product.category,
-                        ],
-                        options: options,
-                      );
-
-                      return ProductTile(
-                        data: tileData,
-                        heroTag: 'product-${product.id}',
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ProductDetailPage(
-                              groupId: groupId,
-                              product: product,
-                              heroTag: 'product-${product.id}',
-                            ),
-                          ),
-                        ),
-                        onAdd: () {
-                          final size = product.sizes.isNotEmpty
-                              ? product.sizes.first
-                              : 'Unique';
-                          final color = product.colors.isNotEmpty
-                              ? product.colors.first
-                              : 'Default';
-
-                          CartService.instance.addProduct(
-                            groupId: groupId,
-                            product: product,
-                            size: size,
-                            color: color,
-                            quantity: 1,
-                          );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                '${product.title} ajouté au panier',
-                              ),
-                              action: SnackBarAction(
-                                label: 'Voir',
-                                onPressed: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const CartPage(),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    }, childCount: products.length),
-                  ),
-                );
-              },
-            ),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
         ),
@@ -1286,62 +1077,6 @@ class _AddButton extends StatelessWidget {
 }
 
 /// -------------------- EMPTY STATE --------------------
-class _EmptyStateCard extends StatelessWidget {
-  const _EmptyStateCard({
-    this.title = "Aucun produit disponible",
-    this.subtitle = "Reviens plus tard ou change de catégorie.",
-  });
-
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return _BaseCard(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
-        child: Column(
-          children: [
-            Container(
-              width: 76,
-              height: 76,
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: Icon(
-                Icons.shopping_bag_outlined,
-                size: 42,
-                color: Colors.black.withValues(alpha: 0.35),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-                color: Color(0xFF111827),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Colors.black.withValues(alpha: 0.55),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// -------------------- IMAGE helper --------------------
 /// Mets tes vraies images dans assets/shop/* (png/jpeg)
 /// Si absent => fallback propre (pas de + fantôme)
