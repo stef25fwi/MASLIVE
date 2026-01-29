@@ -3,6 +3,7 @@ import 'dart:html' as html;
 import 'dart:js' as js;
 import 'dart:ui_web' as ui_web;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 typedef LngLat = ({double lng, double lat});
@@ -84,7 +85,10 @@ class _MapboxWebCircuitMapState extends State<MapboxWebCircuitMap> {
   }
 
   void _initJsIfNeeded() {
-    if (_jsInitialized) return;
+    if (_jsInitialized) {
+      if (kDebugMode) print('⏭️  Mapbox déjà initialisé');
+      return;
+    }
     if (widget.mapboxToken.isEmpty) {
       if (_error == null) {
         setState(() {
@@ -92,6 +96,7 @@ class _MapboxWebCircuitMapState extends State<MapboxWebCircuitMap> {
               'Token Mapbox manquant. Configure MAPBOX_ACCESS_TOKEN (ou MAPBOX_TOKEN legacy).';
         });
       }
+      if (kDebugMode) print('❌ Token vide');
       return;
     }
 
@@ -103,30 +108,45 @@ class _MapboxWebCircuitMapState extends State<MapboxWebCircuitMap> {
               'Mapbox JS non chargé (masliveMapbox absent). Vérifie app/web/mapbox_circuit.js et app/web/index.html.';
         });
       }
+      if (kDebugMode) print('❌ API masliveMapbox non trouvée');
       return;
     }
 
     final center = _centerFor(widget.perimeter, widget.route);
 
     try {
-      debugPrint(
-        '🗺️ Initializing Mapbox with token: ${widget.mapboxToken.substring(0, 10)}...',
-      );
-      api.callMethod('init', [
+      if (kDebugMode) {
+        print('🗺️ Initialisation Mapbox...');
+        print('  • Token: ${widget.mapboxToken.substring(0, 10)}...');
+        print('  • Container: $_divId');
+        print('  • Coordonnées: [${center.lng}, ${center.lat}]');
+      }
+      
+      final result = api.callMethod('init', [
         _divId,
         widget.mapboxToken,
         [center.lng, center.lat],
         12,
       ]);
-      debugPrint('✅ Mapbox initialized successfully');
-      _jsInitialized = true;
-      if (_error != null) {
-        setState(() {
-          _error = null;
+      
+      if (result == true) {
+        if (kDebugMode) print('✅ Mapbox initialisé avec succès');
+        _jsInitialized = true;
+        if (_error != null) {
+          setState(() {
+            _error = null;
+          });
+        }
+        // Attendre le chargement complet de la carte
+        Future.delayed(const Duration(milliseconds: 500), () {
+          _pushDataToJs();
         });
+      } else {
+        if (kDebugMode) print('⚠️  Résultat init: $result');
+        throw Exception('init() retourné: $result');
       }
     } catch (e) {
-      debugPrint('❌ Mapbox initialization error: $e');
+      if (kDebugMode) print('❌ Erreur d\'initialisation Mapbox: $e');
       if (_error == null) {
         setState(() {
           _error = 'Erreur d\'initialisation Mapbox (JS): $e';
@@ -137,18 +157,29 @@ class _MapboxWebCircuitMapState extends State<MapboxWebCircuitMap> {
 
   void _pushDataToJs() {
     final api = js.context['masliveMapbox'];
-    if (api == null) return;
+    if (api == null) {
+      if (kDebugMode) print('❌ masliveMapbox API non disponible');
+      return;
+    }
 
     try {
-      api.callMethod('setData', [
+      if (kDebugMode) print('📤 Envoi des données GeoJSON à Mapbox...');
+      
+      final result = api.callMethod('setData', [
         js.JsObject.jsify({
           'perimeter': _perimeterGeoJson(widget.perimeter),
           'route': _routeGeoJson(widget.route),
           'segments': _segmentsGeoJson(widget.route, widget.segments),
         }),
       ]);
-    } catch (_) {
-      // ignore
+      
+      if (result == true) {
+        if (kDebugMode) print('✅ Données envoyées avec succès');
+      } else {
+        if (kDebugMode) print('⚠️  Réponse setData: $result');
+      }
+    } catch (e) {
+      if (kDebugMode) print('❌ Erreur _pushDataToJs: $e');
     }
   }
 

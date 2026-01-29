@@ -32,9 +32,9 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
     if (user == null) {
       // Rediriger vers la page de connexion si non connecté
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const LoginPage()),
-        );
+        Navigator.of(
+          context,
+        ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginPage()));
       });
       return const SizedBox.shrink();
     }
@@ -49,12 +49,12 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
           body: HoneycombBackground(
             child: CustomScrollView(
               slivers: [
-                const SliverToBoxAdapter(
+                SliverToBoxAdapter(
                   child: RainbowHeader(
                     title: 'Espace administrateur',
-                    trailing: Icon(
-                      Icons.person_outline,
-                      color: Colors.white,
+                    leading: IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.of(context).pop(),
                     ),
                   ),
                 ),
@@ -62,65 +62,74 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
                   padding: const EdgeInsets.all(16),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-              _AccountHeader(
-                displayName: data['displayName'] ?? (user!.displayName ?? "Utilisateur"),
-                email: user!.email ?? "",
-                photoUrl: data['photoUrl'] ?? user!.photoURL,
-                isAdmin: isAdmin,
-              ),
+                      _AccountHeader(
+                        displayName:
+                            data['displayName'] ??
+                            (user!.displayName ?? "Utilisateur"),
+                        email: user!.email ?? "",
+                        photoUrl: data['photoUrl'] ?? user!.photoURL,
+                        isAdmin: isAdmin,
+                      ),
 
-              const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
-              _SectionCard(
-                title: "Mon profil",
-                subtitle: "Infos, préférences, sécurité",
-                icon: Icons.person,
-                onTap: () => _showEditProfileSheet(context, initial: data),
-              ),
+                      _SectionCard(
+                        title: "Mon profil",
+                        subtitle: "Infos, préférences, sécurité",
+                        icon: Icons.person,
+                        onTap: () =>
+                            _showEditProfileSheet(context, initial: data),
+                      ),
 
-              const SizedBox(height: 12),
+                      const SizedBox(height: 12),
 
-              _SectionCard(
-                title: "Mes favoris",
-                subtitle: "Points & circuits sauvegardés",
-                icon: Icons.bookmark,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const FavoritesPage()),
-                  );
-                },
-              ),
+                      _SectionCard(
+                        title: "Mes favoris",
+                        subtitle: "Points & circuits sauvegardés",
+                        icon: Icons.bookmark,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const FavoritesPage(),
+                            ),
+                          );
+                        },
+                      ),
 
-              const SizedBox(height: 12),
+                      const SizedBox(height: 12),
 
-              _SectionCard(
-                title: "Historique",
-                subtitle: "Dernières actions sur la carte",
-                icon: Icons.history,
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("À brancher : page Historique")),
-                  );
-                },
-              ),
+                      _SectionCard(
+                        title: "Historique",
+                        subtitle: "Dernières actions sur la carte",
+                        icon: Icons.history,
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("À brancher : page Historique"),
+                            ),
+                          );
+                        },
+                      ),
 
-              const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-              if (isAdmin) ...[
-                const _SectionTitle("Espace Admin"),
-                const SizedBox(height: 10),
-                _SectionCard(
-                  title: "Dashboard Administrateur",
-                  subtitle: "Vue d'ensemble complète de la gestion",
-                  icon: Icons.dashboard,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const AdminMainDashboard()),
-                    );
-                  },
-                ),
-              ],
-            ]),
+                      if (isAdmin) ...[
+                        const _SectionTitle("Espace Admin"),
+                        const SizedBox(height: 10),
+                        _SectionCard(
+                          title: "Dashboard Administrateur",
+                          subtitle: "Vue d'ensemble complète de la gestion",
+                          icon: Icons.dashboard,
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const AdminMainDashboard(),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ]),
                   ),
                 ),
               ],
@@ -131,9 +140,16 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
     );
   }
 
-  void _showEditProfileSheet(BuildContext context, {required Map<String, dynamic> initial}) {
-    final nameCtrl = TextEditingController(text: initial['displayName'] ?? user!.displayName ?? "");
-    final photoCtrl = TextEditingController(text: initial['photoUrl'] ?? user!.photoURL ?? "");
+  void _showEditProfileSheet(
+    BuildContext context, {
+    required Map<String, dynamic> initial,
+  }) {
+    final nameCtrl = TextEditingController(
+      text: initial['displayName'] ?? user!.displayName ?? "",
+    );
+    final photoCtrl = TextEditingController(
+      text: initial['photoUrl'] ?? user!.photoURL ?? "",
+    );
 
     showModalBottomSheet(
       context: context,
@@ -142,13 +158,18 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
       builder: (_) {
         return Padding(
           padding: EdgeInsets.only(
-            left: 16, right: 16, top: 12,
+            left: 16,
+            right: 16,
+            top: 12,
             bottom: MediaQuery.of(context).viewInsets.bottom + 16,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text("Modifier mon profil", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              const Text(
+                "Modifier mon profil",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
               const SizedBox(height: 8),
               TextField(
                 controller: nameCtrl,
@@ -176,7 +197,9 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
                     final uid = user!.uid;
                     await _db.collection('users').doc(uid).set({
                       'displayName': nameCtrl.text.trim(),
-                      'photoUrl': photoCtrl.text.trim().isEmpty ? null : photoCtrl.text.trim(),
+                      'photoUrl': photoCtrl.text.trim().isEmpty
+                          ? null
+                          : photoCtrl.text.trim(),
                       'updatedAt': FieldValue.serverTimestamp(),
                     }, SetOptions(merge: true));
 
@@ -216,7 +239,11 @@ class _AccountHeader extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 6)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 6),
+          ),
         ],
       ),
       child: Row(
@@ -224,7 +251,9 @@ class _AccountHeader extends StatelessWidget {
           CircleAvatar(
             radius: 28,
             backgroundColor: Colors.white,
-            backgroundImage: (photoUrl == null || photoUrl!.isEmpty) ? null : NetworkImage(photoUrl!),
+            backgroundImage: (photoUrl == null || photoUrl!.isEmpty)
+                ? null
+                : NetworkImage(photoUrl!),
             child: (photoUrl == null || photoUrl!.isEmpty)
                 ? const Icon(Icons.person, color: _adminAccent)
                 : null,
@@ -234,13 +263,23 @@ class _AccountHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(displayName, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: _adminAccent)),
+                Text(
+                  displayName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    color: _adminAccent,
+                  ),
+                ),
                 const SizedBox(height: 2),
                 Text(email, style: const TextStyle(color: Colors.black54)),
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    _Chip(label: isAdmin ? "Admin" : "Utilisateur", icon: isAdmin ? Icons.verified : Icons.person_outline),
+                    _Chip(
+                      label: isAdmin ? "Admin" : "Utilisateur",
+                      icon: isAdmin ? Icons.verified : Icons.person_outline,
+                    ),
                   ],
                 ),
               ],
@@ -270,7 +309,13 @@ class _Chip extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: _adminAccent),
           const SizedBox(width: 6),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: _adminAccent)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: _adminAccent,
+            ),
+          ),
         ],
       ),
     );
@@ -283,7 +328,14 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(text, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _adminAccent));
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w800,
+        color: _adminAccent,
+      ),
+    );
   }
 }
 
@@ -312,13 +364,18 @@ class _SectionCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.grey.shade200),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 6)),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 6),
+            ),
           ],
         ),
         child: Row(
           children: [
             Container(
-              width: 44, height: 44,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 color: _adminAccent.withValues(alpha: 0.1),
@@ -330,7 +387,13 @@ class _SectionCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w800, color: _adminAccent)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: _adminAccent,
+                    ),
+                  ),
                   const SizedBox(height: 3),
                   Text(subtitle, style: const TextStyle(color: Colors.black54)),
                 ],
@@ -343,4 +406,3 @@ class _SectionCard extends StatelessWidget {
     );
   }
 }
-
