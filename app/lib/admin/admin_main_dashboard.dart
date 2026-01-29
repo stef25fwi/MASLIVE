@@ -219,6 +219,20 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildDashboardCard(
+                    title: 'MAP MARKET',
+                    subtitle: 'Marché de cartes & ressources',
+                    icon: Icons.storefront,
+                    color: Colors.teal,
+                    onTap: () => _showMapMarketDialog(),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildDashboardCard(
                     title: 'Mapbox Web (GL JS)',
                     subtitle: 'Carte Mapbox via HtmlElementView',
                     icon: Icons.public,
@@ -226,6 +240,8 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                     onTap: () => Navigator.pushNamed(context, '/mapbox-web'),
                   ),
                 ),
+                const SizedBox(width: 12),
+                const Expanded(child: SizedBox()),
               ],
             ),
             const SizedBox(height: 12),
@@ -1284,6 +1300,96 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const AdminProductCategoriesPage()),
+    );
+  }
+
+  void _showMapMarketDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.storefront, color: Colors.teal),
+            SizedBox(width: 12),
+            Text('MAP MARKET'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Bienvenue sur le MAP MARKET - Marché de cartes et ressources cartographiques.',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.teal.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.teal.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.teal.shade700, size: 20),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Fonctionnalités',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Text('• Parcourir les cartes disponibles'),
+                    const SizedBox(height: 6),
+                    const Text('• Télécharger des cartes personnalisées'),
+                    const SizedBox(height: 6),
+                    const Text('• Gérer les couches et ressources'),
+                    const SizedBox(height: 6),
+                    const Text('• Importer de nouvelles cartes'),
+                    const SizedBox(height: 6),
+                    const Text('• Exporter et partager des configurations'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.construction, color: Colors.orange.shade700, size: 20),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'En construction: Cette fonctionnalité sera bientôt disponible',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fermer'),
+          ),
+        ],
+      ),
     );
   }
 
