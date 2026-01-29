@@ -1150,11 +1150,12 @@ class _HomeMapPageState extends State<HomeMapPage>
           opacity: 0.08,
           child: Stack(
             children: [
-              Column(
-                children: [
-                  Expanded(
-                    child: Stack(
-                      children: [
+              Positioned.fill(
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Stack(
+                        children: [
                         // Carte (réelle) - plein écran
                         MasliveCard(
                           radius: 0,
@@ -1572,17 +1573,17 @@ class _HomeMapPageState extends State<HomeMapPage>
                               onToggle: _toggleTracking,
                             ),
                           ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  // Header déplacé en bas comme bottom bar
-                  MasliveGradientHeader(
-                    height: 60,
-                    borderRadius: BorderRadius.zero,
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                    backgroundColor: Colors.white.withValues(alpha: 0.65),
-                    child: Row(
-                      children: [
+                    // Header déplacé en bas comme bottom bar
+                    MasliveGradientHeader(
+                      height: 60,
+                      borderRadius: BorderRadius.zero,
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                      backgroundColor: Colors.white.withValues(alpha: 0.65),
+                      child: Row(
+                        children: [
                         StreamBuilder<User?>(
                           stream: AuthService.instance.authStateChanges,
                           builder: (context, snap) {
@@ -1725,10 +1726,11 @@ class _HomeMapPageState extends State<HomeMapPage>
                             }
                           },
                         ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
