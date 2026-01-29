@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../models/group_product.dart';
 import '../services/cart_service.dart';
 import 'cart_page.dart';
@@ -28,12 +29,17 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
   final PageController _galleryController = PageController();
   int _galleryIndex = 0;
+  
+  // Contrôleurs de zoom
+  late TransformationController _transformationController;
+  Timer? _zoomResetTimer;
 
   static const _bg = Color(0xFFF4F5F8);
 
   @override
   void initState() {
     super.initState();
+    _transformationController = TransformationController();
     // Initialiser avec les valeurs par défaut du produit
     size = widget.product.sizes.isNotEmpty
         ? widget.product.sizes.first
@@ -46,16 +52,29 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   @override
   void dispose() {
     _galleryController.dispose();
+    _transformationController.dispose();
+    _zoomResetTimer?.cancel();
     super.dispose();
+  }
+  
+  void _resetZoom() {
+    _zoomResetTimer?.cancel();
+    _zoomResetTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) {
+        _transformationController.value = Matrix4.identity();
+      }
+    });
   }
 
   Widget _productImageGallery(GroupProduct p) {
     // Vérifier si c'est un asset local
     if (p.imagePath != null && p.imagePath!.isNotEmpty) {
       return InteractiveViewer(
+        transformationController: _transformationController,
         boundaryMargin: const EdgeInsets.all(20),
         minScale: 1.0,
         maxScale: 3.0,
+        onInteractionEnd: (details) => _resetZoom(),
         child: Image.asset(
           p.imagePath!,
           fit: BoxFit.contain,
@@ -123,9 +142,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
               );
             }
             return InteractiveViewer(
+              transformationController: _transformationController,
               boundaryMargin: const EdgeInsets.all(20),
               minScale: 1.0,
               maxScale: 3.0,
+              onInteractionEnd: (details) => _resetZoom(),
               child: imageWidget,
             );
           },
