@@ -52,11 +52,16 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   Widget _productImageGallery(GroupProduct p) {
     // Vérifier si c'est un asset local
     if (p.imagePath != null && p.imagePath!.isNotEmpty) {
-      return Image.asset(
-        p.imagePath!,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) =>
-            Image.asset('assets/splash/maslivesmall.png', fit: BoxFit.contain),
+      return InteractiveViewer(
+        boundaryMargin: const EdgeInsets.all(20),
+        minScale: 1.0,
+        maxScale: 3.0,
+        child: Image.asset(
+          p.imagePath!,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) =>
+              Image.asset('assets/splash/maslivesmall.png', fit: BoxFit.contain),
+        ),
       );
     }
 
@@ -97,8 +102,18 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           onPageChanged: (i) => setState(() => _galleryIndex = i),
           itemBuilder: (context, i) {
             final u = urls[i];
+            Widget imageWidget;
             if (u.startsWith('assets/')) {
-              return Image.asset(
+              imageWidget = Image.asset(
+                u,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => Image.asset(
+                  'assets/splash/maslivesmall.png',
+                  fit: BoxFit.contain,
+                ),
+              );
+            } else {
+              imageWidget = Image.network(
                 u,
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) => Image.asset(
@@ -107,13 +122,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 ),
               );
             }
-            return Image.network(
-              u,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => Image.asset(
-                'assets/splash/maslivesmall.png',
-                fit: BoxFit.contain,
-              ),
+            return InteractiveViewer(
+              boundaryMargin: const EdgeInsets.all(20),
+              minScale: 1.0,
+              maxScale: 3.0,
+              child: imageWidget,
             );
           },
         ),
