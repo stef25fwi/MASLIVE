@@ -54,9 +54,9 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     if (p.imagePath != null && p.imagePath!.isNotEmpty) {
       return Image.asset(
         p.imagePath!,
-        fit: BoxFit.cover,
+        fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) =>
-            Image.asset('assets/splash/maslivesmall.png', fit: BoxFit.cover),
+            Image.asset('assets/splash/maslivesmall.png', fit: BoxFit.contain),
       );
     }
 
@@ -67,7 +67,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     ];
 
     if (urls.isEmpty) {
-      return Image.asset('assets/splash/maslivesmall.png', fit: BoxFit.cover);
+      return Image.asset('assets/splash/maslivesmall.png', fit: BoxFit.contain);
     }
 
     if (urls.length == 1) {
@@ -75,16 +75,16 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       if (u.startsWith('assets/')) {
         return Image.asset(
           u,
-          fit: BoxFit.cover,
+          fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) =>
-              Image.asset('assets/splash/maslivesmall.png', fit: BoxFit.cover),
+              Image.asset('assets/splash/maslivesmall.png', fit: BoxFit.contain),
         );
       }
       return Image.network(
         u,
-        fit: BoxFit.cover,
+        fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) =>
-            Image.asset('assets/splash/maslivesmall.png', fit: BoxFit.cover),
+            Image.asset('assets/splash/maslivesmall.png', fit: BoxFit.contain),
       );
     }
 
@@ -100,19 +100,19 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             if (u.startsWith('assets/')) {
               return Image.asset(
                 u,
-                fit: BoxFit.cover,
+                fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) => Image.asset(
                   'assets/splash/maslivesmall.png',
-                  fit: BoxFit.cover,
+                  fit: BoxFit.contain,
                 ),
               );
             }
             return Image.network(
               u,
-              fit: BoxFit.cover,
+              fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) => Image.asset(
                 'assets/splash/maslivesmall.png',
-                fit: BoxFit.cover,
+                fit: BoxFit.contain,
               ),
             );
           },
