@@ -1165,23 +1165,25 @@ class _HomeMapPageState extends State<HomeMapPage>
                               fit: StackFit.expand,
                               children: [
                                 if (_useMapboxGlWeb)
-                                  Builder(
-                                    builder: (context) {
-                                      _markMapReadyIfNeeded();
-                                      final center =
-                                          _userPos ?? _fallbackCenter;
-                                      return MapboxWebView(
-                                        accessToken: _effectiveMapboxToken,
-                                        initialLat: center.latitude,
-                                        initialLng: center.longitude,
-                                        initialZoom:
-                                            _userPos != null ? 15.0 : 12.5,
-                                        initialPitch: 0.0,
-                                        initialBearing: 0.0,
-                                        styleUrl:
-                                            'mapbox://styles/mapbox/streets-v12',
-                                      );
-                                    },
+                                  Positioned.fill(
+                                    child: Builder(
+                                      builder: (context) {
+                                        _markMapReadyIfNeeded();
+                                        final center =
+                                            _userPos ?? _fallbackCenter;
+                                        return MapboxWebView(
+                                          accessToken: _effectiveMapboxToken,
+                                          initialLat: center.latitude,
+                                          initialLng: center.longitude,
+                                          initialZoom:
+                                              _userPos != null ? 15.0 : 12.5,
+                                          initialPitch: 0.0,
+                                          initialBearing: 0.0,
+                                          styleUrl:
+                                              'mapbox://styles/mapbox/streets-v12',
+                                        );
+                                      },
+                                    ),
                                   )
                                 else
                                   FlutterMap(
