@@ -229,8 +229,8 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
     final tileW = (contentW - _gridGap) / 2;
 
     // ✅ Hauteurs qui matchent mieux ta capture (A54)
-    final bigTileH = tileW * 0.92; // plus haut => image plus grande
-    final smallTileH = tileW * 0.58; // bandanas plus bas
+    final bigTileH = tileW * 1.08; // plus haut => détails lisibles
+    final smallTileH = tileW * 0.70; // bandanas plus bas
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
@@ -600,7 +600,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                           crossAxisCount: 2,
                           mainAxisSpacing: _gridGap,
                           crossAxisSpacing: _gridGap,
-                          childAspectRatio: 0.68,
+                          childAspectRatio: 0.60,
                         ),
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final product = products[index];
@@ -1203,7 +1203,7 @@ class _ProductTile extends StatelessWidget {
                     topRight: Radius.circular(24),
                   ),
                   child: SizedBox(
-                    height: compact ? 80 : 140,
+                    height: compact ? 96 : 170,
                     width: double.infinity,
                     child: image,
                   ),
