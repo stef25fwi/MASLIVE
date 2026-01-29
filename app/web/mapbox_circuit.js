@@ -95,45 +95,82 @@ window.masliveMapbox = (() => {
   function init(containerId, token, centerLngLat, zoom) {
     // Vérifier que mapboxgl est disponible
     if (typeof mapboxgl === 'undefined') {
-      console.error('mapboxgl is not available. Make sure mapbox-gl.js is loaded.');
-      return;
+      console.error('❌ mapboxgl is not available. Make sure mapbox-gl.js is loaded in index.html');
+      return false;
     }
     
-    mapboxgl.accessToken = token;
-    map = new mapboxgl.Map({
-      container: containerId,
-      style: "mapbox://styles/mapbox/streets-v12",
-      center: centerLngLat,
-      zoom: zoom ?? 12
-    });
-
-    map.on("load", () => {
-      console.log('Mapbox map loaded successfully');
-      ensureSourcesAndLayers();
-      map.on("click", (e) => {
-        window.postMessage({ type: "MASLIVE_MAP_TAP", lng: e.lngLat.lng, lat: e.lngLat.lat }, "*");
-      });
-    });
+    if (!token || token.length === 0) {
+      console.error('❌ Token Mapbox vide');
+      return false;
+    }
     
-    map.on("error", (e) => {
-      console.error('Mapbox error:', e.error);
-    });
+    try {
+      mapboxgl.accessToken = token;
+      console.log('🔑 Token: ' + token.substring(0, 10) + '...');
+      
+      map = new mapboxgl.Map({
+        container: containerId,
+        style: "mapbox://styles/mapbox/streets-v12",
+        center: centerLngLat,
+        zoom: zoom ?? 12
+      });
+      console.log('🗺️ Map created');
+
+      map.on("load", () => {
+        console.log('✅ Mapbox loaded');
+        ensureSourcesAndLayers();
+        map.on("click", (e) => {
+          window.postMessage({ type: "MASLIVE_MAP_TAP", lng: e.lngLat.lng, lat: e.lngLat.lat, containerId: containerId }, "*");
+        });
+      });
+      
+      map.on("error", (e) => {
+        console.error('❌ Mapbox error:', e.error);
+      });
+      
+      return true;
+    } catch (e) {
+      console.error('❌ Init error:', e);
+      return false;
+    }
   }
 
   function setData({ perimeter, mask, route, segments }) {
     if (!map) {
-      console.warn('Map not initialized yet');
-      return;
+      console.error('❌ Carte non initialisée');
+      return false;
     }
     
     try {
       ensureSourcesAndLayers();
-      if (perimeter) map.getSource(srcPerimeter).setData(perimeter);
-      if (mask) map.getSource(srcMask).setData(mask);
-      if (route) map.getSource(srcRoute).setData(route);
-      if (segments) map.getSource(srcSegments).setData(segments);
+      
+      // Vérifier et mettre à jour chaque source
+      const updateSource = (srcName, data, label) => {
+        const source = map.getSource(srcName);
+        if (!source) {
+          console.warn('⚠️  Source ' + srcName + ' non trouvée');
+          return false;
+        }
+        try {
+          source.setData(data);
+          console.log('✅ ' + label + ' mis à jour');
+          return true;
+        } catch (e) {
+          console.error('❌ Erreur ' + label + ':', e);
+          return false;
+        }
+      };
+      
+      if (perimeter) updateSource(srcPerimeter, perimeter, 'Périmètre');
+      if (mask) updateSource(srcMask, mask, 'Masque');
+      if (route) updateSource(srcRoute, route, 'Route');
+      if (segments) updateSource(srcSegments, segments, 'Segments');
+      
+      console.log('✅ Toutes les données mises à jour');
+      return true;
     } catch (e) {
-      console.error('Error updating map data:', e);
+      console.error('❌ Erreur setData:', e);
+      return false;
     }
   }
 
