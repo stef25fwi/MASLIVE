@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../widgets/honeycomb_background.dart';
 import '../widgets/rainbow_header.dart';
+import 'cart_page.dart';
 
 /// =============================================================
 ///  STRUCTURE MEDIA GALLERIES (sélection + checkmark + panier)
@@ -379,7 +380,13 @@ class _MediaGalleriesPageState extends State<MediaGalleriesPage> {
                       children: [
                         IconButton(
                           tooltip: 'Panier',
-                          onPressed: () => _openCartSheet(context),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const CartPage(),
+                              ),
+                            );
+                          },
                           icon: const Icon(Icons.shopping_bag_outlined, 
                               color: Colors.white),
                         ),
@@ -568,130 +575,7 @@ class _MediaGalleriesPageState extends State<MediaGalleriesPage> {
     );
   }
 
-  void _openCartSheet(BuildContext context) {
-    final cart = GalleryCartScope.of(context);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) {
-        return AnimatedBuilder(
-          animation: cart,
-          builder: (context, _) {
-            final items = cart.cart.values.toList();
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      const Text('Panier',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.w800)),
-                      const Spacer(),
-                      Text('${cart.cartTotal.toStringAsFixed(2)}€',
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (items.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 24),
-                      child: Text('Ton panier est vide.',
-                          style: TextStyle(
-                              color: Colors.black.withOpacity(0.65))),
-                    )
-                  else
-                    Flexible(
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        itemCount: items.length,
-                        separatorBuilder: (context, index) => const Divider(height: 16),
-                        itemBuilder: (context, i) {
-                          final gallery = items[i];
-                          return Row(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: SizedBox(
-                                  width: 64,
-                                  height: 64,
-                                  child: _Img(gallery.coverUrl ?? ''),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(gallery.title,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w700)),
-                                    const SizedBox(height: 4),
-                                    Text('${gallery.photoCount} photos',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                            color: Colors.black
-                                                .withOpacity(0.7))),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text('${gallery.totalPrice.toStringAsFixed(2)}€',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w700)),
-                              IconButton(
-                                tooltip: 'Retirer',
-                                onPressed: () =>
-                                    cart.removeFromCart(gallery.id),
-                                icon: const Icon(Icons.close),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: cart.cart.isEmpty ? null : cart.clearCart,
-                          child: const Text('Vider'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: cart.cart.isEmpty
-                              ? null
-                              : () {
-                                  Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            'Checkout à brancher (Stripe, etc.)')),
-                                  );
-                                },
-                          child: const Text('Payer'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
+  bool shouldRebuild(_StickyHeaderDelegate oldDelegate) => true;
 }
 
 /// -------------------------
