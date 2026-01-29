@@ -375,6 +375,14 @@ class _MediaGalleriesPageState extends State<MediaGalleriesPage> {
                 SliverToBoxAdapter(
                   child: RainbowHeader(
                     title: 'Médias',
+                    leading: IconButton(
+                      tooltip: 'Retour',
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded, 
+                          color: Colors.white, size: 18),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                    ),
                     trailing: Stack(
                       clipBehavior: Clip.none,
                       children: [
@@ -388,7 +396,9 @@ class _MediaGalleriesPageState extends State<MediaGalleriesPage> {
                             );
                           },
                           icon: const Icon(Icons.shopping_bag_outlined, 
-                              color: Colors.white),
+                              color: Colors.white, size: 24),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                         ),
                         if (cart.cartCount > 0)
                           Positioned(
