@@ -6,7 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 import 'dart:async';
 
-import '../ui/widgets/mapbox_web_view.dart';
+import '../ui/widgets/mapbox_web_view_platform.dart';
 import '../ui/widgets/mapbox_native_simple_map.dart';
 import '../services/mapbox_token_service.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';

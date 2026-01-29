@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import '../ui/widgets/mapbox_web_view.dart';
+import '../ui/widgets/mapbox_web_view_platform.dart';
 
 /// Page affichant Mapbox GL JS sur Web uniquement
 class MapboxWebMapPage extends StatelessWidget {
