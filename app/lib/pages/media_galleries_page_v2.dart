@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../widgets/honeycomb_background.dart';
 import '../widgets/rainbow_header.dart';
 import 'cart_page.dart';
 
@@ -366,23 +365,23 @@ class _MediaGalleriesPageState extends State<MediaGalleriesPage> {
     final results = _filtered;
 
     return Scaffold(
-      body: HoneycombBackground(
-        child: Stack(
-          children: [
-            CustomScrollView(
-              controller: _scroll,
-              slivers: [
-                SliverToBoxAdapter(
-                  child: RainbowHeader(
-                    title: 'Médias',
-                    leading: IconButton(
-                      tooltip: 'Retour',
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, 
-                          color: Colors.white, size: 18),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                    ),
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          CustomScrollView(
+            controller: _scroll,
+            slivers: [
+              SliverToBoxAdapter(
+                child: RainbowHeader(
+                  title: 'Médias',
+                  leading: IconButton(
+                    tooltip: 'Retour',
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded, 
+                        color: Colors.white, size: 18),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                  ),
                     trailing: Stack(
                       clipBehavior: Clip.none,
                       children: [
@@ -486,7 +485,6 @@ class _MediaGalleriesPageState extends State<MediaGalleriesPage> {
             ),
           ],
         ),
-      ),
     );
   }
 
