@@ -6,7 +6,7 @@ import 'dart:convert';
 import 'dart:async';
 
 import 'assistant_step_by_step/build_circuit_map.dart';
-import '../ui/widgets/mapbox_web_view.dart';
+import '../ui/widgets/mapbox_web_view_platform.dart';
 import '../services/mapbox_token_service.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
 

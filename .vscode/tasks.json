@@ -118,6 +118,12 @@
         "panel": "dedicated",
         "clear": true
       }
+    },
+    {
+      "label": "MASLIVE: Git restore home_map_page.dart",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git restore app/lib/pages/home_map_page.dart",
+      "problemMatcher": []
     }
   ]
 }

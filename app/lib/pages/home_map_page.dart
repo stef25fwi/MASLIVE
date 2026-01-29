@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -29,6 +30,7 @@ import '../services/mapbox_token_service.dart';
 import '../l10n/app_localizations.dart' as l10n;
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
 import '../ui/widgets/mapbox_token_dialog.dart';
+import '../ui/widgets/mapbox_web_view_platform.dart';
 
 const _mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
 const _legacyMapboxToken = String.fromEnvironment('MAPBOX_TOKEN');
@@ -86,6 +88,22 @@ class _HomeMapPageState extends State<HomeMapPage>
           : _runtimeMapboxToken);
 
   bool get _useMapboxTiles => _effectiveMapboxToken.isNotEmpty;
+
+  bool get _useMapboxGlWeb => kIsWeb && _effectiveMapboxToken.trim().isNotEmpty;
+
+  void _markMapReadyIfNeeded() {
+    if (_isMapReady) return;
+
+    // Sur Web, Mapbox GL JS ne remonte pas un callback "ready" côté Flutter.
+    // On marque la carte comme prête après le premier rendu pour débloquer le splash.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _isMapReady) return;
+      setState(() {
+        _isMapReady = true;
+        _checkIfReady();
+      });
+    });
+  }
 
   @override
   void initState() {
@@ -1146,7 +1164,27 @@ class _HomeMapPageState extends State<HomeMapPage>
                             child: Stack(
                               fit: StackFit.expand,
                               children: [
-                                FlutterMap(
+                                if (_useMapboxGlWeb)
+                                  Builder(
+                                    builder: (context) {
+                                      _markMapReadyIfNeeded();
+                                      final center =
+                                          _userPos ?? _fallbackCenter;
+                                      return MapboxWebView(
+                                        accessToken: _effectiveMapboxToken,
+                                        initialLat: center.latitude,
+                                        initialLng: center.longitude,
+                                        initialZoom:
+                                            _userPos != null ? 15.0 : 12.5,
+                                        initialPitch: 0.0,
+                                        initialBearing: 0.0,
+                                        styleUrl:
+                                            'mapbox://styles/mapbox/streets-v12',
+                                      );
+                                    },
+                                  )
+                                else
+                                  FlutterMap(
                                   mapController: _mapController,
                                   options: MapOptions(
                                     initialCenter: _userPos ?? _fallbackCenter,

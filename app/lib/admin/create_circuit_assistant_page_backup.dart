@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:async';
 
-import '../ui/widgets/mapbox_web_view.dart';
+import '../ui/widgets/mapbox_web_view_platform.dart';
 
 /// Assistant step-by-step pour la création de circuit
 const _mapboxToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
