@@ -612,17 +612,17 @@ class _CartButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
         child: Container(
-          width: 64,
-          height: 64,
+          width: 48,
+          height: 48,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
           ),
           child: const Icon(
             Icons.shopping_bag_outlined,
             color: Colors.white,
-            size: 34,
+            size: 24,
           ),
         ),
       ),
@@ -643,17 +643,17 @@ class _BackButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
         child: Container(
-          width: 52,
-          height: 52,
+          width: 44,
+          height: 44,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
           ),
           child: const Icon(
             Icons.arrow_back_ios_new_rounded,
             color: Colors.white,
-            size: 22,
+            size: 18,
           ),
         ),
       ),
