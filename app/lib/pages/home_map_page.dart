@@ -1565,109 +1565,110 @@ class _HomeMapPageState extends State<HomeMapPage>
                   backgroundColor: Colors.white.withValues(alpha: 0.65),
                   child: Row(
                     children: [
-                    StreamBuilder<User?>(
-                      stream: AuthService.instance.authStateChanges,
-                      builder: (context, snap) {
-                        final user = snap.data;
-                        final pseudo =
-                            (user?.displayName ?? user?.email ?? 'Profil')
-                                .trim();
+                      StreamBuilder<User?>(
+                        stream: AuthService.instance.authStateChanges,
+                          builder: (context, snap) {
+                          final user = snap.data;
+                          final pseudo =
+                              (user?.displayName ?? user?.email ?? 'Profil')
+                                  .trim();
 
-                        return Tooltip(
-                          message: pseudo.isEmpty ? 'Profil' : pseudo,
+                          return Tooltip(
+                            message: pseudo.isEmpty ? 'Profil' : pseudo,
+                            child: InkWell(
+                              onTap: () {
+                                if (user != null) {
+                                  _closeNavWithDelay();
+                                  Future.delayed(
+                                    const Duration(milliseconds: 500),
+                                    () {
+                                      if (mounted) {
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/account-ui',
+                                        );
+                                      }
+                                    },
+                                  );
+                                } else {
+                                  _closeNavWithDelay();
+                                  Future.delayed(
+                                    const Duration(milliseconds: 500),
+                                    () {
+                                      if (mounted) {
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/login',
+                                        );
+                                      }
+                                    },
+                                  );
+                                }
+                              },
+                              customBorder: const CircleBorder(),
+                              child: MasliveProfileIcon(
+                                size: 46,
+                                badgeSizeRatio: 0.22,
+                                showBadge: user != null,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 12),
+                      const Spacer(),
+                      Tooltip(
+                        message: l10n.AppLocalizations.of(context)!.language,
+                        child: Material(
+                          color: Colors.transparent,
                           child: InkWell(
-                            onTap: () {
-                              if (user != null) {
-                                _closeNavWithDelay();
-                                Future.delayed(
-                                  const Duration(milliseconds: 500),
-                                  () {
-                                    if (mounted) {
-                                      Navigator.pushNamed(
-                                        context,
-                                        '/account-ui',
-                                      );
-                                    }
-                                  },
-                                );
-                              } else {
-                                _closeNavWithDelay();
-                                Future.delayed(
-                                  const Duration(milliseconds: 500),
-                                  () {
-                                    if (mounted) {
-                                      Navigator.pushNamed(
-                                        context,
-                                        '/login',
-                                      );
-                                    }
-                                  },
-                                );
-                              }
-                            },
+                            onTap: _cycleLanguage,
+                            onLongPress: _openLanguagePicker,
                             customBorder: const CircleBorder(),
-                            child: MasliveProfileIcon(
-                              size: 46,
-                              badgeSizeRatio: 0.22,
-                              showBadge: user != null,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 12),
-                    const Spacer(),
-                    Tooltip(
-                      message: l10n.AppLocalizations.of(context)!.language,
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: _cycleLanguage,
-                          onLongPress: _openLanguagePicker,
-                          customBorder: const CircleBorder(),
-                          child: Container(
-                            width: 46,
-                            height: 46,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: _headerLanguageFlagGradient(),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(
-                                    0xFF9B6BFF,
-                                  ).withValues(alpha: 0.22),
-                                  blurRadius: 18,
-                                  spreadRadius: 1,
-                                  offset: const Offset(0, 10),
-                                ),
-                                BoxShadow(
-                                  color: const Color(
-                                    0xFFFF7AAE,
-                                  ).withValues(alpha: 0.16),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
-                            ),
-                            child: Center(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(
-                                    alpha: 0.5,
+                            child: Container(
+                              width: 46,
+                              height: 46,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: _headerLanguageFlagGradient(),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(
+                                      0xFF9B6BFF,
+                                    ).withValues(alpha: 0.22),
+                                    blurRadius: 18,
+                                    spreadRadius: 1,
+                                    offset: const Offset(0, 10),
                                   ),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  _headerLanguageCode(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 14,
-                                    letterSpacing: 0.5,
+                                  BoxShadow(
+                                    color: const Color(
+                                      0xFFFF7AAE,
+                                    ).withValues(alpha: 0.16),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(
+                                      alpha: 0.5,
+                                    ),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    _headerLanguageCode(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 14,
+                                      letterSpacing: 0.5,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1675,38 +1676,37 @@ class _HomeMapPageState extends State<HomeMapPage>
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    MasliveGradientIconButton(
-                      icon: Icons.shopping_bag_rounded,
-                      tooltip: l10n.AppLocalizations.of(context)!.shop,
-                      onTap: () {
-                        _closeNavWithDelay();
-                        Future.delayed(
-                          const Duration(milliseconds: 500),
-                          () {
-                            if (mounted) {
-                              Navigator.pushNamed(context, '/shop-ui');
-                            }
-                          },
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 10),
-                    MasliveGradientIconButton(
-                      icon: Icons.menu_rounded,
-                      tooltip: l10n.AppLocalizations.of(context)!.menu,
-                      onTap: () {
-                        setState(
-                          () => _showActionsMenu = !_showActionsMenu,
-                        );
-                        if (_showActionsMenu) {
-                          _menuAnimController.forward();
-                        } else {
-                          _menuAnimController.reverse();
-                        }
-                      },
-                    ),
+                      const SizedBox(width: 10),
+                      MasliveGradientIconButton(
+                        icon: Icons.shopping_bag_rounded,
+                        tooltip: l10n.AppLocalizations.of(context)!.shop,
+                        onTap: () {
+                          _closeNavWithDelay();
+                          Future.delayed(
+                            const Duration(milliseconds: 500),
+                            () {
+                              if (mounted) {
+                                Navigator.pushNamed(context, '/shop-ui');
+                              }
+                            },
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 10),
+                      MasliveGradientIconButton(
+                        icon: Icons.menu_rounded,
+                        tooltip: l10n.AppLocalizations.of(context)!.menu,
+                        onTap: () {
+                          setState(
+                            () => _showActionsMenu = !_showActionsMenu,
+                          );
+                          if (_showActionsMenu) {
+                            _menuAnimController.forward();
+                          } else {
+                            _menuAnimController.reverse();
+                          }
+                        },
+                      ),
                     ],
                   ),
                 ),
