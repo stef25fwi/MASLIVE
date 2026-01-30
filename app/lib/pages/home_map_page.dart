@@ -29,7 +29,6 @@ import '../services/mapbox_token_service.dart';
 import '../l10n/app_localizations.dart' as l10n;
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
 import '../ui/widgets/mapbox_token_dialog.dart';
-import '../ui/widgets/mapbox_web_view_platform.dart';
 
 const _mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
 const _legacyMapboxToken = String.fromEnvironment('MAPBOX_TOKEN');
@@ -68,26 +67,7 @@ class _HomeMapPageState extends State<HomeMapPage>
   bool _isMapReady = false;
   bool _isGpsReady = false;
 
-  Size? _lastWebMapSize;
-  int _webMapRebuildTick = 0;
-  bool _forceMapRebuild = false;
-
   String _runtimeMapboxToken = '';
-
-  void _forceRebuildMap() {
-    if (!mounted) return;
-    setState(() {
-      _forceMapRebuild = true;
-      _webMapRebuildTick++;
-    });
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (mounted) {
-        setState(() {
-          _forceMapRebuild = false;
-        });
-      }
-    });
-  }
 
   // Variables pour la gestion des cartes pré-enregistrées
   MapPresetModel? _selectedPreset;
@@ -105,22 +85,6 @@ class _HomeMapPageState extends State<HomeMapPage>
             : _runtimeMapboxToken);
 
   bool get _useMapboxTiles => _effectiveMapboxToken.isNotEmpty;
-
-  bool get _useMapboxGlWeb => kIsWeb && _effectiveMapboxToken.trim().isNotEmpty;
-
-  void _markMapReadyIfNeeded() {
-    if (_isMapReady) return;
-
-    // Sur Web, Mapbox GL JS ne remonte pas un callback "ready" côté Flutter.
-    // On marque la carte comme prête après le premier rendu pour débloquer le splash.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _isMapReady) return;
-      setState(() {
-        _isMapReady = true;
-        _checkIfReady();
-      });
-    });
-  }
 
   @override
   void initState() {
@@ -208,34 +172,6 @@ class _HomeMapPageState extends State<HomeMapPage>
         debugPrint('🗺️ HomeMapPage: App hidden');
         break;
     }
-  }
-
-  @override
-  void didChangeMetrics() {
-    super.didChangeMetrics();
-    // Rotation ou changement de taille de l'écran
-    if (!kIsWeb) return; // Uniquement nécessaire pour Web
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final size = MediaQuery.sizeOf(context);
-
-      _lastWebMapSize ??= size;
-      if (size != _lastWebMapSize) {
-        debugPrint(
-          '🔄 HomeMapPage: Changement de taille détecté: '
-          '${_lastWebMapSize?.width}x${_lastWebMapSize?.height} → '
-          '${size.width}x${size.height}',
-        );
-        _lastWebMapSize = size;
-        // Délai pour éviter les rebuilds trop fréquents
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (mounted) {
-            _forceRebuildMap();
-          }
-        });
-      }
-    });
   }
 
   Future<void> _bootstrapLocation() async {
@@ -1240,179 +1176,127 @@ class _HomeMapPageState extends State<HomeMapPage>
           children: [
             // Carte en arrière-plan plein écran
             Positioned.fill(
-              child: Stack(
-                fit: StackFit.expand,
+              child: FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: _userPos ?? _fallbackCenter,
+                  initialZoom: _userPos != null ? 15.5 : 13.0,
+                  onMapReady: () {
+                    debugPrint('🗺️ HomeMapPage: Carte FlutterMap prête');
+                    setState(() {
+                      _isMapReady = true;
+                      _checkIfReady();
+                    });
+                  },
+                  onPositionChanged: (pos, hasGesture) {
+                    if (hasGesture) _followUser = false;
+                  },
+                ),
                 children: [
-                  if (_useMapboxGlWeb)
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final size = Size(
-                          constraints.maxWidth,
-                          constraints.maxHeight,
-                        );
+                  TileLayer(
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.maslive.app',
+                  ),
 
-                        // Mise à jour de la taille si changement détecté
-                        if (_lastWebMapSize != size && !_forceMapRebuild) {
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            if (!mounted) return;
-                            _lastWebMapSize = size;
-                          });
+                  RichAttributionWidget(
+                    alignment: AttributionAlignment.bottomLeft,
+                    attributions: [
+                      if (_useMapboxTiles)
+                        const TextSourceAttribution('© Mapbox'),
+                      const TextSourceAttribution(
+                        '© OpenStreetMap contributors',
+                      ),
+                    ],
+                  ),
+
+                  if (_userPos != null)
+                    MarkerLayer(markers: [_userMarker(_userPos!)]),
+
+                  StreamBuilder<List<Place>>(
+                    stream: _placesStream(),
+                    builder: (context, snap) {
+                      final places = snap.data ?? const <Place>[];
+                      if (places.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return MarkerLayer(
+                        markers: places.map(_placeMarker).toList(),
+                      );
+                    },
+                  ),
+
+                  if (_selected == _MapAction.tracking) ...[
+                    StreamBuilder<List<Circuit>>(
+                      stream: _circuitStream,
+                      builder: (context, snap) {
+                        final circuits = snap.data ?? const [];
+                        if (circuits.isEmpty) {
+                          return const SizedBox.shrink();
                         }
-
-                        _markMapReadyIfNeeded();
-                        final center = _userPos ?? _fallbackCenter;
-
-                        // Container avec dimensions explicites pour Web
-                        return Container(
-                          width: size.width,
-                          height: size.height,
-                          color: Colors.grey[200],
-                          child: MapboxWebView(
-                            key: ValueKey(
-                              'mapbox-web-${_webMapRebuildTick}-${size.width.toStringAsFixed(0)}x${size.height.toStringAsFixed(0)}',
-                            ),
-                            accessToken: _effectiveMapboxToken,
-                            initialLat: center.latitude,
-                            initialLng: center.longitude,
-                            initialZoom: _userPos != null ? 16.0 : 13.0,
-                            initialPitch: 0.0,
-                            initialBearing: 0.0,
-                            styleUrl: 'mapbox://styles/mapbox/streets-v12',
-                            userLat: _userPos?.latitude,
-                            userLng: _userPos?.longitude,
-                            showUserLocation: _userPos != null,
-                          ),
+                        return PolylineLayer(
+                          polylines: circuits
+                              .where((c) => c.points.isNotEmpty)
+                              .map(
+                                (c) => Polyline(
+                                  points: _circuitPoints(c),
+                                  color: Colors.black.withValues(alpha: 0.65),
+                                  strokeWidth: 4,
+                                ),
+                              )
+                              .toList(),
                         );
                       },
                     ),
-                  if (!_useMapboxGlWeb)
-                    FlutterMap(
-                      mapController: _mapController,
-                      options: MapOptions(
-                        initialCenter: _userPos ?? _fallbackCenter,
-                        initialZoom: _userPos != null ? 15.5 : 13.0,
-                        onMapReady: () {
-                          debugPrint('🗺️ HomeMapPage: Carte FlutterMap prête');
-                          setState(() {
-                            _isMapReady = true;
-                            _checkIfReady();
-                          });
-                        },
-                        onPositionChanged: (pos, hasGesture) {
-                          if (hasGesture) _followUser = false;
-                        },
-                      ),
-                      children: [
-                        TileLayer(
-                          urlTemplate:
-                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.maslive.app',
-                        ),
+                    StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: FirebaseFirestore.instance
+                          .collection('groups')
+                          .snapshots(),
+                      builder: (context, snap) {
+                        if (!snap.hasData) {
+                          return const SizedBox.shrink();
+                        }
 
-                        RichAttributionWidget(
-                          alignment: AttributionAlignment.bottomLeft,
-                          attributions: [
-                            if (_useMapboxTiles)
-                              const TextSourceAttribution('© Mapbox'),
-                            const TextSourceAttribution(
-                              '© OpenStreetMap contributors',
+                        final markers = <Marker>[];
+                        for (final doc in snap.data!.docs) {
+                          final d = doc.data();
+                          final name = (d['name'] ?? doc.id).toString();
+                          final loc =
+                              (d['lastLocation'] as Map<String, dynamic>?) ??
+                              const {};
+                          final lat = (loc['lat'] as num?)?.toDouble();
+                          final lng = (loc['lng'] as num?)?.toDouble();
+                          if (lat == null || lng == null) {
+                            continue;
+                          }
+
+                          final heading = (loc['heading'] as num?)?.toDouble();
+                          final updatedAt = loc['updatedAt'];
+                          if (updatedAt is Timestamp) {
+                            final age = DateTime.now()
+                                .difference(updatedAt.toDate())
+                                .inSeconds;
+                            if (age > 180) continue;
+                          }
+
+                          markers.add(
+                            _groupMarker(
+                              p: LatLng(lat, lng),
+                              label: name,
+                              heading: heading,
+                              color: _groupColor(doc.id),
                             ),
-                          ],
-                        ),
+                          );
+                        }
 
-                        if (_userPos != null)
-                          MarkerLayer(markers: [_userMarker(_userPos!)]),
+                        if (markers.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
 
-                        StreamBuilder<List<Place>>(
-                          stream: _placesStream(),
-                          builder: (context, snap) {
-                            final places = snap.data ?? const <Place>[];
-                            if (places.isEmpty) {
-                              return const SizedBox.shrink();
-                            }
-                            return MarkerLayer(
-                              markers: places.map(_placeMarker).toList(),
-                            );
-                          },
-                        ),
-
-                        if (_selected == _MapAction.tracking) ...[
-                          StreamBuilder<List<Circuit>>(
-                            stream: _circuitStream,
-                            builder: (context, snap) {
-                              final circuits = snap.data ?? const [];
-                              if (circuits.isEmpty) {
-                                return const SizedBox.shrink();
-                              }
-                              return PolylineLayer(
-                                polylines: circuits
-                                    .where((c) => c.points.isNotEmpty)
-                                    .map(
-                                      (c) => Polyline(
-                                        points: _circuitPoints(c),
-                                        color: Colors.black.withValues(
-                                          alpha: 0.65,
-                                        ),
-                                        strokeWidth: 4,
-                                      ),
-                                    )
-                                    .toList(),
-                              );
-                            },
-                          ),
-                          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                            stream: FirebaseFirestore.instance
-                                .collection('groups')
-                                .snapshots(),
-                            builder: (context, snap) {
-                              if (!snap.hasData) {
-                                return const SizedBox.shrink();
-                              }
-
-                              final markers = <Marker>[];
-                              for (final doc in snap.data!.docs) {
-                                final d = doc.data();
-                                final name = (d['name'] ?? doc.id).toString();
-                                final loc =
-                                    (d['lastLocation']
-                                        as Map<String, dynamic>?) ??
-                                    const {};
-                                final lat = (loc['lat'] as num?)?.toDouble();
-                                final lng = (loc['lng'] as num?)?.toDouble();
-                                if (lat == null || lng == null) {
-                                  continue;
-                                }
-
-                                final heading = (loc['heading'] as num?)
-                                    ?.toDouble();
-                                final updatedAt = loc['updatedAt'];
-                                if (updatedAt is Timestamp) {
-                                  final age = DateTime.now()
-                                      .difference(updatedAt.toDate())
-                                      .inSeconds;
-                                  if (age > 180) continue;
-                                }
-
-                                markers.add(
-                                  _groupMarker(
-                                    p: LatLng(lat, lng),
-                                    label: name,
-                                    heading: heading,
-                                    color: _groupColor(doc.id),
-                                  ),
-                                );
-                              }
-
-                              if (markers.isEmpty) {
-                                return const SizedBox.shrink();
-                              }
-
-                              return MarkerLayer(markers: markers);
-                            },
-                          ),
-                        ],
-                      ],
+                        return MarkerLayer(markers: markers);
+                      },
                     ),
+                  ],
                 ],
               ),
             ),
