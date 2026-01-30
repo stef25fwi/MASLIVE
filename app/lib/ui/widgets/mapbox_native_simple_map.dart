@@ -21,7 +21,7 @@ class MapboxNativeSimpleMap extends StatefulWidget {
   final double initialLat;
   final double initialLng;
   final double initialZoom;
-  final ValueChanged<({double lng, double lat})>? onTapLngLat;
+  final ValueChanged<Map<String, double>>? onTapLngLat;
 
   @override
   State<MapboxNativeSimpleMap> createState() => _MapboxNativeSimpleMapState();
@@ -33,7 +33,8 @@ class _MapboxNativeSimpleMapState extends State<MapboxNativeSimpleMap>
 
   // 🔥 key dynamique : on la change à la rotation pour forcer le resize natif Mapbox
   Key _mapKey = UniqueKey();
-  Size? _lastSize;
+  double _lastWidth = 0;
+  double _lastHeight = 0;
 
   @override
   void initState() {
@@ -66,10 +67,12 @@ class _MapboxNativeSimpleMapState extends State<MapboxNativeSimpleMap>
       if (!mounted) return;
       final size = MediaQuery.sizeOf(context);
 
-      if (_lastSize == null ||
-          (size.width != _lastSize!.width ||
-              size.height != _lastSize!.height)) {
-        _lastSize = size as Size?;
+      if (_lastWidth == 0 ||
+          _lastHeight == 0 ||
+          size.width != _lastWidth ||
+          size.height != _lastHeight) {
+        _lastWidth = size.width;
+        _lastHeight = size.height;
         setState(() {
           _mapKey = UniqueKey(); // force reconstruction du platform view Mapbox
         });
@@ -81,7 +84,7 @@ class _MapboxNativeSimpleMapState extends State<MapboxNativeSimpleMap>
     final handler = widget.onTapLngLat;
     if (handler == null) return;
     final coords = context.point.coordinates;
-    handler((lng: coords.lng.toDouble(), lat: coords.lat.toDouble()));
+    handler({'lng': coords.lng.toDouble(), 'lat': coords.lat.toDouble()});
   }
 
   @override
