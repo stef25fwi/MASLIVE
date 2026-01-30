@@ -16,6 +16,9 @@ class MapboxWebView extends StatefulWidget {
   final double initialPitch;
   final double initialBearing;
   final String? styleUrl;
+  final double? userLat;
+  final double? userLng;
+  final bool showUserLocation;
   final ValueChanged<({double lng, double lat})>? onTapLngLat;
 
   const MapboxWebView({
@@ -27,6 +30,9 @@ class MapboxWebView extends StatefulWidget {
     this.initialPitch = 45.0,
     this.initialBearing = 0.0,
     this.styleUrl,
+    this.userLat,
+    this.userLng,
+    this.showUserLocation = false,
     this.onTapLngLat,
   });
 
@@ -39,6 +45,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
   String? _containerId;
   html.DivElement? _container;
   js.JsObject? _map;
+  js.JsObject? _userMarker;
   StreamSubscription<html.MessageEvent>? _messageSub;
   StreamSubscription<html.Event>? _resizeSub;
   String? _error;
@@ -85,6 +92,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
     if (_map == null && _container != null && widget.accessToken.isNotEmpty) {
       _initMapbox(_container!);
     }
+    _updateUserMarker();
   }
 
   void _registerFactory() {
@@ -184,6 +192,8 @@ class _MapboxWebViewState extends State<MapboxWebView> {
           }
         }
 
+        _updateUserMarker();
+
         // Force un resize après chargement pour gérer les changements d'orientation.
         try {
           Future.delayed(const Duration(milliseconds: 50), () {
@@ -194,6 +204,45 @@ class _MapboxWebViewState extends State<MapboxWebView> {
         }
       },
     ]);
+  }
+
+  void _updateUserMarker() {
+    final map = _map;
+    if (map == null) return;
+
+    final lat = widget.userLat;
+    final lng = widget.userLng;
+    final shouldShow = widget.showUserLocation && lat != null && lng != null;
+
+    if (!shouldShow) {
+      try {
+        _userMarker?.callMethod('remove');
+      } catch (_) {
+        // ignore
+      }
+      _userMarker = null;
+      return;
+    }
+
+    try {
+      if (_userMarker == null) {
+        final mapboxglObj = js.context['mapboxgl'];
+        if (mapboxglObj == null) return;
+        _userMarker = js.JsObject(mapboxglObj['Marker'], [
+          js.JsObject.jsify({'color': '#2F80ED'}),
+        ]);
+        _userMarker!.callMethod('setLngLat', [
+          [lng, lat],
+        ]);
+        _userMarker!.callMethod('addTo', [map]);
+      } else {
+        _userMarker!.callMethod('setLngLat', [
+          [lng, lat],
+        ]);
+      }
+    } catch (_) {
+      // ignore
+    }
   }
 
   @override
@@ -242,6 +291,12 @@ class _MapboxWebViewState extends State<MapboxWebView> {
     _messageSub = null;
     _resizeSub?.cancel();
     _resizeSub = null;
+    try {
+      _userMarker?.callMethod('remove');
+    } catch (_) {
+      // ignore
+    }
+    _userMarker = null;
     try {
       _map?.callMethod('remove');
     } catch (_) {

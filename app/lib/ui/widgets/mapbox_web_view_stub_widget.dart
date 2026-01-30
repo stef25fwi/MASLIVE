@@ -9,6 +9,9 @@ class MapboxWebView extends StatelessWidget {
   final double initialPitch;
   final double initialBearing;
   final String? styleUrl;
+  final double? userLat;
+  final double? userLng;
+  final bool showUserLocation;
   final ValueChanged<({double lng, double lat})>? onTapLngLat;
 
   const MapboxWebView({
@@ -20,6 +23,9 @@ class MapboxWebView extends StatelessWidget {
     this.initialPitch = 45.0,
     this.initialBearing = 0.0,
     this.styleUrl,
+    this.userLat,
+    this.userLng,
+    this.showUserLocation = false,
     this.onTapLngLat,
   });
 
