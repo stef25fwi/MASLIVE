@@ -40,6 +40,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
   html.DivElement? _container;
   js.JsObject? _map;
   StreamSubscription<html.MessageEvent>? _messageSub;
+  StreamSubscription<html.Event>? _resizeSub;
   String? _error;
 
   @override
@@ -66,6 +67,14 @@ class _MapboxWebViewState extends State<MapboxWebView> {
         if (lng is num && lat is num) {
           widget.onTapLngLat?.call((lng: lng.toDouble(), lat: lat.toDouble()));
         }
+      }
+    });
+
+    _resizeSub = html.window.onResize.listen((_) {
+      try {
+        _map?.callMethod('resize');
+      } catch (_) {
+        // ignore
       }
     });
   }
@@ -174,6 +183,15 @@ class _MapboxWebViewState extends State<MapboxWebView> {
             // ignore
           }
         }
+
+        // Force un resize après chargement pour gérer les changements d'orientation.
+        try {
+          Future.delayed(const Duration(milliseconds: 50), () {
+            _map?.callMethod('resize');
+          });
+        } catch (_) {
+          // ignore
+        }
       },
     ]);
   }
@@ -222,6 +240,8 @@ class _MapboxWebViewState extends State<MapboxWebView> {
   void dispose() {
     _messageSub?.cancel();
     _messageSub = null;
+    _resizeSub?.cancel();
+    _resizeSub = null;
     try {
       _map?.callMethod('remove');
     } catch (_) {
