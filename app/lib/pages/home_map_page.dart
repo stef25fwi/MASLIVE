@@ -1194,8 +1194,9 @@ class _HomeMapPageState extends State<HomeMapPage>
                 ),
                 children: [
                   TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    urlTemplate: _useMapboxTiles
+                        ? 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=$_effectiveMapboxToken'
+                        : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.maslive.app',
                   ),
 
