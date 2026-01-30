@@ -10,6 +10,7 @@ import 'services/language_service.dart';
 import 'widgets/localized_app.dart';
 import 'pages/splash_wrapper_page.dart';
 import 'pages/home_map_page.dart';
+import 'pages/home_map_page_3d.dart';
 import 'pages/group_profile_page.dart';
 import 'pages/group_shop_page.dart';
 import 'pages/role_router_page.dart';
@@ -121,7 +122,8 @@ class MasLiveApp extends StatelessWidget {
             routes: {
               '/splash': (_) => const SplashWrapperPage(),
               '/router': (_) => const RoleRouterPage(),
-              '/': (_) => const HomeMapPage(),
+              '/': (_) => const HomeMapPage3D(), // 🎯 Carte 3D Mapbox
+              '/map-2d': (_) => const HomeMapPage(), // Ancienne version 2D
               '/mapbox-google-light': (_) => const GoogleLightMapPage(),
               '/mapbox-web': (_) => const MapboxWebMapPage(),
               '/account-ui': (_) => const AccountUiPage(),
