@@ -69,7 +69,7 @@ class _MapboxNativeSimpleMapState extends State<MapboxNativeSimpleMap>
       if (_lastSize == null ||
           (size.width != _lastSize!.width ||
               size.height != _lastSize!.height)) {
-        _lastSize = size;
+        _lastSize = size as Size?;
         setState(() {
           _mapKey = UniqueKey(); // force reconstruction du platform view Mapbox
         });

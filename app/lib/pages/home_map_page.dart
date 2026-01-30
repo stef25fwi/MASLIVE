@@ -1173,8 +1173,8 @@ class _HomeMapPageState extends State<HomeMapPage>
                             styleUrl: 'mapbox://styles/mapbox/streets-v12',
                           );
                         },
-                      )
-                    else
+                      ),
+                    if (!_useMapboxGlWeb)
                       FlutterMap(
                       mapController: _mapController,
                       options: MapOptions(
@@ -1195,9 +1195,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                       ),
                       children: [
                         TileLayer(
-                          urlTemplate: _useMapboxTiles
-                              ? 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${_effectiveMapboxToken}'
-                              : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                           userAgentPackageName: 'com.maslive.app',
                         ),
 
