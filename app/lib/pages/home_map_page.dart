@@ -1170,24 +1170,24 @@ class _HomeMapPageState extends State<HomeMapPage>
                       ),
                     if (!_useMapboxGlWeb)
                       FlutterMap(
-                      mapController: _mapController,
-                      options: MapOptions(
-                        initialCenter: _userPos ?? _fallbackCenter,
-                        initialZoom: _userPos != null ? 14.5 : 12.5,
-                        onMapReady: () {
-                          debugPrint(
-                            '🗺️ HomeMapPage: Carte FlutterMap prête',
-                          );
-                          setState(() {
-                            _isMapReady = true;
-                            _checkIfReady();
-                          });
-                        },
-                        onPositionChanged: (pos, hasGesture) {
-                          if (hasGesture) _followUser = false;
-                        },
-                      ),
-                      children: [
+                        mapController: _mapController,
+                        options: MapOptions(
+                          initialCenter: _userPos ?? _fallbackCenter,
+                          initialZoom: _userPos != null ? 14.5 : 12.5,
+                          onMapReady: () {
+                            debugPrint(
+                              '🗺️ HomeMapPage: Carte FlutterMap prête',
+                            );
+                            setState(() {
+                              _isMapReady = true;
+                              _checkIfReady();
+                            });
+                          },
+                          onPositionChanged: (pos, hasGesture) {
+                            if (hasGesture) _followUser = false;
+                          },
+                        ),
+                        children: [
                         TileLayer(
                           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                           userAgentPackageName: 'com.maslive.app',
