@@ -1317,8 +1317,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                         ],
                       ],
                     ),
-                  ],
-                ),
+                ],
               ),
 
               if (!_useMapboxTiles)
