@@ -1148,12 +1148,7 @@ class _HomeMapPageState extends State<HomeMapPage>
         extendBodyBehindAppBar: true,
         body: Stack(
           children: [
-            // Fond honeycomb derrière la carte
-            HoneycombBackground(
-              opacity: 0.08,
-              child: SizedBox.expand(),
-            ),
-            // Carte en plein écran
+            // Carte en arrière-plan plein écran
             Positioned.fill(
               child: Stack(
                 fit: StackFit.expand,
