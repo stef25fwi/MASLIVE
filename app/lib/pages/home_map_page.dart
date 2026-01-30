@@ -1164,6 +1164,9 @@ class _HomeMapPageState extends State<HomeMapPage>
                           initialPitch: 0.0,
                           initialBearing: 0.0,
                           styleUrl: 'mapbox://styles/mapbox/streets-v12',
+                          userLat: _userPos?.latitude,
+                          userLng: _userPos?.longitude,
+                          showUserLocation: _userPos != null,
                         );
                       },
                     ),
