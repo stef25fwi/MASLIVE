@@ -1567,7 +1567,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                     children: [
                       StreamBuilder<User?>(
                         stream: AuthService.instance.authStateChanges,
-                          builder: (context, snap) {
+                        builder: (context, snap) {
                           final user = snap.data;
                           final pseudo =
                               (user?.displayName ?? user?.email ?? 'Profil')
@@ -1714,7 +1714,7 @@ class _HomeMapPageState extends State<HomeMapPage>
             ],
           ),
         ),
-      ),
+      )
     );
   }
 }
