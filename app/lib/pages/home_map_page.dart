@@ -1714,7 +1714,7 @@ class _HomeMapPageState extends State<HomeMapPage>
             ],
           ),
         ),
-      )
+      ),
     );
   }
 }
