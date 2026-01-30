@@ -27,7 +27,16 @@ String get _mapboxTokenSource => _mapboxAccessToken.isNotEmpty
           : MapboxTokenService.cachedSource);
 
 class CreateCircuitAssistantPage extends StatefulWidget {
-  const CreateCircuitAssistantPage({super.key});
+  const CreateCircuitAssistantPage({
+    super.key,
+    this.countryId,
+    this.eventId,
+    this.circuitId,
+  });
+
+  final String? countryId;
+  final String? eventId;
+  final String? circuitId;
 
   @override
   State<CreateCircuitAssistantPage> createState() =>
