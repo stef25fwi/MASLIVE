@@ -68,6 +68,9 @@ class _HomeMapPageState extends State<HomeMapPage>
   bool _isMapReady = false;
   bool _isGpsReady = false;
 
+  Size? _lastWebMapSize;
+  int _webMapRebuildTick = 0;
+
   String _runtimeMapboxToken = '';
 
   // Variables pour la gestion des cartes pré-enregistrées
@@ -1152,11 +1155,27 @@ class _HomeMapPageState extends State<HomeMapPage>
                 fit: StackFit.expand,
                 children: [
                   if (_useMapboxGlWeb)
-                    Builder(
-                      builder: (context) {
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final size = Size(
+                          constraints.maxWidth,
+                          constraints.maxHeight,
+                        );
+                        if (_lastWebMapSize != size) {
+                          _lastWebMapSize = size;
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (!mounted) return;
+                            setState(() {
+                              _webMapRebuildTick++;
+                            });
+                          });
+                        }
                         _markMapReadyIfNeeded();
                         final center = _userPos ?? _fallbackCenter;
                         return MapboxWebView(
+                          key: ValueKey(
+                            'mapbox-web-${_webMapRebuildTick}-${size.width}x${size.height}',
+                          ),
                           accessToken: _effectiveMapboxToken,
                           initialLat: center.latitude,
                           initialLng: center.longitude,
