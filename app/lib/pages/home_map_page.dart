@@ -1342,14 +1342,22 @@ class _HomeMapPageState extends State<HomeMapPage>
                 child: GestureDetector(
                   behavior: HitTestBehavior.translucent,
                   onTap: () {
-                    setState(() => _showActionsMenu = false);
                     _menuAnimController.reverse();
+                    Future.delayed(const Duration(milliseconds: 300), () {
+                      if (mounted) {
+                        setState(() => _showActionsMenu = false);
+                      }
+                    });
                   },
                   onHorizontalDragEnd: (details) {
                     if (details.primaryVelocity != null &&
                         details.primaryVelocity! > 0) {
-                      setState(() => _showActionsMenu = false);
                       _menuAnimController.reverse();
+                      Future.delayed(const Duration(milliseconds: 300), () {
+                        if (mounted) {
+                          setState(() => _showActionsMenu = false);
+                        }
+                      });
                     }
                   },
                   child: Align(
