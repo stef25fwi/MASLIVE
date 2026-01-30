@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 /// Carte Mapbox native (mobile/desktop) simple, pour les écrans Wizard.
@@ -26,12 +27,18 @@ class MapboxNativeSimpleMap extends StatefulWidget {
   State<MapboxNativeSimpleMap> createState() => _MapboxNativeSimpleMapState();
 }
 
-class _MapboxNativeSimpleMapState extends State<MapboxNativeSimpleMap> {
+class _MapboxNativeSimpleMapState extends State<MapboxNativeSimpleMap>
+    with WidgetsBindingObserver {
   String? _error;
+
+  // 🔥 key dynamique : on la change à la rotation pour forcer le resize natif Mapbox
+  Key _mapKey = UniqueKey();
+  Size? _lastSize;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     if (kIsWeb) {
       _error = 'Mapbox natif non supporté sur Web.';
@@ -45,6 +52,28 @@ class _MapboxNativeSimpleMapState extends State<MapboxNativeSimpleMap> {
     }
 
     MapboxOptions.setAccessToken(widget.accessToken);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final size = MediaQuery.sizeOf(context);
+
+      _lastSize ??= size;
+      if (size != _lastSize) {
+        _lastSize = size;
+        setState(() {
+          _mapKey = UniqueKey(); // force reconstruction du platform view Mapbox
+        });
+      }
+    });
   }
 
   void _onTap(MapContentGestureContext context) {
@@ -67,7 +96,7 @@ class _MapboxNativeSimpleMapState extends State<MapboxNativeSimpleMap> {
     }
 
     return MapWidget(
-      key: const ValueKey('maslive_mapbox_native_simple'),
+      key: _mapKey,
       styleUri: widget.styleUri,
       cameraOptions: CameraOptions(
         zoom: widget.initialZoom,
