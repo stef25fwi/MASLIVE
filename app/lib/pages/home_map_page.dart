@@ -44,7 +44,7 @@ class HomeMapPage extends StatefulWidget {
 }
 
 class _HomeMapPageState extends State<HomeMapPage>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   _MapAction _selected = _MapAction.ville;
   bool _showActionsMenu = false;
   late AnimationController _menuAnimController;
@@ -109,6 +109,7 @@ class _HomeMapPageState extends State<HomeMapPage>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     debugPrint('🗺️ HomeMapPage: initState called');
     _isTracking = _geo.isTracking;
     _menuAnimController = AnimationController(
@@ -163,10 +164,57 @@ class _HomeMapPageState extends State<HomeMapPage>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _positionSub?.cancel();
     _menuAnimController.dispose();
     _pulseController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    switch (state) {
+      case AppLifecycleState.resumed:
+        debugPrint('🗺️ HomeMapPage: App resumed, relancer GPS');
+        _bootstrapLocation();
+        break;
+      case AppLifecycleState.paused:
+        debugPrint('🗺️ HomeMapPage: App paused');
+        break;
+      case AppLifecycleState.detached:
+        debugPrint('🗺️ HomeMapPage: App detached');
+        break;
+      case AppLifecycleState.inactive:
+        debugPrint('🗺️ HomeMapPage: App inactive');
+        break;
+      case AppLifecycleState.hidden:
+        debugPrint('🗺️ HomeMapPage: App hidden');
+        break;
+    }
+  }
+
+  @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    // Rotation ou changement de taille de l'écran
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final size = MediaQuery.sizeOf(context);
+
+      _lastWebMapSize ??= size;
+      if (size != _lastWebMapSize) {
+        debugPrint(
+          '🔄 HomeMapPage: Changement de taille détecté: '
+          '${_lastWebMapSize?.width}x${_lastWebMapSize?.height} → '
+          '${size.width}x${size.height}',
+        );
+        _lastWebMapSize = size;
+        setState(() {
+          _webMapRebuildTick++; // Force rebuild du WebView map
+        });
+      }
+    });
   }
 
   Future<void> _bootstrapLocation() async {
