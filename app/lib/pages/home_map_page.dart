@@ -70,8 +70,24 @@ class _HomeMapPageState extends State<HomeMapPage>
 
   Size? _lastWebMapSize;
   int _webMapRebuildTick = 0;
+  bool _forceMapRebuild = false;
 
   String _runtimeMapboxToken = '';
+
+  void _forceRebuildMap() {
+    if (!mounted) return;
+    setState(() {
+      _forceMapRebuild = true;
+      _webMapRebuildTick++;
+    });
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        setState(() {
+          _forceMapRebuild = false;
+        });
+      }
+    });
+  }
 
   // Variables pour la gestion des cartes pré-enregistrées
   MapPresetModel? _selectedPreset;
@@ -198,6 +214,8 @@ class _HomeMapPageState extends State<HomeMapPage>
   void didChangeMetrics() {
     super.didChangeMetrics();
     // Rotation ou changement de taille de l'écran
+    if (!kIsWeb) return; // Uniquement nécessaire pour Web
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final size = MediaQuery.sizeOf(context);
@@ -210,8 +228,11 @@ class _HomeMapPageState extends State<HomeMapPage>
           '${size.width}x${size.height}',
         );
         _lastWebMapSize = size;
-        setState(() {
-          _webMapRebuildTick++; // Force rebuild du WebView map
+        // Délai pour éviter les rebuilds trop fréquents
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            _forceRebuildMap();
+          }
         });
       }
     });
@@ -1229,31 +1250,38 @@ class _HomeMapPageState extends State<HomeMapPage>
                           constraints.maxWidth,
                           constraints.maxHeight,
                         );
-                        if (_lastWebMapSize != size) {
-                          _lastWebMapSize = size;
+
+                        // Mise à jour de la taille si changement détecté
+                        if (_lastWebMapSize != size && !_forceMapRebuild) {
                           WidgetsBinding.instance.addPostFrameCallback((_) {
                             if (!mounted) return;
-                            setState(() {
-                              _webMapRebuildTick++;
-                            });
+                            _lastWebMapSize = size;
                           });
                         }
+
                         _markMapReadyIfNeeded();
                         final center = _userPos ?? _fallbackCenter;
-                        return MapboxWebView(
-                          key: ValueKey(
-                            'mapbox-web-${_webMapRebuildTick}-${size.width}x${size.height}',
+
+                        // Container avec dimensions explicites pour Web
+                        return Container(
+                          width: size.width,
+                          height: size.height,
+                          color: Colors.grey[200],
+                          child: MapboxWebView(
+                            key: ValueKey(
+                              'mapbox-web-${_webMapRebuildTick}-${size.width.toStringAsFixed(0)}x${size.height.toStringAsFixed(0)}',
+                            ),
+                            accessToken: _effectiveMapboxToken,
+                            initialLat: center.latitude,
+                            initialLng: center.longitude,
+                            initialZoom: _userPos != null ? 16.0 : 13.0,
+                            initialPitch: 0.0,
+                            initialBearing: 0.0,
+                            styleUrl: 'mapbox://styles/mapbox/streets-v12',
+                            userLat: _userPos?.latitude,
+                            userLng: _userPos?.longitude,
+                            showUserLocation: _userPos != null,
                           ),
-                          accessToken: _effectiveMapboxToken,
-                          initialLat: center.latitude,
-                          initialLng: center.longitude,
-                          initialZoom: _userPos != null ? 16.0 : 13.0,
-                          initialPitch: 0.0,
-                          initialBearing: 0.0,
-                          styleUrl: 'mapbox://styles/mapbox/streets-v12',
-                          userLat: _userPos?.latitude,
-                          userLng: _userPos?.longitude,
-                          showUserLocation: _userPos != null,
                         );
                       },
                     ),

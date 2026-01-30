@@ -257,7 +257,8 @@ class _MapboxWebViewState extends State<MapboxWebView> {
       );
     }
 
-    return HtmlElementView(viewType: _viewType);
+    // Wrapper avec dimensions explicites pour Web
+    return SizedBox.expand(child: HtmlElementView(viewType: _viewType));
   }
 
   void _add3dBuildings(js.JsObject map) {
