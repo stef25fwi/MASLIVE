@@ -13,7 +13,6 @@ import 'package:get/get.dart';
 import '../ui/theme/maslive_theme.dart';
 import '../ui/widgets/gradient_header.dart';
 import '../ui/widgets/gradient_icon_button.dart';
-import '../ui/widgets/honeycomb_background.dart';
 import '../ui/widgets/maslive_card.dart';
 import '../ui/widgets/maslive_profile_icon.dart';
 import '../models/place_model.dart';
@@ -1317,50 +1316,50 @@ class _HomeMapPageState extends State<HomeMapPage>
                           ),
                         ],
                       ),
+                    ],
+                  ),
+                ),
 
-                    if (!_useMapboxTiles)
-                      Positioned(
-                        top:
-                            MediaQuery.of(context).padding.top +
-                            12,
-                        left: 12,
-                        right: 12,
-                        child: MasliveCard(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.info_outline_rounded,
-                                size: 18,
-                                color: Colors.black87,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'Mapbox inactif: MAPBOX_ACCESS_TOKEN manquant.\nAffichage temporaire OpenStreetMap.',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                        fontWeight:
-                                            FontWeight.w700,
-                                      ),
+              if (!_useMapboxTiles)
+                Positioned(
+                  top:
+                      MediaQuery.of(context).padding.top +
+                      12,
+                  left: 12,
+                  right: 12,
+                  child: MasliveCard(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.info_outline_rounded,
+                          size: 18,
+                          color: Colors.black87,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Mapbox inactif: MAPBOX_ACCESS_TOKEN manquant.\nAffichage temporaire OpenStreetMap.',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  fontWeight:
+                                      FontWeight.w700,
                                 ),
-                              ),
-                              TextButton(
-                                onPressed: _configureMapboxToken,
-                                child: const Text('Configurer'),
-                              ),
-                            ],
                           ),
                         ),
-                      ),
-                  ],
+                        TextButton(
+                          onPressed: _configureMapboxToken,
+                          child: const Text('Configurer'),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
 
               // Overlay actions - affiche quand burger cliqué
               Positioned.fill(
