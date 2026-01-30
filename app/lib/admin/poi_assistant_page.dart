@@ -7,9 +7,12 @@ import 'dart:convert';
 import 'dart:async';
 
 import '../ui/widgets/mapbox_web_view_platform.dart';
-import '../ui/widgets/mapbox_native_simple_map.dart';
 import '../services/mapbox_token_service.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
+
+// Import conditionnel: mapbox_native_simple_map est pour mobile/desktop uniquement
+import '../ui/widgets/mapbox_native_simple_map.dart'
+    if (dart.library.html) '../ui/widgets/mapbox_native_simple_map_stub.dart';
 
 /// Assistant step-by-step pour la gestion des POIs
 const _mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
