@@ -172,6 +172,26 @@ class _HomeMapPageState extends State<HomeMapPage>
   Future<void> _bootstrapLocation() async {
     final ok = await _ensureLocationPermission(request: true);
 
+    // Obtenir la position initiale rapidement pour centrer la carte
+    if (ok) {
+      try {
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.best,
+            timeLimit: Duration(seconds: 8),
+          ),
+        );
+        final p = LatLng(pos.latitude, pos.longitude);
+        if (mounted) {
+          setState(() {
+            _userPos = p;
+          });
+        }
+      } catch (e) {
+        debugPrint('⚠️ Erreur lors de la récupération de la position: $e');
+      }
+    }
+
     // Le splashscreen attend mapReadyNotifier.
     // Même sans GPS (permission refusée/service désactivé), on doit pouvoir afficher la carte.
     if (mounted) {
@@ -1179,7 +1199,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                           accessToken: _effectiveMapboxToken,
                           initialLat: center.latitude,
                           initialLng: center.longitude,
-                          initialZoom: _userPos != null ? 15.0 : 12.5,
+                          initialZoom: _userPos != null ? 16.0 : 13.0,
                           initialPitch: 0.0,
                           initialBearing: 0.0,
                           styleUrl: 'mapbox://styles/mapbox/streets-v12',
@@ -1194,7 +1214,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                       mapController: _mapController,
                       options: MapOptions(
                         initialCenter: _userPos ?? _fallbackCenter,
-                        initialZoom: _userPos != null ? 14.5 : 12.5,
+                        initialZoom: _userPos != null ? 15.5 : 13.0,
                         onMapReady: () {
                           debugPrint('🗺️ HomeMapPage: Carte FlutterMap prête');
                           setState(() {
