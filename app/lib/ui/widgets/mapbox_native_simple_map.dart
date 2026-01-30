@@ -66,8 +66,7 @@ class _MapboxNativeSimpleMapState extends State<MapboxNativeSimpleMap>
       if (!mounted) return;
       final size = MediaQuery.sizeOf(context);
 
-      _lastSize ??= size;
-      if (size != _lastSize) {
+      if (_lastSize == null || size != _lastSize) {
         _lastSize = size;
         setState(() {
           _mapKey = UniqueKey(); // force reconstruction du platform view Mapbox
