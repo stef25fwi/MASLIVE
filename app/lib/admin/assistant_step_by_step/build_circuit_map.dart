@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import '../../services/mapbox_token_service.dart';
 import 'mapbox_native_circuit_map.dart';
-import 'mapbox_web_circuit_map.dart';
+import 'mapbox_web_circuit_map_stub.dart'
+  if (dart.library.html) 'mapbox_web_circuit_map.dart';
 
 typedef LngLat = ({double lng, double lat});
 
@@ -16,23 +18,17 @@ Widget buildCircuitMap({
   bool showMask = false,
   String? mapboxToken,
 }) {
+  final token = MapboxTokenService.getTokenSync(override: mapboxToken);
+
   if (kIsWeb) {
-    final envToken = const String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
-    final legacyEnvToken = const String.fromEnvironment('MAPBOX_TOKEN');
     return MapboxWebCircuitMap(
-      mapboxToken:
-          mapboxToken ?? (envToken.isNotEmpty ? envToken : legacyEnvToken),
+      mapboxToken: token,
       perimeter: perimeter,
       route: route,
       segments: segments,
       onTapLngLat: onTap,
     );
   }
-
-  final envToken = const String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
-  final legacyEnvToken = const String.fromEnvironment('MAPBOX_TOKEN');
-  final token =
-      mapboxToken ?? (envToken.isNotEmpty ? envToken : legacyEnvToken);
   if (token.isNotEmpty) {
     // SDK Mapbox natif : token global.
     MapboxOptions.setAccessToken(token);

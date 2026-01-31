@@ -13,7 +13,7 @@ import 'dart:async';
 import '../ui/widgets/mapbox_web_view_platform.dart';
 
 /// Assistant step-by-step pour la création de circuit
-const _mapboxToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+const _mapboxToken = ''; // redacted (backup file)
 
 class CreateCircuitAssistantPage extends StatefulWidget {
   const CreateCircuitAssistantPage({super.key});
@@ -695,7 +695,7 @@ class _StepPerimetreState extends State<_StepPerimetre> {
                     )
                   : Center(
                       child: Text(
-                        'Mapbox nécessite MAPBOX_ACCESS_TOKEN',
+                        'Mapbox nécessite un token',
                         style: TextStyle(color: Colors.grey[600]),
                         textAlign: TextAlign.center,
                       ),

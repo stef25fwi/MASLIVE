@@ -11,20 +11,9 @@ import '../services/mapbox_token_service.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
 
 /// Assistant step-by-step pour la création de circuit
-const _mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
-const _legacyMapboxToken = String.fromEnvironment('MAPBOX_TOKEN');
+String get _effectiveMapboxToken => MapboxTokenService.getTokenSync();
 
-String get _effectiveMapboxToken => _mapboxAccessToken.isNotEmpty
-    ? _mapboxAccessToken
-    : (_legacyMapboxToken.isNotEmpty
-          ? _legacyMapboxToken
-          : MapboxTokenService.cachedToken);
-
-String get _mapboxTokenSource => _mapboxAccessToken.isNotEmpty
-    ? 'dart-define MAPBOX_ACCESS_TOKEN'
-    : (_legacyMapboxToken.isNotEmpty
-          ? 'dart-define MAPBOX_TOKEN (legacy)'
-          : MapboxTokenService.cachedSource);
+String get _mapboxTokenSource => MapboxTokenService.getTokenSourceSync();
 
 class CreateCircuitAssistantPage extends StatefulWidget {
   const CreateCircuitAssistantPage({
