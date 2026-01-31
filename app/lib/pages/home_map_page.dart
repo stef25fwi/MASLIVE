@@ -29,6 +29,7 @@ import '../services/mapbox_token_service.dart';
 import '../l10n/app_localizations.dart' as l10n;
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
 import '../ui/widgets/mapbox_token_dialog.dart';
+import '../ui/widgets/mapbox_web_view.dart'; // Ajout de l'import
 
 const _mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
 const _legacyMapboxToken = String.fromEnvironment('MAPBOX_TOKEN');
@@ -88,6 +89,8 @@ class _HomeMapPageState extends State<HomeMapPage>
             : _runtimeMapboxToken);
 
   bool get _useMapboxTiles => _effectiveMapboxToken.isNotEmpty;
+
+  bool get _useMapboxGlWeb => kIsWeb && _useMapboxTiles;
 
   @override
   void initState() {
@@ -1200,13 +1203,14 @@ class _HomeMapPageState extends State<HomeMapPage>
         extendBodyBehindAppBar: true,
         body: Stack(
           children: [
-            // Carte en arrière-plan plein écran
-            Positioned.fill(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (_useMapboxGlWeb)
-                    LayoutBuilder(
+            // Carte en arrière-plan plein écran - POSITION ABSOLUE
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _useMapboxGlWeb
+                  ? LayoutBuilder(
                       builder: (context, constraints) {
                         final size = Size(
                           constraints.maxWidth,
@@ -1239,131 +1243,135 @@ class _HomeMapPageState extends State<HomeMapPage>
                           showUserLocation: _userPos != null,
                         );
                       },
-                    ),
-                  if (!_useMapboxGlWeb)
-                    FlutterMap(
-                mapController: _mapController,
-                options: MapOptions(
-                  initialCenter: _userPos ?? _fallbackCenter,
-                  initialZoom: _userPos != null ? 15.5 : 13.0,
-                  onMapReady: () {
-                    debugPrint('🗺️ HomeMapPage: Carte FlutterMap prête');
-                    setState(() {
-                      _isMapReady = true;
-                      _checkIfReady();
-                    });
-                  },
-                  onPositionChanged: (pos, hasGesture) {
-                    if (hasGesture) _followUser = false;
-                  },
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.maslive.app',
-                  ),
-
-                  RichAttributionWidget(
-                    alignment: AttributionAlignment.bottomLeft,
-                    attributions: [
-                      if (_useMapboxTiles)
-                        const TextSourceAttribution('© Mapbox'),
-                      const TextSourceAttribution(
-                        '© OpenStreetMap contributors',
+                    )
+                  : FlutterMap(
+                      mapController: _mapController,
+                      options: MapOptions(
+                        initialCenter: _userPos ?? _fallbackCenter,
+                        initialZoom: _userPos != null ? 15.5 : 13.0,
+                        onMapReady: () {
+                          debugPrint('🗺️ HomeMapPage: Carte FlutterMap prête');
+                          setState(() {
+                            _isMapReady = true;
+                            _checkIfReady();
+                          });
+                        },
+                        onPositionChanged: (pos, hasGesture) {
+                          if (hasGesture) _followUser = false;
+                        },
                       ),
-                    ],
-                  ),
+                      children: [
+                        TileLayer(
+                          urlTemplate: _useMapboxTiles
+                              ? 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=${_effectiveMapboxToken}'
+                              : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName: 'com.maslive.app',
+                        ),
 
-                  if (_userPos != null)
-                    MarkerLayer(markers: [_userMarker(_userPos!)]),
-
-                  StreamBuilder<List<Place>>(
-                    stream: _placesStream(),
-                    builder: (context, snap) {
-                      final places = snap.data ?? const <Place>[];
-                      if (places.isEmpty) {
-                        return const SizedBox.shrink();
-                      }
-                      return MarkerLayer(
-                        markers: places.map(_placeMarker).toList(),
-                      );
-                    },
-                  ),
-
-                  if (_selected == _MapAction.tracking) ...[
-                    StreamBuilder<List<Circuit>>(
-                      stream: _circuitStream,
-                      builder: (context, snap) {
-                        final circuits = snap.data ?? const [];
-                        if (circuits.isEmpty) {
-                          return const SizedBox.shrink();
-                        }
-                        return PolylineLayer(
-                          polylines: circuits
-                              .where((c) => c.points.isNotEmpty)
-                              .map(
-                                (c) => Polyline(
-                                  points: _circuitPoints(c),
-                                  color: Colors.black.withValues(alpha: 0.65),
-                                  strokeWidth: 4,
-                                ),
-                              )
-                              .toList(),
-                        );
-                      },
-                    ),
-                    StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: FirebaseFirestore.instance
-                          .collection('groups')
-                          .snapshots(),
-                      builder: (context, snap) {
-                        if (!snap.hasData) {
-                          return const SizedBox.shrink();
-                        }
-
-                        final markers = <Marker>[];
-                        for (final doc in snap.data!.docs) {
-                          final d = doc.data();
-                          final name = (d['name'] ?? doc.id).toString();
-                          final loc =
-                              (d['lastLocation'] as Map<String, dynamic>?) ??
-                              const {};
-                          final lat = (loc['lat'] as num?)?.toDouble();
-                          final lng = (loc['lng'] as num?)?.toDouble();
-                          if (lat == null || lng == null) {
-                            continue;
-                          }
-
-                          final heading = (loc['heading'] as num?)?.toDouble();
-                          final updatedAt = loc['updatedAt'];
-                          if (updatedAt is Timestamp) {
-                            final age = DateTime.now()
-                                .difference(updatedAt.toDate())
-                                .inSeconds;
-                            if (age > 180) continue;
-                          }
-
-                          markers.add(
-                            _groupMarker(
-                              p: LatLng(lat, lng),
-                              label: name,
-                              heading: heading,
-                              color: _groupColor(doc.id),
+                        RichAttributionWidget(
+                          alignment: AttributionAlignment.bottomLeft,
+                          attributions: [
+                            if (_useMapboxTiles)
+                              const TextSourceAttribution('© Mapbox'),
+                            const TextSourceAttribution(
+                              '© OpenStreetMap contributors',
                             ),
-                          );
-                        }
+                          ],
+                        ),
 
-                        if (markers.isEmpty) {
-                          return const SizedBox.shrink();
-                        }
+                        if (_userPos != null)
+                          MarkerLayer(markers: [_userMarker(_userPos!)]),
 
-                        return MarkerLayer(markers: markers);
-                      },
+                        StreamBuilder<List<Place>>(
+                          stream: _placesStream(),
+                          builder: (context, snap) {
+                            final places = snap.data ?? const <Place>[];
+                            if (places.isEmpty) {
+                              return const SizedBox.shrink();
+                            }
+                            return MarkerLayer(
+                              markers: places.map(_placeMarker).toList(),
+                            );
+                          },
+                        ),
+
+                        if (_selected == _MapAction.tracking) ...[
+                          StreamBuilder<List<Circuit>>(
+                            stream: _circuitStream,
+                            builder: (context, snap) {
+                              final circuits = snap.data ?? const [];
+                              if (circuits.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+                              return PolylineLayer(
+                                polylines: circuits
+                                    .where((c) => c.points.isNotEmpty)
+                                    .map(
+                                      (c) => Polyline(
+                                        points: _circuitPoints(c),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.65,
+                                        ),
+                                        strokeWidth: 4,
+                                      ),
+                                    )
+                                    .toList(),
+                              );
+                            },
+                          ),
+                          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                            stream: FirebaseFirestore.instance
+                                .collection('groups')
+                                .snapshots(),
+                            builder: (context, snap) {
+                              if (!snap.hasData) {
+                                return const SizedBox.shrink();
+                              }
+
+                              final markers = <Marker>[];
+                              for (final doc in snap.data!.docs) {
+                                final d = doc.data();
+                                final name = (d['name'] ?? doc.id).toString();
+                                final loc =
+                                    (d['lastLocation']
+                                        as Map<String, dynamic>?) ??
+                                    const {};
+                                final lat = (loc['lat'] as num?)?.toDouble();
+                                final lng = (loc['lng'] as num?)?.toDouble();
+                                if (lat == null || lng == null) {
+                                  continue;
+                                }
+
+                                final heading = (loc['heading'] as num?)
+                                    ?.toDouble();
+                                final updatedAt = loc['updatedAt'];
+                                if (updatedAt is Timestamp) {
+                                  final age = DateTime.now()
+                                      .difference(updatedAt.toDate())
+                                      .inSeconds;
+                                  if (age > 180) continue;
+                                }
+
+                                markers.add(
+                                  _groupMarker(
+                                    p: LatLng(lat, lng),
+                                    label: name,
+                                    heading: heading,
+                                    color: _groupColor(doc.id),
+                                  ),
+                                );
+                              }
+
+                              if (markers.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+
+                              return MarkerLayer(markers: markers);
+                            },
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
-                ],
-              ),
             ),
 
             if (!_useMapboxTiles)
@@ -1723,6 +1731,19 @@ class _HomeMapPageState extends State<HomeMapPage>
         ),
       ),
     );
+  }
+
+  void _markMapReadyIfNeeded() {
+    if (!_isMapReady) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_isMapReady) {
+          setState(() {
+            _isMapReady = true;
+            _checkIfReady();
+          });
+        }
+      });
+    }
   }
 }
 
