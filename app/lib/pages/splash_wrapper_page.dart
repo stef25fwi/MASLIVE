@@ -1,9 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'splash_screen.dart';
-import 'home_map_page_web.dart';
-import 'home_map_page_3d.dart';
+import 'home_map_page_v3.dart';
 
 /// Notificateur global pour savoir quand la carte est prête
 final ValueNotifier<bool> mapReadyNotifier = ValueNotifier<bool>(false);
@@ -26,10 +24,10 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
     super.initState();
     _splashStartTime = DateTime.now();
     debugPrint('🚀 SplashWrapperPage: initState - preparing home page');
-    
+
     // Écouter quand la carte est prête
     mapReadyNotifier.addListener(_onMapReady);
-    
+
     // Pré-charger la page home immédiatement pour que la carte commence à se charger
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -47,11 +45,15 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
   void _onMapReady() {
     if (mapReadyNotifier.value && !_mapReady) {
       // Calcul du délai écoulé depuis le démarrage du splash
-      final elapsedSeconds = DateTime.now().difference(_splashStartTime).inSeconds;
-      
+      final elapsedSeconds = DateTime.now()
+          .difference(_splashStartTime)
+          .inSeconds;
+
       // Minimum 2.5 secondes de splashscreen
       if (elapsedSeconds < 2.5) {
-        debugPrint('⏳ SplashWrapperPage: Carte prête mais délai minimum non atteint ($elapsedSeconds sec < 2.5 sec)');
+        debugPrint(
+          '⏳ SplashWrapperPage: Carte prête mais délai minimum non atteint ($elapsedSeconds sec < 2.5 sec)',
+        );
         final remainingMs = (2500 - (elapsedSeconds * 1000)).toInt();
         Future.delayed(Duration(milliseconds: remainingMs), () {
           if (mounted) {
@@ -59,7 +61,9 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
           }
         });
       } else {
-        debugPrint('✅ SplashWrapperPage: Carte prête et délai minimum atteint, masquage du splashscreen');
+        debugPrint(
+          '✅ SplashWrapperPage: Carte prête et délai minimum atteint, masquage du splashscreen',
+        );
         _hideSplash();
       }
     }
@@ -82,11 +86,9 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
             AnimatedOpacity(
               duration: const Duration(milliseconds: 400),
               opacity: _mapReady ? 1.0 : 0.0,
-              child: kIsWeb 
-                  ? const HomeMapPageWeb() // 🌐 Mapbox GL JS pour Web
-                  : const HomeMapPage3D(), // 🎯 Mapbox Native pour Mobile
+              child: const HomeMapPageV3(), // 🎯 Home par défaut
             ),
-          
+
           // Le splashscreen reste visible tant que la carte n'est pas prête
           if (!_mapReady)
             AnimatedOpacity(

@@ -22,6 +22,7 @@ class MapboxWebView extends StatefulWidget {
   final double? userLng;
   final bool showUserLocation;
   final ValueChanged<({double lng, double lat})>? onTapLngLat;
+  final VoidCallback? onMapReady;
 
   const MapboxWebView({
     super.key,
@@ -36,6 +37,7 @@ class MapboxWebView extends StatefulWidget {
     this.userLng,
     this.showUserLocation = false,
     this.onTapLngLat,
+    this.onMapReady,
   });
 
   @override
@@ -51,6 +53,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
   StreamSubscription<html.MessageEvent>? _messageSub;
   StreamSubscription<html.Event>? _resizeSub;
   String? _error;
+  bool _didNotifyReady = false;
 
   @override
   void initState() {
@@ -188,6 +191,15 @@ class _MapboxWebViewState extends State<MapboxWebView> {
 
         _updateUserMarker();
 
+        if (!_didNotifyReady) {
+          _didNotifyReady = true;
+          try {
+            widget.onMapReady?.call();
+          } catch (_) {
+            // ignore
+          }
+        }
+
         try {
           Future.delayed(const Duration(milliseconds: 50), () {
             _map?.callMethod('resize');
@@ -221,7 +233,9 @@ class _MapboxWebViewState extends State<MapboxWebView> {
     if (_userMarker == null) {
       try {
         final marker = js.JsObject(mapboxglObj['Marker']);
-        marker.callMethod('setLngLat', [js.JsObject.jsify([lng, lat])]);
+        marker.callMethod('setLngLat', [
+          js.JsObject.jsify([lng, lat]),
+        ]);
         marker.callMethod('addTo', [map]);
         _userMarker = marker;
       } catch (_) {
@@ -229,7 +243,9 @@ class _MapboxWebViewState extends State<MapboxWebView> {
       }
     } else {
       try {
-        _userMarker?.callMethod('setLngLat', [js.JsObject.jsify([lng, lat])]);
+        _userMarker?.callMethod('setLngLat', [
+          js.JsObject.jsify([lng, lat]),
+        ]);
       } catch (_) {
         // ignore
       }
@@ -320,9 +336,9 @@ class _MapboxWebViewState extends State<MapboxWebView> {
         child: Text(
           _error!,
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
       );
     }

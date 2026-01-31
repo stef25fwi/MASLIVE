@@ -251,10 +251,8 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
   }
 
   void _checkIfReady() {
-    if (_isMapReady && _isGpsReady && !mapReadyNotifier.value) {
-      debugPrint(
-        '✅ HomeMapPageWeb: Carte et GPS prêts, notification du splashscreen',
-      );
+    if (_isMapReady && !mapReadyNotifier.value) {
+      debugPrint('✅ HomeMapPageWeb: Carte prête, notification du splashscreen');
       Future.delayed(const Duration(milliseconds: 300), () {
         mapReadyNotifier.value = true;
       });
@@ -760,6 +758,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                       userLat: _userPos?.latitude,
                       userLng: _userPos?.longitude,
                       showUserLocation: _userPos != null,
+                      onMapReady: _onMapReady,
                     )
                   : Container(
                       color: Colors.grey.shade200,
