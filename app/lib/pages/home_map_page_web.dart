@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -15,6 +14,7 @@ import '../ui/widgets/gradient_header.dart';
 import '../ui/widgets/gradient_icon_button.dart';
 import '../ui/widgets/maslive_card.dart';
 import '../ui/widgets/maslive_profile_icon.dart';
+import '../ui/widgets/mapbox_web_view.dart';
 import '../models/place_model.dart';
 import '../models/circuit_model.dart';
 import '../models/map_preset_model.dart';
@@ -35,25 +35,20 @@ const _legacyMapboxToken = String.fromEnvironment('MAPBOX_TOKEN');
 
 enum _MapAction { ville, tracking, visiter, encadrement, food, wc, parking }
 
-class HomeMapPage extends StatefulWidget {
-  const HomeMapPage({super.key});
+class HomeMapPageWeb extends StatefulWidget {
+  const HomeMapPageWeb({super.key});
 
   @override
-  State<HomeMapPage> createState() => _HomeMapPageState();
+  State<HomeMapPageWeb> createState() => _HomeMapPageWebState();
 }
 
-class _HomeMapPageState extends State<HomeMapPage>
+class _HomeMapPageWebState extends State<HomeMapPageWeb>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   _MapAction _selected = _MapAction.ville;
   bool _showActionsMenu = false;
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
-  // ignore: unused_field
-  late AnimationController _pulseController;
-  // ignore: unused_field
-  late Animation<double> _pulseAnimation;
 
-  final MapController _mapController = MapController();
   final FirestoreService _firestore = FirestoreService();
   final GeolocationService _geo = GeolocationService.instance;
   final _circuitStream = FirestoreService().getPublishedCircuitsStream();
@@ -90,7 +85,7 @@ class _HomeMapPageState extends State<HomeMapPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    debugPrint('🗺️ HomeMapPage: initState called');
+    debugPrint('🗺️ HomeMapPageWeb: initState called');
     _isTracking = _geo.isTracking;
     _menuAnimController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -104,15 +99,6 @@ class _HomeMapPageState extends State<HomeMapPage>
             reverseCurve: Curves.easeIn,
           ),
         );
-
-    _pulseController = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    );
-    _pulseController.repeat();
-    _pulseAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
 
     _bootstrapLocation();
     _loadUserGroupId();
@@ -147,7 +133,6 @@ class _HomeMapPageState extends State<HomeMapPage>
     WidgetsBinding.instance.removeObserver(this);
     _positionSub?.cancel();
     _menuAnimController.dispose();
-    _pulseController.dispose();
     super.dispose();
   }
 
@@ -156,20 +141,20 @@ class _HomeMapPageState extends State<HomeMapPage>
     super.didChangeAppLifecycleState(state);
     switch (state) {
       case AppLifecycleState.resumed:
-        debugPrint('🗺️ HomeMapPage: App resumed, relancer GPS');
+        debugPrint('🗺️ HomeMapPageWeb: App resumed, relancer GPS');
         _bootstrapLocation();
         break;
       case AppLifecycleState.paused:
-        debugPrint('🗺️ HomeMapPage: App paused');
+        debugPrint('🗺️ HomeMapPageWeb: App paused');
         break;
       case AppLifecycleState.detached:
-        debugPrint('🗺️ HomeMapPage: App detached');
+        debugPrint('🗺️ HomeMapPageWeb: App detached');
         break;
       case AppLifecycleState.inactive:
-        debugPrint('🗺️ HomeMapPage: App inactive');
+        debugPrint('🗺️ HomeMapPageWeb: App inactive');
         break;
       case AppLifecycleState.hidden:
-        debugPrint('🗺️ HomeMapPage: App hidden');
+        debugPrint('🗺️ HomeMapPageWeb: App hidden');
         break;
     }
   }
@@ -177,7 +162,6 @@ class _HomeMapPageState extends State<HomeMapPage>
   Future<void> _bootstrapLocation() async {
     final ok = await _ensureLocationPermission(request: true);
 
-    // Obtenir la position initiale rapidement pour centrer la carte
     if (ok) {
       try {
         final pos = await Geolocator.getCurrentPosition(
@@ -197,8 +181,6 @@ class _HomeMapPageState extends State<HomeMapPage>
       }
     }
 
-    // Le splashscreen attend mapReadyNotifier.
-    // Même sans GPS (permission refusée/service désactivé), on doit pouvoir afficher la carte.
     if (mounted) {
       setState(() => _isGpsReady = true);
     } else {
@@ -270,24 +252,26 @@ class _HomeMapPageState extends State<HomeMapPage>
               _checkIfReady();
             }
           });
-
-          if (_followUser) {
-            final z = _mapController.camera.zoom;
-            _mapController.move(p, z < 12.5 ? 13.5 : z);
-          }
         });
   }
 
   void _checkIfReady() {
     if (_isMapReady && _isGpsReady && !mapReadyNotifier.value) {
       debugPrint(
-        '✅ HomeMapPage: Carte et GPS prêts, notification du splashscreen',
+        '✅ HomeMapPageWeb: Carte et GPS prêts, notification du splashscreen',
       );
-      // Petit délai pour assurer le rendu complet avant de notifier
       Future.delayed(const Duration(milliseconds: 300), () {
         mapReadyNotifier.value = true;
       });
     }
+  }
+
+  void _onMapReady() {
+    debugPrint('🗺️ HomeMapPageWeb: Carte Mapbox GL JS prête');
+    setState(() {
+      _isMapReady = true;
+      _checkIfReady();
+    });
   }
 
   Future<void> _recenterOnUser() async {
@@ -308,9 +292,6 @@ class _HomeMapPageState extends State<HomeMapPage>
       _userPos = p;
       _followUser = true;
     });
-
-    final z = _mapController.camera.zoom;
-    _mapController.move(p, z < 12.5 ? 13.5 : z);
   }
 
   Stream<List<Place>> _placesStream() {
@@ -329,399 +310,6 @@ class _HomeMapPageState extends State<HomeMapPage>
       case _MapAction.ville:
         return _firestore.getPlacesStream();
     }
-  }
-
-  String _placeLabel(PlaceType type) {
-    switch (type) {
-      case PlaceType.market:
-        return 'Assistance';
-      case PlaceType.visit:
-        return 'À visiter';
-      case PlaceType.food:
-        return 'Food';
-      case PlaceType.wc:
-        return 'WC';
-    }
-  }
-
-  Color _groupColor(String groupId) {
-    const palette = [
-      Color(0xFFFF3B30),
-      Color(0xFF34C759),
-      Color(0xFF0A84FF),
-      Color(0xFFFF9500),
-      Color(0xFFAF52DE),
-      Color(0xFFFFC107),
-    ];
-    final hash = groupId.codeUnits.fold<int>(0, (p, c) => p + c);
-    return palette[hash % palette.length];
-  }
-
-  List<LatLng> _circuitPoints(Circuit c) {
-    final pts = <LatLng>[];
-    pts.add(LatLng(c.start.lat, c.start.lng));
-    for (final p in c.points) {
-      pts.add(LatLng(p.lat, p.lng));
-    }
-    pts.add(LatLng(c.end.lat, c.end.lng));
-    return pts;
-  }
-
-  IconData _placeIcon(PlaceType type) {
-    switch (type) {
-      case PlaceType.market:
-        return Icons.health_and_safety_rounded;
-      case PlaceType.visit:
-        return Icons.attractions_rounded;
-      case PlaceType.food:
-        return Icons.restaurant_rounded;
-      case PlaceType.wc:
-        return Icons.wc_rounded;
-    }
-  }
-
-  Color _placeColor(PlaceType type) {
-    switch (type) {
-      case PlaceType.market:
-        return const Color(0xFF5B8CFF);
-      case PlaceType.visit:
-        return const Color(0xFFB35BFF);
-      case PlaceType.food:
-        return const Color(0xFFFF7A59);
-      case PlaceType.wc:
-        return const Color(0xFF00BFA6);
-    }
-  }
-
-  Marker _userMarker(LatLng p) {
-    return Marker(
-      point: p,
-      width: 64,
-      height: 64,
-      child: RepaintBoundary(
-        child: AnimatedBuilder(
-          animation: _pulseAnimation,
-          builder: (context, child) {
-            final scale = 1.0 + (_pulseAnimation.value * 0.3);
-            final opacity = 0.18 - (_pulseAnimation.value * 0.08);
-
-            return Stack(
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  width: 44 * scale,
-                  height: 44 * scale,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(
-                      0xFF2F6BFF,
-                    ).withValues(alpha: opacity.clamp(0, 1)),
-                  ),
-                ),
-                Container(
-                  width: 16,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(0xFF2F6BFF),
-                    border: Border.all(color: Colors.white, width: 3),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Marker _placeMarker(Place place) {
-    final color = _placeColor(place.type);
-    final icon = _placeIcon(place.type);
-
-    return Marker(
-      point: place.location,
-      width: 56,
-      height: 56,
-      child: GestureDetector(
-        onTap: () => _openPlaceSheet(place),
-        child: Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white.withValues(alpha: 0.92),
-            border: Border.all(color: color.withValues(alpha: 0.45)),
-            boxShadow: MasliveTheme.floatingShadow,
-          ),
-          child: Icon(icon, color: color, size: 26),
-        ),
-      ),
-    );
-  }
-
-  Marker _groupMarker({
-    required LatLng p,
-    required String label,
-    required double? heading,
-    required Color color,
-  }) {
-    return Marker(
-      point: p,
-      width: 60,
-      height: 60,
-      child: GestureDetector(
-        onTap: () => _openGroupSheet(label, p),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.92),
-                border: Border.all(color: color.withValues(alpha: 0.45)),
-                boxShadow: MasliveTheme.floatingShadow,
-              ),
-            ),
-            if (heading != null)
-              Transform.rotate(
-                angle: (heading) * (3.1415926535 / 180),
-                child: Icon(Icons.navigation_rounded, size: 22, color: color),
-              )
-            else
-              Icon(Icons.wifi_tethering_rounded, size: 22, color: color),
-            Positioned(
-              bottom: 6,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  label.length <= 12 ? label : '${label.substring(0, 12)}…',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _openPlaceSheet(Place place) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) {
-        return SafeArea(
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.94),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: MasliveTheme.floatingShadow,
-              border: Border.all(color: MasliveTheme.divider),
-            ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 420),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded),
-                          onPressed: () => Navigator.pop(context),
-                          tooltip: l10n.AppLocalizations.of(context)!.close,
-                        ),
-                        const Spacer(),
-                        TextButton.icon(
-                          onPressed: () {
-                            _mapController.move(place.location, 15);
-                            Navigator.pop(context);
-                          },
-                          icon: const Icon(Icons.zoom_in_map_rounded),
-                          label: const Text('Zoom'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _placeColor(
-                              place.type,
-                            ).withValues(alpha: 0.14),
-                          ),
-                          child: Icon(
-                            _placeIcon(place.type),
-                            color: _placeColor(place.type),
-                            size: 28,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: _placeColor(
-                                        place.type,
-                                      ).withValues(alpha: 0.14),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: _placeColor(
-                                          place.type,
-                                        ).withValues(alpha: 0.4),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      _placeLabel(place.type),
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelMedium
-                                          ?.copyWith(
-                                            color: _placeColor(place.type),
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                place.name,
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w900),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                '${place.city} • ${place.rating.toStringAsFixed(1)}★',
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: MasliveTheme.textSecondary,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'Coordonnées: ${place.lat.toStringAsFixed(5)}, ${place.lng.toStringAsFixed(5)}',
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: MasliveTheme.textSecondary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    MasliveCard(
-                      padding: const EdgeInsets.all(12),
-                      radius: 16,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Description',
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w800),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Informations détaillées sur ce lieu. Ajoutez ici un descriptif plus long si disponible.',
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(color: MasliveTheme.textSecondary),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _openGroupSheet(String label, LatLng p) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) {
-        return SafeArea(
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.94),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: MasliveTheme.floatingShadow,
-              border: Border.all(color: MasliveTheme.divider),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.wifi_tethering_rounded),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        label,
-                        style: const TextStyle(fontWeight: FontWeight.w900),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Position: ${p.latitude.toStringAsFixed(5)}, ${p.longitude.toStringAsFixed(5)}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: MasliveTheme.textSecondary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    _mapController.move(p, 14.5);
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Centrer'),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
   }
 
   Future<void> _toggleTracking() async {
@@ -767,7 +355,6 @@ class _HomeMapPageState extends State<HomeMapPage>
     final langService = Get.find<LanguageService>();
     switch (langService.currentLanguageCode) {
       case 'fr':
-        // Drapeau France: bleu, blanc, rouge (vertical)
         return const LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
@@ -775,7 +362,6 @@ class _HomeMapPageState extends State<HomeMapPage>
           stops: [0.0, 0.5, 1.0],
         );
       case 'en':
-        // Drapeau UK simplifié: bleu et rouge
         return const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -783,7 +369,6 @@ class _HomeMapPageState extends State<HomeMapPage>
           stops: [0.4, 0.6],
         );
       case 'es':
-        // Drapeau Espagne: rouge, jaune, rouge (horizontal)
         return const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -813,12 +398,9 @@ class _HomeMapPageState extends State<HomeMapPage>
   }
 
   void _closeNavWithDelay() {
-    // Attendre 1,5 secondes avant de lancer l'animation de fermeture
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted && _showActionsMenu) {
         _menuAnimController.reverse();
-
-        // Attendre la fin de l'animation de glissement
         Future.delayed(const Duration(milliseconds: 300), () {
           if (mounted && _showActionsMenu) {
             setState(() => _showActionsMenu = false);
@@ -828,7 +410,6 @@ class _HomeMapPageState extends State<HomeMapPage>
     });
   }
 
-  /// Charge le groupId et le statut superadmin de l'utilisateur
   Future<void> _loadUserGroupId() async {
     try {
       final user = AuthService.instance.currentUser;
@@ -844,7 +425,6 @@ class _HomeMapPageState extends State<HomeMapPage>
         final role = doc.data()?['role'] as String?;
         final isAdmin = doc.data()?['isAdmin'] as bool? ?? false;
 
-        // Vérifie si l'utilisateur est superadmin
         final isSuperAdmin =
             role == 'superAdmin' ||
             role == 'superadmin' ||
@@ -864,8 +444,6 @@ class _HomeMapPageState extends State<HomeMapPage>
     }
   }
 
-  /// Ouvre le sélecteur de cartes pré-enregistrées
-  /// Seuls les superadmins peuvent modifier la sélection
   void _openMapSelector() {
     if (_userGroupId == null || _userGroupId!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -891,7 +469,6 @@ class _HomeMapPageState extends State<HomeMapPage>
     _closeNavWithDelay();
   }
 
-  /// Menu rapide de sélection de carte (pour superadmin) avec confirmation
   Future<void> _openMapQuickMenu() async {
     if (!_isSuperAdmin) {
       _openMapSelector();
@@ -1016,7 +593,7 @@ class _HomeMapPageState extends State<HomeMapPage>
                           );
 
                           if (confirm == true) {
-                            Navigator.pop(context); // ferme le bottom sheet
+                            Navigator.pop(context);
                             _applyPreset(preset);
                           }
                         },
@@ -1034,7 +611,6 @@ class _HomeMapPageState extends State<HomeMapPage>
     _closeNavWithDelay();
   }
 
-  /// Applique un preset (centre la carte, configure les couches)
   void _applyPreset(MapPresetModel preset, {List<LayerModel>? visibleLayers}) {
     final layers = visibleLayers ?? preset.layers;
 
@@ -1042,7 +618,6 @@ class _HomeMapPageState extends State<HomeMapPage>
       _selectedPreset = preset;
       _currentPresetLayers = List<LayerModel>.from(preset.layers);
       _activeLayers = {for (final layer in layers) layer.id: layer.visible};
-      _mapController.move(preset.center, preset.zoom);
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1164,6 +739,8 @@ class _HomeMapPageState extends State<HomeMapPage>
 
   @override
   Widget build(BuildContext context) {
+    final center = _userPos ?? _fallbackCenter;
+    
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -1174,166 +751,53 @@ class _HomeMapPageState extends State<HomeMapPage>
         extendBodyBehindAppBar: true,
         body: Stack(
           children: [
-            // Carte en arrière-plan plein écran
+            // Carte Mapbox GL JS via HtmlElementView
             Positioned.fill(
-              child: FlutterMap(
-                mapController: _mapController,
-                options: MapOptions(
-                  initialCenter: _userPos ?? _fallbackCenter,
-                  initialZoom: _userPos != null ? 15.5 : 13.0,
-                  onMapReady: () {
-                    debugPrint('🗺️ HomeMapPage: Carte FlutterMap prête');
-                    setState(() {
-                      _isMapReady = true;
-                      _checkIfReady();
-                    });
-                  },
-                  onPositionChanged: (pos, hasGesture) {
-                    if (hasGesture) _followUser = false;
-                  },
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.maslive.app',
-                  ),
-
-                  RichAttributionWidget(
-                    alignment: AttributionAlignment.bottomLeft,
-                    attributions: [
-                      if (_useMapboxTiles)
-                        const TextSourceAttribution('© Mapbox'),
-                      const TextSourceAttribution(
-                        '© OpenStreetMap contributors',
-                      ),
-                    ],
-                  ),
-
-                  if (_userPos != null)
-                    MarkerLayer(markers: [_userMarker(_userPos!)]),
-
-                  StreamBuilder<List<Place>>(
-                    stream: _placesStream(),
-                    builder: (context, snap) {
-                      final places = snap.data ?? const <Place>[];
-                      if (places.isEmpty) {
-                        return const SizedBox.shrink();
-                      }
-                      return MarkerLayer(
-                        markers: places.map(_placeMarker).toList(),
-                      );
-                    },
-                  ),
-
-                  if (_selected == _MapAction.tracking) ...[
-                    StreamBuilder<List<Circuit>>(
-                      stream: _circuitStream,
-                      builder: (context, snap) {
-                        final circuits = snap.data ?? const [];
-                        if (circuits.isEmpty) {
-                          return const SizedBox.shrink();
-                        }
-                        return PolylineLayer(
-                          polylines: circuits
-                              .where((c) => c.points.isNotEmpty)
-                              .map(
-                                (c) => Polyline(
-                                  points: _circuitPoints(c),
-                                  color: Colors.black.withValues(alpha: 0.65),
-                                  strokeWidth: 4,
-                                ),
-                              )
-                              .toList(),
-                        );
-                      },
-                    ),
-                    StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: FirebaseFirestore.instance
-                          .collection('groups')
-                          .snapshots(),
-                      builder: (context, snap) {
-                        if (!snap.hasData) {
-                          return const SizedBox.shrink();
-                        }
-
-                        final markers = <Marker>[];
-                        for (final doc in snap.data!.docs) {
-                          final d = doc.data();
-                          final name = (d['name'] ?? doc.id).toString();
-                          final loc =
-                              (d['lastLocation'] as Map<String, dynamic>?) ??
-                              const {};
-                          final lat = (loc['lat'] as num?)?.toDouble();
-                          final lng = (loc['lng'] as num?)?.toDouble();
-                          if (lat == null || lng == null) {
-                            continue;
-                          }
-
-                          final heading = (loc['heading'] as num?)?.toDouble();
-                          final updatedAt = loc['updatedAt'];
-                          if (updatedAt is Timestamp) {
-                            final age = DateTime.now()
-                                .difference(updatedAt.toDate())
-                                .inSeconds;
-                            if (age > 180) continue;
-                          }
-
-                          markers.add(
-                            _groupMarker(
-                              p: LatLng(lat, lng),
-                              label: name,
-                              heading: heading,
-                              color: _groupColor(doc.id),
-                            ),
-                          );
-                        }
-
-                        if (markers.isEmpty) {
-                          return const SizedBox.shrink();
-                        }
-
-                        return MarkerLayer(markers: markers);
-                      },
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            if (!_useMapboxTiles)
-              Positioned(
-                top: MediaQuery.of(context).padding.top + 12,
-                left: 12,
-                right: 12,
-                child: MasliveCard(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.info_outline_rounded,
-                        size: 18,
-                        color: Colors.black87,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Mapbox inactif: MAPBOX_ACCESS_TOKEN manquant.\nAffichage temporaire OpenStreetMap.',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(fontWeight: FontWeight.w700),
+              child: _useMapboxTiles
+                  ? MapboxWebView(
+                      accessToken: _effectiveMapboxToken,
+                      initialLat: center.latitude,
+                      initialLng: center.longitude,
+                      initialZoom: 15.5,
+                      initialPitch: 45.0,
+                      initialBearing: 0.0,
+                      styleUrl: 'mapbox://styles/mapbox/streets-v12',
+                      userLat: _userPos?.latitude,
+                      userLng: _userPos?.longitude,
+                      showUserLocation: _userPos != null,
+                      onMapReady: _onMapReady,
+                    )
+                  : Container(
+                      color: Colors.grey.shade200,
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.map_outlined,
+                                size: 64,
+                                color: Colors.black54,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Mapbox inactif: MAPBOX_ACCESS_TOKEN manquant',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 12),
+                              FilledButton.icon(
+                                onPressed: _configureMapboxToken,
+                                icon: const Icon(Icons.settings),
+                                label: const Text('Configurer'),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      TextButton(
-                        onPressed: _configureMapboxToken,
-                        child: const Text('Configurer'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+                    ),
+            ),
 
             // Overlay actions - affiche quand burger cliqué
             Positioned.fill(
@@ -1342,14 +806,22 @@ class _HomeMapPageState extends State<HomeMapPage>
                 child: GestureDetector(
                   behavior: HitTestBehavior.translucent,
                   onTap: () {
-                    setState(() => _showActionsMenu = false);
                     _menuAnimController.reverse();
+                    Future.delayed(const Duration(milliseconds: 300), () {
+                      if (mounted) {
+                        setState(() => _showActionsMenu = false);
+                      }
+                    });
                   },
                   onHorizontalDragEnd: (details) {
                     if (details.primaryVelocity != null &&
                         details.primaryVelocity! > 0) {
-                      setState(() => _showActionsMenu = false);
                       _menuAnimController.reverse();
+                      Future.delayed(const Duration(milliseconds: 300), () {
+                        if (mounted) {
+                          setState(() => _showActionsMenu = false);
+                        }
+                      });
                     }
                   },
                   child: Align(
@@ -1374,7 +846,6 @@ class _HomeMapPageState extends State<HomeMapPage>
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              // Bouton Cartes - visible seulement pour les superadmins
                               if (_isSuperAdmin)
                                 _ActionItem(
                                   label: 'Cartes',

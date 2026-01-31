@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -10,6 +11,7 @@ import 'services/language_service.dart';
 import 'widgets/localized_app.dart';
 import 'pages/splash_wrapper_page.dart';
 import 'pages/home_map_page.dart';
+import 'pages/home_map_page_web.dart';
 import 'pages/home_map_page_3d.dart';
 import 'pages/group_profile_page.dart';
 import 'pages/group_shop_page.dart';
@@ -122,7 +124,9 @@ class MasLiveApp extends StatelessWidget {
             routes: {
               '/splash': (_) => const SplashWrapperPage(),
               '/router': (_) => const RoleRouterPage(),
-              '/': (_) => const HomeMapPage3D(), // 🎯 Carte 3D Mapbox
+              '/': (_) => kIsWeb 
+                  ? const HomeMapPageWeb() // 🌐 Carte Mapbox GL JS Web
+                  : const HomeMapPage3D(), // 🎯 Carte 3D Mapbox Native
               '/map-2d': (_) => const HomeMapPage(), // Ancienne version 2D
               '/mapbox-google-light': (_) => const GoogleLightMapPage(),
               '/mapbox-web': (_) => const MapboxWebMapPage(),
