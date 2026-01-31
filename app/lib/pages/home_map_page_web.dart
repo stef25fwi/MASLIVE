@@ -765,7 +765,6 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                       userLat: _userPos?.latitude,
                       userLng: _userPos?.longitude,
                       showUserLocation: _userPos != null,
-                      onMapReady: _onMapReady,
                     )
                   : Container(
                       color: Colors.grey.shade200,
