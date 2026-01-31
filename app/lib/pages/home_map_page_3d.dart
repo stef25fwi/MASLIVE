@@ -247,7 +247,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   }
 
   void _checkIfReady() {
-    if (_isMapReady && _isGpsReady && !mapReadyNotifier.value) {
+    if (_isMapReady && !mapReadyNotifier.value) {
       Future.delayed(const Duration(milliseconds: 300), () {
         mapReadyNotifier.value = true;
       });

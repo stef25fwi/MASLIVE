@@ -14,6 +14,7 @@ class MapboxWebView extends StatelessWidget {
   final double? userLng;
   final bool showUserLocation;
   final ValueChanged<({double lng, double lat})>? onTapLngLat;
+  final VoidCallback? onMapReady;
 
   const MapboxWebView({
     super.key,
@@ -28,10 +29,14 @@ class MapboxWebView extends StatelessWidget {
     this.userLng,
     this.showUserLocation = false,
     this.onTapLngLat,
+    this.onMapReady,
   });
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      onMapReady?.call();
+    });
     return Container(
       color: Colors.black.withValues(alpha: 0.04),
       alignment: Alignment.center,
@@ -39,9 +44,9 @@ class MapboxWebView extends StatelessWidget {
       child: Text(
         'MapboxWebView est disponible uniquement sur Web.',
         textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
       ),
     );
   }

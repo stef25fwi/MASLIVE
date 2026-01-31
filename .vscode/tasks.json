@@ -107,7 +107,7 @@
     {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (Token Mapbox)",
       "type": "shell",
-      "command": "bash /workspaces/MASLIVE/git_commit_push_build_deploy.sh \"chore: cleanup backups + exclude analyzer\"",
+      "command": "bash /workspaces/MASLIVE/git_commit_push_build_deploy.sh \"fix: unblock splash + home V3\"",
       "problemMatcher": [],
       "isBackground": false,
       "group": {
