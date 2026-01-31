@@ -1,10 +1,10 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Visibility;
 import 'package:flutter/services.dart';
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' hide LocationSettings;
 import 'package:geolocator/geolocator.dart' hide Position;
-import 'package:geolocator/geolocator.dart' as geo show Position;
+import 'package:geolocator/geolocator.dart' as geo show Position, LocationSettings;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
@@ -61,7 +61,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   String? _userGroupId;
   bool _isSuperAdmin = false;
 
-  static const Position _fallbackCenter = Position(-61.533, 16.241);
+  static final Position _fallbackCenter = Position(-61.533, 16.241);
 
   // Annotations managers
   PointAnnotationManager? _userAnnotationManager;
@@ -148,7 +148,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     if (ok) {
       try {
         final pos = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(
+          locationSettings: const geo.LocationSettings(
             accuracy: LocationAccuracy.best,
             timeLimit: Duration(seconds: 8),
           ),
@@ -217,7 +217,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   void _startUserPositionStream() {
     _positionSub?.cancel();
 
-    const settings = LocationSettings(
+    const settings = geo.LocationSettings(
       accuracy: LocationAccuracy.best,
       distanceFilter: 8,
     );
@@ -262,7 +262,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     if (!ok) return;
 
     final pos = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
+      locationSettings: const geo.LocationSettings(
         accuracy: LocationAccuracy.best,
         timeLimit: Duration(seconds: 10),
       ),
@@ -558,9 +558,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
             ),
 
             // Overlay actions menu
-            Positioned.fill(
-              child: Visibility(
-                visible: _showActionsMenu,
+            if (_showActionsMenu)
+              Positioned.fill(
                 child: GestureDetector(
                   behavior: HitTestBehavior.translucent,
                   onTap: () {
@@ -623,7 +622,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                   ),
                 ),
               ),
-            ),
 
             // Tracking pill
             if (_selected == _MapAction.tracking)
