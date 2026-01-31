@@ -67,6 +67,9 @@ class _HomeMapPageState extends State<HomeMapPage>
   bool _isMapReady = false;
   bool _isGpsReady = false;
 
+  Size? _lastWebMapSize;
+  int _webMapRebuildTick = 0;
+
   String _runtimeMapboxToken = '';
 
   // Variables pour la gestion des cartes pré-enregistrées
@@ -172,6 +175,29 @@ class _HomeMapPageState extends State<HomeMapPage>
         debugPrint('🗺️ HomeMapPage: App hidden');
         break;
     }
+  }
+
+  @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    // Rotation ou changement de taille de l'écran
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final size = MediaQuery.sizeOf(context);
+
+      _lastWebMapSize ??= size;
+      if (size != _lastWebMapSize) {
+        debugPrint(
+          '🔄 HomeMapPage: Changement de taille détecté: '
+          '${_lastWebMapSize?.width}x${_lastWebMapSize?.height} → '
+          '${size.width}x${size.height}',
+        );
+        _lastWebMapSize = size;
+        setState(() {
+          _webMapRebuildTick++; // Force rebuild du WebView map
+        });
+      }
+    });
   }
 
   Future<void> _bootstrapLocation() async {
@@ -1176,7 +1202,46 @@ class _HomeMapPageState extends State<HomeMapPage>
           children: [
             // Carte en arrière-plan plein écran
             Positioned.fill(
-              child: FlutterMap(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (_useMapboxGlWeb)
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final size = Size(
+                          constraints.maxWidth,
+                          constraints.maxHeight,
+                        );
+                        if (_lastWebMapSize != size) {
+                          _lastWebMapSize = size;
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (!mounted) return;
+                            setState(() {
+                              _webMapRebuildTick++;
+                            });
+                          });
+                        }
+                        _markMapReadyIfNeeded();
+                        final center = _userPos ?? _fallbackCenter;
+                        return MapboxWebView(
+                          key: ValueKey(
+                            'mapbox-web-${_webMapRebuildTick}-${size.width}x${size.height}',
+                          ),
+                          accessToken: _effectiveMapboxToken,
+                          initialLat: center.latitude,
+                          initialLng: center.longitude,
+                          initialZoom: _userPos != null ? 16.0 : 13.0,
+                          initialPitch: 0.0,
+                          initialBearing: 0.0,
+                          styleUrl: 'mapbox://styles/mapbox/streets-v12',
+                          userLat: _userPos?.latitude,
+                          userLng: _userPos?.longitude,
+                          showUserLocation: _userPos != null,
+                        );
+                      },
+                    ),
+                  if (!_useMapboxGlWeb)
+                    FlutterMap(
                 mapController: _mapController,
                 options: MapOptions(
                   initialCenter: _userPos ?? _fallbackCenter,
@@ -1194,12 +1259,9 @@ class _HomeMapPageState extends State<HomeMapPage>
                 ),
                 children: [
                   TileLayer(
-                    urlTemplate: _useMapboxTiles
-                        ? 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=$_effectiveMapboxToken'
-                        : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.maslive.app',
-                    tileSize: 512,
-                    zoomOffset: -1,
                   ),
 
                   RichAttributionWidget(
