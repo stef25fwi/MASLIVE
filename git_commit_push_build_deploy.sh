@@ -20,7 +20,16 @@ echo "✅ Done"
 echo ""
 
 # Step 2: Git Commit
-COMMIT_MSG="feat: ajout service token Mapbox + fallback runtime + UI config"
+COMMIT_MSG="${1:-}"
+
+if [[ -z "$COMMIT_MSG" ]]; then
+    read -r -p "Message de commit: " COMMIT_MSG
+fi
+
+if [[ -z "$COMMIT_MSG" ]]; then
+    COMMIT_MSG="chore: maintenance"
+fi
+
 echo "💾 Committing: $COMMIT_MSG"
 git commit -m "$COMMIT_MSG" || echo "⚠️  Nothing to commit (working tree clean)"
 echo ""

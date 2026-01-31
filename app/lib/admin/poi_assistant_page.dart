@@ -15,9 +15,6 @@ import '../ui/widgets/mapbox_native_simple_map.dart'
     if (dart.library.html) '../ui/widgets/mapbox_native_simple_map_stub.dart';
 
 /// Assistant step-by-step pour la gestion des POIs
-const _mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
-const _legacyMapboxToken = String.fromEnvironment('MAPBOX_TOKEN');
-
 class POIAssistantPage extends StatefulWidget {
   const POIAssistantPage({super.key});
 
@@ -38,12 +35,9 @@ class _POIAssistantPageState extends State<POIAssistantPage> {
   String _runtimeMapboxToken = '';
   String _mapboxTokenSource = '...';
 
-  String get _effectiveMapboxToken =>
-      _mapboxAccessToken.isNotEmpty
-          ? _mapboxAccessToken
-          : (_legacyMapboxToken.isNotEmpty
-                ? _legacyMapboxToken
-                : _runtimeMapboxToken);
+  String get _effectiveMapboxToken => _runtimeMapboxToken.isNotEmpty
+      ? _runtimeMapboxToken
+      : MapboxTokenService.getTokenSync();
 
   // Liste fictive des cartes disponibles
   final List<Map<String, dynamic>> _availableMaps = [

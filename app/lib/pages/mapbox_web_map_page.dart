@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import '../services/mapbox_token_service.dart';
 import '../ui/widgets/mapbox_web_view_platform.dart';
 
 /// Page affichant Mapbox GL JS sur Web uniquement
@@ -52,7 +53,7 @@ class _MapboxWebMapPageState extends State<MapboxWebMapPage>
 
   @override
   Widget build(BuildContext context) {
-    const token = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+    final token = MapboxTokenService.getTokenSync();
 
     if (!kIsWeb) {
       return Scaffold(
@@ -77,8 +78,9 @@ class _MapboxWebMapPageState extends State<MapboxWebMapPage>
           child: Padding(
             padding: EdgeInsets.all(16),
             child: Text(
-              'MAPBOX_ACCESS_TOKEN manquant.\n'
-              'Lance avec --dart-define=MAPBOX_ACCESS_TOKEN=...',
+              'Token Mapbox manquant.\n'
+              'Configure MAPBOX_ACCESS_TOKEN (ou MAPBOX_TOKEN legacy)\n'
+              'ou renseigne-le via la UI (SharedPreferences).',
               textAlign: TextAlign.center,
             ),
           ),

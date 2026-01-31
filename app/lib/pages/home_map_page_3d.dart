@@ -2,9 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart' hide Visibility;
 import 'package:flutter/services.dart';
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' hide LocationSettings;
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart'
+    hide LocationSettings;
 import 'package:geolocator/geolocator.dart' hide Position;
-import 'package:geolocator/geolocator.dart' as geo show Position, LocationSettings;
+import 'package:geolocator/geolocator.dart'
+    as geo
+    show Position, LocationSettings;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
@@ -24,9 +27,6 @@ import '../services/language_service.dart';
 import '../services/mapbox_token_service.dart';
 import '../l10n/app_localizations.dart' as l10n;
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
-
-const _mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
-const _legacyMapboxToken = String.fromEnvironment('MAPBOX_TOKEN');
 
 enum _MapAction { ville, tracking, visiter, encadrement, food, wc, parking }
 
@@ -69,11 +69,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   PointAnnotationManager? _groupsAnnotationManager;
   PolylineAnnotationManager? _circuitsAnnotationManager;
 
-  String get _effectiveMapboxToken => _mapboxAccessToken.isNotEmpty
-      ? _mapboxAccessToken
-      : (_legacyMapboxToken.isNotEmpty
-            ? _legacyMapboxToken
-            : _runtimeMapboxToken);
+  String get _effectiveMapboxToken => _runtimeMapboxToken.isNotEmpty
+      ? _runtimeMapboxToken
+      : MapboxTokenService.getTokenSync();
 
   bool get _useMapboxTiles => _effectiveMapboxToken.isNotEmpty;
 
@@ -186,7 +184,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Active la localisation (GPS) pour centrer la carte.'),
+              content: Text(
+                'Active la localisation (GPS) pour centrer la carte.',
+              ),
             ),
           );
         }
@@ -239,10 +239,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
           if (_followUser) {
             _mapboxMap?.flyTo(
-              CameraOptions(
-                center: Point(coordinates: p),
-                zoom: 15.5,
-              ),
+              CameraOptions(center: Point(coordinates: p), zoom: 15.5),
               MapAnimationOptions(duration: 800, startDelay: 0),
             );
           }
@@ -277,11 +274,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     });
 
     _mapboxMap?.flyTo(
-      CameraOptions(
-        center: Point(coordinates: p),
-        zoom: 16.0,
-        pitch: 45.0,
-      ),
+      CameraOptions(center: Point(coordinates: p), zoom: 16.0, pitch: 45.0),
       MapAnimationOptions(duration: 1200, startDelay: 0),
     );
   }
@@ -293,7 +286,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
     try {
       await manager.deleteAll();
-      
+
       final options = PointAnnotationOptions(
         geometry: Point(coordinates: pos),
         iconImage: 'user-location-icon',
@@ -313,16 +306,14 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     try {
       final style = map.style;
 
-      final layer = FillExtrusionLayer(
-        id: 'maslive-3d-buildings',
-        sourceId: 'composite',
-      )
-        ..sourceLayer = 'building'
-        ..minZoom = 14.5
-        ..fillExtrusionColor = const Color(0xFFD1D5DB).toARGB32()
-        ..fillExtrusionOpacity = 0.7
-        ..fillExtrusionHeight = 20.0
-        ..fillExtrusionBase = 0.0;
+      final layer =
+          FillExtrusionLayer(id: 'maslive-3d-buildings', sourceId: 'composite')
+            ..sourceLayer = 'building'
+            ..minZoom = 14.5
+            ..fillExtrusionColor = const Color(0xFFD1D5DB).toARGB32()
+            ..fillExtrusionOpacity = 0.7
+            ..fillExtrusionHeight = 20.0
+            ..fillExtrusionBase = 0.0;
 
       layer.filter = const [
         '==',
@@ -353,10 +344,14 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     await _add3dBuildings();
 
     // Créer annotation managers
-    _userAnnotationManager = await mapboxMap.annotations.createPointAnnotationManager();
-    _placesAnnotationManager = await mapboxMap.annotations.createPointAnnotationManager();
-    _groupsAnnotationManager = await mapboxMap.annotations.createPointAnnotationManager();
-    _circuitsAnnotationManager = await mapboxMap.annotations.createPolylineAnnotationManager();
+    _userAnnotationManager = await mapboxMap.annotations
+        .createPointAnnotationManager();
+    _placesAnnotationManager = await mapboxMap.annotations
+        .createPointAnnotationManager();
+    _groupsAnnotationManager = await mapboxMap.annotations
+        .createPointAnnotationManager();
+    _circuitsAnnotationManager = await mapboxMap.annotations
+        .createPolylineAnnotationManager();
 
     setState(() {
       _isMapReady = true;
@@ -509,7 +504,11 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.warning_amber_rounded, size: 64, color: Colors.orange),
+                const Icon(
+                  Icons.warning_amber_rounded,
+                  size: 64,
+                  color: Colors.orange,
+                ),
                 const SizedBox(height: 24),
                 const Text(
                   'Token Mapbox requis',
@@ -652,7 +651,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                       builder: (context, snap) {
                         final user = snap.data;
                         final pseudo =
-                            (user?.displayName ?? user?.email ?? 'Profil').trim();
+                            (user?.displayName ?? user?.email ?? 'Profil')
+                                .trim();
 
                         return Tooltip(
                           message: pseudo.isEmpty ? 'Profil' : pseudo,
@@ -691,13 +691,17 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                               gradient: _headerLanguageFlagGradient(),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF9B6BFF).withValues(alpha: 0.22),
+                                  color: const Color(
+                                    0xFF9B6BFF,
+                                  ).withValues(alpha: 0.22),
                                   blurRadius: 18,
                                   spreadRadius: 1,
                                   offset: const Offset(0, 10),
                                 ),
                                 BoxShadow(
-                                  color: const Color(0xFFFF7AAE).withValues(alpha: 0.16),
+                                  color: const Color(
+                                    0xFFFF7AAE,
+                                  ).withValues(alpha: 0.16),
                                   blurRadius: 12,
                                   offset: const Offset(0, 6),
                                 ),
@@ -807,7 +811,9 @@ class _ActionItem extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: selected ? MasliveTheme.pink : MasliveTheme.textSecondary,
+                    color: selected
+                        ? MasliveTheme.pink
+                        : MasliveTheme.textSecondary,
                     fontWeight: FontWeight.w700,
                     fontSize: 8,
                   ),
@@ -843,7 +849,9 @@ class _TrackingPill extends StatelessWidget {
               ),
             ),
             child: Icon(
-              isTracking ? Icons.gps_fixed_rounded : Icons.gps_not_fixed_rounded,
+              isTracking
+                  ? Icons.gps_fixed_rounded
+                  : Icons.gps_not_fixed_rounded,
               color: isTracking ? Colors.green : MasliveTheme.textPrimary,
             ),
           ),
@@ -855,7 +863,9 @@ class _TrackingPill extends StatelessWidget {
               children: [
                 Text(
                   'Tracking GPS',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 2),
                 Text(

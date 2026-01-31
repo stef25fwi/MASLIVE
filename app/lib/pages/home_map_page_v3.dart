@@ -30,9 +30,6 @@ import '../l10n/app_localizations.dart' as l10n;
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
 import '../ui/widgets/mapbox_token_dialog.dart';
 
-const _mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
-const _legacyMapboxToken = String.fromEnvironment('MAPBOX_TOKEN');
-
 enum _MapAction { ville, tracking, visiter, encadrement, food, wc, parking }
 
 class HomeMapPageV3 extends StatefulWidget {
@@ -78,11 +75,9 @@ class _HomeMapPageV3State extends State<HomeMapPageV3>
 
   static const LatLng _fallbackCenter = LatLng(16.241, -61.533);
 
-  String get _effectiveMapboxToken => _mapboxAccessToken.isNotEmpty
-      ? _mapboxAccessToken
-      : (_legacyMapboxToken.isNotEmpty
-            ? _legacyMapboxToken
-            : _runtimeMapboxToken);
+  String get _effectiveMapboxToken => _runtimeMapboxToken.isNotEmpty
+      ? _runtimeMapboxToken
+      : MapboxTokenService.getTokenSync();
 
   bool get _useMapboxTiles => _effectiveMapboxToken.isNotEmpty;
 

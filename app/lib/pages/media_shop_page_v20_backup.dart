@@ -1,3 +1,8 @@
+/*
+// BACKUP LOCAL (NE PAS IMPORTER / NE PAS UTILISER).
+// Cette implémentation est conservée uniquement pour référence.
+// Pour l'historique complet, utiliser git.
+
 // PHOTO SHOP V2.1 — Firebase 100% — "10/10 UX" — Intégré MASLIVE
 // -----------------------------------------------------------------------------
 // Nouveautés V2.1:
@@ -2274,3 +2279,5 @@ String _fmt(DateTime d) {
 }
 
 String _fmtDate(DateTime d) => _fmt(d);
+
+*/

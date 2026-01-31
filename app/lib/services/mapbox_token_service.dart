@@ -87,6 +87,33 @@ class MapboxTokenService {
 
   static Future<String> getToken() async => (await getTokenInfo()).token;
 
+  /// Résolution synchrone du token (utile pour des widgets/services qui ne
+  /// veulent pas d'await).
+  ///
+  /// Ordre:
+  /// 1) `override`
+  /// 2) `--dart-define=MAPBOX_ACCESS_TOKEN=...`
+  /// 3) `--dart-define=MAPBOX_TOKEN=...` (legacy)
+  /// 4) cache (renseigné après [warmUp]/[getTokenInfo])
+  static String getTokenSync({String? override}) {
+    final overridden = (override ?? '').trim();
+    if (overridden.isNotEmpty) return overridden;
+    if (_compileTimeToken.isNotEmpty) return _compileTimeToken;
+    if (_compileTimeLegacyToken.isNotEmpty) return _compileTimeLegacyToken;
+    return _cachedToken;
+  }
+
+  /// Source sync correspondant à [getTokenSync].
+  static String getTokenSourceSync({String? override}) {
+    final overridden = (override ?? '').trim();
+    if (overridden.isNotEmpty) return 'override param';
+    if (_compileTimeToken.isNotEmpty) return 'dart-define MAPBOX_ACCESS_TOKEN';
+    if (_compileTimeLegacyToken.isNotEmpty) {
+      return 'dart-define MAPBOX_TOKEN (legacy)';
+    }
+    return _cachedSource;
+  }
+
   static Future<void> setToken(String token) async {
     final trimmed = token.trim();
     final prefs = await SharedPreferences.getInstance();

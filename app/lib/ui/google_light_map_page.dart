@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import '../services/mapbox_token_service.dart';
 
 class GoogleLightMapPage extends StatefulWidget {
   const GoogleLightMapPage({super.key});
@@ -28,11 +29,12 @@ class _GoogleLightMapPageState extends State<GoogleLightMapPage> {
   }
 
   void _initMapboxToken() {
-    const token = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+    final token = MapboxTokenService.getTokenSync();
     if (token.isEmpty) {
       setState(() {
         _error =
-            'MAPBOX_ACCESS_TOKEN manquant. Lance avec --dart-define=MAPBOX_ACCESS_TOKEN=...';
+            'Token Mapbox manquant. Configure MAPBOX_ACCESS_TOKEN (ou MAPBOX_TOKEN legacy)\n'
+            'ou renseigne-le via la UI.';
       });
       return;
     }
