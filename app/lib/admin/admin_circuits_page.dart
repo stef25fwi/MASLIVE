@@ -1,12 +1,14 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:flutter_map/flutter_map.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'dart:math' as math;
 import '../models/circuit_model.dart';
 import '../pages/circuit_draw_page.dart';
+import '../services/mapbox_token_service.dart';
+import '../ui/widgets/mapbox_web_view_platform.dart';
 
-/// Page de gestion des circuits/parcours (CRUD complet)
+/// Page de gestion des circuits/parcours (CRUD complet) - Mapbox
 class AdminCircuitsPage extends StatefulWidget {
   const AdminCircuitsPage({super.key});
 
@@ -165,62 +167,12 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Mini carte
+                // Mini carte Mapbox
                 SizedBox(
                   height: 200,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: FlutterMap(
-                      options: MapOptions(
-                        initialCenter: circuit.points.isNotEmpty
-                            ? LatLng(circuit.points.first.lat, circuit.points.first.lng)
-                            : const LatLng(16.241, -61.533),
-                        initialZoom: 13,
-                        interactionOptions: const InteractionOptions(
-                          flags: InteractiveFlag.none,
-                        ),
-                      ),
-                      children: [
-                        TileLayer(
-                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        ),
-                        PolylineLayer(
-                          polylines: [
-                            Polyline(
-                              points: circuit.points.map((p) => LatLng(p.lat, p.lng)).toList(),
-                              strokeWidth: 4,
-                              color: Colors.blue,
-                            ),
-                          ],
-                        ),
-                        MarkerLayer(
-                          markers: [
-                            if (circuit.points.isNotEmpty)
-                              Marker(
-                                point: LatLng(circuit.points.first.lat, circuit.points.first.lng),
-                                width: 40,
-                                height: 40,
-                                child: const Icon(
-                                  Icons.flag,
-                                  color: Colors.green,
-                                  size: 30,
-                                ),
-                              ),
-                            if (circuit.points.length > 1)
-                              Marker(
-                                point: LatLng(circuit.points.last.lat, circuit.points.last.lng),
-                                width: 40,
-                                height: 40,
-                                child: const Icon(
-                                  Icons.flag,
-                                  color: Colors.red,
-                                  size: 30,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
+                    child: _buildCircuitMap(circuit),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -497,5 +449,80 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
 
   double _toRadians(double degree) {
     return degree * math.pi / 180;
+  }
+
+  /// Rendu mini-carte pour affichage circuit (web: MapboxWebView, mobile: Mapbox + AbsorbPointer)
+  Widget _buildCircuitMap(Circuit circuit) {
+    if (circuit.points.isEmpty) {
+      return Container(
+        color: Colors.grey[200],
+        child: const Center(child: Text('Aucun tracé')),
+      );
+    }
+
+    final center = circuit.points.first;
+
+    if (kIsWeb) {
+      // Web: MapboxWebView statique (pas de polyline pour l'instant)
+      return FutureBuilder<String>(
+        future: MapboxTokenService.getToken(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return Container(color: Colors.grey[200], child: const Center(child: CircularProgressIndicator()));
+          }
+          return MapboxWebView(
+            accessToken: snapshot.data!,
+            initialLat: center.lat,
+            initialLng: center.lng,
+            initialZoom: 13.0,
+          );
+        },
+      );
+    }
+
+    // Mobile: MapWidget + AbsorbPointer (non-interactif) + polyline + markers
+    return AbsorbPointer(
+      child: MapWidget(
+        cameraOptions: CameraOptions(
+          center: Point(coordinates: Position(center.lng, center.lat)),
+          zoom: 13.0,
+        ),
+        onMapCreated: (MapboxMap map) => _renderCircuitOnMobile(map, circuit),
+      ),
+    );
+  }
+
+  Future<void> _renderCircuitOnMobile(MapboxMap map, Circuit circuit) async {
+    if (circuit.points.isEmpty) return;
+
+    // Polyline bleue
+    final lineCoords = circuit.points.map((p) => Position(p.lng, p.lat)).toList();
+    final polyManager = await map.annotations.createPolylineAnnotationManager();
+    final polyOpts = PolylineAnnotationOptions(
+      geometry: LineString(coordinates: lineCoords),
+      lineColor: 0xFF2196F3, // Colors.blue
+      lineWidth: 4.0,
+    );
+    await polyManager.create(polyOpts);
+
+    // Markers: start (vert) et end (rouge)
+    final pointManager = await map.annotations.createPointAnnotationManager();
+    final start = circuit.points.first;
+    final end = circuit.points.last;
+
+    final startOpts = PointAnnotationOptions(
+      geometry: Point(coordinates: Position(start.lng, start.lat)),
+      iconImage: 'mapbox-marker-icon-default', // icône par défaut (fallback)
+      iconColor: 0xFF4CAF50, // Colors.green
+      iconSize: 1.0,
+    );
+    final endOpts = PointAnnotationOptions(
+      geometry: Point(coordinates: Position(end.lng, end.lat)),
+      iconImage: 'mapbox-marker-icon-default',
+      iconColor: 0xFFF44336, // Colors.red
+      iconSize: 1.0,
+    );
+
+    await pointManager.createMulti([startOpts, endOpts]);
   }
 }

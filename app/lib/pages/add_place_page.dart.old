@@ -8,7 +8,7 @@ import '../ui/widgets/mapbox_web_view_platform.dart';
 
 /// AddPlacePage (Mapbox-only)
 /// Page pour ajouter un POI en tapant sur la carte
-/// - Web : Mapbox GL JS (tap via JS interop - TODO)
+/// - Web : Mapbox GL JS avec click handler
 /// - Mobile : MapWidget avec tap gesture
 class AddPlacePage extends StatefulWidget {
   const AddPlacePage({super.key});
@@ -110,6 +110,11 @@ class _AddPlacePageState extends State<AddPlacePage> {
           lng: geoCoord.coordinates.lng.toDouble(),
         );
       });
+      _scheduleNativeAnnotationsSync();
+    } catch (_) {
+      // ignore
+    }
+  }
       _scheduleNativeAnnotationsSync();
     } catch (_) {
       // ignore

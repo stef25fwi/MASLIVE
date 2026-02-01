@@ -2,39 +2,40 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
-import 'legacy_stubs/circuit_draw_page_legacy_stub.dart';
+import 'legacy_stubs/route_drawing_page_legacy_stub.dart';
 
-/// Page de consultation de circuit (Mapbox display-only) + bouton "Éditer (legacy)"
-class CircuitDrawPage extends StatefulWidget {
-  const CircuitDrawPage({super.key, this.circuitId});
+/// Page de consultation de route (Mapbox display-only) + bouton "Éditer (legacy)"
+class RouteDisplayMapboxPage extends StatefulWidget {
+  const RouteDisplayMapboxPage({super.key, this.routeId, this.groupId});
 
-  final String? circuitId;
+  final String? routeId;
+  final String? groupId;
 
   @override
-  State<CircuitDrawPage> createState() => _CircuitDrawPageState();
+  State<RouteDisplayMapboxPage> createState() => _RouteDisplayMapboxPageState();
 }
 
-class _CircuitDrawPageState extends State<CircuitDrawPage> {
+class _RouteDisplayMapboxPageState extends State<RouteDisplayMapboxPage> {
   final _firestore = FirebaseFirestore.instance;
-  Map<String, dynamic>? _circuitData;
+  Map<String, dynamic>? _routeData;
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    if (widget.circuitId != null) {
-      _loadCircuit();
+    if (widget.routeId != null) {
+      _loadRoute();
     } else {
       setState(() => _loading = false);
     }
   }
 
-  Future<void> _loadCircuit() async {
+  Future<void> _loadRoute() async {
     try {
-      final doc = await _firestore.collection('circuits').doc(widget.circuitId).get();
+      final doc = await _firestore.collection('routes').doc(widget.routeId).get();
       if (doc.exists) {
         setState(() {
-          _circuitData = doc.data();
+          _routeData = doc.data();
           _loading = false;
         });
       }
@@ -44,10 +45,10 @@ class _CircuitDrawPageState extends State<CircuitDrawPage> {
   }
 
   List<({double lat, double lng})> _getPoints() {
-    if (_circuitData == null) return [];
-    final waypoints = _circuitData!['waypoints'] as List<dynamic>?;
-    if (waypoints == null) return [];
-    return waypoints.map((p) {
+    if (_routeData == null) return [];
+    final points = _routeData!['points'] as List<dynamic>?;
+    if (points == null) return [];
+    return points.map((p) {
       if (p is Map) {
         return (lat: (p['lat'] as num).toDouble(), lng: (p['lng'] as num).toDouble());
       }
@@ -59,13 +60,16 @@ class _CircuitDrawPageState extends State<CircuitDrawPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_circuitData?['title'] ?? 'Circuit'),
+        title: Text(_routeData?['name'] ?? 'Route'),
         actions: [
+          // Bouton "Éditer (legacy)"
           FilledButton.tonalIcon(
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const CircuitDrawPageLegacy()),
+                MaterialPageRoute(
+                  builder: (_) => RouteDrawingPageLegacy(groupId: widget.groupId),
+                ),
               );
             },
             icon: const Icon(Icons.edit),
@@ -76,13 +80,13 @@ class _CircuitDrawPageState extends State<CircuitDrawPage> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _circuitData == null
-              ? const Center(child: Text('Circuit introuvable'))
-              : _buildCircuitDisplay(),
+          : _routeData == null
+              ? const Center(child: Text('Route introuvable'))
+              : _buildRouteDisplay(),
     );
   }
 
-  Widget _buildCircuitDisplay() {
+  Widget _buildRouteDisplay() {
     final points = _getPoints();
     if (points.isEmpty) {
       return const Center(child: Text('Aucun tracé disponible'));
@@ -97,25 +101,43 @@ class _CircuitDrawPageState extends State<CircuitDrawPage> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _InfoTile(icon: Icons.pin_drop, label: '${points.length} points'),
-              _InfoTile(icon: Icons.route, label: '${(_circuitData!['distanceKm'] ?? 0).toStringAsFixed(2)} km'),
+              _InfoTile(
+                icon: Icons.pin_drop,
+                label: '${points.length} points',
+              ),
+              _InfoTile(
+                icon: Icons.route,
+                label: '${(_routeData!['distanceKm'] ?? 0).toStringAsFixed(2)} km',
+              ),
+              _InfoTile(
+                icon: Icons.timer_outlined,
+                label: '${(_routeData!['estimatedMinutes'] ?? 0)} min',
+              ),
             ],
           ),
         ),
 
         // Carte Mapbox (display-only)
-        Expanded(child: _buildMap(points)),
+        Expanded(
+          child: _buildMap(points),
+        ),
 
         // Description
-        if (_circuitData!['description']?.isNotEmpty == true)
+        if (_routeData!['description']?.isNotEmpty == true)
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, -2))],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, -2),
+                ),
+              ],
             ),
-            child: Text(_circuitData!['description'] ?? ''),
+            child: Text(_routeData!['description'] ?? ''),
           ),
       ],
     );
@@ -137,11 +159,11 @@ class _CircuitDrawPageState extends State<CircuitDrawPage> {
         center: Point(coordinates: Position(center.lng, center.lat)),
         zoom: 13.0,
       ),
-      onMapCreated: (MapboxMap map) => _renderCircuitOnMobile(map, points),
+      onMapCreated: (MapboxMap map) => _renderRouteOnMobile(map, points),
     );
   }
 
-  Future<void> _renderCircuitOnMobile(MapboxMap map, List<({double lat, double lng})> points) async {
+  Future<void> _renderRouteOnMobile(MapboxMap map, List<({double lat, double lng})> points) async {
     if (points.isEmpty) return;
 
     // Polyline bleue
@@ -149,8 +171,8 @@ class _CircuitDrawPageState extends State<CircuitDrawPage> {
     final polyManager = await map.annotations.createPolylineAnnotationManager();
     final polyOpts = PolylineAnnotationOptions(
       geometry: LineString(coordinates: lineCoords),
-      lineColor: 0xFF1A73E8, // Color(0xFF1A73E8)
-      lineWidth: 8.0,
+      lineColor: 0xFF2196F3, // Colors.blue
+      lineWidth: 4.0,
     );
     await polyManager.create(polyOpts);
 

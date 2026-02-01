@@ -23,6 +23,7 @@ class MapboxWebView extends StatefulWidget {
   final bool showUserLocation;
   final ValueChanged<({double lng, double lat})>? onTapLngLat;
   final VoidCallback? onMapReady;
+  final List<({double lng, double lat})> polyline;
 
   const MapboxWebView({
     super.key,
@@ -38,6 +39,7 @@ class MapboxWebView extends StatefulWidget {
     this.showUserLocation = false,
     this.onTapLngLat,
     this.onMapReady,
+    this.polyline = const [],
   });
 
   @override
@@ -98,6 +100,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
       _initMapbox(_container!);
     }
     _updateUserMarker();
+    _setPolylineGeoJson();
   }
 
   void _registerFactory() {
@@ -168,6 +171,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
         map.callMethod('addControl', [navigationControl]);
 
         _add3dBuildings(map);
+        _setPolylineGeoJson();
 
         if (widget.onTapLngLat != null && _containerId != null) {
           final id = _containerId!;
@@ -190,6 +194,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
         }
 
         _updateUserMarker();
+        _setPolylineGeoJson();
 
         if (!_didNotifyReady) {
           _didNotifyReady = true;
@@ -249,6 +254,50 @@ class _MapboxWebViewState extends State<MapboxWebView> {
       } catch (_) {
         // ignore
       }
+    }
+  }
+
+  void _setPolylineGeoJson() {
+    final map = _map;
+    if (map == null) return;
+
+    final coords = widget.polyline.map((p) => [p.lng, p.lat]).toList();
+
+    final geojson = js.JsObject.jsify({
+      'type': 'Feature',
+      'geometry': {
+        'type': 'LineString',
+        'coordinates': coords,
+      },
+      'properties': {},
+    });
+
+    const sourceId = 'maslive_polyline_src';
+    const layerId = 'maslive_polyline_layer';
+
+    try {
+      final hasSource = map.callMethod('getSource', [sourceId]) != null;
+      if (!hasSource) {
+        map.callMethod('addSource', [
+          sourceId,
+          js.JsObject.jsify({'type': 'geojson', 'data': geojson})
+        ]);
+
+        map.callMethod('addLayer', [
+          js.JsObject.jsify({
+            'id': layerId,
+            'type': 'line',
+            'source': sourceId,
+            'layout': {'line-join': 'round', 'line-cap': 'round'},
+            'paint': {'line-width': 4, 'line-color': '#111111', 'line-opacity': 0.7},
+          })
+        ]);
+      } else {
+        // update data
+        map.callMethod('getSource', [sourceId]).callMethod('setData', [geojson]);
+      }
+    } catch (_) {
+      // ignore
     }
   }
 

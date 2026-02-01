@@ -42,8 +42,6 @@ dependencies:
   web: any
 
   # Carte OSM
-  flutter_map: ^7.0.2
-  latlong2: ^0.9.1
 
   # Mapbox
   mapbox_maps_flutter: ^2.6.0

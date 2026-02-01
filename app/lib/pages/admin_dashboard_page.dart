@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'route_drawing_page.dart';
+import 'legacy_stubs/route_drawing_page_legacy_stub.dart';
 import 'add_place_page.dart';
 import '../ui/map_access_labels.dart';
 
@@ -30,7 +30,7 @@ class AdminDashboardPage extends StatelessWidget {
             subtitle: 'Enregistrer un itinéraire prédéfini pour les groupes',
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const RouteDrawingPage()),
+              MaterialPageRoute(builder: (_) => const RouteDrawingPageLegacy()),
             ),
           ),
           _tile(

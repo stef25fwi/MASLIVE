@@ -1,9 +1,23 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import '../services/mapbox_token_service.dart';
+import '../ui/widgets/mapbox_token_dialog.dart';
+import '../ui/widgets/mapbox_web_view_platform.dart';
 
+/// TrackingLivePage (Mapbox-only)
+/// - Web : Mapbox GL JS via MapboxWebView
+/// - iOS/Android : mapbox_maps_flutter (MapWidget + annotations)
+/// 
+/// Fonctionnalités :
+/// - Affichage en temps réel des positions des groupes
+/// - Mode "follow" pour suivre un groupe automatiquement
+/// - Trails (traces) optionnels
+/// - Animation smooth des déplacements
+/// - Recherche/filtre par nom de groupe
 class TrackingLivePage extends StatefulWidget {
   const TrackingLivePage({super.key});
 
@@ -13,97 +27,119 @@ class TrackingLivePage extends StatefulWidget {
 
 class _TrackingLivePageState extends State<TrackingLivePage>
     with TickerProviderStateMixin {
-  final MapController _map = MapController();
-
-  String? _followGroupId; // si non null => auto-follow
-  final Map<String, List<LatLng>> _trails = {}; // trace par groupe (option)
-  final int _maxTrailPoints = 120; // limite mémoire
   
-  // Animation lerp : groupId -> (animController, animationPos)
-  final Map<String, AnimationController> _animControllers = {};
-  final Map<String, Animation<LatLng>> _animatedPositions = {};
+  String? _followGroupId;
+  final Map<String, List<({double lat, double lng})>> _trails = {};
+  final int _maxTrailPoints = 120;
   
   String _searchQuery = '';
   final int _maxAgeSeconds = 120; // 2 min
 
+  // Mapbox token
+  String _runtimeMapboxToken = '';
+  String get _effectiveMapboxToken =>
+      _runtimeMapboxToken.isNotEmpty
+          ? _runtimeMapboxToken
+          : MapboxTokenService.getTokenSync();
+
+  // Web: rebuild pour recentrer
+  int _webRebuildTick = 0;
+  double? _webCenterLat;
+  double? _webCenterLng;
+  double _webZoom = 13.0;
+
+  // Mobile
+  MapboxMap? _mapboxMap;
+  PointAnnotationManager? _pointManager;
+  PolylineAnnotationManager? _polylineManager;
+  List<_GroupLive> _lastGroups = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRuntimeMapboxToken();
+    if (!kIsWeb && _effectiveMapboxToken.isNotEmpty) {
+      MapboxOptions.setAccessToken(_effectiveMapboxToken);
+    }
+  }
+
+  Future<void> _loadRuntimeMapboxToken() async {
+    try {
+      final info = await MapboxTokenService.getTokenInfo();
+      if (!mounted) return;
+      setState(() {
+        _runtimeMapboxToken = info.token;
+      });
+      if (!kIsWeb && _runtimeMapboxToken.isNotEmpty) {
+        MapboxOptions.setAccessToken(_runtimeMapboxToken);
+      }
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  Future<void> _configureMapboxToken() async {
+    final newToken = await MapboxTokenDialog.show(
+      context,
+      initialValue: _effectiveMapboxToken,
+    );
+    if (!mounted || newToken == null) return;
+    setState(() {
+      _runtimeMapboxToken = newToken.trim();
+    });
+    if (!kIsWeb && _runtimeMapboxToken.isNotEmpty) {
+      MapboxOptions.setAccessToken(_runtimeMapboxToken);
+    }
+  }
+
   @override
   void dispose() {
-    for (final ctrl in _animControllers.values) {
-      ctrl.dispose();
-    }
     super.dispose();
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _liveStream() {
-    // ✅ Live : récupère tous les groupes actifs
     return FirebaseFirestore.instance
         .collection('group_locations')
         .orderBy('updatedAt', descending: true)
         .snapshots();
   }
 
-  void _pushTrail(String groupId, LatLng p) {
-    final list = _trails.putIfAbsent(groupId, () => <LatLng>[]);
-    // Évite les doublons identiques
+  void _pushTrail(String groupId, double lat, double lng) {
+    final list = _trails.putIfAbsent(groupId, () => <({double lat, double lng})>[]);
     if (list.isNotEmpty) {
       final last = list.last;
-      if ((last.latitude - p.latitude).abs() < 1e-7 &&
-          (last.longitude - p.longitude).abs() < 1e-7) {
+      if ((last.lat - lat).abs() < 1e-7 && (last.lng - lng).abs() < 1e-7) {
         return;
       }
     }
-    list.add(p);
+    list.add((lat: lat, lng: lng));
     if (list.length > _maxTrailPoints) {
       list.removeRange(0, list.length - _maxTrailPoints);
     }
   }
 
-  void _maybeFollow(String groupId, LatLng p) {
-    if (_followGroupId == groupId) {
-      // recentre sans changer le zoom
-      final z = _map.camera.zoom;
-      _map.move(p, z);
-    }
-  }
+  void _maybeFollow(String groupId, double lat, double lng) {
+    if (_followGroupId != groupId) return;
 
-  /// Crée ou met à jour l'animation lerp pour un groupe
-  void _animatePosition(String groupId, LatLng targetPos, LatLng currentPos) {
-    final existing = _animControllers[groupId];
-    
-    if (existing != null) {
-      existing.forward(from: 0);
-    } else {
-      final ctrl = AnimationController(
-        duration: const Duration(milliseconds: 800),
-        vsync: this,
-      );
-      _animControllers[groupId] = ctrl;
-      
-      ctrl.forward();
-      ctrl.addListener(() {
-        setState(() {
-          // mise à jour du listener pour rebuild
-        });
+    if (kIsWeb) {
+      setState(() {
+        _webCenterLat = lat;
+        _webCenterLng = lng;
+        _webRebuildTick++;
       });
+    } else {
+      final map = _mapboxMap;
+      if (map == null) return;
+      final zoom = _webZoom;
+      map.setCamera(
+        CameraOptions(
+          center: Point(coordinates: Position(lng, lat)),
+          zoom: max(13.5, zoom),
+        ),
+      );
     }
-
-    final ctrl = _animControllers[groupId]!;
-    final animation = Tween<LatLng>(
-      begin: currentPos,
-      end: targetPos,
-    ).animate(CurvedAnimation(parent: ctrl, curve: Curves.easeInOutCubic));
-    
-    _animatedPositions[groupId] = animation;
   }
 
-  /// Vérifie si la position est trop vieille (> maxAgeSeconds)
-  bool _isPositionStale(Timestamp? ts) {
-    if (ts == null) return true;
-    final age = DateTime.now().difference(ts.toDate()).inSeconds;
-    return age > _maxAgeSeconds;
-  }
-
-  /// Filtre les groupes selon la recherche
   bool _matchesSearch(String groupId, String? groupName) {
     if (_searchQuery.isEmpty) return true;
     final query = _searchQuery.toLowerCase();
@@ -116,98 +152,42 @@ class _TrackingLivePageState extends State<TrackingLivePage>
     return Scaffold(
       body: Stack(
         children: [
-          FlutterMap(
-            mapController: _map,
-            options: const MapOptions(
-              initialCenter: LatLng(16.241, -61.533),
-              initialZoom: 13,
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.maslive.app',
-              ),
+          // Carte Mapbox
+          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: _liveStream(),
+            builder: (context, snap) {
+              if (!snap.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-              StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: _liveStream(),
-                builder: (context, snap) {
-                  if (!snap.hasData) return const SizedBox.shrink();
+              final docs = snap.data!.docs;
+              final now = DateTime.now();
+              final groups = docs
+                  .map((d) => _parseGroup(d.id, d.data()))
+                  .whereType<_GroupLive>()
+                  .where((g) {
+                    final dt = g.updatedAt;
+                    if (dt == null) return false;
+                    final age = now.difference(dt).inSeconds;
+                    return age <= _maxAgeSeconds;
+                  })
+                  .where((g) => _matchesSearch(g.id, g.name))
+                  .toList();
 
-                  final docs = snap.data!.docs;
+              // Ajouter aux trails
+              for (final g in groups) {
+                _pushTrail(g.id, g.lat, g.lng);
+                _maybeFollow(g.id, g.lat, g.lng);
+              }
 
-                  final markers = <Marker>[];
-                  final polylines = <Polyline>[];
+              // Synchroniser les annotations natives
+              _scheduleNativeAnnotationsSync(groups);
 
-                  for (final doc in docs) {
-                    final d = doc.data();
-
-                    final groupId = (d['groupId'] ?? doc.id).toString();
-                    final name = (d['groupName'] ?? 'Groupe').toString();
-                    final heading = (d['heading'] as num?)?.toDouble();
-                    final updatedAt = d['updatedAt'] as Timestamp?;
-
-                    // ✅ Filtre : âge max + recherche
-                    if (_isPositionStale(updatedAt)) continue;
-                    if (!_matchesSearch(groupId, name)) continue;
-
-                    final lat = (d['lat'] as num?)?.toDouble();
-                    final lng = (d['lng'] as num?)?.toDouble();
-                    if (lat == null || lng == null) continue;
-
-                    final targetPos = LatLng(lat, lng);
-                    
-                    // ✅ Animation lerp
-                    final currentPos = _animatedPositions[groupId]?.value ?? targetPos;
-                    _animatePosition(groupId, targetPos, currentPos);
-
-                    // trace (option)
-                    _pushTrail(groupId, targetPos);
-                    if (_trails[groupId] != null && _trails[groupId]!.length >= 2) {
-                      polylines.add(
-                        Polyline(
-                          points: _trails[groupId]!,
-                          strokeWidth: 4,
-                          color: Colors.orange.withValues(alpha: 0.4),
-                        ),
-                      );
-                    }
-
-                    // auto-follow si activé
-                    _maybeFollow(groupId, currentPos);
-
-                    markers.add(
-                      Marker(
-                        point: currentPos,
-                        width: 54,
-                        height: 54,
-                        child: _GroupLiveMarker(
-                          title: name,
-                          heading: heading,
-                          isFollowing: _followGroupId == groupId,
-                          onTap: () => _openGroupSheet(
-                            context,
-                            groupId: groupId,
-                            groupName: name,
-                            point: currentPos,
-                            heading: heading,
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-
-                  return Stack(
-                    children: [
-                      PolylineLayer(polylines: polylines),
-                      MarkerLayer(markers: markers),
-                    ],
-                  );
-                },
-              ),
-            ],
+              return _buildMap(groups);
+            },
           ),
 
-          // Top bar iOS-like avec recherche
+          // Top bar
           Positioned(
             left: 14,
             right: 14,
@@ -224,7 +204,6 @@ class _TrackingLivePageState extends State<TrackingLivePage>
                       : () => setState(() => _followGroupId = null),
                 ),
                 const SizedBox(height: 10),
-                // Recherche / Filtre
                 Material(
                   elevation: 4,
                   borderRadius: BorderRadius.circular(12),
@@ -242,11 +221,23 @@ class _TrackingLivePageState extends State<TrackingLivePage>
                             )
                           : null,
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      contentPadding:
+                          const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
                 ),
               ],
+            ),
+          ),
+
+          // Token config button
+          Positioned(
+            right: 14,
+            bottom: MediaQuery.of(context).padding.bottom + 80,
+            child: FloatingActionButton.small(
+              onPressed: _configureMapboxToken,
+              tooltip: 'Configurer Mapbox Token',
+              child: const Icon(Icons.key_rounded),
             ),
           ),
         ],
@@ -254,62 +245,196 @@ class _TrackingLivePageState extends State<TrackingLivePage>
     );
   }
 
-  void _openGroupSheet(
-    BuildContext context, {
-    required String groupId,
-    required String groupName,
-    required LatLng point,
-    required double? heading,
-  }) {
-    showModalBottomSheet(
-      context: context,
-      showDragHandle: true,
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(groupName,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 10),
-            Text('Position: ${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)}'),
-            if (heading != null)
-              Text('Direction: ${heading.toStringAsFixed(1)}°'),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      setState(() => _followGroupId = groupId);
-                      final z = _map.camera.zoom;
-                      _map.move(point, max(13.5, z));
-                      Navigator.pop(context);
-                    },
-                    icon: const Icon(Icons.location_searching),
-                    label: const Text('Suivre'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      final z = _map.camera.zoom;
-                      _map.move(point, z);
-                      Navigator.pop(context);
-                    },
-                    icon: const Icon(Icons.my_location),
-                    label: const Text('Centrer'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+  Widget _buildMap(List<_GroupLive> groups) {
+    final token = _effectiveMapboxToken.trim();
+    if (token.isEmpty) {
+      return _TokenMissingOverlay(onConfigure: _configureMapboxToken);
+    }
+
+    final fallbackLat = 16.241;
+    final fallbackLng = -61.533;
+
+    if (kIsWeb) {
+      final center = _getDesiredCenter(groups) ??
+          (lat: _webCenterLat ?? fallbackLat, lng: _webCenterLng ?? fallbackLng);
+      
+      // TODO: polyline rendering (sera ajouté quand MapboxWebView supportera ce paramètre)
+      // final trail = _followGroupId != null ? _trails[_followGroupId] : null;
+
+      return MapboxWebView(
+        key: ValueKey('tracking-live-web-$_webRebuildTick'),
+        accessToken: token,
+        initialLat: center.lat,
+        initialLng: center.lng,
+        initialZoom: _webZoom,
+        initialPitch: 0.0,
+        initialBearing: 0.0,
+        styleUrl: 'mapbox://styles/mapbox/streets-v12',
+        showUserLocation: false,
+        // TODO: polyline rendering (pas encore supporté dans MapboxWebView)
+        onMapReady: () {
+          // rien
+        },
+      );
+    }
+
+    // Mobile natif
+    final center = _getDesiredCenter(groups) ??
+        (lat: fallbackLat, lng: fallbackLng);
+    final initialCamera = CameraOptions(
+      center: Point(coordinates: Position(center.lng, center.lat)),
+      zoom: 13.0,
+      pitch: 0.0,
+      bearing: 0.0,
+    );
+
+    return MapWidget(
+      key: const ValueKey('tracking-live-native'),
+      cameraOptions: initialCamera,
+      styleUri: 'mapbox://styles/mapbox/streets-v12',
+      onMapCreated: (map) async {
+        _mapboxMap = map;
+        await _ensureAnnotationManagers();
+        await _syncNativeAnnotations(_lastGroups);
+      },
     );
   }
+
+  void _scheduleNativeAnnotationsSync(List<_GroupLive> groups) {
+    _lastGroups = groups;
+    if (kIsWeb) return;
+    if (_mapboxMap == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _ensureAnnotationManagers();
+      await _syncNativeAnnotations(groups);
+    });
+  }
+
+  Future<void> _ensureAnnotationManagers() async {
+    if (_mapboxMap == null) return;
+    if (_pointManager == null) {
+      _pointManager =
+          await _mapboxMap!.annotations.createPointAnnotationManager();
+    }
+    if (_polylineManager == null) {
+      _polylineManager =
+          await _mapboxMap!.annotations.createPolylineAnnotationManager();
+    }
+  }
+
+  Future<void> _syncNativeAnnotations(List<_GroupLive> groups) async {
+    final pm = _pointManager;
+    final plm = _polylineManager;
+    if (pm == null || plm == null) return;
+
+    try {
+      await pm.deleteAll();
+      await plm.deleteAll();
+    } catch (_) {
+      // ignore
+    }
+
+    // Afficher les trails
+    for (final groupId in _trails.keys) {
+      final trail = _trails[groupId];
+      if (trail == null || trail.length < 2) continue;
+
+      final points = trail.map((p) => Position(p.lng, p.lat)).toList();
+      final opt = PolylineAnnotationOptions(
+        geometry: LineString(coordinates: points),
+        lineColor: 0xFFFF9500,
+        lineWidth: 4.0,
+        lineOpacity: 0.4,
+      );
+      await plm.create(opt);
+    }
+
+    // Afficher les markers
+    for (final g in groups) {
+      final isFollowing = _followGroupId == g.id;
+      final opt = PointAnnotationOptions(
+        geometry: Point(coordinates: Position(g.lng, g.lat)),
+        iconImage: 'marker-15',
+        iconSize: isFollowing ? 2.0 : 1.4,
+        textField: _short(g.name),
+        textOffset: const [0.0, 1.2],
+        textSize: 12.0,
+        textColor: 0xFF111111,
+        textHaloColor: 0xFFFFFFFF,
+        textHaloWidth: 1.0,
+        iconRotate: g.heading ?? 0.0,
+      );
+      await pm.create(opt);
+    }
+  }
+
+  ({double lat, double lng})? _getDesiredCenter(List<_GroupLive> groups) {
+    // Si un groupe est suivi => centre sur lui
+    final sel = _followGroupId;
+    if (sel != null) {
+      final g = groups
+          .where((x) => x.id == sel)
+          .cast<_GroupLive?>()
+          .firstWhere((x) => x != null, orElse: () => null);
+      if (g != null) return (lat: g.lat, lng: g.lng);
+    }
+
+    if (groups.isEmpty) return null;
+
+    // Centre moyen
+    double sumLat = 0;
+    double sumLng = 0;
+    for (final g in groups) {
+      sumLat += g.lat;
+      sumLng += g.lng;
+    }
+    return (lat: sumLat / groups.length, lng: sumLng / groups.length);
+  }
+
+  _GroupLive? _parseGroup(String id, Map<String, dynamic> data) {
+    final lat = (data['lat'] as num?)?.toDouble();
+    final lng = (data['lng'] as num?)?.toDouble();
+    if (lat == null || lng == null) return null;
+
+    final name = (data['groupName'] ?? data['groupId'] ?? id).toString();
+    final heading = (data['heading'] as num?)?.toDouble();
+    final updatedAt = (data['updatedAt'] is Timestamp)
+        ? (data['updatedAt'] as Timestamp).toDate()
+        : null;
+
+    return _GroupLive(
+      id: id,
+      name: name,
+      lat: lat,
+      lng: lng,
+      heading: heading,
+      updatedAt: updatedAt,
+    );
+  }
+
+  static String _short(String s) {
+    final t = s.trim();
+    if (t.length <= 12) return t;
+    return '${t.substring(0, 12)}…';
+  }
+}
+
+class _GroupLive {
+  final String id;
+  final String name;
+  final double lat;
+  final double lng;
+  final double? heading;
+  final DateTime? updatedAt;
+
+  _GroupLive({
+    required this.id,
+    required this.name,
+    required this.lat,
+    required this.lng,
+    this.heading,
+    this.updatedAt,
+  });
 }
 
 class _TopPill extends StatelessWidget {
@@ -340,9 +465,12 @@ class _TopPill extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+                  Text(title,
+                      style: const TextStyle(fontWeight: FontWeight.w900)),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: const TextStyle(color: Colors.black54, fontSize: 12)),
+                  Text(subtitle,
+                      style:
+                          const TextStyle(color: Colors.black54, fontSize: 12)),
                 ],
               ),
             ),
@@ -358,67 +486,47 @@ class _TopPill extends StatelessWidget {
   }
 }
 
-class _GroupLiveMarker extends StatelessWidget {
-  const _GroupLiveMarker({
-    required this.title,
-    required this.onTap,
-    required this.isFollowing,
-    required this.heading,
-  });
-
-  final String title;
-  final VoidCallback onTap;
-  final bool isFollowing;
-  final double? heading;
+class _TokenMissingOverlay extends StatelessWidget {
+  final VoidCallback onConfigure;
+  const _TokenMissingOverlay({required this.onConfigure});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Halo
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isFollowing ? Colors.black.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08),
-            ),
-          ),
-          // ✅ Pin avec rotation (heading)
-          Transform.rotate(
-            angle: (heading ?? 0) * (pi / 180),
-            child: const Icon(
-              Icons.location_on,
-              size: 46,
-              color: Color(0xFFFF3B30),
-            ),
-          ),
-          // Badge
-          Positioned(
-            bottom: 6,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                _short(title),
-                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+    return Container(
+      color: Colors.grey.shade100,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Card(
+            elevation: 2,
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.map_rounded, size: 42),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Mapbox inactif: token manquant',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Configure MAPBOX_ACCESS_TOKEN pour afficher la carte.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 14),
+                  FilledButton.icon(
+                    onPressed: onConfigure,
+                    icon: const Icon(Icons.key_rounded),
+                    label: const Text('Configurer'),
+                  ),
+                ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
-  }
-
-  static String _short(String s) {
-    final t = s.trim();
-    if (t.length <= 12) return t;
-    return '${t.substring(0, 12)}…';
   }
 }

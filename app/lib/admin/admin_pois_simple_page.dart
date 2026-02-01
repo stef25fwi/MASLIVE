@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:flutter_map/flutter_map.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import '../services/mapbox_token_service.dart';
+import '../ui/widgets/mapbox_web_view_platform.dart';
 
-/// Page de gestion des POIs (Points d'Intérêt) - Version simple compatible avec Place model
+/// Page de gestion des POIs (Points d'Intérêt) - Version Mapbox
 class AdminPOIsSimplePage extends StatefulWidget {
   const AdminPOIsSimplePage({super.key});
 
@@ -193,40 +195,12 @@ class _AdminPOIsSimplePageState extends State<AdminPOIsSimplePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Mini carte
+                // Mini carte Mapbox
                 SizedBox(
                   height: 200,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: FlutterMap(
-                      options: MapOptions(
-                        initialCenter: LatLng(lat, lng),
-                        initialZoom: 15,
-                        interactionOptions: const InteractionOptions(
-                          flags: InteractiveFlag.none,
-                        ),
-                      ),
-                      children: [
-                        TileLayer(
-                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.maslive.app',
-                        ),
-                        MarkerLayer(
-                          markers: [
-                            Marker(
-                              point: LatLng(lat, lng),
-                              width: 40,
-                              height: 40,
-                              child: Icon(
-                                _getTypeIcon(type),
-                                color: _getTypeColor(type),
-                                size: 40,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                    child: _buildMiniMap(lat, lng, type),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -591,4 +565,49 @@ class _AdminPOIsSimplePageState extends State<AdminPOIsSimplePage> {
       }
     }
   }
+
+  Widget _buildMiniMap(double lat, double lng, String type) {
+    final token = MapboxTokenService.getTokenSync().trim();
+    if (token.isEmpty) {
+      return Container(
+        color: Colors.grey.shade200,
+        child: const Center(
+          child: Text('Token Mapbox manquant', style: TextStyle(fontSize: 12)),
+        ),
+      );
+    }
+
+    if (kIsWeb) {
+      return MapboxWebView(
+        key: ValueKey('poi-$lat-$lng'),
+        accessToken: token,
+        initialLat: lat,
+        initialLng: lng,
+        initialZoom: 15.0,
+        initialPitch: 0.0,
+        initialBearing: 0.0,
+        styleUrl: 'mapbox://styles/mapbox/streets-v12',
+        showUserLocation: false,
+        onMapReady: () {},
+      );
+    }
+
+    // Mobile: StaticImage ou simple MapWidget non-interactif
+    final initialCamera = CameraOptions(
+      center: Point(coordinates: Position(lng, lat)),
+      zoom: 15.0,
+      pitch: 0.0,
+      bearing: 0.0,
+    );
+
+    return AbsorbPointer(
+      child: MapWidget(
+        key: ValueKey('poi-native-$lat-$lng'),
+        cameraOptions: initialCamera,
+        styleUri: 'mapbox://styles/mapbox/streets-v12',
+        onMapCreated: (map) {},
+      ),
+    );
+  }
 }
+

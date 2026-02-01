@@ -60,6 +60,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   String _runtimeMapboxToken = '';
   String? _userGroupId;
   bool _isSuperAdmin = false;
+  String? _selectedMapProjectId;
 
   static final Position _fallbackCenter = Position(-61.533, 16.241);
 
@@ -480,6 +481,191 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     setState(() {});
   }
 
+  void _showMapProjectsSelector() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.5,
+        minChildSize: 0.3,
+        maxChildSize: 0.9,
+        builder: (_, controller) => Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF1A1A2E),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  'Projets cartographiques',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('map_projects')
+                      .where('status', isEqualTo: 'published')
+                      .where('isVisible', isEqualTo: true)
+                      .orderBy('updatedAt', descending: true)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Color(0xFF9B6BFF),
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'Aucun projet disponible',
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                      );
+                    }
+
+                    final now = Timestamp.now();
+                    final filteredDocs = snapshot.data!.docs.where((doc) {
+                      final publishAt = doc.get('publishAt') as Timestamp?;
+                      return publishAt == null ||
+                          publishAt.compareTo(now) <= 0;
+                    }).toList();
+
+                    if (filteredDocs.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'Aucun projet publié',
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      controller: controller,
+                      itemCount: filteredDocs.length,
+                      itemBuilder: (context, index) {
+                        final doc = filteredDocs[index];
+                        final name = doc.get('name') ?? 'Sans nom';
+                        final countryId = doc.get('countryId') ?? '';
+                        final eventId = doc.get('eventId') ?? '';
+                        final isSelected = _selectedMapProjectId == doc.id;
+
+                        return ListTile(
+                          leading: Icon(
+                            Icons.map,
+                            color: isSelected
+                                ? const Color(0xFF9B6BFF)
+                                : Colors.white70,
+                          ),
+                          title: Text(
+                            name,
+                            style: TextStyle(
+                              color: isSelected ? const Color(0xFF9B6BFF) : Colors.white,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          subtitle: Text(
+                            '$countryId / $eventId',
+                            style: const TextStyle(color: Colors.white54),
+                          ),
+                          trailing: isSelected
+                              ? const Icon(Icons.check, color: Color(0xFF9B6BFF))
+                              : null,
+                          onTap: () {
+                            setState(() {
+                              _selectedMapProjectId = doc.id;
+                            });
+                            _loadMapProject(doc);
+                            Navigator.pop(context);
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _loadMapProject(DocumentSnapshot project) async {
+    final styleUrl = project.get('styleUrl') as String?;
+    if (styleUrl != null && styleUrl.isNotEmpty && _mapboxMap != null) {
+      await _mapboxMap!.style.setStyleURI(styleUrl);
+    }
+
+    // Fit bounds sur le périmètre si disponible
+    final perimeter = project.get('perimeter') as List<dynamic>?;
+    if (perimeter != null && perimeter.isNotEmpty && _mapboxMap != null) {
+      final points = perimeter.map((p) {
+        final coord = p as Map<String, dynamic>;
+        return Position(coord['lng'] as double, coord['lat'] as double);
+      }).toList();
+
+      if (points.isNotEmpty) {
+        // Calculer les bounds
+        double minLng = points.first.lng.toDouble();
+        double maxLng = points.first.lng.toDouble();
+        double minLat = points.first.lat.toDouble();
+        double maxLat = points.first.lat.toDouble();
+
+        for (final pt in points) {
+          final lng = pt.lng.toDouble();
+          final lat = pt.lat.toDouble();
+          if (lng < minLng) minLng = lng;
+          if (lng > maxLng) maxLng = lng;
+          if (lat < minLat) minLat = lat;
+          if (lat > maxLat) maxLat = lat;
+        }
+
+        // Centrer sur le milieu du périmètre
+        final centerLng = (minLng + maxLng) / 2;
+        final centerLat = (minLat + maxLat) / 2;
+
+        // Calculer le zoom basé sur la taille du périmètre
+        final latDiff = maxLat - minLat;
+        final lngDiff = maxLng - minLng;
+        final maxDiff = latDiff > lngDiff ? latDiff : lngDiff;
+        
+        // Zoom approximatif : plus grand est maxDiff, plus petit est le zoom
+        final zoom = maxDiff > 0.1 ? 10.0 : (maxDiff > 0.01 ? 12.0 : 14.0);
+
+        await _mapboxMap!.easeTo(
+          CameraOptions(
+            center: Point(coordinates: Position(centerLng, centerLat)),
+            zoom: zoom,
+            pitch: 45.0,
+          ),
+          MapAnimationOptions(duration: 1000, startDelay: 0),
+        );
+      }
+    }
+  }
+
   void _closeNavWithDelay() {
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted && _showActionsMenu) {
@@ -591,11 +777,11 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               _ActionItem(
-                                label: 'Centrer',
-                                icon: Icons.my_location_rounded,
+                                label: 'Projets',
+                                icon: Icons.map_rounded,
                                 selected: false,
                                 onTap: () {
-                                  _recenterOnUser();
+                                  _showMapProjectsSelector();
                                   _closeNavWithDelay();
                                 },
                               ),

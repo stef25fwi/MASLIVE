@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -10,10 +10,9 @@ import 'services/localization_service.dart' show LocalizationService;
 import 'services/language_service.dart';
 import 'widgets/localized_app.dart';
 import 'pages/splash_wrapper_page.dart';
-import 'pages/home_map_page.dart';
-import 'pages/home_map_page_web.dart';
-import 'pages/home_map_page_3d.dart';
 import 'pages/home_map_page_v3.dart';
+import 'pages/home_map_page_3d.dart';
+import 'pages/home_map_page_web.dart';
 import 'pages/group_profile_page.dart';
 import 'pages/group_shop_page.dart';
 import 'pages/role_router_page.dart';
@@ -47,6 +46,8 @@ import 'admin/admin_circuits_page.dart';
 import 'admin/map_projects_library_page.dart';
 import 'admin/business_requests_page.dart';
 import 'admin/admin_main_dashboard.dart';
+import 'admin/mapmarket_projects_page.dart';
+import 'admin/map_project_wizard_entry_page.dart';
 import 'services/cart_service.dart';
 import 'services/notifications_service.dart';
 import 'services/premium_service.dart';
@@ -125,11 +126,11 @@ class MasLiveApp extends StatelessWidget {
             routes: {
               '/splash': (_) => const SplashWrapperPage(),
               '/router': (_) => const RoleRouterPage(),
-              '/': (_) => const HomeMapPageV3(), // 🎯 Home par défaut: V3
+              '/': (_) => kIsWeb ? const HomeMapPageWeb() : const HomeMapPage3D(),
+              '/map-legacy': (_) => const HomeMapPageV3(), // 🔄 Fallback flutter_map+OSM
               '/map-3d': (_) => const HomeMapPage3D(), // Carte 3D Mapbox Native
               '/map-web': (_) =>
                   const HomeMapPageWeb(), // 🌐 Carte Web alternative
-              '/map-2d': (_) => const HomeMapPage(), // Ancienne version 2D
               '/mapbox-google-light': (_) => const GoogleLightMapPage(),
               '/mapbox-web': (_) => const MapboxWebMapPage(),
               '/account-ui': (_) => const AccountUiPage(),
@@ -163,6 +164,8 @@ class MasLiveApp extends StatelessWidget {
               '/admin/circuits': (_) => const AdminCircuitsPage(),
               '/admin/track-editor': (_) => const CircuitEditorWorkflowPage(),
               '/admin/map-library': (_) => const MapProjectsLibraryPage(),
+              '/admin/mapmarket': (_) => const MapMarketProjectsPage(),
+              '/admin/mapmarket/wizard': (_) => const MapProjectWizardEntryPage(),
               '/admin/superadmin': (_) => const SuperAdminSpace(),
               '/admin/categories': (_) => const CategoryManagementPage(),
               '/admin/roles': (_) => const RoleManagementPage(),

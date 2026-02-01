@@ -219,11 +219,11 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildDashboardCard(
-                    title: 'Mapbox Web (GL JS)',
-                    subtitle: 'Carte Mapbox via HtmlElementView',
-                    icon: Icons.public,
-                    color: Colors.teal,
-                    onTap: () => Navigator.pushNamed(context, '/mapbox-web'),
+                    title: 'MapMarket',
+                    subtitle: 'Créer / éditer / publier des cartes (Mapbox-only)',
+                    icon: Icons.map,
+                    color: Colors.blue,
+                    onTap: () => Navigator.pushNamed(context, '/admin/mapmarket'),
                   ),
                 ),
               ],
@@ -231,6 +231,16 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
             const SizedBox(height: 12),
             Row(
               children: [
+                Expanded(
+                  child: _buildDashboardCard(
+                    title: 'Mapbox Web (GL JS)',
+                    subtitle: 'Carte Mapbox via HtmlElementView',
+                    icon: Icons.public,
+                    color: Colors.teal,
+                    onTap: () => Navigator.pushNamed(context, '/mapbox-web'),
+                  ),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: _buildDashboardCard(
                     title: 'Assistant Wizard',
@@ -246,8 +256,6 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                const Expanded(child: SizedBox()),
               ],
             ),
             const SizedBox(height: 24),
