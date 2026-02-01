@@ -1300,7 +1300,7 @@ class _TrackingPill extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  widget.isTracking 
+                  isTracking 
                       ? 'Actif (${_HomeMapPage3DState._trackingIntervalSeconds}s)' 
                       : 'Inactif',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
