@@ -715,7 +715,6 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
         statusBarBrightness: Brightness.light,
       ),
       child: Scaffold(
-        extendBodyBehindAppBar: true,
         body: Stack(
           children: [
             // Carte Mapbox GL JS via HtmlElementView

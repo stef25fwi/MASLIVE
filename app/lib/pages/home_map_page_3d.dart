@@ -695,7 +695,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         statusBarBrightness: Brightness.light,
       ),
       child: Scaffold(
-        extendBodyBehindAppBar: true,
         body: Stack(
           children: [
             // Carte Mapbox 3D
