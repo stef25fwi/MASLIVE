@@ -10,7 +10,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/app_user.dart';
 import '../services/auth_claims_service.dart';
 import '../theme/maslive_theme.dart';
-import 'admin_circuits_page.dart';
+
 import 'admin_pois_simple_page.dart';
 import 'admin_tracking_page.dart';
 import 'admin_products_page.dart';
@@ -22,11 +22,12 @@ import 'admin_logs_page.dart';
 import 'admin_system_settings_page.dart';
 import 'user_management_page.dart';
 import 'business_requests_page.dart';
-import 'map_projects_library_page.dart';
+
 import '../pages/pending_products_page.dart';
 import '../pages/shop_page_new.dart';
 import 'create_circuit_assistant_page.dart';
 import 'poi_assistant_page.dart';
+import '../widgets/admin_map_navigation_section.dart';
 
 /// Dashboard admin principal 10/10 avec toutes les fonctionnalités
 class AdminMainDashboard extends StatefulWidget {
@@ -163,100 +164,21 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
             _buildWelcomeCard(),
             const SizedBox(height: 24),
 
-            // Section Carte & Navigation
-            _buildSectionTitle('Carte & Navigation', Icons.map),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Parcours',
-                    subtitle: 'Créer et gérer les circuits',
-                    icon: Icons.route,
-                    color: Colors.blue,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AdminCircuitsPage(),
-                      ),
-                    ),
-                  ),
+            // Section Carte & Navigation avec widget dédié
+            AdminMapNavigationSection(
+              onCreateCircuit: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const CreateCircuitAssistantPage(),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Points d\'intérêt',
-                    subtitle: 'Gérer les POIs',
-                    icon: Icons.place,
-                    color: Colors.orange,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AdminPOIsSimplePage(),
-                      ),
-                    ),
-                  ),
+              ),
+              onOpenMapMarket: () => Navigator.pushNamed(context, '/admin/mapmarket'),
+              onOpenPois: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AdminPOIsSimplePage(),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Bibliothèque de Maps',
-                    subtitle: 'Gérer les cartes, couches et infos',
-                    icon: Icons.folder_copy_outlined,
-                    color: Colors.indigo,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const MapProjectsLibraryPage(),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'MapMarket',
-                    subtitle: 'Créer / éditer / publier des cartes (Mapbox-only)',
-                    icon: Icons.map,
-                    color: Colors.blue,
-                    onTap: () => Navigator.pushNamed(context, '/admin/mapmarket'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Mapbox Web (GL JS)',
-                    subtitle: 'Carte Mapbox via HtmlElementView',
-                    icon: Icons.public,
-                    color: Colors.teal,
-                    onTap: () => Navigator.pushNamed(context, '/mapbox-web'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Assistant Wizard',
-                    subtitle: 'Création guidée de circuits étape par étape',
-                    icon: Icons.assistant,
-                    color: Colors.purple,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            const AdminAssistantStepByStepHomePage(),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
             const SizedBox(height: 24),
 
