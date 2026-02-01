@@ -2,7 +2,9 @@ import "package:flutter/material.dart";
 
 /// Stub: legacy route drawing removed from build (flutter_map).
 class RouteDrawingPageLegacy extends StatelessWidget {
-  const RouteDrawingPageLegacy({super.key});
+  const RouteDrawingPageLegacy({super.key, this.groupId});
+  
+  final String? groupId;
 
   @override
   Widget build(BuildContext context) {

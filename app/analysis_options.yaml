@@ -3,8 +3,8 @@ include: package:flutter_lints/flutter.yaml
 analyzer:
   exclude:
     - tooling/**
-    - lib/_legacy/**
-    - **/*.old
-    - **/*_legacy.dart
-    - **/*_backup.dart
-    - **/*_redirect.dart
+    - "lib/_legacy/**"
+    - "**/*.old"
+    - "**/*_legacy.dart"
+    - "**/*_backup.dart"
+    - "**/*_redirect.dart"

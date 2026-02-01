@@ -1,13 +1,25 @@
-import 'package:latlong2/latlong.dart';
+import 'dart:math';
+import '../utils/latlng.dart';
 
 class RouteValidator {
   const RouteValidator();
 
   /// Calcule la distance entre deux points en km (Haversine)
   static double distance(LatLng p1, LatLng p2) {
-    const Distance d = Distance();
-    return d(p1, p2) / 1000; // Distance retourne en mètres, convertir en km
+    const double R = 6371; // Rayon de la Terre en km
+    final dLat = _toRadians(p2.latitude - p1.latitude);
+    final dLon = _toRadians(p2.longitude - p1.longitude);
+    final lat1Rad = _toRadians(p1.latitude);
+    final lat2Rad = _toRadians(p2.latitude);
+    
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(lat1Rad) * cos(lat2Rad) *
+        sin(dLon / 2) * sin(dLon / 2);
+    final c = 2 * asin(sqrt(a));
+    return R * c;
   }
+  
+  static double _toRadians(double degrees) => degrees * pi / 180;
 
   /// Distance totale de la route
   static double totalDistance(List<LatLng> points) {

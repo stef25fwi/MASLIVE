@@ -17,18 +17,12 @@ import '../ui/widgets/gradient_header.dart';
 import '../ui/widgets/gradient_icon_button.dart';
 import '../ui/widgets/maslive_card.dart';
 import '../ui/widgets/maslive_profile_icon.dart';
-import '../models/place_model.dart';
-import '../models/circuit_model.dart';
 import '../services/auth_service.dart';
-import '../services/firestore_service.dart';
 import '../services/geolocation_service.dart';
-import '../services/localization_service.dart';
 import '../services/language_service.dart';
 import '../services/mapbox_token_service.dart';
 import '../l10n/app_localizations.dart' as l10n;
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
-
-enum _MapAction { ville, tracking, visiter, encadrement, food, wc, parking }
 
 class HomeMapPage3D extends StatefulWidget {
   const HomeMapPage3D({super.key});
@@ -39,15 +33,12 @@ class HomeMapPage3D extends StatefulWidget {
 
 class _HomeMapPage3DState extends State<HomeMapPage3D>
     with TickerProviderStateMixin, WidgetsBindingObserver {
-  _MapAction _selected = _MapAction.ville;
   bool _showActionsMenu = false;
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
 
   MapboxMap? _mapboxMap;
-  final FirestoreService _firestore = FirestoreService();
   final GeolocationService _geo = GeolocationService.instance;
-  final _circuitStream = FirestoreService().getPublishedCircuitsStream();
 
   StreamSubscription<geo.Position>? _positionSub;
   Position? _userPos; // Mapbox Position (lng, lat)
@@ -58,7 +49,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   bool _isGpsReady = false;
 
   String _runtimeMapboxToken = '';
+  // ignore: unused_field
   String? _userGroupId;
+  // ignore: unused_field
   bool _isSuperAdmin = false;
   String? _selectedMapProjectId;
 
@@ -66,8 +59,11 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   // Annotations managers
   PointAnnotationManager? _userAnnotationManager;
+  // ignore: unused_field
   PointAnnotationManager? _placesAnnotationManager;
+  // ignore: unused_field
   PointAnnotationManager? _groupsAnnotationManager;
+  // ignore: unused_field
   PolylineAnnotationManager? _circuitsAnnotationManager;
 
   String get _effectiveMapboxToken => _runtimeMapboxToken.isNotEmpty
@@ -253,31 +249,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         mapReadyNotifier.value = true;
       });
     }
-  }
-
-  Future<void> _recenterOnUser() async {
-    final ok = await _ensureLocationPermission(request: true);
-    if (!ok) return;
-
-    final pos = await Geolocator.getCurrentPosition(
-      locationSettings: const geo.LocationSettings(
-        accuracy: LocationAccuracy.best,
-        timeLimit: Duration(seconds: 10),
-      ),
-    );
-
-    final p = Position(pos.longitude, pos.latitude);
-    if (!mounted) return;
-
-    setState(() {
-      _userPos = p;
-      _followUser = true;
-    });
-
-    _mapboxMap?.flyTo(
-      CameraOptions(center: Point(coordinates: p), zoom: 16.0, pitch: 45.0),
-      MapAnimationOptions(duration: 1200, startDelay: 0),
-    );
   }
 
   Future<void> _updateUserMarker() async {
@@ -791,11 +762,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                                   context,
                                 )!.tracking,
                                 icon: Icons.track_changes_rounded,
-                                selected: _selected == _MapAction.tracking,
+                                selected: _isTracking,
                                 onTap: () {
-                                  setState(() {
-                                    _selected = _MapAction.tracking;
-                                  });
+                                  _toggleTracking();
                                   _closeNavWithDelay();
                                 },
                               ),
@@ -809,7 +778,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
               ),
 
             // Tracking pill
-            if (_selected == _MapAction.tracking)
+            if (_isTracking)
               Positioned(
                 left: 16,
                 right: 90,

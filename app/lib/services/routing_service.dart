@@ -1,4 +1,4 @@
-import 'package:latlong2/latlong.dart';
+import '../utils/latlng.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 

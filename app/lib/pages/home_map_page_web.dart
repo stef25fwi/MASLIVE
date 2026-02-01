@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:latlong2/latlong.dart';
+import '../utils/latlng.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
@@ -15,14 +15,10 @@ import '../ui/widgets/gradient_icon_button.dart';
 import '../ui/widgets/maslive_card.dart';
 import '../ui/widgets/maslive_profile_icon.dart';
 import '../ui/widgets/mapbox_web_view.dart';
-import '../models/place_model.dart';
-import '../models/circuit_model.dart';
 import '../models/map_preset_model.dart';
 import '../pages/map_selector_page.dart';
 import '../services/auth_service.dart';
-import '../services/firestore_service.dart';
 import '../services/geolocation_service.dart';
-import '../services/localization_service.dart';
 import '../services/language_service.dart';
 import '../services/map_presets_service.dart';
 import '../services/mapbox_token_service.dart';
@@ -46,14 +42,11 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
 
-  final FirestoreService _firestore = FirestoreService();
   final GeolocationService _geo = GeolocationService.instance;
-  final _circuitStream = FirestoreService().getPublishedCircuitsStream();
   final MapPresetsService _presetService = MapPresetsService();
 
   StreamSubscription<Position>? _positionSub;
   LatLng? _userPos;
-  bool _followUser = true;
   bool _requestingGps = false;
   bool _isTracking = false;
   bool _isMapReady = false;
@@ -283,26 +276,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
 
     setState(() {
       _userPos = p;
-      _followUser = true;
     });
-  }
-
-  Stream<List<Place>> _placesStream() {
-    switch (_selected) {
-      case _MapAction.visiter:
-        return _firestore.getPlacesByTypeStream(PlaceType.visit);
-      case _MapAction.food:
-        return _firestore.getPlacesByTypeStream(PlaceType.food);
-      case _MapAction.encadrement:
-        return _firestore.getPlacesByTypeStream(PlaceType.market);
-      case _MapAction.wc:
-        return _firestore.getPlacesByTypeStream(PlaceType.wc);
-      case _MapAction.parking:
-        return _firestore.getPlacesStream();
-      case _MapAction.tracking:
-      case _MapAction.ville:
-        return _firestore.getPlacesStream();
-    }
   }
 
   Future<void> _toggleTracking() async {
@@ -638,7 +612,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
   }
 
   void _openLanguagePicker() {
-    final loc = LocalizationService();
+    final langService = Get.find<LanguageService>();
 
     showGeneralDialog(
       context: context,
@@ -647,8 +621,8 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
       barrierColor: Colors.black.withValues(alpha: 0.3),
       transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (context, animation, secondaryAnimation) {
-        Widget item(AppLanguage lang, String label) {
-          final selected = loc.language == lang;
+        Widget item(Locale lang, String label) {
+          final selected = langService.locale == lang;
           return ListTile(
             leading: Icon(
               selected ? Icons.check_circle_rounded : Icons.circle_outlined,
@@ -664,7 +638,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
               ),
             ),
             onTap: () {
-              loc.setLanguage(lang);
+              langService.changeLanguage(lang.languageCode);
               Navigator.pop(context);
             },
           );
@@ -709,9 +683,9 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                   ),
                   const SizedBox(height: 4),
                   const Divider(height: 1),
-                  item(AppLanguage.en, 'English'),
-                  item(AppLanguage.fr, 'Français'),
-                  item(AppLanguage.es, 'Español'),
+                  item(const Locale('en'), 'English'),
+                  item(const Locale('fr'), 'Français'),
+                  item(const Locale('es'), 'Español'),
                 ],
               ),
             ),

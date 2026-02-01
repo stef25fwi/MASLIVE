@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:latlong2/latlong.dart';
+import '../utils/latlng.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import '../services/routing_service.dart';
 import '../services/mapbox_token_service.dart';
