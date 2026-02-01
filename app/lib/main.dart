@@ -125,7 +125,7 @@ class MasLiveApp extends StatelessWidget {
             routes: {
               '/splash': (_) => const SplashWrapperPage(),
               '/router': (_) => const RoleRouterPage(),
-              '/': (_) => kIsWeb ? const HomeWebPage() : const HomeMapPage3D(),
+              '/': (_) => kIsWeb ? const HomeMapPageWeb() : const HomeMapPage3D(),
               // '/map-legacy': (_) => const HomeMapPageV3(), // 🔄 Moved to legacy
               '/map-3d': (_) => const HomeMapPage3D(), // Carte 3D Mapbox Native
               '/map-web': (_) =>
