@@ -40,6 +40,11 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   MapboxMap? _mapboxMap;
   final GeolocationService _geo = GeolocationService.instance;
 
+  // Fix universel rebuild + resize natif
+  int _mapTick = 0;
+  Size? _lastSize;
+  Timer? _debounce;
+
   StreamSubscription<geo.Position>? _positionSub;
   Position? _userPos; // Mapbox Position (lng, lat)
   bool _followUser = true;
@@ -123,6 +128,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   @override
   void dispose() {
+    _debounce?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _positionSub?.cancel();
     _menuAnimController.dispose();
@@ -135,6 +141,36 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     if (state == AppLifecycleState.resumed) {
       _bootstrapLocation();
     }
+  }
+
+  @override
+  void didChangeMetrics() {
+    // Orientation / split view / resize fenêtre
+    super.didChangeMetrics();
+    if (mounted) setState(() => _mapTick++);
+  }
+
+  void _scheduleResize(Size size) {
+    if (_lastSize == size) return;
+    _lastSize = size;
+
+    // Debounce pour éviter 10 resizes pendant une animation/layout
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 80), () async {
+      // 1) Update renderer size (fix principal iOS/Android)
+      final map = _mapboxMap;
+      if (map != null) {
+        try {
+          await map.setMapOptions(MapOptions(size: size));
+          debugPrint('✅ Map resized: ${size.width.toInt()}x${size.height.toInt()}');
+        } catch (e) {
+          debugPrint('⚠️ Resize error: $e');
+        }
+      }
+
+      // 2) Optionnel : forcer un rebuild si nécessaire
+      if (mounted) setState(() => _mapTick++);
+    });
   }
 
   Future<void> _bootstrapLocation() async {
@@ -331,6 +367,13 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     });
 
     _updateUserMarker();
+
+    // Appliquer la bonne size dès la création (fix iOS/Android)
+    if (_lastSize != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scheduleResize(_lastSize!);
+      });
+    }
   }
 
   Future<void> _toggleTracking() async {
@@ -652,6 +695,21 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = Size(constraints.maxWidth, constraints.maxHeight);
+        
+        // Scheduler le resize avec debounce (fix iOS/Android)
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scheduleResize(size);
+        });
+
+        return _buildContent(context, size);
+      },
+    );
+  }
+
+  Widget _buildContent(BuildContext context, Size size) {
     if (!_useMapboxTiles) {
       return Scaffold(
         appBar: AppBar(title: const Text('Carte 3D')),
@@ -708,7 +766,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                 child: Container(
                   color: Colors.black, // Couleur de fond pendant le chargement
                   child: MapWidget(
-                    key: const ValueKey('mapbox-3d-map'),
+                    key: ValueKey('map_${size.width.toInt()}x${size.height.toInt()}_$_mapTick'),
                     styleUri: 'mapbox://styles/mapbox/streets-v12',
                     cameraOptions: CameraOptions(
                       center: Point(coordinates: _userPos ?? _fallbackCenter),
