@@ -34,14 +34,37 @@ class HomeMapPage3D extends StatefulWidget {
 
 class _HomeMapPage3DState extends State<HomeMapPage3D>
     with TickerProviderStateMixin, WidgetsBindingObserver {
+  // ========== CONSTANTES ==========
+  static const Duration _resizeDebounceDelay = Duration(milliseconds: 80);
+  static const Duration _menuAnimationDuration = Duration(milliseconds: 300);
+  static const Duration _mapReadyDelay = Duration(milliseconds: 300);
+  static const Duration _navCloseDelay = Duration(milliseconds: 1500);
+  static const int _trackingIntervalSeconds = 15;
+  static const int _gpsDistanceFilter = 8;
+  static const Duration _gpsTimeout = Duration(seconds: 8);
+  static const double _userMarkerIconSize = 1.5;
+  static const double _zoomThresholdLarge = 0.1;
+  static const double _zoomThresholdMedium = 0.01;
+  static const double _zoomLevelLarge = 10.0;
+  static const double _zoomLevelMedium = 12.0;
+  static const double _zoomLevelSmall = 14.0;
+  static const Duration _cameraAnimationDuration = Duration(milliseconds: 800);
+  static const Duration _projectLoadDuration = Duration(milliseconds: 1000);
+  static const double _defaultZoom = 13.0;
+  static const double _userZoom = 15.5;
+  static const double _defaultPitch = 45.0;
+  static const double _minZoom3dBuildings = 14.5;
+  
+  // ========== ÉTAT UI ==========
   bool _showActionsMenu = false;
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
 
+  // ========== CARTE & GÉOLOCALISATION ==========
   MapboxMap? _mapboxMap;
   final GeolocationService _geo = GeolocationService.instance;
 
-  // Fix universel rebuild + resize natif
+  // Fix universel rebuild + resize natif (iOS/Android/Web)
   int _mapTick = 0;
   ui.Size? _lastSize;
   Timer? _debounce;
@@ -77,29 +100,50 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       : MapboxTokenService.getTokenSync();
 
   bool get _useMapboxTiles => _effectiveMapboxToken.isNotEmpty;
+  
+  /// Message de tracking avec intervalle dynamique
+  String get _trackingStatusMessage => _isTracking 
+      ? '✅ Tracking démarré (${_trackingIntervalSeconds}s)' 
+      : '❌ Permissions GPS refusées';
+  
+  /// Message du tracking pill avec intervalle dynamique
+  String get _trackingPillLabel => _isTracking 
+      ? 'Actif (${_trackingIntervalSeconds}s)' 
+      : 'Inactif';
 
   @override
   void initState() {
     super.initState();
+    
+    // Observer pour détecter les changements de lifecycle et de métriques (resize, rotation)
     WidgetsBinding.instance.addObserver(this);
+    
+    // Initialisation du token Mapbox (peut être vide au démarrage)
     _initMapboxToken();
+    
+    // Synchroniser l'état de tracking avec le service
     _isTracking = _geo.isTracking;
+    
+    // Configuration de l'animation du menu latéral
     _menuAnimController = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: _menuAnimationDuration,
       vsync: this,
     );
-    _menuSlideAnimation =
-        Tween<Offset>(begin: const Offset(1.0, 0.0), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _menuAnimController,
-            curve: Curves.easeOut,
-            reverseCurve: Curves.easeIn,
-          ),
-        );
+    _menuSlideAnimation = Tween<Offset>(
+      begin: const Offset(1.0, 0.0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _menuAnimController,
+        curve: Curves.easeOut,
+        reverseCurve: Curves.easeIn,
+      ),
+    );
 
-    _bootstrapLocation();
-    _loadUserGroupId();
-    _loadRuntimeMapboxToken();
+    // Chargement asynchrone des données essentielles
+    _bootstrapLocation();    // Permissions GPS + position initiale
+    _loadUserGroupId();      // Données utilisateur Firebase
+    _loadRuntimeMapboxToken(); // Token Mapbox dynamique
   }
 
   void _initMapboxToken() {
@@ -146,35 +190,64 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   @override
   void didChangeMetrics() {
-    // Orientation / split view / resize fenêtre
+    // Détecte : rotation, split-view, resize fenêtre, clavier virtuel
     super.didChangeMetrics();
-    if (mounted) setState(() => _mapTick++);
+    
+    // Incrémente le tick pour forcer un rebuild de la carte via ValueKey
+    // Protégé par mounted pour éviter les setState après dispose
+    if (mounted) {
+      try {
+        setState(() => _mapTick++);
+      } catch (e) {
+        debugPrint('⚠️ Erreur didChangeMetrics: $e');
+      }
+    }
   }
 
+  /// Planifie un resize de la carte avec debounce pour éviter les rebuilds excessifs.
+  /// 
+  /// Cette méthode est appelée par LayoutBuilder à chaque changement de contraintes.
+  /// Le debounce évite de rebuilder la carte 10+ fois pendant une animation de resize.
+  /// 
+  /// **Pourquoi c'est nécessaire :** Le SDK Mapbox natif ne gère pas automatiquement
+  /// le resize via Flutter. On force un rebuild avec une nouvelle ValueKey.
   void _scheduleResize(ui.Size size) {
+    // Ignorer si la taille n'a pas changé (optimisation)
     if (_lastSize == size) return;
     _lastSize = size;
 
-    // Debounce pour éviter 10 resizes pendant une animation/layout
+    // Annuler le timer précédent (debounce)
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 80), () {
-      // Forcer un rebuild avec nouvelle ValueKey (fix universel Flutter)
-      if (mounted) {
+    
+    // Attendre que le resize soit stabilisé avant de rebuilder
+    _debounce = Timer(_resizeDebounceDelay, () {
+      if (!mounted) return; // Sécurité supplémentaire
+      
+      try {
+        // Incrémenter le tick force Flutter à recréer le MapWidget avec une nouvelle Key
         setState(() => _mapTick++);
-        debugPrint('✅ Map rebuild: ${size.width.toInt()}x${size.height.toInt()}');
+        debugPrint('✅ Map rebuild: ${size.width.toInt()}x${size.height.toInt()} (tick: $_mapTick)');
+      } catch (e) {
+        debugPrint('⚠️ Erreur _scheduleResize: $e');
       }
     });
   }
 
+  /// Initialise la géolocalisation au démarrage de la page.
+  /// 
+  /// 1. Vérifie les permissions GPS
+  /// 2. Récupère la position initiale
+  /// 3. Met à jour le marqueur utilisateur
+  /// 4. Démarre le stream de positions
   Future<void> _bootstrapLocation() async {
     final ok = await _ensureLocationPermission(request: true);
 
     if (ok) {
       try {
         final pos = await Geolocator.getCurrentPosition(
-          locationSettings: const geo.LocationSettings(
+          locationSettings: geo.LocationSettings(
             accuracy: LocationAccuracy.best,
-            timeLimit: Duration(seconds: 8),
+            timeLimit: _gpsTimeout,
           ),
         );
         final p = Position(pos.longitude, pos.latitude);
@@ -182,8 +255,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           setState(() {
             _userPos = p;
           });
-          _updateUserMarker();
+          await _updateUserMarker();
         }
+      } on TimeoutException catch (e) {
+        debugPrint('⏱️ Timeout GPS: $e');
       } catch (e) {
         debugPrint('⚠️ Erreur GPS: $e');
       }
@@ -200,11 +275,16 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     _startUserPositionStream();
   }
 
+  /// Vérifie et demande les permissions de géolocalisation.
+  /// 
+  /// Retourne true si les permissions sont accordées, false sinon.
   Future<bool> _ensureLocationPermission({required bool request}) async {
+    // Éviter les requêtes concurrentes
     if (_requestingGps) return false;
     _requestingGps = true;
 
     try {
+      // 1. Vérifier si le service de localisation est activé
       final enabled = await Geolocator.isLocationServiceEnabled();
       if (!enabled) {
         if (mounted) {
@@ -213,43 +293,71 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
               content: Text(
                 'Active la localisation (GPS) pour centrer la carte.',
               ),
+              duration: Duration(seconds: 3),
             ),
           );
         }
         return false;
       }
 
+      // 2. Vérifier les permissions
       var permission = await Geolocator.checkPermission();
+      
+      // 3. Demander la permission si nécessaire et autorisé
       if (permission == LocationPermission.denied && request) {
         permission = await Geolocator.requestPermission();
       }
 
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
+      // 4. Gérer les permissions refusées
+      if (permission == LocationPermission.denied) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Permission GPS refusée.')),
+            const SnackBar(
+              content: Text('Permission GPS refusée.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return false;
+      }
+      
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Permission GPS refusée définitivement. Active-la dans les paramètres.',
+              ),
+              duration: Duration(seconds: 4),
+            ),
           );
         }
         return false;
       }
 
       return true;
+    } catch (e) {
+      debugPrint('⚠️ Erreur vérification permissions GPS: $e');
+      return false;
     } finally {
       _requestingGps = false;
     }
   }
 
+  /// Démarre le stream de mise à jour de la position utilisateur en temps réel.
+  /// 
+  /// Le filtre de distance évite les mises à jour trop fréquentes pour de petits mouvements.
   void _startUserPositionStream() {
     _positionSub?.cancel();
 
     const settings = geo.LocationSettings(
       accuracy: LocationAccuracy.best,
-      distanceFilter: 8,
+      distanceFilter: _gpsDistanceFilter, // Mise à jour tous les 8 mètres
     );
 
     _positionSub = Geolocator.getPositionStream(locationSettings: settings)
-        .listen((pos) {
+        .listen(
+      (pos) {
           final p = Position(pos.longitude, pos.latitude);
           if (!mounted) return;
 
@@ -265,57 +373,90 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
           if (_followUser) {
             _mapboxMap?.flyTo(
-              CameraOptions(center: Point(coordinates: p), zoom: 15.5),
-              MapAnimationOptions(duration: 800, startDelay: 0),
+              CameraOptions(center: Point(coordinates: p), zoom: _userZoom),
+              MapAnimationOptions(
+                duration: _cameraAnimationDuration.inMilliseconds,
+                startDelay: 0,
+              ),
             );
           }
-        });
+        },
+      onError: (error) {
+        debugPrint('⚠️ Erreur stream position: $error');
+        if (mounted) {
+          setState(() => _isGpsReady = false);
+        }
+      },
+      cancelOnError: false, // Continue à écouter même après une erreur
+    );
   }
 
+  /// Notifie que la carte est prête après un court délai.
+  /// 
+  /// Utilisé par splash_wrapper_page pour masquer le splash screen.
   void _checkIfReady() {
     if (_isMapReady && !mapReadyNotifier.value) {
-      Future.delayed(const Duration(milliseconds: 300), () {
-        mapReadyNotifier.value = true;
+      Future.delayed(_mapReadyDelay, () {
+        if (mounted) {
+          mapReadyNotifier.value = true;
+        }
       });
     }
   }
 
+  /// Met à jour le marqueur de position utilisateur sur la carte.
+  /// 
+  /// Supprime l'ancien marqueur et crée un nouveau pour éviter les doublons.
   Future<void> _updateUserMarker() async {
+    // Early returns pour optimiser les performances
+    if (!mounted) return;
+    
     final manager = _userAnnotationManager;
     final pos = _userPos;
     if (manager == null || pos == null) return;
 
     try {
+      // Supprimer tous les marqueurs existants (évite les doublons)
       await manager.deleteAll();
 
+      // Créer le nouveau marqueur à la position actuelle
       final options = PointAnnotationOptions(
         geometry: Point(coordinates: pos),
         iconImage: 'user-location-icon',
-        iconSize: 1.5,
+        iconSize: _userMarkerIconSize,
       );
 
       await manager.create(options);
     } catch (e) {
-      debugPrint('Erreur update user marker: $e');
+      debugPrint('⚠️ Erreur update user marker: $e');
     }
   }
 
+  /// Ajoute les bâtiments 3D à la carte pour un effet de profondeur.
+  /// 
+  /// Les bâtiments apparaissent uniquement au-delà du zoom 14.5 pour optimiser les performances.
   Future<void> _add3dBuildings() async {
+    if (!mounted) return;
+    
     final map = _mapboxMap;
     if (map == null) return;
 
     try {
       final style = map.style;
 
-      final layer =
-          FillExtrusionLayer(id: 'maslive-3d-buildings', sourceId: 'composite')
-            ..sourceLayer = 'building'
-            ..minZoom = 14.5
-            ..fillExtrusionColor = const Color(0xFFD1D5DB).toARGB32()
-            ..fillExtrusionOpacity = 0.7
-            ..fillExtrusionHeight = 20.0
-            ..fillExtrusionBase = 0.0;
+      // Configuration du layer d'extrusion 3D
+      final layer = FillExtrusionLayer(
+        id: 'maslive-3d-buildings',
+        sourceId: 'composite',
+      )
+        ..sourceLayer = 'building'
+        ..minZoom = _minZoom3dBuildings // Visible uniquement en zoom rapproché
+        ..fillExtrusionColor = const Color(0xFFD1D5DB).toARGB32() // Gris clair
+        ..fillExtrusionOpacity = 0.7 // Semi-transparent
+        ..fillExtrusionHeight = 20.0 // Hauteur basée sur les données OSM
+        ..fillExtrusionBase = 0.0; // Pas de surélévation de base
 
+      // Filtre : seulement les bâtiments avec propriété "extrude"
       layer.filter = const [
         '==',
         ['get', 'extrude'],
@@ -324,44 +465,56 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
       await style.addLayer(layer);
     } catch (e) {
-      debugPrint('Erreur 3D buildings: $e');
+      debugPrint('⚠️ Erreur ajout bâtiments 3D: $e');
     }
   }
 
+  /// Callback appelé quand le MapWidget Mapbox est initialisé.
+  /// 
+  /// Configure tous les aspects de la carte : gestes 3D, bâtiments, annotation managers.
   Future<void> _onMapCreated(MapboxMap mapboxMap) async {
+    if (!mounted) return;
     _mapboxMap = mapboxMap;
 
-    // Activer gestes 3D
-    await mapboxMap.gestures.updateSettings(
-      GesturesSettings(
-        pitchEnabled: true,
-        rotateEnabled: true,
-        scrollEnabled: true,
-        pinchToZoomEnabled: true,
-      ),
-    );
+    try {
+      // 1. Activer tous les gestes 3D (rotation, inclinaison, zoom)
+      await mapboxMap.gestures.updateSettings(
+        GesturesSettings(
+          pitchEnabled: true,      // Inclinaison vertical
+          rotateEnabled: true,     // Rotation à deux doigts
+          scrollEnabled: true,     // Pan/déplacement
+          pinchToZoomEnabled: true, // Zoom pinch
+        ),
+      );
 
-    // Ajouter bâtiments 3D
-    await _add3dBuildings();
+      // 2. Ajouter les bâtiments 3D au style
+      await _add3dBuildings();
 
-    // Créer annotation managers
-    _userAnnotationManager = await mapboxMap.annotations
-        .createPointAnnotationManager();
-    _placesAnnotationManager = await mapboxMap.annotations
-        .createPointAnnotationManager();
-    _groupsAnnotationManager = await mapboxMap.annotations
-        .createPointAnnotationManager();
-    _circuitsAnnotationManager = await mapboxMap.annotations
-        .createPolylineAnnotationManager();
+      // 3. Créer les annotation managers pour les marqueurs
+      _userAnnotationManager = await mapboxMap.annotations
+          .createPointAnnotationManager();
+      _placesAnnotationManager = await mapboxMap.annotations
+          .createPointAnnotationManager();
+      _groupsAnnotationManager = await mapboxMap.annotations
+          .createPointAnnotationManager();
+      _circuitsAnnotationManager = await mapboxMap.annotations
+          .createPolylineAnnotationManager();
+    } catch (e) {
+      debugPrint('⚠️ Erreur configuration carte: $e');
+    }
 
-    setState(() {
-      _isMapReady = true;
-      _checkIfReady();
-    });
+    // 4. Marquer la carte comme prête
+    if (mounted) {
+      setState(() {
+        _isMapReady = true;
+        _checkIfReady();
+      });
+    }
 
-    _updateUserMarker();
+    // 5. Afficher le marqueur utilisateur si position disponible
+    await _updateUserMarker();
 
-    // Appliquer la bonne size dès la création (fix iOS/Android)
+    // 6. Appliquer le resize initial si LayoutBuilder a déjà capturé la taille
     if (_lastSize != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scheduleResize(_lastSize!);
@@ -369,41 +522,57 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     }
   }
 
+  /// Démarre ou arrête le tracking GPS de la position utilisateur.
+  /// 
+  /// Le tracking partage la position avec le groupe de l'utilisateur à intervalles réguliers.
   Future<void> _toggleTracking() async {
+    // Arrêter le tracking si déjà actif
     if (_isTracking) {
       _geo.stopTracking();
-      setState(() => _isTracking = false);
+      if (mounted) {
+        setState(() => _isTracking = false);
+      }
       return;
     }
 
+    // Vérifier l'authentification
     final uid = AuthService.instance.currentUser?.uid;
     if (uid == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Connecte-toi pour démarrer le tracking.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Charger le profil utilisateur
+    final profile = await AuthService.instance.getUserProfile(uid);
+    if (!mounted) return;
+    
+    final groupId = profile?.groupId;
+    if (groupId == null || groupId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Connecte-toi pour démarrer le tracking.'),
+          content: Text('Aucun groupId associé à ton profil.'),
+          duration: Duration(seconds: 3),
         ),
       );
       return;
     }
 
-    final profile = await AuthService.instance.getUserProfile(uid);
-    if (!mounted) return;
-    final groupId = profile?.groupId;
-    if (groupId == null || groupId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aucun groupId associé à ton profil.')),
-      );
-      return;
-    }
-
-    final ok = await _geo.startTracking(groupId: groupId, intervalSeconds: 15);
+    final ok = await _geo.startTracking(
+      groupId: groupId,
+      intervalSeconds: _trackingIntervalSeconds,
+    );
     if (!mounted) return;
     setState(() => _isTracking = ok);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          ok ? '✅ Tracking démarré (15s)' : '❌ Permissions GPS refusées',
-        ),
+        content: Text(_trackingStatusMessage),
       ),
     );
   }
@@ -619,65 +788,105 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     );
   }
 
+  /// Charge et applique un projet cartographique depuis Firestore.
+  /// 
+  /// Met à jour le style Mapbox et cadre la vue sur le périmètre du projet.
   Future<void> _loadMapProject(DocumentSnapshot project) async {
-    final styleUrl = project.get('styleUrl') as String?;
-    if (styleUrl != null && styleUrl.isNotEmpty && _mapboxMap != null) {
-      await _mapboxMap!.style.setStyleURI(styleUrl);
-    }
+    if (!mounted || _mapboxMap == null) return;
+    
+    try {
+      // 1. Charger le style personnalisé si disponible
+      final styleUrl = project.get('styleUrl') as String?;
+      if (styleUrl != null && styleUrl.isNotEmpty) {
+        await _mapboxMap!.style.setStyleURI(styleUrl);
+      }
 
-    // Fit bounds sur le périmètre si disponible
-    final perimeter = project.get('perimeter') as List<dynamic>?;
-    if (perimeter != null && perimeter.isNotEmpty && _mapboxMap != null) {
+      // 2. Calculer et appliquer les bounds du périmètre
+      final perimeter = project.get('perimeter') as List<dynamic>?;
+      if (perimeter == null || perimeter.isEmpty) return;
+      
+      // Convertir les coordonnées en Position
       final points = perimeter.map((p) {
         final coord = p as Map<String, dynamic>;
         return Position(coord['lng'] as double, coord['lat'] as double);
       }).toList();
+      
+      // Calculer les bounds avec la méthode dédiée
+      final bounds = _calculateBounds(points);
+      if (bounds == null) return;
+      
+      // Calculer le zoom optimal
+      final latDiff = bounds['maxLat']! - bounds['minLat']!;
+      final lngDiff = bounds['maxLng']! - bounds['minLng']!;
+      final zoom = _calculateOptimalZoom(latDiff, lngDiff);
 
-      if (points.isNotEmpty) {
-        // Calculer les bounds
-        double minLng = points.first.lng.toDouble();
-        double maxLng = points.first.lng.toDouble();
-        double minLat = points.first.lat.toDouble();
-        double maxLat = points.first.lat.toDouble();
-
-        for (final pt in points) {
-          final lng = pt.lng.toDouble();
-          final lat = pt.lat.toDouble();
-          if (lng < minLng) minLng = lng;
-          if (lng > maxLng) maxLng = lng;
-          if (lat < minLat) minLat = lat;
-          if (lat > maxLat) maxLat = lat;
-        }
-
-        // Centrer sur le milieu du périmètre
-        final centerLng = (minLng + maxLng) / 2;
-        final centerLat = (minLat + maxLat) / 2;
-
-        // Calculer le zoom basé sur la taille du périmètre
-        final latDiff = maxLat - minLat;
-        final lngDiff = maxLng - minLng;
-        final maxDiff = latDiff > lngDiff ? latDiff : lngDiff;
-        
-        // Zoom approximatif : plus grand est maxDiff, plus petit est le zoom
-        final zoom = maxDiff > 0.1 ? 10.0 : (maxDiff > 0.01 ? 12.0 : 14.0);
-
-        await _mapboxMap!.easeTo(
-          CameraOptions(
-            center: Point(coordinates: Position(centerLng, centerLat)),
-            zoom: zoom,
-            pitch: 45.0,
+      // Animer la caméra vers le centre du projet
+      await _mapboxMap!.easeTo(
+        CameraOptions(
+          center: Point(
+            coordinates: Position(
+              bounds['centerLng']!,
+              bounds['centerLat']!,
+            ),
           ),
-          MapAnimationOptions(duration: 1000, startDelay: 0),
-        );
-      }
+          zoom: zoom,
+          pitch: _defaultPitch,
+        ),
+        MapAnimationOptions(
+          duration: _projectLoadDuration.inMilliseconds,
+          startDelay: 0,
+        ),
+      );
+    } catch (e) {
+      debugPrint('⚠️ Erreur chargement projet: $e');
     }
   }
 
+  /// Calcule les limites géographiques (bounds) à partir d'une liste de positions.
+  /// 
+  /// Retourne null si la liste est vide.
+  Map<String, double>? _calculateBounds(List<Position> points) {
+    if (points.isEmpty) return null;
+    
+    double minLng = points.first.lng.toDouble();
+    double maxLng = points.first.lng.toDouble();
+    double minLat = points.first.lat.toDouble();
+    double maxLat = points.first.lat.toDouble();
+
+    for (final pt in points) {
+      final lng = pt.lng.toDouble();
+      final lat = pt.lat.toDouble();
+      if (lng < minLng) minLng = lng;
+      if (lng > maxLng) maxLng = lng;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+    }
+
+    return {
+      'minLng': minLng,
+      'maxLng': maxLng,
+      'minLat': minLat,
+      'maxLat': maxLat,
+      'centerLng': (minLng + maxLng) / 2,
+      'centerLat': (minLat + maxLat) / 2,
+    };
+  }
+  
+  /// Calcule le niveau de zoom optimal basé sur la taille du périmètre.
+  double _calculateOptimalZoom(double latDiff, double lngDiff) {
+    final maxDiff = latDiff > lngDiff ? latDiff : lngDiff;
+    
+    if (maxDiff > _zoomThresholdLarge) return _zoomLevelLarge;
+    if (maxDiff > _zoomThresholdMedium) return _zoomLevelMedium;
+    return _zoomLevelSmall;
+  }
+
+  /// Ferme automatiquement le menu de navigation après un délai.
   void _closeNavWithDelay() {
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    Future.delayed(_navCloseDelay, () {
       if (mounted && _showActionsMenu) {
         _menuAnimController.reverse();
-        Future.delayed(const Duration(milliseconds: 300), () {
+        Future.delayed(_menuAnimationDuration, () {
           if (mounted && _showActionsMenu) {
             setState(() => _showActionsMenu = false);
           }
@@ -688,11 +897,14 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   @override
   Widget build(BuildContext context) {
+    // LayoutBuilder capture les changements de taille du widget parent.
+    // Essentiel pour détecter : resize fenêtre, rotation, split-screen, clavier
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = ui.Size(constraints.maxWidth, constraints.maxHeight);
         
-        // Scheduler le resize avec debounce (fix iOS/Android)
+        // PostFrameCallback garantit que le resize est appelé APRÈS
+        // que le layout soit terminé, évitant les conflits avec setState
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _scheduleResize(size);
         });
@@ -763,8 +975,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                     styleUri: 'mapbox://styles/mapbox/streets-v12',
                     cameraOptions: CameraOptions(
                       center: Point(coordinates: _userPos ?? _fallbackCenter),
-                      zoom: _userPos != null ? 15.5 : 13.0,
-                      pitch: 45.0,
+                      zoom: _userPos != null ? _userZoom : _defaultZoom,
+                      pitch: _defaultPitch,
                       bearing: 0.0,
                     ),
                     onMapCreated: _onMapCreated,
@@ -1084,7 +1296,9 @@ class _TrackingPill extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  isTracking ? 'Actif (15s)' : 'Inactif',
+                  widget.isTracking 
+                      ? 'Actif (${_HomeMapPage3DState._trackingIntervalSeconds}s)' 
+                      : 'Inactif',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: MasliveTheme.textSecondary,
                     fontWeight: FontWeight.w700,
