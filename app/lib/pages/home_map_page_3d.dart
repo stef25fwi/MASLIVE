@@ -965,21 +965,25 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         extendBodyBehindAppBar: true, // IMPORTANT : la carte passera sous la barre d'état
         body: Stack(
           children: [
-            // Carte Mapbox 3D
+            // Carte Mapbox 3D - Occupe tout l'écran
             Positioned.fill(
               child: RepaintBoundary( // Optimise les performances de rendu
-                child: Container(
-                  color: Colors.black, // Couleur de fond pendant le chargement
-                  child: MapWidget(
-                    key: ValueKey('map_${size.width.toInt()}x${size.height.toInt()}_$_mapTick'),
-                    styleUri: 'mapbox://styles/mapbox/streets-v12',
-                    cameraOptions: CameraOptions(
-                      center: Point(coordinates: _userPos ?? _fallbackCenter),
-                      zoom: _userPos != null ? _userZoom : _defaultZoom,
-                      pitch: _defaultPitch,
-                      bearing: 0.0,
+                child: SizedBox(
+                  width: size.width,
+                  height: size.height,
+                  child: Container(
+                    color: Colors.black, // Couleur de fond pendant le chargement
+                    child: MapWidget(
+                      key: ValueKey('map_${size.width.toInt()}x${size.height.toInt()}_$_mapTick'),
+                      styleUri: 'mapbox://styles/mapbox/streets-v12',
+                      cameraOptions: CameraOptions(
+                        center: Point(coordinates: _userPos ?? _fallbackCenter),
+                        zoom: _userPos != null ? _userZoom : _defaultZoom,
+                        pitch: _defaultPitch,
+                        bearing: 0.0,
+                      ),
+                      onMapCreated: _onMapCreated,
                     ),
-                    onMapCreated: _onMapCreated,
                   ),
                 ),
               ),
