@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart' hide Visibility;
 import 'package:flutter/services.dart';
@@ -42,7 +43,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   // Fix universel rebuild + resize natif
   int _mapTick = 0;
-  Size? _lastSize;
+  ui.Size? _lastSize;
   Timer? _debounce;
 
   StreamSubscription<geo.Position>? _positionSub;
@@ -150,26 +151,19 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     if (mounted) setState(() => _mapTick++);
   }
 
-  void _scheduleResize(Size size) {
+  void _scheduleResize(ui.Size size) {
     if (_lastSize == size) return;
     _lastSize = size;
 
     // Debounce pour éviter 10 resizes pendant une animation/layout
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 80), () async {
-      // 1) Update renderer size (fix principal iOS/Android)
-      final map = _mapboxMap;
-      if (map != null) {
-        try {
-          await map.setMapOptions(MapOptions(size: size));
-          debugPrint('✅ Map resized: ${size.width.toInt()}x${size.height.toInt()}');
-        } catch (e) {
-          debugPrint('⚠️ Resize error: $e');
-        }
+    _debounce = Timer(const Duration(milliseconds: 80), () {
+      // La carte Mapbox native se redimensionne automatiquement
+      // Forcer un rebuild pour mettre à jour le ValueKey
+      if (mounted) {
+        setState(() => _mapTick++);
+        debugPrint('🔄 Map layout updated: ${size.width.toInt()}x${size.height.toInt()}');
       }
-
-      // 2) Optionnel : forcer un rebuild si nécessaire
-      if (mounted) setState(() => _mapTick++);
     });
   }
 
@@ -697,7 +691,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final size = Size(constraints.maxWidth, constraints.maxHeight);
+        final size = ui.Size(constraints.maxWidth, constraints.maxHeight);
         
         // Scheduler le resize avec debounce (fix iOS/Android)
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -709,7 +703,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     );
   }
 
-  Widget _buildContent(BuildContext context, Size size) {
+  Widget _buildContent(BuildContext context, ui.Size size) {
     if (!_useMapboxTiles) {
       return Scaffold(
         appBar: AppBar(title: const Text('Carte 3D')),

@@ -33,6 +33,18 @@
   <!-- Mapbox GL JS v2.15.0 -->
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  
+  <script>
+    // Token Mapbox - OPTIONNEL : passe le via --dart-define=MAPBOX_ACCESS_TOKEN=ton_token
+    // Laisse vide ou "" pour forcer l'utilisation de --dart-define uniquement
+    window.__MAPBOX_TOKEN__ = "";
+
+    // Style par défaut (ton style "box")
+    window.__MAPBOX_STYLE__ = "mapbox://styles/mapbox/streets-v12";
+  </script>
+
+  <!-- Bridge JS pour Flutter -->
+  <script src="mapbox_bridge.js"></script>
   <script src="mapbox_circuit.js"></script>
   
   <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
