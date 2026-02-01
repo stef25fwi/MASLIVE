@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'splash_screen.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'home_map_page_web.dart';
-import 'home_map_page_3d.dart';
+import 'mapbox_web_map_page.dart';
 
 /// Notificateur global pour savoir quand la carte est prête
 final ValueNotifier<bool> mapReadyNotifier = ValueNotifier<bool>(false);
@@ -88,7 +86,7 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
             AnimatedOpacity(
               duration: const Duration(milliseconds: 400),
               opacity: _mapReady ? 1.0 : 0.0,
-              child: (kIsWeb ? const HomeMapPageWeb() : const HomeMapPage3D()),
+              child: const MapboxWebMapPage(),
             ),
 
           // Le splashscreen reste visible tant que la carte n'est pas prête

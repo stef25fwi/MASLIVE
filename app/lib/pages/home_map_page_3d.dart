@@ -1074,7 +1074,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                 height: 60,
                 borderRadius: BorderRadius.zero,
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                backgroundColor: Colors.white.withValues(alpha: 0.65),
+                backgroundColor: Colors.transparent,
                 child: Row(
                   children: [
                     StreamBuilder<User?>(

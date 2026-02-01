@@ -125,9 +125,9 @@ class MasLiveApp extends StatelessWidget {
             routes: {
               '/splash': (_) => const SplashWrapperPage(),
               '/router': (_) => const RoleRouterPage(),
-              '/': (_) => kIsWeb ? const MapboxWebMapPage() : const HomeMapPage3D(),
+              '/': (_) => const MapboxWebMapPage(),
               // '/map-legacy': (_) => const HomeMapPageV3(), // 🔄 Moved to legacy
-              '/map-3d': (_) => const HomeMapPage3D(), // Carte 3D Mapbox Native
+              '/map-3d': (_) => const MapboxWebMapPage(), // Mapbox GL JS via HtmlElementView
               '/map-web': (_) =>
                   const HomeMapPageWeb(), // 🌐 Carte Web alternative (ancienne)
               // '/mapbox-google-light': (_) => const GoogleLightMapPage(), // Moved to legacy
