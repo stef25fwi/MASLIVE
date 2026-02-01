@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/maslive_bottom_nav_glass.dart';
-import 'home_map_page.dart';
+import 'home_map_page_3d.dart';
 import 'media_galleries_page.dart';
 import 'group_profile_page.dart';
 import 'search_page.dart';
@@ -23,7 +23,7 @@ class _AppShellState extends State<AppShell> {
 
     final pages =
         <Widget>[
-              const HomeMapPage(),
+              const HomeMapPage3D(),
               const SearchPage(),
               MediaGalleriesPage(groupId: widget.groupId),
               GroupProfilePage(groupId: widget.groupId),

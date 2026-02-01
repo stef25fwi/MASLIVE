@@ -10,7 +10,6 @@ import 'services/localization_service.dart' show LocalizationService;
 import 'services/language_service.dart';
 import 'widgets/localized_app.dart';
 import 'pages/splash_wrapper_page.dart';
-import 'pages/home_map_page_v3.dart';
 import 'pages/home_map_page_3d.dart';
 import 'pages/home_map_page_web.dart';
 import 'pages/group_profile_page.dart';
@@ -54,7 +53,6 @@ import 'services/premium_service.dart';
 import 'services/mapbox_token_service.dart';
 import 'ui/theme/maslive_theme.dart';
 import 'ui/widgets/honeycomb_background.dart';
-import 'ui/google_light_map_page_entry.dart';
 import 'l10n/app_localizations.dart';
 import 'pages/circuit_editor_workflow_page.dart';
 
@@ -127,11 +125,11 @@ class MasLiveApp extends StatelessWidget {
               '/splash': (_) => const SplashWrapperPage(),
               '/router': (_) => const RoleRouterPage(),
               '/': (_) => kIsWeb ? const HomeMapPageWeb() : const HomeMapPage3D(),
-              '/map-legacy': (_) => const HomeMapPageV3(), // 🔄 Fallback flutter_map+OSM
+              // '/map-legacy': (_) => const HomeMapPageV3(), // 🔄 Moved to legacy
               '/map-3d': (_) => const HomeMapPage3D(), // Carte 3D Mapbox Native
               '/map-web': (_) =>
                   const HomeMapPageWeb(), // 🌐 Carte Web alternative
-              '/mapbox-google-light': (_) => const GoogleLightMapPage(),
+              // '/mapbox-google-light': (_) => const GoogleLightMapPage(), // Moved to legacy
               '/mapbox-web': (_) => const MapboxWebMapPage(),
               '/account-ui': (_) => const AccountUiPage(),
               '/shop-ui': (_) => const ShopPixelPerfectPage(),
