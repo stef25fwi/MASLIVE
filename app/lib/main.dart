@@ -125,13 +125,13 @@ class MasLiveApp extends StatelessWidget {
             routes: {
               '/splash': (_) => const SplashWrapperPage(),
               '/router': (_) => const RoleRouterPage(),
-              '/': (_) => kIsWeb ? const HomeMapPageWeb() : const HomeMapPage3D(),
+              '/': (_) => kIsWeb ? const MapboxWebMapPage() : const HomeMapPage3D(),
               // '/map-legacy': (_) => const HomeMapPageV3(), // 🔄 Moved to legacy
               '/map-3d': (_) => const HomeMapPage3D(), // Carte 3D Mapbox Native
               '/map-web': (_) =>
-                  const HomeMapPageWeb(), // 🌐 Carte Web alternative
+                  const HomeMapPageWeb(), // 🌐 Carte Web alternative (ancienne)
               // '/mapbox-google-light': (_) => const GoogleLightMapPage(), // Moved to legacy
-              '/mapbox-web': (_) => const MapboxWebMapPage(),
+              '/mapbox-web': (_) => const MapboxWebMapPage(), // Mapbox GL JS via HtmlElementView
               '/account-ui': (_) => const AccountUiPage(),
               '/shop-ui': (_) => const ShopPixelPerfectPage(),
               '/group-ui': (_) => const GroupProfilePage(groupId: 'demo'),
