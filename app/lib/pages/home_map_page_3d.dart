@@ -690,25 +690,35 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
+        statusBarColor: Colors.transparent, // Rend le fond transparent
+        statusBarIconBrightness: Brightness.dark, // Icônes noires
         statusBarBrightness: Brightness.light,
+        systemStatusBarContrastEnforced: false, // Désactive le filtre automatique
+        systemNavigationBarColor: Colors.transparent, // Navigation transparente
+        systemNavigationBarContrastEnforced: false, // Désactive le filtre navigation
       ),
       child: Scaffold(
+        extendBody: true, // Permet à la carte de passer SOUS la barre de navigation
+        extendBodyBehindAppBar: true, // IMPORTANT : la carte passera sous la barre d'état
         body: Stack(
           children: [
             // Carte Mapbox 3D
             Positioned.fill(
-              child: MapWidget(
-                key: const ValueKey('mapbox-3d-map'),
-                styleUri: 'mapbox://styles/mapbox/streets-v12',
-                cameraOptions: CameraOptions(
-                  center: Point(coordinates: _userPos ?? _fallbackCenter),
-                  zoom: _userPos != null ? 15.5 : 13.0,
-                  pitch: 45.0, // Vue 3D
-                  bearing: 0.0,
+              child: RepaintBoundary( // Optimise les performances de rendu
+                child: Container(
+                  color: Colors.black, // Couleur de fond pendant le chargement
+                  child: MapWidget(
+                    key: const ValueKey('mapbox-3d-map'),
+                    styleUri: 'mapbox://styles/mapbox/streets-v12',
+                    cameraOptions: CameraOptions(
+                      center: Point(coordinates: _userPos ?? _fallbackCenter),
+                      zoom: _userPos != null ? 15.5 : 13.0,
+                      pitch: 45.0,
+                      bearing: 0.0,
+                    ),
+                    onMapCreated: _onMapCreated,
+                  ),
                 ),
-                onMapCreated: _onMapCreated,
               ),
             ),
 
