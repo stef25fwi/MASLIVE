@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../services/mapbox_token_service.dart';
 import '../ui/widgets/mapbox_web_view_platform.dart';
+import 'splash_wrapper_page.dart' show mapReadyNotifier;
 
 /// Page affichant Mapbox GL JS sur Web uniquement
 class MapboxWebMapPage extends StatefulWidget {
@@ -15,11 +16,24 @@ class _MapboxWebMapPageState extends State<MapboxWebMapPage>
     with WidgetsBindingObserver {
   Size? _lastWebMapSize;
   int _webMapRebuildTick = 0;
+  bool _isMapReady = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    
+    // Notifier que la carte est prête après un court délai
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      setState(() => _isMapReady = true);
+      
+      // Notifier le splash wrapper que la carte est chargée
+      if (!mapReadyNotifier.value) {
+        mapReadyNotifier.value = true;
+        debugPrint('✅ MapboxWebMapPage: Carte prête, notification splash');
+      }
+    });
   }
 
   @override
