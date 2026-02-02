@@ -669,7 +669,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
+        statusBarColor: Colors.white,
         statusBarIconBrightness: Brightness.dark,
         statusBarBrightness: Brightness.light,
         systemStatusBarContrastEnforced: false,
@@ -682,6 +682,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         body: LayoutBuilder(
           builder: (context, constraints) {
             final size = ui.Size(constraints.maxWidth, constraints.maxHeight);
+            final topInset = MediaQuery.of(context).padding.top;
 
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _scheduleResize(size);
@@ -689,6 +690,16 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
             return Stack(
               children: [
+                // Bandeau blanc derrière la status bar
+                if (topInset > 0)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: topInset,
+                    child: const ColoredBox(color: Colors.white),
+                  ),
+
                 // Carte Mapbox en plein écran
                 Positioned.fill(
                   child: RepaintBoundary(
