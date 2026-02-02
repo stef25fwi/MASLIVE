@@ -154,9 +154,14 @@ flutter build web --dart-define=MAPBOX_ACCESS_TOKEN="pk_test_token"
 
 ## 📱 Pages Utilisant Mapbox
 
-### POI Assistant Page
+### POI Assistant Page (Legacy)
 - Fichier: `app/lib/admin/poi_assistant_page.dart`
-- Fonctionnalité: Gestion des POIs sur carte
+- Fonctionnalité: Ancien assistant POI
+- Statut: ⚠️ Déprécié (remplacé par le Wizard MarketMap)
+
+### POI Wizard MarketMap (Actuel)
+- Fichier: `app/lib/admin/poi_marketmap_wizard_page.dart`
+- Fonctionnalité: Wizard POIs MarketMap
 - Statut: ✅ Production Ready
 
 ### Circuit Assistant (Mapbox Wizard)

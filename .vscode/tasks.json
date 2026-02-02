@@ -30,6 +30,29 @@
       "problemMatcher": []
     },
     {
+      "label": "MASLIVE: Deploy Firestore Rules",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && firebase deploy --only firestore:rules",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Build Web & Deploy Hosting + Firestore Rules",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && flutter pub get && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -n \"$TOKEN\" ]; then flutter build web --release --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\"; else flutter build web --release; fi && cd .. && firebase deploy --only hosting,firestore:rules",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Deploy Storage Rules",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && firebase deploy --only storage",
@@ -124,6 +147,106 @@
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git restore app/lib/pages/home_map_page.dart",
       "problemMatcher": []
+    },
+    {
+      "label": "MASLIVE: Setup Flutter Web devices",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/scripts/setup_flutter_web_device.sh",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Install Chromium (for Flutter web)",
+      "type": "shell",
+      "command": "sudo apt-get update && (sudo apt-get install -y chromium || sudo apt-get install -y chromium-browser)",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Flutter devices",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && flutter devices",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Flutter devices (with Chromium)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && export CHROME_EXECUTABLE=\"$(command -v chromium || command -v google-chrome || command -v google-chrome-stable || command -v chromium-browser || true)\" && echo \"CHROME_EXECUTABLE=$CHROME_EXECUTABLE\" && flutter devices",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Diagnose Chromium binaries",
+      "type": "shell",
+      "command": "set -euo pipefail; echo 'command -v chromium:'; command -v chromium || true; echo 'command -v chromium-browser:'; command -v chromium-browser || true; echo 'command -v google-chrome:'; command -v google-chrome || true; echo 'ls -l (/usr/bin/chromium*):'; ls -l /usr/bin/chromium /usr/bin/chromium-browser 2>/dev/null || true; echo 'chromium --version:'; chromium --version 2>/dev/null || true; echo 'chromium-browser --version:'; chromium-browser --version 2>/dev/null || true",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Flutter enable web",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && flutter config --enable-web && flutter devices",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Flutter run web-server",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && flutter run -d web-server --web-hostname=0.0.0.0 --web-port=50505",
+      "problemMatcher": [],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Flutter run chrome",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && export CHROME_EXECUTABLE=\"$(command -v chromium || command -v google-chrome || command -v google-chrome-stable || command -v chromium-browser || true)\" && echo \"CHROME_EXECUTABLE=$CHROME_EXECUTABLE\" && flutter run -d chrome",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Flutter doctor (verbose)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && flutter doctor -v",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
     }
   ]
 }

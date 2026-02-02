@@ -1,5 +1,8 @@
 # ✅ POI Assistant - Livraison Complète
 
+> ⚠️ **Legacy** : cet assistant est remplacé par le Wizard MarketMap.
+> Utiliser : `app/lib/admin/poi_marketmap_wizard_page.dart`.
+
 ## 🎉 Résumé de la Livraison
 
 L'**Assistant POI** (Points of Interest) est une page **step-by-step complète et fonctionnelle** permettant aux administrateurs de gérer les POIs de manière guidée et professionnelle.

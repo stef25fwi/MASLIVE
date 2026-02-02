@@ -185,8 +185,8 @@ if (_currentUser?.isSuperAdmin == true)
 
 | Page | Fichier | Rôle |
 |------|---------|------|
-| **AdminCircuitsPage** | `admin_circuits_page.dart` | CRUD circuits |
-| **AdminPOIsSimplePage** | `admin_pois_simple_page.dart` | Gestion POIs |
+| **AdminCircuitsPage** | `admin_circuits_page.dart` | Legacy (lecture seule) — création via Wizard |
+| **AdminPOIsSimplePage** | `admin_pois_simple_page.dart` | Legacy (lecture seule) — création via Wizard |
 | **AdminTrackingPage** | `admin_tracking_page.dart` | Tracking live |
 | **AdminProductsPage** | `admin_products_page.dart` | Gestion catalogue |
 | **AdminAnalyticsPage** | `admin_analytics_page.dart` | Statistiques |

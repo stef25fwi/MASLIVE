@@ -3,7 +3,10 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/market_country.dart';
+import '../models/market_circuit.dart';
 import '../models/market_event.dart';
+import '../models/market_layer.dart';
+import '../models/market_poi.dart';
 
 class CreateCircuitResult {
   const CreateCircuitResult({
@@ -51,6 +54,106 @@ class MarketMapService {
               .map((doc) => MarketEvent.fromDoc(doc, countryId: countryId))
               .toList(),
         );
+  }
+
+  Stream<List<MarketCircuit>> watchCircuits({
+    required String countryId,
+    required String eventId,
+  }) {
+    return _countriesCol
+        .doc(countryId)
+        .collection('events')
+        .doc(eventId)
+        .collection('circuits')
+        .orderBy('updatedAt', descending: true)
+        .orderBy('name')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => MarketCircuit.fromDoc(doc))
+              .toList(),
+        );
+  }
+
+  Stream<List<MarketLayer>> watchLayers({
+    required String countryId,
+    required String eventId,
+    required String circuitId,
+  }) {
+    return _countriesCol
+        .doc(countryId)
+        .collection('events')
+        .doc(eventId)
+        .collection('circuits')
+        .doc(circuitId)
+        .collection('layers')
+        .orderBy('order')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => MarketLayer.fromDoc(doc))
+              .toList(),
+        );
+  }
+
+  DocumentReference<Map<String, dynamic>> countryRef(String countryId) {
+    return _countriesCol.doc(countryId);
+  }
+
+  DocumentReference<Map<String, dynamic>> eventRef({
+    required String countryId,
+    required String eventId,
+  }) {
+    return countryRef(countryId).collection('events').doc(eventId);
+  }
+
+  DocumentReference<Map<String, dynamic>> circuitRef({
+    required String countryId,
+    required String eventId,
+    required String circuitId,
+  }) {
+    return eventRef(countryId: countryId, eventId: eventId)
+        .collection('circuits')
+        .doc(circuitId);
+  }
+
+  CollectionReference<Map<String, dynamic>> circuitPoisCol({
+    required String countryId,
+    required String eventId,
+    required String circuitId,
+  }) {
+    return circuitRef(countryId: countryId, eventId: eventId, circuitId: circuitId)
+        .collection('pois');
+  }
+
+  /// Stream des POIs visibles pour un circuit.
+  ///
+  /// - `layerIds` vide/null => toutes les couches
+  /// - `layerIds` <= 10 => filtre Firestore via whereIn
+  /// - `layerIds` > 10 => fallback (filtre client-side) pour éviter la limite whereIn
+  Stream<List<MarketPoi>> watchVisiblePois({
+    required String countryId,
+    required String eventId,
+    required String circuitId,
+    Set<String>? layerIds,
+  }) {
+    final col = circuitPoisCol(countryId: countryId, eventId: eventId, circuitId: circuitId);
+
+    final normalized = (layerIds ?? const <String>{}).where((e) => e.trim().isNotEmpty).toSet();
+
+    Query<Map<String, dynamic>> query = col.where('isVisible', isEqualTo: true);
+
+    if (normalized.isNotEmpty && normalized.length <= 10) {
+      query = query.where('layerId', whereIn: normalized.toList());
+    }
+
+    return query.snapshots().map((snap) {
+      final pois = snap.docs.map(MarketPoi.fromDoc).toList();
+      if (normalized.isNotEmpty && normalized.length > 10) {
+        return pois.where((p) => normalized.contains(p.layerId)).toList();
+      }
+      return pois;
+    });
   }
 
   Future<CreateCircuitResult> createCircuitStep1({

@@ -8,6 +8,7 @@ import 'dart:js' as js;
 import 'package:flutter/material.dart';
 
 import 'mapbox_web_view_web.dart';
+import '../map/maslive_map_controller.dart';
 
 /// Widget Mapbox GL JS pour Flutter Web via HtmlElementView.
 class MapboxWebView extends StatefulWidget {
@@ -25,6 +26,10 @@ class MapboxWebView extends StatefulWidget {
   final VoidCallback? onMapReady;
   final List<({double lng, double lat})> polyline;
 
+  /// Marqueurs additionnels (ex: POIs) à afficher sur la carte.
+  /// Utilise la convention Mapbox (lng, lat).
+  final List<MapMarker> markers;
+
   const MapboxWebView({
     super.key,
     required this.accessToken,
@@ -40,6 +45,7 @@ class MapboxWebView extends StatefulWidget {
     this.onTapLngLat,
     this.onMapReady,
     this.polyline = const [],
+    this.markers = const [],
   });
 
   @override
@@ -52,6 +58,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
   html.DivElement? _container;
   js.JsObject? _map;
   js.JsObject? _userMarker;
+  final List<js.JsObject> _markers = [];
   StreamSubscription<html.MessageEvent>? _messageSub;
   StreamSubscription<html.Event>? _resizeSub;
   String? _error;
@@ -100,6 +107,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
       _initMapbox(_container!);
     }
     _updateUserMarker();
+    _updateMarkers();
     _setPolylineGeoJson();
   }
 
@@ -221,6 +229,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
         }
 
         _updateUserMarker();
+        _updateMarkers();
         _setPolylineGeoJson();
 
         if (!_didNotifyReady) {
@@ -241,6 +250,64 @@ class _MapboxWebViewState extends State<MapboxWebView> {
         }
       },
     ]);
+  }
+
+  void _updateMarkers() {
+    final map = _map;
+    if (map == null) return;
+
+    try {
+      for (final m in _markers) {
+        m.callMethod('remove');
+      }
+      _markers.clear();
+    } catch (_) {
+      // ignore
+    }
+
+    final list = widget.markers;
+    if (list.isEmpty) return;
+
+    final mapboxglObj = js.context['mapboxgl'];
+    if (mapboxglObj == null) return;
+
+    for (final m in list) {
+      try {
+        final markerEl = html.DivElement()
+          ..style.width = '${20 * m.size}px'
+          ..style.height = '${20 * m.size}px'
+          ..style.backgroundColor =
+              '#${m.color.value.toRadixString(16).padLeft(8, '0').substring(2)}'
+          ..style.borderRadius = '50%'
+          ..style.border = '2px solid white'
+          ..style.boxShadow = '0 2px 10px rgba(0,0,0,0.25)';
+
+        final marker = js.JsObject(mapboxglObj['Marker'], [
+          js.JsObject.jsify({'element': markerEl})
+        ]);
+        marker.callMethod('setLngLat', [
+          js.JsObject.jsify([m.lng, m.lat])
+        ]);
+
+        final label = m.label;
+        if (label != null && label.trim().isNotEmpty) {
+          try {
+            final popup = js.JsObject(mapboxglObj['Popup'], [
+              js.JsObject.jsify({'offset': 18})
+            ]);
+            popup.callMethod('setText', [label]);
+            marker.callMethod('setPopup', [popup]);
+          } catch (_) {
+            // ignore
+          }
+        }
+
+        marker.callMethod('addTo', [map]);
+        _markers.add(marker);
+      } catch (_) {
+        // ignore
+      }
+    }
   }
 
   void _updateUserMarker() {
@@ -391,6 +458,14 @@ class _MapboxWebViewState extends State<MapboxWebView> {
     _resizeSub?.cancel();
     try {
       _userMarker?.callMethod('remove');
+    } catch (_) {
+      // ignore
+    }
+    try {
+      for (final m in _markers) {
+        m.callMethod('remove');
+      }
+      _markers.clear();
     } catch (_) {
       // ignore
     }

@@ -18,8 +18,12 @@ import '../ui/widgets/gradient_icon_button.dart';
 import '../ui/widgets/maslive_card.dart';
 import '../ui/widgets/maslive_profile_icon.dart';
 import '../ui/widgets/mapbox_web_view_platform.dart';
+import '../ui/widgets/marketmap_poi_selector_sheet.dart';
+import '../ui/map/maslive_map_controller.dart' show MapMarker;
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
 import '../l10n/app_localizations.dart' as l10n;
+import '../services/market_map_service.dart';
+import '../models/market_poi.dart';
 
 // Menu vertical: modes/actions (pour refléter la sélection UI)
 // Note: seul le tracking et les projets sont pleinement câblés ici.
@@ -66,11 +70,17 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   String? _userGroupId;
 
   // Projets cartographiques
-  String? _selectedMapProjectId;
   String _styleUrl = 'mapbox://styles/mapbox/streets-v12';
   double? _projectCenterLat;
   double? _projectCenterLng;
   double? _projectZoom;
+
+  // MarketMap POIs (wiring wizard)
+  final MarketMapService _marketMapService = MarketMapService();
+  MarketMapPoiSelection _marketPoiSelection = const MarketMapPoiSelection.disabled();
+  StreamSubscription? _marketPoisSub;
+  List<MarketPoi> _marketPois = const <MarketPoi>[];
+  List<MapMarker> _marketPoiMarkers = const <MapMarker>[];
 
   @override
   void initState() {
@@ -115,11 +125,127 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   @override
   void dispose() {
+    _marketPoisSub?.cancel();
     _resizeDebounce?.cancel();
     _positionSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _menuAnimController.dispose();
     super.dispose();
+  }
+
+  Color _poiColorForType(String? type) {
+    switch (type) {
+      case 'food':
+        return const Color(0xFFFF9800);
+      case 'visit':
+        return const Color(0xFF9B6BFF);
+      case 'wc':
+        return const Color(0xFF2196F3);
+      case 'parking':
+        return const Color(0xFF4CAF50);
+      case 'assistance':
+        return const Color(0xFFFFC107);
+      case 'market':
+      default:
+        return const Color(0xFFE91E63);
+    }
+  }
+
+  Future<void> _openMarketPoiSelector() async {
+    final selection = await showMarketMapPoiSelectorSheet(
+      context,
+      service: _marketMapService,
+      initial: _marketPoiSelection,
+    );
+    if (selection == null) return;
+
+    if (!mounted) return;
+    setState(() {
+      _marketPoiSelection = selection;
+    });
+
+    await _applyMarketPoiSelection(selection);
+  }
+
+  Future<void> _applyMarketPoiSelection(MarketMapPoiSelection selection) async {
+    await _marketPoisSub?.cancel();
+    _marketPoisSub = null;
+
+    if (!selection.enabled || selection.country == null || selection.event == null || selection.circuit == null) {
+      if (!mounted) return;
+      setState(() {
+        _marketPois = const <MarketPoi>[];
+        _marketPoiMarkers = const <MapMarker>[];
+      });
+      return;
+    }
+
+    final circuit = selection.circuit!;
+    final center = circuit.center;
+
+    // Recentrer la carte sur le circuit choisi (via rebuild key)
+    setState(() {
+      _projectCenterLat = center['lat'];
+      _projectCenterLng = center['lng'];
+      _projectZoom = circuit.initialZoom;
+      if (circuit.styleUrl != null && circuit.styleUrl!.trim().isNotEmpty) {
+        _styleUrl = circuit.styleUrl!.trim();
+      }
+      _mapRebuildTick++;
+    });
+
+    _marketPoisSub = _marketMapService
+        .watchVisiblePois(
+          countryId: selection.country!.id,
+          eventId: selection.event!.id,
+          circuitId: selection.circuit!.id,
+          layerIds: selection.layerIds,
+        )
+        .listen((pois) {
+      if (!mounted) return;
+      setState(() => _marketPois = pois);
+      _refreshMarketPoiMarkers();
+    });
+  }
+
+  String? _actionToPoiType(_MapAction? action) {
+    switch (action) {
+      case _MapAction.visiter:
+        return 'visit';
+      case _MapAction.food:
+        return 'food';
+      case _MapAction.assistance:
+        return 'assistance';
+      case _MapAction.parking:
+        return 'parking';
+      case _MapAction.wc:
+        return 'wc';
+      case null:
+        return null;
+    }
+  }
+
+  void _refreshMarketPoiMarkers() {
+    if (!mounted) return;
+    final filterType = _actionToPoiType(_selectedAction);
+    final markers = _marketPois
+        .where((p) => p.lat != 0.0 && p.lng != 0.0)
+        .where((p) => filterType == null || p.type == filterType)
+        .map(
+          (p) => MapMarker(
+            id: 'marketpoi:${p.id}',
+            lng: p.lng,
+            lat: p.lat,
+            label: p.name,
+            color: _poiColorForType(p.type),
+            size: 1.0,
+          ),
+        )
+        .toList();
+
+    setState(() {
+      _marketPoiMarkers = markers;
+    });
   }
 
   Future<void> _loadUserGroupId() async {
@@ -222,6 +348,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   void _selectAction(_MapAction action, String label) {
     setState(() => _selectedAction = action);
+    _refreshMarketPoiMarkers();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Mode "$label" sélectionné.'),
@@ -280,212 +407,21 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     );
   }
 
-  void _showMapProjectsSelector() {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.5,
-        minChildSize: 0.3,
-        maxChildSize: 0.9,
-        builder: (_, controller) => Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF1A1A2E),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text(
-                  'Projets cartographiques',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('map_projects')
-                      .where('status', isEqualTo: 'published')
-                      .where('isVisible', isEqualTo: true)
-                      .orderBy('updatedAt', descending: true)
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Color(0xFF9B6BFF),
-                          ),
-                        ),
-                      );
-                    }
-
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return const Center(
-                        child: Text(
-                          'Aucun projet disponible',
-                          style: TextStyle(color: Colors.white70),
-                        ),
-                      );
-                    }
-
-                    final now = Timestamp.now();
-                    final filteredDocs = snapshot.data!.docs.where((doc) {
-                      final publishAt = doc.get('publishAt') as Timestamp?;
-                      return publishAt == null || publishAt.compareTo(now) <= 0;
-                    }).toList();
-
-                    if (filteredDocs.isEmpty) {
-                      return const Center(
-                        child: Text(
-                          'Aucun projet publié',
-                          style: TextStyle(color: Colors.white70),
-                        ),
-                      );
-                    }
-
-                    return ListView.builder(
-                      controller: controller,
-                      itemCount: filteredDocs.length,
-                      itemBuilder: (context, index) {
-                        final doc = filteredDocs[index];
-                        final name = doc.get('name') ?? 'Sans nom';
-                        final countryId = doc.get('countryId') ?? '';
-                        final eventId = doc.get('eventId') ?? '';
-                        final isSelected = _selectedMapProjectId == doc.id;
-
-                        return ListTile(
-                          leading: Icon(
-                            Icons.map,
-                            color: isSelected
-                                ? const Color(0xFF9B6BFF)
-                                : Colors.white70,
-                          ),
-                          title: Text(
-                            name,
-                            style: TextStyle(
-                              color: isSelected
-                                  ? const Color(0xFF9B6BFF)
-                                  : Colors.white,
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                            ),
-                          ),
-                          subtitle: Text(
-                            '$countryId / $eventId',
-                            style: const TextStyle(color: Colors.white54),
-                          ),
-                          trailing: isSelected
-                              ? const Icon(
-                                  Icons.check,
-                                  color: Color(0xFF9B6BFF),
-                                )
-                              : null,
-                          onTap: () {
-                            setState(() {
-                              _selectedMapProjectId = doc.id;
-                            });
-                            _applyMapProject(doc);
-                            Navigator.pop(context);
-                          },
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+  Future<void> _showMapProjectsSelector() async {
+    final selection = await showMarketMapCircuitSelectorSheet(
+      context,
+      service: _marketMapService,
+      initial: _marketPoiSelection.enabled ? _marketPoiSelection : null,
     );
+    if (selection == null || !mounted) return;
+
+    setState(() {
+      _marketPoiSelection = selection;
+    });
+
+    await _applyMarketPoiSelection(selection);
   }
 
-  void _applyMapProject(DocumentSnapshot project) {
-    try {
-      final styleUrl = project.get('styleUrl') as String?;
-      if (styleUrl != null && styleUrl.isNotEmpty) {
-        _styleUrl = styleUrl;
-      }
-
-      final perimeter = project.get('perimeter') as List<dynamic>?;
-      if (perimeter != null && perimeter.isNotEmpty) {
-        final points = perimeter
-            .whereType<Map<String, dynamic>>()
-            .map(
-              (p) => _LatLng(
-                lat: (p['lat'] as num).toDouble(),
-                lng: (p['lng'] as num).toDouble(),
-              ),
-            )
-            .toList();
-
-        final bounds = _calculateBounds(points);
-        if (bounds != null) {
-          final latDiff = bounds.maxLat - bounds.minLat;
-          final lngDiff = bounds.maxLng - bounds.minLng;
-          _projectCenterLat = (bounds.minLat + bounds.maxLat) / 2;
-          _projectCenterLng = (bounds.minLng + bounds.maxLng) / 2;
-          _projectZoom = _calculateOptimalZoom(latDiff, lngDiff);
-        }
-      }
-
-      if (mounted) {
-        setState(() => _mapRebuildTick++);
-      }
-    } catch (e) {
-      debugPrint('⚠️ Erreur chargement projet: $e');
-    }
-  }
-
-  _Bounds? _calculateBounds(List<_LatLng> points) {
-    if (points.isEmpty) return null;
-    var minLng = points.first.lng;
-    var maxLng = points.first.lng;
-    var minLat = points.first.lat;
-    var maxLat = points.first.lat;
-    for (final pt in points) {
-      if (pt.lng < minLng) minLng = pt.lng;
-      if (pt.lng > maxLng) maxLng = pt.lng;
-      if (pt.lat < minLat) minLat = pt.lat;
-      if (pt.lat > maxLat) maxLat = pt.lat;
-    }
-    return _Bounds(
-      minLat: minLat,
-      maxLat: maxLat,
-      minLng: minLng,
-      maxLng: maxLng,
-    );
-  }
-
-  double _calculateOptimalZoom(double latDiff, double lngDiff) {
-    const zoomThresholdLarge = 0.1;
-    const zoomThresholdMedium = 0.01;
-    const zoomLevelLarge = 10.0;
-    const zoomLevelMedium = 12.0;
-    const zoomLevelSmall = 14.0;
-
-    final maxDiff = latDiff > lngDiff ? latDiff : lngDiff;
-    if (maxDiff > zoomThresholdLarge) return zoomLevelLarge;
-    if (maxDiff > zoomThresholdMedium) return zoomLevelMedium;
-    return zoomLevelSmall;
-  }
 
   @override
   void didChangeMetrics() {
@@ -725,6 +661,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                           userLng: _userLng,
                           showUserLocation:
                               true, // Afficher le marqueur de position
+                          markers: _marketPoiMarkers,
                           onMapReady: _notifyMapReady,
                         ),
                       ),
@@ -770,12 +707,22 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   _ActionItem(
-                                    label: 'Cartes',
+                                    label: 'Carte',
                                     icon: Icons.layers_rounded,
-                                    selected: _selectedMapProjectId != null,
+                                    selected: _marketPoiSelection.enabled,
                                     onTap: () {
                                       // Reprend la fonctionnalité de l'ancienne icône "Projets"
                                       _showMapProjectsSelector();
+                                      _closeNavWithDelay();
+                                    },
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _ActionItem(
+                                    label: 'POIs',
+                                    icon: Icons.place_rounded,
+                                    selected: _marketPoiSelection.enabled,
+                                    onTap: () {
+                                      _openMarketPoiSelector();
                                       _closeNavWithDelay();
                                     },
                                   ),
@@ -1028,27 +975,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       ),
     );
   }
-}
-
-class _LatLng {
-  final double lat;
-  final double lng;
-
-  const _LatLng({required this.lat, required this.lng});
-}
-
-class _Bounds {
-  final double minLat;
-  final double maxLat;
-  final double minLng;
-  final double maxLng;
-
-  const _Bounds({
-    required this.minLat,
-    required this.maxLat,
-    required this.minLng,
-    required this.maxLng,
-  });
 }
 
 class _ActionItem extends StatelessWidget {

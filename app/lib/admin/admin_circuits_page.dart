@@ -4,9 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'dart:math' as math;
 import '../models/circuit_model.dart';
-import '../pages/circuit_draw_page.dart';
 import '../services/mapbox_token_service.dart';
 import '../ui/widgets/mapbox_web_view_platform.dart';
+import 'create_circuit_assistant_page.dart';
 
 /// Page de gestion des circuits/parcours (CRUD complet) - Mapbox
 class AdminCircuitsPage extends StatefulWidget {
@@ -27,22 +27,41 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
         title: const Text('Gestion des parcours'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit_location_alt),
+            icon: const Icon(Icons.auto_fix_high),
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const CircuitDrawPage()),
+              MaterialPageRoute(builder: (_) => const CreateCircuitAssistantPage()),
             ),
-            tooltip: 'Dessiner un nouveau circuit',
-          ),
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _showCreateCircuitDialog(),
-            tooltip: 'Créer un parcours (formulaire)',
+            tooltip: 'Créer via le Wizard (recommandé)',
           ),
         ],
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.withValues(alpha: 0.25)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Création centralisée: utilisez le Wizard. Cette page affiche surtout les parcours legacy (collection circuits).',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           // Barre de recherche
           Padding(
             padding: const EdgeInsets.all(16),
@@ -178,25 +197,9 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
                 const SizedBox(height: 16),
 
                 // Actions
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () => _showEditCircuitDialog(circuit),
-                      icon: const Icon(Icons.edit),
-                      label: const Text('Modifier'),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => _togglePublishCircuit(circuit),
-                      icon: Icon(circuit.isPublished ? Icons.unpublished : Icons.publish),
-                      label: Text(circuit.isPublished ? 'Dépublier' : 'Publier'),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => _deleteCircuit(circuit),
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      label: const Text('Supprimer', style: TextStyle(color: Colors.red)),
-                    ),
-                  ],
+                const Text(
+                  'Lecture seule (legacy). Utilise le Wizard pour créer/modifier les parcours MarketMap.',
+                  style: TextStyle(fontStyle: FontStyle.italic),
                 ),
               ],
             ),
@@ -205,219 +208,6 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
       ),
     );
   }
-
-  void _showCreateCircuitDialog() {
-    final nameController = TextEditingController();
-    final descController = TextEditingController();
-
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Créer un parcours'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nom du parcours',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: descController,
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Vous pourrez ajouter les points sur la carte après création',
-                style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              if (nameController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(content: Text('Le nom est requis')),
-                );
-                return;
-              }
-
-              try {
-                await _firestore.collection('circuits').add({
-                  'name': nameController.text.trim(),
-                  'description': descController.text.trim(),
-                  'waypoints': [],
-                  'isPublished': false,
-                  'createdAt': FieldValue.serverTimestamp(),
-                  'updatedAt': FieldValue.serverTimestamp(),
-                });
-
-                if (!mounted || !dialogContext.mounted) return;
-                Navigator.pop(dialogContext);
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(content: Text('Parcours créé avec succès')),
-                );
-              } catch (e) {
-                if (!mounted || !dialogContext.mounted) return;
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  SnackBar(content: Text('Erreur: $e')),
-                );
-              }
-            },
-            child: const Text('Créer'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showEditCircuitDialog(Circuit circuit) {
-    final nameController = TextEditingController(text: circuit.title);
-    final descController = TextEditingController(text: circuit.description);
-
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Modifier le parcours'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nom du parcours',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: descController,
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              try {
-                await _firestore.collection('circuits').doc(circuit.circuitId).update({
-                  'name': nameController.text.trim(),
-                  'description': descController.text.trim(),
-                  'updatedAt': FieldValue.serverTimestamp(),
-                });
-
-                if (!mounted || !dialogContext.mounted) return;
-                Navigator.pop(dialogContext);
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(content: Text('Parcours modifié avec succès')),
-                );
-              } catch (e) {
-                if (!mounted || !dialogContext.mounted) return;
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  SnackBar(content: Text('Erreur: $e')),
-                );
-              }
-            },
-            child: const Text('Enregistrer'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _togglePublishCircuit(Circuit circuit) async {
-    try {
-      await _firestore.collection('circuits').doc(circuit.circuitId).update({
-        'isPublished': !circuit.isPublished,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              circuit.isPublished
-                  ? 'Parcours dépublié'
-                  : 'Parcours publié',
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _deleteCircuit(Circuit circuit) async {
-    if (!mounted) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirmer la suppression'),
-        content: Text('Voulez-vous vraiment supprimer le parcours "${circuit.title}" ?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      try {
-        await _firestore.collection('circuits').doc(circuit.circuitId).delete();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Parcours supprimé')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erreur: $e')),
-          );
-        }
-      }
-    }
-  }
-
   String _calculateDistance(Circuit circuit) {
     if (circuit.points.isEmpty) return '0 km';
     

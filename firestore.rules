@@ -51,22 +51,6 @@ service cloud.firestore {
         && userGroupId() == groupId;
     }
 
-    function isTracker() {
-      return hasUserDoc() && (
-        userRole() == 'tracker' 
-        || userRole() == 'group'
-        || isMasterAdmin()
-      );
-    }
-
-    function isAtLeastGroupAdmin() {
-      return hasUserDoc() && (
-        userRole() == 'group'
-        || userRole() == 'admin'
-        || userRole() == 'superAdmin'
-      );
-    }
-
     // ========== VÉRIFICATIONS DE PERMISSIONS ==========
     function canManageUsers() {
       return isMasterAdmin();
@@ -232,6 +216,19 @@ service cloud.firestore {
         allow read: if _productIsPublic(resource.data) || isMasterAdmin();
         allow create, update, delete: if isMasterAdmin();
       }
+
+      // Catégories shop
+      match /categories/{categoryId} {
+        allow read: if true;
+        allow create, update, delete: if isMasterAdmin();
+      }
+
+      // Commandes shop (création publique, lecture admin)
+      match /orders/{orderId} {
+        allow read: if isMasterAdmin();
+        allow create: if true;
+        allow update, delete: if isMasterAdmin();
+      }
     }
 
     // ========== COLLECTION: BUSINESSES (Comptes professionnels) ==========
@@ -370,6 +367,23 @@ service cloud.firestore {
       
       // Écriture: admins uniquement
       allow create, update, delete: if canManageContent();
+    }
+
+    // ========== COLLECTION: MARKETMAP (Wizard POIs / Circuits / Layers) ==========
+    // Schéma:
+    // marketMap/{countryId}/events/{eventId}/circuits/{circuitId}/layers/{layerId}
+    // marketMap/{countryId}/events/{eventId}/circuits/{circuitId}/pois/{poiId}
+    //
+    // Lecture: nécessaire pour afficher les POIs sur la carte (web + mobile).
+    // Écriture: réservée aux admins master (wizard admin).
+    match /marketMap/{countryId} {
+      allow read: if true;
+      allow create, update, delete: if isMasterAdmin();
+
+      match /{document=**} {
+        allow read: if true;
+        allow create, update, delete: if isMasterAdmin();
+      }
     }
 
     // ========== COLLECTION: CONFIG ==========

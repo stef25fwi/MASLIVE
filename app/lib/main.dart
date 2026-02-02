@@ -1,7 +1,7 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'firebase_options.dart';
 import 'session/session_controller.dart';
@@ -10,9 +10,7 @@ import 'services/localization_service.dart' show LocalizationService;
 import 'services/language_service.dart';
 import 'widgets/localized_app.dart';
 import 'pages/splash_wrapper_page.dart';
-import 'pages/home_map_page_3d.dart';
 import 'pages/home_map_page_web.dart';
-import 'pages/home_web_page.dart';
 import 'pages/group_profile_page.dart';
 import 'pages/group_shop_page.dart';
 import 'pages/role_router_page.dart';
@@ -57,6 +55,7 @@ import 'ui/theme/maslive_theme.dart';
 import 'ui/widgets/honeycomb_background.dart';
 import 'l10n/app_localizations.dart';
 import 'pages/circuit_editor_workflow_page.dart';
+import 'commerce_module_single_file.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -148,6 +147,15 @@ class MasLiveApp extends StatelessWidget {
                 final groupId =
                     ModalRoute.of(ctx)?.settings.arguments as String?;
                 return GroupShopPage(groupId: groupId ?? 'groupe_demo');
+              },
+              '/admin/commerce': (_) => const ProductManagementPage(
+                    shopId: 'global',
+                  ),
+              '/boutique': (ctx) {
+                final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
+                final shopId = (args?['shopId'] as String?) ?? 'global';
+                final uid = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
+                return BoutiquePage(shopId: shopId, userId: uid);
               },
               '/account': (_) => const AccountAndAdminPage(),
               '/account-admin': (_) => const AccountAndAdminPage(),

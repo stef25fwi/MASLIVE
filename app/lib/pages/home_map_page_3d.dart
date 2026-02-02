@@ -22,8 +22,14 @@ import '../services/auth_service.dart';
 import '../services/geolocation_service.dart';
 import '../services/language_service.dart';
 import '../services/mapbox_token_service.dart';
+import '../services/market_map_service.dart';
+import '../models/market_poi.dart';
+import '../ui/widgets/marketmap_poi_selector_sheet.dart';
 import '../l10n/app_localizations.dart' as l10n;
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
+
+// Menu vertical: modes/actions (filtrage POIs)
+enum _MapAction { visiter, food, assistance, parking, wc }
 
 class HomeMapPage3D extends StatefulWidget {
   const HomeMapPage3D({super.key});
@@ -43,13 +49,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   static const int _gpsDistanceFilter = 8;
   static const Duration _gpsTimeout = Duration(seconds: 8);
   static const double _userMarkerIconSize = 1.5;
-  static const double _zoomThresholdLarge = 0.1;
-  static const double _zoomThresholdMedium = 0.01;
-  static const double _zoomLevelLarge = 10.0;
-  static const double _zoomLevelMedium = 12.0;
-  static const double _zoomLevelSmall = 14.0;
   static const Duration _cameraAnimationDuration = Duration(milliseconds: 800);
-  static const Duration _projectLoadDuration = Duration(milliseconds: 1000);
   static const double _defaultZoom = 13.0;
   static const double _userZoom = 15.5;
   static const double _defaultPitch = 45.0;
@@ -59,6 +59,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   bool _showActionsMenu = false;
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
+  _MapAction? _selectedAction;
 
   // ========== CARTE & GÉOLOCALISATION ==========
   MapboxMap? _mapboxMap;
@@ -83,18 +84,23 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   String? _userGroupId;
   // ignore: unused_field
   bool _isSuperAdmin = false;
-  String? _selectedMapProjectId;
 
   static final Position _fallbackCenter = Position(-61.533, 16.241);
 
   // Annotations managers
   PointAnnotationManager? _userAnnotationManager;
-  // ignore: unused_field
   PointAnnotationManager? _placesAnnotationManager;
   // ignore: unused_field
   PointAnnotationManager? _groupsAnnotationManager;
   // ignore: unused_field
   PolylineAnnotationManager? _circuitsAnnotationManager;
+
+  // MarketMap POIs (wiring wizard)
+  final MarketMapService _marketMapService = MarketMapService();
+  MarketMapPoiSelection _marketPoiSelection =
+      const MarketMapPoiSelection.disabled();
+  StreamSubscription? _marketPoisSub;
+  List<MarketPoi> _marketPois = const <MarketPoi>[];
 
   String get _effectiveMapboxToken => _runtimeMapboxToken.isNotEmpty
       ? _runtimeMapboxToken
@@ -106,11 +112,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   String get _trackingStatusMessage => _isTracking 
       ? '✅ Tracking démarré (${_trackingIntervalSeconds}s)' 
       : '❌ Permissions GPS refusées';
-  
-  /// Message du tracking pill avec intervalle dynamique
-  String get _trackingPillLabel => _isTracking 
-      ? 'Actif (${_trackingIntervalSeconds}s)' 
-      : 'Inactif';
 
   @override
   void initState() {
@@ -177,8 +178,146 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     _debounce?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _positionSub?.cancel();
+    _marketPoisSub?.cancel();
     _menuAnimController.dispose();
     super.dispose();
+  }
+
+  Color _poiColorForType(String? type) {
+    switch (type) {
+      case 'food':
+        return const Color(0xFFFF9800);
+      case 'visit':
+        return const Color(0xFF9B6BFF);
+      case 'wc':
+        return const Color(0xFF2196F3);
+      case 'parking':
+        return const Color(0xFF4CAF50);
+      case 'assistance':
+        return const Color(0xFFFFC107);
+      case 'market':
+      default:
+        return const Color(0xFFE91E63);
+    }
+  }
+
+  Future<void> _openMarketPoiSelector() async {
+    final selection = await showMarketMapPoiSelectorSheet(
+      context,
+      service: _marketMapService,
+      initial: _marketPoiSelection,
+    );
+    if (selection == null) return;
+    if (!mounted) return;
+
+    setState(() {
+      _marketPoiSelection = selection;
+    });
+
+    await _applyMarketPoiSelection(selection);
+  }
+
+  Future<void> _applyMarketPoiSelection(MarketMapPoiSelection selection) async {
+    await _marketPoisSub?.cancel();
+    _marketPoisSub = null;
+
+    if (!selection.enabled ||
+        selection.country == null ||
+        selection.event == null ||
+        selection.circuit == null) {
+      if (!mounted) return;
+      setState(() {
+        _marketPois = const <MarketPoi>[];
+      });
+      await _renderMarketPoiMarkers();
+      return;
+    }
+
+    final circuit = selection.circuit!;
+    final styleUrl = circuit.styleUrl?.trim();
+    if (styleUrl != null && styleUrl.isNotEmpty && _mapboxMap != null) {
+      try {
+        await _mapboxMap!.style.setStyleURI(styleUrl);
+      } catch (e) {
+        debugPrint('⚠️ Erreur chargement style circuit: $e');
+      }
+    }
+    final center = circuit.center;
+    final lng = (center['lng'] ?? _fallbackCenter.lng).toDouble();
+    final lat = (center['lat'] ?? _fallbackCenter.lat).toDouble();
+    await _moveCameraTo(lng: lng, lat: lat, zoom: circuit.initialZoom);
+
+    _marketPoisSub = _marketMapService
+        .watchVisiblePois(
+          countryId: selection.country!.id,
+          eventId: selection.event!.id,
+          circuitId: selection.circuit!.id,
+          layerIds: selection.layerIds,
+        )
+        .listen((pois) async {
+      if (!mounted) return;
+      setState(() {
+        _marketPois = pois;
+      });
+      await _renderMarketPoiMarkers();
+    });
+  }
+
+  Future<void> _moveCameraTo({
+    required double lng,
+    required double lat,
+    required double zoom,
+  }) async {
+    final map = _mapboxMap;
+    if (map == null) return;
+
+    try {
+      final camera = CameraOptions(
+        center: Point(coordinates: Position(lng, lat)),
+        zoom: zoom,
+      );
+      await map.flyTo(
+        camera,
+        MapAnimationOptions(duration: _cameraAnimationDuration.inMilliseconds),
+      );
+    } catch (e) {
+      debugPrint('⚠️ moveCameraTo error: $e');
+    }
+  }
+
+  Future<void> _renderMarketPoiMarkers() async {
+    final manager = _placesAnnotationManager;
+    if (manager == null) return;
+
+    try {
+      await manager.deleteAll();
+    } catch (_) {
+      // ignore
+    }
+
+    if (!_marketPoiSelection.enabled) return;
+
+    final filterType = _actionToPoiType(_selectedAction);
+    for (final p in _marketPois.where((poi) => filterType == null || poi.type == filterType)) {
+      if (p.lat == 0.0 && p.lng == 0.0) continue;
+      try {
+        final opt = PointAnnotationOptions(
+          geometry: Point(coordinates: Position(p.lng, p.lat)),
+          iconImage: 'marker-15',
+          iconSize: 1.2,
+          iconColor: _poiColorForType(p.type).toARGB32(),
+          textField: p.name,
+          textSize: 12.0,
+          textOffset: const [0.0, 1.2],
+          textColor: Colors.black.value,
+          textHaloColor: Colors.white.value,
+          textHaloWidth: 1.0,
+        );
+        await manager.create(opt);
+      } catch (_) {
+        // ignore
+      }
+    }
   }
 
   @override
@@ -524,6 +663,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     // 5. Afficher le marqueur utilisateur si position disponible
     await _updateUserMarker();
 
+    // 5b. Afficher les POIs MarketMap si un circuit est sélectionné
+    await _renderMarketPoiMarkers();
+
     // 6. Appliquer le resize initial si LayoutBuilder a déjà capturé la taille
     if (_lastSize != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -667,229 +809,49 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     setState(() {});
   }
 
-  void _showMapProjectsSelector() {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.5,
-        minChildSize: 0.3,
-        maxChildSize: 0.9,
-        builder: (_, controller) => Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF1A1A2E),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text(
-                  'Projets cartographiques',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('map_projects')
-                      .where('status', isEqualTo: 'published')
-                      .where('isVisible', isEqualTo: true)
-                      .orderBy('updatedAt', descending: true)
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Color(0xFF9B6BFF),
-                          ),
-                        ),
-                      );
-                    }
-
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return const Center(
-                        child: Text(
-                          'Aucun projet disponible',
-                          style: TextStyle(color: Colors.white70),
-                        ),
-                      );
-                    }
-
-                    final now = Timestamp.now();
-                    final filteredDocs = snapshot.data!.docs.where((doc) {
-                      final publishAt = doc.get('publishAt') as Timestamp?;
-                      return publishAt == null ||
-                          publishAt.compareTo(now) <= 0;
-                    }).toList();
-
-                    if (filteredDocs.isEmpty) {
-                      return const Center(
-                        child: Text(
-                          'Aucun projet publié',
-                          style: TextStyle(color: Colors.white70),
-                        ),
-                      );
-                    }
-
-                    return ListView.builder(
-                      controller: controller,
-                      itemCount: filteredDocs.length,
-                      itemBuilder: (context, index) {
-                        final doc = filteredDocs[index];
-                        final name = doc.get('name') ?? 'Sans nom';
-                        final countryId = doc.get('countryId') ?? '';
-                        final eventId = doc.get('eventId') ?? '';
-                        final isSelected = _selectedMapProjectId == doc.id;
-
-                        return ListTile(
-                          leading: Icon(
-                            Icons.map,
-                            color: isSelected
-                                ? const Color(0xFF9B6BFF)
-                                : Colors.white70,
-                          ),
-                          title: Text(
-                            name,
-                            style: TextStyle(
-                              color: isSelected ? const Color(0xFF9B6BFF) : Colors.white,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            ),
-                          ),
-                          subtitle: Text(
-                            '$countryId / $eventId',
-                            style: const TextStyle(color: Colors.white54),
-                          ),
-                          trailing: isSelected
-                              ? const Icon(Icons.check, color: Color(0xFF9B6BFF))
-                              : null,
-                          onTap: () {
-                            setState(() {
-                              _selectedMapProjectId = doc.id;
-                            });
-                            _loadMapProject(doc);
-                            Navigator.pop(context);
-                          },
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
+  void _selectAction(_MapAction action, String label) {
+    setState(() => _selectedAction = action);
+    _renderMarketPoiMarkers();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Mode "$label" sélectionné.'),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
 
-  /// Charge et applique un projet cartographique depuis Firestore.
-  /// 
-  /// Met à jour le style Mapbox et cadre la vue sur le périmètre du projet.
-  Future<void> _loadMapProject(DocumentSnapshot project) async {
-    if (!mounted || _mapboxMap == null) return;
-    
-    try {
-      // 1. Charger le style personnalisé si disponible
-      final styleUrl = project.get('styleUrl') as String?;
-      if (styleUrl != null && styleUrl.isNotEmpty) {
-        await _mapboxMap!.style.setStyleURI(styleUrl);
-      }
-
-      // 2. Calculer et appliquer les bounds du périmètre
-      final perimeter = project.get('perimeter') as List<dynamic>?;
-      if (perimeter == null || perimeter.isEmpty) return;
-      
-      // Convertir les coordonnées en Position
-      final points = perimeter.map((p) {
-        final coord = p as Map<String, dynamic>;
-        return Position(coord['lng'] as double, coord['lat'] as double);
-      }).toList();
-      
-      // Calculer les bounds avec la méthode dédiée
-      final bounds = _calculateBounds(points);
-      if (bounds == null) return;
-      
-      // Calculer le zoom optimal
-      final latDiff = bounds['maxLat']! - bounds['minLat']!;
-      final lngDiff = bounds['maxLng']! - bounds['minLng']!;
-      final zoom = _calculateOptimalZoom(latDiff, lngDiff);
-
-      // Animer la caméra vers le centre du projet
-      await _mapboxMap!.easeTo(
-        CameraOptions(
-          center: Point(
-            coordinates: Position(
-              bounds['centerLng']!,
-              bounds['centerLat']!,
-            ),
-          ),
-          zoom: zoom,
-          pitch: _defaultPitch,
-        ),
-        MapAnimationOptions(
-          duration: _projectLoadDuration.inMilliseconds,
-          startDelay: 0,
-        ),
-      );
-    } catch (e) {
-      debugPrint('⚠️ Erreur chargement projet: $e');
+  String? _actionToPoiType(_MapAction? action) {
+    switch (action) {
+      case _MapAction.visiter:
+        return 'visit';
+      case _MapAction.food:
+        return 'food';
+      case _MapAction.assistance:
+        return 'assistance';
+      case _MapAction.parking:
+        return 'parking';
+      case _MapAction.wc:
+        return 'wc';
+      case null:
+        return null;
     }
   }
 
-  /// Calcule les limites géographiques (bounds) à partir d'une liste de positions.
-  /// 
-  /// Retourne null si la liste est vide.
-  Map<String, double>? _calculateBounds(List<Position> points) {
-    if (points.isEmpty) return null;
-    
-    double minLng = points.first.lng.toDouble();
-    double maxLng = points.first.lng.toDouble();
-    double minLat = points.first.lat.toDouble();
-    double maxLat = points.first.lat.toDouble();
+  Future<void> _showMapProjectsSelector() async {
+    final selection = await showMarketMapCircuitSelectorSheet(
+      context,
+      service: _marketMapService,
+      initial: _marketPoiSelection.enabled ? _marketPoiSelection : null,
+    );
+    if (selection == null || !mounted) return;
 
-    for (final pt in points) {
-      final lng = pt.lng.toDouble();
-      final lat = pt.lat.toDouble();
-      if (lng < minLng) minLng = lng;
-      if (lng > maxLng) maxLng = lng;
-      if (lat < minLat) minLat = lat;
-      if (lat > maxLat) maxLat = lat;
-    }
+    setState(() {
+      _marketPoiSelection = selection;
+    });
 
-    return {
-      'minLng': minLng,
-      'maxLng': maxLng,
-      'minLat': minLat,
-      'maxLat': maxLat,
-      'centerLng': (minLng + maxLng) / 2,
-      'centerLat': (minLat + maxLat) / 2,
-    };
+    await _applyMarketPoiSelection(selection);
   }
-  
-  /// Calcule le niveau de zoom optimal basé sur la taille du périmètre.
-  double _calculateOptimalZoom(double latDiff, double lngDiff) {
-    final maxDiff = latDiff > lngDiff ? latDiff : lngDiff;
-    
-    if (maxDiff > _zoomThresholdLarge) return _zoomLevelLarge;
-    if (maxDiff > _zoomThresholdMedium) return _zoomLevelMedium;
-    return _zoomLevelSmall;
-  }
+
 
   /// Ferme automatiquement le menu de navigation après un délai.
   void _closeNavWithDelay() {
@@ -1040,11 +1002,21 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               _ActionItem(
-                                label: 'Projets',
+                                label: 'Carte',
                                 icon: Icons.map_rounded,
-                                selected: false,
+                                selected: _marketPoiSelection.enabled,
                                 onTap: () {
                                   _showMapProjectsSelector();
+                                  _closeNavWithDelay();
+                                },
+                              ),
+                              const SizedBox(height: 8),
+                              _ActionItem(
+                                label: 'POIs',
+                                icon: Icons.place_rounded,
+                                selected: _marketPoiSelection.enabled,
+                                onTap: () {
+                                  _openMarketPoiSelector();
                                   _closeNavWithDelay();
                                 },
                               ),
@@ -1057,6 +1029,64 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                                 selected: _isTracking,
                                 onTap: () {
                                   _toggleTracking();
+                                  _closeNavWithDelay();
+                                },
+                              ),
+                              const SizedBox(height: 8),
+                              _ActionItem(
+                                label: l10n.AppLocalizations.of(
+                                  context,
+                                )!.visit,
+                                icon: Icons.map_outlined,
+                                selected: _selectedAction == _MapAction.visiter,
+                                onTap: () {
+                                  _selectAction(_MapAction.visiter, 'Visiter');
+                                  _closeNavWithDelay();
+                                },
+                              ),
+                              const SizedBox(height: 8),
+                              _ActionItem(
+                                label: l10n.AppLocalizations.of(
+                                  context,
+                                )!.food,
+                                icon: Icons.fastfood_rounded,
+                                selected: _selectedAction == _MapAction.food,
+                                onTap: () {
+                                  _selectAction(_MapAction.food, 'Food');
+                                  _closeNavWithDelay();
+                                },
+                              ),
+                              const SizedBox(height: 8),
+                              _ActionItem(
+                                label: l10n.AppLocalizations.of(
+                                  context,
+                                )!.assistance,
+                                icon: Icons.shield_outlined,
+                                selected: _selectedAction == _MapAction.assistance,
+                                onTap: () {
+                                  _selectAction(_MapAction.assistance, 'Assistance');
+                                  _closeNavWithDelay();
+                                },
+                              ),
+                              const SizedBox(height: 8),
+                              _ActionItem(
+                                label: l10n.AppLocalizations.of(
+                                  context,
+                                )!.parking,
+                                icon: Icons.local_parking_rounded,
+                                selected: _selectedAction == _MapAction.parking,
+                                onTap: () {
+                                  _selectAction(_MapAction.parking, 'Parking');
+                                  _closeNavWithDelay();
+                                },
+                              ),
+                              const SizedBox(height: 8),
+                              _ActionItem(
+                                label: '',
+                                icon: Icons.wc_rounded,
+                                selected: _selectedAction == _MapAction.wc,
+                                onTap: () {
+                                  _selectAction(_MapAction.wc, 'WC');
                                   _closeNavWithDelay();
                                 },
                               ),

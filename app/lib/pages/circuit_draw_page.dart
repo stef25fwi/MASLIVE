@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
-import 'legacy_stubs/circuit_draw_page_legacy_stub.dart';
-
-/// Page de consultation de circuit (Mapbox display-only) + bouton "Éditer (legacy)"
+/// Page de consultation de circuit (Mapbox display-only)
 class CircuitDrawPage extends StatefulWidget {
   const CircuitDrawPage({super.key, this.circuitId});
 
@@ -60,19 +58,6 @@ class _CircuitDrawPageState extends State<CircuitDrawPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_circuitData?['title'] ?? 'Circuit'),
-        actions: [
-          FilledButton.tonalIcon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CircuitDrawPageLegacy()),
-              );
-            },
-            icon: const Icon(Icons.edit),
-            label: const Text('Éditer (legacy)'),
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -100,6 +85,22 @@ class _CircuitDrawPageState extends State<CircuitDrawPage> {
               _InfoTile(icon: Icons.pin_drop, label: '${points.length} points'),
               _InfoTile(icon: Icons.route, label: '${(_circuitData!['distanceKm'] ?? 0).toStringAsFixed(2)} km'),
             ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.blue.withValues(alpha: 0.25)),
+            ),
+            child: const Text(
+              'Vue legacy (collection "circuits"). Modification via Wizard uniquement.',
+              style: TextStyle(fontSize: 13),
+            ),
           ),
         ),
 

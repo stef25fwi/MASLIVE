@@ -1,3 +1,5 @@
+// ignore_for_file: unused_field, unused_element, dead_code
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,6 +11,7 @@ import 'dart:async';
 import '../ui/widgets/mapbox_web_view_platform.dart';
 import '../services/mapbox_token_service.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
+import 'poi_marketmap_wizard_page.dart';
 
 // Import conditionnel: mapbox_native_simple_map est pour mobile/desktop uniquement
 import '../ui/widgets/mapbox_native_simple_map.dart'
@@ -242,50 +245,8 @@ class _POIAssistantPageState extends State<POIAssistantPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: 52,
-        title: Text(_getStepTitle(_step)),
-        actions: [
-          if (_lastAutoSave != null && !_isFocusMode)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Center(
-                child: Tooltip(
-                  message:
-                      'Dernière sauvegarde: ${_formatTime(_lastAutoSave!)}',
-                  child: Chip(
-                    avatar: const Icon(
-                      Icons.cloud_done,
-                      size: 16,
-                      color: Colors.green,
-                    ),
-                    label: Text(
-                      'Auto-save',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-              ),
-            ),
-          IconButton(
-            icon: Icon(_isFocusMode ? Icons.visibility : Icons.visibility_off),
-            tooltip: _isFocusMode
-                ? 'Désactiver mode focus'
-                : 'Activer mode focus',
-            onPressed: _toggleFocusMode,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          _buildStepSelector(),
-          Expanded(child: _buildStepContent()),
-        ],
-      ),
-      bottomNavigationBar: _buildBottomBar(),
-    );
+    // Legacy: redirection vers le Wizard MarketMap (source de vérité).
+    return const POIMarketMapWizardPage();
   }
 
   String _getStepTitle(int step) {

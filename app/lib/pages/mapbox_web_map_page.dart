@@ -24,7 +24,6 @@ class _MapboxWebMapPageState extends State<MapboxWebMapPage>
   
   ui.Size? _lastWebMapSize;
   int _webMapRebuildTick = 0;
-  bool _isMapReady = false;
   Timer? _resizeDebounce;
 
   @override
@@ -35,7 +34,6 @@ class _MapboxWebMapPageState extends State<MapboxWebMapPage>
     // Notifier que la carte est prête après un court délai
     Future.delayed(_mapReadyDelay, () {
       if (!mounted) return;
-      setState(() => _isMapReady = true);
       
       // Notifier le splash wrapper que la carte est chargée
       if (!mapReadyNotifier.value) {

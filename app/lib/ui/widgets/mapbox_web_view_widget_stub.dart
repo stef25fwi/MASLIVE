@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../map/maslive_map_controller.dart';
 
 /// Stub non-web: permet au projet de compiler sur mobile/desktop
 /// même si un écran importe `MapboxWebView`.
@@ -15,6 +16,7 @@ class MapboxWebView extends StatelessWidget {
   final bool showUserLocation;
   final ValueChanged<({double lng, double lat})>? onTapLngLat;
   final VoidCallback? onMapReady;
+  final List<MapMarker> markers;
 
   const MapboxWebView({
     super.key,
@@ -30,6 +32,7 @@ class MapboxWebView extends StatelessWidget {
     this.showUserLocation = false,
     this.onTapLngLat,
     this.onMapReady,
+    this.markers = const [],
   });
 
   @override

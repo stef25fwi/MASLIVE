@@ -1,4 +1,7 @@
+// ignore_for_file: unused_field, unused_element, dead_code
+
 import 'package:flutter/material.dart';
+import '../admin/create_circuit_assistant_page.dart';
 
 class CircuitImportExportPage extends StatefulWidget {
   const CircuitImportExportPage({super.key});
@@ -7,137 +10,38 @@ class CircuitImportExportPage extends StatefulWidget {
   State<CircuitImportExportPage> createState() => _CircuitImportExportPageState();
 }
 
-class _CircuitImportExportPageState extends State<CircuitImportExportPage> {
-  final List<String> _importedFiles = [];
-  bool _isLoading = false;
-
-  void _importGpx() {
-    setState(() => _isLoading = true);
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (!mounted) return;
-      setState(() {
-        _importedFiles.add("circuit_sample.gpx");
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✓ Fichier GPX importé avec succès")),
-      );
-    });
-  }
-
-  void _importKml() {
-    setState(() => _isLoading = true);
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (!mounted) return;
-      setState(() {
-        _importedFiles.add("circuit_map.kml");
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✓ Fichier KML importé avec succès")),
-      );
-    });
-  }
-
-  void _exportGpx() {
-    if (_importedFiles.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("⚠ Aucun circuit à exporter")),
-      );
-      return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("✓ Circuit exporté en GPX")),
-    );
-  }
-
-  void _duplicateCircuit() {
-    if (_importedFiles.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("⚠ Sélectionnez un circuit à dupliquer")),
-      );
-      return;
-    }
-    setState(() => _importedFiles.add("${_importedFiles.last} (copie)"));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("✓ Circuit dupliqué")),
-    );
-  }
-
-  void _deleteFile(String file) {
-    setState(() => _importedFiles.remove(file));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("✓ Fichier supprimé")),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0.5,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Importer / Exporter", style: TextStyle(fontWeight: FontWeight.w700)),
-            Text(
-              "Gérer vos fichiers de circuit",
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-            ),
-          ],
+        title: const Text("Importer / Exporter (Legacy)", style: TextStyle(fontWeight: FontWeight.w700)),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.info_outline, size: 48),
+              const SizedBox(height: 12),
+              const Text(
+                "Outil legacy désactivé.\nUtilise le Wizard Circuit (MarketMap).",
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CreateCircuitAssistantPage()),
+                ),
+                child: const Text("Ouvrir le Wizard Circuit"),
+              ),
+            ],
+          ),
         ),
       ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Section Import
-                const Text(
-                  "Importer",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1F2A37),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: _ImportButton(
-                        icon: Icons.upload_file,
-                        label: "GPX",
-                        color: const Color(0xFFF59E0B),
-                        isLoading: _isLoading,
-                        onPressed: _importGpx,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _ImportButton(
-                        icon: Icons.map,
-                        label: "KML",
-                        color: const Color(0xFF1A73E8),
-                        isLoading: _isLoading,
-                        onPressed: _importKml,
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 28),
-
-                // Section Export
-                const Text(
-                  "Exporter",
-                  style: TextStyle(
+    );
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                     color: Color(0xFF1F2A37),

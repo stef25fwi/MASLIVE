@@ -1,5 +1,8 @@
 # 📍 Assistant POI - Flux Visuel
 
+> ⚠️ **Legacy** : cet assistant est remplacé par le Wizard MarketMap.
+> Utiliser : `app/lib/admin/poi_marketmap_wizard_page.dart`.
+
 ## 🔄 Flux Principal
 
 ```

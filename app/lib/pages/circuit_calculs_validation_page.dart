@@ -1,4 +1,7 @@
+// ignore_for_file: unused_field, unused_element, dead_code
+
 import 'package:flutter/material.dart';
+import '../admin/create_circuit_assistant_page.dart';
 
 class CircuitCalculsValidationPage extends StatefulWidget {
   const CircuitCalculsValidationPage({super.key});
@@ -19,121 +22,38 @@ class _CircuitCalculsValidationPageState extends State<CircuitCalculsValidationP
   bool _isValidated = false;
   final List<String> _validationMessages = [];
 
-  @override
-  void initState() {
-    super.initState();
-    _runValidation();
-  }
-
-  void _runValidation() {
-    setState(() {
-      _validationMessages.clear();
-      _isValidated = false;
-    });
-
-    Future.delayed(const Duration(milliseconds: 1200), () {
-      if (!mounted) return;
-      setState(() {
-        _validationMessages.addAll([
-          "✓ Circuit fermé détecté",
-          "✓ Points de départ et arrivée valides",
-          "✓ Pas de croisements détectés",
-          "✓ Distance acceptable (> 1 km)",
-          "✓ Pente moyenne acceptable",
-        ]);
-        _isValidated = true;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✓ Validation complétée avec succès")),
-      );
-    });
-  }
-
-  void _recalculateMetrics() {
-    setState(() => _isValidated = false);
-    _runValidation();
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0.5,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Calculs & Validation", style: TextStyle(fontWeight: FontWeight.w700)),
-            Text(
-              "Analyser votre circuit",
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-            ),
-          ],
+        title: const Text("Calculs & Validation (Legacy)", style: TextStyle(fontWeight: FontWeight.w700)),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.info_outline, size: 48),
+              const SizedBox(height: 12),
+              const Text(
+                "Outil legacy désactivé.\nUtilise le Wizard Circuit (MarketMap).",
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CreateCircuitAssistantPage()),
+                ),
+                child: const Text("Ouvrir le Wizard Circuit"),
+              ),
+            ],
+          ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Métriques principales
-            const Text(
-              "Métriques",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF1F2A37),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            GridView.count(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _MetricCard(
-                  icon: Icons.route,
-                  label: "Distance",
-                  value: "${_metrics['distance']} km",
-                  color: const Color(0xFF1A73E8),
-                ),
-                _MetricCard(
-                  icon: Icons.trending_up,
-                  label: "Dénivelé",
-                  value: "${_metrics['elevation']} m",
-                  color: const Color(0xFFF59E0B),
-                ),
-                _MetricCard(
-                  icon: Icons.schedule,
-                  label: "Temps estimé",
-                  value: "${_metrics['estimatedTime']}h",
-                  color: const Color(0xFF34A853),
-                ),
-                _MetricCard(
-                  icon: Icons.signal_cellular_alt,
-                  label: "Difficulté",
-                  value: _metrics['difficulty'],
-                  color: const Color(0xFF9333EA),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 28),
-
-            // Qualité du circuit
-            const Text(
-              "Qualité du circuit",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF1F2A37),
-              ),
-            ),
+    );
             const SizedBox(height: 16),
 
             Container(

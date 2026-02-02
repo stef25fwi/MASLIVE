@@ -1,5 +1,8 @@
 # 📍 Assistant POI - Page Step-by-Step
 
+> ⚠️ **Legacy** : cet assistant est remplacé par le Wizard MarketMap.
+> Utiliser : `app/lib/admin/poi_marketmap_wizard_page.dart`.
+
 ## Vue d'ensemble
 
 L'Assistant POI est une page de gestion des Points d'Intérêt (POI) organisée en 5 étapes guidées, permettant aux administrateurs de créer et configurer des POIs de manière fluide et professionnelle.

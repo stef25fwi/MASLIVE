@@ -10,10 +10,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/app_user.dart';
 import '../services/auth_claims_service.dart';
 import '../theme/maslive_theme.dart';
-import 'admin_circuits_page.dart';
-import 'admin_pois_simple_page.dart';
 import 'admin_tracking_page.dart';
-import 'admin_products_page.dart';
 import 'admin_orders_page.dart';
 import 'admin_stock_page.dart';
 import 'admin_product_categories_page.dart';
@@ -24,9 +21,9 @@ import 'user_management_page.dart';
 import 'business_requests_page.dart';
 import 'map_projects_library_page.dart';
 import '../pages/pending_products_page.dart';
-import '../pages/shop_page_new.dart';
 import 'create_circuit_assistant_page.dart';
-import 'poi_assistant_page.dart';
+import 'poi_marketmap_wizard_page.dart';
+import '../commerce_module_single_file.dart';
 
 /// Dashboard admin principal 10/10 avec toutes les fonctionnalités
 class AdminMainDashboard extends StatefulWidget {
@@ -42,16 +39,20 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
   AppUser? _currentUser;
   bool _isLoading = true;
 
-  Stream<int> _watchProductsCount() {
-    return _firestore
-        .collection('products')
-        .snapshots()
-        .map((snap) => snap.size);
+  Stream<int> _watchProductsCount({String? shopId}) {
+    final col = (shopId != null && shopId.trim().isNotEmpty)
+        ? _firestore.collection('shops').doc(shopId).collection('products')
+        : _firestore.collection('products');
+
+    return col.snapshots().map((snap) => snap.size);
   }
 
-  Stream<int> _watchPendingProductsCount() {
-    return _firestore
-        .collection('products')
+  Stream<int> _watchPendingProductsCount({String? shopId}) {
+    final col = (shopId != null && shopId.trim().isNotEmpty)
+        ? _firestore.collection('shops').doc(shopId).collection('products')
+        : _firestore.collection('products');
+
+    return col
         .where('moderationStatus', isEqualTo: 'pending')
         .snapshots()
         .map((snap) => snap.size);
@@ -75,13 +76,11 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
   }
 
   Stream<({int out, int low})> _watchStockAlerts({String? shopId}) {
-    Query<Map<String, dynamic>> q = _firestore
-        .collection('products')
-        .orderBy('updatedAt', descending: true)
-        .limit(400);
-    if (shopId != null && shopId.trim().isNotEmpty) {
-      q = q.where('shopId', isEqualTo: shopId);
-    }
+    Query<Map<String, dynamic>> q = (shopId != null && shopId.trim().isNotEmpty)
+        ? _firestore.collection('shops').doc(shopId).collection('products')
+        : _firestore.collection('products');
+
+    q = q.orderBy('updatedAt', descending: true).limit(400);
 
     return q.snapshots().map((snap) {
       var out = 0;
@@ -171,13 +170,13 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                 Expanded(
                   child: _buildDashboardCard(
                     title: 'Parcours',
-                    subtitle: 'Créer et gérer les circuits',
+                    subtitle: 'Création centralisée via le Wizard',
                     icon: Icons.route,
                     color: Colors.blue,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const AdminCircuitsPage(),
+                        builder: (_) => const CreateCircuitAssistantPage(),
                       ),
                     ),
                   ),
@@ -186,13 +185,13 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                 Expanded(
                   child: _buildDashboardCard(
                     title: 'Points d\'intérêt',
-                    subtitle: 'Gérer les POIs',
+                    subtitle: 'Création centralisée via le Wizard',
                     icon: Icons.place,
                     color: Colors.orange,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const AdminPOIsSimplePage(),
+                        builder: (_) => const POIMarketMapWizardPage(),
                       ),
                     ),
                   ),
@@ -304,12 +303,12 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
               children: [
                 Expanded(
                   child: StreamBuilder<int>(
-                    stream: _watchProductsCount(),
+                    stream: _watchProductsCount(shopId: 'global'),
                     builder: (context, snap) {
                       final count = snap.data;
                       return _buildDashboardCard(
                         title: 'Produits',
-                        subtitle: 'Gérer le catalogue',
+                        subtitle: 'Gestion produits (monolithique)',
                         icon: Icons.inventory,
                         color: Colors.teal,
                         badge: count == null
@@ -318,8 +317,9 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                const AdminProductsPage(shopId: 'global'),
+                            builder: (_) => const ProductManagementPage(
+                              shopId: 'global',
+                            ),
                           ),
                         ),
                       );
@@ -349,14 +349,17 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                 Expanded(
                   child: _buildDashboardCard(
                     title: 'Aperçu boutique',
-                    subtitle: 'Voir les articles en live',
+                    subtitle: 'Panier + checkout (monolithique)',
                     icon: Icons.storefront,
                     color: Colors.blue,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) =>
-                            const ShopPixelPerfectPage(shopId: 'global'),
+                        builder: (_) => BoutiquePage(
+                          shopId: 'global',
+                          userId:
+                              FirebaseAuth.instance.currentUser?.uid ?? 'guest',
+                        ),
                       ),
                     ),
                   ),
@@ -368,7 +371,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
               children: [
                 Expanded(
                   child: StreamBuilder<int>(
-                    stream: _watchPendingProductsCount(),
+                    stream: _watchPendingProductsCount(shopId: 'global'),
                     builder: (context, snap) {
                       final count = snap.data ?? 0;
                       return _buildDashboardCard(
@@ -1634,14 +1637,14 @@ class AdminAssistantStepByStepHomePage extends StatelessWidget {
           _AssistantCard(
             title: 'Assistant POI (Wizard)',
             subtitle:
-                'Sélectionner carte → Charger → Couche → Éditer POIs → Apparence',
+                'Pays → Événement → Circuit → Couches → POIs (visibilité)',
             icon: Icons.place_rounded,
             color: const Color(0xFFFF7A00),
             badge: 'New',
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const POIAssistantPage()),
+                MaterialPageRoute(builder: (_) => const POIMarketMapWizardPage()),
               );
             },
           ),

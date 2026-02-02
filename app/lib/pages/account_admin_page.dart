@@ -6,6 +6,7 @@ import 'login_page.dart';
 import '../widgets/rainbow_header.dart';
 import '../widgets/honeycomb_background.dart';
 import '../admin/admin_main_dashboard.dart';
+import '../commerce_module_single_file.dart';
 
 const Color _adminAccent = Color(0xFF1E88E5);
 
@@ -124,6 +125,38 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => const AdminMainDashboard(),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        _SectionCard(
+                          title: "Commerce (Monolith)",
+                          subtitle: "Gestion produits + photos",
+                          icon: Icons.shopping_bag,
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const ProductManagementPage(
+                                  shopId: 'global',
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        _SectionCard(
+                          title: "Boutique (Monolith)",
+                          subtitle: "Panier + checkout",
+                          icon: Icons.shopping_cart_outlined,
+                          onTap: () {
+                            final uid = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => BoutiquePage(
+                                  shopId: 'global',
+                                  userId: uid,
+                                ),
                               ),
                             );
                           },

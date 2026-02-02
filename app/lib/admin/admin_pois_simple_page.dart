@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import '../services/mapbox_token_service.dart';
 import '../ui/widgets/mapbox_web_view_platform.dart';
+import 'poi_marketmap_wizard_page.dart';
 
 /// Page de gestion des POIs (Points d'Intérêt) - Version Mapbox
 class AdminPOIsSimplePage extends StatefulWidget {
@@ -27,14 +28,31 @@ class _AdminPOIsSimplePageState extends State<AdminPOIsSimplePage> {
         title: const Text('Gestion des POIs'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _showCreatePOIDialog(),
-            tooltip: 'Créer un POI',
+            icon: const Icon(Icons.auto_fix_high),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const POIMarketMapWizardPage()),
+            ),
+            tooltip: 'Créer via le Wizard (recommandé)',
           ),
         ],
       ),
       body: Column(
         children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+            ),
+            child: const Text(
+              'Vue legacy (collection "pois"). La création est centralisée via le Wizard.',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
           // Barre de recherche
           Padding(
             padding: const EdgeInsets.all(16),
@@ -205,17 +223,6 @@ class _AdminPOIsSimplePageState extends State<AdminPOIsSimplePage> {
                 ),
                 const SizedBox(height: 16),
                 Text('Coordonnées: ${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}'),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () => _showEditPOIDialog(poiId, data),
-                      icon: const Icon(Icons.edit),
-                      label: const Text('Modifier'),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
@@ -266,303 +273,6 @@ class _AdminPOIsSimplePageState extends State<AdminPOIsSimplePage> {
         return Colors.teal;
       default:
         return Colors.blue;
-    }
-  }
-
-  void _showCreatePOIDialog() {
-    final nameController = TextEditingController();
-    final cityController = TextEditingController();
-    final latController = TextEditingController();
-    final lngController = TextEditingController();
-    String selectedType = _types.first;
-
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          title: const Text('Créer un POI'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nom',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: cityController,
-                  decoration: const InputDecoration(
-                    labelText: 'Ville',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedType,
-                  decoration: const InputDecoration(
-                    labelText: 'Type',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _types
-                      .map((type) => DropdownMenuItem(
-                            value: type,
-                            child: Text(_getTypeLabel(type)),
-                          ))
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setDialogState(() => selectedType = value);
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: latController,
-                        decoration: const InputDecoration(
-                          labelText: 'Latitude',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: lngController,
-                        decoration: const InputDecoration(
-                          labelText: 'Longitude',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annuler'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                if (nameController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(content: Text('Le nom est requis')),
-                  );
-                  return;
-                }
-
-                try {
-                  final lat = double.tryParse(latController.text) ?? 0.0;
-                  final lng = double.tryParse(lngController.text) ?? 0.0;
-
-                  await _firestore.collection('pois').add({
-                    'name': nameController.text.trim(),
-                    'type': selectedType,
-                    'city': cityController.text.trim(),
-                    'lat': lat,
-                    'lng': lng,
-                    'rating': 4.0,
-                    'active': true,
-                    'createdAt': FieldValue.serverTimestamp(),
-                  });
-
-                  if (!mounted || !dialogContext.mounted) return;
-                  Navigator.of(dialogContext).pop();
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(content: Text('POI créé avec succès')),
-                  );
-                } catch (e) {
-                  if (!mounted || !dialogContext.mounted) return;
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    SnackBar(content: Text('Erreur: $e')),
-                  );
-                }
-              },
-              child: const Text('Créer'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showEditPOIDialog(String poiId, Map<String, dynamic> data) {
-    final nameController = TextEditingController(text: data['name']);
-    final cityController = TextEditingController(text: data['city']);
-    final latController = TextEditingController(text: data['lat']?.toString());
-    final lngController = TextEditingController(text: data['lng']?.toString());
-    String selectedType = data['type'] ?? _types.first;
-
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          title: const Text('Modifier le POI'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nom',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: cityController,
-                  decoration: const InputDecoration(
-                    labelText: 'Ville',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedType,
-                  decoration: const InputDecoration(
-                    labelText: 'Type',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _types
-                      .map((type) => DropdownMenuItem(
-                            value: type,
-                            child: Text(_getTypeLabel(type)),
-                          ))
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setDialogState(() => selectedType = value);
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: latController,
-                        decoration: const InputDecoration(
-                          labelText: 'Latitude',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: lngController,
-                        decoration: const InputDecoration(
-                          labelText: 'Longitude',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                TextButton.icon(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    await _deletePOI(poiId, data['name']);
-                  },
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  label: const Text('Supprimer', style: TextStyle(color: Colors.red)),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annuler'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                try {
-                  final lat = double.tryParse(latController.text) ?? 0.0;
-                  final lng = double.tryParse(lngController.text) ?? 0.0;
-
-                  await _firestore.collection('pois').doc(poiId).update({
-                    'name': nameController.text.trim(),
-                    'type': selectedType,
-                    'city': cityController.text.trim(),
-                    'lat': lat,
-                    'lng': lng,
-                    'updatedAt': FieldValue.serverTimestamp(),
-                  });
-
-                  if (!mounted || !dialogContext.mounted) return;
-                  Navigator.of(dialogContext).pop();
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(content: Text('POI modifié avec succès')),
-                  );
-                } catch (e) {
-                  if (!mounted || !dialogContext.mounted) return;
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    SnackBar(content: Text('Erreur: $e')),
-                  );
-                }
-              },
-              child: const Text('Enregistrer'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _deletePOI(String poiId, String poiName) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirmer la suppression'),
-        content: Text('Voulez-vous vraiment supprimer "$poiName" ?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      try {
-        await _firestore.collection('pois').doc(poiId).delete();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('POI supprimé')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erreur: $e')),
-          );
-        }
-      }
     }
   }
 

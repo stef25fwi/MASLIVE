@@ -1,4 +1,7 @@
+// ignore_for_file: unused_field, unused_element, dead_code
+
 import 'package:flutter/material.dart';
+import '../admin/create_circuit_assistant_page.dart';
 
 class CircuitSavePage extends StatefulWidget {
   const CircuitSavePage({super.key});
@@ -129,67 +132,29 @@ class _CircuitSavePageState extends State<CircuitSavePage> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0.5,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Sauvegarder", style: TextStyle(fontWeight: FontWeight.w700)),
-            Text(
-              "Gérer vos circuits et couches",
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-            ),
-          ],
-        ),
+        title: const Text("Sauvegarder (Legacy)", style: TextStyle(fontWeight: FontWeight.w700)),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "Stockage",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1F2A37),
-                  ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.info_outline, size: 48),
+              const SizedBox(height: 12),
+              const Text(
+                "Outil legacy désactivé.\nUtilise le Wizard Circuit (MarketMap).",
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CreateCircuitAssistantPage()),
                 ),
-                ElevatedButton.icon(
-                  onPressed: _createFolder,
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text("Nouveau dossier"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1A73E8),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ..._folders.entries.map((entry) => _FolderCard(
-              folderName: entry.key,
-              folderData: entry.value,
-              isExpanded: _expandedFolder == entry.key,
-              layers: _layers,
-              onToggleExpand: () {
-                setState(() {
-                  _expandedFolder = _expandedFolder == entry.key ? null : entry.key;
-                });
-              },
-              onDelete: () => _deleteFolder(entry.key),
-              onToggleMap: (mapName) => _toggleMap(entry.key, mapName),
-              onToggleLayer: (mapName, layerName) => _toggleLayer(entry.key, mapName, layerName),
-              onExpandMap: (mapName) {
-                setState(() {
-                  _expandedMap = _expandedMap == mapName ? null : mapName;
-                });
-              },
-              expandedMap: _expandedMap,
-            )),
-          ],
+                child: const Text("Ouvrir le Wizard Circuit"),
+              ),
+            ],
+          ),
         ),
       ),
     );
