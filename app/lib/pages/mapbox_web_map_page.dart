@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
@@ -15,9 +18,14 @@ class MapboxWebMapPage extends StatefulWidget {
 
 class _MapboxWebMapPageState extends State<MapboxWebMapPage>
     with WidgetsBindingObserver {
-  Size? _lastWebMapSize;
+  // Constantes pour la gestion du resize
+  static const Duration _resizeDebounceDelay = Duration(milliseconds: 80);
+  static const Duration _mapReadyDelay = Duration(milliseconds: 500);
+  
+  ui.Size? _lastWebMapSize;
   int _webMapRebuildTick = 0;
   bool _isMapReady = false;
+  Timer? _resizeDebounce;
 
   @override
   void initState() {
@@ -25,7 +33,7 @@ class _MapboxWebMapPageState extends State<MapboxWebMapPage>
     WidgetsBinding.instance.addObserver(this);
     
     // Notifier que la carte est prête après un court délai
-    Future.delayed(const Duration(milliseconds: 500), () {
+    Future.delayed(_mapReadyDelay, () {
       if (!mounted) return;
       setState(() => _isMapReady = true);
       
@@ -39,6 +47,7 @@ class _MapboxWebMapPageState extends State<MapboxWebMapPage>
 
   @override
   void dispose() {
+    _resizeDebounce?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -46,22 +55,41 @@ class _MapboxWebMapPageState extends State<MapboxWebMapPage>
   @override
   void didChangeMetrics() {
     super.didChangeMetrics();
-    // Rotation ou changement de taille de l'écran
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final size = MediaQuery.sizeOf(context);
+    // Détecte : rotation, split-view, resize fenêtre, clavier virtuel
+    if (mounted) {
+      try {
+        setState(() => _webMapRebuildTick++);
+      } catch (e) {
+        debugPrint('⚠️ Erreur didChangeMetrics: $e');
+      }
+    }
+  }
+  
+  /// Planifie un resize de la carte avec debounce pour éviter les rebuilds excessifs.
+  /// 
+  /// Cette méthode est appelée par LayoutBuilder à chaque changement de contraintes.
+  /// Le debounce évite de rebuilder la carte 10+ fois pendant une animation de resize.
+  void _scheduleResize(ui.Size size) {
+    // Ignorer si la taille n'a pas changé (optimisation)
+    if (_lastWebMapSize == size) return;
+    _lastWebMapSize = size;
 
-      _lastWebMapSize ??= size;
-      if (size != _lastWebMapSize) {
+    // Annuler le timer précédent (debounce)
+    _resizeDebounce?.cancel();
+    
+    // Attendre que le resize soit stabilisé avant de rebuilder
+    _resizeDebounce = Timer(_resizeDebounceDelay, () {
+      if (!mounted) return; // Sécurité supplémentaire
+      
+      try {
+        // Incrémenter le tick force Flutter à recréer la carte avec une nouvelle Key
+        setState(() => _webMapRebuildTick++);
         debugPrint(
-          '🔄 MapboxWebMapPage: Changement de taille détecté: '
-          '${_lastWebMapSize?.width}x${_lastWebMapSize?.height} → '
-          '${size.width}x${size.height}',
+          '✅ Mapbox Web resize: ${size.width.toInt()}x${size.height.toInt()} '
+          '(tick: $_webMapRebuildTick)',
         );
-        _lastWebMapSize = size;
-        setState(() {
-          _webMapRebuildTick++; // Force rebuild du WebView map
-        });
+      } catch (e) {
+        debugPrint('⚠️ Erreur _scheduleResize: $e');
       }
     });
   }
@@ -118,7 +146,13 @@ class _MapboxWebMapPageState extends State<MapboxWebMapPage>
         extendBodyBehindAppBar: true,
         body: LayoutBuilder(
           builder: (context, constraints) {
-            final size = Size(constraints.maxWidth, constraints.maxHeight);
+            final size = ui.Size(constraints.maxWidth, constraints.maxHeight);
+            
+            // PostFrameCallback garantit que le resize est appelé APRÈS
+            // que le layout soit terminé, évitant les conflits avec setState
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _scheduleResize(size);
+            });
             
             return Stack(
               children: [
@@ -132,7 +166,7 @@ class _MapboxWebMapPageState extends State<MapboxWebMapPage>
                         color: Colors.black,
                         child: MapboxWebView(
                           key: ValueKey(
-                            'mapbox-web-fullscreen-${_webMapRebuildTick}-${size.width.toStringAsFixed(0)}x${size.height.toStringAsFixed(0)}',
+                            'mapbox-web-${size.width.toInt()}x${size.height.toInt()}_$_webMapRebuildTick',
                           ),
                           accessToken: token,
                           initialLat: 16.2410, // Pointe-à-Pitre
