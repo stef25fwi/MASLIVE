@@ -1,4 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/mapbox_token_web_stub.dart'
+  if (dart.library.html) '../utils/mapbox_token_web_web.dart';
 
 class MapboxTokenInfo {
   final String token;
@@ -45,6 +47,17 @@ class MapboxTokenService {
       final info = const MapboxTokenInfo(
         token: _compileTimeLegacyToken,
         source: 'dart-define MAPBOX_TOKEN (legacy)',
+      );
+      _cachedToken = info.token;
+      _cachedSource = info.source;
+      return info;
+    }
+
+    final webToken = readWebMapboxToken();
+    if (webToken.isNotEmpty) {
+      final info = MapboxTokenInfo(
+        token: webToken,
+        source: 'window.__MAPBOX_TOKEN__',
       );
       _cachedToken = info.token;
       _cachedSource = info.source;
@@ -100,6 +113,8 @@ class MapboxTokenService {
     if (overridden.isNotEmpty) return overridden;
     if (_compileTimeToken.isNotEmpty) return _compileTimeToken;
     if (_compileTimeLegacyToken.isNotEmpty) return _compileTimeLegacyToken;
+    final webToken = readWebMapboxToken();
+    if (webToken.isNotEmpty) return webToken;
     return _cachedToken;
   }
 
@@ -111,6 +126,8 @@ class MapboxTokenService {
     if (_compileTimeLegacyToken.isNotEmpty) {
       return 'dart-define MAPBOX_TOKEN (legacy)';
     }
+    final webToken = readWebMapboxToken();
+    if (webToken.isNotEmpty) return 'window.__MAPBOX_TOKEN__';
     return _cachedSource;
   }
 
