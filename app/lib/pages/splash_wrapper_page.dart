@@ -40,6 +40,14 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
         setState(() => _showHome = true);
       }
     });
+
+    // Timeout de secours : si la carte ne notifie pas dans les 5 secondes, on affiche quand même
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted && !_mapReady) {
+        debugPrint('⚠️ SplashWrapperPage: Timeout - forçage du masquage du splash après 5 secondes');
+        _hideSplash();
+      }
+    });
   }
 
   @override
