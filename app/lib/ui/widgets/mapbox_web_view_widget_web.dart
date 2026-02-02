@@ -153,6 +153,8 @@ class _MapboxWebViewState extends State<MapboxWebView> {
       'pitch': widget.initialPitch,
       'bearing': widget.initialBearing,
       'antialias': true,
+      'logoPosition': 'top-left',
+      'attributionControl': false,
     });
 
     final map = js.JsObject(mapboxglObj['Map'], [mapConfig]);
@@ -167,8 +169,33 @@ class _MapboxWebViewState extends State<MapboxWebView> {
     map.callMethod('on', [
       'load',
       (dynamic _) {
-        final navigationControl = js.JsObject(mapboxglObj['NavigationControl']);
-        map.callMethod('addControl', [navigationControl]);
+        final compassControl = js.JsObject(
+          mapboxglObj['NavigationControl'],
+          [
+            js.JsObject.jsify({
+              'showZoom': false,
+              'showCompass': true,
+            })
+          ],
+        );
+        map.callMethod('addControl', [compassControl, 'top-right']);
+
+        final zoomControl = js.JsObject(
+          mapboxglObj['NavigationControl'],
+          [
+            js.JsObject.jsify({
+              'showZoom': true,
+              'showCompass': false,
+            })
+          ],
+        );
+        map.callMethod('addControl', [zoomControl, 'top-right']);
+
+        final attributionControl = js.JsObject(
+          mapboxglObj['AttributionControl'],
+          [js.JsObject.jsify({'compact': true})],
+        );
+        map.callMethod('addControl', [attributionControl, 'top-left']);
 
         _add3dBuildings(map);
         _setPolylineGeoJson();

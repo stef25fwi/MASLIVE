@@ -206,8 +206,8 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
     final tileW = (contentW - _gridGap) / 2;
 
     // ✅ Hauteurs normalisées pour affichage complet du texte et du prix
-    final bigTileH = tileW * 1.35; // augmenté pour afficher texte + prix
-    final smallTileH = tileW * 0.95; // augmenté pour bandanas
+    final bigTileH = tileW * 1.35; // hauteur unique pour toutes les tuiles
+    final smallTileH = bigTileH;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
@@ -423,7 +423,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                       children: [
                         SizedBox(
                           width: tileW,
-                          height: smallTileH,
+                          height: bigTileH,
                           child: _ProductTile(
                             title: "Bandana\nMASLIVE",
                             price: "20,00 €",
@@ -449,13 +449,13 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                                 imagePath: 'assets/shop/logomockup.jpeg',
                               ),
                             ),
-                            compact: true,
+                            compact: false,
                           ),
                         ),
                         const SizedBox(width: _gridGap),
                         SizedBox(
                           width: tileW,
-                          height: smallTileH,
+                          height: bigTileH,
                           child: _ProductTile(
                             title: "Bandana\nMASLIVE",
                             price: "10,00 €",
@@ -481,7 +481,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                                 imagePath: 'assets/shop/modelmaslivewhite.png',
                               ),
                             ),
-                            compact: true,
+                            compact: false,
                           ),
                         ),
                       ],
@@ -714,21 +714,54 @@ class _FiltersBar extends StatelessWidget {
         children: [
           SizedBox(
             height: chipsH,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              child: Row(
-                children: [
-                  for (int i = 0; i < cats.length; i++) ...[
-                    _SelectedChip(
-                      label: cats[i],
-                      selected: selectedIndex == i,
-                      onTap: () => onCatChanged(i),
+            child: Stack(
+              children: [
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: [
+                      for (int i = 0; i < cats.length; i++) ...[
+                        _SelectedChip(
+                          label: cats[i],
+                          selected: selectedIndex == i,
+                          onTap: () => onCatChanged(i),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                    ],
+                  ),
+                ),
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: IgnorePointer(
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF6F7FB).withValues(alpha: 0.9),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            _Dot(),
+                            SizedBox(width: 3),
+                            _Dot(),
+                            SizedBox(width: 3),
+                            _Dot(),
+                          ],
+                        ),
+                      ),
                     ),
-                    const SizedBox(width: 10),
-                  ],
-                ],
-              ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 8),
@@ -794,6 +827,22 @@ class _SelectedChip extends StatelessWidget {
   }
 }
 
+class _Dot extends StatelessWidget {
+  const _Dot();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 4,
+      height: 4,
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.35),
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+}
+
 class _GroupDropdown extends StatelessWidget {
   const _GroupDropdown({
     required this.value,
@@ -808,11 +857,12 @@ class _GroupDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(999),
+      clipBehavior: Clip.antiAlias,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(999),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -830,12 +880,24 @@ class _GroupDropdown extends StatelessWidget {
                 .map(
                   (e) => DropdownMenuItem(
                     value: e,
-                    child: Text(
-                      e,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 20,
-                      ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            e,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 20,
+                            ),
+                          ),
+                        ),
+                        if (e == value)
+                          const Icon(
+                            Icons.check_circle,
+                            color: Color(0xFF2563EB),
+                            size: 18,
+                          ),
+                      ],
                     ),
                   ),
                 )

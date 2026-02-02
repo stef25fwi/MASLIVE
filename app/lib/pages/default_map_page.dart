@@ -683,6 +683,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           builder: (context, constraints) {
             final size = ui.Size(constraints.maxWidth, constraints.maxHeight);
             final topInset = MediaQuery.of(context).padding.top;
+            final menuTopOffset = topInset + 86;
 
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _scheduleResize(size);
@@ -749,7 +750,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                         child: SlideTransition(
                           position: _menuSlideAnimation,
                           child: Container(
-                            margin: const EdgeInsets.only(right: 0, top: 52),
+                            margin: EdgeInsets.only(
+                              right: 0,
+                              top: menuTopOffset,
+                            ),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 6,
                               vertical: 10,

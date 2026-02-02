@@ -668,16 +668,29 @@ class _MediaShopPageState extends State<MediaShopPage> {
                         SliverToBoxAdapter(
                           child: RainbowHeader(
                             title: 'Boutique Photos',
+                            leading: _GlassHeaderButton(
+                              tooltip: 'Retour',
+                              onTap: () => Navigator.of(context).maybePop(),
+                              child: const Icon(
+                                Icons.arrow_back_ios_new_rounded,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                IconButton(
+                                _GlassHeaderButton(
                                   tooltip: 'Panier',
-                                  onPressed: () => _openCartSheet(context, cart),
-                                  icon: Stack(
+                                  onTap: () => _openCartSheet(context, cart),
+                                  child: Stack(
                                     clipBehavior: Clip.none,
                                     children: [
-                                      const Icon(Icons.shopping_bag_outlined, color: Colors.white),
+                                      const Icon(
+                                        Icons.shopping_bag_outlined,
+                                        color: Colors.white,
+                                        size: 22,
+                                      ),
                                       if (cart.cartCount > 0)
                                         Positioned(
                                           right: -4,
@@ -687,10 +700,15 @@ class _MediaShopPageState extends State<MediaShopPage> {
                                     ],
                                   ),
                                 ),
-                                IconButton(
+                                const SizedBox(width: 8),
+                                _GlassHeaderButton(
                                   tooltip: 'Rafraîchir',
-                                  onPressed: _refreshAll,
-                                  icon: const Icon(Icons.refresh, color: Colors.white),
+                                  onTap: _refreshAll,
+                                  child: const Icon(
+                                    Icons.refresh,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
                                 ),
                               ],
                             ),
@@ -1387,12 +1405,32 @@ class _CartSheetV21State extends State<_CartSheetV21> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                children: [
-                  const Text('Panier', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-                  const Spacer(),
-                  Text(_money(total), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
-                ],
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFFFFE36A),
+                      Color(0xFFFF7BC5),
+                      Color(0xFF7CE0FF),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Panier',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white),
+                    ),
+                    const Spacer(),
+                    Text(
+                      _money(total),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 10),
 
@@ -1804,6 +1842,93 @@ class _Badge extends StatelessWidget {
   }
 }
 
+class _GlassHeaderButton extends StatelessWidget {
+  const _GlassHeaderButton({required this.tooltip, required this.onTap, required this.child});
+  final String tooltip;
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.white.withOpacity(0.16),
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(22),
+          child: Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withOpacity(0.22)),
+            ),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SheetOption<T> {
+  const _SheetOption(this.value, this.label);
+  final T? value;
+  final String label;
+}
+
+Future<_SheetOption<T>?> _showSelectSheet<T>(
+  BuildContext context, {
+  required String title,
+  required List<_SheetOption<T>> options,
+  required T? selected,
+}) {
+  return showModalBottomSheet<_SheetOption<T>>(
+    context: context,
+    showDragHandle: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+            child: Row(
+              children: [
+                Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                const Spacer(),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: options.length,
+              itemBuilder: (context, i) {
+                final opt = options[i];
+                final isSelected = opt.value == selected;
+                return ListTile(
+                  title: Text(opt.label, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  trailing: isSelected
+                      ? const Icon(Icons.check_circle, color: Color(0xFF2563EB), size: 18)
+                      : null,
+                  onTap: () => Navigator.pop(context, opt),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class _Drop extends StatelessWidget {
   const _Drop({required this.label, required this.value, required this.items, required this.onChanged});
 
@@ -1814,11 +1939,17 @@ class _Drop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final display = value ?? 'Tout';
+    final options = <_SheetOption<String>>[
+      const _SheetOption<String>(null, 'Tout'),
+      ...items.map((e) => _SheetOption<String>(e, e)),
+    ];
+
     return SizedBox(
       height: 56,
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.08),
@@ -1827,36 +1958,48 @@ class _Drop extends StatelessWidget {
             ),
           ],
         ),
-        child: InputDecorator(
-          decoration: InputDecoration(
-            isDense: true,
-            labelText: label,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: () async {
+            final picked = await _showSelectSheet<String>(
+              context,
+              title: label,
+              options: options,
+              selected: value,
+            );
+            if (picked != null) onChanged(picked.value);
+          },
+          child: InputDecorator(
+            decoration: InputDecoration(
+              isDense: true,
+              labelText: label,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(22),
+                borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(22),
+                borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(22),
+                borderSide: BorderSide(color: MasliveTheme.pink, width: 2),
+              ),
+              contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              filled: true,
+              fillColor: Colors.white,
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: MasliveTheme.pink, width: 2),
-            ),
-            contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-            filled: true,
-            fillColor: Colors.white,
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              isExpanded: true,
-              value: value,
-              hint: const Text('Tout'),
-              items: [
-                const DropdownMenuItem<String>(value: null, child: Text('Tout')),
-                ...items.map((e) => DropdownMenuItem(value: e, child: Text(e))),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    display,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const Icon(Icons.keyboard_arrow_down_rounded),
               ],
-              onChanged: onChanged,
             ),
           ),
         ),
@@ -1876,11 +2019,15 @@ class _SortDrop extends StatelessWidget {
       switch (m) {
         case SortMode.recent:
           return 'Plus récentes';
+          final options = SortMode.values
+              .map((m) => _SheetOption<SortMode>(m, label(m)))
+              .toList();
+
         case SortMode.popular:
           return 'Populaires';
         case SortMode.priceAsc:
           return 'Prix ↑';
-        case SortMode.priceDesc:
+                borderRadius: BorderRadius.circular(22),
           return 'Prix ↓';
       }
     }
@@ -1889,36 +2036,50 @@ class _SortDrop extends StatelessWidget {
       height: 56,
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: InputDecorator(
-          decoration: InputDecoration(
-            isDense: true,
-            labelText: 'Trier',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: MasliveTheme.pink, width: 2),
-            ),
-            contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-            filled: true,
-            fillColor: Colors.white,
-          ),
-          child: DropdownButtonHideUnderline(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(22),
+                onTap: () async {
+                  final picked = await _showSelectSheet<SortMode>(
+                    context,
+                    title: 'Trier',
+                    options: options,
+                    selected: value,
+                  );
+                  if (picked != null && picked.value != null) onChanged(picked.value!);
+                },
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    isDense: true,
+                    labelText: 'Trier',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(22),
+                      borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(22),
+                      borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(22),
+                      borderSide: BorderSide(color: MasliveTheme.pink, width: 2),
+                    ),
+                    contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          label(value),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const Icon(Icons.keyboard_arrow_down_rounded),
+                    ],
+                  ),
+                ),
             child: DropdownButton<SortMode>(
               isExpanded: true,
               value: value,
@@ -1950,7 +2111,7 @@ class _DateRangeField extends StatelessWidget {
       height: 56,
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.08),
@@ -1960,7 +2121,7 @@ class _DateRangeField extends StatelessWidget {
           ],
         ),
         child: InkWell(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(22),
           onTap: () async {
             final now = DateTime.now();
             final picked = await showDateRangePicker(
@@ -1976,15 +2137,15 @@ class _DateRangeField extends StatelessWidget {
               isDense: true,
               labelText: label,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(22),
                 borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(22),
                 borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(22),
                 borderSide: BorderSide(color: MasliveTheme.pink, width: 2),
               ),
               contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),

@@ -142,6 +142,11 @@
       bottom: 0;
       right: 0;
     }
+
+    /* Mapbox GL JS: décale la barre de zoom sous le compas */
+    .mapboxgl-ctrl-top-right .mapboxgl-ctrl-group + .mapboxgl-ctrl-group {
+      margin-top: 10px;
+    }
   </style>
   <script id="splash-screen-script">
     function removeSplashFromWeb() {
