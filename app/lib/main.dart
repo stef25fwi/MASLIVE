@@ -39,6 +39,7 @@ import 'pages/purchase_history_page.dart';
 import 'pages/business_account_page.dart';
 import 'pages/business_request_page.dart';
 import 'pages/mapbox_web_map_page.dart';
+import 'pages/default_map_page.dart';
 import 'admin/super_admin_space.dart';
 import 'admin/category_management_page.dart';
 import 'admin/role_management_page.dart';
@@ -125,7 +126,7 @@ class MasLiveApp extends StatelessWidget {
             routes: {
               '/splash': (_) => const SplashWrapperPage(),
               '/router': (_) => const RoleRouterPage(),
-              '/': (_) => const MapboxWebMapPage(),
+              '/': (_) => const DefaultMapPage(),
               // '/map-legacy': (_) => const HomeMapPageV3(), // 🔄 Moved to legacy
               '/map-3d': (_) => const MapboxWebMapPage(), // Mapbox GL JS via HtmlElementView
               '/map-web': (_) =>

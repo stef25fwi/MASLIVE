@@ -66,6 +66,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   // Fix universel rebuild + resize natif (iOS/Android/Web)
   int _mapTick = 0;
+  bool _mapCanBeCreated = false;
   ui.Size? _lastSize;
   Timer? _debounce;
 
@@ -212,6 +213,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   /// **Pourquoi c'est nécessaire :** Le SDK Mapbox natif ne gère pas automatiquement
   /// le resize via Flutter. On force un rebuild avec une nouvelle ValueKey.
   void _scheduleResize(ui.Size size) {
+    // Tant que la taille n'est pas exploitable, on ne crée pas la carte.
+    if (!size.width.isFinite || !size.height.isFinite) return;
+    if (size.width <= 0 || size.height <= 0) return;
+
     // Ignorer si la taille n'a pas changé (optimisation)
     if (_lastSize == size) return;
     _lastSize = size;
@@ -224,8 +229,13 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       if (!mounted) return; // Sécurité supplémentaire
       
       try {
-        // Incrémenter le tick force Flutter à recréer le MapWidget avec une nouvelle Key
-        setState(() => _mapTick++);
+        // 1) Autoriser la création de la carte seulement une fois que les contraintes
+        // sont stabilisées (fix “premier layout” : carte initialisée trop tôt).
+        // 2) Incrémenter le tick force Flutter à recréer le MapWidget avec une nouvelle Key.
+        setState(() {
+          _mapCanBeCreated = true;
+          _mapTick++;
+        });
         debugPrint('✅ Map rebuild: ${size.width.toInt()}x${size.height.toInt()} (tick: $_mapTick)');
       } catch (e) {
         debugPrint('⚠️ Erreur _scheduleResize: $e');
@@ -973,17 +983,23 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                   height: size.height,
                   child: Container(
                     color: Colors.black, // Couleur de fond pendant le chargement
-                    child: MapWidget(
-                      key: ValueKey('map_${size.width.toInt()}x${size.height.toInt()}_$_mapTick'),
-                      styleUri: 'mapbox://styles/mapbox/streets-v12',
-                      cameraOptions: CameraOptions(
-                        center: Point(coordinates: _userPos ?? _fallbackCenter),
-                        zoom: _userPos != null ? _userZoom : _defaultZoom,
-                        pitch: _defaultPitch,
-                        bearing: 0.0,
-                      ),
-                      onMapCreated: _onMapCreated,
-                    ),
+                    child: _mapCanBeCreated
+                        ? MapWidget(
+                            key: ValueKey(
+                              'map_${size.width.toInt()}x${size.height.toInt()}_$_mapTick',
+                            ),
+                            styleUri: 'mapbox://styles/mapbox/streets-v12',
+                            cameraOptions: CameraOptions(
+                              center: Point(
+                                coordinates: _userPos ?? _fallbackCenter,
+                              ),
+                              zoom: _userPos != null ? _userZoom : _defaultZoom,
+                              pitch: _defaultPitch,
+                              bearing: 0.0,
+                            ),
+                            onMapCreated: _onMapCreated,
+                          )
+                        : const SizedBox.expand(),
                   ),
                 ),
               ),
