@@ -67,7 +67,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   // Projets cartographiques
   String? _selectedMapProjectId;
-  String _styleUrl = 'mapbox://styles/mapbox/streets-v12';
+  String _styleUrl = 'mapbox://styles/mapbox/light-v11';
   double? _projectCenterLat;
   double? _projectCenterLng;
   double? _projectZoom;
@@ -696,7 +696,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                       width: size.width,
                       height: size.height,
                       child: Container(
-                        color: Colors.black,
+                        color: Colors.transparent,
                         child: MapboxWebView(
                           key: ValueKey(
                             'default-map-${size.width.toInt()}x${size.height.toInt()}_$_mapRebuildTick',
