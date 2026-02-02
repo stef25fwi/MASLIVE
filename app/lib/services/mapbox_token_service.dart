@@ -32,6 +32,9 @@ class MapboxTokenService {
     'MAPBOX_TOKEN',
   );
 
+  // Fallback ultime en dur pour éviter les soucis de cache index.html ou de config
+  static const String _hardcodedFallback = "pk.eyJ1Ijoic3RlZjk3MWZ3aSIsImEiOiJjbWt1aDBqNW8yMmdmM2RvcXg4aThrcGRzIn0.7vrVoNjhUFHW1c8f-Dbczg";
+
   static Future<MapboxTokenInfo> getTokenInfo() async {
     if (_compileTimeToken.isNotEmpty) {
       final info = const MapboxTokenInfo(
@@ -88,6 +91,16 @@ class MapboxTokenService {
       return info;
     }
 
+    if (_hardcodedFallback.isNotEmpty) {
+       final info = const MapboxTokenInfo(
+        token: _hardcodedFallback,
+        source: 'Hardcoded Fallback',
+      );
+      _cachedToken = info.token;
+      _cachedSource = info.source;
+      return info;
+    }
+
     const info = MapboxTokenInfo(token: '', source: 'aucun');
     _cachedToken = info.token;
     _cachedSource = info.source;
@@ -115,7 +128,8 @@ class MapboxTokenService {
     if (_compileTimeLegacyToken.isNotEmpty) return _compileTimeLegacyToken;
     final webToken = readWebMapboxToken();
     if (webToken.isNotEmpty) return webToken;
-    return _cachedToken;
+    if (_cachedToken.isNotEmpty) return _cachedToken;
+    return _hardcodedFallback;
   }
 
   /// Source sync correspondant à [getTokenSync].
