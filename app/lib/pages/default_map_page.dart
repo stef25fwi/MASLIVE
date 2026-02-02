@@ -683,7 +683,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           builder: (context, constraints) {
             final size = ui.Size(constraints.maxWidth, constraints.maxHeight);
             final topInset = MediaQuery.of(context).padding.top;
-            final menuTopOffset = topInset + 86;
+            final menuTopOffset = topInset + 104;
 
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _scheduleResize(size);
