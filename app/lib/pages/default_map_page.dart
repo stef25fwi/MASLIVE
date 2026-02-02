@@ -67,7 +67,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   // Projets cartographiques
   String? _selectedMapProjectId;
-  String _styleUrl = 'mapbox://styles/mapbox/light-v11';
+  String _styleUrl = 'mapbox://styles/mapbox/streets-v12';
   double? _projectCenterLat;
   double? _projectCenterLng;
   double? _projectZoom;
