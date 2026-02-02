@@ -118,21 +118,32 @@ class _MapboxWebMapPageState extends State<MapboxWebMapPage>
         extendBodyBehindAppBar: true,
         body: LayoutBuilder(
           builder: (context, constraints) {
+            final size = Size(constraints.maxWidth, constraints.maxHeight);
+            
             return Stack(
               children: [
                 // Carte Mapbox en plein écran
                 Positioned.fill(
-                  child: MapboxWebView(
-                    key: ValueKey(
-                      'mapbox-web-fullscreen-${_webMapRebuildTick}-${constraints.maxWidth.toStringAsFixed(0)}x${constraints.maxHeight.toStringAsFixed(0)}',
+                  child: RepaintBoundary(
+                    child: SizedBox(
+                      width: size.width,
+                      height: size.height,
+                      child: Container(
+                        color: Colors.black,
+                        child: MapboxWebView(
+                          key: ValueKey(
+                            'mapbox-web-fullscreen-${_webMapRebuildTick}-${size.width.toStringAsFixed(0)}x${size.height.toStringAsFixed(0)}',
+                          ),
+                          accessToken: token,
+                          initialLat: 16.2410, // Pointe-à-Pitre
+                          initialLng: -61.5340,
+                          initialZoom: 15.0,
+                          initialPitch: 45.0,
+                          initialBearing: 0.0,
+                          styleUrl: 'mapbox://styles/mapbox/streets-v12',
+                        ),
+                      ),
                     ),
-                    accessToken: token,
-                    initialLat: 16.2410, // Pointe-à-Pitre
-                    initialLng: -61.5340,
-                    initialZoom: 15.0,
-                    initialPitch: 45.0,
-                    initialBearing: 0.0,
-                    styleUrl: 'mapbox://styles/mapbox/streets-v12',
                   ),
                 ),
               ],
