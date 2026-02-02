@@ -103,52 +103,28 @@ class _MapboxWebMapPageState extends State<MapboxWebMapPage>
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mapbox Web (GL JS)'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Mapbox GL JS'),
-                  content: const Text(
-                    'Cette carte utilise Mapbox GL JS via HtmlElementView.\n\n'
-                    'Mobile: mapbox_maps_flutter (natif)\n'
-                    'Web: Mapbox GL JS\n\n'
-                    'Moteur officiel Mapbox pour un look & feel identique.',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Fermer'),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+      extendBody: true, // Carte passe sous la barre de navigation
+      extendBodyBehindAppBar: true, // Carte passe sous la barre d'état
       body: LayoutBuilder(
         builder: (context, constraints) {
           final size = MediaQuery.sizeOf(context);
-          return Container(
+          return SizedBox(
             width: size.width,
             height: size.height,
-            color: Colors.grey[200],
-            child: MapboxWebView(
-              key: ValueKey(
-                'mapbox-web-admin-${_webMapRebuildTick}-${size.width.toStringAsFixed(0)}x${size.height.toStringAsFixed(0)}',
+            child: Container(
+              color: Colors.black, // Fond noir pendant le chargement
+              child: MapboxWebView(
+                key: ValueKey(
+                  'mapbox-web-home-${_webMapRebuildTick}-${size.width.toStringAsFixed(0)}x${size.height.toStringAsFixed(0)}',
+                ),
+                accessToken: token,
+                initialLat: 16.2410, // Pointe-à-Pitre
+                initialLng: -61.5340,
+                initialZoom: 15.0,
+                initialPitch: 45.0,
+                initialBearing: 0.0,
+                styleUrl: 'mapbox://styles/mapbox/streets-v12',
               ),
-              accessToken: token,
-              initialLat: 16.2410, // Pointe-à-Pitre
-              initialLng: -61.5340,
-              initialZoom: 15.0,
-              initialPitch: 45.0,
-              initialBearing: 0.0,
-              styleUrl: 'mapbox://styles/mapbox/streets-v12',
             ),
           );
         },
