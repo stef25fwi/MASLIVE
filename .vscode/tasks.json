@@ -113,6 +113,17 @@
       "problemMatcher": []
     },
     {
+      "label": "MASLIVE: Git commit + push (fix web bootstrap)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add app/web/flutter_bootstrap.js && git commit -m \"fix(web): restore flutter_bootstrap.js\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy",
       "type": "shell",
       "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat: amélioration shop (stock, assets, admin commerce)\"",
@@ -121,6 +132,17 @@
       "group": {
         "kind": "build"
       },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Firebase deploy (hosting+functions+rules+indexes)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && firebase deploy --only hosting,functions,firestore:rules,firestore:indexes",
+      "problemMatcher": [],
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",

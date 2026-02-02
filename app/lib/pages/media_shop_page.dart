@@ -2019,35 +2019,37 @@ class _SortDrop extends StatelessWidget {
       switch (m) {
         case SortMode.recent:
           return 'Plus récentes';
-          final options = SortMode.values
-              .map((m) => _SheetOption<SortMode>(m, label(m)))
-              .toList();
-
         case SortMode.popular:
           return 'Populaires';
         case SortMode.priceAsc:
           return 'Prix ↑';
-                borderRadius: BorderRadius.circular(22),
+        case SortMode.priceDesc:
           return 'Prix ↓';
       }
     }
+
+    final options = SortMode.values
+        .map((m) => _SheetOption<SortMode>(m, label(m)))
+        .toList();
 
     return SizedBox(
       height: 56,
       child: Container(
         decoration: BoxDecoration(
-              child: InkWell(
-                borderRadius: BorderRadius.circular(22),
-                onTap: () async {
-                  final picked = await _showSelectSheet<SortMode>(
-                    context,
-                    title: 'Trier',
-                    options: options,
-                    selected: value,
-                  );
-                  if (picked != null && picked.value != null) onChanged(picked.value!);
-                },
-                child: InputDecorator(
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: () async {
+            final picked = await _showSelectSheet<SortMode>(
+              context,
+              title: 'Trier',
+              options: options,
+              selected: value,
+            );
+            if (picked != null && picked.value != null) onChanged(picked.value!);
+          },
+          child: InputDecorator(
                   decoration: InputDecoration(
                     isDense: true,
                     labelText: 'Trier',

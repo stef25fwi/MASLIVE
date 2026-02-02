@@ -10,6 +10,9 @@ class CircuitImportExportPage extends StatefulWidget {
   State<CircuitImportExportPage> createState() => _CircuitImportExportPageState();
 }
 
+class _CircuitImportExportPageState extends State<CircuitImportExportPage> {
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -42,7 +45,62 @@ class CircuitImportExportPage extends StatefulWidget {
         ),
       ),
     );
-                    fontSize: 18,
+  }
+}
+
+// Widgets inutilisés mais conservés pour compilation
+class _ImportButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool isLoading;
+  final VoidCallback onPressed;
+
+  const _ImportButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.isLoading,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox.shrink();
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onPressed;
+
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox.shrink();
+  }
+}
+
+class _FileCard extends StatelessWidget {
+  final String file;
+  final VoidCallback onDelete;
+
+  const _FileCard({required this.file, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox.shrink();
+  }
+}
+
                     fontWeight: FontWeight.w800,
                     color: Color(0xFF1F2A37),
                   ),
