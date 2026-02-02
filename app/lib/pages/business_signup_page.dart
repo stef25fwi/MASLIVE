@@ -34,8 +34,6 @@ class _BusinessSignupPageState extends State<BusinessSignupPage> {
   String? _country;
   String? _region;
   String? _activitySector;
-  String? _numberOfEmployees;
-  String? _tvaRegime;
 
   // Formes juridiques françaises
   final List<String> _legalForms = [
@@ -103,24 +101,7 @@ class _BusinessSignupPageState extends State<BusinessSignupPage> {
     'Autre',
   ];
 
-  final List<String> _employeeRanges = [
-    '0 (auto-entrepreneur)',
-    '1-5 salariés',
-    '6-10 salariés',
-    '11-20 salariés',
-    '21-50 salariés',
-    '51-100 salariés',
-    '101-250 salariés',
-    'Plus de 250 salariés',
-  ];
 
-  final List<String> _tvaRegimes = [
-    'Franchise en base de TVA',
-    'Régime réel simplifié',
-    'Régime réel normal',
-    'Auto-entrepreneur',
-    'Non assujetti',
-  ];
 
   @override
   void dispose() {
@@ -174,8 +155,6 @@ class _BusinessSignupPageState extends State<BusinessSignupPage> {
         'siret': _siretCtrl.text.trim(),
         'legalForm': _legalForm,
         'activitySector': _activitySector,
-        'numberOfEmployees': _numberOfEmployees,
-        'tvaRegime': _tvaRegime,
         'address': _addressCtrl.text.trim(),
         'city': _cityCtrl.text.trim(),
         'postalCode': _postalCodeCtrl.text.trim(),
@@ -361,25 +340,6 @@ class _BusinessSignupPageState extends State<BusinessSignupPage> {
                       onChanged: (v) => setState(() => _activitySector = v),
                       validator: (v) =>
                           v == null ? 'Secteur d\'activité requis' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    _DropdownField(
-                      label: 'Nombre de salariés *',
-                      value: _numberOfEmployees,
-                      items: _employeeRanges,
-                      icon: Icons.people_outline,
-                      onChanged: (v) => setState(() => _numberOfEmployees = v),
-                      validator: (v) =>
-                          v == null ? 'Nombre de salariés requis' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    _DropdownField(
-                      label: 'Régime de TVA *',
-                      value: _tvaRegime,
-                      items: _tvaRegimes,
-                      icon: Icons.receipt_long_outlined,
-                      onChanged: (v) => setState(() => _tvaRegime = v),
-                      validator: (v) => v == null ? 'Régime TVA requis' : null,
                     ),
 
                     const SizedBox(height: 24),
