@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'splash_screen.dart';
 import 'default_map_page.dart';
 import 'home_map_page_3d.dart';
+import '../utils/web_viewport_resize.dart';
 
 /// Notificateur global pour savoir quand la carte est prête
 final ValueNotifier<bool> mapReadyNotifier = ValueNotifier<bool>(false);
@@ -21,7 +22,8 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
   bool _mapReady = false;
   late DateTime _splashStartTime;
 
-  Widget get _homeAfterSplash => kIsWeb ? const DefaultMapPage() : const HomeMapPage3D();
+  Widget get _homeAfterSplash =>
+      kIsWeb ? const DefaultMapPage() : const HomeMapPage3D();
 
   @override
   void initState() {
@@ -77,30 +79,62 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
     setState(() => _mapReady = true);
     // Restaurer les barres système
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
+    // Sur le web, Mapbox GL JS se recale correctement après un resize.
+    // On le simule ici pour éviter l'écran "moitié noir" tant que
+    // l'utilisateur n'a pas pivoté l'app.
+    if (kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        triggerWebViewportResize();
+        Future.delayed(
+          const Duration(milliseconds: 60),
+          triggerWebViewportResize,
+        );
+        Future.delayed(
+          const Duration(milliseconds: 220),
+          triggerWebViewportResize,
+        );
+        // Après la fin du fade (AnimatedOpacity ~400ms)
+        Future.delayed(
+          const Duration(milliseconds: 520),
+          triggerWebViewportResize,
+        );
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return ColoredBox(
       color: Colors.white, // Fond blanc permanent pour éviter les flashs
-      child: Stack(
-        children: [
-          // La page home est chargée en arrière-plan pour que la carte commence à se charger
-          if (_showHome)
-            AnimatedOpacity(
-              duration: const Duration(milliseconds: 400),
-              opacity: _mapReady ? 1.0 : 0.0,
-              child: _homeAfterSplash,
-            ),
+      child: SizedBox.expand(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // La page home est chargée en arrière-plan pour que la carte commence à se charger
+            if (_showHome)
+              Positioned.fill(
+                child: IgnorePointer(
+                  ignoring: !_mapReady,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 400),
+                    opacity: _mapReady ? 1.0 : 0.0,
+                    child: _homeAfterSplash,
+                  ),
+                ),
+              ),
 
-          // Le splashscreen reste visible tant que la carte n'est pas prête
-          if (!_mapReady)
-            AnimatedOpacity(
-              duration: const Duration(milliseconds: 400),
-              opacity: _mapReady ? 0.0 : 1.0,
-              child: const SplashScreen(),
-            ),
-        ],
+            // Le splashscreen reste visible tant que la carte n'est pas prête
+            if (!_mapReady)
+              Positioned.fill(
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 400),
+                  opacity: _mapReady ? 0.0 : 1.0,
+                  child: const SplashScreen(),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
