@@ -7,7 +7,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:image/image.dart' as img;
 
 import '../services/media_permissions_service.dart';
 
@@ -66,12 +65,8 @@ class _MediaGalleryMasliveInstagramPageState
 
   final ScrollController _scroll = ScrollController();
 
-  @override
-  void initState() {
-    super.initState();
-    _scroll.addListener(_onScroll);
-    _startListening(reset: true);
-  }
+  bool _canAddMediaCached = false;
+  bool _canAddMediaLoaded = false;
 
   @override
   void dispose() {
@@ -252,9 +247,6 @@ class _MediaGalleryMasliveInstagramPageState
       ),
     );
   }
-
-  bool _canAddMediaCached = false;
-  bool _canAddMediaLoaded = false;
 
   @override
   void initState() {
@@ -1344,29 +1336,15 @@ class _AddMediaSheetState extends State<_AddMediaSheet> {
     setState(() => _saving = true);
 
     try {
-      // Lire et compresser l'image
-      final originalBytes = await _file!.readAsBytes();
-      final image = img.decodeImage(originalBytes);
-      
-      if (image == null) {
-        throw Exception('Impossible de decoder l\'image');
-      }
-
-      // Compresser à max 1200px de largeur, qualité 85%
-      final compressed = img.copyResize(
-        image,
-        width: image.width > 1200 ? 1200 : image.width,
-        interpolation: img.Interpolation.linear,
-      );
-      final compressedBytes = Uint8List.fromList(
-        img.encodeJpg(compressed, quality: 85),
-      );
+      // Upload l'image (ImagePicker l'a déjà compressée à qualité 88)
+      final bytes = await _file!.readAsBytes();
+      final data = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
 
       final ts = DateTime.now().millisecondsSinceEpoch;
       final storagePath = 'media/${user.uid}/$ts.jpg';
       final ref = FirebaseStorage.instance.ref(storagePath);
       final meta = SettableMetadata(contentType: 'image/jpeg');
-      await ref.putData(compressedBytes, meta);
+      await ref.putData(data, meta);
       final url = await ref.getDownloadURL();
 
       // Récupérer le nom du photographe depuis Firestore

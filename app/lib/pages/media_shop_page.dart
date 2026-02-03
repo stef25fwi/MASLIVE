@@ -19,7 +19,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:image/image.dart' as img;
 
 import '../ui/theme/maslive_theme.dart';
 import '../ui/widgets/honeycomb_background.dart';
@@ -629,11 +628,12 @@ class _MediaShopPageState extends State<MediaShopPage> {
 
     if (mounted) setState(() => _initialLoading = false);
     _schedulePrecache(force: true);
+  }
 
-      // ---------------------------------------------------------------------------
-      // SEED DES PHOTOS À PARTIR DES ASSETS (super admin uniquement)
-      // ---------------------------------------------------------------------------
-      Future<void> _maybeSeedAssetsAsPhotos() async {
+  // ---------------------------------------------------------------------------
+  // SEED DES PHOTOS À PARTIR DES ASSETS (super admin uniquement)
+  // ---------------------------------------------------------------------------
+  Future<void> _maybeSeedAssetsAsPhotos() async {
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) return;
         if (user.email != 's-stephane@live.fr') return;
@@ -727,14 +727,13 @@ class _MediaShopPageState extends State<MediaShopPage> {
           'email': user.email,
           'version': currentVersion,
         }, SetOptions(merge: true));
-      }
+  }
 
-      String _seedIdForAsset(String assetPath) {
-        final base = assetPath.split('/').last;
-        final withoutExt = base.replaceFirst(RegExp(r'\.[^.]+$'), '');
-        final safe = withoutExt.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
-        return 'asset_$safe';
-      }
+  String _seedIdForAsset(String assetPath) {
+    final base = assetPath.split('/').last;
+    final withoutExt = base.replaceFirst(RegExp(r'\.[^.]+$'), '');
+    final safe = withoutExt.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    return 'asset_$safe';
   }
 
   Future<void> _loadFacetsDebounced({bool immediate = false}) async {
