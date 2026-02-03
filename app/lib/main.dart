@@ -56,6 +56,10 @@ import 'ui/widgets/honeycomb_background.dart';
 import 'l10n/app_localizations.dart';
 import 'pages/circuit_editor_workflow_page.dart';
 import 'commerce_module_single_file.dart';
+import 'pages/commerce/create_product_page.dart';
+import 'pages/commerce/create_media_page.dart';
+import 'pages/commerce/my_submissions_page.dart';
+import 'admin/admin_moderation_page.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -193,6 +197,10 @@ class MasLiveApp extends StatelessWidget {
               '/business': (_) => const BusinessAccountPage(),
               '/business-request': (_) => const BusinessRequestPage(),
               '/admin/business-requests': (_) => const BusinessRequestsPage(),
+              '/commerce/create-product': (_) => const CreateProductPage(),
+              '/commerce/create-media': (_) => const CreateMediaPage(),
+              '/commerce/my-submissions': (_) => const MySubmissionsPage(),
+              '/admin/moderation': (_) => const AdminModerationPage(),
             },
             builder: (context, child) => HoneycombBackground(
               opacity: 0.08,

@@ -1726,3 +1726,178 @@ async function handleAccountUpdated(account) {
 
   console.log(`Business ${uid} Stripe status auto-updated via webhook`);
 }
+
+// ============================================================================
+// COMMERCE SUBMISSION MODERATION (Cloud Functions Gen 2)
+// ============================================================================
+
+/**
+ * Approuve une soumission commerce et la publie dans /shops/{scopeId}/products ou /media
+ */
+exports.approveCommerceSubmission = onCall(async (request) => {
+  const { submissionId } = request.data;
+  const uid = request.auth?.uid;
+
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "User must be authenticated");
+  }
+
+  if (!submissionId) {
+    throw new HttpsError("invalid-argument", "submissionId is required");
+  }
+
+  // Récupérer la soumission
+  const submissionRef = admin.firestore().collection("commerce_submissions").doc(submissionId);
+  const submissionDoc = await submissionRef.get();
+
+  if (!submissionDoc.exists) {
+    throw new HttpsError("not-found", "Submission not found");
+  }
+
+  const submission = submissionDoc.data();
+
+  // Vérifier le statut
+  if (submission.status !== "pending") {
+    throw new HttpsError("failed-precondition", `Submission status is ${submission.status}, must be pending`);
+  }
+
+  // Vérifier les permissions du modérateur
+  const userDoc = await admin.firestore().collection("users").doc(uid).get();
+  if (!userDoc.exists) {
+    throw new HttpsError("permission-denied", "User profile not found");
+  }
+
+  const userData = userDoc.data();
+  const role = userData.role;
+  const isAdmin = userData.isAdmin === true;
+
+  // SuperAdmin et admin peuvent tout modérer
+  const canModerate = isAdmin || role === "admin" || role === "superadmin";
+
+  // Admin groupe peut modérer uniquement son scope
+  const isAdminGroupe = role === "admin_groupe";
+  const managedScopeIds = userData.managedScopeIds || [];
+  const canModerateScope = isAdminGroupe && submission.scopeType === "group" && managedScopeIds.includes(submission.scopeId);
+
+  if (!canModerate && !canModerateScope) {
+    throw new HttpsError("permission-denied", "User cannot moderate this submission");
+  }
+
+  // Déterminer la collection cible
+  const scopeId = submission.scopeId || "global";
+  const targetCollection = submission.type === "product" ? "products" : "media";
+  const targetPath = `shops/${scopeId}/${targetCollection}`;
+
+  // Créer le document publié
+  const publishedData = {
+    sourceSubmissionId: submissionId,
+    ownerUid: submission.ownerUid,
+    ownerRole: submission.ownerRole,
+    scopeType: submission.scopeType,
+    scopeId: submission.scopeId,
+    title: submission.title,
+    description: submission.description,
+    mediaUrls: submission.mediaUrls || [],
+    thumbUrl: submission.thumbUrl || null,
+    publishedAt: admin.firestore.FieldValue.serverTimestamp(),
+    publishedBy: uid,
+  };
+
+  // Champs produit
+  if (submission.type === "product") {
+    publishedData.price = submission.price || 0;
+    publishedData.currency = submission.currency || "EUR";
+    publishedData.stock = submission.stock || 0;
+    publishedData.isActive = submission.isActive !== false;
+  }
+
+  // Champs media
+  if (submission.type === "media") {
+    publishedData.mediaType = submission.mediaType || "photo";
+    if (submission.takenAt) publishedData.takenAt = submission.takenAt;
+    if (submission.location) publishedData.location = submission.location;
+    if (submission.photographer) publishedData.photographer = submission.photographer;
+  }
+
+  // Publier dans la boutique
+  await admin.firestore().collection(targetPath).doc(submissionId).set(publishedData);
+
+  // Mettre à jour la soumission
+  await submissionRef.update({
+    status: "approved",
+    publishedRef: `${targetPath}/${submissionId}`,
+    moderatedBy: uid,
+    moderatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  console.log(`Submission ${submissionId} approved by ${uid} and published to ${targetPath}/${submissionId}`);
+
+  return { success: true, publishedRef: `${targetPath}/${submissionId}` };
+});
+
+/**
+ * Refuse une soumission commerce avec une note
+ */
+exports.rejectCommerceSubmission = onCall(async (request) => {
+  const { submissionId, note } = request.data;
+  const uid = request.auth?.uid;
+
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "User must be authenticated");
+  }
+
+  if (!submissionId || !note) {
+    throw new HttpsError("invalid-argument", "submissionId and note are required");
+  }
+
+  // Récupérer la soumission
+  const submissionRef = admin.firestore().collection("commerce_submissions").doc(submissionId);
+  const submissionDoc = await submissionRef.get();
+
+  if (!submissionDoc.exists) {
+    throw new HttpsError("not-found", "Submission not found");
+  }
+
+  const submission = submissionDoc.data();
+
+  // Vérifier le statut
+  if (submission.status !== "pending") {
+    throw new HttpsError("failed-precondition", `Submission status is ${submission.status}, must be pending`);
+  }
+
+  // Vérifier les permissions du modérateur
+  const userDoc = await admin.firestore().collection("users").doc(uid).get();
+  if (!userDoc.exists) {
+    throw new HttpsError("permission-denied", "User profile not found");
+  }
+
+  const userData = userDoc.data();
+  const role = userData.role;
+  const isAdmin = userData.isAdmin === true;
+
+  // SuperAdmin et admin peuvent tout modérer
+  const canModerate = isAdmin || role === "admin" || role === "superadmin";
+
+  // Admin groupe peut modérer uniquement son scope
+  const isAdminGroupe = role === "admin_groupe";
+  const managedScopeIds = userData.managedScopeIds || [];
+  const canModerateScope = isAdminGroupe && submission.scopeType === "group" && managedScopeIds.includes(submission.scopeId);
+
+  if (!canModerate && !canModerateScope) {
+    throw new HttpsError("permission-denied", "User cannot moderate this submission");
+  }
+
+  // Mettre à jour la soumission
+  await submissionRef.update({
+    status: "rejected",
+    moderationNote: note,
+    moderatedBy: uid,
+    moderatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  console.log(`Submission ${submissionId} rejected by ${uid}`);
+
+  return { success: true };
+});

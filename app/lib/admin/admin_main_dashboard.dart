@@ -25,6 +25,7 @@ import '../pages/pending_products_page.dart';
 import 'create_circuit_assistant_page.dart';
 import 'poi_marketmap_wizard_page.dart';
 import '../commerce_module_single_file.dart';
+import 'admin_moderation_page.dart';
 
 /// Dashboard admin principal 10/10 avec toutes les fonctionnalités
 class AdminMainDashboard extends StatefulWidget {
@@ -386,6 +387,29 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                       );
                     },
                   ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildDashboardCard(
+                    title: 'Modération Commerce',
+                    subtitle: 'Valider produits & médias soumis',
+                    icon: Icons.fact_check,
+                    color: Colors.deepPurple,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AdminModerationPage(),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(), // Placeholder
                 ),
               ],
             ),

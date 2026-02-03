@@ -416,6 +416,90 @@ service cloud.firestore {
       allow update, delete: if canManageContent();
     }
 
+    // ========== COLLECTION: COMMERCE SUBMISSIONS (Soumissions commerce) ==========
+    match /commerce_submissions/{submissionId} {
+      // Helper: vérifier si l'utilisateur peut soumettre du commerce
+      function canSubmitCommerce() {
+        return hasUserDoc() && (
+          isMasterAdmin()
+          || userRole() == 'admin_groupe'
+          || (getUserData().accountType == 'pro' && getUserData().keys().hasAny(['activities']))
+          || userRole() == 'superadmin'
+        );
+      }
+
+      // Helper: vérifier si l'utilisateur peut modérer
+      function canModerate() {
+        return isMasterAdmin()
+          || (userRole() == 'admin_groupe' 
+              && resource.data.scopeType == 'group' 
+              && getUserData().keys().hasAny(['managedScopeIds']) 
+              && getUserData().managedScopeIds.hasAny([resource.data.scopeId]));
+      }
+
+      // Lecture:
+      // - Propriétaire peut lire ses propres soumissions
+      // - Modérateurs peuvent lire les soumissions pending
+      // - Admins peuvent tout lire
+      allow read: if isSignedIn() && (
+        resource.data.ownerUid == request.auth.uid
+        || canModerate()
+        || isMasterAdmin()
+      );
+
+      // Création:
+      // - Utilisateur autorisé avec un rôle valide
+      // - Doit définir ownerUid = request.auth.uid
+      // - Statut initial = 'draft' ou 'pending'
+      allow create: if isSignedIn() 
+        && canSubmitCommerce()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.status in ['draft', 'pending']
+        && !request.resource.data.keys().hasAny(['moderatedBy', 'moderatedAt', 'publishedRef']);
+
+      // Mise à jour:
+      // - Propriétaire peut modifier ses soumissions draft ou rejected
+      //   MAIS ne peut pas toucher aux champs de modération ni passer en 'approved'
+      // - Modérateurs peuvent modifier status, moderatedBy, moderatedAt, moderationNote, publishedRef
+      allow update: if isSignedIn() && (
+        // Propriétaire peut modifier draft/rejected
+        (resource.data.ownerUid == request.auth.uid
+         && resource.data.status in ['draft', 'rejected']
+         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['moderatedBy', 'moderatedAt', 'publishedRef'])
+         && request.resource.data.status != 'approved')
+        ||
+        // Modérateurs peuvent approuver/refuser
+        (canModerate() || isMasterAdmin())
+      );
+
+      // Suppression:
+      // - Propriétaire peut supprimer draft ou rejected
+      // - Admins peuvent tout supprimer
+      allow delete: if isSignedIn() && (
+        (resource.data.ownerUid == request.auth.uid && resource.data.status in ['draft', 'rejected'])
+        || isMasterAdmin()
+      );
+    }
+
+    // ========== COLLECTIONS: SHOPS (Boutiques publiques) ==========
+    // /shops/{scopeId}/products et /shops/{scopeId}/media
+    // Lecture publique, écriture uniquement par service ou superadmin
+    match /shops/{scopeId}/products/{productId} {
+      // Lecture: authentifié (boutique visible par les utilisateurs)
+      allow read: if isSignedIn();
+
+      // Écriture: uniquement superadmin (ou service account via Cloud Functions)
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+    match /shops/{scopeId}/media/{mediaId} {
+      // Lecture: authentifié (boutique visible par les utilisateurs)
+      allow read: if isSignedIn();
+
+      // Écriture: uniquement superadmin (ou service account via Cloud Functions)
+      allow create, update, delete: if isSuperAdmin();
+    }
+
     // ========== REFUS PAR DÉFAUT ==========
     match /{document=**} {
       allow read, write: if false;
