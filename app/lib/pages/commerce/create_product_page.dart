@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_picker/image_picker.dart';
@@ -381,7 +382,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                   controller: _priceController,
                                   keyboardType: TextInputType.number,
                                   decoration: InputDecoration(
-                                    labelText: 'Prix ($currency) *',
+                                    labelText: 'Prix ($_currency) *',
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
@@ -550,7 +551,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                               builder: (context, snapshot) {
                                                 if (snapshot.hasData) {
                                                   return Image.memory(
-                                                    snapshot.data!,
+                                                  Uint8List.fromList(snapshot.data!),
                                                     width: 100,
                                                     height: 100,
                                                     fit: BoxFit.cover,

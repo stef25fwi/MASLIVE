@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_picker/image_picker.dart';
@@ -410,7 +411,7 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                                               future: entry.value.readAsBytes(),
                                               builder: (context, snapshot) {
                                                 if (snapshot.hasData) {
-                                                  return Image.memory(snapshot.data!, width: 100, height: 100, fit: BoxFit.cover);
+                                                return Image.memory(Uint8List.fromList(snapshot.data!), width: 100, height: 100, fit: BoxFit.cover);
                                                 }
                                                 return const SizedBox(width: 100, height: 100, child: Center(child: CircularProgressIndicator()));
                                               },
