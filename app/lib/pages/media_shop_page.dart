@@ -2082,14 +2082,6 @@ class _SortDrop extends StatelessWidget {
                     ],
                   ),
                 ),
-            child: DropdownButton<SortMode>(
-              isExpanded: true,
-              value: value,
-              items: SortMode.values.map((e) => DropdownMenuItem(value: e, child: Text(label(e)))).toList(),
-              onChanged: (v) {
-                if (v != null) onChanged(v);
-              },
-            ),
           ),
         ),
       ),

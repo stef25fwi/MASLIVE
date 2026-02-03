@@ -152,22 +152,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     }
   }
 
-  Future<void> _openMarketPoiSelector() async {
-    final selection = await showMarketMapPoiSelectorSheet(
-      context,
-      service: _marketMapService,
-      initial: _marketPoiSelection,
-    );
-    if (selection == null) return;
-
-    if (!mounted) return;
-    setState(() {
-      _marketPoiSelection = selection;
-    });
-
-    await _applyMarketPoiSelection(selection);
-  }
-
   Future<void> _applyMarketPoiSelection(MarketMapPoiSelection selection) async {
     await _marketPoisSub?.cancel();
     _marketPoisSub = null;

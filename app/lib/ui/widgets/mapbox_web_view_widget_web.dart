@@ -481,7 +481,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
   Widget build(BuildContext context) {
     if (_error != null) {
       return Container(
-        color: Colors.black.withValues(alpha: 0.04),
+        color: Colors.black.withOpacity(0.04),
         alignment: Alignment.center,
         padding: const EdgeInsets.all(16),
         child: Text(
