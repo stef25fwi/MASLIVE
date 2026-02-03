@@ -25,7 +25,6 @@ import 'pages/account_page.dart';
 import 'pages/orders_page.dart';
 import 'pages/map_admin_editor_page.dart';
 import 'pages/shop_page_new.dart';
-import 'pages/media_shop_wrapper.dart';
 import 'pages/pending_products_page.dart';
 import 'pages/search_page.dart';
 import 'pages/circuit_import_export_page.dart';
@@ -188,7 +187,6 @@ class MasLiveApp extends StatelessWidget {
               '/circuit-draw': (_) => const CircuitDrawPage(),
               '/favorites': (_) => const FavoritesPage(),
               '/cart': (_) => const CartPage(),
-              '/media-shop': (_) => const MediaShopWrapper(groupId: 'all'),
               '/paywall': (_) => const PaywallPage(),
               '/pending-products': (_) => const PendingProductsPage(),
               '/purchase-history': (_) => const PurchaseHistoryPage(),
