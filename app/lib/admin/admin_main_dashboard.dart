@@ -165,67 +165,15 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
             // Section Carte & Navigation
             _buildSectionTitle('Carte & Navigation', Icons.map),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Parcours',
-                    subtitle: 'Création centralisée via le Wizard',
-                    icon: Icons.route,
-                    color: Colors.blue,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const CreateCircuitAssistantPage(),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Points d\'intérêt',
-                    subtitle: 'Création centralisée via le Wizard',
-                    icon: Icons.place,
-                    color: Colors.orange,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const POIMarketMapWizardPage(),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Bibliothèque de Maps',
-                    subtitle: 'Gérer les cartes, couches et infos',
-                    icon: Icons.folder_copy_outlined,
-                    color: Colors.indigo,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const MapProjectsLibraryPage(),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'MapMarket',
-                    subtitle: 'Créer / éditer / publier des cartes (Mapbox-only)',
-                    icon: Icons.map,
-                    color: Colors.blue,
-                    onTap: () => Navigator.pushNamed(context, '/admin/mapmarket'),
-                  ),
-                ),
-              ],
+            // Tuiles "Parcours", "Points d'intérêt" et "Bibliothèque de Maps"
+            // retirées pour simplifier le dashboard. L'entrée principale
+            // pour les circuits et POI reste l'Assistant Wizard plus bas.
+            _buildDashboardCard(
+              title: 'MapMarket',
+              subtitle: 'Créer / éditer / publier des cartes (Mapbox-only)',
+              icon: Icons.map,
+              color: Colors.blue,
+              onTap: () => Navigator.pushNamed(context, '/admin/mapmarket'),
             ),
             const SizedBox(height: 12),
             Row(
