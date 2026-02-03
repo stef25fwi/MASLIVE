@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'favorites_page.dart';
 import 'login_page.dart';
+import 'media_gallery_maslive_instagram_page.dart';
 import '../widgets/rainbow_header.dart';
 import '../widgets/honeycomb_background.dart';
 import '../admin/admin_main_dashboard.dart';
@@ -125,6 +126,19 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => const AdminMainDashboard(),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        _SectionCard(
+                          title: "Galerie Médias",
+                          subtitle: "Consulter et gérer les médias MAS'LIVE",
+                          icon: Icons.photo_library,
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const MediaGalleryMasliveInstagramPage(),
                               ),
                             );
                           },

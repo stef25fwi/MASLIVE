@@ -19,6 +19,7 @@ import 'admin_logs_page.dart';
 import 'admin_system_settings_page.dart';
 import 'user_management_page.dart';
 import 'business_requests_page.dart';
+import 'user_profile_preview_page.dart';
 import 'map_projects_library_page.dart';
 import '../pages/pending_products_page.dart';
 import 'create_circuit_assistant_page.dart';
@@ -470,6 +471,17 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const UserManagementPage()),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildDashboardCard(
+              title: 'Aperçu Profils',
+              subtitle: 'Visualiser les types de profils utilisateurs',
+              icon: Icons.preview,
+              color: Colors.teal,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const UserProfilePreviewPage()),
               ),
             ),
             const SizedBox(height: 24),
