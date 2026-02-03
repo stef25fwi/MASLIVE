@@ -8,17 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-class CreateCircuitResult {
-  final String countryId;
-  final String eventId;
-  final String circuitId;
-
-  CreateCircuitResult({
-    required this.countryId,
-    required this.eventId,
-    required this.circuitId,
-  });
-}
+import '../services/market_map_service.dart';
 
 class CreateCircuitAssistantPage extends StatefulWidget {
   const CreateCircuitAssistantPage({super.key});
@@ -45,167 +35,25 @@ class _CreateCircuitAssistantPageState
             tooltip: 'Create MarketMap',
           ),
         ],
-      ),
-      body: Center(
+            required DateTime startDate,
+            required DateTime endDate,
         child: _lastCreated == null
             ? const Text('Cliquez sur "+" pour créer un MarketMap')
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text('Dernier circuit créé:'),
-                  const SizedBox(height: 16),
-                  Text('Pays: ${_lastCreated!.countryId}'),
-                  Text('Événement: ${_lastCreated!.eventId}'),
-                  Text('Circuit: ${_lastCreated!.circuitId}'),
-                  const SizedBox(height: 32),
-                  ElevatedButton(
-                    onPressed: _busy ? null : _openMarketMapCreateDialog,
-                    child: const Text('Créer un autre circuit'),
-                  ),
-                ],
-              ),
-      ),
-    );
-  }
+            final service = MarketMapService(firestore: FirebaseFirestore.instance);
 
-  Future<void> _openMarketMapCreateDialog() async {
-    final result = await showDialog<CreateCircuitResult>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => const _CreateMarketMapStep1Dialog(),
-    );
-
-    if (result != null && mounted) {
-      setState(() {
-        _lastCreated = result;
-      });
-
-      // Navigation vers Step 2 (placeholder pour l'instant)
-      if (mounted) {
-        await Navigator.of(context).push<void>(
-          MaterialPageRoute(
-            builder: (_) => _Step2PlaceholderPage(result: result),
-          ),
-        );
-      }
-    }
-  }
-
-  /// Crée la structure Firestore pour MarketMap:
-  /// marketMap/{countryId}/events/{eventId}/circuits/{circuitId}
-  /// + 6 layers par défaut (tracking, visited, full, assistance, parking, wc)
-  Future<CreateCircuitResult> _createMarketMapDraft({
-    required String countryName,
-    required String eventName,
-    required String circuitName,
-    required String startDateYYYYMMDD,
-    required String endDateYYYYMMDD,
-  }) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      throw Exception('User not authenticated');
-    }
-
-    final countryId = _slugify(countryName);
-    final eventId = _slugify(eventName);
-    final circuitId = _slugify(circuitName);
-
-    final db = FirebaseFirestore.instance;
-
-    await db.runTransaction((tx) async {
-      // 1. Créer le document pays
-      final countryRef = db.collection('marketMap').doc(countryId);
-      tx.set(countryRef, {
-        'name': _cleanName(countryName),
-        'createdAt': FieldValue.serverTimestamp(),
-        'createdBy': user.uid,
-      });
-
-      // 2. Créer le document événement
-      final eventRef = countryRef.collection('events').doc(eventId);
-      tx.set(eventRef, {
-        'name': _cleanName(eventName),
-        'startDate': startDateYYYYMMDD,
-        'endDate': endDateYYYYMMDD,
-        'createdAt': FieldValue.serverTimestamp(),
-        'createdBy': user.uid,
-      });
-
-      // 3. Créer le document circuit (draft)
-      final circuitRef = eventRef.collection('circuits').doc(circuitId);
-      tx.set(circuitRef, {
-        'name': _cleanName(circuitName),
-        'wizardStep': 1,
-        'completedSteps': <int>[],
-        'perimeterLocked': false,
-        'mapLocked': false,
-        'center': null,
-        'bounds': null,
-        'mapStyle': 'mapbox://styles/mapbox/streets-v12',
-        'createdAt': FieldValue.serverTimestamp(),
-        'createdBy': user.uid,
-      });
-
-      // 4. Créer les 6 layers par défaut
-      final layersData = _defaultLayerDocs();
-      for (final layerData in layersData) {
-        final layerKey = layerData['key'] as String;
-        final layerRef = circuitRef.collection('layers').doc(layerKey);
-        tx.set(layerRef, layerData);
-      }
-    });
-
-    return CreateCircuitResult(
-      countryId: countryId,
-      eventId: eventId,
-      circuitId: circuitId,
-    );
-  }
-
-  List<Map<String, dynamic>> _defaultLayerDocs() {
-    return [
-      {
-        'key': 'tracking',
-        'name': 'Tracking',
-        'visible': true,
-        'order': 0,
-        'style': {
-          'line': {'color': '#FF5722', 'width': 3, 'dashArray': <int>[]},
-        },
-        'source': <String, dynamic>{},
-        'params': <String, dynamic>{},
-      },
-      {
-        'key': 'visited',
-        'name': 'Visited',
-        'visible': true,
-        'order': 1,
-        'style': {
-          'line': {'color': '#4CAF50', 'width': 2, 'dashArray': <int>[]},
-        },
-        'source': <String, dynamic>{},
-        'params': <String, dynamic>{},
-      },
-      {
-        'key': 'full',
-        'name': 'Full Circuit',
-        'visible': true,
-        'order': 2,
-        'style': {
-          'line': {'color': '#2196F3', 'width': 2, 'dashArray': <int>[]},
-        },
-        'source': <String, dynamic>{},
-        'params': <String, dynamic>{},
-      },
-      {
-        'key': 'assistance',
-        'name': 'Assistance Points',
-        'visible': true,
-        'order': 3,
-        'style': {
-          'marker': {
-            'color': '#FFC107',
-            'icon': 'assistance',
+            return service.createCircuitStep1(
+              countryName: countryName,
+              eventName: eventName,
+              startDate: startDate,
+              endDate: endDate,
+              circuitName: circuitName,
+              uid: user.uid,
+            );
+          }
             'size': 'medium',
           },
         },
@@ -414,8 +262,8 @@ class _CreateMarketMapStep1DialogState
         countryName: _countryController.text.trim(),
         eventName: _eventController.text.trim(),
         circuitName: _circuitController.text.trim(),
-        startDateYYYYMMDD: parentState._yyyymmdd(_startDate),
-        endDateYYYYMMDD: parentState._yyyymmdd(_endDate),
+        startDate: _startDate,
+        endDate: _endDate,
       );
 
       if (mounted) {
