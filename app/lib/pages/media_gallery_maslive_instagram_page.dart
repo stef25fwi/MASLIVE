@@ -1,3 +1,4 @@
+
 import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui';
@@ -6,6 +7,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
+
+import '../services/media_permissions_service.dart';
 
 class MediaGalleryMasliveInstagramPage extends StatefulWidget {
   const MediaGalleryMasliveInstagramPage({super.key});
@@ -249,12 +253,32 @@ class _MediaGalleryMasliveInstagramPageState
     );
   }
 
+  bool _canAddMediaCached = false;
+  bool _canAddMediaLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_onScroll);
+    _startListening(reset: true);
+    // Charger les permissions au démarrage
+    _loadPermissions();
+  }
+
+  Future<void> _loadPermissions() async {
+    final can = await MediaPermissionsService.canUploadMedia();
+    if (mounted) {
+      setState(() {
+        _canAddMediaCached = can;
+        _canAddMediaLoaded = true;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.of(context).padding.top;
-    final user = FirebaseAuth.instance.currentUser;
-    final canAddMedia =
-        user != null && user.email == 's-stephane@live.fr';
+    final canAddMedia = _canAddMediaLoaded && _canAddMediaCached;
 
     return Scaffold(
       backgroundColor: _bg,
@@ -1320,16 +1344,33 @@ class _AddMediaSheetState extends State<_AddMediaSheet> {
     setState(() => _saving = true);
 
     try {
-      // Upload dans Firebase Storage
-      final bytes = await _file!.readAsBytes();
-      final Uint8List data = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
+      // Lire et compresser l'image
+      final originalBytes = await _file!.readAsBytes();
+      final image = img.decodeImage(originalBytes);
+      
+      if (image == null) {
+        throw Exception('Impossible de decoder l\'image');
+      }
+
+      // Compresser à max 1200px de largeur, qualité 85%
+      final compressed = img.copyResize(
+        image,
+        width: image.width > 1200 ? 1200 : image.width,
+        interpolation: img.Interpolation.linear,
+      );
+      final compressedBytes = Uint8List.fromList(
+        img.encodeJpg(compressed, quality: 85),
+      );
 
       final ts = DateTime.now().millisecondsSinceEpoch;
       final storagePath = 'media/${user.uid}/$ts.jpg';
       final ref = FirebaseStorage.instance.ref(storagePath);
       final meta = SettableMetadata(contentType: 'image/jpeg');
-      await ref.putData(data, meta);
+      await ref.putData(compressedBytes, meta);
       final url = await ref.getDownloadURL();
+
+      // Récupérer le nom du photographe depuis Firestore
+      final photographerName = await MediaPermissionsService.getPhotographerName();
 
       // Doc Firestore dans `media`
       final col = FirebaseFirestore.instance.collection('media');
@@ -1342,6 +1383,7 @@ class _AddMediaSheetState extends State<_AddMediaSheet> {
         'circuit': circuit,
         'createdAt': Timestamp.fromDate(createdAt),
         'createdBy': user.uid,
+        'photographerName': photographerName,
       });
 
       if (!mounted) return;

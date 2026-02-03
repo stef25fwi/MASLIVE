@@ -19,10 +19,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:image/image.dart' as img;
 
 import '../ui/theme/maslive_theme.dart';
 import '../ui/widgets/honeycomb_background.dart';
 import '../widgets/rainbow_header.dart';
+import '../services/media_permissions_service.dart';
 
 /// -----------------------------------------------------------------------------
 /// MODELS
