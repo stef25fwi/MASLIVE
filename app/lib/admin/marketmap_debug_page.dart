@@ -174,6 +174,7 @@ class _CircuitsList extends StatelessWidget {
             final data = circuitDoc.data();
             final circuitName = (data['name'] ?? circuitDoc.id).toString();
             final status = (data['status'] ?? 'draft').toString();
+            final isVisible = (data['isVisible'] as bool?) ?? false;
 
             return ListTile(
               dense: true,
@@ -183,8 +184,14 @@ class _CircuitsList extends StatelessWidget {
                 style: const TextStyle(fontSize: 13),
               ),
               subtitle: Text(
-                'status: $status\nmarketMap/$countryId/events/$eventId/circuits/${circuitDoc.id}',
+                'status: $status • visible: ${isVisible ? 'oui' : 'non'}\nmarketMap/$countryId/events/$eventId/circuits/${circuitDoc.id}',
                 style: const TextStyle(fontSize: 11),
+              ),
+              trailing: Switch(
+                value: isVisible,
+                onChanged: (v) {
+                  circuitDoc.reference.update({'isVisible': v});
+                },
               ),
             );
           }).toList(),

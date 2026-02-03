@@ -10,6 +10,20 @@ import 'package:flutter/material.dart';
 
 import '../services/market_map_service.dart';
 
+class _CountryOption {
+  const _CountryOption({required this.name, required this.flag});
+  final String name;
+  final String flag;
+}
+
+const List<_CountryOption> _kCountryOptions = [
+  _CountryOption(name: 'Guadeloupe', flag: '🇬🇵'),
+  _CountryOption(name: 'Martinique', flag: '🇲🇶'),
+  _CountryOption(name: 'France métropolitaine', flag: '🇫🇷'),
+  _CountryOption(name: 'Guyane', flag: '🇬🇫'),
+  _CountryOption(name: 'Réunion', flag: '🇷🇪'),
+];
+
 class CreateCircuitAssistantPage extends StatefulWidget {
   const CreateCircuitAssistantPage({super.key});
 
@@ -148,14 +162,67 @@ class _CreateMarketMapStep1DialogState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextFormField(
-                controller: _countryController,
-                decoration: const InputDecoration(
-                  labelText: 'Pays',
-                  hintText: 'Ex: Guadeloupe',
-                ),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Requis' : null,
+              Autocomplete<_CountryOption>(
+                optionsBuilder: (TextEditingValue value) {
+                  final input = value.text.trim().toLowerCase();
+                  if (input.isEmpty) return _kCountryOptions;
+                  return _kCountryOptions.where(
+                    (o) => o.name.toLowerCase().contains(input),
+                  );
+                },
+                displayStringForOption: (opt) => opt.name,
+                onSelected: (opt) {
+                  _countryController.text = opt.name;
+                },
+                fieldViewBuilder:
+                    (context, textController, focusNode, onFieldSubmitted) {
+                      // Garder le controller interne synchro avec notre controller existant
+                      textController.text = _countryController.text;
+                      textController.selection = TextSelection.fromPosition(
+                        TextPosition(offset: textController.text.length),
+                      );
+                      textController.addListener(() {
+                        _countryController.text = textController.text;
+                      });
+                      return TextFormField(
+                        controller: textController,
+                        focusNode: focusNode,
+                        decoration: const InputDecoration(
+                          labelText: 'Pays',
+                          hintText: 'Ex: Guadeloupe',
+                        ),
+                        validator: (v) =>
+                            (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                      );
+                    },
+                optionsViewBuilder: (context, onSelected, options) {
+                  return Align(
+                    alignment: Alignment.topLeft,
+                    child: Material(
+                      elevation: 4,
+                      borderRadius: BorderRadius.circular(8),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 240),
+                        child: ListView.builder(
+                          padding: EdgeInsets.zero,
+                          itemCount: options.length,
+                          itemBuilder: (context, index) {
+                            final opt = options.elementAt(index);
+                            return ListTile(
+                              dense: true,
+                              leading: Text(
+                                opt.flag,
+                                style: const TextStyle(fontSize: 18),
+                              ),
+                              title: Text(opt.name),
+                              onTap: () => onSelected(opt),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 16),
               TextFormField(

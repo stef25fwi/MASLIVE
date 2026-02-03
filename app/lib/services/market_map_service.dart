@@ -254,6 +254,7 @@ class MarketMapService {
         'countryId': countryId,
         'eventId': eventId,
         'createdByUid': normalizedUid,
+        'isVisible': false,
         'createdAt': serverNow,
         'updatedAt': serverNow,
         'perimeterLocked': false,

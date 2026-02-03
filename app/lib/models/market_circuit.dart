@@ -13,6 +13,7 @@ class MarketCircuit {
     required this.zoomLocked,
     required this.center,
     required this.initialZoom,
+    required this.isVisible,
     required this.wizardState,
     this.bounds,
     this.styleId,
@@ -42,6 +43,9 @@ class MarketCircuit {
   final String? styleId;
   final String? styleUrl;
 
+  /// Contrôle la visibilité de ce circuit dans le menu "Carte" de la nav.
+  final bool isVisible;
+
   /// {wizardStep:int, completedSteps:[int]}
   final Map<String, dynamic> wizardState;
 
@@ -63,6 +67,7 @@ class MarketCircuit {
       'bounds': bounds,
       'styleId': styleId,
       'styleUrl': styleUrl,
+      'isVisible': isVisible,
       'wizardState': wizardState,
       'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : null,
       'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
@@ -104,6 +109,7 @@ class MarketCircuit {
       bounds: map['bounds'] as Map<String, dynamic>?,
       styleId: map['styleId'] as String?,
       styleUrl: map['styleUrl'] as String?,
+        isVisible: (map['isVisible'] as bool?) ?? false,
       wizardState: (map['wizardState'] as Map<String, dynamic>?) ??
           const <String, dynamic>{},
       createdAt: asDateTime(map['createdAt']),

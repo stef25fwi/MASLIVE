@@ -513,6 +513,7 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
                             zoomLocked: false,
                             center: const {'lat': 0.0, 'lng': 0.0},
                             initialZoom: 14,
+                            isVisible: false,
                             wizardState: const <String, dynamic>{},
                           ),
                         );

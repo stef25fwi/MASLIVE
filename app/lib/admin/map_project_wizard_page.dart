@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../ui/map/maslive_map.dart';
 import '../ui/map/maslive_map_controller.dart';
+import '../models/market_circuit.dart';
+import '../services/market_map_service.dart';
 
 class MapProjectWizardPage extends StatefulWidget {
   final String projectId;
@@ -26,6 +28,8 @@ class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
   List<Map<String, double>> _routePoints = [];
   bool _isEditingPerimeter = false;
   bool _isEditingRoute = false;
+
+  final MarketMapService _marketMapService = MarketMapService();
 
   @override
   void initState() {
@@ -518,12 +522,37 @@ class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
                 return const CircularProgressIndicator();
               }
 
-              final status = snapshot.data!.get('status') as String? ?? 'draft';
-              final isVisible = snapshot.data!.get('isVisible') as bool? ?? false;
+              final data = snapshot.data!;
+              final status = data.get('status') as String? ?? 'draft';
+              final isVisible = data.get('isVisible') as bool? ?? false;
+              final countryId = data.get('countryId') as String? ?? '';
+              final eventId = data.get('eventId') as String? ?? '';
+              final linkedCircuitId = data.data() is Map<String, dynamic>
+                  ? ((data.data() as Map<String, dynamic>)['linkedCircuitId']
+                          as String?) ??
+                      ''
+                  : '';
 
               return Column(
                 children: [
                   Text('Statut actuel: $status'),
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Circuit MarketMap lié (menu "Carte")',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildLinkedCircuitSelector(
+                    countryId: countryId,
+                    eventId: eventId,
+                    linkedCircuitId: linkedCircuitId,
+                  ),
                   const SizedBox(height: 16),
                   SwitchListTile(
                     title: const Text('Visible publiquement'),
@@ -533,6 +562,13 @@ class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
                           .collection('map_projects')
                           .doc(widget.projectId)
                           .update({'isVisible': value});
+
+                      await _syncLinkedCircuitVisibility(
+                        countryId: countryId,
+                        eventId: eventId,
+                        linkedCircuitId: linkedCircuitId,
+                        isVisible: value,
+                      );
                     },
                   ),
                   const SizedBox(height: 16),
@@ -553,6 +589,13 @@ class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
                         'publishAt': FieldValue.serverTimestamp(),
                         'updatedAt': FieldValue.serverTimestamp(),
                       });
+
+                      await _syncLinkedCircuitVisibility(
+                        countryId: countryId,
+                        eventId: eventId,
+                        linkedCircuitId: linkedCircuitId,
+                        isVisible: true,
+                      );
 
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -575,6 +618,98 @@ class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
         ],
       ),
     );
+  }
+
+  Widget _buildLinkedCircuitSelector({
+    required String countryId,
+    required String eventId,
+    required String linkedCircuitId,
+  }) {
+    if (countryId.isEmpty || eventId.isEmpty) {
+      return const Text(
+        'Renseigne d\'abord Country ID et Event ID pour lier un circuit MarketMap.',
+        style: TextStyle(fontSize: 12),
+      );
+    }
+
+    return StreamBuilder<List<MarketCircuit>>(
+      stream: _marketMapService.watchCircuits(
+        countryId: countryId,
+        eventId: eventId,
+      ),
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return Text('Erreur circuits MarketMap: ${snap.error}');
+        }
+        if (!snap.hasData) {
+          return const SizedBox(
+            height: 40,
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          );
+        }
+
+        final circuits = snap.data!;
+        if (circuits.isEmpty) {
+          return const Text(
+            'Aucun circuit MarketMap pour ce countryId/eventId.',
+            style: TextStyle(fontSize: 12),
+          );
+        }
+
+        final value =
+            circuits.any((c) => c.id == linkedCircuitId) ? linkedCircuitId : null;
+
+        return DropdownButtonFormField<String>(
+          value: value,
+          decoration: const InputDecoration(
+            labelText: 'Circuit MarketMap associé',
+            border: OutlineInputBorder(),
+          ),
+          items: [
+            for (final c in circuits)
+              DropdownMenuItem(
+                value: c.id,
+                child: Text('${c.name} (${c.status})'),
+              ),
+          ],
+          onChanged: (id) async {
+            await FirebaseFirestore.instance
+                .collection('map_projects')
+                .doc(widget.projectId)
+                .update({
+              'linkedCircuitId': id,
+              'linkedCircuitCountryId': countryId,
+              'linkedCircuitEventId': eventId,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _syncLinkedCircuitVisibility({
+    required String countryId,
+    required String eventId,
+    required String linkedCircuitId,
+    required bool isVisible,
+  }) async {
+    if (countryId.isEmpty || eventId.isEmpty || linkedCircuitId.isEmpty) {
+      return;
+    }
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('marketMap')
+          .doc(countryId)
+          .collection('events')
+          .doc(eventId)
+          .collection('circuits')
+          .doc(linkedCircuitId)
+          .update({'isVisible': isVisible});
+    } catch (e) {
+      debugPrint('Erreur synchro isVisible circuit MarketMap: $e');
+    }
   }
 
   IconData _getLayerIcon(String type) {

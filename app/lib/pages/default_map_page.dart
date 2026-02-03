@@ -689,7 +689,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                               vertical: 10,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.65),
+                              color: Colors.white.withValues(alpha: 0.9),
+                              boxShadow: MasliveTheme.cardShadow,
                               borderRadius: const BorderRadius.vertical(
                                 top: Radius.circular(24),
                                 bottom: Radius.circular(24),
@@ -983,7 +984,9 @@ class _ActionItem extends StatelessWidget {
         height: 60,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: Colors.white.withValues(alpha: 0.92),
+          gradient: selected ? MasliveTheme.actionGradient : null,
+          color:
+              selected ? null : Colors.white.withValues(alpha: 0.92),
           border: Border.all(
             color: selected ? MasliveTheme.pink : MasliveTheme.divider,
             width: selected ? 2.0 : 1.0,
@@ -1041,9 +1044,7 @@ class _TrackingPill extends StatelessWidget {
             height: 38,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: (isTracking ? Colors.green : Colors.black).withValues(
-                alpha: 0.08,
-              ),
+              color: Colors.white.withValues(alpha: 0.92),
             ),
             child: Icon(
               isTracking

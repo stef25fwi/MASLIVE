@@ -215,9 +215,16 @@ class _MarketMapPoiSelectorSheetState extends State<_MarketMapPoiSelectorSheet> 
                 ? const Stream.empty()
                 : widget.service.watchCircuits(countryId: _country!.id, eventId: _event!.id),
             builder: (context, snap) {
-              final items = snap.data ?? const <MarketCircuit>[];
+              final allCircuits = snap.data ?? const <MarketCircuit>[];
+              // Ne proposer dans le menu que les circuits marqués visibles.
+              final items =
+                  allCircuits.where((c) => c.isVisible == true).toList(growable: false);
+
+              final selectedId = _circuit?.id;
+              final currentValue =
+                  items.any((c) => c.id == selectedId) ? selectedId : null;
               return DropdownButtonFormField<String>(
-                value: _circuit?.id,
+                value: currentValue,
                 decoration: const InputDecoration(
                   labelText: 'Circuit',
                   border: OutlineInputBorder(),
@@ -242,6 +249,7 @@ class _MarketMapPoiSelectorSheetState extends State<_MarketMapPoiSelectorSheet> 
                       zoomLocked: false,
                       center: const {'lat': 0.0, 'lng': 0.0},
                       initialZoom: 14,
+                      isVisible: false,
                       wizardState: const <String, dynamic>{},
                     ),
                   );
