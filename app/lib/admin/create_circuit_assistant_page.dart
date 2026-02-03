@@ -81,7 +81,9 @@ class _CreateCircuitAssistantPageState
     final result = await showDialog<CreateCircuitResult>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const _CreateMarketMapStep1Dialog(),
+      builder: (ctx) => _CreateMarketMapStep1Dialog(
+        onCreateDraft: _createMarketMapDraft,
+      ),
     );
 
     if (result != null && mounted) {
@@ -127,8 +129,20 @@ class _CreateCircuitAssistantPageState
 // Dialog Step 1: Formulaire de base (Pays / Événement / Circuit)
 // =============================================================================
 
+typedef CreateMarketMapDraftCallback = Future<CreateCircuitResult> Function({
+  required String countryName,
+  required String eventName,
+  required String circuitName,
+  required DateTime startDate,
+  required DateTime endDate,
+});
+
 class _CreateMarketMapStep1Dialog extends StatefulWidget {
-  const _CreateMarketMapStep1Dialog();
+  const _CreateMarketMapStep1Dialog({
+    required this.onCreateDraft,
+  });
+
+  final CreateMarketMapDraftCallback onCreateDraft;
 
   @override
   State<_CreateMarketMapStep1Dialog> createState() =>
@@ -317,13 +331,7 @@ class _CreateMarketMapStep1DialogState
     setState(() => _busy = true);
 
     try {
-      final parentState = context
-          .findAncestorStateOfType<_CreateCircuitAssistantPageState>();
-      if (parentState == null) {
-        throw Exception('Parent state not found');
-      }
-
-      final result = await parentState._createMarketMapDraft(
+      final result = await widget.onCreateDraft(
         countryName: _countryController.text.trim(),
         eventName: _eventController.text.trim(),
         circuitName: _circuitController.text.trim(),
