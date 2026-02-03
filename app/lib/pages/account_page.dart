@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'account_admin_page.dart';
 import '../services/auth_service.dart';
 import '../services/auth_claims_service.dart';
+import '../services/commerce/commerce_service.dart';
+import '../widgets/commerce/commerce_section_card.dart';
 import '../ui/theme/maslive_theme.dart';
 import '../widgets/rainbow_header.dart';
 import '../ui/widgets/honeycomb_background.dart';
@@ -20,12 +22,14 @@ class AccountUiPage extends StatefulWidget {
 class _AccountUiPageState extends State<AccountUiPage> {
   bool _isAdmin = false;
   bool _hasBusiness = false;
+  bool _canSubmitCommerce = false;
 
   @override
   void initState() {
     super.initState();
     _checkAdminStatus();
     _checkBusinessStatus();
+    _checkCommercePermissions();
   }
 
   Future<void> _checkAdminStatus() async {
@@ -59,6 +63,18 @@ class _AccountUiPageState extends State<AccountUiPage> {
       setState(() => _hasBusiness = doc.exists);
     } catch (_) {
       // ignore silent failures for optional tile
+    }
+  }
+
+  Future<void> _checkCommercePermissions() async {
+    try {
+      final canSubmit = await CommerceService.instance.canSubmitCommerce();
+      if (!mounted) return;
+      setState(() {
+        _canSubmitCommerce = canSubmit;
+      });
+    } catch (e) {
+      // Ignorer l'erreur si non authentifié
     }
   }
 
@@ -150,6 +166,14 @@ class _AccountUiPageState extends State<AccountUiPage> {
                 child: _AvatarBlock(name: userName, subtitle: userSubtitle),
               ),
             ),
+            // Section Commerce pour utilisateurs autorisés
+            if (_canSubmitCommerce)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: CommerceSectionCard(),
+                ),
+              ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 24, 16, 18),
               sliver: SliverList(

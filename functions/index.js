@@ -1901,3 +1901,102 @@ exports.rejectCommerceSubmission = onCall(async (request) => {
 
   return { success: true };
 });
+
+// ============================================================================
+// COMMERCE NOTIFICATIONS (Cloud Functions Gen 2)
+// ============================================================================
+
+/**
+ * Notifier le propriétaire quand sa soumission est approuvée
+ */
+exports.notifyCommerceApproved = onDocumentUpdated(
+  "commerce_submissions/{submissionId}",
+  async (event) => {
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const submissionId = event.params.submissionId;
+
+    // Vérifier changement de statut pending → approved
+    if (before.status !== "pending" || after.status !== "approved") {
+      return;
+    }
+
+    const ownerUid = after.ownerUid;
+    const title = after.title || "Votre contenu";
+    const type = after.type === "product" ? "produit" : "média";
+
+    // Récupérer le token FCM du propriétaire
+    const userDoc = await admin.firestore().collection("users").doc(ownerUid).get();
+    if (!userDoc.exists) return;
+
+    const fcmToken = userDoc.data()?.fcmToken;
+    if (!fcmToken) return;
+
+    // Envoyer notification
+    try {
+      await admin.messaging().send({
+        token: fcmToken,
+        notification: {
+          title: "✅ Contenu validé !",
+          body: `Votre ${type} "${title}" est maintenant publié.`,
+        },
+        data: {
+          type: "commerce_approved",
+          submissionId: submissionId,
+          route: "/commerce/my-submissions",
+        },
+      });
+      console.log(`Notification approval sent to ${ownerUid} for ${submissionId}`);
+    } catch (error) {
+      console.error(`Failed to send approval notification: ${error}`);
+    }
+  }
+);
+
+/**
+ * Notifier le propriétaire quand sa soumission est refusée
+ */
+exports.notifyCommerceRejected = onDocumentUpdated(
+  "commerce_submissions/{submissionId}",
+  async (event) => {
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+    const submissionId = event.params.submissionId;
+
+    // Vérifier changement de statut pending → rejected
+    if (before.status !== "pending" || after.status !== "rejected") {
+      return;
+    }
+
+    const ownerUid = after.ownerUid;
+    const title = after.title || "Votre contenu";
+    const type = after.type === "product" ? "produit" : "média";
+    const note = after.moderationNote || "Aucune note";
+
+    // Récupérer le token FCM du propriétaire
+    const userDoc = await admin.firestore().collection("users").doc(ownerUid).get();
+    if (!userDoc.exists) return;
+
+    const fcmToken = userDoc.data()?.fcmToken;
+    if (!fcmToken) return;
+
+    // Envoyer notification
+    try {
+      await admin.messaging().send({
+        token: fcmToken,
+        notification: {
+          title: "❌ Contenu refusé",
+          body: `Votre ${type} "${title}" nécessite des modifications : ${note}`,
+        },
+        data: {
+          type: "commerce_rejected",
+          submissionId: submissionId,
+          route: "/commerce/my-submissions",
+        },
+      });
+      console.log(`Notification rejection sent to ${ownerUid} for ${submissionId}`);
+    } catch (error) {
+      console.error(`Failed to send rejection notification: ${error}`);
+    }
+  }
+);

@@ -19,13 +19,12 @@ import 'admin_logs_page.dart';
 import 'admin_system_settings_page.dart';
 import 'user_management_page.dart';
 import 'business_requests_page.dart';
-import 'user_profile_preview_page.dart';
-import 'map_projects_library_page.dart';
 import '../pages/pending_products_page.dart';
 import 'create_circuit_assistant_page.dart';
 import 'poi_marketmap_wizard_page.dart';
 import '../commerce_module_single_file.dart';
 import 'admin_moderation_page.dart';
+import 'commerce_analytics_page.dart';
 
 /// Dashboard admin principal 10/10 avec toutes les fonctionnalités
 class AdminMainDashboard extends StatefulWidget {
@@ -409,7 +408,18 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Container(), // Placeholder
+                  child: _buildDashboardCard(
+                    title: 'Analytics Commerce',
+                    subtitle: 'Stats & conversions',
+                    icon: Icons.analytics,
+                    color: Colors.blue,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const CommerceAnalyticsPage(),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),

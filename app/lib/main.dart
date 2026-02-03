@@ -60,6 +60,7 @@ import 'pages/commerce/create_product_page.dart';
 import 'pages/commerce/create_media_page.dart';
 import 'pages/commerce/my_submissions_page.dart';
 import 'admin/admin_moderation_page.dart';
+import 'admin/commerce_analytics_page.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -201,6 +202,7 @@ class MasLiveApp extends StatelessWidget {
               '/commerce/create-media': (_) => const CreateMediaPage(),
               '/commerce/my-submissions': (_) => const MySubmissionsPage(),
               '/admin/moderation': (_) => const AdminModerationPage(),
+              '/admin/commerce-analytics': (_) => const CommerceAnalyticsPage(),
             },
             builder: (context, child) => HoneycombBackground(
               opacity: 0.08,
