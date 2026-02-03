@@ -25,6 +25,7 @@ import 'poi_marketmap_wizard_page.dart';
 import '../commerce_module_single_file.dart';
 import 'admin_moderation_page.dart';
 import 'commerce_analytics_page.dart';
+import 'user_profile_preview_page.dart';
 
 /// Dashboard admin principal 10/10 avec toutes les fonctionnalités
 class AdminMainDashboard extends StatefulWidget {
