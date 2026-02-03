@@ -205,6 +205,18 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            _buildDashboardCard(
+              title: 'Debug MarketMap (Firestore)',
+              subtitle:
+                  'Lister les pays / événements / circuits (structure marketMap)',
+              icon: Icons.bug_report,
+              color: Colors.grey,
+              onTap: () => Navigator.pushNamed(
+                context,
+                '/admin/marketmap-debug',
+              ),
+            ),
             const SizedBox(height: 24),
 
             // Section Tracking & Groupes

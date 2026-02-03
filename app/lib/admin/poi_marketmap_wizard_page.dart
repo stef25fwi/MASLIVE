@@ -547,62 +547,185 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
     if (country == null || event == null || circuit == null) {
       return const Center(child: Text('Sélectionne un pays, un événement et un circuit.'));
     }
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          child: _CircuitStyleSelector(
+            countryId: country.id,
+            eventId: event.id,
+            circuitId: circuit.id,
+            service: _service,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: StreamBuilder<List<MarketLayer>>(
+            stream: _service.watchLayers(
+              countryId: country.id,
+              eventId: event.id,
+              circuitId: circuit.id,
+            ),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Center(child: Text('Erreur: ${snapshot.error}'));
+              }
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-    return StreamBuilder<List<MarketLayer>>(
-      stream: _service.watchLayers(
-        countryId: country.id,
-        eventId: event.id,
-        circuitId: circuit.id,
-      ),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(child: Text('Erreur: ${snapshot.error}'));
-        }
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
+              final layers = snapshot.data ?? const <MarketLayer>[];
+              if (layers.isEmpty) {
+                return const Center(
+                    child: Text('Aucune couche trouvée pour ce circuit.'));
+              }
 
-        final layers = snapshot.data ?? const <MarketLayer>[];
-        if (layers.isEmpty) {
-          return const Center(child: Text('Aucune couche trouvée pour ce circuit.'));
-        }
+              return ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: layers.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 10),
+                itemBuilder: (context, index) {
+                  final layer = layers[index];
+                  final color = _layerColor(layer);
 
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: layers.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 10),
-          itemBuilder: (context, index) {
-            final layer = layers[index];
-            final color = _layerColor(layer);
-
-            return Card(
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: color.withValues(alpha: 0.15),
-                  foregroundColor: color,
-                  child: Icon(_layerIcon(layer)),
-                ),
-                title: Text(layer.id),
-                subtitle: Text('type: ${layer.type} • enabled: ${layer.isEnabled}'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => _LayerPoisPage(
-                        countryId: country.id,
-                        countryName: country.name,
-                        eventId: event.id,
-                        eventName: event.name,
-                        circuitId: circuit.id,
-                        circuitName: circuit.name,
-                        layer: layer,
+                  return Card(
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: color.withValues(alpha: 0.15),
+                        foregroundColor: color,
+                        child: Icon(_layerIcon(layer)),
                       ),
+                      title: Text(layer.id),
+                      subtitle: Text(
+                          'type: ${layer.type} • enabled: ${layer.isEnabled}'),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => _LayerPoisPage(
+                              countryId: country.id,
+                              countryName: country.name,
+                              eventId: event.id,
+                              eventName: event.name,
+                              circuitId: circuit.id,
+                              circuitName: circuit.name,
+                              layer: layer,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   );
                 },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CircuitStyleSelector extends StatelessWidget {
+  const _CircuitStyleSelector({
+    required this.countryId,
+    required this.eventId,
+    required this.circuitId,
+    required this.service,
+  });
+
+  final String countryId;
+  final String eventId;
+  final String circuitId;
+  final MarketMapService service;
+
+  static const List<Map<String, String>> _styles = [
+    {
+      'id': 'streets-v12',
+      'name': 'Streets',
+      'url': 'mapbox://styles/mapbox/streets-v12',
+    },
+    {
+      'id': 'outdoors-v12',
+      'name': 'Outdoors',
+      'url': 'mapbox://styles/mapbox/outdoors-v12',
+    },
+    {
+      'id': 'satellite-streets-v12',
+      'name': 'Satellite streets',
+      'url': 'mapbox://styles/mapbox/satellite-streets-v12',
+    },
+    {
+      'id': 'light-v11',
+      'name': 'Light',
+      'url': 'mapbox://styles/mapbox/light-v11',
+    },
+    {
+      'id': 'dark-v11',
+      'name': 'Dark',
+      'url': 'mapbox://styles/mapbox/dark-v11',
+    },
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final circuitRef = service.circuitRef(
+      countryId: countryId,
+      eventId: eventId,
+      circuitId: circuitId,
+    );
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: circuitRef.snapshots(),
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return Text('Erreur style: ${snap.error}');
+        }
+        if (!snap.hasData) {
+          return const LinearProgressIndicator();
+        }
+
+        final data = snap.data!.data() ?? const <String, dynamic>{};
+        final currentId = (data['styleId'] as String?) ?? 'streets-v12';
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Style de carte Mapbox',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: currentId,
+              decoration: const InputDecoration(
+                labelText: 'Style',
+                border: OutlineInputBorder(),
               ),
-            );
-          },
+              items: [
+                for (final s in _styles)
+                  DropdownMenuItem(
+                    value: s['id'],
+                    child: Text(s['name'] ?? ''),
+                  ),
+              ],
+              onChanged: (value) async {
+                if (value == null) return;
+                final style =
+                    _styles.firstWhere((s) => s['id'] == value, orElse: () => _styles.first);
+                await circuitRef.update({
+                  'styleId': style['id'],
+                  'styleUrl': style['url'],
+                  'updatedAt': FieldValue.serverTimestamp(),
+                });
+              },
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Ce style sera utilisé par la carte 3D / Mapbox pour ce circuit.',
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
         );
       },
     );

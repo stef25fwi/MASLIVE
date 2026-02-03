@@ -47,6 +47,7 @@ import 'admin/business_requests_page.dart';
 import 'admin/admin_main_dashboard.dart';
 import 'admin/mapmarket_projects_page.dart';
 import 'admin/map_project_wizard_entry_page.dart';
+import 'admin/marketmap_debug_page.dart';
 import 'services/cart_service.dart';
 import 'services/notifications_service.dart';
 import 'services/premium_service.dart';
@@ -174,6 +175,7 @@ class MasLiveApp extends StatelessWidget {
               '/admin/map-library': (_) => const MapProjectsLibraryPage(),
               '/admin/mapmarket': (_) => const MapMarketProjectsPage(),
               '/admin/mapmarket/wizard': (_) => const MapProjectWizardEntryPage(),
+              '/admin/marketmap-debug': (_) => const MarketMapDebugPage(),
               '/admin/superadmin': (_) => const SuperAdminSpace(),
               '/admin/categories': (_) => const CategoryManagementPage(),
               '/admin/roles': (_) => const RoleManagementPage(),
