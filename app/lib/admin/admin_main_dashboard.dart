@@ -515,7 +515,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
               color: Colors.teal,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const UserProfilePreviewPage()),
+                MaterialPageRoute(builder: (_) => UserProfilePreviewPage()),
               ),
             ),
             const SizedBox(height: 24),
