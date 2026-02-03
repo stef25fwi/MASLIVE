@@ -263,6 +263,25 @@
   };
 
   /**
+   * Fixe des bounds maximum pour le déplacement de la carte
+   * @param {array|null} bounds - [[minLng, minLat], [maxLng, maxLat]] ou null pour désactiver
+   */
+  window.setMaxBounds = function(bounds) {
+    const map = window.MapboxBridge.map;
+    if (!map) return;
+
+    try {
+      if (!bounds) {
+        map.setMaxBounds(null);
+        return;
+      }
+      map.setMaxBounds(bounds);
+    } catch (e) {
+      console.error('❌ Erreur setMaxBounds:', e);
+    }
+  };
+
+  /**
    * Redimensionne la carte (utile après un resize du container)
    */
   window.resizeMap = function() {

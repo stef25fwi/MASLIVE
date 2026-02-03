@@ -161,7 +161,20 @@ window.masliveMapbox = (() => {
         }
       };
       
-      if (perimeter) updateSource(srcPerimeter, perimeter, 'Périmètre');
+      if (perimeter) {
+        updateSource(srcPerimeter, perimeter, 'Périmètre');
+
+        // Calculer des bounds approximatifs sur le périmètre et
+        // limiter le déplacement de la carte à cette zone.
+        try {
+          const bounds = computeBoundsFromFc(perimeter);
+          if (bounds) {
+            map.setMaxBounds(bounds);
+          }
+        } catch (e) {
+          console.warn('⚠️ Erreur computeBoundsFromFc:', e);
+        }
+      }
       if (mask) updateSource(srcMask, mask, 'Masque');
       if (route) updateSource(srcRoute, route, 'Route');
       if (segments) updateSource(srcSegments, segments, 'Segments');
@@ -175,6 +188,59 @@ window.masliveMapbox = (() => {
   }
 
   function fc(features) { return { type: "FeatureCollection", features }; }
+
+  // Calcule [[minLng, minLat], [maxLng, maxLat]] à partir
+  // d'un FeatureCollection (LineString) pour le périmètre.
+  function computeBoundsFromFc(featureCollection) {
+    if (!featureCollection || !Array.isArray(featureCollection.features) || featureCollection.features.length === 0) {
+      return null;
+    }
+
+    let minLng = Infinity;
+    let minLat = Infinity;
+    let maxLng = -Infinity;
+    let maxLat = -Infinity;
+
+    for (const feat of featureCollection.features) {
+      if (!feat || !feat.geometry) continue;
+      const geom = feat.geometry;
+      const type = geom.type;
+      const coords = geom.coordinates;
+      if (!coords) continue;
+
+      const visitPoint = (lng, lat) => {
+        if (typeof lng !== 'number' || typeof lat !== 'number') return;
+        if (lng < minLng) minLng = lng;
+        if (lng > maxLng) maxLng = lng;
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+      };
+
+      if (type === 'LineString') {
+        for (const p of coords) {
+          if (!Array.isArray(p) || p.length < 2) continue;
+          visitPoint(p[0], p[1]);
+        }
+      } else if (type === 'MultiLineString') {
+        for (const line of coords) {
+          if (!Array.isArray(line)) continue;
+          for (const p of line) {
+            if (!Array.isArray(p) || p.length < 2) continue;
+            visitPoint(p[0], p[1]);
+          }
+        }
+      }
+    }
+
+    if (!isFinite(minLng) || !isFinite(minLat) || !isFinite(maxLng) || !isFinite(maxLat)) {
+      return null;
+    }
+
+    return [
+      [minLng, minLat],
+      [maxLng, maxLat]
+    ];
+  }
 
   return { init, setData };
 })();

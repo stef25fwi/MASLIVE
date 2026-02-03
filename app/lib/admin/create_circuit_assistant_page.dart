@@ -9,6 +9,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/market_map_service.dart';
+import 'marketmap_debug_page.dart';
+import 'marketmap_perimeter_page.dart';
+import 'poi_marketmap_wizard_page.dart';
 
 class _CountryOption {
   const _CountryOption({required this.name, required this.flag});
@@ -357,24 +360,137 @@ class _Step2PlaceholderPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Step 2 - À venir')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Circuit créé avec succès!'),
-            const SizedBox(height: 16),
-            Text('Pays: ${result.countryId}'),
-            Text('Événement: ${result.eventId}'),
-            Text('Circuit: ${result.circuitId}'),
-            const SizedBox(height: 32),
-            const Text('Étape 2 du wizard à implémenter...'),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Retour'),
+      appBar: AppBar(title: const Text('Circuit créé • Étapes suivantes')),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Icon(Icons.check_circle_outline,
+                    size: 40, color: Colors.green),
+                const SizedBox(height: 12),
+                const Text(
+                  'Circuit MarketMap créé avec succès',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  elevation: 0,
+                  color: Colors.grey.shade50,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'marketMap/${result.countryId}/events/${result.eventId}/circuits/${result.circuitId}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Pays: ${result.countryId}',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        Text(
+                          'Événement: ${result.eventId}',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        Text(
+                          'Circuit: ${result.circuitId}',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Étape suivante recommandée : définir le périmètre',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  icon: const Icon(Icons.crop_square_rounded),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => MarketMapPerimeterPage(
+                          countryId: result.countryId,
+                          eventId: result.eventId,
+                          circuitId: result.circuitId,
+                        ),
+                      ),
+                    );
+                  },
+                  label: const Text('Définir le périmètre de la carte'),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Que souhaitez-vous faire maintenant ?',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  icon: const Icon(Icons.place_rounded),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => POIMarketMapWizardPage(
+                          initialCountryId: result.countryId,
+                          initialEventId: result.eventId,
+                          initialCircuitId: result.circuitId,
+                        ),
+                      ),
+                    );
+                  },
+                  label: const Text(
+                    'Configurer les couches & POI de ce circuit',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.bug_report_outlined),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const MarketMapDebugPage(),
+                      ),
+                    );
+                  },
+                  label: const Text('Voir ce circuit dans la page Debug MarketMap'),
+                ),
+                const SizedBox(height: 24),
+                Align(
+                  alignment: Alignment.center,
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Retour'),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

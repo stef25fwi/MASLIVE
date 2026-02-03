@@ -9,10 +9,21 @@ import '../models/market_layer.dart';
 import '../services/market_map_service.dart';
 
 class POIMarketMapWizardPage extends StatefulWidget {
-  const POIMarketMapWizardPage({super.key, MarketMapService? service})
-      : _service = service;
+  const POIMarketMapWizardPage({
+    super.key,
+    MarketMapService? service,
+    this.initialCountryId,
+    this.initialEventId,
+    this.initialCircuitId,
+  }) : _service = service;
 
   final MarketMapService? _service;
+
+  /// Optionnel : pré-sélectionne pays / événement / circuit
+  /// quand on arrive depuis le CreateCircuitAssistant.
+  final String? initialCountryId;
+  final String? initialEventId;
+  final String? initialCircuitId;
 
   @override
   State<POIMarketMapWizardPage> createState() => _POIMarketMapWizardPageState();
@@ -39,6 +50,76 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
         return true;
       default:
         return false;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Si on vient avec un circuit pré-sélectionné, on tente de
+    // positionner directement le wizard sur le bon pays / event / circuit.
+    final countryId = widget.initialCountryId;
+    final eventId = widget.initialEventId;
+    final circuitId = widget.initialCircuitId;
+
+    if (countryId != null && eventId != null && circuitId != null) {
+      _preselectFromIds(countryId: countryId, eventId: eventId, circuitId: circuitId);
+    }
+  }
+
+  Future<void> _preselectFromIds({
+    required String countryId,
+    required String eventId,
+    required String circuitId,
+  }) async {
+    try {
+      final db = FirebaseFirestore.instance;
+
+      final countrySnap = await db.collection('marketMap').doc(countryId).get();
+      final eventSnap = await db
+          .collection('marketMap')
+          .doc(countryId)
+          .collection('events')
+          .doc(eventId)
+          .get();
+      final circuitSnap = await db
+          .collection('marketMap')
+          .doc(countryId)
+          .collection('events')
+          .doc(eventId)
+          .collection('circuits')
+          .doc(circuitId)
+          .get();
+
+      if (!mounted) return;
+      if (!countrySnap.exists || !eventSnap.exists || !circuitSnap.exists) {
+        return; // fallback: wizard classique
+      }
+
+      final country = MarketCountry(
+        id: countrySnap.id,
+        name: (countrySnap.data()?['name'] as String?) ?? countrySnap.id,
+        slug: (countrySnap.data()?['slug'] as String?) ?? countrySnap.id,
+      );
+
+      final event = MarketEvent(
+        id: eventSnap.id,
+        countryId: countrySnap.id,
+        name: (eventSnap.data()?['name'] as String?) ?? eventSnap.id,
+        slug: (eventSnap.data()?['slug'] as String?) ?? eventSnap.id,
+      );
+
+      final circuit = MarketCircuit.fromDoc(circuitSnap);
+
+      setState(() {
+        _country = country;
+        _event = event;
+        _circuit = circuit;
+        _step = 3; // on atterrit directement sur la gestion des couches/POI
+      });
+    } catch (_) {
+      // En cas d'erreur réseau ou autre, on laisse le wizard en mode normal.
     }
   }
 
