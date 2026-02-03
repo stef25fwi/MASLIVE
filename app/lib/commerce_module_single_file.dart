@@ -1473,6 +1473,8 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
     final isNew = widget.existing == null;
 
     return Dialog(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
       insetPadding: const EdgeInsets.all(16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
@@ -1621,6 +1623,10 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.blue,
+                        side: const BorderSide(color: Colors.blue),
+                      ),
                       onPressed: () => Navigator.pop(context),
                       child: const Text('Annuler'),
                     ),
@@ -1628,6 +1634,7 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: FilledButton(
+                      style: FilledButton.styleFrom(backgroundColor: Colors.blue),
                       onPressed: () {
                         if (!(formKey.currentState?.validate() ?? false)) return;
 
@@ -1706,11 +1713,19 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
   InputDecoration _decor(String label) {
     return InputDecoration(
       labelText: label,
+      labelStyle: const TextStyle(color: Colors.blueGrey),
       filled: true,
-      fillColor: const Color(0xFFF6F7FB),
+      fillColor: Colors.white,
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: Colors.blue.withOpacity(0.3)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.blue, width: 2),
+      ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
       ),
     );
   }
@@ -1760,6 +1775,8 @@ class _ProductImagesEditorDialogState extends State<ProductImagesEditorDialog> {
     final imgs = product.images;
 
     return Dialog(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
       insetPadding: const EdgeInsets.all(16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
@@ -1788,9 +1805,9 @@ class _ProductImagesEditorDialogState extends State<ProductImagesEditorDialog> {
                 Container(
                   height: 160,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF6F7FB),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFE9ECF3)),
+                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
                   ),
                   child: const Center(child: Text('Aucune photo')),
                 )
@@ -1872,6 +1889,10 @@ class _ProductImagesEditorDialogState extends State<ProductImagesEditorDialog> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.blue,
+                        side: const BorderSide(color: Colors.blue),
+                      ),
                       onPressed: _pickAndUpload,
                       icon: const Icon(Icons.add_photo_alternate_outlined),
                       label: const Text('Ajouter des photos'),
@@ -1914,6 +1935,8 @@ class _StockQuickEditorDialogState extends State<StockQuickEditorDialog> {
     final p = widget.product;
 
     return Dialog(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),
@@ -1940,9 +1963,9 @@ class _StockQuickEditorDialogState extends State<StockQuickEditorDialog> {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF6F7FB),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFE9ECF3)),
+                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
                 ),
                 child: Row(
                   children: [
@@ -1970,6 +1993,10 @@ class _StockQuickEditorDialogState extends State<StockQuickEditorDialog> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.blue,
+                        side: const BorderSide(color: Colors.blue),
+                      ),
                       onPressed: () async {
                         try {
                           await widget.controller.adjustStock(p, -delta);
@@ -1988,6 +2015,7 @@ class _StockQuickEditorDialogState extends State<StockQuickEditorDialog> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: FilledButton.icon(
+                      style: FilledButton.styleFrom(backgroundColor: Colors.blue),
                       onPressed: () async {
                         try {
                           await widget.controller.adjustStock(p, delta);
@@ -2626,14 +2654,33 @@ class _TextPromptDialogState extends State<_TextPromptDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
       title: Text(widget.title),
       content: TextField(
         controller: ctrl,
-        decoration: InputDecoration(hintText: widget.hint),
+        decoration: InputDecoration(
+          hintText: widget.hint,
+          filled: true,
+          fillColor: Colors.white,
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.blue.withOpacity(0.3)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Colors.blue, width: 2),
+          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+        ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
-        FilledButton(onPressed: () => Navigator.pop(context, ctrl.text), child: const Text('Appliquer')),
+        TextButton(style: TextButton.styleFrom(foregroundColor: Colors.blue), onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
+          onPressed: () => Navigator.pop(context, ctrl.text),
+          child: const Text('Appliquer'),
+        ),
       ],
     );
   }
@@ -2674,7 +2721,23 @@ class _PriceRangeDialogState extends State<_PriceRangeDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final decor = InputDecoration(
+      filled: true,
+      fillColor: Colors.white,
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: Colors.blue.withOpacity(0.3)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.blue, width: 2),
+      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+    );
+
     return AlertDialog(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
       title: const Text('Prix'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -2682,18 +2745,20 @@ class _PriceRangeDialogState extends State<_PriceRangeDialog> {
           TextField(
             controller: minCtrl,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Min'),
+            decoration: decor.copyWith(labelText: 'Min'),
           ),
+          const SizedBox(height: 10),
           TextField(
             controller: maxCtrl,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Max'),
+            decoration: decor.copyWith(labelText: 'Max'),
           ),
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, const _PriceRange()), child: const Text('Reset')),
+        TextButton(style: TextButton.styleFrom(foregroundColor: Colors.blue), onPressed: () => Navigator.pop(context, const _PriceRange()), child: const Text('Reset')),
         FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
           onPressed: () {
             final min = double.tryParse(minCtrl.text.replaceAll(',', '.').trim());
             final max = double.tryParse(maxCtrl.text.replaceAll(',', '.').trim());
