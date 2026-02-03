@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'cart_page.dart';
-import 'media_shop_wrapper.dart';
+import 'media_shop_page.dart';
 import 'product_detail_page.dart';
 import '../models/group_product.dart';
 import '../services/cart_service.dart';
@@ -308,9 +308,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => MediaShopWrapper(
-                                    groupId: _effectiveGroupId(),
-                                  ),
+                                  builder: (_) => const MediaShopPage(),
                                 ),
                               );
                             },

@@ -1,7 +1,11 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 class MediaGalleryMasliveInstagramPage extends StatefulWidget {
   const MediaGalleryMasliveInstagramPage({super.key});
@@ -194,6 +198,19 @@ class _MediaGalleryMasliveInstagramPageState
     _startListening(reset: true);
   }
 
+  void _openAddMedia() {
+    showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => const _AddMediaSheet(),
+    ).then((ok) {
+      if (ok == true) {
+        _startListening(reset: true);
+      }
+    });
+  }
+
   Future<void> _openFilters() async {
     final result = await showModalBottomSheet<_FilterResult>(
       context: context,
@@ -235,6 +252,9 @@ class _MediaGalleryMasliveInstagramPageState
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.of(context).padding.top;
+    final user = FirebaseAuth.instance.currentUser;
+    final canAddMedia =
+        user != null && user.email == 's-stephane@live.fr';
 
     return Scaffold(
       backgroundColor: _bg,
@@ -252,6 +272,8 @@ class _MediaGalleryMasliveInstagramPageState
                 hasActiveFilters: _hasActiveFilters,
                 onReset: _resetFilters,
                 onOpenFilters: _openFilters,
+                showAddMedia: canAddMedia,
+                onAddMedia: canAddMedia ? _openAddMedia : null,
               ),
 
               if (_hasActiveFilters)
@@ -329,6 +351,8 @@ class _MasliveHeader extends StatelessWidget {
   final bool hasActiveFilters;
   final VoidCallback onReset;
   final VoidCallback onOpenFilters;
+   final VoidCallback? onAddMedia;
+   final bool showAddMedia;
 
   const _MasliveHeader({
     required this.topPadding,
@@ -336,6 +360,8 @@ class _MasliveHeader extends StatelessWidget {
     required this.hasActiveFilters,
     required this.onReset,
     required this.onOpenFilters,
+    this.onAddMedia,
+    this.showAddMedia = false,
   });
 
   @override
@@ -363,6 +389,16 @@ class _MasliveHeader extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
+
+                if (showAddMedia && onAddMedia != null)
+                  IconButton(
+                    tooltip: 'Ajouter',
+                    onPressed: onAddMedia,
+                    icon: const Icon(
+                      Icons.add_a_photo_outlined,
+                      color: Color(0xFF0D0F12),
+                    ),
+                  ),
 
                 if (hasActiveFilters)
                   TextButton(
@@ -1189,6 +1225,228 @@ class MediaDoc {
       event: (d['event'] ?? '') as String,
       circuit: (d['circuit'] ?? '') as String,
       createdAt: created,
+    );
+  }
+}
+
+// ======================================================
+// Sheet d’ajout de média (upload + métadonnées)
+// ======================================================
+class _AddMediaSheet extends StatefulWidget {
+  const _AddMediaSheet();
+
+  @override
+  State<_AddMediaSheet> createState() => _AddMediaSheetState();
+}
+
+class _AddMediaSheetState extends State<_AddMediaSheet> {
+  final _countryCtrl = TextEditingController();
+  final _eventCtrl = TextEditingController();
+  final _circuitCtrl = TextEditingController();
+
+  DateTime? _date;
+  XFile? _file;
+  bool _saving = false;
+
+  final ImagePicker _picker = ImagePicker();
+
+  @override
+  void dispose() {
+    _countryCtrl.dispose();
+    _eventCtrl.dispose();
+    _circuitCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final picked = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 88,
+      );
+      if (picked == null) return;
+      setState(() => _file = picked);
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final first = DateTime(now.year - 5);
+    final last = DateTime(now.year + 2, 12, 31);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date ?? now,
+      firstDate: first,
+      lastDate: last,
+    );
+    if (picked != null) {
+      setState(() => _date = picked);
+    }
+  }
+
+  Future<void> _save() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Connecte-toi pour ajouter un média.')),
+      );
+      return;
+    }
+
+    if (_file == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Choisis une photo.')),
+      );
+      return;
+    }
+
+    final country = _countryCtrl.text.trim();
+    final event = _eventCtrl.text.trim();
+    final circuit = _circuitCtrl.text.trim();
+
+    if (country.isEmpty || event.isEmpty || circuit.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pays, événement et circuit sont obligatoires.'),
+        ),
+      );
+      return;
+    }
+
+    final createdAt = _date ?? DateTime.now();
+
+    setState(() => _saving = true);
+
+    try {
+      // Upload dans Firebase Storage
+      final bytes = await _file!.readAsBytes();
+      final Uint8List data = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
+
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      final storagePath = 'media/${user.uid}/$ts.jpg';
+      final ref = FirebaseStorage.instance.ref(storagePath);
+      final meta = SettableMetadata(contentType: 'image/jpeg');
+      await ref.putData(data, meta);
+      final url = await ref.getDownloadURL();
+
+      // Doc Firestore dans `media`
+      final col = FirebaseFirestore.instance.collection('media');
+      await col.add({
+        'url': url,
+        'thumbnail': url,
+        'type': 'photo',
+        'country': country,
+        'event': event,
+        'circuit': circuit,
+        'createdAt': Timestamp.fromDate(createdAt),
+        'createdBy': user.uid,
+      });
+
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur ajout média: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    final dateLabel = _date == null
+        ? 'Choisir une date'
+        : '${_date!.day.toString().padLeft(2, '0')}/'
+            '${_date!.month.toString().padLeft(2, '0')}/'
+            '${_date!.year}';
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 8,
+        bottom: bottom + 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Ajouter un média',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _saving ? null : _pickImage,
+                  icon: const Icon(Icons.add_a_photo_outlined),
+                  label: Text(_file == null ? 'Choisir une photo' : 'Changer la photo'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          TextField(
+            controller: _countryCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Pays',
+              hintText: 'Ex: Guadeloupe',
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          TextField(
+            controller: _eventCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Événement',
+              hintText: "Ex: Carnaval MAS'LIVE 2026",
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          TextField(
+            controller: _circuitCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Circuit',
+              hintText: 'Ex: Circuit Principal',
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          TextButton.icon(
+            onPressed: _saving ? null : _pickDate,
+            icon: const Icon(Icons.event_outlined),
+            label: Text(dateLabel),
+          ),
+          const SizedBox(height: 16),
+
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _saving ? null : _save,
+              icon: _saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check_circle_outline),
+              label: Text(_saving ? 'Enregistrement…' : 'Publier le média'),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

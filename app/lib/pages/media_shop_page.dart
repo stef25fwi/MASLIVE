@@ -11,6 +11,7 @@
 // -----------------------------------------------------------------------------
 
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -592,8 +593,11 @@ class _MediaShopPageState extends State<MediaShopPage> {
       }
       _schedulePrecache();
     });
-
-    _refreshAll();
+    _maybeSeedAssetsAsPhotos().then((_) {
+      if (mounted) {
+        _refreshAll();
+      }
+    });
   }
 
   @override
@@ -623,6 +627,112 @@ class _MediaShopPageState extends State<MediaShopPage> {
 
     if (mounted) setState(() => _initialLoading = false);
     _schedulePrecache(force: true);
+
+      // ---------------------------------------------------------------------------
+      // SEED DES PHOTOS À PARTIR DES ASSETS (super admin uniquement)
+      // ---------------------------------------------------------------------------
+      Future<void> _maybeSeedAssetsAsPhotos() async {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user == null) return;
+        if (user.email != 's-stephane@live.fr') return;
+
+        final metaRef = FirebaseFirestore.instance
+            .collection('meta')
+            .doc('media_assets_seed');
+        final metaSnap = await metaRef.get();
+        const int currentVersion = 2;
+        if (metaSnap.exists) {
+          final data = metaSnap.data();
+          final done = data?['done'] == true;
+          final version = data?['version'] is int ? data!['version'] as int : 1;
+          if (done && version >= currentVersion) {
+            return;
+          }
+        }
+
+        // Charge la liste des assets et filtre les images utiles pour la boutique.
+        final manifestJson = await rootBundle.loadString('AssetManifest.json');
+        final manifest = json.decode(manifestJson) as Map<String, dynamic>;
+
+        final assetPaths = manifest.keys
+            .where((path) =>
+                path.startsWith('assets/shop/') || path.startsWith('assets/images/'))
+            .where((path) {
+              final lower = path.toLowerCase();
+              return lower.endsWith('.png') ||
+                  lower.endsWith('.jpg') ||
+                  lower.endsWith('.jpeg') ||
+                  lower.endsWith('.webp');
+            })
+            .toList()
+          ..sort();
+
+        if (assetPaths.isEmpty) return;
+
+        final photosCol = FirebaseFirestore.instance.collection('photos');
+
+        // Évite de recréer des documents existants pour les mêmes assets.
+        final existingSnap = await photosCol
+            .where('source', isEqualTo: 'assets_seed')
+            .get();
+        final existingIds = existingSnap.docs.map((d) => d.id).toSet();
+
+        final batch = FirebaseFirestore.instance.batch();
+        final now = DateTime.now();
+        int created = 0;
+
+        for (final assetPath in assetPaths) {
+          final id = _seedIdForAsset(assetPath);
+          if (existingIds.contains(id)) continue;
+
+          final docRef = photosCol.doc(id);
+
+          // Valeurs par défaut pensées pour les filtres :
+          // - country: non vide (par défaut Guadeloupe)
+          // - eventName: Carnaval + année
+          // - groupName: MAS'LIVE Crew
+          final int year = now.year;
+          final String country = 'Guadeloupe';
+          final String eventName = "Carnaval MAS'LIVE $year";
+          const String groupName = "MAS'LIVE Crew";
+
+          batch.set(docRef, {
+            'country': country,
+            'eventDate': Timestamp.fromDate(now),
+            'eventName': eventName,
+            'groupName': groupName,
+            'photographerName': "MAS'LIVE PICS",
+            'photographerId': user.uid,
+            'priceCents': 1200,
+            'thumbPath': assetPath,
+            'fullPath': assetPath,
+            'popularity': 0,
+            'isActive': true,
+            'moderationStatus': 'approved',
+            'source': 'assets_seed',
+          });
+          created++;
+        }
+
+        if (created > 0) {
+          await batch.commit();
+        }
+
+        await metaRef.set({
+          'done': true,
+          'count': created,
+          'at': Timestamp.now(),
+          'email': user.email,
+          'version': currentVersion,
+        }, SetOptions(merge: true));
+      }
+
+      String _seedIdForAsset(String assetPath) {
+        final base = assetPath.split('/').last;
+        final withoutExt = base.replaceFirst(RegExp(r'\.[^.]+$'), '');
+        final safe = withoutExt.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+        return 'asset_$safe';
+      }
   }
 
   Future<void> _loadFacetsDebounced({bool immediate = false}) async {
@@ -1804,6 +1914,20 @@ class _StorageImage extends StatelessWidget {
         color: Colors.black.withOpacity(0.06),
         alignment: Alignment.center,
         child: const Icon(Icons.image_not_supported_outlined),
+      );
+    }
+
+    // Cas spécial: images packagées dans les assets Flutter
+    // (ex: assets/shop/..., assets/images/...).
+    if (path.startsWith('assets/')) {
+      return Image.asset(
+        path,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(
+          color: Colors.black.withOpacity(0.06),
+          alignment: Alignment.center,
+          child: const Icon(Icons.broken_image_outlined),
+        ),
       );
     }
 
