@@ -35,79 +35,74 @@ class _CreateCircuitAssistantPageState
             tooltip: 'Create MarketMap',
           ),
         ],
-            required DateTime startDate,
-            required DateTime endDate,
+      ),
+      body: Center(
         child: _lastCreated == null
             ? const Text('Cliquez sur "+" pour créer un MarketMap')
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text('Dernier circuit créé:'),
-            final service = MarketMapService(firestore: FirebaseFirestore.instance);
-
-            return service.createCircuitStep1(
-              countryName: countryName,
-              eventName: eventName,
-              startDate: startDate,
-              endDate: endDate,
-              circuitName: circuitName,
-              uid: user.uid,
-            );
-          }
-            'size': 'medium',
-          },
-        },
-        'source': <String, dynamic>{},
-        'params': <String, dynamic>{},
-      },
-      {
-        'key': 'parking',
-        'name': 'Parking',
-        'visible': true,
-        'order': 4,
-        'style': {
-          'marker': {'color': '#9C27B0', 'icon': 'parking', 'size': 'medium'},
-        },
-        'source': <String, dynamic>{},
-        'params': <String, dynamic>{},
-      },
-      {
-        'key': 'wc',
-        'name': 'WC',
-        'visible': true,
-        'order': 5,
-        'style': {
-          'marker': {'color': '#00BCD4', 'icon': 'wc', 'size': 'medium'},
-        },
-        'source': <String, dynamic>{},
-        'params': <String, dynamic>{},
-      },
-    ];
+                  const SizedBox(height: 16),
+                  Text('Pays: ${_lastCreated!.countryId}'),
+                  Text('Événement: ${_lastCreated!.eventId}'),
+                  Text('Circuit: ${_lastCreated!.circuitId}'),
+                  const SizedBox(height: 32),
+                  ElevatedButton(
+                    onPressed: _busy ? null : _openMarketMapCreateDialog,
+                    child: const Text('Créer un autre circuit'),
+                  ),
+                ],
+              ),
+      ),
+    );
   }
 
-  String _slugify(String text) {
-    return text
-        .toLowerCase()
-        .trim()
-        .replaceAll(RegExp(r'[àáâãäå]'), 'a')
-        .replaceAll(RegExp(r'[èéêë]'), 'e')
-        .replaceAll(RegExp(r'[ìíîï]'), 'i')
-        .replaceAll(RegExp(r'[òóôõö]'), 'o')
-        .replaceAll(RegExp(r'[ùúûü]'), 'u')
-        .replaceAll(RegExp(r'[ýÿ]'), 'y')
-        .replaceAll(RegExp(r'[ñ]'), 'n')
-        .replaceAll(RegExp(r'[ç]'), 'c')
-        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
-        .replaceAll(RegExp(r'_+'), '_')
-        .replaceAll(RegExp(r'^_|_$'), '');
+  Future<void> _openMarketMapCreateDialog() async {
+    if (_busy) return;
+
+    final result = await showDialog<CreateCircuitResult>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const _CreateMarketMapStep1Dialog(),
+    );
+
+    if (result != null && mounted) {
+      setState(() {
+        _lastCreated = result;
+      });
+
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => _Step2PlaceholderPage(result: result),
+        ),
+      );
+    }
   }
 
-  String _yyyymmdd(DateTime date) {
-    return '${date.year}${date.month.toString().padLeft(2, '0')}${date.day.toString().padLeft(2, '0')}';
-  }
+  /// Délègue la création du circuit à MarketMapService.createCircuitStep1
+  Future<CreateCircuitResult> _createMarketMapDraft({
+    required String countryName,
+    required String eventName,
+    required String circuitName,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception('User not authenticated');
+    }
 
-  String _cleanName(String name) {
-    return name.trim().replaceAll(RegExp(r'\s+'), ' ');
+    final service = MarketMapService(firestore: FirebaseFirestore.instance);
+
+    return service.createCircuitStep1(
+      countryName: countryName,
+      eventName: eventName,
+      startDate: startDate,
+      endDate: endDate,
+      circuitName: circuitName,
+      uid: user.uid,
+    );
   }
 }
 
