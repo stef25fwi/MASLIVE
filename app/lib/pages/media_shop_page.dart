@@ -850,13 +850,11 @@ class _MediaShopPageState extends State<MediaShopPage> {
                           )
                         else
                           SliverPadding(
-                            padding: const EdgeInsets.fromLTRB(12, 12, 12, 120),
+                            padding: const EdgeInsets.fromLTRB(1, 1, 1, 120),
                             sliver: SliverLayoutBuilder(
                               builder: (context, constraints) {
-                                final width = constraints.crossAxisExtent;
-                                final crossAxisCount = _gridColumnsForWidth(
-                                  width,
-                                );
+                                // Style "Instagram" : grille dense 3 colonnes
+                                const crossAxisCount = 3;
 
                                 return SliverGrid(
                                   delegate: SliverChildBuilderDelegate((
@@ -881,11 +879,9 @@ class _MediaShopPageState extends State<MediaShopPage> {
                                   gridDelegate:
                                       SliverGridDelegateWithFixedCrossAxisCount(
                                         crossAxisCount: crossAxisCount,
-                                        mainAxisSpacing: 12,
-                                        crossAxisSpacing: 12,
-                                        childAspectRatio: crossAxisCount >= 4
-                                            ? 0.80
-                                            : 0.78,
+                                        mainAxisSpacing: 1,
+                                        crossAxisSpacing: 1,
+                                        childAspectRatio: 1.0,
                                       ),
                                 );
                               },
@@ -1175,8 +1171,6 @@ class SelectablePhotoCardV21 extends StatefulWidget {
 }
 
 class _SelectablePhotoCardV21State extends State<SelectablePhotoCardV21> {
-  bool _hovered = false;
-
   @override
   Widget build(BuildContext context) {
     final cart = CartScope.of(context);
@@ -1188,155 +1182,60 @@ class _SelectablePhotoCardV21State extends State<SelectablePhotoCardV21> {
         final inCart = cart.isInCart(widget.item.id);
 
         final isInteractive = !widget.purchased;
-        final shadowOpacity = _hovered ? 0.10 : 0.07;
-        final borderOpacity = _hovered ? 0.12 : 0.08;
 
-        return MouseRegion(
-          onEnter: (_) {
-            if (!mounted) return;
-            setState(() => _hovered = true);
-          },
-          onExit: (_) {
-            if (!mounted) return;
-            setState(() => _hovered = false);
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 140),
-            curve: Curves.easeOut,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: Colors.black.withOpacity(borderOpacity),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  blurRadius: _hovered ? 22 : 16,
-                  offset: const Offset(0, 10),
-                  color: Colors.black.withOpacity(shadowOpacity),
-                ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(18),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(18),
-                onTap: widget.onOpen,
-                onLongPress: isInteractive
-                    ? () => cart.toggleSelected(widget.item)
-                    : null,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Stack(
-                        children: [
-                          Positioned.fill(
-                            child: ClipRRect(
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(18),
-                              ),
-                              child: _StorageImage(path: widget.item.thumbPath),
-                            ),
-                          ),
+        return InkWell(
+          onTap: widget.onOpen,
+          onLongPress:
+              isInteractive ? () => cart.toggleSelected(widget.item) : null,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Photo plein cadre (style grille Instagram)
+              _StorageImage(path: widget.item.thumbPath),
 
-                          Positioned(
-                            top: 10,
-                            right: 10,
-                            child: GestureDetector(
-                              onTap: isInteractive
-                                  ? () => cart.toggleSelected(widget.item)
-                                  : null,
-                              child: _CheckBadge(
-                                isOn: selected,
-                                disabled: widget.purchased,
-                              ),
-                            ),
-                          ),
-
-                          if (inCart)
-                            Positioned(
-                              left: 10,
-                              top: 10,
-                              child: _PremiumPill(text: 'Au panier'),
-                            ),
-                          if (widget.purchased)
-                            Positioned(
-                              left: 10,
-                              bottom: 10,
-                              child: _PremiumPill(text: 'Achetée'),
-                            ),
-                        ],
-                      ),
+              // Overlay dégradé léger en haut
+              const Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.center,
+                      colors: [Color(0x12000000), Color(0x00000000)],
                     ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.item.eventName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${widget.item.groupName} • ${widget.item.photographerName}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.black.withOpacity(0.62),
-                              fontSize: 12,
-                              height: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Text(
-                                _money(widget.item.priceCents),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.2,
-                                ),
-                              ),
-                              const Spacer(),
-                              IconButton(
-                                tooltip: widget.purchased
-                                    ? 'Déjà achetée'
-                                    : 'Ajouter au panier',
-                                onPressed: (widget.purchased || inCart)
-                                    ? null
-                                    : () => cart.addToCart(widget.item),
-                                style: IconButton.styleFrom(
-                                  backgroundColor: Colors.black.withOpacity(
-                                    0.05,
-                                  ),
-                                  padding: const EdgeInsets.all(10),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                icon: const Icon(
-                                  Icons.add_shopping_cart_rounded,
-                                  size: 20,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+
+              // Badge sélection (check) en haut à droite
+              Positioned(
+                top: 6,
+                right: 6,
+                child: GestureDetector(
+                  onTap: isInteractive
+                      ? () => cart.toggleSelected(widget.item)
+                      : null,
+                  behavior: HitTestBehavior.opaque,
+                  child: _CheckBadge(
+                    isOn: selected,
+                    disabled: widget.purchased,
+                  ),
+                ),
+              ),
+
+              // Badge panier / achetée en overlay discret
+              if (inCart)
+                const Positioned(
+                  left: 6,
+                  top: 6,
+                  child: _PremiumPill(text: 'Au panier'),
+                ),
+              if (widget.purchased)
+                const Positioned(
+                  left: 6,
+                  bottom: 6,
+                  child: _PremiumPill(text: 'Achetée'),
+                ),
+            ],
           ),
         );
       },

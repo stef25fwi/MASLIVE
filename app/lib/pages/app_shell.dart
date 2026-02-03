@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/maslive_bottom_nav_glass.dart';
 import 'mapbox_web_map_page.dart';
-import 'media_gallery_maslive_instagram_page.dart';
+import 'media_tab_combined_page.dart';
 import 'group_profile_page.dart';
 import 'search_page.dart';
 
@@ -24,7 +24,7 @@ class _AppShellState extends State<AppShell> {
     final pages = <Widget>[
       const MapboxWebMapPage(),
       const SearchPage(),
-      const MediaGalleryMasliveInstagramPage(),
+      MediaTabCombinedPage(groupId: widget.groupId),
       GroupProfilePage(groupId: widget.groupId),
     ]
             .map((page) {
