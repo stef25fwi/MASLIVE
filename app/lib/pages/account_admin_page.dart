@@ -129,38 +129,6 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
                             );
                           },
                         ),
-                        const SizedBox(height: 12),
-                        _SectionCard(
-                          title: "Commerce (Monolith)",
-                          subtitle: "Gestion produits + photos",
-                          icon: Icons.shopping_bag,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const ProductManagementPage(
-                                  shopId: 'global',
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        _SectionCard(
-                          title: "Boutique (Monolith)",
-                          subtitle: "Panier + checkout",
-                          icon: Icons.shopping_cart_outlined,
-                          onTap: () {
-                            final uid = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => BoutiquePage(
-                                  shopId: 'global',
-                                  userId: uid,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
                       ],
                     ]),
                   ),

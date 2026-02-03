@@ -444,11 +444,17 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     _resizeDebounce = Timer(_resizeDebounceDelay, () {
       if (!mounted) return;
 
+      // Utiliser triggerWebViewportResize pour re-layout la carte sans tout recréer
+      if (kIsWeb) {
+        triggerWebViewportResize();
+      }
+
       try {
-        setState(() => _mapRebuildTick++);
+        // Optionnel : ne pas incrémenter le tick si on veut éviter le reload WebGL
+        // setState(() => _mapRebuildTick++);
+        // On log juste la nouvelle taille
         debugPrint(
-          '✅ Default map resize: ${size.width.toInt()}x${size.height.toInt()} '
-          '(tick: $_mapRebuildTick)',
+          '✅ Default map resize (soft): ${size.width.toInt()}x${size.height.toInt()} ',
         );
       } catch (e) {
         debugPrint('⚠️ Erreur _scheduleResize: $e');
@@ -646,8 +652,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                       child: Container(
                         color: Colors.transparent,
                         child: MapboxWebView(
+                          // Clé plus stable, indépendante de la taille précise (Mapbox gère le resize interne)
+                          // On garde _mapRebuildTick seulement si on VEUT forcer un reload
                           key: ValueKey(
-                            'default-map-${size.width.toInt()}x${size.height.toInt()}_$_mapRebuildTick',
+                            'default-map-stable_$_mapRebuildTick',
                           ),
                           accessToken: token,
                           initialLat: _projectCenterLat ?? _userLat ?? 16.2410,
@@ -716,16 +724,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                                       _closeNavWithDelay();
                                     },
                                   ),
-                                  const SizedBox(height: 8),
-                                  _ActionItem(
-                                    label: 'POIs',
-                                    icon: Icons.place_rounded,
-                                    selected: _marketPoiSelection.enabled,
-                                    onTap: () {
-                                      _openMarketPoiSelector();
-                                      _closeNavWithDelay();
-                                    },
-                                  ),
+
                                   const SizedBox(height: 8),
                                   _ActionItem(
                                     label: 'Centrer',
