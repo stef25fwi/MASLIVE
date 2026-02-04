@@ -2002,6 +2002,125 @@ exports.notifyCommerceRejected = onDocumentUpdated(
 );
 
 // ============================================================================
+// SUPERADMIN ARTICLES - Initialisation des articles de base
+// ============================================================================
+
+const superadminArticlesInitData = [
+  {
+    name: "Casquette MAS'LIVE",
+    description: "Casquette officiellement siglée MAS'LIVE. Tissu respirant, ajustable.",
+    category: "casquette",
+    price: 19.99,
+    imageUrl: "",
+    stock: 100,
+    isActive: true,
+    sku: "CASQUETTE-001",
+    tags: ["casquette", "accessoire", "outdoor"],
+  },
+  {
+    name: "T-shirt MAS'LIVE",
+    description: "T-shirt 100% coton de qualité premium avec logo MAS'LIVE. Confortable et durable.",
+    category: "tshirt",
+    price: 24.99,
+    imageUrl: "",
+    stock: 150,
+    isActive: true,
+    sku: "TSHIRT-001",
+    tags: ["t-shirt", "vêtement", "coton"],
+  },
+  {
+    name: "Porte-clé MAS'LIVE",
+    description: "Porte-clé en acier inoxydable avec gravure MAS'LIVE. Compact et élégant.",
+    category: "porteclé",
+    price: 9.99,
+    imageUrl: "",
+    stock: 200,
+    isActive: true,
+    sku: "PORTECLE-001",
+    tags: ["porte-clé", "accessoire", "acier"],
+  },
+  {
+    name: "Bandana MAS'LIVE",
+    description: "Bandana coloré multi-usage avec motif MAS'LIVE. Parfait pour le trail et les sports outdoor.",
+    category: "bandana",
+    price: 14.99,
+    imageUrl: "",
+    stock: 120,
+    isActive: true,
+    sku: "BANDANA-001",
+    tags: ["bandana", "accessoire", "outdoor", "sport"],
+  },
+];
+
+exports.initSuperadminArticles = onCall({ region: "us-east1" }, async (request) => {
+  const uid = request.auth?.uid;
+
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Utilisateur non authentifié");
+  }
+
+  // Vérifier que l'utilisateur est super admin
+  const userDoc = await db.collection("users").doc(uid).get();
+  if (!userDoc.exists) {
+    throw new HttpsError("permission-denied", "Profil utilisateur introuvable");
+  }
+
+  const userData = userDoc.data();
+  const userRole = userData.role || "user";
+
+  // Seul un superAdmin peut initialiser les articles
+  if (userRole !== "superAdmin" && !userData.isAdmin) {
+    throw new HttpsError(
+      "permission-denied",
+      "Seul un super administrateur peut initialiser les articles"
+    );
+  }
+
+  try {
+    const batch = db.batch();
+    let created = 0;
+
+    // Vérifier si les articles existent déjà
+    const existingArticles = await db.collection("superadmin_articles").get();
+    
+    if (existingArticles.size > 0) {
+      console.log(`Articles superadmin déjà initialisés (${existingArticles.size} articles trouvés)`);
+      return {
+        success: true,
+        created: 0,
+        message: "Les articles superadmin sont déjà initialisés",
+      };
+    }
+
+    // Créer les articles de base
+    const timestamp = admin.firestore.FieldValue.serverTimestamp();
+    
+    for (const article of superadminArticlesInitData) {
+      const ref = db.collection("superadmin_articles").doc();
+      batch.set(ref, {
+        ...article,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      });
+      created++;
+    }
+
+    await batch.commit();
+
+    console.log(`✅ Articles superadmin initialisés: ${created} articles créés`);
+
+    return {
+      success: true,
+      created: created,
+      message: `${created} articles superadmin créés avec succès`,
+    };
+  } catch (error) {
+    console.error("Erreur lors de l'initialisation des articles superadmin:", error);
+    throw new HttpsError("internal", `Erreur: ${error.message}`);
+  }
+});
+
+// ============================================================================
 // GROUP TRACKING - Position moyenne automatique
 // ============================================================================
 

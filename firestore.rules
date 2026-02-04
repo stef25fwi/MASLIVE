@@ -652,6 +652,15 @@ service cloud.firestore {
       }
     }
 
+    // Articles Superadmin (casquette, tshirt, porteclé, bandana)
+    match /superadmin_articles/{articleId} {
+      // Tous les utilisateurs peuvent lire les articles actifs
+      allow read: if isSignedIn() && resource.data.isActive == true;
+      
+      // Seul le superadmin peut créer, modifier, supprimer
+      allow create, update, delete: if isSuperAdmin();
+    }
+
     // ========== REFUS PAR DÉFAUT ==========
     match /{document=**} {
       allow read, write: if false;

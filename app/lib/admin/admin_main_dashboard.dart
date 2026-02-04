@@ -25,6 +25,7 @@ import '../commerce_module_single_file.dart';
 import 'admin_moderation_page.dart';
 import 'commerce_analytics_page.dart';
 import 'user_profile_preview_page.dart';
+import '../pages/superadmin_articles_page.dart';
 
 /// Dashboard admin principal 10/10 avec toutes les fonctionnalités
 class AdminMainDashboard extends StatefulWidget {
@@ -415,6 +416,25 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => const CommerceAnalyticsPage(),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildDashboardCard(
+                    title: 'Articles Superadmin',
+                    subtitle: 'Gérer casquette, t-shirt, porteclé, bandana',
+                    icon: Icons.inventory_2,
+                    color: Colors.teal,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SuperadminArticlesPage(),
                       ),
                     ),
                   ),

@@ -1,11 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../pages/commerce/create_product_page.dart';
 import '../../pages/commerce/create_media_page.dart';
 import '../../pages/commerce/my_submissions_page.dart';
+import '../../pages/superadmin_articles_page.dart';
 
 /// Carte Commerce pour intégration dans les profils
 class CommerceSectionCard extends StatelessWidget {
   const CommerceSectionCard({super.key});
+
+  Future<bool> _isSuperAdmin() async {
+    try {
+      final uid = FirebaseFirestore.instance.app.options.projectId;
+      // Vérifier si l'utilisateur est superadmin
+      return false; // Sera remplacé par une vérification réelle
+    } catch (_) {
+      return false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +59,14 @@ class CommerceSectionCard extends StatelessWidget {
               label: 'Mes contenus',
               color: Colors.blue,
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MySubmissionsPage())),
+            ),
+            const SizedBox(height: 12),
+            _buildButton(
+              context,
+              icon: Icons.inventory_2,
+              label: 'Mes articles en ligne',
+              color: Colors.teal,
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SuperadminArticlesPage())),
             ),
           ],
         ),
