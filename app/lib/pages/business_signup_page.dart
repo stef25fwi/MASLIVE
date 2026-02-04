@@ -459,7 +459,7 @@ class _BusinessSignupPageState extends State<BusinessSignupPage> {
                         borderRadius: BorderRadius.circular(28),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
+                            color: Colors.black.withAlpha(38),
                             blurRadius: 20,
                             offset: const Offset(0, 10),
                           ),
@@ -665,7 +665,7 @@ class _HexPatternPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF9B7BFF).withOpacity(0.1)
+      ..color = const Color(0xFF9B7BFF).withAlpha(26)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
 

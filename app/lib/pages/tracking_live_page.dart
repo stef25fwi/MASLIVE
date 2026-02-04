@@ -46,7 +46,7 @@ class _TrackingLivePageState extends State<TrackingLivePage>
   int _webRebuildTick = 0;
   double? _webCenterLat;
   double? _webCenterLng;
-  double _webZoom = 13.0;
+  final double _webZoom = 13.0;
 
   // Mobile
   MapboxMap? _mapboxMap;
@@ -90,11 +90,6 @@ class _TrackingLivePageState extends State<TrackingLivePage>
     if (!kIsWeb && _runtimeMapboxToken.isNotEmpty) {
       MapboxOptions.setAccessToken(_runtimeMapboxToken);
     }
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _liveStream() {
@@ -312,14 +307,10 @@ class _TrackingLivePageState extends State<TrackingLivePage>
 
   Future<void> _ensureAnnotationManagers() async {
     if (_mapboxMap == null) return;
-    if (_pointManager == null) {
-      _pointManager =
-          await _mapboxMap!.annotations.createPointAnnotationManager();
-    }
-    if (_polylineManager == null) {
-      _polylineManager =
-          await _mapboxMap!.annotations.createPolylineAnnotationManager();
-    }
+    _pointManager ??=
+        await _mapboxMap!.annotations.createPointAnnotationManager();
+    _polylineManager ??=
+        await _mapboxMap!.annotations.createPolylineAnnotationManager();
   }
 
   Future<void> _syncNativeAnnotations(List<_GroupLive> groups) async {

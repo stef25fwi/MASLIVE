@@ -1,8 +1,8 @@
-import 'dart:js' as js;
+import 'dart:js_interop';
+
+@JS('__MAPBOX_TOKEN__')
+external JSString? _mapboxToken;
 
 String readWebMapboxToken() {
-  final token = js.context['__MAPBOX_TOKEN__'];
-  if (token == null) return '';
-  if (token is String) return token.trim();
-  return token.toString().trim();
+  return _mapboxToken?.toDart.trim() ?? '';
 }

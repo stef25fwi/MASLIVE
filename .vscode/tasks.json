@@ -24,6 +24,13 @@
       "isBackground": false
     },
     {
+      "label": "MASLIVE: Flutter build web (release)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && flutter build web --release",
+      "problemMatcher": [],
+      "isBackground": false
+    },
+    {
       "label": "MASLIVE: Firebase deploy",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && firebase deploy --only firestore:rules,storage,functions",

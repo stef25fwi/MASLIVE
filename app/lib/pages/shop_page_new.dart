@@ -207,7 +207,6 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
 
     // ✅ Hauteurs normalisées pour affichage complet du texte et du prix
     final bigTileH = tileW * 1.35; // hauteur unique pour toutes les tuiles
-    final smallTileH = bigTileH;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(

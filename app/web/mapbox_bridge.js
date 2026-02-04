@@ -311,5 +311,275 @@
     window.MapboxBridge.map = null;
   };
 
+  // ============================================================
+  // MasliveMapboxV2: API "WASM-friendly" (Dart <-> JS)
+  // - Pas de callbacks Dart passés à JS
+  // - Communication par postMessage(JSON.stringify(...))
+  // - Manipulation de la carte via containerId + JSON
+  // ============================================================
+
+  const _v2State = new Map(); // containerId -> { map, markers: Map<string, Marker> }
+
+  function _postToFlutter(obj) {
+    try {
+      window.postMessage(JSON.stringify(obj), '*');
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  function _getMap(containerId) {
+    const state = _v2State.get(containerId);
+    return state ? state.map : null;
+  }
+
+  function _ensureState(containerId, map) {
+    if (_v2State.has(containerId)) return _v2State.get(containerId);
+    const state = { map, markers: new Map() };
+    _v2State.set(containerId, state);
+    return state;
+  }
+
+  function _removeLayerIfExists(map, layerId) {
+    try {
+      if (map.getLayer && map.getLayer(layerId)) {
+        map.removeLayer(layerId);
+      }
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  function _removeSourceIfExists(map, sourceId) {
+    try {
+      if (map.getSource && map.getSource(sourceId)) {
+        map.removeSource(sourceId);
+      }
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  window.MasliveMapboxV2 = {
+    init: function(containerId, token, optionsJson) {
+      try {
+        const options = optionsJson ? JSON.parse(optionsJson) : {};
+        const map = window.initMapboxMap(containerId, token, options);
+        if (!map) return false;
+
+        const state = _ensureState(containerId, map);
+        state.map = map;
+
+        map.on('load', function() {
+          _postToFlutter({ type: 'MASLIVE_MAP_READY', containerId });
+        });
+
+        map.on('click', function(e) {
+          try {
+            if (!e || !e.lngLat) return;
+            _postToFlutter({
+              type: 'MASLIVE_MAP_TAP',
+              containerId,
+              lng: e.lngLat.lng,
+              lat: e.lngLat.lat,
+            });
+          } catch (_) {
+            // ignore
+          }
+        });
+
+        return true;
+      } catch (e) {
+        console.error('❌ MasliveMapboxV2.init error:', e);
+        return false;
+      }
+    },
+
+    moveTo: function(containerId, lng, lat, zoom, animate) {
+      const map = _getMap(containerId);
+      if (!map) return;
+      try {
+        if (animate) {
+          map.flyTo({ center: [lng, lat], zoom: zoom });
+        } else {
+          map.jumpTo({ center: [lng, lat], zoom: zoom });
+        }
+      } catch (e) {
+        console.error('❌ MasliveMapboxV2.moveTo error:', e);
+      }
+    },
+
+    setStyle: function(containerId, styleUrl) {
+      const map = _getMap(containerId);
+      if (!map) return;
+      try {
+        map.setStyle(styleUrl);
+      } catch (e) {
+        console.error('❌ MasliveMapboxV2.setStyle error:', e);
+      }
+    },
+
+    setMarkers: function(containerId, markersJson) {
+      const state = _v2State.get(containerId);
+      const map = state ? state.map : null;
+      if (!map) return;
+      try {
+        // Remove old markers
+        state.markers.forEach((marker) => {
+          try { marker.remove(); } catch (_) {}
+        });
+        state.markers.clear();
+
+        const markers = markersJson ? JSON.parse(markersJson) : [];
+        for (const m of markers) {
+          const el = document.createElement('div');
+          const size = (Number(m.size || 1) * 20);
+          el.style.width = size + 'px';
+          el.style.height = size + 'px';
+          el.style.backgroundColor = String(m.color || '#FF0000');
+          el.style.borderRadius = '50%';
+          el.style.border = '2px solid white';
+
+          const marker = new mapboxgl.Marker({ element: el })
+            .setLngLat([Number(m.lng), Number(m.lat)])
+            .addTo(map);
+          state.markers.set(String(m.id || ''), marker);
+        }
+      } catch (e) {
+        console.error('❌ MasliveMapboxV2.setMarkers error:', e);
+      }
+    },
+
+    setPolyline: function(containerId, pointsJson, colorHex, width, show) {
+      const map = _getMap(containerId);
+      if (!map) return;
+      const sourceId = 'maslive_polyline';
+      const layerId = 'maslive_polyline_layer';
+
+      try {
+        if (!show) {
+          _removeLayerIfExists(map, layerId);
+          _removeSourceIfExists(map, sourceId);
+          return;
+        }
+
+        const points = pointsJson ? JSON.parse(pointsJson) : [];
+        const coords = points.map((p) => [Number(p.lng), Number(p.lat)]);
+        const geojson = {
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: coords },
+        };
+
+        const src = map.getSource(sourceId);
+        if (!src) {
+          map.addSource(sourceId, { type: 'geojson', data: geojson });
+          map.addLayer({
+            id: layerId,
+            type: 'line',
+            source: sourceId,
+            paint: {
+              'line-width': Number(width || 3),
+              'line-color': String(colorHex || '#FF0000'),
+            },
+          });
+        } else {
+          src.setData(geojson);
+        }
+      } catch (e) {
+        console.error('❌ MasliveMapboxV2.setPolyline error:', e);
+      }
+    },
+
+    setPolygon: function(containerId, pointsJson, fillColorHex, fillOpacity, strokeColorHex, strokeWidth, show) {
+      const map = _getMap(containerId);
+      if (!map) return;
+      const sourceId = 'maslive_polygon';
+      const fillLayerId = 'maslive_polygon_fill';
+      const lineLayerId = 'maslive_polygon_line';
+
+      try {
+        if (!show) {
+          _removeLayerIfExists(map, lineLayerId);
+          _removeLayerIfExists(map, fillLayerId);
+          _removeSourceIfExists(map, sourceId);
+          return;
+        }
+
+        const points = pointsJson ? JSON.parse(pointsJson) : [];
+        const ring = points.map((p) => [Number(p.lng), Number(p.lat)]);
+        const geojson = {
+          type: 'Feature',
+          geometry: { type: 'Polygon', coordinates: [ring] },
+        };
+
+        const src = map.getSource(sourceId);
+        if (!src) {
+          map.addSource(sourceId, { type: 'geojson', data: geojson });
+          map.addLayer({
+            id: fillLayerId,
+            type: 'fill',
+            source: sourceId,
+            paint: {
+              'fill-color': String(fillColorHex || '#FF0000'),
+              'fill-opacity': Number(fillOpacity ?? 0.3),
+            },
+          });
+          map.addLayer({
+            id: lineLayerId,
+            type: 'line',
+            source: sourceId,
+            paint: {
+              'line-width': Number(strokeWidth || 2),
+              'line-color': String(strokeColorHex || '#FF0000'),
+            },
+          });
+        } else {
+          src.setData(geojson);
+        }
+      } catch (e) {
+        console.error('❌ MasliveMapboxV2.setPolygon error:', e);
+      }
+    },
+
+    clearAll: function(containerId) {
+      const state = _v2State.get(containerId);
+      const map = state ? state.map : null;
+      if (!map) return;
+      try {
+        // markers
+        state.markers.forEach((marker) => {
+          try { marker.remove(); } catch (_) {}
+        });
+        state.markers.clear();
+
+        // layers/sources
+        _removeLayerIfExists(map, 'maslive_polyline_layer');
+        _removeSourceIfExists(map, 'maslive_polyline');
+        _removeLayerIfExists(map, 'maslive_polygon_line');
+        _removeLayerIfExists(map, 'maslive_polygon_fill');
+        _removeSourceIfExists(map, 'maslive_polygon');
+      } catch (e) {
+        console.error('❌ MasliveMapboxV2.clearAll error:', e);
+      }
+    },
+
+    destroy: function(containerId) {
+      const state = _v2State.get(containerId);
+      const map = state ? state.map : null;
+      if (!map) {
+        _v2State.delete(containerId);
+        return;
+      }
+      try {
+        window.MasliveMapboxV2.clearAll(containerId);
+        map.remove();
+      } catch (e) {
+        console.error('❌ MasliveMapboxV2.destroy error:', e);
+      } finally {
+        _v2State.delete(containerId);
+      }
+    },
+  };
+
   console.log('✅ Mapbox Bridge chargé');
 })();

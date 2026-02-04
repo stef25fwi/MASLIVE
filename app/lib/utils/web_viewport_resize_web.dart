@@ -1,6 +1,6 @@
-import 'dart:html' as html;
+import 'package:web/web.dart' as web;
 
 void triggerWebViewportResize() {
   // Mapbox GL JS listens to window resize; this forces a layout recompute.
-  html.window.dispatchEvent(html.Event('resize'));
+  web.window.dispatchEvent(web.Event('resize'));
 }

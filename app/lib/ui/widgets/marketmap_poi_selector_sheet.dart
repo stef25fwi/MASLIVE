@@ -141,7 +141,7 @@ class _MarketMapPoiSelectorSheetState extends State<_MarketMapPoiSelectorSheet> 
             builder: (context, snap) {
               final items = snap.data ?? const <MarketCountry>[];
               return DropdownButtonFormField<String>(
-                value: _country?.id,
+                initialValue: _country?.id,
                 decoration: const InputDecoration(
                   labelText: 'Pays',
                   border: OutlineInputBorder(),
@@ -178,7 +178,7 @@ class _MarketMapPoiSelectorSheetState extends State<_MarketMapPoiSelectorSheet> 
                   builder: (context, snap) {
                     final items = snap.data ?? const <MarketEvent>[];
                     return DropdownButtonFormField<String>(
-                      value: _event?.id,
+                      initialValue: _event?.id,
                       decoration: const InputDecoration(
                         labelText: 'Événement',
                         border: OutlineInputBorder(),
@@ -224,7 +224,7 @@ class _MarketMapPoiSelectorSheetState extends State<_MarketMapPoiSelectorSheet> 
               final currentValue =
                   items.any((c) => c.id == selectedId) ? selectedId : null;
               return DropdownButtonFormField<String>(
-                value: currentValue,
+                initialValue: currentValue,
                 decoration: const InputDecoration(
                   labelText: 'Circuit',
                   border: OutlineInputBorder(),

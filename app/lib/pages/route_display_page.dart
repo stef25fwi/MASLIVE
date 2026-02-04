@@ -116,14 +116,10 @@ class _RouteDisplayPageState extends State<RouteDisplayPage> {
 
   Future<void> _ensureAnnotationManagers() async {
     if (_mapboxMap == null) return;
-    if (_pointManager == null) {
-      _pointManager =
-          await _mapboxMap!.annotations.createPointAnnotationManager();
-    }
-    if (_polylineManager == null) {
-      _polylineManager =
-          await _mapboxMap!.annotations.createPolylineAnnotationManager();
-    }
+    _pointManager ??=
+        await _mapboxMap!.annotations.createPointAnnotationManager();
+    _polylineManager ??=
+        await _mapboxMap!.annotations.createPolylineAnnotationManager();
   }
 
   Future<void> _syncNativeAnnotations() async {

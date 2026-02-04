@@ -198,7 +198,7 @@ class _FolderCard extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade200, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withAlpha(10),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -312,10 +312,10 @@ class _MapCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isMapEnabled ? const Color(0xFF1A73E8).withOpacity(0.06) : Colors.grey.shade50,
+        color: isMapEnabled ? const Color(0xFF1A73E8).withAlpha(15) : Colors.grey.shade50,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: isMapEnabled ? const Color(0xFF1A73E8).withOpacity(0.3) : Colors.grey.shade200,
+          color: isMapEnabled ? const Color(0xFF1A73E8).withAlpha(77) : Colors.grey.shade200,
           width: 1,
         ),
       ),
@@ -421,10 +421,10 @@ class _LayerToggle extends StatelessWidget {
       onTap: onToggle,
       child: Container(
         decoration: BoxDecoration(
-          color: isEnabled ? color.withOpacity(0.15) : Colors.grey.shade100,
+          color: isEnabled ? color.withAlpha(38) : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isEnabled ? color.withOpacity(0.5) : Colors.grey.shade300,
+            color: isEnabled ? color.withAlpha(128) : Colors.grey.shade300,
             width: 1.5,
           ),
         ),

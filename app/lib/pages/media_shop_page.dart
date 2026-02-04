@@ -23,7 +23,6 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../ui/theme/maslive_theme.dart';
 import '../ui/widgets/honeycomb_background.dart';
 import '../widgets/rainbow_header.dart';
-import '../services/media_permissions_service.dart';
 
 /// -----------------------------------------------------------------------------
 /// MODELS
@@ -317,8 +316,9 @@ class CartProvider extends ChangeNotifier {
     );
     final res = await callable.call(<String, dynamic>{'orderId': orderId});
     final data = res.data;
-    if (data is Map && data['checkoutUrl'] is String)
+    if (data is Map && data['checkoutUrl'] is String) {
       return data['checkoutUrl'] as String;
+    }
     return null;
   }
 }
@@ -384,11 +384,18 @@ class PhotoRepository {
         .where('isActive', isEqualTo: true)
         .where('moderationStatus', isEqualTo: 'approved');
 
-    if (f.country != null) q = q.where('country', isEqualTo: f.country);
-    if (f.eventName != null) q = q.where('eventName', isEqualTo: f.eventName);
-    if (f.groupName != null) q = q.where('groupName', isEqualTo: f.groupName);
-    if (f.photographerName != null)
+    if (f.country != null) {
+      q = q.where('country', isEqualTo: f.country);
+    }
+    if (f.eventName != null) {
+      q = q.where('eventName', isEqualTo: f.eventName);
+    }
+    if (f.groupName != null) {
+      q = q.where('groupName', isEqualTo: f.groupName);
+    }
+    if (f.photographerName != null) {
       q = q.where('photographerName', isEqualTo: f.photographerName);
+    }
 
     if (f.dateRange != null) {
       final start = DateTime(
@@ -417,12 +424,15 @@ class PhotoRepository {
         'eventDate',
         descending: f.sort == SortMode.recent || f.sort == SortMode.popular,
       );
-      if (f.sort == SortMode.popular)
+      if (f.sort == SortMode.popular) {
         q = q.orderBy('popularity', descending: true);
-      if (f.sort == SortMode.priceAsc)
+      }
+      if (f.sort == SortMode.priceAsc) {
         q = q.orderBy('priceCents', descending: false);
-      if (f.sort == SortMode.priceDesc)
+      }
+      if (f.sort == SortMode.priceDesc) {
         q = q.orderBy('priceCents', descending: true);
+      }
     } else {
       switch (f.sort) {
         case SortMode.recent:
@@ -468,7 +478,9 @@ class PhotoRepository {
         .where('isActive', isEqualTo: true)
         .where('moderationStatus', isEqualTo: 'approved');
 
-    if (f.country != null) q = q.where('country', isEqualTo: f.country);
+    if (f.country != null) {
+      q = q.where('country', isEqualTo: f.country);
+    }
 
     if (f.dateRange != null) {
       final start = DateTime(
@@ -501,8 +513,9 @@ class PhotoRepository {
     }
 
     Query<Map<String, dynamic>> qGroups = q;
-    if (f.eventName != null)
+    if (f.eventName != null) {
       qGroups = qGroups.where('eventName', isEqualTo: f.eventName);
+    }
     final groupsSnap = await qGroups
         .orderBy('eventDate', descending: true)
         .limit(300)
@@ -514,8 +527,9 @@ class PhotoRepository {
     }
 
     Query<Map<String, dynamic>> qPhot = qGroups;
-    if (f.groupName != null)
+    if (f.groupName != null) {
       qPhot = qPhot.where('groupName', isEqualTo: f.groupName);
+    }
     final photSnap = await qPhot
         .orderBy('eventDate', descending: true)
         .limit(300)
@@ -1354,13 +1368,6 @@ class _SelectablePhotoCardV21State extends State<SelectablePhotoCardV21> {
   }
 }
 
-int _gridColumnsForWidth(double width) {
-  if (width >= 1400) return 5;
-  if (width >= 1100) return 4;
-  if (width >= 820) return 3;
-  return 2;
-}
-
 class _PremiumPill extends StatelessWidget {
   const _PremiumPill({required this.text});
   final String text;
@@ -1370,14 +1377,14 @@ class _PremiumPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.92),
+        color: Colors.white.withAlpha(235),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.black.withOpacity(0.10)),
+        border: Border.all(color: Colors.black.withAlpha(26)),
         boxShadow: [
           BoxShadow(
             blurRadius: 10,
             offset: const Offset(0, 6),
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withAlpha(20),
           ),
         ],
       ),
@@ -1415,13 +1422,13 @@ class BottomSelectionBarV21 extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border(
-                top: BorderSide(color: Colors.black.withOpacity(0.08)),
+                top: BorderSide(color: Colors.black.withAlpha(20)),
               ),
               boxShadow: [
                 BoxShadow(
                   blurRadius: 18,
                   offset: const Offset(0, -6),
-                  color: Colors.black.withOpacity(0.06),
+                  color: Colors.black.withAlpha(15),
                 ),
               ],
             ),
@@ -1506,7 +1513,7 @@ class _PhotoPreviewSheetV21State extends State<_PhotoPreviewSheetV21> {
           const SizedBox(height: 6),
           Text(
             '${item.groupName} • ${item.photographerName}',
-            style: TextStyle(color: Colors.black.withOpacity(0.7)),
+            style: TextStyle(color: Colors.black.withAlpha(179)),
           ),
           const SizedBox(height: 6),
           Row(
@@ -1518,7 +1525,7 @@ class _PhotoPreviewSheetV21State extends State<_PhotoPreviewSheetV21> {
               const Spacer(),
               Text(
                 _fmtDate(item.eventDate),
-                style: TextStyle(color: Colors.black.withOpacity(0.6)),
+                style: TextStyle(color: Colors.black.withAlpha(153)),
               ),
             ],
           ),
@@ -1650,7 +1657,7 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.black.withOpacity(0.10)),
+                    border: Border.all(color: Colors.black.withAlpha(26)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1668,7 +1675,7 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                         disc.discountCents > 0
                             ? 'Pack appliqué: ${disc.rule} • ajoute des photos pour maximiser la réduction.'
                             : 'Astuce: dès 3 photos → -10%, 5 photos → -20%, 10 photos → -30%.',
-                        style: TextStyle(color: Colors.black.withOpacity(0.6)),
+                        style: TextStyle(color: Colors.black.withAlpha(153)),
                       ),
                     ],
                   ),
@@ -1692,11 +1699,12 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                   actions: [
                     TextButton.icon(
                       onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
                         await Clipboard.setData(
                           ClipboardData(text: _checkoutUrl!),
                         );
                         if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        messenger.showSnackBar(
                           const SnackBar(content: Text('Lien copié')),
                         );
                       },
@@ -1713,7 +1721,7 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Text(
                     'Ton panier est vide.',
-                    style: TextStyle(color: Colors.black.withOpacity(0.65)),
+                    style: TextStyle(color: Colors.black.withAlpha(166)),
                   ),
                 )
               else
@@ -1721,7 +1729,8 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: items.length,
-                    separatorBuilder: (_, __) => const Divider(height: 16),
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 16),
                     itemBuilder: (context, i) {
                       final it = items[i];
                       final bought = widget.purchased.contains(it.id);
@@ -1754,7 +1763,7 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    color: Colors.black.withOpacity(0.7),
+                                    color: Colors.black.withAlpha(179),
                                   ),
                                 ),
                               ],
@@ -1799,13 +1808,15 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                       onPressed: (cart.cart.isEmpty || _creatingOrder)
                           ? null
                           : () async {
+                              final messenger = ScaffoldMessenger.of(context);
                               setState(() => _creatingOrder = true);
                               try {
                                 final id = await cart.createPendingOrder();
+                                if (!mounted) return;
                                 setState(() => _orderId = id);
                               } catch (e) {
                                 if (!mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
+                                messenger.showSnackBar(
                                   SnackBar(
                                     content: Text(
                                       'Erreur création commande: $e',
@@ -1813,8 +1824,9 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                                   ),
                                 );
                               } finally {
-                                if (mounted)
+                                if (mounted) {
                                   setState(() => _creatingOrder = false);
+                                }
                               }
                             },
                       child: _creatingOrder
@@ -1836,6 +1848,7 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                   onPressed: (_orderId == null || _creatingCheckout)
                       ? null
                       : () async {
+                          final messenger = ScaffoldMessenger.of(context);
                           setState(() => _creatingCheckout = true);
                           try {
                             final url = await cart.createCheckoutSessionUrl(
@@ -1846,15 +1859,17 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                                 'checkoutUrl manquant (callable)',
                               );
                             }
+                            if (!mounted) return;
                             setState(() => _checkoutUrl = url);
                           } catch (e) {
                             if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               SnackBar(content: Text('Erreur checkout: $e')),
                             );
                           } finally {
-                            if (mounted)
-                              setState(() => _creatingCheckout = false);
+                              if (mounted) {
+                                setState(() => _creatingCheckout = false);
+                              }
                           }
                         },
                   icon: _creatingCheckout
@@ -1876,7 +1891,7 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                 'Après paiement: ton webhook Stripe doit passer la commande en "paid" '
                 'et écrire /users/{uid}/purchases/{photoId}.',
                 style: TextStyle(
-                  color: Colors.black.withOpacity(0.6),
+                  color: Colors.black.withAlpha(153),
                   fontSize: 12,
                 ),
               ),
@@ -1912,7 +1927,7 @@ class _StorageImage extends StatelessWidget {
   Widget build(BuildContext context) {
     if (path.trim().isEmpty) {
       return Container(
-        color: Colors.black.withOpacity(0.06),
+        color: Colors.black.withAlpha(15),
         alignment: Alignment.center,
         child: const Icon(Icons.image_not_supported_outlined),
       );
@@ -1924,8 +1939,8 @@ class _StorageImage extends StatelessWidget {
       return Image.asset(
         path,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
-          color: Colors.black.withOpacity(0.06),
+        errorBuilder: (context, error, stackTrace) => Container(
+          color: Colors.black.withAlpha(15),
           alignment: Alignment.center,
           child: const Icon(Icons.broken_image_outlined),
         ),
@@ -1938,7 +1953,7 @@ class _StorageImage extends StatelessWidget {
         final url = snap.data ?? '';
         if (snap.connectionState != ConnectionState.done) {
           return Container(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withAlpha(15),
             alignment: Alignment.center,
             child: const SizedBox(
               width: 22,
@@ -1949,7 +1964,7 @@ class _StorageImage extends StatelessWidget {
         }
         if (url.isEmpty) {
           return Container(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withAlpha(15),
             alignment: Alignment.center,
             child: const Icon(Icons.broken_image_outlined),
           );
@@ -1971,8 +1986,8 @@ class _StorageImage extends StatelessWidget {
                     ),
                   ),
                 ),
-          errorBuilder: (_, __, ___) => Container(
-            color: Colors.black.withOpacity(0.06),
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: Colors.black.withAlpha(15),
             alignment: Alignment.center,
             child: const Icon(Icons.broken_image_outlined),
           ),
@@ -2059,7 +2074,7 @@ class _InfoBox extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black.withOpacity(0.10)),
+        border: Border.all(color: Colors.black.withAlpha(26)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2085,10 +2100,10 @@ class _CheckBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = disabled
-        ? Colors.black.withOpacity(0.15)
+      ? Colors.black.withAlpha(38)
         : (isOn ? Colors.black : Colors.white);
     final fg = disabled
-        ? Colors.black.withOpacity(0.35)
+      ? Colors.black.withAlpha(89)
         : (isOn ? Colors.white : Colors.black);
 
     return Container(
@@ -2097,7 +2112,7 @@ class _CheckBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.black.withOpacity(0.10)),
+        border: Border.all(color: Colors.black.withAlpha(26)),
       ),
       alignment: Alignment.center,
       child: Icon(
@@ -2148,7 +2163,7 @@ class _GlassHeaderButton extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: Colors.white.withOpacity(0.16),
+        color: Colors.white.withAlpha(41),
         borderRadius: BorderRadius.circular(22),
         child: InkWell(
           onTap: onTap,
@@ -2159,7 +2174,7 @@ class _GlassHeaderButton extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.22)),
+              border: Border.all(color: Colors.white.withAlpha(56)),
             ),
             child: child,
           ),
@@ -2265,7 +2280,7 @@ class _Drop extends StatelessWidget {
           borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withAlpha(20),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -2358,8 +2373,9 @@ class _SortDrop extends StatelessWidget {
               options: options,
               selected: value,
             );
-            if (picked != null && picked.value != null)
+            if (picked != null && picked.value != null) {
               onChanged(picked.value!);
+            }
           },
           child: InputDecorator(
             decoration: InputDecoration(
@@ -2426,7 +2442,7 @@ class _DateRangeField extends StatelessWidget {
           borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withAlpha(20),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),

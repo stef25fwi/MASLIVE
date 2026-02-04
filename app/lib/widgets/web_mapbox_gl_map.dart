@@ -1,7 +1,9 @@
 import 'dart:async';
-import 'dart:html' as html;
+import 'dart:convert';
+import 'dart:js_interop';
 import 'dart:ui_web' as ui_web;
-import 'dart:js' as js;
+
+import 'package:web/web.dart' as web;
 
 import 'package:flutter/material.dart';
 
@@ -56,21 +58,45 @@ class WebMapboxGLMap extends StatefulWidget {
 
 class _WebMapboxGLMapState extends State<WebMapboxGLMap> {
   late String _viewId;
-  html.DivElement? _mapContainer;
+  web.HTMLDivElement? _mapContainer;
   Timer? _resizeTimer;
   Size? _lastSize;
   bool _isMapInitialized = false;
+  StreamSubscription<web.MessageEvent>? _messageSub;
+  bool _didNotifyReady = false;
+
+  final Map<String, _MarkerSpec> _markers = <String, _MarkerSpec>{};
+  _MarkerSpec? _userMarker;
 
   @override
   void initState() {
     super.initState();
     _viewId = 'mapbox-${DateTime.now().millisecondsSinceEpoch}';
     _initializeMap();
+
+    _messageSub = web.window.onMessage.listen((evt) {
+      final raw = evt.data;
+      final data = raw?.toString();
+      if (data == null || data.isEmpty) return;
+      try {
+        final decoded = jsonDecode(data);
+        if (decoded is! Map) return;
+        if (decoded['containerId'] != _viewId) return;
+        if (decoded['type'] == 'MASLIVE_MAP_READY') {
+          if (_didNotifyReady) return;
+          _didNotifyReady = true;
+          if (!mounted) return;
+          widget.onMapReady?.call();
+        }
+      } catch (_) {
+        // ignore
+      }
+    });
   }
 
   void _initializeMap() {
     // Créer le conteneur HTML pour la carte
-    _mapContainer = html.DivElement()
+    _mapContainer = web.document.createElement('div') as web.HTMLDivElement
       ..id = _viewId
       ..style.width = '100%'
       ..style.height = '100%'
@@ -94,32 +120,29 @@ class _WebMapboxGLMapState extends State<WebMapboxGLMap> {
 
   void _initializeMapboxMap() {
     try {
-      // Vérifier que window.initMapboxMap existe
-      if (!_hasMapboxBridge()) {
-        _handleError('Mapbox bridge non disponible. Vérifiez que mapbox_bridge.js est chargé.');
-        return;
-      }
-
       // Récupérer le token depuis --dart-define ou utiliser celui du widget
       const runtimeToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN', defaultValue: '');
       final tokenToUse = runtimeToken.isNotEmpty ? runtimeToken : widget.accessToken;
 
-      // Appeler la fonction JavaScript pour initialiser la carte
-      // Signature: initMapboxMap(containerId, token, options)
-      final options = {
+      if (tokenToUse.trim().isEmpty) {
+        _handleError('Token Mapbox manquant. Configure MAPBOX_ACCESS_TOKEN (ou MAPBOX_TOKEN legacy).');
+        return;
+      }
+
+      final optionsJson = jsonEncode({
         'style': widget.style,
         'center': widget.center,
         'zoom': widget.zoom,
         'pitch': widget.pitch,
         'bearing': widget.bearing,
         'enable3DBuildings': widget.enable3DBuildings,
-      };
+      });
 
-      // Passer le token comme 2ème paramètre
-      _callJsFunction('initMapboxMap', [_viewId, tokenToUse.isEmpty ? null : tokenToUse, options]);
-
-      // Installer le callback de ready
-      _installReadyCallback();
+      final ok = _mbInit(_viewId, tokenToUse, optionsJson);
+      if (!ok) {
+        _handleError('Impossible d\'initialiser Mapbox (MasliveMapboxV2.init a échoué).');
+        return;
+      }
 
       _isMapInitialized = true;
       debugPrint('✅ Mapbox GL Map initialisée: $_viewId');
@@ -128,31 +151,36 @@ class _WebMapboxGLMapState extends State<WebMapboxGLMap> {
     }
   }
 
-  bool _hasMapboxBridge() {
+  void _syncMarkers() {
+    if (!_isMapInitialized) return;
     try {
-      return js.context.hasProperty('initMapboxMap');
-    } catch (_) {
-      return false;
-    }
-  }
+      final all = <Map<String, Object?>>[];
 
-  void _callJsFunction(String functionName, List<dynamic> args) {
-    try {
-      if (js.context.hasProperty(functionName)) {
-        js.context.callMethod(functionName, args);
+      for (final entry in _markers.entries) {
+        all.add({
+          'id': entry.key,
+          'lng': entry.value.lng,
+          'lat': entry.value.lat,
+          'size': entry.value.size,
+          'color': entry.value.colorHex,
+        });
       }
-    } catch (e) {
-      debugPrint('⚠️ Erreur lors de l\'appel à $functionName: $e');
-    }
-  }
 
-  void _installReadyCallback() {
-    // Installer un callback global pour être notifié quand la carte est prête
-    js.context['onMapboxReady'] = js.JsFunction.withThis((dynamic _) {
-      if (!mounted) return;
-      debugPrint('✅ Mapbox GL Map prête');
-      widget.onMapReady?.call();
-    });
+      final user = _userMarker;
+      if (user != null) {
+        all.add({
+          'id': 'user',
+          'lng': user.lng,
+          'lat': user.lat,
+          'size': user.size,
+          'color': user.colorHex,
+        });
+      }
+
+      _mbSetMarkers(_viewId, jsonEncode(all));
+    } catch (e) {
+      debugPrint('⚠️ syncMarkers error: $e');
+    }
   }
 
   void _handleError(String error) {
@@ -167,62 +195,67 @@ class _WebMapboxGLMapState extends State<WebMapboxGLMap> {
     // Debounce pour éviter trop d'appels
     _resizeTimer?.cancel();
     _resizeTimer = Timer(const Duration(milliseconds: 150), () {
-      try {
-        _callJsFunction('resizeMap', []);
-        debugPrint('🔄 Carte redimensionnée: ${size.width.toInt()}x${size.height.toInt()}');
-      } catch (e) {
-        debugPrint('⚠️ Erreur resize: $e');
-      }
+      debugPrint('🔄 Carte redimensionnée: ${size.width.toInt()}x${size.height.toInt()}');
     });
   }
 
   /// Met à jour la position du marqueur utilisateur
   void updateUserMarker(double lng, double lat) {
     if (!_isMapInitialized) return;
-    _callJsFunction('updateUserMarker', [lng, lat]);
+    _userMarker = _MarkerSpec(lng: lng, lat: lat, size: 1.0, colorHex: '#4285F4');
+    _syncMarkers();
   }
 
   /// Centre la carte sur une position
   void flyTo(double lng, double lat, [double? zoom]) {
     if (!_isMapInitialized) return;
-    _callJsFunction('flyToPosition', [lng, lat, zoom ?? widget.zoom]);
+    _mbMoveTo(_viewId, lng, lat, zoom ?? widget.zoom, true);
   }
 
   /// Change le style de la carte
   void setStyle(String styleUrl) {
     if (!_isMapInitialized) return;
-    _callJsFunction('setMapStyle', [styleUrl]);
+    _mbSetStyle(_viewId, styleUrl);
   }
 
   /// Ajuste la vue sur des bounds
   void fitBounds(List<List<double>> bounds) {
     if (!_isMapInitialized) return;
-    _callJsFunction('fitBounds', [bounds]);
+    // Fallback simple: centre sur le milieu des bounds (sans calcul de zoom).
+    if (bounds.length != 2) return;
+    final a = bounds[0];
+    final b = bounds[1];
+    if (a.length < 2 || b.length < 2) return;
+    final midLng = (a[0] + b[0]) / 2.0;
+    final midLat = (a[1] + b[1]) / 2.0;
+    _mbMoveTo(_viewId, midLng, midLat, widget.zoom, true);
   }
 
   /// Ajoute un marqueur
   void addMarker(String id, double lng, double lat, {Map<String, dynamic>? options}) {
     if (!_isMapInitialized) return;
-    _callJsFunction('addMarker', [id, lng, lat, options ?? {}]);
+    final size = (options?['size'] is num) ? (options!['size'] as num).toDouble() : 1.0;
+    final colorHex = (options?['color'] is String) ? options!['color'] as String : '#FF0000';
+    _markers[id] = _MarkerSpec(lng: lng, lat: lat, size: size, colorHex: colorHex);
+    _syncMarkers();
   }
 
   /// Supprime un marqueur
   void removeMarker(String id) {
     if (!_isMapInitialized) return;
-    _callJsFunction('removeMarker', [id]);
+    _markers.remove(id);
+    _syncMarkers();
   }
 
   @override
   void dispose() {
     _resizeTimer?.cancel();
+    _messageSub?.cancel();
     
-    // Nettoyer le callback
-    js.context['onMapboxReady'] = null;
-
     // Détruire la carte Mapbox
     if (_isMapInitialized) {
       try {
-        _callJsFunction('destroyMap', []);
+        _mbDestroy(_viewId);
       } catch (e) {
         debugPrint('⚠️ Erreur lors de la destruction de la carte: $e');
       }
@@ -253,3 +286,32 @@ class _WebMapboxGLMapState extends State<WebMapboxGLMap> {
     );
   }
 }
+
+class _MarkerSpec {
+  final double lng;
+  final double lat;
+  final double size;
+  final String colorHex;
+
+  const _MarkerSpec({
+    required this.lng,
+    required this.lat,
+    required this.size,
+    required this.colorHex,
+  });
+}
+
+@JS('MasliveMapboxV2.init')
+external bool _mbInit(String containerId, String token, String optionsJson);
+
+@JS('MasliveMapboxV2.moveTo')
+external void _mbMoveTo(String containerId, double lng, double lat, double zoom, bool animate);
+
+@JS('MasliveMapboxV2.setStyle')
+external void _mbSetStyle(String containerId, String styleUrl);
+
+@JS('MasliveMapboxV2.setMarkers')
+external void _mbSetMarkers(String containerId, String markersJson);
+
+@JS('MasliveMapboxV2.destroy')
+external void _mbDestroy(String containerId);

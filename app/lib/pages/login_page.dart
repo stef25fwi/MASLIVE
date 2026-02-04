@@ -356,7 +356,7 @@ class _LoginPageState extends State<LoginPage> {
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF9B7BFF).withOpacity(0.3),
+                            color: const Color(0xFF9B7BFF).withAlpha(77),
                             blurRadius: 20,
                             offset: const Offset(0, 10),
                           ),
@@ -379,7 +379,7 @@ class _LoginPageState extends State<LoginPage> {
                               Text(
                                 'Créez votre compte entreprise',
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: Colors.white.withAlpha(230),
                                   fontSize: 13,
                                 ),
                               ),

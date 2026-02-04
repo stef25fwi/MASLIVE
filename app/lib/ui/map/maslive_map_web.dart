@@ -1,8 +1,11 @@
 // ignore_for_file: avoid_web_libraries_in_flutter, unsafe_html
 import 'dart:async';
-import 'dart:html' as html;
-import 'dart:js' as js;
+import 'dart:convert';
+import 'dart:js_interop';
+import 'dart:ui_web' as ui_web;
+
 import 'package:flutter/material.dart';
+import 'package:web/web.dart' as web;
 
 import 'maslive_map_controller.dart';
 import '../../services/mapbox_token_service.dart';
@@ -46,14 +49,14 @@ class MasLiveMapWeb extends StatefulWidget {
 class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   String _mapboxToken = '';
   bool _isLoading = true;
-  int _rebuildTick = 0;
-  js.JsObject? _mapInstance;
-  List<js.JsObject> _markers = [];
+  late final String _containerId;
+  bool _isMapReady = false;
   void Function(double lat, double lng)? _onPointAddedCallback;
 
   @override
   void initState() {
     super.initState();
+    _containerId = 'maslive-mapbox-${DateTime.now().microsecondsSinceEpoch}';
     _loadMapboxToken();
   }
 
@@ -76,8 +79,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     }
   }
 
-  void _onMapReady(js.JsObject map) {
-    _mapInstance = map;
+  void _onMapReady() {
+    _isMapReady = true;
     _connectController();
     final controller = widget.controller;
     if (controller != null) {
@@ -87,19 +90,11 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
   void _connectController() {
     final controller = widget.controller;
-    if (controller == null || _mapInstance == null) return;
+    if (controller == null || !_isMapReady) return;
 
     controller.moveToImpl = (lng, lat, zoom, animate) async {
       try {
-        if (animate) {
-          _mapInstance?.callMethod('flyTo', [
-            js.JsObject.jsify({'center': [lng, lat], 'zoom': zoom})
-          ]);
-        } else {
-          _mapInstance?.callMethod('jumpTo', [
-            js.JsObject.jsify({'center': [lng, lat], 'zoom': zoom})
-          ]);
-        }
+        _mbMoveTo(_containerId, lng, lat, zoom, animate);
       } catch (e) {
         debugPrint('⚠️ moveTo error: $e');
       }
@@ -107,7 +102,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
     controller.setStyleImpl = (styleUri) async {
       try {
-        _mapInstance?.callMethod('setStyle', [styleUri]);
+        _mbSetStyle(_containerId, styleUri);
       } catch (e) {
         debugPrint('⚠️ setStyle error: $e');
       }
@@ -120,33 +115,17 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
     controller.setMarkersImpl = (markers) async {
       try {
-        // Supprimer anciens markers
-        for (final m in _markers) {
-          m.callMethod('remove');
-        }
-        _markers.clear();
-
-        final mapboxglObj = js.context['mapboxgl'];
-        if (mapboxglObj == null) return;
-
-        // Créer nouveaux markers
-        for (final m in markers) {
-          final markerEl = html.DivElement()
-            ..style.width = '${20 * m.size}px'
-            ..style.height = '${20 * m.size}px'
-            ..style.backgroundColor = '#${m.color.value.toRadixString(16).padLeft(8, '0').substring(2)}'
-            ..style.borderRadius = '50%'
-            ..style.border = '2px solid white';
-
-          final marker = js.JsObject(mapboxglObj['Marker'], [
-            js.JsObject.jsify({'element': markerEl})
-          ]);
-          marker.callMethod('setLngLat', [
-            js.JsObject.jsify([m.lng, m.lat])
-          ]);
-          marker.callMethod('addTo', [_mapInstance]);
-          _markers.add(marker);
-        }
+        final markersJson = jsonEncode([
+          for (final m in markers)
+            {
+              'id': m.id,
+              'lng': m.lng,
+              'lat': m.lat,
+              'size': m.size,
+              'color': '#${m.color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}',
+            }
+        ]);
+        _mbSetMarkers(_containerId, markersJson);
       } catch (e) {
         debugPrint('⚠️ setMarkers error: $e');
       }
@@ -154,41 +133,17 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
     controller.setPolylineImpl = (points, color, width, show) async {
       try {
-        const sourceId = 'maslive_polyline';
-        const layerId = 'maslive_polyline_layer';
-
-        if (!show) {
-          _mapInstance?.callMethod('removeLayer', [layerId]);
-          _mapInstance?.callMethod('removeSource', [sourceId]);
-          return;
-        }
-
-        final coords = points.map((p) => [p.lng, p.lat]).toList();
-        final geojson = js.JsObject.jsify({
-          'type': 'Feature',
-          'geometry': {'type': 'LineString', 'coordinates': coords},
-        });
-
-        final hasSource = _mapInstance?.callMethod('getSource', [sourceId]) != null;
-        if (!hasSource) {
-          _mapInstance?.callMethod('addSource', [
-            sourceId,
-            js.JsObject.jsify({'type': 'geojson', 'data': geojson})
-          ]);
-          _mapInstance?.callMethod('addLayer', [
-            js.JsObject.jsify({
-              'id': layerId,
-              'type': 'line',
-              'source': sourceId,
-              'paint': {
-                'line-width': width,
-                'line-color': '#${color.value.toRadixString(16).padLeft(8, '0').substring(2, 8)}',
-              },
-            })
-          ]);
-        } else {
-          _mapInstance?.callMethod('getSource', [sourceId]).callMethod('setData', [geojson]);
-        }
+        final pointsJson = jsonEncode([
+          for (final p in points) {'lng': p.lng, 'lat': p.lat}
+        ]);
+        final colorHex = '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2, 8)}';
+        _mbSetPolyline(
+          _containerId,
+          pointsJson,
+          colorHex,
+          width,
+          show,
+        );
       } catch (e) {
         debugPrint('⚠️ setPolyline error: $e');
       }
@@ -196,54 +151,20 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
     controller.setPolygonImpl = (points, fillColor, strokeColor, strokeWidth, show) async {
       try {
-        const sourceId = 'maslive_polygon';
-        const fillLayerId = 'maslive_polygon_fill';
-        const lineLayerId = 'maslive_polygon_line';
-
-        if (!show) {
-          _mapInstance?.callMethod('removeLayer', [lineLayerId]);
-          _mapInstance?.callMethod('removeLayer', [fillLayerId]);
-          _mapInstance?.callMethod('removeSource', [sourceId]);
-          return;
-        }
-
-        final coords = points.map((p) => [p.lng, p.lat]).toList();
-        final geojson = js.JsObject.jsify({
-          'type': 'Feature',
-          'geometry': {'type': 'Polygon', 'coordinates': [coords]},
-        });
-
-        final hasSource = _mapInstance?.callMethod('getSource', [sourceId]) != null;
-        if (!hasSource) {
-          _mapInstance?.callMethod('addSource', [
-            sourceId,
-            js.JsObject.jsify({'type': 'geojson', 'data': geojson})
-          ]);
-          _mapInstance?.callMethod('addLayer', [
-            js.JsObject.jsify({
-              'id': fillLayerId,
-              'type': 'fill',
-              'source': sourceId,
-              'paint': {
-                'fill-color': '#${fillColor.value.toRadixString(16).padLeft(8, '0').substring(2, 8)}',
-                'fill-opacity': fillColor.opacity,
-              },
-            })
-          ]);
-          _mapInstance?.callMethod('addLayer', [
-            js.JsObject.jsify({
-              'id': lineLayerId,
-              'type': 'line',
-              'source': sourceId,
-              'paint': {
-                'line-width': strokeWidth,
-                'line-color': '#${strokeColor.value.toRadixString(16).padLeft(8, '0').substring(2, 8)}',
-              },
-            })
-          ]);
-        } else {
-          _mapInstance?.callMethod('getSource', [sourceId]).callMethod('setData', [geojson]);
-        }
+        final pointsJson = jsonEncode([
+          for (final p in points) {'lng': p.lng, 'lat': p.lat}
+        ]);
+        final fillHex = '#${fillColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2, 8)}';
+        final strokeHex = '#${strokeColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2, 8)}';
+        _mbSetPolygon(
+          _containerId,
+          pointsJson,
+          fillHex,
+          fillColor.a,
+          strokeHex,
+          strokeWidth,
+          show,
+        );
       } catch (e) {
         debugPrint('⚠️ setPolygon error: $e');
       }
@@ -255,16 +176,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
     controller.clearAllImpl = () async {
       try {
-        for (final m in _markers) {
-          m.callMethod('remove');
-        }
-        _markers.clear();
-
-        _mapInstance?.callMethod('removeLayer', ['maslive_polyline_layer']);
-        _mapInstance?.callMethod('removeSource', ['maslive_polyline']);
-        _mapInstance?.callMethod('removeLayer', ['maslive_polygon_line']);
-        _mapInstance?.callMethod('removeLayer', ['maslive_polygon_fill']);
-        _mapInstance?.callMethod('removeSource', ['maslive_polygon']);
+        _mbClearAll(_containerId);
       } catch (e) {
         // ignore
       }
@@ -274,14 +186,11 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   @override
   void dispose() {
     _onPointAddedCallback = null;
-    for (final m in _markers) {
-      try {
-        m.callMethod('remove');
-      } catch (_) {
-        // ignore
-      }
+    try {
+      _mbDestroy(_containerId);
+    } catch (_) {
+      // ignore
     }
-    _markers.clear();
     super.dispose();
   }
 
@@ -301,7 +210,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     }
 
     return _MapboxWebViewCustom(
-      key: ValueKey('maslive-map-web-$_rebuildTick'),
+      key: ValueKey('maslive-map-web-$_containerId'),
+      containerId: _containerId,
       accessToken: _mapboxToken,
       initialLat: widget.initialLat,
       initialLng: widget.initialLng,
@@ -322,6 +232,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
 /// Widget wrapper pour Mapbox GL JS avec interop personnalisée
 class _MapboxWebViewCustom extends StatefulWidget {
+  final String containerId;
   final String accessToken;
   final double initialLat;
   final double initialLng;
@@ -329,11 +240,12 @@ class _MapboxWebViewCustom extends StatefulWidget {
   final double initialPitch;
   final double initialBearing;
   final String? styleUrl;
-  final void Function(js.JsObject map)? onMapReady;
+  final VoidCallback? onMapReady;
   final void Function(double lng, double lat)? onTap;
 
   const _MapboxWebViewCustom({
     super.key,
+    required this.containerId,
     required this.accessToken,
     required this.initialLat,
     required this.initialLng,
@@ -351,8 +263,7 @@ class _MapboxWebViewCustom extends StatefulWidget {
 
 class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
   late final String _viewType;
-  js.JsObject? _map;
-  StreamSubscription<html.MessageEvent>? _messageSub;
+  StreamSubscription<web.MessageEvent>? _messageSub;
 
   @override
   void initState() {
@@ -360,98 +271,64 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
     _viewType = 'maslive-mapbox-${DateTime.now().microsecondsSinceEpoch}';
     _registerFactory();
 
-    if (widget.onTap != null) {
-      _messageSub = html.window.onMessage.listen((evt) {
-        final data = evt.data;
-        if (data is Map) {
-          final type = data['type'];
-          if (type == 'MASLIVE_MAP_TAP') {
-            final lng = data['lng'];
-            final lat = data['lat'];
-            if (lng is num && lat is num) {
-              widget.onTap?.call(lng.toDouble(), lat.toDouble());
-            }
+    _messageSub = web.window.onMessage.listen((evt) {
+      final raw = evt.data;
+      final data = raw?.toString();
+      if (data == null || data.isEmpty) return;
+      try {
+        final decoded = jsonDecode(data);
+        if (decoded is! Map) return;
+        final type = decoded['type'];
+        final containerId = decoded['containerId'];
+        if (containerId != widget.containerId) return;
+
+        if (type == 'MASLIVE_MAP_READY') {
+          widget.onMapReady?.call();
+          return;
+        }
+
+        if (type == 'MASLIVE_MAP_TAP') {
+          final lng = decoded['lng'];
+          final lat = decoded['lat'];
+          if (lng is num && lat is num) {
+            widget.onTap?.call(lng.toDouble(), lat.toDouble());
           }
         }
-      });
-    }
+      } catch (_) {
+        // ignore
+      }
+    });
   }
 
   void _registerFactory() {
-    // ignore: undefined_prefixed_name
-    (js.context['_flutter_web_ui'] as js.JsObject)['platformViewRegistry']
-        .callMethod('registerViewFactory', [
+    ui_web.platformViewRegistry.registerViewFactory(
       _viewType,
       (int viewId) {
-        final container = html.DivElement()
-          ..id = 'mapbox-$viewId'
-          ..style.width = '100%'
-          ..style.height = '100%';
+        final container = web.document.createElement('div') as web.HTMLDivElement;
+        container.id = widget.containerId;
+        container.style.width = '100%';
+        container.style.height = '100%';
 
         Future.delayed(const Duration(milliseconds: 100), () {
-          _initMapbox(container);
+          final optionsJson = jsonEncode({
+            'style': widget.styleUrl,
+            'center': [widget.initialLng, widget.initialLat],
+            'zoom': widget.initialZoom,
+            'pitch': widget.initialPitch,
+            'bearing': widget.initialBearing,
+          });
+          _mbInit(widget.containerId, widget.accessToken, optionsJson);
         });
 
         return container;
       },
-    ]);
-  }
-
-  void _initMapbox(html.DivElement container) {
-    final mapboxglObj = js.context['mapboxgl'];
-    if (mapboxglObj == null) return;
-
-    mapboxglObj['accessToken'] = widget.accessToken;
-
-    final map = js.JsObject(mapboxglObj['Map'], [
-      js.JsObject.jsify({
-        'container': container,
-        'style': widget.styleUrl ?? 'mapbox://styles/mapbox/streets-v12',
-        'center': [widget.initialLng, widget.initialLat],
-        'zoom': widget.initialZoom,
-        'pitch': widget.initialPitch,
-        'bearing': widget.initialBearing,
-      })
-    ]);
-
-    _map = map;
-
-    map.callMethod('on', [
-      'load',
-      (dynamic _) {
-        widget.onMapReady?.call(map);
-
-        if (widget.onTap != null) {
-          map.callMethod('on', [
-            'click',
-            (dynamic e) {
-              final lngLat = e['lngLat'];
-              if (lngLat != null) {
-                final lng = lngLat['lng'];
-                final lat = lngLat['lat'];
-                if (lng is num && lat is num) {
-                  html.window.postMessage({
-                    'type': 'MASLIVE_MAP_TAP',
-                    'lng': lng,
-                    'lat': lat,
-                  }, '*');
-                }
-              }
-            }
-          ]);
-        }
-      }
-    ]);
+    );
   }
 
   @override
   void dispose() {
     _messageSub?.cancel();
-    try {
-      _map?.callMethod('remove');
-    } catch (_) {
-      // ignore
-    }
+    // Destruction gérée côté widget parent via _mbDestroy
     super.dispose();
   }
 
@@ -460,3 +337,41 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
     return HtmlElementView(viewType: _viewType);
   }
 }
+
+@JS('MasliveMapboxV2.init')
+external bool _mbInit(String containerId, String token, String optionsJson);
+
+@JS('MasliveMapboxV2.moveTo')
+external void _mbMoveTo(String containerId, double lng, double lat, double zoom, bool animate);
+
+@JS('MasliveMapboxV2.setStyle')
+external void _mbSetStyle(String containerId, String styleUrl);
+
+@JS('MasliveMapboxV2.setMarkers')
+external void _mbSetMarkers(String containerId, String markersJson);
+
+@JS('MasliveMapboxV2.setPolyline')
+external void _mbSetPolyline(
+  String containerId,
+  String pointsJson,
+  String colorHex,
+  double width,
+  bool show,
+);
+
+@JS('MasliveMapboxV2.setPolygon')
+external void _mbSetPolygon(
+  String containerId,
+  String pointsJson,
+  String fillColorHex,
+  double fillOpacity,
+  String strokeColorHex,
+  double strokeWidth,
+  bool show,
+);
+
+@JS('MasliveMapboxV2.clearAll')
+external void _mbClearAll(String containerId);
+
+@JS('MasliveMapboxV2.destroy')
+external void _mbDestroy(String containerId);

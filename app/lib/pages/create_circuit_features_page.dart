@@ -400,7 +400,7 @@ class _AppIconSquare extends StatelessWidget {
               width: 22,
               height: 22,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.18),
+                color: Colors.white.withAlpha(46),
                 borderRadius: BorderRadius.circular(8),
               ),
             ),

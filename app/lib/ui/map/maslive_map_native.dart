@@ -99,7 +99,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         geometry: Point(coordinates: Position(lng, lat)),
         iconImage: 'marker-15',
         iconSize: 1.5,
-        iconColor: Colors.blue.value,
+        iconColor: Colors.blue.toARGB32(),
       );
       await _userLocationManager?.create(opt);
     };
@@ -112,12 +112,12 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
           geometry: Point(coordinates: Position(m.lng, m.lat)),
           iconImage: 'marker-15',
           iconSize: m.size,
-          iconColor: m.color.value,
+          iconColor: m.color.toARGB32(),
           textField: m.label,
           textSize: 12.0,
           textOffset: const [0.0, 1.2],
-          textColor: Colors.black.value,
-          textHaloColor: Colors.white.value,
+          textColor: Colors.black.toARGB32(),
+          textHaloColor: Colors.white.toARGB32(),
           textHaloWidth: 1.0,
         );
         await _markersManager?.create(opt);
@@ -134,7 +134,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       final coords = points.map((p) => Position(p.lng, p.lat)).toList();
       final opt = PolylineAnnotationOptions(
         geometry: LineString(coordinates: coords),
-        lineColor: color.value,
+        lineColor: color.toARGB32(),
         lineWidth: width,
       );
       await _polylineManager?.create(opt);
@@ -150,8 +150,8 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       final coords = points.map((p) => Position(p.lng, p.lat)).toList();
       final opt = PolygonAnnotationOptions(
         geometry: Polygon(coordinates: [coords]),
-        fillColor: fillColor.value,
-        fillOutlineColor: strokeColor.value,
+        fillColor: fillColor.toARGB32(),
+        fillOutlineColor: strokeColor.toARGB32(),
       );
       await _polygonManager?.create(opt);
     };

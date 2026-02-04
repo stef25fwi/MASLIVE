@@ -1,6 +1,5 @@
 
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -38,9 +37,6 @@ class _MediaGalleryMasliveInstagramPageState
 
   static const Color _ink = Color(0xFF0D0F12);
   static const Color _ink2 = Color(0xFF2B2F36);
-  static const Color _muted = Color(0xFF8A8F98);
-  static const Color _line = Color(0x11000000);
-  static const Color _card = Color(0xFFF7F7F8);
 
   // Honeycomb ultra discret (style MAS’LIVE)
   static const double _honeyOpacity = 0.06;
@@ -129,8 +125,12 @@ class _MediaGalleryMasliveInstagramPageState
       setState(() {
         // Merge sans doublons + tri
         final map = <String, MediaDoc>{};
-        for (final m in page) map[m.id] = m;
-        for (final m in _items) map[m.id] = m;
+        for (final m in page) {
+          map[m.id] = m;
+        }
+        for (final m in _items) {
+          map[m.id] = m;
+        }
 
         final merged = map.values.toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -543,7 +543,7 @@ class _MaslivePill extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.75),
+            color: Colors.white.withAlpha(191),
             borderRadius: BorderRadius.circular(999),
             border: Border.all(color: const Color(0x11000000)),
           ),
@@ -610,7 +610,7 @@ class _MediaTileMaslive extends StatelessWidget {
           Image.network(
             thumb,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => const ColoredBox(
+            errorBuilder: (context, error, stackTrace) => const ColoredBox(
               color: Color(0xFFF0F0F2),
               child: Center(
                 child: Icon(Icons.broken_image_outlined, color: Colors.black26),
@@ -727,7 +727,7 @@ class _MediaViewerMasliveState extends State<_MediaViewerMaslive> {
                     child: Image.network(
                       m.url,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Center(
+                      errorBuilder: (context, error, stackTrace) => const Center(
                         child: Icon(Icons.broken_image_outlined,
                             color: Colors.white38),
                       ),
@@ -795,8 +795,8 @@ class _GlassIconButton extends StatelessWidget {
             height: 42,
             width: 42,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.10),
-              border: Border.all(color: Colors.white.withOpacity(0.18)),
+              color: Colors.white.withAlpha(26),
+              border: Border.all(color: Colors.white.withAlpha(46)),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(icon, color: Colors.white),
@@ -826,7 +826,7 @@ class _MasliveBottomSheet extends StatelessWidget {
             filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.92),
+                color: Colors.white.withAlpha(235),
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(18)),
                 border: const Border(
@@ -1133,7 +1133,7 @@ class _MasliveChoiceChip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: selected ? Colors.white.withOpacity(0.90) : Colors.transparent,
+            color: selected ? Colors.white.withAlpha(230) : Colors.transparent,
             borderRadius: BorderRadius.circular(999),
           ),
           child: Text(
@@ -1338,7 +1338,7 @@ class _AddMediaSheetState extends State<_AddMediaSheet> {
     try {
       // Upload l'image (ImagePicker l'a déjà compressée à qualité 88)
       final bytes = await _file!.readAsBytes();
-      final data = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
+      final data = bytes;
 
       final ts = DateTime.now().millisecondsSinceEpoch;
       final storagePath = 'media/${user.uid}/$ts.jpg';
@@ -1495,13 +1495,12 @@ class _HoneycombPainter extends CustomPainter {
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
-      ..color = const Color(0xFF0D0F12).withOpacity(opacity);
+      ..color = const Color(0xFF0D0F12).withAlpha((opacity * 255).toInt());
 
     // Hex pattern
     const double r = 16; // rayon
     final double h = r * 1.7320508075688772; // sqrt(3)*r
     final double dx = r * 1.5;
-    final double dy = h / 2;
 
     for (double y = -h; y < size.height + h; y += h) {
       for (double x = -r; x < size.width + r; x += dx) {
@@ -1553,8 +1552,12 @@ class Math {
   static double _cos(double x) => _sin(x + _pi / 2);
 
   static double _wrapPi(double x) {
-    while (x > _pi) x -= 2 * _pi;
-    while (x < -_pi) x += 2 * _pi;
+    while (x > _pi) {
+      x -= 2 * _pi;
+    }
+    while (x < -_pi) {
+      x += 2 * _pi;
+    }
     return x;
   }
 }

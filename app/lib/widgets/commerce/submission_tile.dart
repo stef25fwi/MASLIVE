@@ -38,7 +38,7 @@ class SubmissionTile extends StatelessWidget {
                       width: 60,
                       height: 60,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                      errorBuilder: (context, error, stackTrace) => Container(
                         width: 60,
                         height: 60,
                         color: Colors.grey.shade200,
@@ -77,7 +77,7 @@ class SubmissionTile extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: _statusColor.withOpacity(0.1),
+                    color: _statusColor.withAlpha(26),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: _statusColor),
                   ),

@@ -345,14 +345,14 @@ class _CreateCircuitStep1DialogState extends State<CreateCircuitStep1Dialog> {
                       children: [
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            key: ValueKey<String>('event:${_effectiveCountryId}:${_selectedEventId ?? '__none__'}'),
+                            key: ValueKey<String>('event:$_effectiveCountryId:${_selectedEventId ?? '__none__'}'),
                             isExpanded: true,
                             initialValue: _selectedEventId,
                             decoration: InputDecoration(
                               labelText: 'Événement *',
                               helperText: _selectedEventName != null &&
                                       _selectedEventId == null
-                                  ? 'Nouvel événement: ${_selectedEventName!}'
+                                  ? 'Nouvel événement: $_selectedEventName'
                                   : null,
                               border: const OutlineInputBorder(),
                             ),
