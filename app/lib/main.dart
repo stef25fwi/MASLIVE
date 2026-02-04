@@ -61,6 +61,11 @@ import 'pages/commerce/create_media_page.dart';
 import 'pages/commerce/my_submissions_page.dart';
 import 'admin/admin_moderation_page.dart';
 import 'admin/commerce_analytics_page.dart';
+import 'pages/group/admin_group_dashboard_page.dart';
+import 'pages/group/tracker_group_profile_page.dart';
+import 'pages/group/group_map_live_page.dart';
+import 'pages/group/group_track_history_page.dart';
+import 'pages/group/group_export_page.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -203,6 +208,27 @@ class MasLiveApp extends StatelessWidget {
               '/commerce/my-submissions': (_) => const MySubmissionsPage(),
               '/admin/moderation': (_) => const AdminModerationPage(),
               '/admin/commerce-analytics': (_) => const CommerceAnalyticsPage(),
+
+              // Groupe (Admin/Tracker)
+              '/group-admin': (_) => const AdminGroupDashboardPage(),
+              '/group-tracker': (_) => const TrackerGroupProfilePage(),
+              '/group-live': (ctx) {
+                final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
+                final adminGroupId = (args?['adminGroupId'] as String?) ?? '000000';
+                return GroupMapLivePage(adminGroupId: adminGroupId);
+              },
+              '/group-history': (ctx) {
+                final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
+                final adminGroupId = (args?['adminGroupId'] as String?) ?? '000000';
+                final uid = args?['uid'] as String?;
+                return GroupTrackHistoryPage(adminGroupId: adminGroupId, uid: uid);
+              },
+              '/group-export': (ctx) {
+                final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
+                final adminGroupId = (args?['adminGroupId'] as String?) ?? '000000';
+                final uid = args?['uid'] as String?;
+                return GroupExportPage(adminGroupId: adminGroupId, uid: uid);
+              },
             },
             builder: (context, child) => HoneycombBackground(
               opacity: 0.08,
