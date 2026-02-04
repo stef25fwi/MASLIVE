@@ -1089,8 +1089,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                               _ActionItem(
                                 label: '',
                                 icon: Icons.language_rounded,
-                                selected: false,
-                                onTap: _cycleLanguage,
+                                selected: _selectedAction == _MapAction.wc,
+                                onTap: () {
+                                  _selectAction(_MapAction.wc, 'Langue');
+                                  _cycleLanguage();
+                                  _closeNavWithDelay();
+                                },
                               ),
                             ],
                           ),
@@ -1122,21 +1126,25 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                 height: 60,
                 borderRadius: BorderRadius.zero,
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                backgroundColor: Colors.transparent,
-                child: Row(
-                  children: [
-                    StreamBuilder<User?>(
-                      stream: AuthService.instance.authStateChanges,
-                      builder: (context, snap) {
-                        final user = snap.data;
-                        final pseudo =
-                            (user?.displayName ?? user?.email ?? 'Profil')
+                      if (iconWidget != null)
+                        SizedBox(
+                          width: label.isEmpty ? 32 : 28,
+                          height: label.isEmpty ? 32 : 28,
+                          child: selected
+                              ? ColorFiltered(
+                                  colorFilter: const ColorFilter.mode(
+                                    Colors.white,
+                                    BlendMode.srcIn,
+                                  ),
+                                  child: iconWidget!,
+                                )
+                              : iconWidget!,
+                        )
                                 .trim();
 
                         return Tooltip(
                           message: pseudo.isEmpty ? 'Profil' : pseudo,
-                          child: InkWell(
-                            onTap: () {
+                          color: selected ? Colors.white : MasliveTheme.textPrimary,
                               if (user != null) {
                                 Navigator.pushNamed(context, '/account-ui');
                               } else {
@@ -1246,9 +1254,7 @@ class _ActionItem extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: selected
-                        ? MasliveTheme.pink
-                        : MasliveTheme.textSecondary,
+                    color: selected ? Colors.white : MasliveTheme.textSecondary,
                     fontWeight: FontWeight.w700,
                     fontSize: 8,
                   ),

@@ -904,8 +904,11 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                               _ActionItem(
                                 label: '',
                                 icon: Icons.language_rounded,
-                                selected: false,
+                                selected: _selected == _MapAction.wc,
                                 onTap: () {
+                                  setState(() {
+                                    _selected = _MapAction.wc;
+                                  });
                                   _cycleLanguage();
                                   _closeNavWithDelay();
                                 },
@@ -1076,9 +1079,14 @@ class _ActionItem extends StatelessWidget {
             height: 60,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
+              gradient: (selected && customText == null)
+                  ? MasliveTheme.actionGradient
+                  : null,
               color: customText != null
                   ? (color ?? MasliveTheme.pink)
-                  : Colors.white.withValues(alpha: 0.92),
+                  : (selected
+                      ? null
+                      : Colors.white.withValues(alpha: 0.92)),
               border: Border.all(
                 color: selected
                     ? (color ?? MasliveTheme.pink)
@@ -1116,13 +1124,25 @@ class _ActionItem extends StatelessWidget {
                     ),
                 ] else ...[
                   if (iconWidget != null)
-                    iconWidget!
+                    SizedBox(
+                      width: label.isEmpty ? 32 : 28,
+                      height: label.isEmpty ? 32 : 28,
+                      child: selected
+                          ? ColorFiltered(
+                              colorFilter: const ColorFilter.mode(
+                                Colors.white,
+                                BlendMode.srcIn,
+                              ),
+                              child: iconWidget!,
+                            )
+                          : iconWidget!,
+                    )
                   else
                     Icon(
                       icon,
                       size: label.isEmpty ? 32 : 28,
                       color: selected
-                          ? (color ?? MasliveTheme.pink)
+                          ? Colors.white
                           : (color ?? MasliveTheme.textPrimary),
                     ),
                   if (label.isNotEmpty) const SizedBox(height: 4),
@@ -1136,7 +1156,7 @@ class _ActionItem extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: selected
-                              ? (color ?? MasliveTheme.pink)
+                              ? Colors.white
                               : (color ?? MasliveTheme.textSecondary),
                           fontWeight: FontWeight.w700,
                           fontSize: 8,
