@@ -8,7 +8,8 @@ import 'package:masslive/utils/geo_utils.dart';
 void main() {
   group('GeoUtils Tests', () {
     test('calculateGeodeticCenter - positions simples', () {
-      final positions = [
+      final List<({double latitude, double longitude, double altitude})>
+          positions = [
         (latitude: 45.5000, longitude: 2.5000, altitude: 100.0),
         (latitude: 45.5002, longitude: 2.5002, altitude: 102.0),
         (latitude: 45.5004, longitude: 2.5004, altitude: 104.0),
@@ -17,7 +18,7 @@ void main() {
       final center = GeoUtils.calculateGeodeticCenter(positions);
 
       expect(center.latitude, closeTo(45.5002, 0.0001));
-      expect(center.longitude, closeTo(45.5002, 0.0001));
+      expect(center.longitude, closeTo(2.5002, 0.0001));
       expect(center.altitude, closeTo(102.0, 0.1));
     });
 
