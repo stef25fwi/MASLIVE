@@ -43,7 +43,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
   late Animation<Offset> _menuSlideAnimation;
 
   static const Duration _menuOpenDelay = Duration(seconds: 1);
-  static const double _actionsMenuTopOffset = 64;
+  static const double _actionsMenuTopOffset = 80;
 
   final GeolocationService _geo = GeolocationService.instance;
   final MapPresetsService _presetService = MapPresetsService();
@@ -737,7 +737,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                           top: _actionsMenuTopOffset,
                         ),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
+                          horizontal: 4,
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
@@ -826,7 +826,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                                 label: '',
                                 iconWidget: Image.asset(
                                   'assets/images/icon wc parking.png',
-                                  fit: BoxFit.cover,
+                                  fit: BoxFit.fill,
                                   filterQuality: FilterQuality.high,
                                 ),
                                 fullBleed: true,

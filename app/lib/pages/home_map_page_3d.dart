@@ -55,7 +55,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   static const double _userZoom = 15.5;
   static const double _defaultPitch = 45.0;
   static const double _minZoom3dBuildings = 14.5;
-  static const double _actionsMenuTopOffset = 64;
+  static const double _actionsMenuTopOffset = 80;
 
   // ========== ÉTAT UI ==========
   bool _showActionsMenu = false;
@@ -932,7 +932,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                           top: _actionsMenuTopOffset,
                         ),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
+                          horizontal: 4,
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
@@ -1018,7 +1018,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                                 label: '',
                                 iconWidget: Image.asset(
                                   'assets/images/icon wc parking.png',
-                                  fit: BoxFit.cover,
+                                  fit: BoxFit.fill,
                                   filterQuality: FilterQuality.high,
                                 ),
                                 fullBleed: true,
