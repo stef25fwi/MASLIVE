@@ -135,6 +135,17 @@
       }
     },
     {
+      "label": "MASLIVE: Git commit + push (fix mapbox interop)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/widgets/web_mapbox_gl_map.dart app/pubspec.yaml .vscode/tasks.json && git commit -m \"fix(web): mapbox ready callback interop\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy",
       "type": "shell",
       "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat: amélioration shop (stock, assets, admin commerce)\"",

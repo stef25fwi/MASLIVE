@@ -5,8 +5,6 @@ import 'dart:js' as js;
 
 import 'package:flutter/material.dart';
 
-import 'web_mapbox_gl_imports.dart';
-
 /// Widget qui intègre Mapbox GL JS via HtmlElementView pour Flutter Web
 /// 
 /// Utilise le bridge JavaScript (mapbox_bridge.js) pour initialiser
@@ -150,11 +148,10 @@ class _WebMapboxGLMapState extends State<WebMapboxGLMap> {
 
   void _installReadyCallback() {
     // Installer un callback global pour être notifié quand la carte est prête
-    js.context['onMapboxReady'] = js.allowInterop(() {
-      if (mounted) {
-        debugPrint('✅ Mapbox GL Map prête');
-        widget.onMapReady?.call();
-      }
+    js.context['onMapboxReady'] = js.JsFunction.withThis((dynamic _) {
+      if (!mounted) return;
+      debugPrint('✅ Mapbox GL Map prête');
+      widget.onMapReady?.call();
     });
   }
 
