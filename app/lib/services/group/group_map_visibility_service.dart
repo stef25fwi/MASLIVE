@@ -1,6 +1,5 @@
 /// Service pour gérer la visibilité du groupe sur les cartes
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../models/group_admin.dart';
 
 class GroupMapVisibilityService {
   static final GroupMapVisibilityService instance = GroupMapVisibilityService._();

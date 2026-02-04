@@ -407,7 +407,7 @@ class _MasliveHeader extends StatelessWidget {
                   TextButton(
                     onPressed: onReset,
                     child: const Text(
-                      'R e9initialiser',
+                      'Réinitialiser',
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
                         color: Color(0xFF0D0F12),
@@ -573,7 +573,7 @@ class _RainbowDotBadge extends StatelessWidget {
 }
 
 // ======================================================
-// Tile MAS 19LIVE (instagram grid)
+// Tile MAS’LIVE (instagram grid)
 // ======================================================
 class _MediaTileMaslive extends StatelessWidget {
   final MediaDoc item;

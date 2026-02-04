@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/map_preset_model.dart';
 import '../../services/group/group_map_visibility_service.dart';
-import '../../services/map_preset_service.dart';
+import '../../services/map_presets_service.dart';
 
 class GroupMapVisibilityWidget extends StatefulWidget {
   final String adminUid;
@@ -22,7 +22,7 @@ class GroupMapVisibilityWidget extends StatefulWidget {
 
 class _GroupMapVisibilityWidgetState extends State<GroupMapVisibilityWidget> {
   final _visibilityService = GroupMapVisibilityService.instance;
-  final _presetService = MapPresetService.instance;
+  final _presetService = MapPresetsService();
 
   @override
   Widget build(BuildContext context) {
@@ -102,9 +102,9 @@ class _GroupMapVisibilityWidgetState extends State<GroupMapVisibilityWidget> {
                               isVisible: value ?? false,
                             );
                           },
-                          title: Text(preset.name),
+                          title: Text(preset.title),
                           subtitle: Text(
-                            preset.description ?? 'Aucune description',
+                            preset.description,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
