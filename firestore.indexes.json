@@ -43,13 +43,6 @@
       ]
     },
     {
-      "collectionGroup": "media",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {"fieldPath": "publishedAt", "order": "DESCENDING"}
-      ]
-    },
-    {
       "collectionGroup": "places",
       "queryScope": "COLLECTION",
       "fields": [
@@ -105,6 +98,30 @@
       "queryScope": "COLLECTION",
       "fields": [
         {"fieldPath": "role", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "sessions",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {"fieldPath": "uid", "order": "ASCENDING"},
+        {"fieldPath": "startedAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "products",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {"fieldPath": "isVisible", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "media",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {"fieldPath": "isVisible", "order": "ASCENDING"},
         {"fieldPath": "createdAt", "order": "DESCENDING"}
       ]
     }

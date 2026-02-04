@@ -2000,3 +2000,11 @@ exports.notifyCommerceRejected = onDocumentUpdated(
     }
   }
 );
+
+// ============================================================================
+// GROUP TRACKING - Position moyenne automatique
+// ============================================================================
+
+const groupTracking = require("./group_tracking");
+exports.calculateGroupAveragePosition = groupTracking.calculateGroupAveragePosition;
+

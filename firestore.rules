@@ -500,6 +500,158 @@ service cloud.firestore {
       allow create, update, delete: if isSuperAdmin();
     }
 
+    // ========== MODULE: GROUP ADMIN / TRACKER (tracking + boutique groupe) ==========
+    function isGroupAdminByAdminGroupId(adminGroupId) {
+      return adminGroupId != null
+        && isSignedIn()
+        && exists(/databases/$(database)/documents/group_admins/$(request.auth.uid))
+        && get(/databases/$(database)/documents/group_admins/$(request.auth.uid)).data.adminGroupId == adminGroupId;
+    }
+
+    function isTrackerByAdminGroupId(adminGroupId) {
+      return adminGroupId != null
+        && isSignedIn()
+        && exists(/databases/$(database)/documents/group_trackers/$(request.auth.uid))
+        && get(/databases/$(database)/documents/group_trackers/$(request.auth.uid)).data.adminGroupId == adminGroupId;
+    }
+
+    function isGroupMemberByAdminGroupId(adminGroupId) {
+      return isGroupAdminByAdminGroupId(adminGroupId) || isTrackerByAdminGroupId(adminGroupId);
+    }
+
+    // Profils admins de groupe
+    match /group_admins/{adminUid} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == adminUid
+        || isMasterAdmin()
+        || isTrackerByAdminGroupId(resource.data.adminGroupId)
+      );
+
+      allow create: if isSignedIn()
+        && request.auth.uid == adminUid
+        && (request.resource.data.adminGroupId is string)
+        && request.resource.data.adminGroupId.matches('^\\d{6}$');
+
+      allow update: if isSignedIn() && (
+        request.auth.uid == adminUid
+        || isMasterAdmin()
+      );
+
+      allow delete: if isMasterAdmin();
+    }
+
+    // Répertoire des codes admin (lookup)
+    match /group_admin_codes/{code} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && (code is string)
+        && code.matches('^\\d{6}$')
+        && request.resource.data.adminUid == request.auth.uid
+        && (request.resource.data.isActive == true);
+
+      allow update: if isSignedIn() && (
+        isMasterAdmin()
+        || (resource.data.adminUid == request.auth.uid
+            && request.resource.data.adminUid == resource.data.adminUid)
+      );
+
+      allow delete: if isMasterAdmin();
+    }
+
+    // Profils trackers
+    match /group_trackers/{trackerUid} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == trackerUid
+        || isMasterAdmin()
+        || isGroupAdminByAdminGroupId(resource.data.adminGroupId)
+      );
+
+      allow create, update: if isSignedIn() && request.auth.uid == trackerUid;
+      allow delete: if isMasterAdmin();
+    }
+
+    // Positions live par membre (source d'agrégation CF)
+    match /group_positions/{adminGroupId} {
+      allow read: if isSignedIn() && (isGroupMemberByAdminGroupId(adminGroupId) || isMasterAdmin());
+      allow write: if false;
+
+      match /members/{uid} {
+        allow read: if isSignedIn() && (isGroupMemberByAdminGroupId(adminGroupId) || isMasterAdmin());
+        allow create, update: if isSignedIn()
+          && request.auth.uid == uid
+          && isGroupMemberByAdminGroupId(adminGroupId);
+        allow delete: if isMasterAdmin();
+      }
+    }
+
+    // Historique des sessions + points
+    match /group_tracks/{adminGroupId} {
+      allow read: if false;
+      allow write: if false;
+
+      match /sessions/{sessionId} {
+        allow read: if isSignedIn() && (
+          isMasterAdmin()
+          || isGroupAdminByAdminGroupId(adminGroupId)
+          || resource.data.uid == request.auth.uid
+        );
+
+        allow create: if isSignedIn()
+          && isGroupMemberByAdminGroupId(adminGroupId)
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.adminGroupId == adminGroupId
+          && request.resource.data.role in ['admin', 'tracker'];
+
+        allow update: if isSignedIn() && (
+          isMasterAdmin()
+          || (resource.data.uid == request.auth.uid
+              && request.resource.data.uid == resource.data.uid
+              && request.resource.data.adminGroupId == resource.data.adminGroupId)
+        );
+
+        allow delete: if isMasterAdmin();
+
+        match /points/{pointId} {
+          function _sessionDoc() {
+            return get(/databases/$(database)/documents/group_tracks/$(adminGroupId)/sessions/$(sessionId)).data;
+          }
+
+          allow read: if isSignedIn() && (
+            isMasterAdmin()
+            || isGroupAdminByAdminGroupId(adminGroupId)
+            || _sessionDoc().uid == request.auth.uid
+          );
+
+          allow create: if isSignedIn()
+            && isGroupMemberByAdminGroupId(adminGroupId)
+            && _sessionDoc().uid == request.auth.uid;
+
+          allow update, delete: if false;
+        }
+      }
+    }
+
+    // Boutique groupe (produits + médias)
+    match /group_shops/{adminGroupId} {
+      allow read: if isSignedIn() && (isGroupMemberByAdminGroupId(adminGroupId) || isMasterAdmin());
+      allow write: if false;
+
+      match /products/{productId} {
+        allow read: if isSignedIn() && (isGroupMemberByAdminGroupId(adminGroupId) || isMasterAdmin());
+        allow create, update, delete: if isSignedIn() && (
+          isMasterAdmin() || isGroupAdminByAdminGroupId(adminGroupId)
+        );
+      }
+
+      match /media/{mediaId} {
+        allow read: if isSignedIn() && (isGroupMemberByAdminGroupId(adminGroupId) || isMasterAdmin());
+        allow create, update, delete: if isSignedIn() && (
+          isMasterAdmin() || isGroupAdminByAdminGroupId(adminGroupId)
+        );
+      }
+    }
+
     // ========== REFUS PAR DÉFAUT ==========
     match /{document=**} {
       allow read, write: if false;
