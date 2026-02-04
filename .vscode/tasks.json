@@ -260,6 +260,17 @@
       }
     },
     {
+      "label": "MASLIVE: Git commit + push (home nav refine)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git restore app/assets/images/3DFC6E2F-38AD-4594-90FC-F5F8E5CED72A.png || true && git add app/lib/pages/home_map_page_3d.dart app/lib/pages/home_map_page_web.dart \"app/assets/images/icon wc parking.png\" .vscode/tasks.json && git commit -m \"ui(home): refine vertical nav (icons, delay, no snackbars)\" && git pull --rebase origin main && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git restore home_map_page.dart",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git restore app/lib/pages/home_map_page.dart",

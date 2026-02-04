@@ -42,6 +42,9 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
 
+  static const Duration _menuOpenDelay = Duration(seconds: 1);
+  static const double _actionsMenuTopOffset = 64;
+
   final GeolocationService _geo = GeolocationService.instance;
   final MapPresetsService _presetService = MapPresetsService();
 
@@ -187,15 +190,6 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
     try {
       final enabled = await Geolocator.isLocationServiceEnabled();
       if (!enabled) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Active la localisation (GPS) pour centrer la carte.',
-              ),
-            ),
-          );
-        }
         return false;
       }
 
@@ -206,11 +200,6 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
 
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Permission GPS refusée.')),
-          );
-        }
         return false;
       }
 
@@ -288,11 +277,6 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
 
     final uid = AuthService.instance.currentUser?.uid;
     if (uid == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Connecte-toi pour démarrer le tracking.'),
-        ),
-      );
       return;
     }
 
@@ -300,22 +284,12 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
     if (!mounted) return;
     final groupId = profile?.groupId;
     if (groupId == null || groupId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aucun groupId associé à ton profil.')),
-      );
       return;
     }
 
     final ok = await _geo.startTracking(groupId: groupId, intervalSeconds: 15);
     if (!mounted) return;
     setState(() => _isTracking = ok);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          ok ? '✅ Tracking démarré (15s)' : '❌ Permissions GPS refusées',
-        ),
-      ),
-    );
   }
 
   void _cycleLanguage() {
@@ -326,6 +300,25 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
     final next = langs[(idx + 1) % langs.length];
     langService.changeLanguage(next);
     setState(() {});
+  }
+
+  void _toggleActionsMenu() {
+    if (_showActionsMenu) {
+      _menuAnimController.reverse();
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted && _showActionsMenu) {
+          setState(() => _showActionsMenu = false);
+        }
+      });
+      return;
+    }
+
+    setState(() => _showActionsMenu = true);
+    _menuAnimController.value = 0;
+    Future.delayed(_menuOpenDelay, () {
+      if (!mounted || !_showActionsMenu) return;
+      _menuAnimController.forward();
+    });
   }
 
   void _closeNavWithDelay() {
@@ -377,9 +370,6 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
 
   void _openMapSelector() {
     if (_userGroupId == null || _userGroupId!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aucun groupe associé à ton profil.')),
-      );
       return;
     }
 
@@ -407,9 +397,6 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
     }
 
     if (_userGroupId == null || _userGroupId!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aucun groupe associé à ton profil.')),
-      );
       return;
     }
 
@@ -550,29 +537,12 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
       _currentPresetLayers = List<LayerModel>.from(preset.layers);
       _activeLayers = {for (final layer in layers) layer.id: layer.visible};
     });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '${preset.title} chargée (${layers.length} couche${layers.length != 1 ? 's' : ''} active${layers.length != 1 ? 's' : ''})',
-        ),
-        duration: const Duration(seconds: 2),
-      ),
-    );
   }
 
   void _toggleLayer(String layerId, bool value) {
     setState(() {
       _activeLayers[layerId] = value;
     });
-
-    final activeCount = _activeLayers.values.where((v) => v).length;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Couches actives: $activeCount'),
-        duration: const Duration(milliseconds: 1200),
-      ),
-    );
   }
 
   void _openLanguagePicker() {
@@ -729,6 +699,9 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                     ),
             ),
 
+            // Boussole (demi-flèche rouge)
+            const Positioned(top: 104, right: 14, child: _HalfRedCompass()),
+
             // Overlay actions - affiche quand burger cliqué
             Positioned.fill(
               child: Visibility(
@@ -759,7 +732,10 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                     child: SlideTransition(
                       position: _menuSlideAnimation,
                       child: Container(
-                        margin: const EdgeInsets.only(right: 0, top: 52),
+                        margin: const EdgeInsets.only(
+                          right: 0,
+                          top: _actionsMenuTopOffset,
+                        ),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 6,
                           vertical: 10,
@@ -854,6 +830,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                                   filterQuality: FilterQuality.high,
                                 ),
                                 fullBleed: true,
+                                showBorder: false,
                                 selected: _selected == _MapAction.parking,
                                 onTap: () {
                                   setState(() {
@@ -886,6 +863,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                                 fullBleed: true,
                                 tintOnSelected: false,
                                 highlightBackgroundOnSelected: false,
+                                showBorder: false,
                                 selected: _selected == _MapAction.wc,
                                 onTap: () {
                                   setState(() {
@@ -1008,12 +986,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                       icon: Icons.menu_rounded,
                       tooltip: l10n.AppLocalizations.of(context)!.menu,
                       onTap: () {
-                        setState(() => _showActionsMenu = !_showActionsMenu);
-                        if (_showActionsMenu) {
-                          _menuAnimController.forward();
-                        } else {
-                          _menuAnimController.reverse();
-                        }
+                        _toggleActionsMenu();
                       },
                     ),
                   ],
@@ -1037,6 +1010,7 @@ class _ActionItem extends StatelessWidget {
   final bool fullBleed;
   final bool tintOnSelected;
   final bool highlightBackgroundOnSelected;
+  final bool showBorder;
 
   const _ActionItem({
     required this.label,
@@ -1048,6 +1022,7 @@ class _ActionItem extends StatelessWidget {
     this.fullBleed = false,
     this.tintOnSelected = true,
     this.highlightBackgroundOnSelected = true,
+    this.showBorder = true,
   }) : assert(icon != null || iconWidget != null);
 
   @override
@@ -1065,14 +1040,20 @@ class _ActionItem extends StatelessWidget {
             height: 60,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: showSelectedBackground ? MasliveTheme.actionGradient : null,
+              gradient: showSelectedBackground
+                  ? MasliveTheme.actionGradient
+                  : null,
               color: showSelectedBackground
                   ? null
                   : Colors.white.withValues(alpha: 0.92),
-              border: Border.all(
-                color: selected ? MasliveTheme.pink : MasliveTheme.divider,
-                width: selected ? 2.0 : 1.0,
-              ),
+              border: showBorder
+                  ? Border.all(
+                      color: selected
+                          ? MasliveTheme.pink
+                          : MasliveTheme.divider,
+                      width: selected ? 2.0 : 1.0,
+                    )
+                  : null,
               boxShadow: selected ? MasliveTheme.cardShadow : const [],
             ),
             child: fullBleed
@@ -1137,19 +1118,60 @@ class _ActionItem extends StatelessWidget {
                             textAlign: TextAlign.center,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: selected && tintOnSelected
-                                  ? Colors.white
-                                  : MasliveTheme.textSecondary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 8,
-                            ),
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: selected && tintOnSelected
+                                      ? Colors.white
+                                      : MasliveTheme.textSecondary,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 8,
+                                ),
                           ),
                         ),
                     ],
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HalfRedCompass extends StatelessWidget {
+  const _HalfRedCompass();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withValues(alpha: 0.92),
+        boxShadow: MasliveTheme.cardShadow,
+      ),
+      child: Center(
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            const Icon(
+              Icons.navigation_rounded,
+              size: 26,
+              color: Color(0xFF111827),
+            ),
+            ClipRect(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                widthFactor: 0.5,
+                child: const Icon(
+                  Icons.navigation_rounded,
+                  size: 26,
+                  color: Colors.red,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

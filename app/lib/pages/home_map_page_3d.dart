@@ -43,6 +43,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   // ========== CONSTANTES ==========
   static const Duration _resizeDebounceDelay = Duration(milliseconds: 80);
   static const Duration _menuAnimationDuration = Duration(milliseconds: 300);
+  static const Duration _menuOpenDelay = Duration(seconds: 1);
   static const Duration _mapReadyDelay = Duration(milliseconds: 300);
   static const Duration _navCloseDelay = Duration(milliseconds: 1500);
   static const int _trackingIntervalSeconds = 15;
@@ -54,7 +55,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   static const double _userZoom = 15.5;
   static const double _defaultPitch = 45.0;
   static const double _minZoom3dBuildings = 14.5;
-  
+  static const double _actionsMenuTopOffset = 64;
+
   // ========== ÉTAT UI ==========
   bool _showActionsMenu = false;
   late AnimationController _menuAnimController;
@@ -107,44 +109,37 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       : MapboxTokenService.getTokenSync();
 
   bool get _useMapboxTiles => _effectiveMapboxToken.isNotEmpty;
-  
-  /// Message de tracking avec intervalle dynamique
-  String get _trackingStatusMessage => _isTracking 
-      ? '✅ Tracking démarré (${_trackingIntervalSeconds}s)' 
-      : '❌ Permissions GPS refusées';
 
   @override
   void initState() {
     super.initState();
-    
+
     // Observer pour détecter les changements de lifecycle et de métriques (resize, rotation)
     WidgetsBinding.instance.addObserver(this);
-    
+
     // Initialisation du token Mapbox (peut être vide au démarrage)
     _initMapboxToken();
-    
+
     // Synchroniser l'état de tracking avec le service
     _isTracking = _geo.isTracking;
-    
+
     // Configuration de l'animation du menu latéral
     _menuAnimController = AnimationController(
       duration: _menuAnimationDuration,
       vsync: this,
     );
-    _menuSlideAnimation = Tween<Offset>(
-      begin: const Offset(1.0, 0.0),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _menuAnimController,
-        curve: Curves.easeOut,
-        reverseCurve: Curves.easeIn,
-      ),
-    );
+    _menuSlideAnimation =
+        Tween<Offset>(begin: const Offset(1.0, 0.0), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _menuAnimController,
+            curve: Curves.easeOut,
+            reverseCurve: Curves.easeIn,
+          ),
+        );
 
     // Chargement asynchrone des données essentielles
-    _bootstrapLocation();    // Permissions GPS + position initiale
-    _loadUserGroupId();      // Données utilisateur Firebase
+    _bootstrapLocation(); // Permissions GPS + position initiale
+    _loadUserGroupId(); // Données utilisateur Firebase
     _loadRuntimeMapboxToken(); // Token Mapbox dynamique
   }
 
@@ -255,12 +250,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           layerIds: selection.layerIds,
         )
         .listen((pois) async {
-      if (!mounted) return;
-      setState(() {
-        _marketPois = pois;
-      });
-      await _renderMarketPoiMarkers();
-    });
+          if (!mounted) return;
+          setState(() {
+            _marketPois = pois;
+          });
+          await _renderMarketPoiMarkers();
+        });
   }
 
   Future<void> _moveCameraTo({
@@ -298,7 +293,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     if (!_marketPoiSelection.enabled) return;
 
     final filterType = _actionToPoiType(_selectedAction);
-    for (final p in _marketPois.where((poi) => filterType == null || poi.type == filterType)) {
+    for (final p in _marketPois.where(
+      (poi) => filterType == null || poi.type == filterType,
+    )) {
       if (p.lat == 0.0 && p.lng == 0.0) continue;
       try {
         final opt = PointAnnotationOptions(
@@ -332,7 +329,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   void didChangeMetrics() {
     // Détecte : rotation, split-view, resize fenêtre, clavier virtuel
     super.didChangeMetrics();
-    
+
     // Incrémente le tick pour forcer un rebuild de la carte via ValueKey
     // Protégé par mounted pour éviter les setState après dispose
     if (mounted) {
@@ -345,10 +342,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   }
 
   /// Planifie un resize de la carte avec debounce pour éviter les rebuilds excessifs.
-  /// 
+  ///
   /// Cette méthode est appelée par LayoutBuilder à chaque changement de contraintes.
   /// Le debounce évite de rebuilder la carte 10+ fois pendant une animation de resize.
-  /// 
+  ///
   /// **Pourquoi c'est nécessaire :** Le SDK Mapbox natif ne gère pas automatiquement
   /// le resize via Flutter. On force un rebuild avec une nouvelle ValueKey.
   void _scheduleResize(ui.Size size) {
@@ -362,11 +359,11 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
     // Annuler le timer précédent (debounce)
     _debounce?.cancel();
-    
+
     // Attendre que le resize soit stabilisé avant de rebuilder
     _debounce = Timer(_resizeDebounceDelay, () {
       if (!mounted) return; // Sécurité supplémentaire
-      
+
       try {
         // 1) Autoriser la création de la carte seulement une fois que les contraintes
         // sont stabilisées (fix “premier layout” : carte initialisée trop tôt).
@@ -375,7 +372,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           _mapCanBeCreated = true;
           _mapTick++;
         });
-        debugPrint('✅ Map rebuild: ${size.width.toInt()}x${size.height.toInt()} (tick: $_mapTick)');
+        debugPrint(
+          '✅ Map rebuild: ${size.width.toInt()}x${size.height.toInt()} (tick: $_mapTick)',
+        );
       } catch (e) {
         debugPrint('⚠️ Erreur _scheduleResize: $e');
       }
@@ -383,7 +382,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   }
 
   /// Initialise la géolocalisation au démarrage de la page.
-  /// 
+  ///
   /// 1. Vérifie les permissions GPS
   /// 2. Récupère la position initiale
   /// 3. Met à jour le marqueur utilisateur
@@ -425,7 +424,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   }
 
   /// Vérifie et demande les permissions de géolocalisation.
-  /// 
+  ///
   /// Retourne true si les permissions sont accordées, false sinon.
   Future<bool> _ensureLocationPermission({required bool request}) async {
     // Éviter les requêtes concurrentes
@@ -436,22 +435,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       // 1. Vérifier si le service de localisation est activé
       final enabled = await Geolocator.isLocationServiceEnabled();
       if (!enabled) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Active la localisation (GPS) pour centrer la carte.',
-              ),
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
         return false;
       }
 
       // 2. Vérifier les permissions
       var permission = await Geolocator.checkPermission();
-      
+
       // 3. Demander la permission si nécessaire et autorisé
       if (permission == LocationPermission.denied && request) {
         permission = await Geolocator.requestPermission();
@@ -459,28 +448,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
       // 4. Gérer les permissions refusées
       if (permission == LocationPermission.denied) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Permission GPS refusée.'),
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
         return false;
       }
-      
+
       if (permission == LocationPermission.deniedForever) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Permission GPS refusée définitivement. Active-la dans les paramètres.',
-              ),
-              duration: Duration(seconds: 4),
-            ),
-          );
-        }
         return false;
       }
 
@@ -494,7 +465,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   }
 
   /// Démarre le stream de mise à jour de la position utilisateur en temps réel.
-  /// 
+  ///
   /// Le filtre de distance évite les mises à jour trop fréquentes pour de petits mouvements.
   void _startUserPositionStream() {
     _positionSub?.cancel();
@@ -506,42 +477,45 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
     _positionSub = Geolocator.getPositionStream(locationSettings: settings)
         .listen(
-      (pos) {
-          final p = Position(pos.longitude, pos.latitude);
-          if (!mounted) return;
+          (pos) {
+            final p = Position(pos.longitude, pos.latitude);
+            if (!mounted) return;
 
-          setState(() {
-            _userPos = p;
-            if (!_isGpsReady) {
-              _isGpsReady = true;
-              _checkIfReady();
+            setState(() {
+              _userPos = p;
+              if (!_isGpsReady) {
+                _isGpsReady = true;
+                _checkIfReady();
+              }
+            });
+
+            _updateUserMarker();
+
+            if (_followUser) {
+              _mapboxMap?.flyTo(
+                CameraOptions(
+                  center: Point(coordinates: p),
+                  zoom: _userZoom,
+                ),
+                MapAnimationOptions(
+                  duration: _cameraAnimationDuration.inMilliseconds,
+                  startDelay: 0,
+                ),
+              );
             }
-          });
-
-          _updateUserMarker();
-
-          if (_followUser) {
-            _mapboxMap?.flyTo(
-              CameraOptions(center: Point(coordinates: p), zoom: _userZoom),
-              MapAnimationOptions(
-                duration: _cameraAnimationDuration.inMilliseconds,
-                startDelay: 0,
-              ),
-            );
-          }
-        },
-      onError: (error) {
-        debugPrint('⚠️ Erreur stream position: $error');
-        if (mounted) {
-          setState(() => _isGpsReady = false);
-        }
-      },
-      cancelOnError: false, // Continue à écouter même après une erreur
-    );
+          },
+          onError: (error) {
+            debugPrint('⚠️ Erreur stream position: $error');
+            if (mounted) {
+              setState(() => _isGpsReady = false);
+            }
+          },
+          cancelOnError: false, // Continue à écouter même après une erreur
+        );
   }
 
   /// Notifie que la carte est prête après un court délai.
-  /// 
+  ///
   /// Utilisé par splash_wrapper_page pour masquer le splash screen.
   void _checkIfReady() {
     if (_isMapReady && !mapReadyNotifier.value) {
@@ -554,12 +528,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   }
 
   /// Met à jour le marqueur de position utilisateur sur la carte.
-  /// 
+  ///
   /// Supprime l'ancien marqueur et crée un nouveau pour éviter les doublons.
   Future<void> _updateUserMarker() async {
     // Early returns pour optimiser les performances
     if (!mounted) return;
-    
+
     final manager = _userAnnotationManager;
     final pos = _userPos;
     if (manager == null || pos == null) return;
@@ -582,11 +556,11 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   }
 
   /// Ajoute les bâtiments 3D à la carte pour un effet de profondeur.
-  /// 
+  ///
   /// Les bâtiments apparaissent uniquement au-delà du zoom 14.5 pour optimiser les performances.
   Future<void> _add3dBuildings() async {
     if (!mounted) return;
-    
+
     final map = _mapboxMap;
     if (map == null) return;
 
@@ -594,16 +568,18 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       final style = map.style;
 
       // Configuration du layer d'extrusion 3D
-      final layer = FillExtrusionLayer(
-        id: 'maslive-3d-buildings',
-        sourceId: 'composite',
-      )
-        ..sourceLayer = 'building'
-        ..minZoom = _minZoom3dBuildings // Visible uniquement en zoom rapproché
-        ..fillExtrusionColor = const Color(0xFFD1D5DB).toARGB32() // Gris clair
-        ..fillExtrusionOpacity = 0.7 // Semi-transparent
-        ..fillExtrusionHeight = 20.0 // Hauteur basée sur les données OSM
-        ..fillExtrusionBase = 0.0; // Pas de surélévation de base
+      final layer =
+          FillExtrusionLayer(id: 'maslive-3d-buildings', sourceId: 'composite')
+            ..sourceLayer = 'building'
+            ..minZoom =
+                _minZoom3dBuildings // Visible uniquement en zoom rapproché
+            ..fillExtrusionColor = const Color(0xFFD1D5DB)
+                .toARGB32() // Gris clair
+            ..fillExtrusionOpacity =
+                0.7 // Semi-transparent
+            ..fillExtrusionHeight =
+                20.0 // Hauteur basée sur les données OSM
+            ..fillExtrusionBase = 0.0; // Pas de surélévation de base
 
       // Filtre : seulement les bâtiments avec propriété "extrude"
       layer.filter = const [
@@ -619,7 +595,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   }
 
   /// Callback appelé quand le MapWidget Mapbox est initialisé.
-  /// 
+  ///
   /// Configure tous les aspects de la carte : gestes 3D, bâtiments, annotation managers.
   Future<void> _onMapCreated(MapboxMap mapboxMap) async {
     if (!mounted) return;
@@ -629,9 +605,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       // 1. Activer tous les gestes 3D (rotation, inclinaison, zoom)
       await mapboxMap.gestures.updateSettings(
         GesturesSettings(
-          pitchEnabled: true,      // Inclinaison vertical
-          rotateEnabled: true,     // Rotation à deux doigts
-          scrollEnabled: true,     // Pan/déplacement
+          pitchEnabled: true, // Inclinaison vertical
+          rotateEnabled: true, // Rotation à deux doigts
+          scrollEnabled: true, // Pan/déplacement
           pinchToZoomEnabled: true, // Zoom pinch
         ),
       );
@@ -675,7 +651,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   }
 
   /// Démarre ou arrête le tracking GPS de la position utilisateur.
-  /// 
+  ///
   /// Le tracking partage la position avec le groupe de l'utilisateur à intervalles réguliers.
   Future<void> _toggleTracking() async {
     // Arrêter le tracking si déjà actif
@@ -690,29 +666,15 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     // Vérifier l'authentification
     final uid = AuthService.instance.currentUser?.uid;
     if (uid == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Connecte-toi pour démarrer le tracking.'),
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
       return;
     }
 
     // Charger le profil utilisateur
     final profile = await AuthService.instance.getUserProfile(uid);
     if (!mounted) return;
-    
+
     final groupId = profile?.groupId;
     if (groupId == null || groupId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Aucun groupId associé à ton profil.'),
-          duration: Duration(seconds: 3),
-        ),
-      );
       return;
     }
 
@@ -722,11 +684,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     );
     if (!mounted) return;
     setState(() => _isTracking = ok);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_trackingStatusMessage),
-      ),
-    );
   }
 
   Future<void> _loadUserGroupId() async {
@@ -776,12 +733,25 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   void _selectAction(_MapAction action, String label) {
     setState(() => _selectedAction = action);
     _renderMarketPoiMarkers();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Mode "$label" sélectionné.'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  }
+
+  void _toggleActionsMenu() {
+    if (_showActionsMenu) {
+      _menuAnimController.reverse();
+      Future.delayed(_menuAnimationDuration, () {
+        if (mounted && _showActionsMenu) {
+          setState(() => _showActionsMenu = false);
+        }
+      });
+      return;
+    }
+
+    setState(() => _showActionsMenu = true);
+    _menuAnimController.value = 0;
+    Future.delayed(_menuOpenDelay, () {
+      if (!mounted || !_showActionsMenu) return;
+      _menuAnimController.forward();
+    });
   }
 
   String? _actionToPoiType(_MapAction? action) {
@@ -816,7 +786,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     await _applyMarketPoiSelection(selection);
   }
 
-
   /// Ferme automatiquement le menu de navigation après un délai.
   void _closeNavWithDelay() {
     Future.delayed(_navCloseDelay, () {
@@ -838,7 +807,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = ui.Size(constraints.maxWidth, constraints.maxHeight);
-        
+
         // PostFrameCallback garantit que le resize est appelé APRÈS
         // que le layout soit terminé, évitant les conflits avec setState
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -892,23 +861,29 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         statusBarColor: Colors.transparent, // Rend le fond transparent
         statusBarIconBrightness: Brightness.dark, // Icônes noires
         statusBarBrightness: Brightness.light,
-        systemStatusBarContrastEnforced: false, // Désactive le filtre automatique
+        systemStatusBarContrastEnforced:
+            false, // Désactive le filtre automatique
         systemNavigationBarColor: Colors.transparent, // Navigation transparente
-        systemNavigationBarContrastEnforced: false, // Désactive le filtre navigation
+        systemNavigationBarContrastEnforced:
+            false, // Désactive le filtre navigation
       ),
       child: Scaffold(
-        extendBody: true, // Permet à la carte de passer SOUS la barre de navigation
-        extendBodyBehindAppBar: true, // IMPORTANT : la carte passera sous la barre d'état
+        extendBody:
+            true, // Permet à la carte de passer SOUS la barre de navigation
+        extendBodyBehindAppBar:
+            true, // IMPORTANT : la carte passera sous la barre d'état
         body: Stack(
           children: [
             // Carte Mapbox 3D - Occupe tout l'écran
             Positioned.fill(
-              child: RepaintBoundary( // Optimise les performances de rendu
+              child: RepaintBoundary(
+                // Optimise les performances de rendu
                 child: SizedBox(
                   width: size.width,
                   height: size.height,
                   child: Container(
-                    color: Colors.black, // Couleur de fond pendant le chargement
+                    color:
+                        Colors.black, // Couleur de fond pendant le chargement
                     child: _mapCanBeCreated
                         ? MapWidget(
                             key: ValueKey(
@@ -931,6 +906,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
               ),
             ),
 
+            // Boussole (demi-flèche rouge)
+            const Positioned(top: 104, right: 14, child: _HalfRedCompass()),
+
             // Overlay actions menu
             if (_showActionsMenu)
               Positioned.fill(
@@ -949,7 +927,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                     child: SlideTransition(
                       position: _menuSlideAnimation,
                       child: Container(
-                        margin: const EdgeInsets.only(right: 0, top: 52),
+                        margin: const EdgeInsets.only(
+                          right: 0,
+                          top: _actionsMenuTopOffset,
+                        ),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 6,
                           vertical: 10,
@@ -998,9 +979,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                               ),
                               const SizedBox(height: 8),
                               _ActionItem(
-                                label: l10n.AppLocalizations.of(
-                                  context,
-                                )!.visit,
+                                label: l10n.AppLocalizations.of(context)!.visit,
                                 icon: Icons.map_outlined,
                                 selected: _selectedAction == _MapAction.visiter,
                                 onTap: () {
@@ -1010,9 +989,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                               ),
                               const SizedBox(height: 8),
                               _ActionItem(
-                                label: l10n.AppLocalizations.of(
-                                  context,
-                                )!.food,
+                                label: l10n.AppLocalizations.of(context)!.food,
                                 icon: Icons.fastfood_rounded,
                                 selected: _selectedAction == _MapAction.food,
                                 onTap: () {
@@ -1026,9 +1003,13 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                                   context,
                                 )!.assistance,
                                 icon: Icons.shield_outlined,
-                                selected: _selectedAction == _MapAction.assistance,
+                                selected:
+                                    _selectedAction == _MapAction.assistance,
                                 onTap: () {
-                                  _selectAction(_MapAction.assistance, 'Assistance');
+                                  _selectAction(
+                                    _MapAction.assistance,
+                                    'Assistance',
+                                  );
                                   _closeNavWithDelay();
                                 },
                               ),
@@ -1041,6 +1022,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                                   filterQuality: FilterQuality.high,
                                 ),
                                 fullBleed: true,
+                                showBorder: false,
                                 selected: _selectedAction == _MapAction.parking,
                                 onTap: () {
                                   _selectAction(_MapAction.parking, 'Parking');
@@ -1070,6 +1052,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                                 }),
                                 fullBleed: true,
                                 tintOnSelected: false,
+                                showBorder: false,
                                 selected: _selectedAction == _MapAction.wc,
                                 onTap: () {
                                   _selectAction(_MapAction.wc, 'Langue');
@@ -1152,12 +1135,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                       icon: Icons.menu_rounded,
                       tooltip: l10n.AppLocalizations.of(context)!.menu,
                       onTap: () {
-                        setState(() => _showActionsMenu = !_showActionsMenu);
-                        if (_showActionsMenu) {
-                          _menuAnimController.forward();
-                        } else {
-                          _menuAnimController.reverse();
-                        }
+                        _toggleActionsMenu();
                       },
                     ),
                   ],
@@ -1179,6 +1157,7 @@ class _ActionItem extends StatelessWidget {
   final VoidCallback onTap;
   final bool fullBleed;
   final bool tintOnSelected;
+  final bool showBorder;
 
   const _ActionItem({
     required this.label,
@@ -1188,6 +1167,7 @@ class _ActionItem extends StatelessWidget {
     required this.onTap,
     this.fullBleed = false,
     this.tintOnSelected = true,
+    this.showBorder = true,
   }) : assert(icon != null || iconWidget != null);
 
   @override
@@ -1200,10 +1180,12 @@ class _ActionItem extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.white.withValues(alpha: 0.92),
-          border: Border.all(
-            color: selected ? MasliveTheme.pink : MasliveTheme.divider,
-            width: selected ? 2.0 : 1.0,
-          ),
+          border: showBorder
+              ? Border.all(
+                  color: selected ? MasliveTheme.pink : MasliveTheme.divider,
+                  width: selected ? 2.0 : 1.0,
+                )
+              : null,
           boxShadow: selected ? MasliveTheme.cardShadow : const [],
         ),
         child: fullBleed
@@ -1271,6 +1253,46 @@ class _ActionItem extends StatelessWidget {
   }
 }
 
+class _HalfRedCompass extends StatelessWidget {
+  const _HalfRedCompass();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withValues(alpha: 0.92),
+        boxShadow: MasliveTheme.cardShadow,
+      ),
+      child: Center(
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            const Icon(
+              Icons.navigation_rounded,
+              size: 26,
+              color: Color(0xFF111827),
+            ),
+            ClipRect(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                widthFactor: 0.5,
+                child: const Icon(
+                  Icons.navigation_rounded,
+                  size: 26,
+                  color: Colors.red,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _TrackingPill extends StatelessWidget {
   final bool isTracking;
   final VoidCallback onToggle;
@@ -1314,8 +1336,8 @@ class _TrackingPill extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  isTracking 
-                      ? 'Actif (${_HomeMapPage3DState._trackingIntervalSeconds}s)' 
+                  isTracking
+                      ? 'Actif (${_HomeMapPage3DState._trackingIntervalSeconds}s)'
                       : 'Inactif',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: MasliveTheme.textSecondary,
