@@ -7,6 +7,7 @@ import '../../models/group_admin.dart';
 import '../../models/group_tracker.dart';
 import '../../services/group/group_link_service.dart';
 import '../../services/group/group_tracking_service.dart';
+import '../../widgets/group_map_visibility_widget.dart';
 import 'group_map_live_page.dart';
 import 'group_track_history_page.dart';
 import 'group_export_page.dart';
@@ -232,6 +233,11 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
             _buildAdminCard(),
             const SizedBox(height: 16),
             _buildTrackingCard(),
+            const SizedBox(height: 16),
+            GroupMapVisibilityWidget(
+              adminUid: _admin!.uid,
+              groupId: _admin!.adminGroupId,
+            ),
             const SizedBox(height: 16),
             _buildActionsGrid(),
             const SizedBox(height: 24),

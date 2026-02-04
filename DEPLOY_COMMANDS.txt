@@ -1,0 +1,36 @@
+🚀 DÉPLOIEMENT RAPIDE - 3 COMMANDES
+
+═══════════════════════════════════════════════════════════════
+
+COPIER/COLLER CES 3 COMMANDES DANS LE TERMINAL:
+
+═══════════════════════════════════════════════════════════════
+
+cd /workspaces/MASLIVE
+
+firebase deploy --only functions:calculateGroupAveragePosition
+
+firebase deploy --only firestore:rules
+
+firebase deploy --only storage
+
+═══════════════════════════════════════════════════════════════
+
+VÉRIFIER LES LOGS:
+
+firebase functions:log --limit=50
+
+═══════════════════════════════════════════════════════════════
+
+TESTER APRÈS:
+
+/group-admin          → Code 6 chiffres généré?
+/group-tracker        → Entrer code + rattacher
+Simuler GPS           → Positions écrites Firestore?
+/group-live           → Marqueur visible?
+
+═══════════════════════════════════════════════════════════════
+
+TEMPS ESTIMÉ: 10 minutes
+
+═══════════════════════════════════════════════════════════════

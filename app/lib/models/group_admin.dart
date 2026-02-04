@@ -121,7 +121,7 @@ class GeoPosition {
     final age = DateTime.now().difference(timestamp).inSeconds;
     if (age > maxAgeSeconds) return false;
     if (accuracy != null && accuracy! > maxAccuracy) return false;
-    if (lat == 0.0 && lng == 0.0) return false;
+    if (lat == 0.0 || lng == 0.0) return false;
     return true;
   }
 }
