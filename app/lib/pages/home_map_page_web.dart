@@ -847,15 +847,13 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                               ),
                               const SizedBox(height: 8),
                               _ActionItem(
-                                label: l10n.AppLocalizations.of(
-                                  context,
-                                )!.parking,
+                                label: '',
                                 iconWidget: Image.asset(
                                   'assets/images/icon wc parking.png',
-                                  width: 30,
-                                  height: 30,
-                                  fit: BoxFit.contain,
+                                  fit: BoxFit.cover,
+                                  filterQuality: FilterQuality.high,
                                 ),
+                                fullBleed: true,
                                 selected: _selected == _MapAction.parking,
                                 onTap: () {
                                   setState(() {
@@ -868,6 +866,26 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                               _ActionItem(
                                 label: '',
                                 icon: Icons.language_rounded,
+                                iconWidget: Obx(() {
+                                  final lang = Get.find<LanguageService>();
+                                  final flag = lang.getLanguageFlag(
+                                    lang.currentLanguageCode,
+                                  );
+                                  return Container(
+                                    color: Colors.white,
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      flag,
+                                      style: const TextStyle(
+                                        fontSize: 34,
+                                        height: 1,
+                                      ),
+                                    ),
+                                  );
+                                }),
+                                fullBleed: true,
+                                tintOnSelected: false,
+                                highlightBackgroundOnSelected: false,
                                 selected: _selected == _MapAction.wc,
                                 onTap: () {
                                   setState(() {
@@ -1016,6 +1034,9 @@ class _ActionItem extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
+  final bool fullBleed;
+  final bool tintOnSelected;
+  final bool highlightBackgroundOnSelected;
 
   const _ActionItem({
     required this.label,
@@ -1024,10 +1045,15 @@ class _ActionItem extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.onLongPress,
+    this.fullBleed = false,
+    this.tintOnSelected = true,
+    this.highlightBackgroundOnSelected = true,
   }) : assert(icon != null || iconWidget != null);
 
   @override
   Widget build(BuildContext context) {
+    final showSelectedBackground = highlightBackgroundOnSelected && selected;
+
     return GestureDetector(
       onTap: onTap,
       onLongPress: onLongPress,
@@ -1039,57 +1065,89 @@ class _ActionItem extends StatelessWidget {
             height: 60,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: selected ? MasliveTheme.actionGradient : null,
-              color: selected ? null : Colors.white.withValues(alpha: 0.92),
+              gradient: showSelectedBackground ? MasliveTheme.actionGradient : null,
+              color: showSelectedBackground
+                  ? null
+                  : Colors.white.withValues(alpha: 0.92),
               border: Border.all(
                 color: selected ? MasliveTheme.pink : MasliveTheme.divider,
                 width: selected ? 2.0 : 1.0,
               ),
               boxShadow: selected ? MasliveTheme.cardShadow : const [],
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (iconWidget != null)
-                  SizedBox(
-                    width: label.isEmpty ? 32 : 28,
-                    height: label.isEmpty ? 32 : 28,
-                    child: selected
-                        ? ColorFiltered(
-                            colorFilter: const ColorFilter.mode(
-                              Colors.white,
-                              BlendMode.srcIn,
+            child: fullBleed
+                ? ClipOval(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        if (iconWidget != null)
+                          selected && tintOnSelected
+                              ? ColorFiltered(
+                                  colorFilter: const ColorFilter.mode(
+                                    Colors.white,
+                                    BlendMode.srcIn,
+                                  ),
+                                  child: iconWidget!,
+                                )
+                              : iconWidget!,
+                        if (icon != null)
+                          Center(
+                            child: Icon(
+                              icon,
+                              size: 28,
+                              color: selected && tintOnSelected
+                                  ? Colors.white
+                                  : MasliveTheme.textPrimary,
                             ),
-                            child: iconWidget!,
-                          )
-                        : iconWidget!,
-                  )
-                else
-                  Icon(
-                    icon,
-                    size: label.isEmpty ? 32 : 28,
-                    color: selected ? Colors.white : MasliveTheme.textPrimary,
-                  ),
-                if (label.isNotEmpty) const SizedBox(height: 4),
-                if (label.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Text(
-                      label,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: selected
-                            ? Colors.white
-                            : MasliveTheme.textSecondary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 8,
-                      ),
+                          ),
+                      ],
                     ),
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (iconWidget != null)
+                        SizedBox(
+                          width: label.isEmpty ? 32 : 28,
+                          height: label.isEmpty ? 32 : 28,
+                          child: selected && tintOnSelected
+                              ? ColorFiltered(
+                                  colorFilter: const ColorFilter.mode(
+                                    Colors.white,
+                                    BlendMode.srcIn,
+                                  ),
+                                  child: iconWidget!,
+                                )
+                              : iconWidget!,
+                        )
+                      else
+                        Icon(
+                          icon,
+                          size: label.isEmpty ? 32 : 28,
+                          color: selected && tintOnSelected
+                              ? Colors.white
+                              : MasliveTheme.textPrimary,
+                        ),
+                      if (label.isNotEmpty) const SizedBox(height: 4),
+                      if (label.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            label,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: selected && tintOnSelected
+                                  ? Colors.white
+                                  : MasliveTheme.textSecondary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 8,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-              ],
-            ),
           ),
         ],
       ),

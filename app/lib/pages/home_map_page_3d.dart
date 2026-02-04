@@ -1034,15 +1034,13 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                               ),
                               const SizedBox(height: 8),
                               _ActionItem(
-                                label: l10n.AppLocalizations.of(
-                                  context,
-                                )!.parking,
+                                label: '',
                                 iconWidget: Image.asset(
                                   'assets/images/icon wc parking.png',
-                                  width: 30,
-                                  height: 30,
-                                  fit: BoxFit.contain,
+                                  fit: BoxFit.cover,
+                                  filterQuality: FilterQuality.high,
                                 ),
+                                fullBleed: true,
                                 selected: _selectedAction == _MapAction.parking,
                                 onTap: () {
                                   _selectAction(_MapAction.parking, 'Parking');
@@ -1053,6 +1051,25 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                               _ActionItem(
                                 label: '',
                                 icon: Icons.language_rounded,
+                                iconWidget: Obx(() {
+                                  final lang = Get.find<LanguageService>();
+                                  final flag = lang.getLanguageFlag(
+                                    lang.currentLanguageCode,
+                                  );
+                                  return Container(
+                                    color: Colors.white,
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      flag,
+                                      style: const TextStyle(
+                                        fontSize: 34,
+                                        height: 1,
+                                      ),
+                                    ),
+                                  );
+                                }),
+                                fullBleed: true,
+                                tintOnSelected: false,
                                 selected: _selectedAction == _MapAction.wc,
                                 onTap: () {
                                   _selectAction(_MapAction.wc, 'Langue');
@@ -1160,6 +1177,8 @@ class _ActionItem extends StatelessWidget {
   final Widget? iconWidget;
   final bool selected;
   final VoidCallback onTap;
+  final bool fullBleed;
+  final bool tintOnSelected;
 
   const _ActionItem({
     required this.label,
@@ -1167,6 +1186,8 @@ class _ActionItem extends StatelessWidget {
     this.iconWidget,
     required this.selected,
     required this.onTap,
+    this.fullBleed = false,
+    this.tintOnSelected = true,
   }) : assert(icon != null || iconWidget != null);
 
   @override
@@ -1185,43 +1206,66 @@ class _ActionItem extends StatelessWidget {
           ),
           boxShadow: selected ? MasliveTheme.cardShadow : const [],
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (iconWidget != null)
-              IconTheme(
-                data: IconThemeData(
-                  size: label.isEmpty ? 32 : 28,
-                  color:
-                      selected ? MasliveTheme.pink : MasliveTheme.textPrimary,
+        child: fullBleed
+            ? ClipOval(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (iconWidget != null) iconWidget!,
+                    if (icon != null)
+                      Center(
+                        child: Icon(
+                          icon,
+                          size: 28,
+                          color: selected && tintOnSelected
+                              ? MasliveTheme.pink
+                              : MasliveTheme.textPrimary,
+                        ),
+                      ),
+                  ],
                 ),
-                child: iconWidget!,
               )
-            else
-              Icon(
-                icon,
-                size: label.isEmpty ? 32 : 28,
-                color:
-                    selected ? MasliveTheme.pink : MasliveTheme.textPrimary,
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (iconWidget != null)
+                    IconTheme(
+                      data: IconThemeData(
+                        size: label.isEmpty ? 32 : 28,
+                        color: selected && tintOnSelected
+                            ? MasliveTheme.pink
+                            : MasliveTheme.textPrimary,
+                      ),
+                      child: iconWidget!,
+                    )
+                  else
+                    Icon(
+                      icon,
+                      size: label.isEmpty ? 32 : 28,
+                      color: selected && tintOnSelected
+                          ? MasliveTheme.pink
+                          : MasliveTheme.textPrimary,
+                    ),
+                  if (label.isNotEmpty) const SizedBox(height: 4),
+                  if (label.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: selected
+                              ? Colors.white
+                              : MasliveTheme.textSecondary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 8,
+                        ),
+                      ),
+                    ),
+                ],
               ),
-            if (label.isNotEmpty) const SizedBox(height: 4),
-            if (label.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: selected ? Colors.white : MasliveTheme.textSecondary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 8,
-                  ),
-                ),
-              ),
-          ],
-        ),
       ),
     );
   }
