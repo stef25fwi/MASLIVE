@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -649,6 +650,25 @@ class _XFileThumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb) {
+      return Image.network(
+        x.path,
+        width: 78,
+        height: 78,
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.low,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: 78,
+            height: 78,
+            color: Colors.black.withOpacity(0.04),
+            alignment: Alignment.center,
+            child: const Icon(Icons.broken_image_outlined, size: 20),
+          );
+        },
+      );
+    }
+
     return FutureBuilder<Uint8List>(
       future: x.readAsBytes(),
       builder: (context, snap) {

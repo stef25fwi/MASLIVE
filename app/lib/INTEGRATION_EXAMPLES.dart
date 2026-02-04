@@ -1,3 +1,4 @@
+// ignore_for_file: file_names, dangling_library_doc_comments
 /// EXEMPLE D'INTÉGRATION - MEDIA SHOP V2
 ///
 /// ⚠️ FICHIER OBSOLÈTE / DOCUMENTAIRE
@@ -8,3 +9,5 @@
 
 // Note: Ce fichier est conservé à titre de référence historique
 // mais ne contient pas de code compilable
+
+library integration_examples;
