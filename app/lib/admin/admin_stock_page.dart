@@ -18,6 +18,8 @@ class _AdminStockPageState extends State<AdminStockPage> {
   final _searchCtrl = TextEditingController();
   String _filter = 'all';
 
+  _SyncStatus? _syncStatus;
+
   static const _filters = <String>['all', 'low', 'out'];
 
   @override
@@ -27,12 +29,143 @@ class _AdminStockPageState extends State<AdminStockPage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _refreshSyncStatus();
+  }
+
+  Future<void> _refreshSyncStatus() async {
+    final shopId = widget.shopId;
+    if (shopId == null || shopId.trim().isEmpty) {
+      setState(() => _syncStatus = null);
+      return;
+    }
+
+    try {
+      final shopProductsSnap = await _db
+          .collection('shops')
+          .doc(shopId)
+          .collection('products')
+          .get();
+      final rootProductsSnap = await _db
+          .collection('products')
+          .where('shopId', isEqualTo: shopId)
+          .get();
+
+      final shopIds = shopProductsSnap.docs.map((d) => d.id).toSet();
+      final rootIds = rootProductsSnap.docs.map((d) => d.id).toSet();
+
+      final missingInRoot = shopIds.difference(rootIds);
+      final missingInShop = rootIds.difference(shopIds);
+
+      setState(() {
+        _syncStatus = _SyncStatus(
+          shopCount: shopIds.length,
+          rootCount: rootIds.length,
+          missingInRoot: missingInRoot.length,
+          missingInShop: missingInShop.length,
+        );
+      });
+    } catch (_) {
+      setState(() {
+        _syncStatus = const _SyncStatus(
+          shopCount: 0,
+          rootCount: 0,
+          missingInRoot: -1,
+          missingInShop: -1,
+          hasError: true,
+        );
+      });
+    }
+  }
+
+  Future<void> _syncMissingProducts() async {
+    final shopId = widget.shopId;
+    if (shopId == null || shopId.trim().isEmpty) {
+      return;
+    }
+
+    try {
+      final shopProductsSnap = await _db
+          .collection('shops')
+          .doc(shopId)
+          .collection('products')
+          .get();
+      final rootProductsSnap = await _db
+          .collection('products')
+          .where('shopId', isEqualTo: shopId)
+          .get();
+
+      final shopDocsById = {
+        for (final doc in shopProductsSnap.docs) doc.id: doc.data(),
+      };
+      final rootDocsById = {
+        for (final doc in rootProductsSnap.docs) doc.id: doc.data(),
+      };
+
+      final shopIds = shopDocsById.keys.toSet();
+      final rootIds = rootDocsById.keys.toSet();
+
+      final missingInRoot = shopIds.difference(rootIds);
+      final missingInShop = rootIds.difference(shopIds);
+
+      final batch = _db.batch();
+
+      for (final id in missingInRoot) {
+        final data = {...shopDocsById[id]!};
+        data['shopId'] = shopId;
+        data['updatedAt'] = FieldValue.serverTimestamp();
+        final ref = _db.collection('products').doc(id);
+        batch.set(ref, data, SetOptions(merge: true));
+      }
+
+      for (final id in missingInShop) {
+        final data = {...rootDocsById[id]!};
+        data['shopId'] = shopId;
+        data['updatedAt'] = FieldValue.serverTimestamp();
+        final ref = _db
+            .collection('shops')
+            .doc(shopId)
+            .collection('products')
+            .doc(id);
+        batch.set(ref, data, SetOptions(merge: true));
+      }
+
+      if (missingInRoot.isNotEmpty || missingInShop.isNotEmpty) {
+        await batch.commit();
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Synchro terminée ✅ (products: +${missingInRoot.length}, shops: +${missingInShop.length})',
+          ),
+        ),
+      );
+
+      await _refreshSyncStatus();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur synchro: $e')),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return AdminGate(
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Stock (Admin)'),
           actions: [
+            if (widget.shopId != null && widget.shopId!.trim().isNotEmpty)
+              IconButton(
+                tooltip: 'Synchroniser automatiquement',
+                onPressed: _syncMissingProducts,
+                icon: const Icon(Icons.sync),
+              ),
             IconButton(
               tooltip: 'Rafraîchir',
               onPressed: () => setState(() {}),
@@ -42,6 +175,8 @@ class _AdminStockPageState extends State<AdminStockPage> {
         ),
         body: Column(
           children: [
+            if (_syncStatus != null)
+              _SyncStatusBanner(status: _syncStatus!),
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -75,11 +210,19 @@ class _AdminStockPageState extends State<AdminStockPage> {
             const Divider(height: 1),
             Expanded(
               child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: _db
-                    .collection('products')
-                    .orderBy('updatedAt', descending: true)
-                    .limit(400)
-                    .snapshots(),
+              stream: (widget.shopId != null && widget.shopId!.trim().isNotEmpty)
+                ? _db
+                  .collection('shops')
+                  .doc(widget.shopId)
+                  .collection('products')
+                  .orderBy('updatedAt', descending: true)
+                  .limit(400)
+                  .snapshots()
+                : _db
+                  .collection('products')
+                  .orderBy('updatedAt', descending: true)
+                  .limit(400)
+                  .snapshots(),
                 builder: (context, snap) {
                   if (!snap.hasData) {
                     return const Center(child: CircularProgressIndicator());
@@ -467,5 +610,105 @@ class _AdminStockPageState extends State<AdminStockPage> {
     }
     newKeyCtrl.dispose();
     newQtyCtrl.dispose();
+  }
+}
+
+class _SyncStatus {
+  final int shopCount;
+  final int rootCount;
+  final int missingInRoot;
+  final int missingInShop;
+  final bool hasError;
+
+  const _SyncStatus({
+    required this.shopCount,
+    required this.rootCount,
+    required this.missingInRoot,
+    required this.missingInShop,
+    this.hasError = false,
+  });
+
+  bool get isHealthy => !hasError && missingInRoot == 0 && missingInShop == 0;
+  bool get hasMismatch => !hasError && (missingInRoot > 0 || missingInShop > 0);
+}
+
+class _SyncStatusBanner extends StatelessWidget {
+  const _SyncStatusBanner({required this.status});
+
+  final _SyncStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    if (status.hasError) {
+      return _buildBanner(
+        context,
+        color: Colors.red.shade50,
+        icon: Icons.error_outline,
+        title: 'Erreur de vérification stock',
+        subtitle: 'Impossible de comparer shops/{shopId}/products et products.',
+      );
+    }
+
+    if (status.isHealthy) {
+      return _buildBanner(
+        context,
+        color: Colors.green.shade50,
+        icon: Icons.check_circle_outline,
+        title: 'Stocks synchronisés',
+        subtitle:
+            'shops: ${status.shopCount} • products: ${status.rootCount}',
+      );
+    }
+
+    return _buildBanner(
+      context,
+      color: Colors.orange.shade50,
+      icon: Icons.warning_amber_rounded,
+      title: 'Incohérence détectée',
+      subtitle:
+          'Manquants → products: ${status.missingInRoot}, shops: ${status.missingInShop}',
+    );
+  }
+
+  Widget _buildBanner(
+    BuildContext context, {
+    required Color color,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.black12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.black54),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(color: Colors.black54),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
