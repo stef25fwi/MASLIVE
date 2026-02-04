@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import '../models/superadmin_article.dart';
 import '../services/superadmin_article_service.dart';
 import '../widgets/rainbow_header.dart';
@@ -14,7 +13,6 @@ class SuperadminArticlesPage extends StatefulWidget {
 
 class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
   final SuperadminArticleService _articleService = SuperadminArticleService();
-  final ImagePicker _imagePicker = ImagePicker();
   
   String _selectedCategory = 'tous'; // tous, casquette, tshirt, porteclé, bandana
 
@@ -24,9 +22,24 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
       body: HoneycombBackground(
         child: CustomScrollView(
           slivers: [
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: RainbowHeader(
                 title: 'Mes articles en ligne',
+                leading: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(999),
+                    onTap: () => Navigator.of(context).maybePop(),
+                    child: const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Icon(
+                        Icons.arrow_back,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
             // Filtre par catégorie
@@ -285,17 +298,15 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
               sku: article['sku'],
             );
             
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('✅ Article créé avec succès')),
-              );
-            }
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('✅ Article créé avec succès')),
+            );
           } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('❌ Erreur: $e')),
-              );
-            }
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('❌ Erreur: $e')),
+            );
           }
         },
       ),
@@ -320,18 +331,16 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
             );
             
             await _articleService.updateArticle(article.id, updated);
-            
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('✅ Article mis à jour')),
-              );
-            }
+
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('✅ Article mis à jour')),
+            );
           } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('❌ Erreur: $e')),
-              );
-            }
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('❌ Erreur: $e')),
+            );
           }
         },
       ),
@@ -362,14 +371,13 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
               try {
                 final newStock = int.parse(controller.text);
                 await _articleService.updateStock(article.id, newStock);
-                
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('✅ Stock mis à jour')),
-                  );
-                }
+                if (!context.mounted) return;
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('✅ Stock mis à jour')),
+                );
               } catch (e) {
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('❌ Erreur: $e')),
                 );
@@ -397,19 +405,16 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
             onPressed: () async {
               try {
                 await _articleService.deleteArticle(article.id);
-                
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('✅ Article supprimé')),
-                  );
-                }
+                if (!context.mounted) return;
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('✅ Article supprimé')),
+                );
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('❌ Erreur: $e')),
-                  );
-                }
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('❌ Erreur: $e')),
+                );
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -443,7 +448,6 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
   late TextEditingController _skuController;
   late String _selectedCategory;
   late String _imageUrl;
-  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -505,7 +509,7 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _selectedCategory,
+              initialValue: _selectedCategory,
               items: SuperadminArticleService.validCategories.map((cat) {
                 return DropdownMenuItem(
                   value: cat,

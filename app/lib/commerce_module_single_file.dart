@@ -2775,23 +2775,20 @@ class _PriceRangeDialogState extends State<_PriceRangeDialog> {
 // 7) MINI Provider Lite (pour éviter une dépendance provider)
 // ------------------------------------------------------------------------------
 
-class ChangeNotifierProviderLite extends InheritedWidget {
-  final ChangeNotifier notifier;
-
+class ChangeNotifierProviderLite extends InheritedNotifier<ChangeNotifier> {
   const ChangeNotifierProviderLite({
     super.key,
-    required this.notifier,
-    required super.child,
-  });
+    required ChangeNotifier notifier,
+    required Widget child,
+  }) : super(notifier: notifier, child: child);
 
   static T of<T extends ChangeNotifier>(BuildContext context) {
     final w = context.dependOnInheritedWidgetOfExactType<ChangeNotifierProviderLite>();
     if (w == null) throw Exception('ChangeNotifierProviderLite not found');
-    return w.notifier as T;
+    final n = w.notifier;
+    if (n == null) throw Exception('ChangeNotifierProviderLite notifier is null');
+    return n as T;
   }
-
-  @override
-  bool updateShouldNotify(ChangeNotifierProviderLite oldWidget) => oldWidget.notifier != notifier;
 }
 
 // ------------------------------------------------------------------------------
