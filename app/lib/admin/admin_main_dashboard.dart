@@ -19,7 +19,6 @@ import 'admin_logs_page.dart';
 import 'admin_system_settings_page.dart';
 import 'user_management_page.dart';
 import 'business_requests_page.dart';
-import '../pages/pending_products_page.dart';
 import 'create_circuit_assistant_page.dart';
 import 'poi_marketmap_wizard_page.dart';
 import '../commerce_module_single_file.dart';
@@ -49,13 +48,11 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
     return col.snapshots().map((snap) => snap.size);
   }
 
-  Stream<int> _watchPendingProductsCount({String? shopId}) {
-    final col = (shopId != null && shopId.trim().isNotEmpty)
-        ? _firestore.collection('shops').doc(shopId).collection('products')
-        : _firestore.collection('products');
-
-    return col
-        .where('moderationStatus', isEqualTo: 'pending')
+  /// Compte les articles en attente de validation dans commerce_submissions
+  Stream<int> _watchPendingCommerceSubmissionsCount() {
+    return _firestore
+        .collection('commerce_submissions')
+        .where('status', isEqualTo: 'pending')
         .snapshots()
         .map((snap) => snap.size);
   }
@@ -333,12 +330,12 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
               children: [
                 Expanded(
                   child: StreamBuilder<int>(
-                    stream: _watchPendingProductsCount(shopId: 'global'),
+                    stream: _watchPendingCommerceSubmissionsCount(),
                     builder: (context, snap) {
                       final count = snap.data ?? 0;
                       return _buildDashboardCard(
                         title: 'Articles à valider',
-                        subtitle: 'Modération des produits',
+                        subtitle: 'Modération des articles commerce',
                         icon: Icons.pending_actions,
                         color: Colors.orange,
                         badge: count <= 0
@@ -350,7 +347,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const PendingProductsPage(),
+                            builder: (_) => const AdminModerationPage(),
                           ),
                         ),
                       );
