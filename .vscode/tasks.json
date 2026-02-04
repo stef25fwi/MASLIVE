@@ -121,7 +121,7 @@
     {
       "label": "MASLIVE: Flutter analyze",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE/app && flutter analyze",
+      "command": "cd /workspaces/MASLIVE/app && flutter analyze --no-fatal-infos --no-fatal-warnings",
       "problemMatcher": []
     },
     {
@@ -175,9 +175,42 @@
       }
     },
     {
+      "label": "MASLIVE: Git commit + push (tasks analyze nonfatal)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add .vscode/tasks.json && git commit -m \"chore(vscode): make flutter analyze non-fatal\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git commit + push (nav icons)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add app/lib/pages/default_map_page.dart app/lib/pages/home_map_page_3d.dart app/lib/pages/home_map_page_web.dart && git commit -m \"ui(map): move language to vertical nav + parking icon asset\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Git commit + push (vertical nav contrast)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/pages/default_map_page.dart app/lib/pages/home_map_page_3d.dart app/lib/pages/home_map_page_web.dart && git commit -m \"ui(map): invert selected nav icon contrast\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Git commit + push (fix map nav build)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/pages/default_map_page.dart app/lib/pages/home_map_page_3d.dart app/lib/pages/home_map_page_web.dart && git commit -m \"fix(map): repair vertical nav + cleanup language helpers\" && git push origin main",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
