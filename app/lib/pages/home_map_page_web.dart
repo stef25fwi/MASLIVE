@@ -318,42 +318,6 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
     );
   }
 
-  Gradient _headerLanguageFlagGradient() {
-    final langService = Get.find<LanguageService>();
-    switch (langService.currentLanguageCode) {
-      case 'fr':
-        return const LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [Color(0xFF0055A4), Color(0xFFFFFFFF), Color(0xFFEF4135)],
-          stops: [0.0, 0.5, 1.0],
-        );
-      case 'en':
-        return const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF012169), Color(0xFFC8102E)],
-          stops: [0.4, 0.6],
-        );
-      case 'es':
-        return const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFC60B1E), Color(0xFFFFC400), Color(0xFFC60B1E)],
-          stops: [0.0, 0.5, 1.0],
-        );
-      default:
-        return const LinearGradient(
-          colors: [Color(0xFF0066FF), Color(0xFF0066FF)],
-        );
-    }
-  }
-
-  String _headerLanguageCode() {
-    final langService = Get.find<LanguageService>();
-    return langService.currentLanguageCode.toUpperCase();
-  }
-
   void _cycleLanguage() {
     final langService = Get.find<LanguageService>();
     final langs = ['fr', 'en', 'es'];
@@ -1052,8 +1016,6 @@ class _ActionItem extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
-  final Color? color;
-  final String? customText;
 
   const _ActionItem({
     required this.label,
@@ -1062,8 +1024,6 @@ class _ActionItem extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.onLongPress,
-    this.color,
-    this.customText,
   }) : assert(icon != null || iconWidget != null);
 
   @override
@@ -1079,18 +1039,10 @@ class _ActionItem extends StatelessWidget {
             height: 60,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: (selected && customText == null)
-                  ? MasliveTheme.actionGradient
-                  : null,
-              color: customText != null
-                  ? (color ?? MasliveTheme.pink)
-                  : (selected
-                      ? null
-                      : Colors.white.withValues(alpha: 0.92)),
+              gradient: selected ? MasliveTheme.actionGradient : null,
+              color: selected ? null : Colors.white.withValues(alpha: 0.92),
               border: Border.all(
-                color: selected
-                    ? (color ?? MasliveTheme.pink)
-                    : MasliveTheme.divider,
+                color: selected ? MasliveTheme.pink : MasliveTheme.divider,
                 width: selected ? 2.0 : 1.0,
               ),
               boxShadow: selected ? MasliveTheme.cardShadow : const [],
@@ -1098,72 +1050,44 @@ class _ActionItem extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (customText != null) ...[
-                  Text(
-                    customText!,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      height: 1.0,
-                    ),
+                if (iconWidget != null)
+                  SizedBox(
+                    width: label.isEmpty ? 32 : 28,
+                    height: label.isEmpty ? 32 : 28,
+                    child: selected
+                        ? ColorFiltered(
+                            colorFilter: const ColorFilter.mode(
+                              Colors.white,
+                              BlendMode.srcIn,
+                            ),
+                            child: iconWidget!,
+                          )
+                        : iconWidget!,
+                  )
+                else
+                  Icon(
+                    icon,
+                    size: label.isEmpty ? 32 : 28,
+                    color: selected ? Colors.white : MasliveTheme.textPrimary,
                   ),
-                  if (label.isNotEmpty) const SizedBox(height: 2),
-                  if (label.isNotEmpty)
-                    Text(
+                if (label.isNotEmpty) const SizedBox(height: 4),
+                if (label.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Text(
                       label,
                       textAlign: TextAlign.center,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: selected
+                            ? Colors.white
+                            : MasliveTheme.textSecondary,
                         fontWeight: FontWeight.w700,
-                        fontSize: 9,
-                        height: 1.0,
+                        fontSize: 8,
                       ),
                     ),
-                ] else ...[
-                  if (iconWidget != null)
-                    SizedBox(
-                      width: label.isEmpty ? 32 : 28,
-                      height: label.isEmpty ? 32 : 28,
-                      child: selected
-                          ? ColorFiltered(
-                              colorFilter: const ColorFilter.mode(
-                                Colors.white,
-                                BlendMode.srcIn,
-                              ),
-                              child: iconWidget!,
-                            )
-                          : iconWidget!,
-                    )
-                  else
-                    Icon(
-                      icon,
-                      size: label.isEmpty ? 32 : 28,
-                      color: selected
-                          ? Colors.white
-                          : (color ?? MasliveTheme.textPrimary),
-                    ),
-                  if (label.isNotEmpty) const SizedBox(height: 4),
-                  if (label.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Text(
-                        label,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: selected
-                              ? Colors.white
-                              : (color ?? MasliveTheme.textSecondary),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 8,
-                        ),
-                      ),
-                    ),
-                ],
+                  ),
               ],
             ),
           ),

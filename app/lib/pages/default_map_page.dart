@@ -251,42 +251,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     }
   }
 
-  Gradient _headerLanguageFlagGradient() {
-    final langService = Get.find<LanguageService>();
-    switch (langService.currentLanguageCode) {
-      case 'fr':
-        return const LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [Color(0xFF0055A4), Color(0xFFFFFFFF), Color(0xFFEF4135)],
-          stops: [0.0, 0.5, 1.0],
-        );
-      case 'en':
-        return const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF012169), Color(0xFFC8102E)],
-          stops: [0.4, 0.6],
-        );
-      case 'es':
-        return const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFC60B1E), Color(0xFFFFC400), Color(0xFFC60B1E)],
-          stops: [0.0, 0.5, 1.0],
-        );
-      default:
-        return const LinearGradient(
-          colors: [Color(0xFF0066FF), Color(0xFF0066FF)],
-        );
-    }
-  }
-
-  String _headerLanguageCode() {
-    final langService = Get.find<LanguageService>();
-    return langService.currentLanguageCode.toUpperCase();
-  }
-
   void _cycleLanguage() {
     final langService = Get.find<LanguageService>();
     final langs = ['fr', 'en', 'es'];

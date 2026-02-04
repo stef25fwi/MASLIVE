@@ -763,42 +763,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     }
   }
 
-  Gradient _headerLanguageFlagGradient() {
-    final langService = Get.find<LanguageService>();
-    switch (langService.currentLanguageCode) {
-      case 'fr':
-        return const LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [Color(0xFF0055A4), Color(0xFFFFFFFF), Color(0xFFEF4135)],
-          stops: [0.0, 0.5, 1.0],
-        );
-      case 'en':
-        return const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF012169), Color(0xFFC8102E)],
-          stops: [0.4, 0.6],
-        );
-      case 'es':
-        return const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFC60B1E), Color(0xFFFFC400), Color(0xFFC60B1E)],
-          stops: [0.0, 0.5, 1.0],
-        );
-      default:
-        return const LinearGradient(
-          colors: [Color(0xFF0066FF), Color(0xFF0066FF)],
-        );
-    }
-  }
-
-  String _headerLanguageCode() {
-    final langService = Get.find<LanguageService>();
-    return langService.currentLanguageCode.toUpperCase();
-  }
-
   void _cycleLanguage() {
     final langService = Get.find<LanguageService>();
     final langs = ['fr', 'en', 'es'];
@@ -1126,25 +1090,21 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                 height: 60,
                 borderRadius: BorderRadius.zero,
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                      if (iconWidget != null)
-                        SizedBox(
-                          width: label.isEmpty ? 32 : 28,
-                          height: label.isEmpty ? 32 : 28,
-                          child: selected
-                              ? ColorFiltered(
-                                  colorFilter: const ColorFilter.mode(
-                                    Colors.white,
-                                    BlendMode.srcIn,
-                                  ),
-                                  child: iconWidget!,
-                                )
-                              : iconWidget!,
-                        )
+                backgroundColor: Colors.transparent,
+                child: Row(
+                  children: [
+                    StreamBuilder<User?>(
+                      stream: AuthService.instance.authStateChanges,
+                      builder: (context, snap) {
+                        final user = snap.data;
+                        final pseudo =
+                            (user?.displayName ?? user?.email ?? 'Profil')
                                 .trim();
 
                         return Tooltip(
                           message: pseudo.isEmpty ? 'Profil' : pseudo,
-                          color: selected ? Colors.white : MasliveTheme.textPrimary,
+                          child: InkWell(
+                            onTap: () {
                               if (user != null) {
                                 Navigator.pushNamed(context, '/account-ui');
                               } else {
