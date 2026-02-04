@@ -886,9 +886,12 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                                 label: l10n.AppLocalizations.of(
                                   context,
                                 )!.parking,
-                                icon: Icons.local_parking_rounded,
-                                customText: 'P',
-                                color: const Color(0xFF0D97EB),
+                                iconWidget: Image.asset(
+                                  'assets/images/icon wc parking.png',
+                                  width: 30,
+                                  height: 30,
+                                  fit: BoxFit.contain,
+                                ),
                                 selected: _selected == _MapAction.parking,
                                 onTap: () {
                                   setState(() {
@@ -900,14 +903,13 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                               const SizedBox(height: 8),
                               _ActionItem(
                                 label: '',
-                                icon: Icons.wc_rounded,
-                                selected: _selected == _MapAction.wc,
+                                icon: Icons.language_rounded,
+                                selected: false,
                                 onTap: () {
-                                  setState(() {
-                                    _selected = _MapAction.wc;
-                                  });
+                                  _cycleLanguage();
                                   _closeNavWithDelay();
                                 },
+                                onLongPress: _openLanguagePicker,
                               ),
                             ],
                           ),
@@ -1004,64 +1006,6 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                     ),
                     const SizedBox(width: 12),
                     const Spacer(),
-                    Tooltip(
-                      message: l10n.AppLocalizations.of(context)!.language,
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: _cycleLanguage,
-                          onLongPress: _openLanguagePicker,
-                          customBorder: const CircleBorder(),
-                          child: Container(
-                            width: 46,
-                            height: 46,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: _headerLanguageFlagGradient(),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(
-                                    0xFF9B6BFF,
-                                  ).withValues(alpha: 0.22),
-                                  blurRadius: 18,
-                                  spreadRadius: 1,
-                                  offset: const Offset(0, 10),
-                                ),
-                                BoxShadow(
-                                  color: const Color(
-                                    0xFFFF7AAE,
-                                  ).withValues(alpha: 0.16),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
-                            ),
-                            child: Center(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.5),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  _headerLanguageCode(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 14,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
                     MasliveGradientIconButton(
                       icon: Icons.shopping_bag_rounded,
                       tooltip: l10n.AppLocalizations.of(context)!.shop,
@@ -1100,25 +1044,30 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
 
 class _ActionItem extends StatelessWidget {
   final String label;
-  final IconData icon;
+  final IconData? icon;
+  final Widget? iconWidget;
   final bool selected;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
   final Color? color;
   final String? customText;
 
   const _ActionItem({
     required this.label,
-    required this.icon,
+    this.icon,
+    this.iconWidget,
     required this.selected,
     required this.onTap,
+    this.onLongPress,
     this.color,
     this.customText,
-  });
+  }) : assert(icon != null || iconWidget != null);
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1166,13 +1115,16 @@ class _ActionItem extends StatelessWidget {
                       ),
                     ),
                 ] else ...[
-                  Icon(
-                    icon,
-                    size: label.isEmpty ? 32 : 28,
-                    color: selected
-                        ? (color ?? MasliveTheme.pink)
-                        : (color ?? MasliveTheme.textPrimary),
-                  ),
+                  if (iconWidget != null)
+                    iconWidget!
+                  else
+                    Icon(
+                      icon,
+                      size: label.isEmpty ? 32 : 28,
+                      color: selected
+                          ? (color ?? MasliveTheme.pink)
+                          : (color ?? MasliveTheme.textPrimary),
+                    ),
                   if (label.isNotEmpty) const SizedBox(height: 4),
                   if (label.isNotEmpty)
                     Padding(
