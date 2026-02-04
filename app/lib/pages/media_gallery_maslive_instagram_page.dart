@@ -25,19 +25,6 @@ class _MediaGalleryMasliveInstagramPageState
   static const Color _bg = Colors.white;
 
   // Très léger (premium), évite l’arc-en-ciel agressif
-  static const List<Color> _rainbow = [
-    Color(0xFFFF4D4D), // red
-    Color(0xFFFFA24D), // orange
-    Color(0xFFFFE04D), // yellow
-    Color(0xFF4DFF88), // green
-    Color(0xFF4DD2FF), // cyan
-    Color(0xFF4D79FF), // blue
-    Color(0xFFA04DFF), // purple
-  ];
-
-  static const Color _ink = Color(0xFF0D0F12);
-  static const Color _ink2 = Color(0xFF2B2F36);
-
   // Honeycomb ultra discret (style MAS’LIVE)
   static const double _honeyOpacity = 0.06;
 

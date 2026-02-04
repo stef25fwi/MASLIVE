@@ -11,7 +11,6 @@ import '../admin/admin_main_dashboard.dart';
 import '../admin/admin_stock_page.dart';
 import '../admin/admin_product_categories_page.dart';
 import '../admin/commerce_analytics_page.dart';
-import '../commerce_module_single_file.dart';
 import 'shop_page_new.dart';
 
 const Color _adminAccent = Color(0xFF1E88E5);
