@@ -351,10 +351,17 @@ class StorageService {
     required String parentType,
     void Function(double progress)? onProgress,
   }) async {
+    print('🔧 [StorageService] Début upload: $path');
+    
     final user = _currentUser;
-    if (user == null) throw Exception('User not authenticated');
+    if (user == null) {
+      print('❌ [StorageService] User non authentifié');
+      throw Exception('User not authenticated');
+    }
+    print('✅ [StorageService] User authentifié: ${user.uid}');
 
     final ref = _storage.ref(path);
+    print('✅ [StorageService] Référence Storage créée: $path');
     
     // Métadonnées
     final metadata = SettableMetadata(
@@ -368,29 +375,43 @@ class StorageService {
         'parentType': parentType,
       },
     );
+    print('✅ [StorageService] Métadonnées créées');
 
     UploadTask uploadTask;
 
-    if (kIsWeb) {
-      // Web: utiliser bytes
-      final bytes = await file.readAsBytes();
-      uploadTask = ref.putData(bytes, metadata);
-    } else {
-      // Mobile: utiliser File
-      final ioFile = File(file.path);
-      uploadTask = ref.putFile(ioFile, metadata);
-    }
+    try {
+      if (kIsWeb) {
+        print('🌐 [StorageService] Mode WEB - lecture bytes...');
+        final bytes = await file.readAsBytes();
+        print('✅ [StorageService] ${bytes.length} bytes lus');
+        uploadTask = ref.putData(bytes, metadata);
+      } else {
+        print('📱 [StorageService] Mode MOBILE - lecture fichier...');
+        final ioFile = File(file.path);
+        print('✅ [StorageService] Fichier créé: ${file.path}');
+        uploadTask = ref.putFile(ioFile, metadata);
+      }
+      print('✅ [StorageService] UploadTask créée');
 
-    // Surveiller progression
-    if (onProgress != null) {
-      uploadTask.snapshotEvents.listen((snapshot) {
-        final progress = snapshot.bytesTransferred / snapshot.totalBytes;
-        onProgress(progress);
-      });
-    }
+      // Surveiller progression
+      if (onProgress != null) {
+        uploadTask.snapshotEvents.listen((snapshot) {
+          final progress = snapshot.bytesTransferred / snapshot.totalBytes;
+          onProgress(progress);
+        });
+      }
 
-    await uploadTask;
-    return await ref.getDownloadURL();
+      print('⏳ [StorageService] Attente fin upload...');
+      await uploadTask;
+      print('✅ [StorageService] Upload terminé');
+      
+      final downloadUrl = await ref.getDownloadURL();
+      print('✅ [StorageService] URL récupérée: $downloadUrl');
+      return downloadUrl;
+    } catch (e) {
+      print('❌ [StorageService] Erreur upload: $e');
+      rethrow;
+    }
   }
 
   /// Supprime un dossier récursivement

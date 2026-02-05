@@ -80,16 +80,27 @@ class _CreateProductPageState extends State<CreateProductPage> {
 
   Future<void> _pickImages() async {
     try {
+      print('📸 Début sélection images...');
       final files = await _picker.pickMultiImage(imageQuality: 88);
+      print('📸 ${files.length} images sélectionnées');
+      
       if (files.isNotEmpty && mounted) {
         setState(() {
           _selectedFiles.addAll(files);
         });
+        print('✅ Images ajoutées: ${_selectedFiles.length} total');
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('✅ ${files.length} image(s) ajoutée(s)')),
+        );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur sélection: $e')),
-      );
+      print('❌ Erreur sélection images: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Erreur sélection: $e')),
+        );
+      }
     }
   }
 
@@ -118,35 +129,58 @@ class _CreateProductPageState extends State<CreateProductPage> {
 
       // Upload des nouveaux fichiers
       if (_selectedFiles.isNotEmpty) {
+        print('📤 Début upload de ${_selectedFiles.length} fichiers...');
         String submissionId = _existing?.id ?? 'temp_${DateTime.now().millisecondsSinceEpoch}';
+        print('📤 SubmissionId: $submissionId, ScopeId: ${_scopeId.isEmpty ? "global" : _scopeId}');
 
         if (kIsWeb) {
-          for (final file in _selectedFiles) {
-            final bytes = await file.readAsBytes();
-            final url = await _service.uploadMediaBytes(
+          print('📤 Mode WEB détecté');
+          for (int i = 0; i < _selectedFiles.length; i++) {
+            final file = _selectedFiles[i];
+            print('📤 Upload fichier ${i + 1}/${_selectedFiles.length}: ${file.name}');
+            try {
+              final bytes = await file.readAsBytes();
+              print('📤 Bytes lus: ${bytes.length}');
+              
+              final url = await _service.uploadMediaBytes(
+                scopeId: _scopeId.isEmpty ? 'global' : _scopeId,
+                submissionId: submissionId,
+                bytes: bytes,
+                filename: file.name,
+                onProgress: (progress) {
+                  print('📤 Progression: ${(progress * 100).toStringAsFixed(0)}%');
+                  setState(() => _uploadProgress = progress);
+                },
+              );
+              print('✅ Upload réussi: $url');
+              _mediaUrls.add(url);
+            } catch (e) {
+              print('❌ Erreur upload fichier ${i + 1}: $e');
+              throw Exception('Échec upload fichier ${file.name}: $e');
+            }
+          }
+        } else {
+          print('📤 Mode MOBILE détecté');
+          try {
+            final files = _selectedFiles.map((xf) => File(xf.path)).toList();
+            final urls = await _service.uploadMediaFiles(
               scopeId: _scopeId.isEmpty ? 'global' : _scopeId,
               submissionId: submissionId,
-              bytes: bytes,
-              filename: file.name,
+              files: files,
               onProgress: (progress) {
+                print('📤 Progression globale: ${(progress * 100).toStringAsFixed(0)}%');
                 setState(() => _uploadProgress = progress);
               },
             );
-            _mediaUrls.add(url);
+            print('✅ Upload de ${urls.length} fichiers réussi');
+            _mediaUrls.addAll(urls);
+          } catch (e) {
+            print('❌ Erreur upload mobile: $e');
+            throw Exception('Échec upload: $e');
           }
-        } else {
-          final files = _selectedFiles.map((xf) => File(xf.path)).toList();
-          final urls = await _service.uploadMediaFiles(
-            scopeId: _scopeId.isEmpty ? 'global' : _scopeId,
-            submissionId: submissionId,
-            files: files,
-            onProgress: (progress) {
-              setState(() => _uploadProgress = progress);
-            },
-          );
-          _mediaUrls.addAll(urls);
         }
         _selectedFiles.clear();
+        print('✅ Upload terminé, URLs totales: ${_mediaUrls.length}');
       }
 
       if (_isEditing && _existing != null) {
@@ -217,33 +251,50 @@ class _CreateProductPageState extends State<CreateProductPage> {
 
       // Upload des fichiers
       if (_selectedFiles.isNotEmpty) {
+        print('📤 [Review] Début upload de ${_selectedFiles.length} fichiers...');
         String submissionId = _existing?.id ?? 'temp_${DateTime.now().millisecondsSinceEpoch}';
 
         if (kIsWeb) {
-          for (final file in _selectedFiles) {
-            final bytes = await file.readAsBytes();
-            final url = await _service.uploadMediaBytes(
+          print('📤 [Review] Mode WEB');
+          for (int i = 0; i < _selectedFiles.length; i++) {
+            final file = _selectedFiles[i];
+            print('📤 [Review] Upload ${i + 1}/${_selectedFiles.length}: ${file.name}');
+            try {
+              final bytes = await file.readAsBytes();
+              final url = await _service.uploadMediaBytes(
+                scopeId: _scopeId.isEmpty ? 'global' : _scopeId,
+                submissionId: submissionId,
+                bytes: bytes,
+                filename: file.name,
+                onProgress: (progress) {
+                  setState(() => _uploadProgress = progress);
+                },
+              );
+              print('✅ [Review] Upload réussi: $url');
+              _mediaUrls.add(url);
+            } catch (e) {
+              print('❌ [Review] Erreur upload: $e');
+              throw Exception('Échec upload ${file.name}: $e');
+            }
+          }
+        } else {
+          print('📤 [Review] Mode MOBILE');
+          try {
+            final files = _selectedFiles.map((xf) => File(xf.path)).toList();
+            final urls = await _service.uploadMediaFiles(
               scopeId: _scopeId.isEmpty ? 'global' : _scopeId,
               submissionId: submissionId,
-              bytes: bytes,
-              filename: file.name,
+              files: files,
               onProgress: (progress) {
                 setState(() => _uploadProgress = progress);
               },
             );
-            _mediaUrls.add(url);
+            print('✅ [Review] ${urls.length} fichiers uploadés');
+            _mediaUrls.addAll(urls);
+          } catch (e) {
+            print('❌ [Review] Erreur: $e');
+            throw Exception('Échec upload: $e');
           }
-        } else {
-          final files = _selectedFiles.map((xf) => File(xf.path)).toList();
-          final urls = await _service.uploadMediaFiles(
-            scopeId: _scopeId.isEmpty ? 'global' : _scopeId,
-            submissionId: submissionId,
-            files: files,
-            onProgress: (progress) {
-              setState(() => _uploadProgress = progress);
-            },
-          );
-          _mediaUrls.addAll(urls);
         }
         _selectedFiles.clear();
       }
