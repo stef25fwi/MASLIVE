@@ -113,6 +113,7 @@ firebase-debug.log
 
 # Firebase service account key (NEVER commit this!)
 serviceAccountKey.json
+*firebase-adminsdk*.json
 
 # Firebase Functions / Node
 functions/node_modules/
