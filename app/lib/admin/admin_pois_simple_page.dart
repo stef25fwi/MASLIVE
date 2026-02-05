@@ -266,7 +266,7 @@ class _AdminPOIsSimplePageState extends State<AdminPOIsSimplePage> {
       case 'market':
         return Colors.orange;
       case 'visit':
-        return Colors.purple;
+        return Colors.blue;
       case 'food':
         return Colors.red;
       case 'wc':

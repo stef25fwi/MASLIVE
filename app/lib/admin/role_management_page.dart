@@ -24,7 +24,7 @@ class _RoleManagementPageState extends State<RoleManagementPage> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Gestion des Rôles'),
-          backgroundColor: const Color(0xFFB66CFF), // Violet
+          backgroundColor: const Color(0xFF2196F3), // Bleu
           actions: [
             IconButton(
               icon: const Icon(Icons.refresh),
@@ -301,7 +301,7 @@ class _RoleManagementPageState extends State<RoleManagementPage> {
       case 'superAdmin':
         return Colors.red;
       case 'admin':
-        return Colors.purple;
+        return Colors.blue;
       case 'group':
         return Colors.blue;
       case 'tracker':

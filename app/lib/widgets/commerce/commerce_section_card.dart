@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../pages/commerce/create_product_page.dart';
 import '../../pages/commerce/create_media_page.dart';
 import '../../pages/commerce/my_submissions_page.dart';
@@ -8,16 +7,6 @@ import '../../pages/superadmin_articles_page.dart';
 /// Carte Commerce pour intégration dans les profils
 class CommerceSectionCard extends StatelessWidget {
   const CommerceSectionCard({super.key});
-
-  Future<bool> _isSuperAdmin() async {
-    try {
-      final uid = FirebaseFirestore.instance.app.options.projectId;
-      // Vérifier si l'utilisateur est superadmin
-      return false; // Sera remplacé par une vérification réelle
-    } catch (_) {
-      return false;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

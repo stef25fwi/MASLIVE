@@ -284,23 +284,28 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                           : () async {
                               final ok = await showDialog<bool>(
                                 context: ctx,
-                                builder: (confirmCtx) => AlertDialog(
-                                  title: const Text('Supprimer la commande ?'),
-                                  content: const Text(
-                                    'Cette action est irréversible.',
+                                builder: (confirmCtx) => Dialog(
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 700),
+                                    child: AlertDialog(
+                                      title: const Text('Supprimer la commande ?'),
+                                      content: const Text(
+                                        'Cette action est irréversible.',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(confirmCtx, false),
+                                          child: const Text('Annuler'),
+                                        ),
+                                        FilledButton(
+                                          onPressed: () =>
+                                              Navigator.pop(confirmCtx, true),
+                                          child: const Text('Supprimer'),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(confirmCtx, false),
-                                      child: const Text('Annuler'),
-                                    ),
-                                    FilledButton(
-                                      onPressed: () =>
-                                          Navigator.pop(confirmCtx, true),
-                                      child: const Text('Supprimer'),
-                                    ),
-                                  ],
                                 ),
                               );
                               if (ok != true) return;
@@ -444,7 +449,7 @@ class _StatusBadge extends StatelessWidget {
       case 'confirmed':
         return Colors.blue;
       case 'shipped':
-        return Colors.purple;
+        return Colors.blue;
       case 'delivered':
         return Colors.green;
       case 'cancelled':

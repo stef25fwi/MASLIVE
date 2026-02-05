@@ -3,11 +3,11 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/services.dart';
 
 import 'create_product_dialog.dart';
 import '../pages/shop_page_new.dart';
+import '../services/storage_service.dart';
 
 /// Page de gestion des produits
 class AdminProductsPage extends StatefulWidget {
@@ -21,6 +21,7 @@ class AdminProductsPage extends StatefulWidget {
 
 class _AdminProductsPageState extends State<AdminProductsPage> {
   final _firestore = FirebaseFirestore.instance;
+  final _storageService = StorageService.instance;
   String _searchQuery = '';
   String? _filterCategory;
 
@@ -730,6 +731,8 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
     await showCreateProductDialog(context: context, shopId: widget.shopId);
   }
 
+  /// Édite la photo d'un produit
+  /// ✅ Utilise StorageService avec structure organisée: products/{shopId}/{productId}/original/0.jpg
   Future<void> _editProductPhoto(
     String productId,
     Map<String, dynamic> data,
@@ -758,31 +761,22 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
     if (source == null) return;
 
     try {
-      final file = await picker.pickImage(source: source);
-      if (file == null) return;
+      final xfile = await picker.pickImage(source: source);
+      if (xfile == null) return;
 
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Upload en cours...')));
 
-      // Upload vers Firebase Storage
-      final fileName =
-          'products/$productId/${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final ref = FirebaseStorage.instance.ref(fileName);
-      final uploadTask = ref.putFile(
-        file as dynamic,
-        SettableMetadata(contentType: 'image/jpeg'),
+      // Upload via StorageService avec structure organisée
+      final shopId = (data['shopId'] as String?) ?? widget.shopId;
+      final downloadUrl = await _storageService.uploadProductPhoto(
+        productId: productId,
+        file: xfile,
+        shopId: shopId,
+        index: 0, // Photo principale
       );
-
-      uploadTask.snapshotEvents.listen((event) {
-        if (event.state == TaskState.success) {
-          // L'upload s'est bien passé
-        }
-      });
-
-      await uploadTask;
-      final downloadUrl = await ref.getDownloadURL();
 
       // Mise à jour du produit
       await _firestore.collection('products').doc(productId).update({
@@ -791,7 +785,6 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
       });
 
       // Mise à jour du miroir shop
-      final shopId = (data['shopId'] as String?) ?? widget.shopId;
       await _firestore
           .collection('shops')
           .doc(shopId)
@@ -842,290 +835,220 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
     showDialog(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          title: const Text('Modifier le produit'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nom du produit',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: descController,
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 16),
-                Row(
+        builder: (dialogContext, setDialogState) => Dialog(
+          insetPadding: const EdgeInsets.all(16),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 900,
+              maxHeight: MediaQuery.of(context).size.height * 0.9,
+            ),
+            child: AlertDialog(
+              title: const Text('Modifier le produit'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: priceController,
-                        decoration: const InputDecoration(
-                          labelText: 'Prix (€)',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nom du produit',
+                        border: OutlineInputBorder(),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: stockController,
-                        decoration: const InputDecoration(
-                          labelText: 'Stock',
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.number,
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: descController,
+                      decoration: const InputDecoration(
+                        labelText: 'Description',
+                        border: OutlineInputBorder(),
                       ),
+                      maxLines: 3,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: selectedCategory,
-                        decoration: const InputDecoration(
-                          labelText: 'Catégorie',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: _categories
-                            .map(
-                              (cat) => DropdownMenuItem(
-                                value: cat,
-                                child: Text(cat),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            setDialogState(() => selectedCategory = value);
-                          }
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: selectedGroup,
-                        decoration: const InputDecoration(
-                          labelText: 'Groupe',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: _groups
-                            .map(
-                              (grp) => DropdownMenuItem(
-                                value: grp,
-                                child: Text(grp),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            setDialogState(() => selectedGroup = value);
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // Aperçu image amélioré
-                Container(
-                  width: double.infinity,
-                  height: 200,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(8),
-                    color: Colors.grey[50],
-                  ),
-                  child: imageController.text.isNotEmpty
-                      ? (imageController.text.startsWith('assets/')
-                            ? Image.asset(
-                                imageController.text,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    Center(
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.image,
-                                            size: 48,
-                                            color: Colors.grey[400],
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'Asset non trouvé',
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                              )
-                            : Image.network(
-                                imageController.text,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    Center(
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.broken_image,
-                                            size: 48,
-                                            color: Colors.grey[400],
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'URL invalide',
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                              ))
-                      : Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.image_not_supported,
-                                size: 48,
-                                color: Colors.grey[400],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Aucune image',
-                                style: TextStyle(color: Colors.grey[600]),
-                              ),
-                            ],
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: priceController,
+                            decoration: const InputDecoration(
+                              labelText: 'Prix (€)',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
                           ),
                         ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: imageController,
-                        decoration: const InputDecoration(
-                          labelText: 'URL de l\'image',
-                          border: OutlineInputBorder(),
-                          hintText: 'assets/... ou https://...',
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: stockController,
+                            decoration: const InputDecoration(
+                              labelText: 'Stock',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
                         ),
-                        onChanged: (value) => setDialogState(() {}),
-                      ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    FilledButton.tonal(
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: selectedCategory,
+                            decoration: const InputDecoration(
+                              labelText: 'Catégorie',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: _categories
+                                .map(
+                                  (cat) => DropdownMenuItem(
+                                    value: cat,
+                                    child: Text(cat),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              if (value != null) {
+                                setDialogState(() => selectedCategory = value);
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: selectedGroup,
+                            decoration: const InputDecoration(
+                              labelText: 'Groupe',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: _groups
+                                .map(
+                                  (grp) => DropdownMenuItem(
+                                    value: grp,
+                                    child: Text(grp),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              if (value != null) {
+                                setDialogState(() => selectedGroup = value);
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      height: 200,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey[300]!),
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.grey[50],
+                      ),
+                      child: imageController.text.isNotEmpty
+                          ? (imageController.text.startsWith('assets/')
+                              ? Image.asset(
+                                  imageController.text,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      _buildImageError(
+                                    icon: Icons.image,
+                                    label: 'Asset non trouvé',
+                                  ),
+                                )
+                              : Image.network(
+                                  imageController.text,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      _buildImageError(
+                                    icon: Icons.broken_image,
+                                    label: 'URL invalide',
+                                  ),
+                                ))
+                          : _buildImageError(
+                              icon: Icons.image_not_supported,
+                              label: 'Aucune image',
+                            ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: imageController,
+                            decoration: const InputDecoration(
+                              labelText: 'URL de l\'image',
+                              border: OutlineInputBorder(),
+                              hintText: 'assets/... ou https://...',
+                            ),
+                            onChanged: (value) => setDialogState(() {}),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton.tonal(
+                          onPressed: () async {
+                            Navigator.pop(dialogContext);
+                            await _editProductPhoto(productId, data);
+                          },
+                          child: const Icon(Icons.upload),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    SwitchListTile(
+                      title: const Text('Disponible'),
+                      value: isAvailable,
+                      onChanged: (value) =>
+                          setDialogState(() => isAvailable = value),
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton.icon(
                       onPressed: () async {
                         Navigator.pop(dialogContext);
-                        await _editProductPhoto(productId, data);
+                        final productName = ((data['name'] ?? data['title']) ?? '')
+                            .toString();
+                        await _deleteProduct(
+                          productId,
+                          productName,
+                          shopId: shopIdFromDoc,
+                        );
                       },
-                      child: const Icon(Icons.upload),
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      label: const Text(
+                        'Supprimer',
+                        style: TextStyle(color: Colors.red),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                SwitchListTile(
-                  title: const Text('Disponible'),
-                  value: isAvailable,
-                  onChanged: (value) =>
-                      setDialogState(() => isAvailable = value),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Annuler'),
                 ),
-                const SizedBox(height: 16),
-                TextButton.icon(
+                FilledButton(
                   onPressed: () async {
-                    Navigator.pop(dialogContext);
-                    final productName = ((data['name'] ?? data['title']) ?? '')
-                        .toString();
-                    await _deleteProduct(
-                      productId,
-                      productName,
-                      shopId: shopIdFromDoc,
-                    );
-                  },
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  label: const Text(
-                    'Supprimer',
-                    style: TextStyle(color: Colors.red),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annuler'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                final navigator = Navigator.of(dialogContext);
-                final messenger = ScaffoldMessenger.of(this.context);
+                    final navigator = Navigator.of(dialogContext);
+                    final messenger = ScaffoldMessenger.of(this.context);
 
-                try {
-                  final price = double.tryParse(priceController.text) ?? 0.0;
-                  final stock = int.tryParse(stockController.text) ?? 0;
+                    try {
+                      final price = double.tryParse(priceController.text) ?? 0.0;
+                      final stock = int.tryParse(stockController.text) ?? 0;
 
-                  await _firestore.collection('products').doc(productId).update(
-                    {
-                      'name': nameController.text.trim(),
-                      'title': nameController.text.trim(),
-                      'description': descController.text.trim(),
-                      'price': price,
-                      'priceCents': (price * 100).round(),
-                      'stock': stock,
-                      'stockByVariant': <String, int>{'default|default': stock},
-                      'category': selectedCategory,
-                      'groupId': selectedGroup.toLowerCase(),
-                      'group': selectedGroup,
-                      'imageUrl': imageController.text.trim().isNotEmpty
-                          ? imageController.text.trim()
-                          : null,
-                      'isAvailable': isAvailable,
-                      'isActive': isAvailable,
-                      'moderationStatus': 'approved',
-                      'updatedAt': FieldValue.serverTimestamp(),
-                    },
-                  );
-
-                  // miroir shop (option B) - best-effort
-                  try {
-                    await _firestore
-                        .collection('shops')
-                        .doc(shopIdFromDoc)
-                        .collection('products')
-                        .doc(productId)
-                        .set({
-                          'shopId': shopIdFromDoc,
+                      await _firestore.collection('products').doc(productId).update(
+                        {
                           'name': nameController.text.trim(),
                           'title': nameController.text.trim(),
                           'description': descController.text.trim(),
                           'price': price,
                           'priceCents': (price * 100).round(),
                           'stock': stock,
-                          'stockByVariant': <String, int>{
-                            'default|default': stock,
-                          },
+                          'stockByVariant': <String, int>{'default|default': stock},
                           'category': selectedCategory,
                           'groupId': selectedGroup.toLowerCase(),
                           'group': selectedGroup,
@@ -1136,27 +1059,72 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                           'isActive': isAvailable,
                           'moderationStatus': 'approved',
                           'updatedAt': FieldValue.serverTimestamp(),
-                        }, SetOptions(merge: true));
-                  } catch (_) {
-                    // ignore
-                  }
+                        },
+                      );
 
-                  if (!mounted) return;
-                  navigator.pop();
-                  messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('Produit modifié avec succès'),
-                    ),
-                  );
-                } catch (e) {
-                  if (!mounted) return;
-                  messenger.showSnackBar(SnackBar(content: Text('Erreur: $e')));
-                }
-              },
-              child: const Text('Enregistrer'),
+                      try {
+                        await _firestore
+                            .collection('shops')
+                            .doc(shopIdFromDoc)
+                            .collection('products')
+                            .doc(productId)
+                            .set({
+                              'shopId': shopIdFromDoc,
+                              'name': nameController.text.trim(),
+                              'title': nameController.text.trim(),
+                              'description': descController.text.trim(),
+                              'price': price,
+                              'priceCents': (price * 100).round(),
+                              'stock': stock,
+                              'stockByVariant': <String, int>{
+                                'default|default': stock,
+                              },
+                              'category': selectedCategory,
+                              'groupId': selectedGroup.toLowerCase(),
+                              'group': selectedGroup,
+                              'imageUrl': imageController.text.trim().isNotEmpty
+                                  ? imageController.text.trim()
+                                  : null,
+                              'isAvailable': isAvailable,
+                              'isActive': isAvailable,
+                              'moderationStatus': 'approved',
+                              'updatedAt': FieldValue.serverTimestamp(),
+                            }, SetOptions(merge: true));
+                      } catch (_) {
+                        // ignore
+                      }
+
+                      if (!mounted) return;
+                      navigator.pop();
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text('Produit modifié avec succès'),
+                        ),
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      messenger.showSnackBar(SnackBar(content: Text('Erreur: $e')));
+                    }
+                  },
+                  child: const Text('Enregistrer'),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildImageError({required IconData icon, required String label}) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 48, color: Colors.grey[400]),
+          const SizedBox(height: 8),
+          Text(label, style: TextStyle(color: Colors.grey[600])),
+        ],
       ),
     );
   }

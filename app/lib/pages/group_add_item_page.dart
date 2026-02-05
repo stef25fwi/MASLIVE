@@ -1,9 +1,10 @@
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
+import '../services/storage_service.dart';
 
 class GroupAddItemPage extends StatefulWidget {
   const GroupAddItemPage({super.key, required this.groupId});
@@ -18,6 +19,7 @@ class _GroupAddItemPageState extends State<GroupAddItemPage> with SingleTickerPr
   final _priceCtrl = TextEditingController();
 
   final _picker = ImagePicker();
+  final _storageService = StorageService.instance;
 
   bool _saving = false;
   String _category = 'T-shirts';
@@ -81,16 +83,6 @@ class _GroupAddItemPageState extends State<GroupAddItemPage> with SingleTickerPr
     return (value * 100).round();
   }
 
-  Future<String> _uploadBytes({
-    required String path,
-    required Uint8List bytes,
-  }) async {
-    final ref = FirebaseStorage.instance.ref(path);
-    final meta = SettableMetadata(contentType: 'image/jpeg');
-    await ref.putData(bytes, meta);
-    return ref.getDownloadURL();
-  }
-
   Future<void> _save() async {
     final title = _titleCtrl.text.trim();
     final priceCents = _parsePriceCents();
@@ -124,10 +116,19 @@ class _GroupAddItemPageState extends State<GroupAddItemPage> with SingleTickerPr
       // Créer dans la collection globale 'products'
       final productRef = db.collection('products').doc();
 
-      // Upload Storage (2 photos)
-      final base = 'groups/${widget.groupId}/products/${productRef.id}';
-      final url1 = await _uploadBytes(path: '$base/1.jpg', bytes: _photo1!);
-      final url2 = await _uploadBytes(path: '$base/2.jpg', bytes: _photo2!);
+      // Upload Storage via StorageService (structure: groups/{groupId}/products/{productId}/original/1.jpg)
+      // On convertit Uint8List en XFile pour utiliser StorageService
+      final xfile1 = XFile.fromData(_photo1!, name: _photo1Name ?? 'photo1.jpg');
+      final xfile2 = XFile.fromData(_photo2!, name: _photo2Name ?? 'photo2.jpg');
+      
+      final urls = await _storageService.uploadGroupProductPhotos(
+        groupId: widget.groupId,
+        productId: productRef.id,
+        files: [xfile1, xfile2],
+      );
+      
+      final url1 = urls.isNotEmpty ? urls[0] : '';
+      final url2 = urls.length > 1 ? urls[1] : '';
 
       await productRef.set({
         'groupId': widget.groupId, // IMPORTANT: lier au groupe

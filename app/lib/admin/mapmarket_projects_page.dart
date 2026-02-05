@@ -137,31 +137,42 @@ class _MapMarketProjectsPageState extends State<MapMarketProjectsPage> {
 
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Créer un circuit (MapMarket)'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: countryCtrl,
-              decoration: const InputDecoration(labelText: 'countryId'),
+      builder: (_) => Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800, maxHeight: 700),
+          child: AlertDialog(
+            title: const Text('Créer un circuit (MapMarket)'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: countryCtrl,
+                  decoration: const InputDecoration(labelText: 'countryId'),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: eventCtrl,
+                  decoration: const InputDecoration(labelText: 'eventId'),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Nom du circuit'),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: eventCtrl,
-              decoration: const InputDecoration(labelText: 'eventId'),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(labelText: 'Nom du circuit'),
-            ),
-          ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Annuler'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Créer'),
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Créer')),
-        ],
       ),
     );
 

@@ -4,7 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../models/commerce_submission.dart';
+import '../storage_service.dart';
 
 /// Service de gestion des soumissions commerce (produits et médias)
 class CommerceService {
@@ -15,6 +17,7 @@ class CommerceService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
+  final StorageService _storageService = StorageService.instance;
 
   /// Collection des soumissions
   CollectionReference<Map<String, dynamic>> get _submissions =>
@@ -167,43 +170,26 @@ class CommerceService {
   }
 
   /// Uploader des fichiers média
+  /// ✅ Utilise maintenant StorageService avec structure organisée
   Future<List<String>> uploadMediaFiles({
     required String scopeId,
     required String submissionId,
     required List<File> files,
     void Function(double progress)? onProgress,
   }) async {
-    final user = _currentUser;
-    if (user == null) throw Exception('User not authenticated');
-
-    final urls = <String>[];
-    final totalFiles = files.length;
-
-    for (var i = 0; i < files.length; i++) {
-      final file = files[i];
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final filename = 'media_${timestamp}_$i.jpg';
-      final path = 'commerce/$scopeId/${user.uid}/$submissionId/$filename';
-
-      final ref = _storage.ref(path);
-      final uploadTask = ref.putFile(file);
-
-      // Surveiller la progression
-      uploadTask.snapshotEvents.listen((snapshot) {
-        final fileProgress = snapshot.bytesTransferred / snapshot.totalBytes;
-        final totalProgress = (i + fileProgress) / totalFiles;
-        onProgress?.call(totalProgress);
-      });
-
-      await uploadTask;
-      final url = await ref.getDownloadURL();
-      urls.add(url);
-    }
-
-    return urls;
+    // Convertit File en XFile pour utiliser StorageService
+    final xfiles = files.map((f) => XFile(f.path)).toList();
+    
+    return await _storageService.uploadMediaFiles(
+      mediaId: submissionId,
+      files: xfiles,
+      scopeId: scopeId,
+      onProgress: onProgress,
+    );
   }
 
   /// Uploader depuis bytes (web)
+  /// ✅ Utilise maintenant StorageService avec structure organisée
   Future<String> uploadMediaBytes({
     required String scopeId,
     required String submissionId,
@@ -211,23 +197,19 @@ class CommerceService {
     required String filename,
     void Function(double progress)? onProgress,
   }) async {
-    final user = _currentUser;
-    if (user == null) throw Exception('User not authenticated');
-
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final safename = 'media_${timestamp}_$filename';
-    final path = 'commerce/$scopeId/${user.uid}/$submissionId/$safename';
-
-    final ref = _storage.ref(path);
-    final uploadTask = ref.putData(Uint8List.fromList(bytes));
-
-    uploadTask.snapshotEvents.listen((snapshot) {
-      final progress = snapshot.bytesTransferred / snapshot.totalBytes;
-      onProgress?.call(progress);
-    });
-
-    await uploadTask;
-    return await ref.getDownloadURL();
+    // Crée XFile depuis bytes pour web
+    final xfile = XFile.fromData(
+      Uint8List.fromList(bytes),
+      name: filename,
+      mimeType: 'image/jpeg',
+    );
+    
+    return await _storageService.uploadMediaFile(
+      mediaId: submissionId,
+      file: xfile,
+      scopeId: scopeId,
+      onProgress: onProgress,
+    );
   }
 
   /// Regarder mes soumissions

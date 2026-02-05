@@ -273,13 +273,13 @@ class _CreateProductDialogState extends State<_CreateProductDialog> {
 
     // ✅ Largeur premium responsive (mobile + tablette)
     final w = MediaQuery.of(context).size.width;
-    final dialogWidth = w < 520 ? w * 0.94 : 520.0;
+    final dialogWidth = w < 800 ? w * 0.94 : 800.0;
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: dialogWidth),
+        constraints: BoxConstraints(maxWidth: dialogWidth, maxHeight: MediaQuery.of(context).size.height * 0.9),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(26),
           child: Material(

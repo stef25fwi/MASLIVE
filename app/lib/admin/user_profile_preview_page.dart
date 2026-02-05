@@ -339,11 +339,11 @@ class _UserProfilePreviewPageState extends State<UserProfilePreviewPage> {
   Color _getColorForProfile(String profileType) {
     switch (profileType) {
       case 'SuperAdmin':
-        return Colors.deepPurple;
+        return Colors.blue.shade900;
       case 'Admin':
         return Colors.indigo;
       case 'Administrateur groupe':
-        return Colors.purple;
+        return Colors.blue;
       case 'Tracker groupe':
         return Colors.green;
       case 'Créateur digital':
@@ -672,11 +672,11 @@ class _ProfileTypeCard extends StatelessWidget {
   Color _getColorForProfile(String profileType) {
     switch (profileType) {
       case 'SuperAdmin':
-        return Colors.deepPurple;
+        return Colors.blue.shade900;
       case 'Admin':
         return Colors.indigo;
       case 'Administrateur groupe':
-        return Colors.purple;
+        return Colors.blue;
       case 'Tracker groupe':
         return Colors.green;
       case 'Créateur digital':

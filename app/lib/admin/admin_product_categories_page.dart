@@ -126,12 +126,12 @@ class _AdminProductCategoriesPageState
                               width: 44,
                               height: 44,
                               decoration: BoxDecoration(
-                                color: Colors.purple.withValues(alpha: 0.12),
+                                color: Colors.blue.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Icon(
                                 Icons.category,
-                                color: Colors.purple,
+                                color: Colors.blue,
                               ),
                             ),
                             title: Text(

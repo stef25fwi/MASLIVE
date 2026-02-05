@@ -166,7 +166,7 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
       color: Colors.grey.shade100,
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
+          constraints: const BoxConstraints(maxWidth: 800, maxHeight: 700),
           child: Card(
             elevation: 2,
             child: Padding(

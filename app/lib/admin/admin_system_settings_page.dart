@@ -85,22 +85,27 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
   Future<void> _clearCache() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Vider le cache'),
-        content: const Text(
-          'Cette action va vider tous les caches de l\'application. Continuer ?',
+      builder: (context) => Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800, maxHeight: 700),
+          child: AlertDialog(
+            title: const Text('Vider le cache'),
+            content: const Text(
+              'Cette action va vider tous les caches de l\'application. Continuer ?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Annuler'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.orange),
+                child: const Text('Vider'),
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.orange),
-            child: const Text('Vider'),
-          ),
-        ],
       ),
     );
 
@@ -350,26 +355,32 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
 
     final result = await showDialog<int>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Timeout de session'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Heures',
-            border: OutlineInputBorder(),
+      builder: (context) => Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800, maxHeight: 700),
+          child: AlertDialog(
+            title: const Text('Timeout de session'),
+            content: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Heures',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Annuler'),
+              ),
+              TextButton(
+                onPressed: () =>
+                    Navigator.pop(context, int.tryParse(controller.text)),
+                child: const Text('OK'),
+              ),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, int.tryParse(controller.text)),
-            child: const Text('OK'),
-          ),
-        ],
       ),
     );
 
@@ -385,26 +396,32 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
 
     final result = await showDialog<int>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Taille max upload'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'MB',
-            border: OutlineInputBorder(),
+      builder: (context) => Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800, maxHeight: 700),
+          child: AlertDialog(
+            title: const Text('Taille max upload'),
+            content: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'MB',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Annuler'),
+              ),
+              TextButton(
+                onPressed: () =>
+                    Navigator.pop(context, int.tryParse(controller.text)),
+                child: const Text('OK'),
+              ),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, int.tryParse(controller.text)),
-            child: const Text('OK'),
-          ),
-        ],
       ),
     );
 
@@ -416,22 +433,27 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
   Future<void> _showPurgeDialog() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Purger les données'),
-        content: const Text(
-          'Cette action va supprimer toutes les données de plus de 90 jours. Cette action est irréversible. Continuer ?',
+      builder: (context) => Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800, maxHeight: 700),
+          child: AlertDialog(
+            title: const Text('Purger les données'),
+            content: const Text(
+              'Cette action va supprimer toutes les données de plus de 90 jours. Cette action est irréversible. Continuer ?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Annuler'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Purger'),
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Purger'),
-          ),
-        ],
       ),
     );
 
@@ -448,22 +470,27 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
   Future<void> _showResetUsersDialog() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('⚠️ DANGER ⚠️'),
-        content: const Text(
-          'Cette action va supprimer TOUS les comptes utilisateurs de la base de données. Cette action est IRRÉVERSIBLE.\n\nÊtes-vous absolument certain ?',
+      builder: (context) => Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800, maxHeight: 700),
+          child: AlertDialog(
+            title: const Text('⚠️ DANGER ⚠️'),
+            content: const Text(
+              'Cette action va supprimer TOUS les comptes utilisateurs de la base de données. Cette action est IRRÉVERSIBLE.\n\nÊtes-vous absolument certain ?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Annuler'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('TOUT SUPPRIMER'),
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('TOUT SUPPRIMER'),
-          ),
-        ],
       ),
     );
 
@@ -471,15 +498,20 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
       // Demander une seconde confirmation
       await showDialog<bool>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Dernière confirmation'),
-          content: const Text('Tapez "DELETE ALL" pour confirmer'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Annuler'),
+        builder: (context) => Dialog(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800, maxHeight: 700),
+            child: AlertDialog(
+              title: const Text('Dernière confirmation'),
+              content: const Text('Tapez "DELETE ALL" pour confirmer'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Annuler'),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       );
 

@@ -1,5 +1,6 @@
 // Service de gestion boutique groupe
 // CRUD produits et médias avec upload Storage
+// ✅ Utilise maintenant StorageService centralisé
 
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,6 +8,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/group_product.dart';
 import '../../models/group_media.dart';
+import '../storage_service.dart';
 
 class GroupShopService {
   static final GroupShopService instance = GroupShopService._();
@@ -15,10 +17,12 @@ class GroupShopService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final StorageService _storageService = StorageService.instance;
 
   // ========== PRODUITS ==========
 
   // Crée un produit
+  // ✅ Upload via StorageService avec structure organisée: groups/{groupId}/products/{productId}
   Future<GroupShopProduct> createProduct({
     required String adminGroupId,
     required String title,
@@ -33,29 +37,21 @@ class GroupShopService {
       throw Exception('Utilisateur non connecté');
     }
 
-    // Upload photos
-    final photoUrls = <String>[];
-    for (int i = 0; i < photoFiles.length; i++) {
-      final file = photoFiles[i];
-      final fileName = 'product_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
-      final path = 'group_shops/$adminGroupId/products/$fileName';
-
-      final bytes = await file.readAsBytes();
-      final snapshot = await _storage.ref(path).putData(
-            bytes,
-            SettableMetadata(contentType: 'image/jpeg'),
-          );
-      final url = await snapshot.ref.getDownloadURL();
-      photoUrls.add(url);
-    }
-
-    final now = DateTime.now();
+    // Créer l'ID produit d'abord
     final productRef = _firestore
         .collection('group_shops')
         .doc(adminGroupId)
         .collection('products')
         .doc();
 
+    // Upload photos via StorageService
+    final photoUrls = await _storageService.uploadGroupProductPhotos(
+      groupId: adminGroupId,
+      productId: productRef.id,
+      files: photoFiles,
+    );
+
+    final now = DateTime.now();
     final product = GroupShopProduct(
       id: productRef.id,
       adminGroupId: adminGroupId,
@@ -103,30 +99,21 @@ class GroupShopService {
   }
 
   // Supprime un produit
+  // ✅ Utilise StorageService pour supprimer les photos
   Future<void> deleteProduct(String adminGroupId, String productId) async {
-    // Récupère le produit pour supprimer les photos
-    final doc = await _firestore
+    // Supprime le dossier Storage via StorageService
+    await _storageService.deleteGroupProduct(
+      groupId: adminGroupId,
+      productId: productId,
+    );
+
+    // Supprime le document Firestore
+    await _firestore
         .collection('group_shops')
         .doc(adminGroupId)
         .collection('products')
         .doc(productId)
-        .get();
-
-    if (doc.exists) {
-      final product = GroupShopProduct.fromFirestore(doc);
-      
-      // Supprime les photos du Storage
-      for (final url in product.photoUrls) {
-        try {
-          final ref = _storage.refFromURL(url);
-          await ref.delete();
-        } catch (e) {
-          // Ignore si photo déjà supprimée
-        }
-      }
-    }
-
-    await doc.reference.delete();
+        .delete();
   }
 
   // Stream des produits
@@ -159,6 +146,7 @@ class GroupShopService {
   // ========== MÉDIAS ==========
 
   // Crée un média
+  // ✅ Upload via StorageService avec structure: groups/{groupId}/media/{mediaId}
   Future<GroupMedia> createMedia({
     required String adminGroupId,
     required XFile mediaFile,
@@ -171,25 +159,23 @@ class GroupShopService {
       throw Exception('Utilisateur non connecté');
     }
 
-    // Upload média
-    final fileName = 'media_${DateTime.now().millisecondsSinceEpoch}.${type == "video" ? "mp4" : "jpg"}';
-    final path = 'group_shops/$adminGroupId/media/$fileName';
-
-    final bytes = await mediaFile.readAsBytes();
-    final contentType = type == 'video' ? 'video/mp4' : 'image/jpeg';
-    final snapshot = await _storage.ref(path).putData(
-          bytes,
-          SettableMetadata(contentType: contentType),
-        );
-    final url = await snapshot.ref.getDownloadURL();
-
-    final now = DateTime.now();
+    // Créer l'ID média d'abord
     final mediaRef = _firestore
         .collection('group_shops')
         .doc(adminGroupId)
         .collection('media')
         .doc();
 
+    // Upload via StorageService (utilise structure groups/{groupId}/media/{mediaId}/original/)
+    // Note: createMedia n'est pas spécifique aux groupes dans StorageService,
+    // donc on emprunte uploadMediaFile mais avec la structure groups
+    final url = await _storageService.uploadMediaFile(
+      mediaId: mediaRef.id,
+      file: mediaFile,
+      scopeId: adminGroupId,
+    );
+
+    final now = DateTime.now();
     final media = GroupMedia(
       id: mediaRef.id,
       adminGroupId: adminGroupId,
@@ -220,6 +206,7 @@ class GroupShopService {
       }, SetOptions(merge: true));
 
       // Média miroir dans shops/{shopId}/media/{mediaId}
+      final path = 'media/$adminGroupId/${mediaRef.id}/original/media.${type == "video" ? "mp4" : "jpg"}';
       await shopRef
           .collection('media')
           .doc(media.id)

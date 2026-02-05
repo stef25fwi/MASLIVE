@@ -22,7 +22,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Gestion des Catégories'),
-          backgroundColor: const Color(0xFFB66CFF), // Violet
+          backgroundColor: const Color(0xFF2196F3), // Bleu
           actions: [
             IconButton(
               icon: const Icon(Icons.add),

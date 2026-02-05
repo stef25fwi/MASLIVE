@@ -91,7 +91,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
         backgroundColor: Colors.grey[50],
         appBar: AppBar(
           title: const Text('Espace SuperAdmin'),
-          backgroundColor: const Color(0xFFB66CFF), // Violet
+          backgroundColor: const Color(0xFF2196F3), // Bleu
           actions: [
             IconButton(
               icon: const Icon(Icons.refresh),
@@ -138,8 +138,8 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFFB66CFF), // Violet  
-            const Color(0xFFFF6BB5), // Pink
+            const Color(0xFF2196F3), // Bleu
+            const Color(0xFF1976D2), // Bleu foncé
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -325,7 +325,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
             _buildActionCard(
               'Gérer Rôles',
               Icons.admin_panel_settings,
-              Colors.purple,
+                Colors.blue,
               () => Navigator.pushNamed(context, '/admin/roles'),
             ),
             _buildActionCard(

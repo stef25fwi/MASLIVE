@@ -97,7 +97,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       vsync: this,
     );
     _menuSlideAnimation =
-        Tween<Offset>(begin: const Offset(1.0, 0.0), end: Offset.zero).animate(
+        Tween<Offset>(begin: const Offset(-1.0, 0.0), end: Offset.zero).animate(
           CurvedAnimation(
             parent: _menuAnimController,
             curve: Curves.easeOut,
@@ -707,7 +707,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                                   const SizedBox(height: 8),
                                   _ActionItem(
                                     label: '',
-                                    icon: Icons.language_rounded,
                                     iconWidget: Obx(() {
                                       final lang = Get.find<LanguageService>();
                                       final flag = lang.getLanguageFlag(
