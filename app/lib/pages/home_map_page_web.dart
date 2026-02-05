@@ -43,7 +43,8 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
   late Animation<Offset> _menuSlideAnimation;
 
   static const Duration _menuOpenDelay = Duration(seconds: 1);
-  static const double _actionsMenuTopOffset = 80;
+  // Offset vertical du menu d'actions pour ne pas chevaucher la boussole
+  static const double _actionsMenuTopOffset = 160;
 
   final GeolocationService _geo = GeolocationService.instance;
   final MapPresetsService _presetService = MapPresetsService();

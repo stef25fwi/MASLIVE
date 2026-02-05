@@ -83,6 +83,14 @@ class Product {
   final bool isActive;
   final bool isFeatured;
 
+  /// Workflow de publication et visibilité
+  /// status: draft | pending | approved | rejected | archived | published
+  final String status;
+  final bool isVisible;
+
+  /// Mode d'inventaire: true = stock suivi, false = stock illimité/logique
+  final bool trackInventory;
+
   /// Stock
   final int stockQty;
   final int stockAlertQty;
@@ -123,6 +131,9 @@ class Product {
     required this.tags,
     required this.isActive,
     required this.isFeatured,
+    this.status = 'published',
+    this.isVisible = true,
+    this.trackInventory = true,
     required this.stockQty,
     required this.stockAlertQty,
     required this.sku,
@@ -150,6 +161,9 @@ class Product {
     List<String>? tags,
     bool? isActive,
     bool? isFeatured,
+    String? status,
+    bool? isVisible,
+    bool? trackInventory,
     int? stockQty,
     int? stockAlertQty,
     String? sku,
@@ -176,6 +190,9 @@ class Product {
       tags: tags ?? this.tags,
       isActive: isActive ?? this.isActive,
       isFeatured: isFeatured ?? this.isFeatured,
+      status: status ?? this.status,
+      isVisible: isVisible ?? this.isVisible,
+      trackInventory: trackInventory ?? this.trackInventory,
       stockQty: stockQty ?? this.stockQty,
       stockAlertQty: stockAlertQty ?? this.stockAlertQty,
       sku: sku ?? this.sku,
@@ -203,6 +220,9 @@ class Product {
         'tags': tags,
         'isActive': isActive,
         'isFeatured': isFeatured,
+        'status': status,
+        'isVisible': isVisible,
+        'trackInventory': trackInventory,
         'stockQty': stockQty,
         'stockAlertQty': stockAlertQty,
         'stockStatus': stockStatus,
@@ -238,6 +258,9 @@ class Product {
       tags: tags.map((e) => e.toString()).toList(),
       isActive: (data['isActive'] ?? true) as bool,
       isFeatured: (data['isFeatured'] ?? false) as bool,
+      status: (data['status'] ?? 'published').toString(),
+      isVisible: (data['isVisible'] ?? true) as bool,
+      trackInventory: (data['trackInventory'] ?? true) as bool,
       stockQty: (data['stockQty'] ?? 0) as int,
       stockAlertQty: (data['stockAlertQty'] ?? 3) as int,
       stockStatus: (data['stockStatus'] ?? 'ok').toString(),
@@ -263,6 +286,107 @@ class Product {
     if (v == null) return 0.0;
     if (v is num) return v.toDouble();
     return double.tryParse(v.toString()) ?? 0.0;
+  }
+}
+
+@immutable
+class Shop {
+  final String id;
+
+  /// UID du propriétaire principal de la boutique (admin / compte pro)
+  final String? ownerUid;
+
+  /// Type de boutique: "global" | "group" | "event" (ou autres variantes futures)
+  final String type;
+
+  /// Contrôle d’activation logique de la boutique
+  final bool isActive;
+
+  /// Contexte MASLIVE
+  final String? countryCode;
+  final String? eventId;
+  final String? circuitId;
+  final String? groupId;
+
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  const Shop({
+    required this.id,
+    required this.ownerUid,
+    required this.type,
+    required this.isActive,
+    this.countryCode,
+    this.eventId,
+    this.circuitId,
+    this.groupId,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  Shop copyWith({
+    String? id,
+    String? ownerUid,
+    String? type,
+    bool? isActive,
+    String? countryCode,
+    String? eventId,
+    String? circuitId,
+    String? groupId,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return Shop(
+      id: id ?? this.id,
+      ownerUid: ownerUid ?? this.ownerUid,
+      type: type ?? this.type,
+      isActive: isActive ?? this.isActive,
+      countryCode: countryCode ?? this.countryCode,
+      eventId: eventId ?? this.eventId,
+      circuitId: circuitId ?? this.circuitId,
+      groupId: groupId ?? this.groupId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'ownerUid': ownerUid,
+        'type': type,
+        'isActive': isActive,
+        'countryCode': countryCode,
+        'eventId': eventId,
+        'circuitId': circuitId,
+        'groupId': groupId,
+        'createdAt': Timestamp.fromDate(createdAt),
+        'updatedAt': Timestamp.fromDate(updatedAt),
+      };
+
+  factory Shop.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? <String, dynamic>{};
+    final created = data['createdAt'];
+    final updated = data['updatedAt'];
+    String? _cleanStringField(String key) {
+      final raw = data[key];
+      if (raw is String) {
+        final trimmed = raw.trim();
+        return trimmed.isEmpty ? null : trimmed;
+      }
+      return null;
+    }
+
+    return Shop(
+      id: doc.id,
+      ownerUid: _cleanStringField('ownerUid'),
+      type: (data['type'] ?? 'global').toString(),
+      isActive: (data['isActive'] ?? true) as bool,
+      countryCode: _cleanStringField('countryCode'),
+      eventId: _cleanStringField('eventId'),
+      circuitId: _cleanStringField('circuitId'),
+      groupId: _cleanStringField('groupId'),
+      createdAt: created is Timestamp ? created.toDate() : DateTime.now(),
+      updatedAt: updated is Timestamp ? updated.toDate() : DateTime.now(),
+    );
   }
 }
 
@@ -362,6 +486,251 @@ class ProductFilter {
   ProductFilter resetAll() => const ProductFilter();
 }
 
+@immutable
+class ShopMedia {
+  final String id;
+  final String shopId;
+
+  /// "photo" ou "video"
+  final String type;
+
+  /// URL publique complète (download URL)
+  final String url;
+
+  /// Chemin dans Firebase Storage (ex: shops/{shopId}/media/{filename})
+  final String storagePath;
+
+  /// Miniature éventuelle
+  final String? thumbUrl;
+
+  /// Statut fonctionnel (draft/pending/approved/published/archived...)
+  final String status;
+
+  /// Contrôle d'affichage public
+  final bool isVisible;
+
+  /// Filtres MASLIVE (scope photo)
+  final String? countryCode;
+  final String? eventId;
+  final String? circuitId;
+  final DateTime? takenAt;
+  final GeoPoint? locationGeo;
+  final String? locationName;
+  final String? photographerId;
+
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  const ShopMedia({
+    required this.id,
+    required this.shopId,
+    required this.type,
+    required this.url,
+    required this.storagePath,
+    this.thumbUrl,
+    this.status = 'published',
+    this.isVisible = true,
+    this.countryCode,
+    this.eventId,
+    this.circuitId,
+    this.takenAt,
+    this.locationGeo,
+    this.locationName,
+    this.photographerId,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  bool get isPhoto => type == 'photo';
+  bool get isVideo => type == 'video';
+
+  ShopMedia copyWith({
+    String? id,
+    String? shopId,
+    String? type,
+    String? url,
+    String? storagePath,
+    String? thumbUrl,
+    String? status,
+    bool? isVisible,
+    String? countryCode,
+    String? eventId,
+    String? circuitId,
+    DateTime? takenAt,
+    GeoPoint? locationGeo,
+    String? locationName,
+    String? photographerId,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return ShopMedia(
+      id: id ?? this.id,
+      shopId: shopId ?? this.shopId,
+      type: type ?? this.type,
+      url: url ?? this.url,
+      storagePath: storagePath ?? this.storagePath,
+      thumbUrl: thumbUrl ?? this.thumbUrl,
+      status: status ?? this.status,
+      isVisible: isVisible ?? this.isVisible,
+      countryCode: countryCode ?? this.countryCode,
+      eventId: eventId ?? this.eventId,
+      circuitId: circuitId ?? this.circuitId,
+      takenAt: takenAt ?? this.takenAt,
+      locationGeo: locationGeo ?? this.locationGeo,
+      locationName: locationName ?? this.locationName,
+      photographerId: photographerId ?? this.photographerId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'shopId': shopId,
+        'type': type,
+        'url': url,
+        'storagePath': storagePath,
+        'thumbUrl': thumbUrl,
+        'status': status,
+        'isVisible': isVisible,
+        'countryCode': countryCode,
+        'eventId': eventId,
+        'circuitId': circuitId,
+        'takenAt': takenAt != null ? Timestamp.fromDate(takenAt!) : null,
+        'locationGeo': locationGeo,
+        'locationName': locationName,
+        'photographerId': photographerId,
+        'createdAt': Timestamp.fromDate(createdAt),
+        'updatedAt': Timestamp.fromDate(updatedAt),
+      };
+
+  factory ShopMedia.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? <String, dynamic>{};
+    final created = data['createdAt'];
+    final updated = data['updatedAt'];
+    final taken = data['takenAt'];
+
+    return ShopMedia(
+      id: doc.id,
+      shopId: (data['shopId'] ?? '').toString(),
+      type: (data['type'] ?? 'photo').toString(),
+      url: (data['url'] ?? '').toString(),
+      storagePath: (data['storagePath'] ?? '').toString(),
+      thumbUrl: data['thumbUrl']?.toString(),
+      status: (data['status'] ?? 'published').toString(),
+      isVisible: (data['isVisible'] ?? true) as bool,
+      countryCode: data['countryCode']?.toString(),
+      eventId: data['eventId']?.toString(),
+      circuitId: data['circuitId']?.toString(),
+      takenAt: taken is Timestamp ? taken.toDate() : null,
+      locationGeo: data['locationGeo'] is GeoPoint ? data['locationGeo'] as GeoPoint : null,
+      locationName: data['locationName']?.toString(),
+      photographerId: data['photographerId']?.toString(),
+      createdAt: created is Timestamp ? created.toDate() : DateTime.now(),
+      updatedAt: updated is Timestamp ? updated.toDate() : DateTime.now(),
+    );
+  }
+}
+
+// ------------------------------------------------------------------------------
+// 4bis) UI - ADMIN: Galerie de médias Shop (ShopMediaGalleryPage)
+// ------------------------------------------------------------------------------
+
+class ShopMediaGalleryPage extends StatelessWidget {
+  final String shopId;
+  const ShopMediaGalleryPage({super.key, required this.shopId});
+
+  @override
+  Widget build(BuildContext context) {
+    final repo = CommerceRepository();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Galerie photos boutique'),
+      ),
+      body: StreamBuilder<List<ShopMedia>>(
+        stream: repo.streamShopMedia(shopId, onlyVisible: false),
+        builder: (context, snap) {
+          if (snap.hasError) {
+            return Center(child: Text('Erreur: \'${snap.error}\''));
+          }
+          if (!snap.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final items = snap.data!;
+          if (items.isEmpty) {
+            return const Center(child: Text('Aucun média pour ce shop'));
+          }
+
+          final w = MediaQuery.of(context).size.width;
+          final cross = w >= 1100 ? 5 : (w >= 800 ? 4 : (w >= 520 ? 3 : 2));
+
+          return GridView.builder(
+            padding: const EdgeInsets.all(12),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: cross,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+            ),
+            itemCount: items.length,
+            itemBuilder: (context, index) {
+              final m = items[index];
+              return GestureDetector(
+                onTap: () {
+                  showDialog<void>(
+                    context: context,
+                    builder: (_) => Dialog(
+                      insetPadding: const EdgeInsets.all(16),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AspectRatio(
+                            aspectRatio: 4 / 3,
+                            child: m.isVideo
+                                ? const Center(child: Icon(Icons.videocam_outlined))
+                                : Image.network(m.url, fit: BoxFit.cover),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Text(
+                              m.locationName ?? '',
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      m.isVideo
+                          ? Container(
+                              color: Colors.black12,
+                              child: const Icon(Icons.videocam_outlined),
+                            )
+                          : Image.network(m.url, fit: BoxFit.cover),
+                      if (!m.isVisible)
+                        Container(
+                          color: Colors.black38,
+                          alignment: Alignment.topRight,
+                          padding: const EdgeInsets.all(4),
+                          child: const Icon(Icons.visibility_off, color: Colors.white, size: 18),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
 // ------------------------------------------------------------------------------
 // 2) REPOSITORIES (Firestore + Storage)
 // ------------------------------------------------------------------------------
@@ -369,6 +738,9 @@ class ProductFilter {
 class CommerceRepository {
   final FirebaseFirestore _db;
   CommerceRepository({FirebaseFirestore? db}) : _db = db ?? FirebaseFirestore.instance;
+
+  DocumentReference<Map<String, dynamic>> _shopDoc(String shopId) =>
+      _db.collection('shops').doc(shopId);
 
   CollectionReference<Map<String, dynamic>> _productsCol(String shopId) =>
       _db.collection('shops').doc(shopId).collection('products');
@@ -379,9 +751,66 @@ class CommerceRepository {
   CollectionReference<Map<String, dynamic>> _ordersCol(String shopId) =>
       _db.collection('shops').doc(shopId).collection('orders');
 
+  CollectionReference<Map<String, dynamic>> _mediaCol(String shopId) =>
+      _db.collection('shops').doc(shopId).collection('media');
+
+  // ----- SHOPS (fiche boutique) -----
+
+  Future<Shop?> fetchShop(String shopId) async {
+    final snap = await _shopDoc(shopId).get();
+    if (!snap.exists) return null;
+    return Shop.fromDoc(snap);
+  }
+
+  Stream<Shop?> streamShop(String shopId) {
+    return _shopDoc(shopId).snapshots().map((snap) {
+      if (!snap.exists) return null;
+      return Shop.fromDoc(snap);
+    });
+  }
+
+  Future<void> saveShop(Shop shop) async {
+    await _shopDoc(shop.id).set(shop.toJson(), SetOptions(merge: true));
+  }
+
   Stream<List<Category>> streamCategories(String shopId) {
     return _categoriesCol(shopId).orderBy('sortOrder').snapshots().map((snap) {
       return snap.docs.map((d) => Category.fromDoc(d)).toList();
+    });
+  }
+
+  /// Stream des médias de boutique avec filtres de base
+  Stream<List<ShopMedia>> streamShopMedia(
+    String shopId, {
+    bool onlyVisible = true,
+    String? countryCode,
+    String? eventId,
+    String? circuitId,
+    String? photographerId,
+  }) {
+    Query<Map<String, dynamic>> q = _mediaCol(shopId);
+
+    if (onlyVisible) {
+      q = q.where('isVisible', isEqualTo: true);
+    }
+    if (countryCode != null && countryCode.isNotEmpty) {
+      q = q.where('countryCode', isEqualTo: countryCode);
+    }
+    if (eventId != null && eventId.isNotEmpty) {
+      q = q.where('eventId', isEqualTo: eventId);
+    }
+    if (circuitId != null && circuitId.isNotEmpty) {
+      q = q.where('circuitId', isEqualTo: circuitId);
+    }
+    if (photographerId != null && photographerId.isNotEmpty) {
+      q = q.where('photographerId', isEqualTo: photographerId);
+    }
+
+    // Tri principal par date de prise de vue si dispo, sinon createdAt
+    q = q.orderBy('takenAt', descending: true);
+
+    return q.snapshots().map((snap) {
+      return snap.docs.map(ShopMedia.fromDoc).toList();
     });
   }
 
@@ -435,6 +864,39 @@ class CommerceRepository {
         return true;
       }).toList();
     });
+  }
+
+  Future<String> createMedia(String shopId, ShopMedia media) async {
+    final now = DateTime.now();
+    final doc = _mediaCol(shopId).doc();
+
+    final payload = media
+        .copyWith(
+          id: doc.id,
+          shopId: shopId,
+          createdAt: now,
+          updatedAt: now,
+        )
+        .toJson();
+
+    await doc.set(payload);
+    return doc.id;
+  }
+
+  Future<void> updateMedia(String shopId, ShopMedia media) async {
+    final now = DateTime.now();
+
+    final payload = media
+        .copyWith(
+          updatedAt: now,
+        )
+        .toJson();
+
+    await _mediaCol(shopId).doc(media.id).update(payload);
+  }
+
+  Future<void> deleteMedia(String shopId, String mediaId) async {
+    await _mediaCol(shopId).doc(mediaId).delete();
   }
 
   Future<String> createProduct(String shopId, Product product) async {
@@ -972,6 +1434,18 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                             ),
                           ),
                         ),
+                        IconButton(
+                          tooltip: 'Galerie photos',
+                          icon: const Icon(Icons.photo_library_outlined),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => ShopMediaGalleryPage(shopId: widget.shopId),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 8),
                         _CartIconWithBadge(count: widget.cartCountBadge),
                         const SizedBox(width: 10),
                         FilledButton(

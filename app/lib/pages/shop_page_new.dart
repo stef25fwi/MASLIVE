@@ -53,8 +53,6 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
     "Tous",
     "Vêtements",
     "Accessoires",
-    "Nourriture",
-    "Boissons",
     "Souvenirs",
     "Artisanat",
     "Autre",
@@ -79,8 +77,8 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
   Query<Map<String, dynamic>> _buildCategoriesQuery() {
     Query<Map<String, dynamic>> query = FirebaseFirestore.instance
         .collectionGroup('products')
-        .where('isActive', isEqualTo: true)
-        .where('moderationStatus', isEqualTo: 'approved');
+        .where('status', isEqualTo: 'published')
+        .where('isVisible', isEqualTo: true);
 
     if (widget.shopId != null && widget.shopId!.trim().isNotEmpty) {
       query = query.where('shopId', isEqualTo: widget.shopId);
@@ -109,8 +107,8 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
   Query<Map<String, dynamic>> _buildGroupsQuery() {
     Query<Map<String, dynamic>> query = FirebaseFirestore.instance
         .collectionGroup('products')
-        .where('isActive', isEqualTo: true)
-        .where('moderationStatus', isEqualTo: 'approved');
+        .where('status', isEqualTo: 'published')
+        .where('isVisible', isEqualTo: true);
 
     // Les groupes proposés doivent rester cohérents avec le shop sélectionné.
     if (widget.shopId != null && widget.shopId!.trim().isNotEmpty) {
@@ -1028,6 +1026,7 @@ class _ProductTile extends StatelessWidget {
     required this.onAdd,
     required this.onTap,
     required this.compact,
+    this.outOfStock = false,
   });
 
   final String title;
@@ -1036,6 +1035,7 @@ class _ProductTile extends StatelessWidget {
   final VoidCallback onAdd;
   final VoidCallback onTap;
   final bool compact;
+  final bool outOfStock;
 
   @override
   Widget build(BuildContext context) {
@@ -1075,13 +1075,38 @@ class _ProductTile extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        price,
-                        style: TextStyle(
-                          fontSize: compact ? 14 : 16,
-                          fontWeight: FontWeight.w900,
-                          color: const Color(0xFF111827),
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            price,
+                            style: TextStyle(
+                              fontSize: compact ? 14 : 16,
+                              fontWeight: FontWeight.w900,
+                              color: const Color(0xFF111827),
+                            ),
+                          ),
+                          if (outOfStock)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: const Text(
+                                'Rupture de stock',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.redAccent,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ),
@@ -1090,7 +1115,14 @@ class _ProductTile extends StatelessWidget {
             ),
 
             // ✅ Bouton + overlay (fini le "+" dans l'image)
-            Positioned(right: 12, bottom: 12, child: _AddButton(onTap: onAdd)),
+            Positioned(
+              right: 12,
+              bottom: 12,
+              child: _AddButton(
+                onTap: outOfStock ? null : onAdd,
+                disabled: outOfStock,
+              ),
+            ),
           ],
         ),
       ),
@@ -1099,13 +1131,14 @@ class _ProductTile extends StatelessWidget {
 }
 
 class _AddButton extends StatelessWidget {
-  const _AddButton({required this.onTap});
-  final VoidCallback onTap;
+  const _AddButton({required this.onTap, this.disabled = false});
+  final VoidCallback? onTap;
+  final bool disabled;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap,
+      onTap: disabled ? null : onTap,
       borderRadius: BorderRadius.circular(
         _ShopPixelPerfectPageState._addRadius,
       ),
@@ -1113,23 +1146,34 @@ class _AddButton extends StatelessWidget {
         width: _ShopPixelPerfectPageState._addSize,
         height: _ShopPixelPerfectPageState._addSize,
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFFF7BA7), Color(0xFF7CCBFF)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          gradient: disabled
+              ? const LinearGradient(
+                  colors: [Color(0xFFCBD5E1), Color(0xFFE5E7EB)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : const LinearGradient(
+                  colors: [Color(0xFFFF7BA7), Color(0xFF7CCBFF)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
           borderRadius: BorderRadius.circular(
             _ShopPixelPerfectPageState._addRadius,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.16),
+              color:
+                  Colors.black.withValues(alpha: disabled ? 0.06 : 0.16),
               blurRadius: 16,
               offset: const Offset(0, 10),
             ),
           ],
         ),
-        child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+        child: Icon(
+          Icons.add_rounded,
+          color: disabled ? Colors.white70 : Colors.white,
+          size: 28,
+        ),
       ),
     );
   }

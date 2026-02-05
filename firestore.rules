@@ -183,16 +183,37 @@ service cloud.firestore {
 
     // Helpers produits (compat legacy/admin)
     function _productIsActive(data) {
-      return (('isActive' in data) && data.isActive == true)
-        || (('isAvailable' in data) && data.isAvailable == true);
+      return (("isActive" in data) && data.isActive == true)
+        || (("isAvailable" in data) && data.isAvailable == true);
     }
 
     function _productIsApproved(data) {
-      return !('moderationStatus' in data) || data.moderationStatus == 'approved';
+      return !("moderationStatus" in data) || data.moderationStatus == 'approved';
+    }
+
+    // Visibilité complémentaire pour le module commerce
+    function _productIsVisibleFlag(data) {
+      // Si le champ n'existe pas, on considère le produit visible (compat rétro)
+      return !("isVisible" in data) || data.isVisible == true;
+    }
+
+    // Statut fonctionnel (draft/pending/approved/published/...)
+    function _productStatusIsPublic(data) {
+      // Si le champ n'existe pas, on ne filtre pas (compat rétro)
+      return !("status" in data) || data.status in ['approved', 'published'];
     }
 
     function _productIsPublic(data) {
-      return _productIsActive(data) && _productIsApproved(data);
+      return _productIsActive(data)
+        && _productIsApproved(data)
+        && _productIsVisibleFlag(data)
+        && _productStatusIsPublic(data);
+    }
+
+    // Helpers média boutique (visibilité publique)
+    function _mediaIsPublic(data) {
+      // Si le champ n'existe pas, on considère le média visible (compat rétro)
+      return !("isVisible" in data) || data.isVisible == true;
     }
 
     // ========== COLLECTION: PRODUCTS (Admin + compat) ==========
@@ -483,18 +504,19 @@ service cloud.firestore {
 
     // ========== COLLECTIONS: SHOPS (Boutiques publiques) ==========
     // /shops/{scopeId}/products et /shops/{scopeId}/media
-    // Lecture publique, écriture uniquement par service ou superadmin
+    // Lecture publique (uniquement éléments marqués visibles/publics),
+    // écriture uniquement par service ou superadmin
     match /shops/{scopeId}/products/{productId} {
-      // Lecture: authentifié (boutique visible par les utilisateurs)
-      allow read: if isSignedIn();
+      // Lecture publique des produits "publics" (actifs + approuvés + visibles)
+      allow read: if _productIsPublic(resource.data) || isMasterAdmin();
 
       // Écriture: uniquement superadmin (ou service account via Cloud Functions)
       allow create, update, delete: if isSuperAdmin();
     }
 
     match /shops/{scopeId}/media/{mediaId} {
-      // Lecture: authentifié (boutique visible par les utilisateurs)
-      allow read: if isSignedIn();
+      // Lecture publique des médias marqués visibles
+      allow read: if _mediaIsPublic(resource.data) || isMasterAdmin();
 
       // Écriture: uniquement superadmin (ou service account via Cloud Functions)
       allow create, update, delete: if isSuperAdmin();

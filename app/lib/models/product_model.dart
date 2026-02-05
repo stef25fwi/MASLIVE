@@ -14,6 +14,8 @@ class GroupProduct {
   final Map<String, int>? stockByVariant; // 'taille|couleur' -> stock
   final List<String>? availableSizes;
   final List<String>? availableColors;
+  final int? stockQty; // stock total normalisé
+  final List<String>? tags; // tags normalisés (catégorie, taille, couleur...)
 
   const GroupProduct({
     required this.id,
@@ -29,6 +31,8 @@ class GroupProduct {
     this.stockByVariant,
     this.availableSizes,
     this.availableColors,
+    this.stockQty,
+    this.tags,
   });
 
   String get priceLabel => '€${(priceCents / 100).toStringAsFixed(0)}';
@@ -44,6 +48,15 @@ class GroupProduct {
   
   // Liste des couleurs disponibles
   List<String> get colors => availableColors ?? const ['Noir', 'Blanc', 'Gris'];
+
+  // Stock total dérivé : stockQty si présent, sinon somme des variantes
+  int get totalStock {
+    if (stockQty != null) return stockQty!;
+    if (stockByVariant == null) return 999; // stock virtuellement illimité
+    return stockByVariant!.values.fold<int>(0, (sum, v) => sum + (v));
+  }
+
+  bool get isOutOfStock => totalStock <= 0;
 
   factory GroupProduct.fromMap(String id, Map<String, dynamic> data) {
     final status = (data['moderationStatus'] ?? '').toString().trim();
@@ -63,6 +76,12 @@ class GroupProduct {
     List<String>? availableColors;
     if (data['availableColors'] != null) {
       availableColors = List<String>.from(data['availableColors'] as List);
+    }
+
+    final int? stockQty = data['stockQty'] is int ? data['stockQty'] as int : null;
+    List<String>? tags;
+    if (data['tags'] != null) {
+      tags = List<String>.from(data['tags'] as List);
     }
     
     return GroupProduct(
@@ -87,6 +106,8 @@ class GroupProduct {
       stockByVariant: stockByVariant,
       availableSizes: availableSizes,
       availableColors: availableColors,
+      stockQty: stockQty,
+      tags: tags,
     );
   }
 
@@ -111,6 +132,8 @@ class GroupProduct {
       if (stockByVariant != null) 'stockByVariant': stockByVariant,
       if (availableSizes != null) 'availableSizes': availableSizes,
       if (availableColors != null) 'availableColors': availableColors,
+      if (stockQty != null) 'stockQty': stockQty,
+      if (tags != null) 'tags': tags,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };

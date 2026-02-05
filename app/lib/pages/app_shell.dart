@@ -43,9 +43,6 @@ class _AppShellState extends State<AppShell> {
         onTap: (i) => setState(() => _index = i),
         onPlus: () {
           // Action + : à brancher (ex: créer post / ajouter produit / créer event)
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Action + (à brancher)')),
-          );
         },
       ),
     );

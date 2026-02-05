@@ -118,10 +118,141 @@
       ]
     },
     {
+      "collectionGroup": "products",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {"fieldPath": "isActive", "order": "ASCENDING"},
+        {"fieldPath": "updatedAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "products",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {"fieldPath": "status", "order": "ASCENDING"},
+        {"fieldPath": "updatedAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "products",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {"fieldPath": "shopId", "order": "ASCENDING"},
+        {"fieldPath": "categoryId", "order": "ASCENDING"},
+        {"fieldPath": "isActive", "order": "ASCENDING"},
+        {"fieldPath": "updatedAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "products",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {"fieldPath": "shopId", "order": "ASCENDING"},
+        {"fieldPath": "stockStatus", "order": "ASCENDING"},
+        {"fieldPath": "isActive", "order": "ASCENDING"},
+        {"fieldPath": "updatedAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "products",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {"fieldPath": "countryCode", "order": "ASCENDING"},
+        {"fieldPath": "eventId", "order": "ASCENDING"},
+        {"fieldPath": "circuitId", "order": "ASCENDING"},
+        {"fieldPath": "isActive", "order": "ASCENDING"},
+        {"fieldPath": "updatedAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "products",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {"fieldPath": "isActive", "order": "ASCENDING"},
+        {"fieldPath": "moderationStatus", "order": "ASCENDING"},
+        {"fieldPath": "groupId", "order": "ASCENDING"},
+        {"fieldPath": "categoryId", "order": "ASCENDING"},
+        {"fieldPath": "updatedAt", "order": "DESCENDING"}
+      ]
+    },
+    {
       "collectionGroup": "media",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
         {"fieldPath": "isVisible", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "media",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {"fieldPath": "shopId", "order": "ASCENDING"},
+        {"fieldPath": "isVisible", "order": "ASCENDING"},
+        {"fieldPath": "takenAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "media",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {"fieldPath": "shopId", "order": "ASCENDING"},
+        {"fieldPath": "type", "order": "ASCENDING"},
+        {"fieldPath": "isVisible", "order": "ASCENDING"},
+        {"fieldPath": "takenAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "media",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {"fieldPath": "countryCode", "order": "ASCENDING"},
+        {"fieldPath": "eventId", "order": "ASCENDING"},
+        {"fieldPath": "circuitId", "order": "ASCENDING"},
+        {"fieldPath": "isVisible", "order": "ASCENDING"},
+        {"fieldPath": "takenAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {"fieldPath": "userId", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {"fieldPath": "shopId", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {"fieldPath": "shopId", "order": "ASCENDING"},
+        {"fieldPath": "status", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "commerce_submissions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "scopeId", "order": "ASCENDING"},
+        {"fieldPath": "status", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "moderation_queue",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {"fieldPath": "scopeId", "order": "ASCENDING"},
+        {"fieldPath": "status", "order": "ASCENDING"},
         {"fieldPath": "createdAt", "order": "DESCENDING"}
       ]
     }

@@ -55,7 +55,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   static const double _userZoom = 15.5;
   static const double _defaultPitch = 45.0;
   static const double _minZoom3dBuildings = 14.5;
-  static const double _actionsMenuTopOffset = 80;
+  // Offset vertical du menu d'actions pour ne pas chevaucher la boussole
+  static const double _actionsMenuTopOffset = 160;
 
   // ========== ÉTAT UI ==========
   bool _showActionsMenu = false;

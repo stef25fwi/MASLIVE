@@ -123,6 +123,33 @@ class _LoginPageState extends State<LoginPage> {
       body: SafeArea(
         child: Stack(
           children: [
+            // Header avec flèche retour vers la home
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      color: text,
+                      tooltip: 'Retour à l\'accueil',
+                      onPressed: () {
+                        Navigator.of(
+                          context,
+                        ).pushNamedAndRemoveUntil('/', (route) => false);
+                      },
+                    ),
+                    const Spacer(),
+                  ],
+                ),
+              ),
+            ),
             Positioned.fill(
               child: CustomPaint(
                 painter: _MasliveGlowPainter(gradient: masliveGradient),

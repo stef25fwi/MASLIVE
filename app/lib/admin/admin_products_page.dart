@@ -307,8 +307,6 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
   static const _defaultCategories = [
     'Vêtements',
     'Accessoires',
-    'Nourriture',
-    'Boissons',
     'Souvenirs',
     'Artisanat',
     'Autre',

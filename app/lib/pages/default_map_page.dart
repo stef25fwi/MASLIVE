@@ -1,3 +1,4 @@
+
 import 'dart:async';
 import 'dart:ui' as ui;
 
@@ -78,7 +79,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   // MarketMap POIs (wiring wizard)
   final MarketMapService _marketMapService = MarketMapService();
-  MarketMapPoiSelection _marketPoiSelection = const MarketMapPoiSelection.disabled();
+  MarketMapPoiSelection _marketPoiSelection =
+      const MarketMapPoiSelection.disabled();
   StreamSubscription? _marketPoisSub;
   List<MarketPoi> _marketPois = const <MarketPoi>[];
   List<MapMarker> _marketPoiMarkers = const <MapMarker>[];
@@ -156,7 +158,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     await _marketPoisSub?.cancel();
     _marketPoisSub = null;
 
-    if (!selection.enabled || selection.country == null || selection.event == null || selection.circuit == null) {
+    if (!selection.enabled ||
+        selection.country == null ||
+        selection.event == null ||
+        selection.circuit == null) {
       if (!mounted) return;
       setState(() {
         _marketPois = const <MarketPoi>[];
@@ -187,10 +192,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           layerIds: selection.layerIds,
         )
         .listen((pois) {
-      if (!mounted) return;
-      setState(() => _marketPois = pois);
-      _refreshMarketPoiMarkers();
-    });
+          if (!mounted) return;
+          setState(() => _marketPois = pois);
+          _refreshMarketPoiMarkers();
+        });
   }
 
   String? _actionToPoiType(_MapAction? action) {
@@ -278,12 +283,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     final lat = _userLat;
     final lng = _userLng;
     if (lat == null || lng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Position GPS indisponible pour centrer la carte.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
       return;
     }
 
@@ -298,12 +297,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   void _selectAction(_MapAction action, String label) {
     setState(() => _selectedAction = action);
     _refreshMarketPoiMarkers();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Mode "$label" sélectionné.'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
   }
 
   Future<void> _toggleTracking() async {
@@ -315,27 +308,11 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
     final uid = AuthService.instance.currentUser?.uid;
     if (uid == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Connecte-toi pour démarrer le tracking.'),
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
       return;
     }
 
     final groupId = _userGroupId;
     if (groupId == null || groupId.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Aucun groupId associé à ton profil.'),
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
       return;
     }
 
@@ -345,15 +322,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     );
     if (!mounted) return;
     setState(() => _isTracking = ok);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? '✅ Tracking démarré (${_trackingIntervalSeconds}s)'
-              : '❌ Permissions GPS refusées',
-        ),
-      ),
-    );
   }
 
   Future<void> _showMapProjectsSelector() async {
@@ -370,7 +338,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
     await _applyMarketPoiSelection(selection);
   }
-
 
   @override
   void didChangeMetrics() {
@@ -449,14 +416,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     try {
       final enabled = await Geolocator.isLocationServiceEnabled();
       if (!enabled) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Active la localisation (GPS).'),
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
         return false;
       }
 
@@ -467,26 +426,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       }
 
       if (permission == LocationPermission.denied) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Permission GPS refusée.'),
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
         return false;
       }
 
       if (permission == LocationPermission.deniedForever) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Permission GPS refusée définitivement.'),
-              duration: Duration(seconds: 4),
-            ),
-          );
-        }
         return false;
       }
 
@@ -603,9 +546,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                         child: MapboxWebView(
                           // Clé plus stable, indépendante de la taille précise (Mapbox gère le resize interne)
                           // On garde _mapRebuildTick seulement si on VEUT forcer un reload
-                          key: ValueKey(
-                            'default-map-stable_$_mapRebuildTick',
-                          ),
+                          key: ValueKey('default-map-stable_$_mapRebuildTick'),
                           accessToken: token,
                           initialLat: _projectCenterLat ?? _userLat ?? 16.2410,
                           initialLng: _projectCenterLng ?? _userLng ?? -61.5340,
@@ -752,6 +693,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                                       filterQuality: FilterQuality.high,
                                     ),
                                     fullBleed: true,
+                                    showBorder: false,
                                     selected:
                                         _selectedAction == _MapAction.parking,
                                     onTap: () {
@@ -786,6 +728,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                                     fullBleed: true,
                                     tintOnSelected: false,
                                     highlightBackgroundOnSelected: false,
+                                    showBorder: false,
                                     selected: _selectedAction == _MapAction.wc,
                                     onTap: () {
                                       _selectAction(_MapAction.wc, 'Langue');
@@ -900,6 +843,7 @@ class _ActionItem extends StatelessWidget {
   final bool fullBleed;
   final bool tintOnSelected;
   final bool highlightBackgroundOnSelected;
+  final bool showBorder;
 
   const _ActionItem({
     required this.label,
@@ -910,6 +854,7 @@ class _ActionItem extends StatelessWidget {
     this.fullBleed = false,
     this.tintOnSelected = true,
     this.highlightBackgroundOnSelected = true,
+    this.showBorder = true,
   }) : assert(icon != null || iconWidget != null);
 
   @override
@@ -927,10 +872,12 @@ class _ActionItem extends StatelessWidget {
           color: showSelectedBackground
               ? null
               : Colors.white.withValues(alpha: 0.92),
-          border: Border.all(
-            color: selected ? MasliveTheme.pink : MasliveTheme.divider,
-            width: selected ? 2.0 : 1.0,
-          ),
+          border: showBorder
+              ? Border.all(
+                  color: selected ? MasliveTheme.pink : MasliveTheme.divider,
+                  width: selected ? 2.0 : 1.0,
+                )
+              : null,
           boxShadow: selected ? MasliveTheme.cardShadow : const [],
         ),
         child: fullBleed

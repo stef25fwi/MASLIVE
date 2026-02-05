@@ -203,6 +203,49 @@ class GroupShopService {
     );
 
     await mediaRef.set(media.toFirestore());
+
+    // Écriture miroir dans le shop public + fiche shop minimale
+    // On utilise adminGroupId comme shopId pour garder une correspondance simple.
+    try {
+      final shopRef = _firestore.collection('shops').doc(adminGroupId);
+
+      // Fiche shop minimale (type group)
+      await shopRef.set({
+        'ownerUid': user.uid,
+        'type': 'group',
+        'isActive': true,
+        'groupId': adminGroupId,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // Média miroir dans shops/{shopId}/media/{mediaId}
+      await shopRef
+          .collection('media')
+          .doc(media.id)
+          .set({
+        'shopId': adminGroupId,
+        'type': type == 'video' ? 'video' : 'photo',
+        'url': url,
+        'storagePath': path,
+        'thumbUrl': null,
+        'status': 'published',
+        'isVisible': true,
+        // Filtres optionnels (remplis plus tard si besoin)
+        'countryCode': null,
+        'eventId': null,
+        'circuitId': null,
+        'takenAt': null,
+        'locationGeo': null,
+        'locationName': null,
+        'photographerId': user.uid,
+        'createdAt': Timestamp.fromDate(now),
+        'updatedAt': Timestamp.fromDate(now),
+      });
+    } catch (_) {
+      // En cas d'erreur, on ne casse pas le flux historique group_shops
+    }
+
     return media;
   }
 
@@ -228,6 +271,26 @@ class GroupShopService {
         .collection('media')
         .doc(mediaId)
         .update(updates);
+    // Miroir dans shops/{shopId}/media/{mediaId}
+    try {
+      final mirrorUpdates = <String, dynamic>{
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (isVisible != null) {
+        mirrorUpdates['isVisible'] = isVisible;
+      }
+
+      if (mirrorUpdates.isNotEmpty) {
+        await _firestore
+            .collection('shops')
+            .doc(adminGroupId)
+            .collection('media')
+            .doc(mediaId)
+            .update(mirrorUpdates);
+      }
+    } catch (_) {
+      // best effort
+    }
   }
 
   // Supprime un média
@@ -252,6 +315,17 @@ class GroupShopService {
     }
 
     await doc.reference.delete();
+    // Supprime aussi le miroir dans shops/{shopId}/media
+    try {
+      await _firestore
+          .collection('shops')
+          .doc(adminGroupId)
+          .collection('media')
+          .doc(mediaId)
+          .delete();
+    } catch (_) {
+      // ignore
+    }
   }
 
   // Stream des médias
