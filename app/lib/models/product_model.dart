@@ -35,7 +35,13 @@ class GroupProduct {
     this.tags,
   });
 
-  String get priceLabel => '€${(priceCents / 100).toStringAsFixed(0)}';
+  String get priceLabel {
+    final euros = priceCents / 100;
+    if (euros == euros.truncate()) {
+      return '${euros.toStringAsFixed(0)},00 €';
+    }
+    return '${euros.toStringAsFixed(2).replaceAll('.', ',')} €';
+  }
   
   // Récupère le stock pour une variante donnée
   int stockFor(String size, String color) {

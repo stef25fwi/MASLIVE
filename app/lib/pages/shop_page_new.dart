@@ -31,6 +31,8 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
 
   int catIndex = 0;
   String selectedGroup = "Tous les groupes";
+  String? selectedSize;
+  String? selectedColor;
 
   static const String _allGroupsLabel = 'Tous les groupes';
 
@@ -41,7 +43,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
   static const double _gridGap = 8;
 
   static const double _headerH = 190; // hauteur header (légèrement augmentée)
-  static const double _filtersPinnedH = 78; // chips + dropdown plus bas
+  static const double _filtersPinnedH = 152; // chips catégories + dropdown groupes + filtres taille/couleur
 
   static const double _cardRadius = 24;
 
@@ -132,8 +134,77 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
     return [_allGroupsLabel, ...groups];
   }
 
+  List<String> _extractSizesFromTags(
+    Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    final set = <String>{};
+    final knownSizes = {'xs', 's', 'm', 'l', 'xl', 'xxl', 'one size', 'unique'};
+    for (final d in docs) {
+      final tags = d.data()['tags'];
+      if (tags is List) {
+        for (final tag in tags) {
+          final t = tag.toString().toLowerCase().trim();
+          if (knownSizes.contains(t)) {
+            set.add(tag.toString());
+          }
+        }
+      }
+    }
+    final sizes = set.toList()..sort();
+    return sizes;
+  }
+
+  List<String> _extractColorsFromTags(
+    Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    final set = <String>{};
+    final knownColors = {
+      'noir', 'blanc', 'rouge', 'bleu', 'vert', 'jaune',
+      'orange', 'rose', 'violet', 'gris', 'marron',
+      'multicolore', 'beige', 'turquoise'
+    };
+    for (final d in docs) {
+      final tags = d.data()['tags'];
+      if (tags is List) {
+        for (final tag in tags) {
+          final t = tag.toString().toLowerCase().trim();
+          if (knownColors.contains(t)) {
+            set.add(tag.toString());
+          }
+        }
+      }
+    }
+    final colors = set.toList()..sort();
+    return colors;
+  }
+
   String _effectiveGroupId() {
     return selectedGroup == _allGroupsLabel ? 'all' : selectedGroup;
+  }
+
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _filterProductsByTags(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    return docs.where((doc) {
+      final tags = doc.data()['tags'];
+      if (tags is! List) return false;
+
+      final tagsLower = tags.map((t) => t.toString().toLowerCase()).toSet();
+
+      if (selectedSize != null) {
+        if (!tagsLower.contains(selectedSize!.toLowerCase())) {
+          return false;
+        }
+      }
+
+      if (selectedColor != null) {
+        if (!tagsLower.contains(selectedColor!.toLowerCase())) {
+          return false;
+        }
+      }
+
+      return true;
+    }).toList();
   }
 
   GroupProduct _demoProduct({
@@ -265,6 +336,13 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                           });
                         }
 
+                        final dynamicSizes = (catSnap.hasData)
+                            ? _extractSizesFromTags(catSnap.data!.docs)
+                            : <String>[];
+                        final dynamicColors = (catSnap.hasData)
+                            ? _extractColorsFromTags(catSnap.data!.docs)
+                            : <String>[];
+
                         return _FiltersBar(
                           cats: _cats,
                           selectedIndex: catIndex,
@@ -273,9 +351,14 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                           selectedGroup: selectedGroup,
                           onGroupChanged: (v) => setState(() {
                             selectedGroup = v;
-                            // Quand on change de groupe, on revient sur Tous côté catégories.
                             catIndex = 0;
                           }),
+                          sizes: dynamicSizes,
+                          selectedSize: selectedSize,
+                          onSizeChanged: (v) => setState(() => selectedSize = v),
+                          colors: dynamicColors,
+                          selectedColor: selectedColor,
+                          onColorChanged: (v) => setState(() => selectedColor = v),
                         );
                       },
                     );
@@ -486,6 +569,111 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
               ),
             ),
 
+            // Section produits dynamiques depuis Firestore
+            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: _buildCategoriesQuery().snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const SliverToBoxAdapter(
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(40),
+                        child: CircularProgressIndicator(),
+                      ),
+                    ),
+                  );
+                }
+
+                // Filtrer par catégorie si sélectionnée
+                var docs = snapshot.data!.docs;
+                if (catIndex > 0 && catIndex < _cats.length) {
+                  final selectedCat = _cats[catIndex];
+                  docs = docs.where((d) {
+                    final cat = d.data()['category'];
+                    return cat == selectedCat;
+                  }).toList();
+                }
+
+                // Filtrer par tags (taille/couleur)
+                docs = _filterProductsByTags(docs);
+
+                if (docs.isEmpty) {
+                  return SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(40),
+                      child: Center(
+                        child: Column(
+                          children: const [
+                            Icon(
+                              Icons.inventory_2_outlined,
+                              size: 64,
+                              color: Color(0xFFCBD5E1),
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'Aucun produit disponible',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF6B7280),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    _pageHPad,
+                    16,
+                    _pageHPad,
+                    16,
+                  ),
+                  sliver: SliverGrid(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: _gridGap,
+                      crossAxisSpacing: _gridGap,
+                      childAspectRatio: 1 / 1.35,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final doc = docs[index];
+                        final product = GroupProduct.fromFirestore(doc);
+
+                        return _ProductTile(
+                          title: product.title,
+                          price: product.priceLabel,
+                          image: product.imagePath != null &&
+                                  product.imagePath!.isNotEmpty
+                              ? _AssetOrFallback(
+                                  assetPath: product.imagePath!,
+                                  fallbackIcon: Icons.shopping_bag_outlined,
+                                )
+                              : Container(
+                                  color: const Color(0xFFF1F2F6),
+                                  child: const Icon(
+                                    Icons.shopping_bag_outlined,
+                                    size: 48,
+                                    color: Color(0xFFCBD5E1),
+                                  ),
+                                ),
+                          onAdd: () => _addProductToCart(product),
+                          onTap: () => _openProductDetail(product),
+                          compact: false,
+                          outOfStock: product.isOutOfStock,
+                        );
+                      },
+                      childCount: docs.length,
+                    ),
+                  ),
+                );
+              },
+            ),
+
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
         ),
@@ -687,6 +875,12 @@ class _FiltersBar extends StatelessWidget {
     required this.groups,
     required this.selectedGroup,
     required this.onGroupChanged,
+    this.sizes = const [],
+    this.selectedSize,
+    this.onSizeChanged,
+    this.colors = const [],
+    this.selectedColor,
+    this.onColorChanged,
   });
 
   final List<String> cats;
@@ -697,8 +891,17 @@ class _FiltersBar extends StatelessWidget {
   final String selectedGroup;
   final ValueChanged<String> onGroupChanged;
 
+  final List<String> sizes;
+  final String? selectedSize;
+  final ValueChanged<String?>? onSizeChanged;
+
+  final List<String> colors;
+  final String? selectedColor;
+  final ValueChanged<String?>? onColorChanged;
+
   static const double chipsH = 34;
   static const double dropdownH = 40;
+  static const double filterRowH = 32;
 
   @override
   Widget build(BuildContext context) {
@@ -768,7 +971,124 @@ class _FiltersBar extends StatelessWidget {
               onChanged: onGroupChanged,
             ),
           ),
+          if (sizes.isNotEmpty || colors.isNotEmpty) const SizedBox(height: 8),
+          if (sizes.isNotEmpty)
+            SizedBox(
+              height: filterRowH,
+              child: _FilterRow(
+                label: 'Taille',
+                items: sizes,
+                selected: selectedSize,
+                onChanged: onSizeChanged,
+              ),
+            ),
+          if (sizes.isNotEmpty && colors.isNotEmpty) const SizedBox(height: 6),
+          if (colors.isNotEmpty)
+            SizedBox(
+              height: filterRowH,
+              child: _FilterRow(
+                label: 'Couleur',
+                items: colors,
+                selected: selectedColor,
+                onChanged: onColorChanged,
+              ),
+            ),
         ],
+      ),
+    );
+  }
+}
+
+class _FilterRow extends StatelessWidget {
+  const _FilterRow({
+    required this.label,
+    required this.items,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final String label;
+  final List<String> items;
+  final String? selected;
+  final ValueChanged<String?>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          '$label:',
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF6B7280),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _MiniChip(
+                  label: 'Tous',
+                  selected: selected == null,
+                  onTap: () => onChanged?.call(null),
+                ),
+                const SizedBox(width: 6),
+                for (final item in items) ...[
+                  _MiniChip(
+                    label: item,
+                    selected: selected == item,
+                    onTap: () => onChanged?.call(item),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MiniChip extends StatelessWidget {
+  const _MiniChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF2563EB) : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected
+                ? const Color(0xFF2563EB)
+                : const Color(0xFFE5E7EB),
+            width: 1.5,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: selected ? Colors.white : const Color(0xFF6B7280),
+          ),
+        ),
       ),
     );
   }
