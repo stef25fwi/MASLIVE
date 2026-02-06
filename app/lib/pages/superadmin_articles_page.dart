@@ -460,6 +460,13 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
   XFile? _selectedImageFile;
   bool _isUploading = false;
   double _uploadProgress = 0.0;
+  
+  // Assets disponibles
+  static const List<String> availableAssets = [
+    'assets/images/maslivelogo.png',
+    'assets/images/maslivesmall.png',
+    'assets/images/icon wc parking.png',
+  ];
 
   @override
   void initState() {
@@ -545,10 +552,85 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
     }
   }
 
+  Future<void> _pickImageFromAssets() async {
+    if (!mounted) return;
+    
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sélectionner depuis les assets'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ...availableAssets.map((asset) {
+                final fileName = asset.split('/').last;
+                return ListTile(
+                  title: Text(fileName),
+                  subtitle: Text(asset),
+                  onTap: () => Navigator.pop(context, asset),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (selected == null) return;
+
+    print('📦 Asset sélectionné: $selected');
+    setState(() {
+      _imageUrl = selected;
+      _selectedImageFile = null; // Marquer comme asset
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Asset sélectionné: ${selected.split('/').last}'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _showImageSourcePicker() async {
+    if (!mounted) return;
+    
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.image),
+              title: const Text('Galerie photos'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.library_add),
+              title: const Text('Assets (logo, etc.)'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImageFromAssets();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<String?> _uploadImageIfNeeded(String articleId) async {
-    if (_selectedImageFile == null) {
+    if (_selectedImageFile == null && _imageUrl.isEmpty) {
       // Pas de nouvelle image, garder l'existante
-      return _imageUrl.isNotEmpty ? _imageUrl : null;
+      return null;
     }
 
     setState(() {
@@ -557,15 +639,34 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
     });
 
     try {
-      final imageUrl = await _storageService.uploadArticleCover(
-        articleId: articleId,
-        file: _selectedImageFile!,
-        onProgress: (progress) {
-          if (mounted) {
-            setState(() => _uploadProgress = progress);
-          }
-        },
-      );
+      String? imageUrl;
+      
+      // Cas 1: Upload depuis asset (déjà sélectionné, contient "assets/")
+      if (_imageUrl.contains('assets/')) {
+        print('📦 Upload depuis asset: $_imageUrl');
+        imageUrl = await _storageService.uploadArticleFromAsset(
+          articleId: articleId,
+          assetPath: _imageUrl,
+          onProgress: (progress) {
+            if (mounted) {
+              setState(() => _uploadProgress = progress);
+            }
+          },
+        );
+      }
+      // Cas 2: Upload depuis fichier sélectionné
+      else if (_selectedImageFile != null) {
+        print('📝 Upload depuis fichier: ${_selectedImageFile!.name}');
+        imageUrl = await _storageService.uploadArticleCover(
+          articleId: articleId,
+          file: _selectedImageFile!,
+          onProgress: (progress) {
+            if (mounted) {
+              setState(() => _uploadProgress = progress);
+            }
+          },
+        );
+      }
 
       return imageUrl;
     } catch (e) {
@@ -620,26 +721,41 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
                             );
                           },
                         )
-                      : Image.network(
-                          _imageUrl,
-                          height: 120,
-                          width: 120,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
+                      : _imageUrl.contains('assets/')
+                          ? Image.asset(
+                              _imageUrl,
                               height: 120,
                               width: 120,
-                              color: Colors.grey.shade200,
-                              child: const Icon(Icons.image),
-                            );
-                          },
-                        ),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  height: 120,
+                                  width: 120,
+                                  color: Colors.grey.shade200,
+                                  child: const Icon(Icons.broken_image),
+                                );
+                              },
+                            )
+                          : Image.network(
+                              _imageUrl,
+                              height: 120,
+                              width: 120,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  height: 120,
+                                  width: 120,
+                                  color: Colors.grey.shade200,
+                                  child: const Icon(Icons.image),
+                                );
+                              },
+                            ),
                 ),
               ),
 
             // Bouton sélection image
             ElevatedButton.icon(
-              onPressed: _isUploading ? null : _pickImage,
+              onPressed: _isUploading ? null : _showImageSourcePicker,
               icon: const Icon(Icons.add_photo_alternate, size: 20),
               label: Text(
                 (_selectedImageFile != null || _imageUrl.isNotEmpty)
@@ -742,7 +858,8 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
 
             // Upload de l'image si sélectionnée
             String? finalImageUrl = _imageUrl.isNotEmpty ? _imageUrl : null;
-            if (_selectedImageFile != null) {
+            final shouldUpload = _selectedImageFile != null || _imageUrl.contains('assets/');
+            if (shouldUpload) {
               finalImageUrl = await _uploadImageIfNeeded(articleId);
               if (finalImageUrl == null) {
                 if (mounted) {

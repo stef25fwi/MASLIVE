@@ -176,6 +176,14 @@
       ]
     },
     {
+      "collectionGroup": "map_projects",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "uid", "order": "ASCENDING"},
+        {"fieldPath": "updatedAt", "order": "DESCENDING"}
+      ]
+    },
+    {
       "collectionGroup": "media",
       "queryScope": "COLLECTION_GROUP",
       "fields": [

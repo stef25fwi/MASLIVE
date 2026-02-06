@@ -1,8 +1,8 @@
-import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart' show rootBundle;
 
 /// Service centralisé de gestion du stockage Firebase Storage
 /// 
@@ -174,6 +174,69 @@ class StorageService {
       parentType: 'article',
       onProgress: onProgress,
     );
+  }
+
+  /// Upload image d'article depuis les assets (maslivelogo.png, etc.)
+  Future<String> uploadArticleFromAsset({
+    required String articleId,
+    required String assetPath, // ex: assets/images/maslivelogo.png
+    void Function(double progress)? onProgress,
+  }) async {
+    print('📦 [StorageService] Upload depuis asset: $assetPath');
+    
+    final user = _currentUser;
+    if (user == null) {
+      print('❌ [StorageService] User non authentifié');
+      throw Exception('User not authenticated');
+    }
+
+    try {
+      // 1. Charger asset en bytes
+      final data = await rootBundle.load(assetPath);
+      final bytes = data.buffer.asUint8List();
+      print('✅ [StorageService] Asset chargé: ${bytes.length} bytes');
+
+      // 2. Extraire nom original
+      final fileName = assetPath.split('/').last;
+      final ext = fileName.split('.').last;
+
+      // 3. Déterminer chemin storage
+      final path = 'articles/$articleId/original/cover.$ext';
+
+      // 4. Uploader
+      final ref = _storage.ref(path);
+      final metadata = SettableMetadata(
+        contentType: _getContentType(fileName),
+        customMetadata: {
+          'uploadedBy': user.uid,
+          'uploadedAt': DateTime.now().toIso8601String(),
+          'originalName': fileName,
+          'originalPath': assetPath,
+          'category': 'article_asset',
+          'parentId': articleId,
+          'parentType': 'article',
+        },
+      );
+
+      print('🔧 [StorageService] Upload asset vers: $path');
+      final uploadTask = ref.putData(bytes, metadata);
+
+      if (onProgress != null) {
+        uploadTask.snapshotEvents.listen((snapshot) {
+          final progress = snapshot.bytesTransferred / snapshot.totalBytes;
+          onProgress(progress);
+        });
+      }
+
+      await uploadTask;
+      final downloadUrl = await ref.getDownloadURL();
+      print('✅ [StorageService] Asset uploadé: $downloadUrl');
+      
+      return downloadUrl;
+    } catch (e) {
+      print('❌ [StorageService] Erreur upload asset: $e');
+      rethrow;
+    }
   }
 
   /// Upload images du contenu d'article
@@ -382,15 +445,13 @@ class StorageService {
     try {
       if (kIsWeb) {
         print('🌐 [StorageService] Mode WEB - lecture bytes...');
-        final bytes = await file.readAsBytes();
-        print('✅ [StorageService] ${bytes.length} bytes lus');
-        uploadTask = ref.putData(bytes, metadata);
       } else {
-        print('📱 [StorageService] Mode MOBILE - lecture fichier...');
-        final ioFile = File(file.path);
-        print('✅ [StorageService] Fichier créé: ${file.path}');
-        uploadTask = ref.putFile(ioFile, metadata);
+        print('📱 [StorageService] Mode MOBILE - lecture bytes...');
       }
+
+      final bytes = await file.readAsBytes();
+      print('✅ [StorageService] ${bytes.length} bytes lus');
+      uploadTask = ref.putData(bytes, metadata);
       print('✅ [StorageService] UploadTask créée');
 
       // Surveiller progression

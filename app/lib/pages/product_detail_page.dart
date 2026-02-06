@@ -34,6 +34,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   late TransformationController _transformationController;
   Timer? _zoomResetTimer;
 
+  double _heroAspectRatio = 1.0;
+  ImageStream? _heroImageStream;
+  ImageStreamListener? _heroImageStreamListener;
+
   static const _bg = Color(0xFFF4F5F8);
 
   @override
@@ -47,14 +51,122 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     color = widget.product.colors.isNotEmpty
         ? widget.product.colors.first
         : 'Default';
+
+    _resolveHeroAspectRatio(widget.product);
   }
 
   @override
   void dispose() {
+    if (_heroImageStream != null && _heroImageStreamListener != null) {
+      _heroImageStream!.removeListener(_heroImageStreamListener!);
+    }
     _galleryController.dispose();
     _transformationController.dispose();
     _zoomResetTimer?.cancel();
     super.dispose();
+  }
+
+  void _resolveHeroAspectRatio(GroupProduct p) {
+    // Nettoyage listener précédent
+    if (_heroImageStream != null && _heroImageStreamListener != null) {
+      _heroImageStream!.removeListener(_heroImageStreamListener!);
+      _heroImageStream = null;
+      _heroImageStreamListener = null;
+    }
+
+    final source = _primaryHeroImageSource(p);
+    if (source == null) return;
+
+    final stream = _providerForSource(source).resolve(const ImageConfiguration());
+    _heroImageStream = stream;
+
+    late final ImageStreamListener listener;
+    listener = ImageStreamListener(
+      (ImageInfo info, bool synchronousCall) {
+        final w = info.image.width.toDouble();
+        final h = info.image.height.toDouble();
+        if (w > 0 && h > 0) {
+          final ratio = w / h;
+          if (mounted) {
+            setState(() {
+              _heroAspectRatio = ratio;
+            });
+          }
+        }
+        // One-shot: on enlève le listener après la première résolution.
+        stream.removeListener(listener);
+        if (identical(_heroImageStream, stream)) {
+          _heroImageStream = null;
+          _heroImageStreamListener = null;
+        }
+      },
+      onError: (Object exception, StackTrace? stackTrace) {
+        // Ignore, on garde le ratio par défaut.
+        stream.removeListener(listener);
+        if (identical(_heroImageStream, stream)) {
+          _heroImageStream = null;
+          _heroImageStreamListener = null;
+        }
+      },
+    );
+    _heroImageStreamListener = listener;
+    stream.addListener(listener);
+  }
+
+  String? _primaryHeroImageSource(GroupProduct p) {
+    if (p.imagePath != null && p.imagePath!.isNotEmpty) return p.imagePath;
+    if (p.imageUrl.isNotEmpty) return p.imageUrl;
+    if ((p.imageUrl2 ?? '').isNotEmpty) return p.imageUrl2;
+    return null;
+  }
+
+  ImageProvider _providerForSource(String source) {
+    if (source.startsWith('assets/')) {
+      return AssetImage(source);
+    }
+    return NetworkImage(source);
+  }
+
+  void _updateHeroAspectRatioForSource(String source) {
+    // Même logique que _resolveHeroAspectRatio mais sur une source explicite.
+    if (_heroImageStream != null && _heroImageStreamListener != null) {
+      _heroImageStream!.removeListener(_heroImageStreamListener!);
+      _heroImageStream = null;
+      _heroImageStreamListener = null;
+    }
+
+    final stream = _providerForSource(source).resolve(const ImageConfiguration());
+    _heroImageStream = stream;
+
+    late final ImageStreamListener listener;
+    listener = ImageStreamListener(
+      (ImageInfo info, bool synchronousCall) {
+        final w = info.image.width.toDouble();
+        final h = info.image.height.toDouble();
+        if (w > 0 && h > 0) {
+          final ratio = w / h;
+          if (mounted) {
+            setState(() {
+              _heroAspectRatio = ratio;
+            });
+          }
+        }
+        stream.removeListener(listener);
+        if (identical(_heroImageStream, stream)) {
+          _heroImageStream = null;
+          _heroImageStreamListener = null;
+        }
+      },
+      onError: (Object exception, StackTrace? stackTrace) {
+        stream.removeListener(listener);
+        if (identical(_heroImageStream, stream)) {
+          _heroImageStream = null;
+          _heroImageStreamListener = null;
+        }
+      },
+    );
+    _heroImageStreamListener = listener;
+    stream.addListener(listener);
   }
   
   void _resetZoom() {
@@ -118,7 +230,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         PageView.builder(
           controller: _galleryController,
           itemCount: urls.length,
-          onPageChanged: (i) => setState(() => _galleryIndex = i),
+          onPageChanged: (i) {
+            setState(() => _galleryIndex = i);
+            _updateHeroAspectRatioForSource(urls[i]);
+          },
           itemBuilder: (context, i) {
             final u = urls[i];
             Widget imageWidget;
@@ -193,6 +308,19 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       body: HoneycombBackground(
         child: Column(
           children: [
+            // Image en premier (au-dessus du header), sans crop + ratio auto
+            SizedBox(
+              width: double.infinity,
+              child: AspectRatio(
+                aspectRatio: _heroAspectRatio,
+                child: widget.heroTag == null
+                    ? _productImageGallery(p)
+                    : Hero(
+                        tag: widget.heroTag!,
+                        child: _productImageGallery(p),
+                      ),
+              ),
+            ),
             RainbowHeader(
               title: 'Shop',
               height: 155,
@@ -202,183 +330,154 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
               ),
             ),
             Expanded(
-              child: Transform.translate(
-                offset: const Offset(0, -14),
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 120),
-                  children: [
-                    // Carte image
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.92),
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            blurRadius: 18,
-                            offset: const Offset(0, 10),
-                            color: Colors.black.withValues(alpha: 0.06),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 120),
+                children: [
+                  const SizedBox(height: 14),
+
+                  // Infos produit
+                  _card(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          p.title,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.2,
                           ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: AspectRatio(
-                          aspectRatio: 1.08,
-                          child: widget.heroTag == null
-                              ? _productImageGallery(p)
-                              : Hero(
-                                  tag: widget.heroTag!,
-                                  child: _productImageGallery(p),
-                                ),
                         ),
-                      ),
+                        const SizedBox(height: 6),
+                        Text(
+                          p.priceLabel,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Produit officiel du groupe • Qualité premium',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black.withValues(alpha: 0.55),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 14),
+                  ),
 
-                    // Infos produit
-                    _card(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            p.title,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.2,
-                            ),
+                  const SizedBox(height: 14),
+
+                  // Options
+                  _card(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Options',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            p.priceLabel,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            'Produit officiel du groupe • Qualité premium',
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black.withValues(alpha: 0.55),
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 10),
+                        _rowSelector(
+                          label: 'Taille',
+                          value: size,
+                          choices: p.sizes,
+                          onPick: (v) => setState(() {
+                            size = v;
+                            quantity = 1; // Reset quantité lors du changement
+                          }),
+                        ),
+                        const SizedBox(height: 10),
+                        _rowSelector(
+                          label: 'Couleur',
+                          value: color,
+                          choices: p.colors,
+                          onPick: (v) => setState(() {
+                            color = v;
+                            quantity = 1; // Reset quantité lors du changement
+                          }),
+                        ),
+                      ],
                     ),
+                  ),
 
-                    const SizedBox(height: 14),
+                  const SizedBox(height: 14),
 
-                    // Options
-                    _card(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Options',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          _rowSelector(
-                            label: 'Taille',
-                            value: size,
-                            choices: p.sizes,
-                            onPick: (v) => setState(() {
-                              size = v;
-                              quantity = 1; // Reset quantité lors du changement
-                            }),
-                          ),
-                          const SizedBox(height: 10),
-                          _rowSelector(
-                            label: 'Couleur',
-                            value: color,
-                            choices: p.colors,
-                            onPick: (v) => setState(() {
-                              color = v;
-                              quantity = 1; // Reset quantité lors du changement
-                            }),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    // Stock et Quantité
-                    _card(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Text(
-                                'Disponibilité',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              _StockPill(stock: p.stockFor(size, color)),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            p.stockFor(size, color) > 0
-                                ? '${p.stockFor(size, color)} disponible(s) pour $size / $color'
-                                : 'Rupture de stock pour $size / $color',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: p.stockFor(size, color) > 0
-                                  ? const Color(0xFF0F766E)
-                                  : const Color(0xFFB42318),
-                            ),
-                          ),
-                          if (p.stockFor(size, color) > 0) ...[
-                            const SizedBox(height: 12),
+                  // Stock et Quantité
+                  _card(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
                             const Text(
-                              'Quantité',
+                              'Disponibilité',
                               style: TextStyle(
-                                fontSize: 14,
+                                fontSize: 15,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            _QtySelector(
-                              value: quantity,
-                              max: p.stockFor(size, color),
-                              onChanged: (v) => setState(() => quantity = v),
-                            ),
+                            const SizedBox(width: 8),
+                            _StockPill(stock: p.stockFor(size, color)),
                           ],
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    // Description
-                    _card(
-                      child: Text(
-                        'Description du produit…\n'
-                        '• Impression HD\n'
-                        '• Coupe unisexe\n'
-                        '• Livraison locale / retrait possible',
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          height: 1.35,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black.withValues(alpha: 0.72),
                         ),
+                        const SizedBox(height: 8),
+                        Text(
+                          p.stockFor(size, color) > 0
+                              ? '${p.stockFor(size, color)} disponible(s) pour $size / $color'
+                              : 'Rupture de stock pour $size / $color',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: p.stockFor(size, color) > 0
+                                ? const Color(0xFF0F766E)
+                                : const Color(0xFFB42318),
+                          ),
+                        ),
+                        if (p.stockFor(size, color) > 0) ...[
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Quantité',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _QtySelector(
+                            value: quantity,
+                            max: p.stockFor(size, color),
+                            onChanged: (v) => setState(() => quantity = v),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // Description
+                  _card(
+                    child: Text(
+                      'Description du produit…\n'
+                      '• Impression HD\n'
+                      '• Coupe unisexe\n'
+                      '• Livraison locale / retrait possible',
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        height: 1.35,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black.withValues(alpha: 0.72),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],

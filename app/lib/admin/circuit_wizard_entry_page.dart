@@ -185,14 +185,14 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
                   ),
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                if (project.perimeterPoints.isNotEmpty)
+                if (project.perimeter.isNotEmpty)
                   Chip(
-                    label: Text('${project.perimeterPoints.length} pts périm.'),
+                    label: Text('${project.perimeter.length} pts périm.'),
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                if (project.routePoints.isNotEmpty)
+                if (project.route.isNotEmpty)
                   Chip(
-                    label: Text('${project.routePoints.length} pts tracé'),
+                    label: Text('${project.route.length} pts tracé'),
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
               ],
@@ -314,6 +314,7 @@ class _NameInputDialogState extends State<_NameInputDialog> {
       title: const Text('Nom du circuit'),
       content: TextField(
         controller: _controller,
+        onChanged: (_) => setState(() {}),
         decoration: const InputDecoration(
           hintText: 'Ex: Circuit Côte Nord',
           border: OutlineInputBorder(),

@@ -1,7 +1,5 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import '../services/mapbox_token_service.dart';
 
 typedef LngLat = ({double lng, double lat});
@@ -34,7 +32,6 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   int _historyIndex = -1;
   bool _isEditingEnabled = true;
   int? _selectedPointIndex;
-  MapboxMap? _mapboxMap;
   double _simplificationThreshold = 0.0001;
   bool _showToolbar = true;
 
@@ -172,16 +169,16 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     const earthRadiusKm = 6371;
     final dLat = _toRad(p2.lat - p1.lat);
     final dLng = _toRad(p2.lng - p1.lng);
-    final a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(_toRad(p1.lat)) *
-            Math.cos(_toRad(p2.lat)) *
-            Math.sin(dLng / 2) *
-            Math.sin(dLng / 2);
-    final c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_toRad(p1.lat)) *
+            math.cos(_toRad(p2.lat)) *
+            math.sin(dLng / 2) *
+            math.sin(dLng / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
     return earthRadiusKm * c;
   }
 
-  double _toRad(double deg) => deg * Math.pi / 180;
+  double _toRad(double deg) => deg * math.pi / 180;
 
   void _reversePath() {
     setState(() => _points = _points.reversed.toList());

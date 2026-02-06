@@ -7,7 +7,7 @@ class SuperadminArticle {
   final String description;
   final String category; // casquette, tshirt, porteclé, bandana
   final double price;
-  final String imageUrl;
+  final String imageUrl; // Image couverture/principale
   final int stock;
   final bool isActive;
   final DateTime createdAt;
@@ -15,6 +15,11 @@ class SuperadminArticle {
   final String? sku; // Stock Keeping Unit
   final List<String> tags;
   final Map<String, dynamic>? metadata; // Données additionnelles (tailles, couleurs, etc.)
+  
+  // NEW: Support galerie et métadonnées images
+  final List<String> galleryImages; // Images supplémentaires
+  final String? thumbnailUrl; // URL miniature pour liste
+  final Map<String, dynamic>? imageMetadata; // uploadedBy, uploadedAt, fileSize, etc.
 
   SuperadminArticle({
     required this.id,
@@ -30,6 +35,9 @@ class SuperadminArticle {
     this.sku,
     this.tags = const [],
     this.metadata,
+    this.galleryImages = const [],
+    this.thumbnailUrl,
+    this.imageMetadata,
   });
 
   factory SuperadminArticle.fromMap(Map<String, dynamic> data, String docId) {
@@ -47,6 +55,9 @@ class SuperadminArticle {
       sku: data['sku'],
       tags: List<String>.from(data['tags'] ?? []),
       metadata: data['metadata'],
+      galleryImages: List<String>.from(data['galleryImages'] ?? []),
+      thumbnailUrl: data['thumbnailUrl'],
+      imageMetadata: data['imageMetadata'],
     );
   }
 
@@ -69,6 +80,9 @@ class SuperadminArticle {
       sku: json['sku'],
       tags: List<String>.from(json['tags'] ?? []),
       metadata: json['metadata'],
+      galleryImages: List<String>.from(json['galleryImages'] ?? []),
+      thumbnailUrl: json['thumbnailUrl'],
+      imageMetadata: json['imageMetadata'],
     );
   }
 
@@ -86,6 +100,9 @@ class SuperadminArticle {
       'sku': sku,
       'tags': tags,
       'metadata': metadata,
+      'galleryImages': galleryImages,
+      'thumbnailUrl': thumbnailUrl,
+      'imageMetadata': imageMetadata,
     };
   }
 
@@ -104,6 +121,9 @@ class SuperadminArticle {
       'sku': sku,
       'tags': tags,
       'metadata': metadata,
+      'galleryImages': galleryImages,
+      'thumbnailUrl': thumbnailUrl,
+      'imageMetadata': imageMetadata,
     };
   }
 
@@ -121,6 +141,9 @@ class SuperadminArticle {
     String? sku,
     List<String>? tags,
     Map<String, dynamic>? metadata,
+    List<String>? galleryImages,
+    String? thumbnailUrl,
+    Map<String, dynamic>? imageMetadata,
   }) {
     return SuperadminArticle(
       id: id ?? this.id,
@@ -136,6 +159,9 @@ class SuperadminArticle {
       sku: sku ?? this.sku,
       tags: tags ?? this.tags,
       metadata: metadata ?? this.metadata,
+      galleryImages: galleryImages ?? this.galleryImages,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      imageMetadata: imageMetadata ?? this.imageMetadata,
     );
   }
 }
