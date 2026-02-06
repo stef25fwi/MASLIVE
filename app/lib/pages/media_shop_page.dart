@@ -913,15 +913,6 @@ class _MediaShopPageState extends State<MediaShopPage> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                _GlassHeaderButton(
-                                  tooltip: 'Rafraîchir',
-                                  onTap: _refreshAll,
-                                  child: const Icon(
-                                    Icons.refresh,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                ),
                               ],
                             ),
                           ),
