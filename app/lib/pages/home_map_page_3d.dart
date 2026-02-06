@@ -130,7 +130,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       vsync: this,
     );
     _menuSlideAnimation =
-        Tween<Offset>(begin: const Offset(-1.0, 0.0), end: Offset.zero).animate(
+        Tween<Offset>(begin: const Offset(1.0, 0.0), end: Offset.zero).animate(
           CurvedAnimation(
             parent: _menuAnimController,
             curve: Curves.easeOut,
