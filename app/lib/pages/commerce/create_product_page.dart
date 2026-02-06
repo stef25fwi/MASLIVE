@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../models/commerce_submission.dart';
 import '../../services/commerce/commerce_service.dart';
 import '../../ui/theme/maslive_theme.dart';
+import '../../ui/widgets/rainbow_loading_indicator.dart';
 
 /// Page de création/édition d'un produit
 class CreateProductPage extends StatefulWidget {
@@ -21,9 +23,10 @@ class CreateProductPage extends StatefulWidget {
 class _CreateProductPageState extends State<CreateProductPage> {
   final _formKey = GlobalKey<FormState>();
   final _service = CommerceService.instance;
-  final _picker = ImagePicker();
+  late ImagePicker _picker;
 
   bool _isLoading = false;
+  bool _isPickerBusy = false;
   bool _isEditing = false;
   CommerceSubmission? _existing;
 
@@ -113,9 +116,59 @@ class _CreateProductPageState extends State<CreateProductPage> {
   @override
   void initState() {
     super.initState();
+    _picker = ImagePicker();
     _isEditing = widget.submissionId != null;
     if (_isEditing) {
       _loadSubmission();
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _priceController.dispose();
+    _stockController.dispose();
+    super.dispose();
+  }
+
+  Future<bool> _checkGalleryPermission() async {
+    print('🔐 Vérification permission galerie...');
+    try {
+      if (kIsWeb) {
+        print('✅ Permission galerie: N/A sur web');
+        return true;
+      }
+
+      if (Platform.isAndroid) {
+        // Android 13+ a besoin de READ_MEDIA_IMAGES
+        PermissionStatus status = await Permission.photos.request();
+        print('📱 Android - Permission photos: $status');
+        return status.isGranted;
+      } else if (Platform.isIOS) {
+        PermissionStatus status = await Permission.photos.request();
+        print('📱 iOS - Permission photos: $status');
+        return status.isGranted;
+      }
+
+      return true;
+    } catch (e) {
+      print('⚠️  Erreur vérification permission: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _checkCameraPermission() async {
+    print('🔐 Vérification permission caméra...');
+    try {
+      if (kIsWeb) return true;
+
+      PermissionStatus status = await Permission.camera.request();
+      print('📷 Permission caméra: $status');
+      return status.isGranted;
+    } catch (e) {
+      print('⚠️  Erreur vérification caméra: $e');
+      return false;
     }
   }
 
@@ -149,54 +202,188 @@ class _CreateProductPageState extends State<CreateProductPage> {
   }
 
   Future<void> _pickFromGallery() async {
+    if (_isPickerBusy) {
+      print('⚠️  Sélection en cours, attendez...');
+      return;
+    }
+
+    setState(() => _isPickerBusy = true);
+
     try {
       print('📸 Début sélection images...');
-      final files = await _picker.pickMultiImage(imageQuality: 88);
+
+      // Vérifier les permissions
+      final hasPermission = await _checkGalleryPermission();
+      if (!hasPermission) {
+        print('❌ Permission galerie refusée');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                '❌ Permission galerie refusée. Vérifiez les paramètres.'
+              ),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Réinitialiser le picker pour éviter les problèmes de cache
+      _picker = ImagePicker();
+
+      print('🎬 Ouverture galerie...');
+      final files = await _picker.pickMultiImage(
+        imageQuality: 88,
+      ).timeout(
+        const Duration(seconds: 60),
+        onTimeout: () {
+          print('⏱️  Timeout sélection galerie');
+          return [];
+        },
+      );
+
       print('📸 ${files.length} images sélectionnées');
-      
-      if (files.isNotEmpty && mounted) {
+
+      if (!mounted) return;
+
+      if (files.isNotEmpty) {
         setState(() {
           _selectedFiles.addAll(files);
         });
         print('✅ Images ajoutées: ${_selectedFiles.length} total');
-        
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ ${files.length} image(s) ajoutée(s)'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        print('ℹ️  Aucune image sélectionnée (annulation utilisateur)');
+      }
+    } on PlatformException catch (e) {
+      print('❌ Erreur plateforme galerie: ${e.code} - ${e.message}');
+      if (mounted) {
+        String errorMsg = 'Erreur galerie';
+        if (e.code == 'photo_access_denied') {
+          errorMsg = '❌ Accès à la galerie refusé';
+        } else if (e.code == 'photo_access_limited') {
+          errorMsg = '⚠️  Accès limité à la galerie';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✅ ${files.length} image(s) ajoutée(s)')),
+          SnackBar(
+            content: Text(errorMsg),
+            duration: const Duration(seconds: 3),
+          ),
         );
       }
     } catch (e) {
-      print('❌ Erreur sélection images: $e');
+      print('❌ Erreur sélection galerie: $e (${e.runtimeType})');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Erreur sélection: $e')),
+          SnackBar(
+            content: Text('❌ Erreur: ${e.toString().substring(0, 50)}...'),
+            duration: const Duration(seconds: 3),
+          ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isPickerBusy = false);
       }
     }
   }
 
   Future<void> _pickFromCamera() async {
     if (kIsWeb) return;
+    if (_isPickerBusy) {
+      print('⚠️  Sélection en cours, attendez...');
+      return;
+    }
+
+    setState(() => _isPickerBusy = true);
 
     try {
       print('📷 Ouverture caméra...');
+
+      // Vérifier les permissions
+      final hasPermission = await _checkCameraPermission();
+      if (!hasPermission) {
+        print('❌ Permission caméra refusée');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                '❌ Permission caméra refusée. Vérifiez les paramètres.'
+              ),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Réinitialiser le picker
+      _picker = ImagePicker();
+
       final file = await _picker.pickImage(
         source: ImageSource.camera,
         imageQuality: 88,
+        preferredCameraDevice: CameraDevice.rear,
+      ).timeout(
+        const Duration(seconds: 60),
+        onTimeout: () {
+          print('⏱️  Timeout sélection caméra');
+          return null;
+        },
       );
-      if (file != null && mounted) {
+
+      if (!mounted) return;
+
+      if (file != null) {
         setState(() {
           _selectedFiles.add(file);
         });
+        print('✅ Photo ajoutée: ${_selectedFiles.length} total');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Photo ajoutée')),
+          const SnackBar(
+            content: Text('✅ Photo ajoutée'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        print('ℹ️  Aucune photo prise (annulation utilisateur)');
+      }
+    } on PlatformException catch (e) {
+      print('❌ Erreur plateforme caméra: ${e.code} - ${e.message}');
+      if (mounted) {
+        String errorMsg = 'Erreur caméra';
+        if (e.code == 'camera_access_denied') {
+          errorMsg = '❌ Accès à la caméra refusé';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            duration: const Duration(seconds: 3),
+          ),
         );
       }
     } catch (e) {
-      print('❌ Erreur caméra: $e');
+      print('❌ Erreur caméra: $e (${e.runtimeType})');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Erreur caméra: $e')),
+          SnackBar(
+            content: Text('❌ Erreur: ${e.toString().substring(0, 50)}...'),
+            duration: const Duration(seconds: 3),
+          ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isPickerBusy = false);
       }
     }
   }
@@ -454,15 +641,6 @@ class _CreateProductPageState extends State<CreateProductPage> {
   }
 
   @override
-  void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
-    _priceController.dispose();
-    _stockController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: MasliveTheme.surface,
@@ -479,7 +657,12 @@ class _CreateProductPageState extends State<CreateProductPage> {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: _isLoading && _existing == null
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: RainbowLoadingIndicator(
+                size: 100,
+                label: 'Chargement du produit...',
+              ),
+            )
           : LayoutBuilder(
               builder: (context, constraints) {
                 final maxWidth = constraints.maxWidth > 900 ? 900.0 : constraints.maxWidth;
@@ -757,11 +940,14 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                                     fit: BoxFit.cover,
                                                   );
                                                 }
-                                                return const SizedBox(
+                                                return SizedBox(
                                                   width: 100,
                                                   height: 100,
                                                   child: Center(
-                                                    child: CircularProgressIndicator(),
+                                                    child: RainbowLoadingIndicator(
+                                                      size: 50,
+                                                      showLabel: false,
+                                                    ),
                                                   ),
                                                 );
                                               },
@@ -834,15 +1020,17 @@ class _CreateProductPageState extends State<CreateProductPage> {
                           const SizedBox(height: 16),
 
                           // Progress bar
-                          if (_isLoading && _uploadProgress > 0) ...[
-                            LinearProgressIndicator(value: _uploadProgress),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Upload: ${(_uploadProgress * 100).toInt()}%',
-                              textAlign: TextAlign.center,
+                          if (_isLoading && _uploadProgress > 0)
+                            Column(
+                              children: [
+                                const SizedBox(height: 24),
+                                RainbowProgressIndicator(
+                                  progress: _uploadProgress,
+                                  label: '📄 Upload en cours...',
+                                ),
+                                const SizedBox(height: 24),
+                              ],
                             ),
-                            const SizedBox(height: 16),
-                          ],
 
                           // Boutons d'action
                           Row(
@@ -877,8 +1065,10 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                           height: 20,
                                           width: 20,
                                           child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white,
+                                            strokeWidth: 2.5,
+                                            valueColor: AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
                                           ),
                                         )
                                       : const Text('Soumettre'),
