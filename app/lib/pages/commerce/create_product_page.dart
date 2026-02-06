@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../models/commerce_submission.dart';
 import '../../services/commerce/commerce_service.dart';
@@ -39,6 +40,74 @@ class _CreateProductPageState extends State<CreateProductPage> {
   List<String> _mediaUrls = [];
   List<XFile> _selectedFiles = [];
   double _uploadProgress = 0.0;
+
+  String _normalizeTitle(String input) {
+    final cleaned = input.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (cleaned.isEmpty) return cleaned;
+    return cleaned[0].toUpperCase() + cleaned.substring(1);
+  }
+
+  String _normalizeDescription(String input) {
+    final lines = input.split('\n');
+    return lines
+        .map((line) => line.replaceAll(RegExp(r'[ \t]{2,}'), ' ').trimRight())
+        .join('\n');
+  }
+
+  String _normalizePriceInput(String input) {
+    final cleaned = input
+        .replaceAll(',', '.')
+        .replaceAll(RegExp(r'[^0-9.]'), '');
+    final parts = cleaned.split('.');
+    if (parts.length <= 1) return cleaned;
+    return '${parts[0]}.${parts.sublist(1).join('')}';
+  }
+
+  String _normalizeStockInput(String input) {
+    return input.replaceAll(RegExp(r'[^0-9]'), '');
+  }
+
+  void _setControllerValue(TextEditingController controller, String text) {
+    controller.value = controller.value.copyWith(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+      composing: TextRange.empty,
+    );
+  }
+
+  double? _parsePrice() {
+    final normalized = _normalizePriceInput(_priceController.text);
+    if (normalized.isEmpty) return null;
+    return double.tryParse(normalized);
+  }
+
+  int? _parseStock() {
+    final normalized = _normalizeStockInput(_stockController.text);
+    if (normalized.isEmpty) return null;
+    return int.tryParse(normalized);
+  }
+
+  void _normalizeInputs() {
+    final title = _normalizeTitle(_titleController.text);
+    if (title != _titleController.text) {
+      _setControllerValue(_titleController, title);
+    }
+
+    final description = _normalizeDescription(_descriptionController.text);
+    if (description != _descriptionController.text) {
+      _setControllerValue(_descriptionController, description);
+    }
+
+    final price = _normalizePriceInput(_priceController.text);
+    if (price != _priceController.text) {
+      _setControllerValue(_priceController, price);
+    }
+
+    final stock = _normalizeStockInput(_stockController.text);
+    if (stock != _stockController.text) {
+      _setControllerValue(_stockController, stock);
+    }
+  }
 
   @override
   void initState() {
@@ -78,7 +147,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
     }
   }
 
-  Future<void> _pickImages() async {
+  Future<void> _pickFromGallery() async {
     try {
       print('📸 Début sélection images...');
       final files = await _picker.pickMultiImage(imageQuality: 88);
@@ -104,6 +173,33 @@ class _CreateProductPageState extends State<CreateProductPage> {
     }
   }
 
+  Future<void> _pickFromCamera() async {
+    if (kIsWeb) return;
+
+    try {
+      print('📷 Ouverture caméra...');
+      final file = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 88,
+      );
+      if (file != null && mounted) {
+        setState(() {
+          _selectedFiles.add(file);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Photo ajoutée')),
+        );
+      }
+    } catch (e) {
+      print('❌ Erreur caméra: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Erreur caméra: $e')),
+        );
+      }
+    }
+  }
+
   void _removeFile(int index) {
     setState(() {
       _selectedFiles.removeAt(index);
@@ -118,6 +214,8 @@ class _CreateProductPageState extends State<CreateProductPage> {
 
   Future<void> _saveDraft() async {
     if (!_formKey.currentState!.validate()) return;
+
+    _normalizeInputs();
 
     setState(() => _isLoading = true);
 
@@ -188,8 +286,8 @@ class _CreateProductPageState extends State<CreateProductPage> {
         await _service.updateSubmission(_existing!.id, {
           'title': _titleController.text.trim(),
           'description': _descriptionController.text.trim(),
-          'price': double.tryParse(_priceController.text) ?? 0.0,
-          'stock': int.tryParse(_stockController.text) ?? 0,
+          'price': _parsePrice() ?? 0.0,
+          'stock': _parseStock() ?? 0,
           'currency': _currency,
           'isActive': _isActive,
           'mediaUrls': _mediaUrls,
@@ -206,8 +304,8 @@ class _CreateProductPageState extends State<CreateProductPage> {
           title: _titleController.text.trim(),
           description: _descriptionController.text.trim(),
           mediaUrls: _mediaUrls,
-          price: double.tryParse(_priceController.text) ?? 0.0,
-          stock: int.tryParse(_stockController.text) ?? 0,
+          price: _parsePrice() ?? 0.0,
+          stock: _parseStock() ?? 0,
           currency: _currency,
           isActive: _isActive,
         );
@@ -232,6 +330,8 @@ class _CreateProductPageState extends State<CreateProductPage> {
 
   Future<void> _submitForReview() async {
     if (!_formKey.currentState!.validate()) return;
+
+    _normalizeInputs();
 
     // Vérifications supplémentaires
     if (_mediaUrls.isEmpty && _selectedFiles.isEmpty) {
@@ -306,8 +406,8 @@ class _CreateProductPageState extends State<CreateProductPage> {
         await _service.updateSubmission(_existing!.id, {
           'title': _titleController.text.trim(),
           'description': _descriptionController.text.trim(),
-          'price': double.tryParse(_priceController.text) ?? 0.0,
-          'stock': int.tryParse(_stockController.text) ?? 0,
+          'price': _parsePrice() ?? 0.0,
+          'stock': _parseStock() ?? 0,
           'currency': _currency,
           'isActive': _isActive,
           'mediaUrls': _mediaUrls,
@@ -325,8 +425,8 @@ class _CreateProductPageState extends State<CreateProductPage> {
           title: _titleController.text.trim(),
           description: _descriptionController.text.trim(),
           mediaUrls: _mediaUrls,
-          price: double.tryParse(_priceController.text) ?? 0.0,
-          stock: int.tryParse(_stockController.text) ?? 0,
+          price: _parsePrice() ?? 0.0,
+          stock: _parseStock() ?? 0,
           currency: _currency,
           isActive: _isActive,
         );
@@ -364,18 +464,18 @@ class _CreateProductPageState extends State<CreateProductPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
+        backgroundColor: Colors.blue.shade700,
+        elevation: 1,
         title: Text(
           _isEditing ? 'Modifier le produit' : 'Nouveau produit',
           style: const TextStyle(
-            color: Colors.black87,
+            color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
-        iconTheme: const IconThemeData(color: Colors.black87),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: _isLoading && _existing == null
           ? const Center(child: CircularProgressIndicator())
@@ -393,6 +493,15 @@ class _CreateProductPageState extends State<CreateProductPage> {
                           // Titre
                           TextFormField(
                             controller: _titleController,
+                            textCapitalization: TextCapitalization.sentences,
+                            autocorrect: true,
+                            enableSuggestions: true,
+                            onChanged: (value) {
+                              final normalized = _normalizeTitle(value);
+                              if (normalized != value) {
+                                _setControllerValue(_titleController, normalized);
+                              }
+                            },
                             decoration: InputDecoration(
                               labelText: 'Titre du produit *',
                               border: OutlineInputBorder(
@@ -411,6 +520,18 @@ class _CreateProductPageState extends State<CreateProductPage> {
                           TextFormField(
                             controller: _descriptionController,
                             maxLines: 4,
+                            textCapitalization: TextCapitalization.sentences,
+                            autocorrect: true,
+                            enableSuggestions: true,
+                            onChanged: (value) {
+                              final normalized = _normalizeDescription(value);
+                              if (normalized != value) {
+                                _setControllerValue(
+                                  _descriptionController,
+                                  normalized,
+                                );
+                              }
+                            },
                             decoration: InputDecoration(
                               labelText: 'Description *',
                               border: OutlineInputBorder(
@@ -432,6 +553,20 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                 child: TextFormField(
                                   controller: _priceController,
                                   keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(
+                                      RegExp(r'[0-9.,]'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    final normalized = _normalizePriceInput(value);
+                                    if (normalized != value) {
+                                      _setControllerValue(
+                                        _priceController,
+                                        normalized,
+                                      );
+                                    }
+                                  },
                                   decoration: InputDecoration(
                                     labelText: 'Prix ($_currency) *',
                                     border: OutlineInputBorder(
@@ -444,7 +579,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                     if (v == null || v.trim().isEmpty) {
                                       return 'Prix obligatoire';
                                     }
-                                    if (double.tryParse(v) == null) {
+                                    if (_parsePrice() == null) {
                                       return 'Prix invalide';
                                     }
                                     return null;
@@ -456,6 +591,18 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                 child: TextFormField(
                                   controller: _stockController,
                                   keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  onChanged: (value) {
+                                    final normalized = _normalizeStockInput(value);
+                                    if (normalized != value) {
+                                      _setControllerValue(
+                                        _stockController,
+                                        normalized,
+                                      );
+                                    }
+                                  },
                                   decoration: InputDecoration(
                                     labelText: 'Stock *',
                                     border: OutlineInputBorder(
@@ -468,7 +615,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                     if (v == null || v.trim().isEmpty) {
                                       return 'Stock obligatoire';
                                     }
-                                    if (int.tryParse(v) == null) {
+                                    if (_parseStock() == null) {
                                       return 'Stock invalide';
                                     }
                                     return null;
@@ -524,6 +671,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
                             title: const Text('Produit actif'),
                             value: _isActive,
                             onChanged: (val) => setState(() => _isActive = val),
+                            activeColor: Colors.blue.shade700,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -643,17 +791,44 @@ class _CreateProductPageState extends State<CreateProductPage> {
                             const SizedBox(height: 16),
                           ],
 
-                          // Bouton ajouter images
-                          ElevatedButton.icon(
-                            onPressed: _isLoading ? null : _pickImages,
-                            icon: const Icon(Icons.add_photo_alternate),
-                            label: const Text('Ajouter des images'),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.all(16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                          // Boutons ajouter images
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: _isLoading ? null : _pickFromGallery,
+                                  icon: const Icon(Icons.photo_library),
+                                  label: const Text('Galerie'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue.shade700,
+                                    padding: const EdgeInsets.all(16),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
+                              if (!kIsWeb) ...[
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: _isLoading ? null : _pickFromCamera,
+                                    icon: const Icon(Icons.photo_camera),
+                                    label: const Text('Caméra'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.blue.shade700,
+                                      side: BorderSide(
+                                        color: Colors.blue.shade700,
+                                      ),
+                                      padding: const EdgeInsets.all(16),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                           const SizedBox(height: 16),
 
@@ -675,6 +850,8 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                 child: OutlinedButton(
                                   onPressed: _isLoading ? null : _saveDraft,
                                   style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.blue.shade700,
+                                    side: BorderSide(color: Colors.blue.shade700),
                                     padding: const EdgeInsets.all(16),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
@@ -688,6 +865,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                 child: ElevatedButton(
                                   onPressed: _isLoading ? null : _submitForReview,
                                   style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue.shade700,
                                     padding: const EdgeInsets.all(16),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
