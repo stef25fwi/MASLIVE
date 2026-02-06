@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'dart:typed_data';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../models/superadmin_article.dart';
 import '../services/superadmin_article_service.dart';
+import '../services/storage_service.dart';
 import '../widgets/rainbow_header.dart';
 import '../ui/widgets/honeycomb_background.dart';
+import '../ui/widgets/rainbow_loading_indicator.dart';
 
 class SuperadminArticlesPage extends StatefulWidget {
   const SuperadminArticlesPage({super.key});
@@ -449,6 +454,13 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
   late String _selectedCategory;
   late String _imageUrl;
 
+  // Upload d'images
+  final ImagePicker _picker = ImagePicker();
+  final StorageService _storageService = StorageService.instance;
+  XFile? _selectedImageFile;
+  bool _isUploading = false;
+  double _uploadProgress = 0.0;
+
   @override
   void initState() {
     super.initState();
@@ -471,6 +483,109 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
     super.dispose();
   }
 
+  Future<bool> _checkGalleryPermission() async {
+    try {
+      final status = await Permission.photos.status;
+      if (status.isGranted) return true;
+      
+      final result = await Permission.photos.request();
+      return result.isGranted;
+    } catch (e) {
+      print('⚠️  Erreur permission galerie: $e');
+      return false;
+    }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      // Vérifier les permissions
+      final hasPermission = await _checkGalleryPermission();
+      if (!hasPermission) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ Permission galerie refusée'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Sélectionner l'image
+      final file = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1920,
+        maxHeight: 1920,
+      );
+
+      if (file == null) return;
+
+      setState(() {
+        _selectedImageFile = file;
+        _imageUrl = file.path; // Afficher preview local
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Image sélectionnée'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Erreur sélection image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Erreur: $e')),
+        );
+      }
+    }
+  }
+
+  Future<String?> _uploadImageIfNeeded(String articleId) async {
+    if (_selectedImageFile == null) {
+      // Pas de nouvelle image, garder l'existante
+      return _imageUrl.isNotEmpty ? _imageUrl : null;
+    }
+
+    setState(() {
+      _isUploading = true;
+      _uploadProgress = 0.0;
+    });
+
+    try {
+      final imageUrl = await _storageService.uploadArticleCover(
+        articleId: articleId,
+        file: _selectedImageFile!,
+        onProgress: (progress) {
+          if (mounted) {
+            setState(() => _uploadProgress = progress);
+          }
+        },
+      );
+
+      return imageUrl;
+    } catch (e) {
+      print('❌ Erreur upload image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Erreur upload: $e')),
+        );
+      }
+      return null;
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+          _uploadProgress = 0.0;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -480,27 +595,84 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Image preview
-            if (_imageUrl.isNotEmpty)
+            if (_selectedImageFile != null || _imageUrl.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    _imageUrl,
-                    height: 120,
-                    width: 120,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 120,
-                        width: 120,
-                        color: Colors.grey.shade200,
-                        child: const Icon(Icons.image),
-                      );
-                    },
-                  ),
+                  child: _selectedImageFile != null
+                      ? FutureBuilder<Uint8List>(
+                          future: _selectedImageFile!.readAsBytes(),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData) {
+                              return Image.memory(
+                                snapshot.data!,
+                                height: 120,
+                                width: 120,
+                                fit: BoxFit.cover,
+                              );
+                            }
+                            return Container(
+                              height: 120,
+                              width: 120,
+                              color: Colors.grey.shade200,
+                              child: const CircularProgressIndicator(),
+                            );
+                          },
+                        )
+                      : Image.network(
+                          _imageUrl,
+                          height: 120,
+                          width: 120,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              height: 120,
+                              width: 120,
+                              color: Colors.grey.shade200,
+                              child: const Icon(Icons.image),
+                            );
+                          },
+                        ),
                 ),
               ),
+
+            // Bouton sélection image
+            ElevatedButton.icon(
+              onPressed: _isUploading ? null : _pickImage,
+              icon: const Icon(Icons.add_photo_alternate, size: 20),
+              label: Text(
+                (_selectedImageFile != null || _imageUrl.isNotEmpty)
+                    ? 'Changer la photo'
+                    : 'Ajouter une photo',
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey[700],
+                foregroundColor: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Indicateur de progression upload
+            if (_isUploading)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Column(
+                  children: [
+                    const RainbowLoadingIndicator(size: 40),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Upload: ${(_uploadProgress * 100).toStringAsFixed(0)}%',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 12),
             
             // Champs
             TextField(
@@ -555,13 +727,31 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
           child: const Text('Annuler'),
         ),
         ElevatedButton(
-          onPressed: () {
+          onPressed: _isUploading ? null : () async {
             final name = _nameController.text.trim();
             if (name.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Le nom est requis')),
+                const SnackBar(content: Text('❌ Le nom est requis')),
               );
               return;
+            }
+
+            // Générer un ID temporaire pour l'upload
+            final articleId = widget.article?.id ?? 
+                'article_${DateTime.now().millisecondsSinceEpoch}';
+
+            // Upload de l'image si sélectionnée
+            String? finalImageUrl = _imageUrl.isNotEmpty ? _imageUrl : null;
+            if (_selectedImageFile != null) {
+              finalImageUrl = await _uploadImageIfNeeded(articleId);
+              if (finalImageUrl == null) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('❌ Échec upload image')),
+                  );
+                }
+                return;
+              }
             }
 
             widget.onSave({
@@ -571,12 +761,26 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
               'price': double.tryParse(_priceController.text) ?? 0.0,
               'stock': int.tryParse(_stockController.text) ?? 0,
               'sku': _skuController.text.trim(),
-              'imageUrl': _imageUrl,
+              'imageUrl': finalImageUrl ?? '',
             });
 
-            Navigator.pop(context);
+            if (mounted) {
+              Navigator.pop(context);
+            }
           },
-          child: const Text('Sauvegarder'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.grey[800],
+          ),
+          child: _isUploading
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Text('Sauvegarder'),
         ),
       ],
     );

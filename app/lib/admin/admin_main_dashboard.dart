@@ -21,6 +21,7 @@ import 'user_management_page.dart';
 import 'business_requests_page.dart';
 import 'create_circuit_assistant_page.dart';
 import 'poi_marketmap_wizard_page.dart';
+import 'circuit_wizard_entry_page.dart';
 import '../commerce_module_single_file.dart';
 import 'admin_moderation_page.dart';
 import 'commerce_analytics_page.dart';
@@ -215,6 +216,19 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
               onTap: () => Navigator.pushNamed(
                 context,
                 '/admin/marketmap-debug',
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildDashboardCard(
+              title: '🗺️ Wizard Circuit Pro',
+              subtitle: 'Créer/éditer circuits avec 6 étapes professionnelles',
+              icon: Icons.auto_fix_high,
+              color: Colors.deepPurple,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const CircuitWizardEntryPage(),
+                ),
               ),
             ),
             const SizedBox(height: 24),

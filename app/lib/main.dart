@@ -47,6 +47,7 @@ import 'admin/admin_main_dashboard.dart';
 import 'admin/mapmarket_projects_page.dart';
 import 'admin/map_project_wizard_entry_page.dart';
 import 'admin/marketmap_debug_page.dart';
+import 'admin/circuit_wizard_entry_page.dart';
 import 'services/cart_service.dart';
 import 'services/notifications_service.dart';
 import 'services/premium_service.dart';
@@ -61,11 +62,13 @@ import 'pages/commerce/create_media_page.dart';
 import 'pages/commerce/my_submissions_page.dart';
 import 'admin/admin_moderation_page.dart';
 import 'admin/commerce_analytics_page.dart';
+import 'admin/circuit_wizard_pro_page.dart';
 import 'pages/group/admin_group_dashboard_page.dart';
 import 'pages/group/tracker_group_profile_page.dart';
 import 'pages/group/group_map_live_page.dart';
 import 'pages/group/group_track_history_page.dart';
 import 'pages/group/group_export_page.dart';
+import 'admin/circuit_wizard_pro_page.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -185,6 +188,11 @@ class MasLiveApp extends StatelessWidget {
               '/admin/mapmarket': (_) => const MapMarketProjectsPage(),
               '/admin/mapmarket/wizard': (_) => const MapProjectWizardEntryPage(),
               '/admin/marketmap-debug': (_) => const MarketMapDebugPage(),
+              '/admin/circuit-wizard': (_) => const CircuitWizardEntryPage(),
+              '/admin/circuit-wizard/:projectId': (ctx) {
+                final projectId = ModalRoute.of(ctx)?.settings.arguments as String?;
+                return CircuitWizardProPage(projectId: projectId);
+              },
               '/admin/superadmin': (_) => const SuperAdminSpace(),
               '/admin/categories': (_) => const CategoryManagementPage(),
               '/admin/roles': (_) => const RoleManagementPage(),

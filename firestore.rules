@@ -683,6 +683,25 @@ service cloud.firestore {
       allow create, update, delete: if isSuperAdmin();
     }
 
+    // ========== COLLECTION: MAP_PROJECTS (Circuit Wizard Pro) ==========
+    match /map_projects/{projectId} {
+      // Créer: l'utilisateur doit être signé et le créateur
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.uid;
+      
+      // Lire/Modifier/Supprimer: propriétaire ou master admin
+      allow read, update, delete: if isSignedIn() && (
+        request.auth.uid == resource.data.uid || isMasterAdmin()
+      );
+      
+      // Sous-collection: Layers (couches de la carte)
+      match /layers/{layerId} {
+        allow read, write: if isSignedIn() && (
+          request.auth.uid == get(/databases/$(database)/documents/map_projects/$(projectId)).data.uid
+          || isMasterAdmin()
+        );
+      }
+    }
+
     // ========== REFUS PAR DÉFAUT ==========
     match /{document=**} {
       allow read, write: if false;
