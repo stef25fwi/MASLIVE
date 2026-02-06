@@ -83,6 +83,26 @@ service firebase.storage {
                       isValidImageSize();
       allow delete: if isMasterAdmin();
     }
+
+    // ✅ Produits admin (créés par StorageService)
+    // Chemin: products/{shopId}/{productId}/original/{filename}
+    match /products/{shopId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isMasterAdmin() &&
+                      isValidImageType() &&
+                      isValidImageSize();
+      allow delete: if isMasterAdmin();
+    }
+
+    // ✅ Média générique (photos, articles, etc.)
+    // Chemin: media/{scopeId}/{mediaId}/original/{filename}
+    match /media/{scopeId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isMasterAdmin() &&
+                      isValidImageType() &&
+                      isValidImageSize();
+      allow delete: if isMasterAdmin();
+    }
     
     // ✅ Tout refuser par défaut
     match /{allPaths=**} {

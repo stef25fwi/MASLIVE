@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../models/commerce_submission.dart';
 import '../../services/commerce/commerce_service.dart';
+import '../../ui/theme/maslive_theme.dart';
 
 /// Page de création/édition d'un produit
 class CreateProductPage extends StatefulWidget {
@@ -464,9 +465,9 @@ class _CreateProductPageState extends State<CreateProductPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: MasliveTheme.surface,
       appBar: AppBar(
-        backgroundColor: Colors.blue.shade700,
+        backgroundColor: MasliveTheme.pink,
         elevation: 1,
         title: Text(
           _isEditing ? 'Modifier le produit' : 'Nouveau produit',
@@ -508,7 +509,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               filled: true,
-                              fillColor: Colors.grey.shade50,
+                              fillColor: MasliveTheme.surfaceAlt,
                             ),
                             validator: (v) => v == null || v.trim().isEmpty
                                 ? 'Titre obligatoire'
@@ -538,7 +539,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               filled: true,
-                              fillColor: Colors.grey.shade50,
+                              fillColor: MasliveTheme.surfaceAlt,
                             ),
                             validator: (v) => v == null || v.trim().isEmpty
                                 ? 'Description obligatoire'
@@ -573,7 +574,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     filled: true,
-                                    fillColor: Colors.grey.shade50,
+                                    fillColor: MasliveTheme.surfaceAlt,
                                   ),
                                   validator: (v) {
                                     if (v == null || v.trim().isEmpty) {
@@ -609,7 +610,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     filled: true,
-                                    fillColor: Colors.grey.shade50,
+                                    fillColor: MasliveTheme.surfaceAlt,
                                   ),
                                   validator: (v) {
                                     if (v == null || v.trim().isEmpty) {
@@ -635,7 +636,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               filled: true,
-                              fillColor: Colors.grey.shade50,
+                              fillColor: MasliveTheme.surfaceAlt,
                             ),
                             items: ScopeType.values.map((type) {
                               return DropdownMenuItem(
@@ -660,7 +661,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               filled: true,
-                              fillColor: Colors.grey.shade50,
+                              fillColor: MasliveTheme.surfaceAlt,
                             ),
                             onChanged: (val) => _scopeId = val.trim(),
                           ),
@@ -671,7 +672,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
                             title: const Text('Produit actif'),
                             value: _isActive,
                             onChanged: (val) => setState(() => _isActive = val),
-                            activeColor: Colors.blue.shade700,
+                            activeColor: MasliveTheme.pink,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -800,7 +801,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                   icon: const Icon(Icons.photo_library),
                                   label: const Text('Galerie'),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.blue.shade700,
+                                    backgroundColor: MasliveTheme.pink,
                                     padding: const EdgeInsets.all(16),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
@@ -816,9 +817,9 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                     icon: const Icon(Icons.photo_camera),
                                     label: const Text('Caméra'),
                                     style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.blue.shade700,
+                                      foregroundColor: MasliveTheme.pink,
                                       side: BorderSide(
-                                        color: Colors.blue.shade700,
+                                        color: MasliveTheme.pink,
                                       ),
                                       padding: const EdgeInsets.all(16),
                                       shape: RoundedRectangleBorder(
@@ -850,8 +851,8 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                 child: OutlinedButton(
                                   onPressed: _isLoading ? null : _saveDraft,
                                   style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.blue.shade700,
-                                    side: BorderSide(color: Colors.blue.shade700),
+                                    foregroundColor: MasliveTheme.pink,
+                                    side: BorderSide(color: MasliveTheme.pink),
                                     padding: const EdgeInsets.all(16),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
@@ -865,7 +866,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                 child: ElevatedButton(
                                   onPressed: _isLoading ? null : _submitForReview,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.blue.shade700,
+                                    backgroundColor: MasliveTheme.pink,
                                     padding: const EdgeInsets.all(16),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
