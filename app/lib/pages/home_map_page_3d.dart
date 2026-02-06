@@ -128,13 +128,13 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     _menuAnimController = AnimationController(
       duration: _menuAnimationDuration,
       vsync: this,
-    );
+    )..value = 0.0;
     _menuSlideAnimation =
-        Tween<Offset>(begin: const Offset(1.0, 0.0), end: Offset.zero).animate(
+        Tween<Offset>(begin: const Offset(1.2, 0.0), end: Offset.zero).animate(
           CurvedAnimation(
             parent: _menuAnimController,
-            curve: Curves.easeOut,
-            reverseCurve: Curves.easeIn,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInCubic,
           ),
         );
 
@@ -874,6 +874,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         extendBodyBehindAppBar:
             true, // IMPORTANT : la carte passera sous la barre d'état
         body: Stack(
+          clipBehavior: Clip.none,
           children: [
             // Carte Mapbox 3D - Occupe tout l'écran
             Positioned.fill(

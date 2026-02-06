@@ -82,13 +82,13 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
     _menuAnimController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
-    );
+    )..value = 0.0;
     _menuSlideAnimation =
-        Tween<Offset>(begin: const Offset(1.0, 0.0), end: Offset.zero).animate(
+        Tween<Offset>(begin: const Offset(1.2, 0.0), end: Offset.zero).animate(
           CurvedAnimation(
             parent: _menuAnimController,
-            curve: Curves.easeOut,
-            reverseCurve: Curves.easeIn,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInCubic,
           ),
         );
 
@@ -651,6 +651,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
       ),
       child: Scaffold(
         body: Stack(
+          clipBehavior: Clip.none,
           children: [
             // Carte Mapbox GL JS via HtmlElementView
             Positioned.fill(
