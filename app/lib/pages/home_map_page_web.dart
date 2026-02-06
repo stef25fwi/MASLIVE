@@ -42,7 +42,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
 
-  static const Duration _menuOpenDelay = Duration(seconds: 1);
+  static const Duration _menuOpenDelay = Duration.zero;
   // Offset vertical du menu d'actions pour ne pas chevaucher la boussole
   static const double _actionsMenuTopOffset = 160;
 
@@ -315,15 +315,12 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
     }
 
     setState(() => _showActionsMenu = true);
-    _menuAnimController.value = 0;
-    Future.delayed(_menuOpenDelay, () {
-      if (!mounted || !_showActionsMenu) return;
-      _menuAnimController.forward();
-    });
+    // Démarrer l'animation immédiatement depuis la position cachée (droite)
+    _menuAnimController.forward(from: 0.0);
   }
 
   void _closeNavWithDelay() {
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    Future.delayed(const Duration(milliseconds: 2500), () {
       if (mounted && _showActionsMenu) {
         _menuAnimController.reverse();
         Future.delayed(const Duration(milliseconds: 300), () {

@@ -43,9 +43,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   // ========== CONSTANTES ==========
   static const Duration _resizeDebounceDelay = Duration(milliseconds: 80);
   static const Duration _menuAnimationDuration = Duration(milliseconds: 300);
-  static const Duration _menuOpenDelay = Duration(seconds: 1);
+  static const Duration _menuOpenDelay = Duration.zero;
   static const Duration _mapReadyDelay = Duration(milliseconds: 300);
-  static const Duration _navCloseDelay = Duration(milliseconds: 1500);
+  static const Duration _navCloseDelay = Duration(milliseconds: 2500);
   static const int _trackingIntervalSeconds = 15;
   static const int _gpsDistanceFilter = 8;
   static const Duration _gpsTimeout = Duration(seconds: 8);
@@ -748,11 +748,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     }
 
     setState(() => _showActionsMenu = true);
-    _menuAnimController.value = 0;
-    Future.delayed(_menuOpenDelay, () {
-      if (!mounted || !_showActionsMenu) return;
-      _menuAnimController.forward();
-    });
+    // Démarrer l'animation immédiatement depuis la position cachée (droite)
+    _menuAnimController.forward(from: 0.0);
   }
 
   String? _actionToPoiType(_MapAction? action) {

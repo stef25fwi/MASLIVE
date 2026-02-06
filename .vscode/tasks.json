@@ -375,6 +375,53 @@
         "panel": "dedicated",
         "clear": true
       }
+    },
+    {
+      "label": "MASLIVE: 🖼️ Deploy Image System (complet)",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/deploy_image_system.sh",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "group": {
+        "kind": "build"
+      }
+    },
+    {
+      "label": "MASLIVE: 🖼️ Deploy Image System (production)",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/deploy_image_system.sh --production",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: 🖼️ Migration images existantes",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/deploy_image_system.sh --migrate",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: 🖼️ Test Image System",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && flutter test test/test_image_system.dart",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
     }
   ]
 }
