@@ -308,32 +308,37 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       body: HoneycombBackground(
         child: Column(
           children: [
-            // Image en premier (au-dessus du header), sans crop + ratio auto
-            SizedBox(
-              width: double.infinity,
-              child: AspectRatio(
-                aspectRatio: _heroAspectRatio,
-                child: widget.heroTag == null
-                    ? _productImageGallery(p)
-                    : Hero(
-                        tag: widget.heroTag!,
-                        child: _productImageGallery(p),
-                      ),
-              ),
-            ),
             RainbowHeader(
               title: 'Shop',
-              height: 155,
+              height: 84,
               trailing: _circleIcon(
                 icon: Icons.close_rounded,
                 onTap: () => Navigator.pop(context),
               ),
             ),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 120),
-                children: [
-                  const SizedBox(height: 14),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // Photo / galerie sous le header (scrollable)
+                    SizedBox(
+                      width: double.infinity,
+                      child: AspectRatio(
+                        aspectRatio: _heroAspectRatio,
+                        child: widget.heroTag == null
+                            ? _productImageGallery(p)
+                            : Hero(
+                                tag: widget.heroTag!,
+                                child: _productImageGallery(p),
+                              ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 120),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: 14),
 
                   // Infos produit
                   _card(
@@ -477,7 +482,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       ),
                     ),
                   ),
-                ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
