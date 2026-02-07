@@ -8,6 +8,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 class CartPage extends StatelessWidget {
   const CartPage({super.key});
 
+  static const _headerGradient = LinearGradient(
+    colors: [Color(0xFFFFE36A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+  );
+
   Future<void> _checkout(BuildContext context, String userId) async {
     try {
       showDialog(
@@ -48,215 +54,228 @@ class CartPage extends StatelessWidget {
     final session = SessionScope.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Panier'),
-        actions: [
-          IconButton(
-            tooltip: 'Vider',
-            onPressed: () => CartService.instance.clear(),
-            icon: const Icon(Icons.delete_outline),
-          ),
-        ],
-      ),
-      body: AnimatedBuilder(
-        animation: CartService.instance,
-        builder: (context, _) {
-          final items = CartService.instance.items;
-          if (items.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.shopping_bag_outlined, size: 52),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Votre panier est vide',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 18,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Ajoutez des articles depuis la boutique.',
-                      style: TextStyle(
-                        color: Colors.black.withValues(alpha: 0.6),
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 14),
-                    FilledButton.icon(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.arrow_back_rounded),
-                      label: const Text('Continuer mes achats'),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
+      body: SafeArea(
+        child: AnimatedBuilder(
+          animation: CartService.instance,
+          builder: (context, _) {
+            final items = CartService.instance.items;
 
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
-            itemBuilder: (context, index) {
-              final item = items[index];
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Column(
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      width: 72,
-                      height: 72,
-                      color: Colors.black.withValues(alpha: 0.06),
-                      child: item.displayImage.isEmpty
-                          ? const Icon(Icons.image_outlined)
-                          : item.isLocalAsset
-                              ? Image.asset(item.displayImage, fit: BoxFit.cover)
-                              : Image.network(item.displayImage, fit: BoxFit.cover),
+                  // Barre titre + total (style référence boutique photo)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    decoration: BoxDecoration(
+                      gradient: _headerGradient,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
                       children: [
-                        Text(
-                          item.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Taille ${item.size} • ${item.color}',
-                          style: TextStyle(
-                            color: Colors.black.withValues(alpha: 0.55),
-                            fontWeight: FontWeight.w600,
+                        IconButton(
+                          tooltip: 'Retour',
+                          onPressed: () => Navigator.of(context).maybePop(),
+                          icon: const Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            color: Colors.white,
+                            size: 18,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            _QtyButton(
-                              icon: Icons.remove,
-                              onTap: () => CartService.instance.setQuantity(
-                                item.key,
-                                item.quantity - 1,
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                              ),
-                              child: Text(
-                                '${item.quantity}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                            _QtyButton(
-                              icon: Icons.add,
-                              onTap: () => CartService.instance.setQuantity(
-                                item.key,
-                                item.quantity + 1,
-                              ),
-                            ),
-                            const Spacer(),
-                            IconButton(
-                              tooltip: 'Supprimer',
-                              onPressed: () =>
-                                  CartService.instance.removeKey(item.key),
-                              icon: const Icon(Icons.close_rounded),
-                            ),
-                          ],
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Panier',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          CartService.instance.totalLabel,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              );
-            },
-            separatorBuilder: (_, _) => const Divider(height: 28),
-            itemCount: items.length,
-          );
-        },
-      ),
-      bottomSheet: AnimatedBuilder(
-        animation: CartService.instance,
-        builder: (context, _) {
-          return Container(
-            padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: 12,
-              bottom: 12 + MediaQuery.of(context).padding.bottom,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.94),
-              boxShadow: [
-                BoxShadow(
-                  blurRadius: 18,
-                  offset: const Offset(0, -8),
-                  color: Colors.black.withValues(alpha: 0.08),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Total',
-                        style: TextStyle(fontWeight: FontWeight.w800),
+                  const SizedBox(height: 10),
+
+                  if (items.isEmpty)
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          'Ton panier est vide.',
+                          style: TextStyle(
+                            color: Colors.black.withValues(alpha: 0.65),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        CartService.instance.totalLabel,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
+                    )
+                  else
+                    Expanded(
+                      child: ListView.separated(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        itemCount: items.length,
+                        separatorBuilder: (context, index) =>
+                            const Divider(height: 16),
+                        itemBuilder: (context, index) {
+                          final item = items[index];
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: SizedBox(
+                                  width: 64,
+                                  height: 64,
+                                  child: item.displayImage.isEmpty
+                                      ? Container(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.06,
+                                          ),
+                                          child: const Icon(
+                                            Icons.image_outlined,
+                                          ),
+                                        )
+                                      : item.isLocalAsset
+                                      ? Image.asset(
+                                          item.displayImage,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Image.network(
+                                          item.displayImage,
+                                          fit: BoxFit.cover,
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.title,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Taille ${item.size} • ${item.color}',
+                                      style: TextStyle(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.70,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        _QtyButton(
+                                          icon: Icons.remove,
+                                          onTap: () =>
+                                              CartService.instance.setQuantity(
+                                                item.key,
+                                                item.quantity - 1,
+                                              ),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                          ),
+                                          child: Text(
+                                            '${item.quantity}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
+                                        ),
+                                        _QtyButton(
+                                          icon: Icons.add,
+                                          onTap: () =>
+                                              CartService.instance.setQuantity(
+                                                item.key,
+                                                item.quantity + 1,
+                                              ),
+                                        ),
+                                        const Spacer(),
+                                        IconButton(
+                                          tooltip: 'Retirer',
+                                          onPressed: () => CartService.instance
+                                              .removeKey(item.key),
+                                          icon: const Icon(Icons.close),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: items.isEmpty
+                              ? null
+                              : () => CartService.instance.clear(),
+                          child: const Text('Vider'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: items.isEmpty
+                              ? null
+                              : () => requireSignIn(
+                                  context,
+                                  session: session,
+                                  onSignedIn: () {
+                                    final userId =
+                                        FirebaseAuth.instance.currentUser?.uid;
+                                    if (userId != null) {
+                                      _checkout(context, userId);
+                                    } else {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Utilisateur introuvable',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                ),
+                          icon: const Icon(Icons.lock_outline),
+                          label: const Text('Commander'),
                         ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 12),
-                FilledButton(
-                  onPressed: CartService.instance.items.isEmpty
-                      ? null
-                      : () => requireSignIn(
-                          context,
-                          session: session,
-                          onSignedIn: () {
-                            // Utiliser FirebaseAuth pour récupérer l’uid
-                            final userId =
-                                FirebaseAuth.instance.currentUser?.uid;
-                            if (userId != null) {
-                              _checkout(context, userId);
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Utilisateur introuvable'),
-                                ),
-                              );
-                            }
-                          },
-                        ),
-                  child: const Text('Commander'),
-                ),
-              ],
-            ),
-          );
-        },
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
