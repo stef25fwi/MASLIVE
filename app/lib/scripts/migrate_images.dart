@@ -167,7 +167,7 @@ class MigrationScript {
       metadata: ImageMetadata(
         uploadedBy: FirebaseAuth.instance.currentUser?.uid ?? 'migration',
         uploadedAt: now,
-        originalFilename: meta.name ?? ref.name,
+        originalFilename: meta.name,
         sizeBytes: meta.size,
         mimeType: meta.contentType,
       ),
