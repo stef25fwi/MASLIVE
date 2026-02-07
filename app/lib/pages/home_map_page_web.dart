@@ -948,7 +948,6 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                                     if (!mounted) return;
                                     Navigator.pushNamed(context, '/login');
                                   },
-                                  },
                                 );
                               }
                             },
