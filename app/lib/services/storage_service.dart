@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart' show rootBundle;
+import 'dart:developer' as developer;
 
 /// Service centralisé de gestion du stockage Firebase Storage
 /// 
@@ -182,11 +183,11 @@ class StorageService {
     required String assetPath, // ex: assets/images/maslivelogo.png
     void Function(double progress)? onProgress,
   }) async {
-    print('📦 [StorageService] Upload depuis asset: $assetPath');
+    developer.log('📦 [StorageService] Upload depuis asset: $assetPath');
     
     final user = _currentUser;
     if (user == null) {
-      print('❌ [StorageService] User non authentifié');
+      developer.log('❌ [StorageService] User non authentifié');
       throw Exception('User not authenticated');
     }
 
@@ -194,7 +195,7 @@ class StorageService {
       // 1. Charger asset en bytes
       final data = await rootBundle.load(assetPath);
       final bytes = data.buffer.asUint8List();
-      print('✅ [StorageService] Asset chargé: ${bytes.length} bytes');
+      developer.log('✅ [StorageService] Asset chargé: ${bytes.length} bytes');
 
       // 2. Extraire nom original
       final fileName = assetPath.split('/').last;
@@ -218,7 +219,7 @@ class StorageService {
         },
       );
 
-      print('🔧 [StorageService] Upload asset vers: $path');
+      developer.log('🔧 [StorageService] Upload asset vers: $path');
       final uploadTask = ref.putData(bytes, metadata);
 
       if (onProgress != null) {
@@ -230,11 +231,11 @@ class StorageService {
 
       await uploadTask;
       final downloadUrl = await ref.getDownloadURL();
-      print('✅ [StorageService] Asset uploadé: $downloadUrl');
+      developer.log('✅ [StorageService] Asset uploadé: $downloadUrl');
       
       return downloadUrl;
     } catch (e) {
-      print('❌ [StorageService] Erreur upload asset: $e');
+      developer.log('❌ [StorageService] Erreur upload asset: $e');
       rethrow;
     }
   }
@@ -414,17 +415,17 @@ class StorageService {
     required String parentType,
     void Function(double progress)? onProgress,
   }) async {
-    print('🔧 [StorageService] Début upload: $path');
+    developer.log('🔧 [StorageService] Début upload: $path');
     
     final user = _currentUser;
     if (user == null) {
-      print('❌ [StorageService] User non authentifié');
+      developer.log('❌ [StorageService] User non authentifié');
       throw Exception('User not authenticated');
     }
-    print('✅ [StorageService] User authentifié: ${user.uid}');
+    developer.log('✅ [StorageService] User authentifié: ${user.uid}');
 
     final ref = _storage.ref(path);
-    print('✅ [StorageService] Référence Storage créée: $path');
+    developer.log('✅ [StorageService] Référence Storage créée: $path');
     
     // Métadonnées
     final metadata = SettableMetadata(
@@ -438,21 +439,21 @@ class StorageService {
         'parentType': parentType,
       },
     );
-    print('✅ [StorageService] Métadonnées créées');
+    developer.log('✅ [StorageService] Métadonnées créées');
 
     UploadTask uploadTask;
 
     try {
       if (kIsWeb) {
-        print('🌐 [StorageService] Mode WEB - lecture bytes...');
+        developer.log('🌐 [StorageService] Mode WEB - lecture bytes...');
       } else {
-        print('📱 [StorageService] Mode MOBILE - lecture bytes...');
+        developer.log('📱 [StorageService] Mode MOBILE - lecture bytes...');
       }
 
       final bytes = await file.readAsBytes();
-      print('✅ [StorageService] ${bytes.length} bytes lus');
+      developer.log('✅ [StorageService] ${bytes.length} bytes lus');
       uploadTask = ref.putData(bytes, metadata);
-      print('✅ [StorageService] UploadTask créée');
+      developer.log('✅ [StorageService] UploadTask créée');
 
       // Surveiller progression
       if (onProgress != null) {
@@ -462,15 +463,15 @@ class StorageService {
         });
       }
 
-      print('⏳ [StorageService] Attente fin upload...');
+      developer.log('⏳ [StorageService] Attente fin upload...');
       await uploadTask;
-      print('✅ [StorageService] Upload terminé');
+      developer.log('✅ [StorageService] Upload terminé');
       
       final downloadUrl = await ref.getDownloadURL();
-      print('✅ [StorageService] URL récupérée: $downloadUrl');
+      developer.log('✅ [StorageService] URL récupérée: $downloadUrl');
       return downloadUrl;
     } catch (e) {
-      print('❌ [StorageService] Erreur upload: $e');
+      developer.log('❌ [StorageService] Erreur upload: $e');
       rethrow;
     }
   }

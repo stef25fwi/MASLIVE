@@ -22,7 +22,6 @@
 
 import 'dart:async';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -366,7 +365,7 @@ class Shop {
     final data = doc.data() ?? <String, dynamic>{};
     final created = data['createdAt'];
     final updated = data['updatedAt'];
-    String? _cleanStringField(String key) {
+    String? cleanStringField(String key) {
       final raw = data[key];
       if (raw is String) {
         final trimmed = raw.trim();
@@ -377,13 +376,13 @@ class Shop {
 
     return Shop(
       id: doc.id,
-      ownerUid: _cleanStringField('ownerUid'),
+      ownerUid: cleanStringField('ownerUid'),
       type: (data['type'] ?? 'global').toString(),
       isActive: (data['isActive'] ?? true) as bool,
-      countryCode: _cleanStringField('countryCode'),
-      eventId: _cleanStringField('eventId'),
-      circuitId: _cleanStringField('circuitId'),
-      groupId: _cleanStringField('groupId'),
+      countryCode: cleanStringField('countryCode'),
+      eventId: cleanStringField('eventId'),
+      circuitId: cleanStringField('circuitId'),
+      groupId: cleanStringField('groupId'),
       createdAt: created is Timestamp ? created.toDate() : DateTime.now(),
       updatedAt: updated is Timestamp ? updated.toDate() : DateTime.now(),
     );
@@ -1061,7 +1060,9 @@ class CommerceRepository {
     }
 
     addAll(name);
-    for (final t in tags) addAll(t);
+    for (final t in tags) {
+      addAll(t);
+    }
     return tokens.toList();
   }
 
@@ -1584,7 +1585,7 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                         // Busy overlay
                         AnimatedBuilder(
                           animation: c,
-                          builder: (_, __) {
+                          builder: (context, child) {
                             if (!c.busy) return const SizedBox.shrink();
                             return Container(
                               color: Colors.black.withOpacity(0.08),
@@ -1626,7 +1627,7 @@ class ProductFiltersBar extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           child: AnimatedBuilder(
             animation: controller,
-            builder: (_, __) {
+            builder: (context, child) {
               final f = controller.filter;
 
               return Row(
@@ -1806,7 +1807,7 @@ class ProductTileAdmin extends StatelessWidget {
                             product.mainImageUrl!,
                             fit: BoxFit.cover,
                             width: double.infinity,
-                            errorBuilder: (_, __, ___) =>
+                            errorBuilder: (context, error, stackTrace) =>
                                 const Center(child: Icon(Icons.broken_image_outlined)),
                           ),
                   ),
@@ -2009,7 +2010,7 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                             SizedBox(
                               width: 110,
                               child: DropdownButtonFormField<String>(
-                                value: currency,
+                                initialValue: currency,
                                 decoration: _decor('Devise'),
                                 items: const [
                                   DropdownMenuItem(value: 'EUR', child: Text('EUR')),
@@ -2281,7 +2282,7 @@ class _ProductImagesEditorDialogState extends State<ProductImagesEditorDialog> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                    border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
                   ),
                   child: const Center(child: Text('Aucune photo')),
                 )
@@ -2342,7 +2343,7 @@ class _ProductImagesEditorDialogState extends State<ProductImagesEditorDialog> {
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.45),
+                                    color: Colors.black.withValues(alpha: 0.45),
                                     borderRadius: BorderRadius.circular(999),
                                   ),
                                   child: Text(
@@ -2672,7 +2673,7 @@ class _BoutiquePageState extends State<BoutiquePage> {
                             return ListView.separated(
                               padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
                               itemCount: list.length,
-                              separatorBuilder: (_, __) => const SizedBox(height: 10),
+                              separatorBuilder: (context, index) => const SizedBox(height: 10),
                               itemBuilder: (_, i) {
                                 final p = list[i];
                                 final isOut = p.stockStatus == 'out';
@@ -2686,7 +2687,7 @@ class _BoutiquePageState extends State<BoutiquePage> {
                                       BoxShadow(
                                         blurRadius: 18,
                                         offset: const Offset(0, 10),
-                                        color: Colors.black.withOpacity(0.05),
+                                        color: Colors.black.withValues(alpha: 0.05),
                                       ),
                                     ],
                                   ),
@@ -2755,7 +2756,7 @@ class _BoutiquePageState extends State<BoutiquePage> {
                         ),
                         AnimatedBuilder(
                           animation: c,
-                          builder: (_, __) {
+                          builder: (context, child) {
                             if (!c.busy) return const SizedBox.shrink();
                             return Container(
                               color: Colors.black.withOpacity(0.08),
@@ -2808,7 +2809,7 @@ class _BoutiquePageState extends State<BoutiquePage> {
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: items.length,
-                    separatorBuilder: (_, __) => const Divider(height: 16),
+                    separatorBuilder: (context, index) => const Divider(height: 16),
                     itemBuilder: (_, i) {
                       final it = items[i];
                       return Row(
@@ -3065,7 +3066,7 @@ Future<T?> _pickFromMenu<T>(
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: items.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (context, index) => const Divider(height: 1),
                   itemBuilder: (_, i) {
                     final it = items[i];
                     final selected = it.value == initial;
@@ -3139,7 +3140,7 @@ class _TextPromptDialogState extends State<_TextPromptDialog> {
           fillColor: Colors.white,
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.blue.withOpacity(0.3)),
+            borderSide: BorderSide(color: Colors.blue.withValues(alpha: 0.3)),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
@@ -3252,9 +3253,9 @@ class _PriceRangeDialogState extends State<_PriceRangeDialog> {
 class ChangeNotifierProviderLite extends InheritedNotifier<ChangeNotifier> {
   const ChangeNotifierProviderLite({
     super.key,
-    required ChangeNotifier notifier,
-    required Widget child,
-  }) : super(notifier: notifier, child: child);
+    required ChangeNotifier super.notifier,
+    required super.child,
+  });
 
   static T of<T extends ChangeNotifier>(BuildContext context) {
     final w = context.dependOnInheritedWidgetOfExactType<ChangeNotifierProviderLite>();

@@ -1,9 +1,15 @@
 import 'dart:typed_data';
-import 'dart:ui' as ui;
-import 'package:flutter/foundation.dart';
+import 'dart:developer' as developer;
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
-import '../models/optimized_image.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import '../models/image_asset.dart' as asset;
+
+enum ImageFormat {
+  jpeg,
+  png,
+  webp;
+}
 
 /// Service d'optimisation d'images
 /// Génère automatiquement les variantes de taille et optimise la compression
@@ -13,27 +19,92 @@ class ImageOptimizationService {
   ImageOptimizationService._internal();
 
   /// Qualité JPEG par taille
-  static const Map<ImageSize, int> _jpegQuality = {
-    ImageSize.thumbnail: 75,
-    ImageSize.small: 80,
-    ImageSize.medium: 85,
-    ImageSize.large: 88,
-    ImageSize.original: 92,
+  static const Map<asset.ImageSize, int> _jpegQuality = {
+    asset.ImageSize.thumbnail: 75,
+    asset.ImageSize.small: 80,
+    asset.ImageSize.medium: 85,
+    asset.ImageSize.large: 88,
+    asset.ImageSize.xlarge: 90,
+    asset.ImageSize.original: 92,
   };
 
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+
+  /// Upload (minimal) d'une image et retourne des variantes.
+  ///
+  /// Implémentation volontairement simple: upload de l'original uniquement,
+  /// les URLs des autres tailles restent null (fallback sur original).
+  Future<asset.ImageVariants> uploadImageWithVariants({
+    required XFile file,
+    required String basePath,
+    required asset.ImageContentType contentType,
+    void Function(double progress)? onProgress,
+  }) async {
+    final bytes = await file.readAsBytes();
+    final ext = _extension(file.name);
+    final mimeType = _mimeTypeForExtension(ext);
+
+    final objectPath = '$basePath/original.$ext';
+    final ref = _storage.ref(objectPath);
+    final uploadTask = ref.putData(
+      bytes,
+      SettableMetadata(
+        contentType: mimeType,
+        customMetadata: {
+          'contentType': contentType.label,
+          'originalFilename': file.name,
+        },
+      ),
+    );
+
+    if (onProgress != null) {
+      uploadTask.snapshotEvents.listen((snapshot) {
+        final total = snapshot.totalBytes;
+        if (total <= 0) return;
+        onProgress(snapshot.bytesTransferred / total);
+      });
+    }
+
+    await uploadTask;
+    final url = await ref.getDownloadURL();
+
+    return asset.ImageVariants(
+      original: url,
+    );
+  }
+
+  /// Supprime toutes les variantes sous un chemin (dossier) donné.
+  Future<void> deleteImageVariants(String basePath) async {
+    final ref = _storage.ref(basePath);
+    await _deleteFolderRecursive(ref);
+  }
+
+  Future<void> _deleteFolderRecursive(Reference ref) async {
+    final list = await ref.listAll();
+
+    for (final item in list.items) {
+      await item.delete();
+    }
+
+    for (final prefix in list.prefixes) {
+      await _deleteFolderRecursive(prefix);
+    }
+  }
+
   /// Générer toutes les variantes d'une image
-  Future<Map<ImageSize, Uint8List>> generateVariants({
+  Future<Map<asset.ImageSize, Uint8List>> generateVariants({
     required Uint8List originalBytes,
     ImageFormat format = ImageFormat.jpeg,
-    List<ImageSize> sizes = const [
-      ImageSize.thumbnail,
-      ImageSize.small,
-      ImageSize.medium,
-      ImageSize.large,
-      ImageSize.original,
+    List<asset.ImageSize> sizes = const [
+      asset.ImageSize.thumbnail,
+      asset.ImageSize.small,
+      asset.ImageSize.medium,
+      asset.ImageSize.large,
+      asset.ImageSize.xlarge,
+      asset.ImageSize.original,
     ],
   }) async {
-    print('🎨 [ImageOptimization] Début génération variantes...');
+    developer.log('🎨 [ImageOptimization] Début génération variantes...');
 
     // Décoder l'image originale
     final img.Image? original = img.decodeImage(originalBytes);
@@ -41,9 +112,11 @@ class ImageOptimizationService {
       throw Exception('Impossible de décoder l\'image');
     }
 
-    print('✅ [ImageOptimization] Image décodée: ${original.width}x${original.height}');
+    developer.log(
+      '✅ [ImageOptimization] Image décodée: ${original.width}x${original.height}',
+    );
 
-    final variants = <ImageSize, Uint8List>{};
+    final variants = <asset.ImageSize, Uint8List>{};
 
     for (final size in sizes) {
       try {
@@ -53,10 +126,11 @@ class ImageOptimizationService {
           format: format,
         );
         variants[size] = bytes;
-        print(
-            '✅ [ImageOptimization] Variante ${size.name}: ${bytes.length} bytes');
+        developer.log(
+          '✅ [ImageOptimization] Variante ${size.name}: ${bytes.length} bytes',
+        );
       } catch (e) {
-        print('❌ [ImageOptimization] Erreur variante ${size.name}: $e');
+        developer.log('❌ [ImageOptimization] Erreur variante ${size.name}: $e');
       }
     }
 
@@ -66,11 +140,11 @@ class ImageOptimizationService {
   /// Générer une variante spécifique
   Future<Uint8List> _generateVariant({
     required img.Image original,
-    required ImageSize size,
+    required asset.ImageSize size,
     required ImageFormat format,
   }) async {
     // Si c'est l'original, juste réencoder avec qualité optimale
-    if (size == ImageSize.original) {
+    if (size == asset.ImageSize.original) {
       return _encodeImage(original, format, _jpegQuality[size]!);
     }
 
@@ -98,7 +172,7 @@ class ImageOptimizationService {
       original,
       width: newWidth,
       height: newHeight,
-      interpolation: img.Interpolation.lanczos,
+      interpolation: img.Interpolation.cubic,
     );
 
     // Encoder avec la bonne qualité
@@ -165,8 +239,9 @@ class ImageOptimizationService {
     while (compressed.length > maxSizeBytes && quality > 10) {
       quality -= 10;
       compressed = _encodeImage(image, format, quality);
-      print(
-          '🔄 [ImageOptimization] Compression Q$quality: ${compressed.length} bytes');
+      developer.log(
+        '🔄 [ImageOptimization] Compression Q$quality: ${compressed.length} bytes',
+      );
     }
 
     if (compressed.length > maxSizeBytes) {
@@ -223,6 +298,27 @@ class ImageOptimizationService {
     }
   }
 
+  String _extension(String filename) {
+    final parts = filename.toLowerCase().split('.');
+    if (parts.length < 2) return 'jpg';
+    final ext = parts.last;
+    if (ext == 'jpeg') return 'jpg';
+    if (ext == 'jpg' || ext == 'png' || ext == 'webp') return ext;
+    return 'jpg';
+  }
+
+  String _mimeTypeForExtension(String ext) {
+    switch (ext) {
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'jpg':
+      default:
+        return 'image/jpeg';
+    }
+  }
+
   /// Valider qu'un fichier est une image valide
   Future<bool> isValidImage(Uint8List bytes) async {
     try {
@@ -231,103 +327,5 @@ class ImageOptimizationService {
     } catch (e) {
       return false;
     }
-  }
-
-  /// Obtenir les métadonnées d'une image
-  Future<ImageMetadata> extractMetadata({
-    required Uint8List bytes,
-    required String uploadedBy,
-    String? altText,
-    String? caption,
-  }) async {
-    final dimensions = await getImageDimensions(bytes);
-    final format = ImageFormat.jpeg; // Détecté via extension dans le vrai cas
-
-    return ImageMetadata(
-      width: dimensions['width'],
-      height: dimensions['height'],
-      sizeBytes: bytes.length,
-      format: format,
-      uploadedAt: DateTime.now(),
-      uploadedBy: uploadedBy,
-      altText: altText,
-      caption: caption,
-    );
-  }
-
-  /// Préparer une image pour l'upload (optimisation + variantes)
-  Future<Map<String, dynamic>> prepareImageForUpload({
-    required XFile file,
-    required String uploadedBy,
-    String? altText,
-    String? caption,
-    List<ImageSize> sizes = const [
-      ImageSize.thumbnail,
-      ImageSize.small,
-      ImageSize.medium,
-      ImageSize.large,
-      ImageSize.original,
-    ],
-  }) async {
-    print('📸 [ImageOptimization] Préparation image: ${file.name}');
-
-    // Lire les bytes
-    final bytes = await file.readAsBytes();
-    print('✅ [ImageOptimization] Fichier lu: ${bytes.length} bytes');
-
-    // Valider
-    if (!await isValidImage(bytes)) {
-      throw Exception('Fichier image invalide');
-    }
-
-    // Détecter le format
-    final format = detectFormat(file.name);
-
-    // Générer variantes
-    final variants = await generateVariants(
-      originalBytes: bytes,
-      format: format,
-      sizes: sizes,
-    );
-
-    // Extraire métadonnées
-    final metadata = await extractMetadata(
-      bytes: bytes,
-      uploadedBy: uploadedBy,
-      altText: altText,
-      caption: caption,
-    );
-
-    print('✅ [ImageOptimization] ${variants.length} variantes générées');
-    print(
-        '✅ [ImageOptimization] Dimensions: ${metadata.width}x${metadata.height}');
-
-    return {
-      'variants': variants,
-      'metadata': metadata,
-      'format': format,
-    };
-  }
-
-  /// Calculer l'espace économisé avec l'optimisation
-  Map<String, dynamic> calculateSavings({
-    required int originalSize,
-    required Map<ImageSize, int> variantSizes,
-  }) {
-    final thumbnailSize = variantSizes[ImageSize.thumbnail] ?? 0;
-    final mediumSize = variantSizes[ImageSize.medium] ?? 0;
-
-    final thumbnailSavings =
-        ((1 - thumbnailSize / originalSize) * 100).toStringAsFixed(1);
-    final mediumSavings =
-        ((1 - mediumSize / originalSize) * 100).toStringAsFixed(1);
-
-    return {
-      'originalSize': originalSize,
-      'thumbnailSize': thumbnailSize,
-      'mediumSize': mediumSize,
-      'thumbnailSavings': '$thumbnailSavings%',
-      'mediumSavings': '$mediumSavings%',
-    };
   }
 }

@@ -336,6 +336,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
       );
 
       await _categoryService.initializeCategories();
+      if (!mounted) return;
 
       Navigator.pop(context);
 
@@ -346,6 +347,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

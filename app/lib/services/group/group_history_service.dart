@@ -1,5 +1,8 @@
 /// Service pour sauvegarder historique des positions moyennes
 /// Crée des snapshots réguliers pour analyser évolution
+library;
+
+import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/group_admin.dart';
@@ -38,8 +41,11 @@ class GroupHistoryService {
           .collection('averagePositionHistory')
           .add(snapshot);
     } catch (e) {
-      print('❌ Erreur enregistrement snapshot: $e');
-      rethrow;
+      developer.log(
+        'Erreur enregistrement snapshot',
+        name: 'GroupHistoryService',
+        error: e,
+      );
     }
   }
 
@@ -66,7 +72,6 @@ class GroupHistoryService {
   /// Exporte l'historique en CSV
   Future<String> exportHistoryToCsv({
     required String adminUid,
-    required String adminGroupId,
     int limitDays = 7,
   }) async {
     final cutoffDate =
@@ -94,7 +99,7 @@ class GroupHistoryService {
       final memberCount = data['memberCount'] ?? 0;
 
       buffer.writeln(
-        '${ts.toIso8601String()},${pos['lat']},${pos['lng']},${pos['altitude']},${memberCount}',
+        '${ts.toIso8601String()},${pos['lat']},${pos['lng']},${pos['altitude']},$memberCount',
       );
     }
 
@@ -122,7 +127,10 @@ class GroupHistoryService {
     }
 
     await batch.commit();
-    print('🧹 Nettoyage historique: ${snapshot.docs.length} documents supprimés');
+    developer.log(
+      'Nettoyage historique: ${snapshot.docs.length} documents supprimés',
+      name: 'GroupHistoryService',
+    );
   }
 
   /// Récupère statistiques de l'historique

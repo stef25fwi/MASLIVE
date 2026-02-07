@@ -218,6 +218,7 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
         ],
       ),
     );
+    if (!mounted) return;
 
     if (confirmed != true) return;
 
@@ -322,7 +323,7 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
   ];
 
   List<String> _categories = List<String>.from(_defaultCategories);
-  List<String> _groups = List<String>.from(_defaultGroups);
+  final List<String> _groups = List<String>.from(_defaultGroups);
   String _selectedGroup = 'Tous';
 
   @override
@@ -1034,7 +1035,7 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                 FilledButton(
                   onPressed: () async {
                     final navigator = Navigator.of(dialogContext);
-                    final messenger = ScaffoldMessenger.of(this.context);
+                    final messenger = ScaffoldMessenger.of(context);
 
                     try {
                       final price = double.tryParse(priceController.text) ?? 0.0;

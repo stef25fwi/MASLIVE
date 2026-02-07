@@ -1,5 +1,6 @@
 /// Tests unitaires pour les services de groupe
 /// Valide logique sans Firestore (mock uniquement)
+library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:masslive/models/group_admin.dart';

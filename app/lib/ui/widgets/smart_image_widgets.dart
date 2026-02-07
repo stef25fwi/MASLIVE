@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../models/image_asset.dart';
+import '../../models/image_asset.dart';
 import 'rainbow_loading_indicator.dart';
 
 /// Widget d'affichage intelligent d'image avec variantes adaptatives
@@ -40,25 +39,28 @@ class SmartImage extends StatelessWidget {
             ? variants.getUrl(preferredSize!)
             : variants.getResponsiveUrl(screenWidth);
 
-        Widget imageWidget = CachedNetworkImage(
-          imageUrl: url,
+        Widget imageWidget = Image.network(
+          url,
           fit: fit,
           width: width,
           height: height,
-          placeholder: (context, url) =>
-              placeholder ??
-              const Center(
-                child: RainbowLoadingIndicator(
-                  size: 50,
-                  showLabel: false,
-                ),
-              ),
-          errorWidget: (context, url, error) =>
-              errorWidget ??
-              Container(
-                color: Colors.grey[200],
-                child: const Icon(Icons.error_outline, color: Colors.grey),
-              ),
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return placeholder ??
+                const Center(
+                  child: RainbowLoadingIndicator(
+                    size: 50,
+                    showLabel: false,
+                  ),
+                );
+          },
+          errorBuilder: (context, error, stack) {
+            return errorWidget ??
+                Container(
+                  color: Colors.grey[200],
+                  child: const Icon(Icons.error_outline, color: Colors.grey),
+                );
+          },
         );
 
         if (borderRadius != null) {

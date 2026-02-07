@@ -4,7 +4,9 @@
  * Génère automatiquement: thumbnail, small, medium, large
  */
 
-import * as functions from 'firebase-functions';
+/// <reference path="./sharp.d.ts" />
+
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import * as sharp from 'sharp';
 import * as path from 'path';
@@ -30,7 +32,7 @@ const variants: ImageVariant[] = [
   { name: 'thumbnail', maxDimension: 200, quality: 75 },
   { name: 'small', maxDimension: 400, quality: 80 },
   { name: 'medium', maxDimension: 800, quality: 85 },
-  { name: 'large', maxDimension: 1200,quality: 88 },
+  { name: 'large', maxDimension: 1200, quality: 88 },
   { name: 'xlarge', maxDimension: 1920, quality: 90 },
 ];
 
@@ -44,11 +46,16 @@ export const generateImageVariants = functions
     timeoutSeconds: 540,
   })
   .storage.object()
-  .onFinalize(async (object) => {
+  .onFinalize(async (object: functions.storage.ObjectMetadata) => {
     const filePath = object.name;
     const contentType = object.contentType;
 
     console.log('🖼️  [ImageVariants] Nouveau fichier:', filePath);
+
+    if (!filePath) {
+      console.log('⏭️  [ImageVariants] Aucun path, skip');
+      return null;
+    }
 
     // Vérifier si c'est une image
     if (!contentType || !contentType.startsWith('image/')) {
@@ -264,7 +271,7 @@ export const regenerateImageVariants = functions
       );
     }
 
-    const { imageId } = data;
+    const { imageId } = (data ?? {}) as { imageId?: string };
 
     if (!imageId) {
       throw new functions.https.HttpsError(
@@ -309,7 +316,7 @@ export const regenerateImageVariants = functions
 export const cleanupDeletedImages = functions
   .region('us-east1')
   .pubsub.schedule('every 24 hours')
-  .onRun(async (context) => {
+  .onRun(async (context: functions.EventContext) => {
     console.log('🧹 [Cleanup] Début nettoyage images supprimées');
 
     const cutoffDate = new Date();

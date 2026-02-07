@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../services/storage_service.dart';
 
@@ -29,34 +30,34 @@ class ArticleTestHelper {
     double price = 29.99,
     int stock = 50,
   }) async {
-    print('🧪 ========== TEST: Créer Article Depuis Asset ==========');
-    print('📦 Asset: $assetPath');
+    debugPrint('🧪 ========== TEST: Créer Article Depuis Asset ==========');
+    debugPrint('📦 Asset: $assetPath');
     
     try {
       // Step 1: Vérifier authentification
-      print('1️⃣  Vérification authentification...');
+      debugPrint('1️⃣  Vérification authentification...');
       final user = _auth.currentUser;
       if (user == null) {
         throw Exception('❌ Utilisateur non connecté');
       }
-      print('   ✅ Connecté: ${user.email ?? user.uid}');
+      debugPrint('   ✅ Connecté: ${user.email ?? user.uid}');
 
       // Step 2: Réserver un ID Firestore (sert aussi de parentId en Storage)
-      print('2️⃣  Génération ID Firestore...');
+      debugPrint('2️⃣  Génération ID Firestore...');
       final docRef = _firestore.collection('superadmin_articles').doc();
       final articleId = docRef.id;
-      print('   ✅ Article ID: $articleId');
+      debugPrint('   ✅ Article ID: $articleId');
 
       // Step 3: Upload image depuis asset vers Storage
-      print('3️⃣  Upload image Storage (asset)...');
+      debugPrint('3️⃣  Upload image Storage (asset)...');
       final imageUrl = await _storage.uploadArticleFromAsset(
         articleId: articleId,
         assetPath: assetPath,
       );
-      print('   ✅ Image uploadée: $imageUrl');
+      debugPrint('   ✅ Image uploadée: $imageUrl');
 
       // Step 4: Créer document Firestore avec le même ID
-      print('4️⃣  Création document Firestore...');
+      debugPrint('4️⃣  Création document Firestore...');
       final now = DateTime.now();
       final articleData = {
         'name': articleName,
@@ -78,20 +79,20 @@ class ArticleTestHelper {
       };
 
       await docRef.set(articleData);
-      print('   ✅ Document créé: $articleId');
+      debugPrint('   ✅ Document créé: $articleId');
 
       // Step 5: Vérification
-      print('5️⃣  Vérification données...');
+      debugPrint('5️⃣  Vérification données...');
       final createdDoc = await docRef.get();
       final createdData = createdDoc.data() ?? {};
 
-      print('   ✅ Données vérifiées:');
-      print('     - Nom: ${createdData['name']}');
-      print('     - Catégorie: ${createdData['category']}');
-      print('     - Prix: €${createdData['price']}');
-      print('     - Stock: ${createdData['stock']}');
-      print('     - Image URL: ${createdData['imageUrl']}');
-      print('     - Métadonnées: ${createdData['metadata']}');
+      debugPrint('   ✅ Données vérifiées:');
+      debugPrint('     - Nom: ${createdData['name']}');
+      debugPrint('     - Catégorie: ${createdData['category']}');
+      debugPrint('     - Prix: €${createdData['price']}');
+      debugPrint('     - Stock: ${createdData['stock']}');
+      debugPrint('     - Image URL: ${createdData['imageUrl']}');
+      debugPrint('     - Métadonnées: ${createdData['metadata']}');
 
       final result = {
         'success': true,
@@ -101,10 +102,10 @@ class ArticleTestHelper {
         'timestamp': now,
       };
 
-      print('✅ ========== TEST RÉUSSI ==========\n');
+      debugPrint('✅ ========== TEST RÉUSSI ==========\n');
       return result;
     } catch (e) {
-      print('❌ ERREUR: $e\n');
+      debugPrint('❌ ERREUR: $e\n');
       return {
         'success': false,
         'error': e.toString(),
@@ -114,7 +115,7 @@ class ArticleTestHelper {
 
   /// TEST 2: Vérifier intégrité article créé
   Future<bool> verifyArticleIntegrity(String articleId) async {
-    print('🔍 Vérification intégrité article: $articleId');
+    debugPrint('🔍 Vérification intégrité article: $articleId');
     
     try {
       // Récupérer doc Firestore
@@ -124,7 +125,7 @@ class ArticleTestHelper {
           .get();
       
       if (!doc.exists) {
-        print('❌ Document introuvable');
+        debugPrint('❌ Document introuvable');
         return false;
       }
       
@@ -143,26 +144,26 @@ class ArticleTestHelper {
           data['createdAt'] != null && data['updatedAt'] != null,
       };
       
-      print('📋 Résultats vérification:');
+      debugPrint('📋 Résultats vérification:');
       var allPassed = true;
       for (final check in checks.entries) {
         final status = check.value ? '✅' : '❌';
-        print('   $status ${check.key}');
+        debugPrint('   $status ${check.key}');
         if (!check.value) allPassed = false;
       }
       
-      if (allPassed) print('\n✅ Tous les tests passés!');
+      if (allPassed) debugPrint('\n✅ Tous les tests passés!');
       return allPassed;
       
     } catch (e) {
-      print('❌ Erreur vérification: $e');
+      debugPrint('❌ Erreur vérification: $e');
       return false;
     }
   }
 
   /// TEST 3: Télécharger et vérifier image Storage
   Future<bool> verifyImageStorage(String articleId) async {
-    print('🖼️  Vérification image Storage: $articleId');
+    debugPrint('🖼️  Vérification image Storage: $articleId');
     
     try {
       final storage = FirebaseStorage.instance;
@@ -172,29 +173,29 @@ class ArticleTestHelper {
       final coverItem = listing.items.where((i) => i.name.startsWith('cover.')).toList();
 
       if (coverItem.isEmpty) {
-        print('   ❌ Aucun fichier cover.* trouvé');
+        debugPrint('   ❌ Aucun fichier cover.* trouvé');
         return false;
       }
 
       final coverRef = coverItem.first;
       final metadata = await coverRef.getMetadata();
-      print('   ✅ Image existe: ${coverRef.name}');
-      print('   📊 Taille: ${metadata.size} bytes');
-      print('   📝 Content-Type: ${metadata.contentType}');
+      debugPrint('   ✅ Image existe: ${coverRef.name}');
+      debugPrint('   📊 Taille: ${metadata.size} bytes');
+      debugPrint('   📝 Content-Type: ${metadata.contentType}');
 
       final url = await coverRef.getDownloadURL();
-      print('   🔗 URL: $url');
+      debugPrint('   🔗 URL: $url');
       return true;
       
     } catch (e) {
-      print('❌ Erreur vérification Storage: $e');
+      debugPrint('❌ Erreur vérification Storage: $e');
       return false;
     }
   }
 
   /// TEST 4: Nettoyer article test
   Future<bool> deleteTestArticle(String articleId) async {
-    print('\n🗑️  Suppression article test: $articleId');
+    debugPrint('\n🗑️  Suppression article test: $articleId');
     
     try {
       // Récupérer d'abord l'article pour voir l'image
@@ -204,7 +205,7 @@ class ArticleTestHelper {
           .get();
       
       if (!doc.exists) {
-        print('   ⚠️  Article inexistant');
+        debugPrint('   ⚠️  Article inexistant');
         return true;
       }
       
@@ -213,21 +214,21 @@ class ArticleTestHelper {
           .collection('superadmin_articles')
           .doc(articleId)
           .delete();
-      print('   ✅ Document Firestore supprimé');
+      debugPrint('   ✅ Document Firestore supprimé');
       
       // Supprimer Storage
       try {
         await _storage.deleteArticleMedia(articleId: articleId);
-        print('   ✅ Dossier Storage supprimé');
+        debugPrint('   ✅ Dossier Storage supprimé');
       } catch (e) {
-        print('   ⚠️  Erreur suppression Storage: $e (non-critique)');
+        debugPrint('   ⚠️  Erreur suppression Storage: $e (non-critique)');
       }
       
-      print('✅ Article test supprimé complètement');
+      debugPrint('✅ Article test supprimé complètement');
       return true;
       
     } catch (e) {
-      print('❌ Erreur suppression: $e');
+      debugPrint('❌ Erreur suppression: $e');
       return false;
     }
   }
@@ -237,51 +238,51 @@ class ArticleTestHelper {
     String assetPath = 'assets/images/logo_maslive.png',
     bool cleanup = false,
   }) async {
-    print('\n\n🚀 ========== WORKFLOW TEST COMPLET ==========\n');
+    debugPrint('\n\n🚀 ========== WORKFLOW TEST COMPLET ==========\n');
     
     try {
       // 1. Créer
-      print('📌 ÉTAPE 1: Créer article avec photo asset...\n');
+      debugPrint('📌 ÉTAPE 1: Créer article avec photo asset...\n');
       final createResult = await testCreateArticleWithAssetPhoto(
         assetPath: assetPath,
         articleName: 'TEST COMPLET ${DateTime.now().millisecondsSinceEpoch}',
       );
       
       if (createResult['success'] != true) {
-        print('❌ Création échouée');
+        debugPrint('❌ Création échouée');
         return;
       }
       
       final articleId = createResult['articleId'] as String;
       
       // 2. Vérifier intégrité
-      print('\n📌 ÉTAPE 2: Vérifier intégrité...\n');
+      debugPrint('\n📌 ÉTAPE 2: Vérifier intégrité...\n');
       final integrityOk = await verifyArticleIntegrity(articleId);
       
       // 3. Vérifier image Storage
-      print('\n📌 ÉTAPE 3: Vérifier image Storage...\n');
+      debugPrint('\n📌 ÉTAPE 3: Vérifier image Storage...\n');
       final storageOk = await verifyImageStorage(articleId);
       
       // 4. Résumé
-      print('\n\n📊 ========== RÉSUMÉ FINAL ==========');
-      print('✅ Article créé: $articleId');
-      print('✅ Intégrité Firestore: ${integrityOk ? "OK" : "KO"}');
-      print('✅ Intégrité Storage: ${storageOk ? "OK" : "KO"}');
-      print('✅ WORKFLOW: ${integrityOk && storageOk ? "100% RÉUSSI" : "ÉCHEC"}');
+      debugPrint('\n\n📊 ========== RÉSUMÉ FINAL ==========');
+      debugPrint('✅ Article créé: $articleId');
+      debugPrint('✅ Intégrité Firestore: ${integrityOk ? "OK" : "KO"}');
+      debugPrint('✅ Intégrité Storage: ${storageOk ? "OK" : "KO"}');
+      debugPrint('✅ WORKFLOW: ${integrityOk && storageOk ? "100% RÉUSSI" : "ÉCHEC"}');
       
       // 5. Cleanup optionnel
       if (cleanup) {
-        print('\n📌 ÉTAPE 4: Nettoyage...\n');
+        debugPrint('\n📌 ÉTAPE 4: Nettoyage...\n');
         await deleteTestArticle(articleId);
       } else {
-        print('\n📌 Article reste en BD pour inspectionmanuelle');
-        print('   Supprimer via: ArticleTestHelper().deleteTestArticle(\'$articleId\')');
+        debugPrint('\n📌 Article reste en BD pour inspectionmanuelle');
+        debugPrint('   Supprimer via: ArticleTestHelper().deleteTestArticle(\'$articleId\')');
       }
       
-      print('\n🏁 ========== FIN TEST ==========\n');
+      debugPrint('\n🏁 ========== FIN TEST ==========\n');
       
     } catch (e) {
-      print('\n❌ ERREUR WORKFLOW: $e');
+      debugPrint('\n❌ ERREUR WORKFLOW: $e');
     }
   }
 }
@@ -304,6 +305,6 @@ class ArticleTestHelper {
   );
   
   if (result['success'] as bool) {
-    print('✅ Article: ${result['articleId']}');
+    debugPrint('✅ Article: ${result['articleId']}');
   }
 */

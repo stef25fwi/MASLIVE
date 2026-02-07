@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -498,7 +499,7 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
       final result = await Permission.photos.request();
       return result.isGranted;
     } catch (e) {
-      print('⚠️  Erreur permission galerie: $e');
+      debugPrint('⚠️  Erreur permission galerie: $e');
       return false;
     }
   }
@@ -543,7 +544,7 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
         );
       }
     } catch (e) {
-      print('❌ Erreur sélection image: $e');
+      debugPrint('❌ Erreur sélection image: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('❌ Erreur: $e')),
@@ -579,7 +580,7 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
 
     if (selected == null) return;
 
-    print('📦 Asset sélectionné: $selected');
+    debugPrint('📦 Asset sélectionné: $selected');
     setState(() {
       _imageUrl = selected;
       _selectedImageFile = null; // Marquer comme asset
@@ -643,7 +644,7 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
       
       // Cas 1: Upload depuis asset (déjà sélectionné, contient "assets/")
       if (_imageUrl.contains('assets/')) {
-        print('📦 Upload depuis asset: $_imageUrl');
+        debugPrint('📦 Upload depuis asset: $_imageUrl');
         imageUrl = await _storageService.uploadArticleFromAsset(
           articleId: articleId,
           assetPath: _imageUrl,
@@ -656,7 +657,7 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
       }
       // Cas 2: Upload depuis fichier sélectionné
       else if (_selectedImageFile != null) {
-        print('📝 Upload depuis fichier: ${_selectedImageFile!.name}');
+        debugPrint('📝 Upload depuis fichier: ${_selectedImageFile!.name}');
         imageUrl = await _storageService.uploadArticleCover(
           articleId: articleId,
           file: _selectedImageFile!,
@@ -670,7 +671,7 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
 
       return imageUrl;
     } catch (e) {
-      print('❌ Erreur upload image: $e');
+      debugPrint('❌ Erreur upload image: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('❌ Erreur upload: $e')),
@@ -862,11 +863,10 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
             if (shouldUpload) {
               finalImageUrl = await _uploadImageIfNeeded(articleId);
               if (finalImageUrl == null) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('❌ Échec upload image')),
-                  );
-                }
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('❌ Échec upload image')),
+                );
                 return;
               }
             }
@@ -880,10 +880,9 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
               'sku': _skuController.text.trim(),
               'imageUrl': finalImageUrl ?? '',
             });
+            if (!mounted) return;
 
-            if (mounted) {
-              Navigator.pop(context);
-            }
+            Navigator.pop(context);
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.grey[800],

@@ -10,4 +10,4 @@
 // Note: Ce fichier est conservé à titre de référence historique
 // mais ne contient pas de code compilable
 
-library integration_examples;
+library;

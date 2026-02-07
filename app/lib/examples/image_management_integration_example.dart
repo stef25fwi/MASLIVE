@@ -1,7 +1,9 @@
 /// EXEMPLE D'INTÉGRATION - Gestion d'images dans Create Product Page
 /// Ce fichier montre comment migrer une page existante vers le nouveau système
+library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:image_picker/image_picker.dart';
 import '../services/image_management_service.dart';
 import '../models/image_asset.dart';
@@ -48,7 +50,7 @@ class _CreateProductPageExampleState extends State<CreateProductPageExample> {
         _imageCollection = collection;
       });
     } catch (e) {
-      print('Erreur chargement images: $e');
+      debugPrint('Erreur chargement images: $e');
     }
   }
 
@@ -69,7 +71,7 @@ class _CreateProductPageExampleState extends State<CreateProductPageExample> {
       });
 
       // 2. Upload avec optimisation automatique
-      final imageAsset = await _imageService.uploadImage(
+      await _imageService.uploadImage(
         file: file,
         contentType: ImageContentType.productPhoto,
         parentId: widget.productId ?? 'draft_${DateTime.now().millisecondsSinceEpoch}',
@@ -391,7 +393,9 @@ class _CreateProductPageExampleState extends State<CreateProductPageExample> {
           ElevatedButton(
             onPressed: _isUploading ? null : () {
               // Logique de soumission
-              print('Produit créé avec ${_imageCollection?.totalImages ?? 0} images');
+              debugPrint(
+                'Produit créé avec ${_imageCollection?.totalImages ?? 0} images',
+              );
             },
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.all(16),

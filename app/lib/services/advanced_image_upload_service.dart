@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:developer' as developer;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
@@ -113,14 +114,14 @@ class AdvancedImageUploadService {
       final duration = DateTime.now().difference(startTime);
       onProgress?.call(1.0, 'Terminé');
 
-      print('✅ Upload terminé en ${duration.inSeconds}s');
+      developer.log('✅ Upload terminé en ${duration.inSeconds}s');
       return ImageUploadResult(
         image: managedImage,
         uploadDuration: duration,
         variantSizes: variantSizes,
       );
     } catch (e) {
-      print('❌ Erreur upload: $e');
+      developer.log('❌ Erreur upload: $e');
       final duration = DateTime.now().difference(startTime);
       return ImageUploadResult(
         image: ManagedImage(
@@ -176,7 +177,7 @@ class AdvancedImageUploadService {
     List<String>? captions,
     void Function(double progress, String currentFile)? onProgress,
   }) async {
-    print('📤 Upload collection: ${files.length} images');
+    developer.log('📤 Upload collection: ${files.length} images');
 
     ManagedImage? cover;
     final gallery = <ManagedImage>[];
@@ -199,7 +200,7 @@ class AdvancedImageUploadService {
       if (coverResult.isSuccess) {
         cover = coverResult.image;
       } else {
-        print('⚠️ Erreur upload cover: ${coverResult.error}');
+        developer.log('⚠️ Erreur upload cover: ${coverResult.error}');
       }
     }
 
@@ -231,9 +232,9 @@ class AdvancedImageUploadService {
 
       if (result.isSuccess) {
         gallery.add(result.image);
-        print('✅ Image ${i + 1}/${files.length} uploadée');
+        developer.log('✅ Image ${i + 1}/${files.length} uploadée');
       } else {
-        print('⚠️ Erreur image ${i + 1}: ${result.error}');
+        developer.log('⚠️ Erreur image ${i + 1}: ${result.error}');
       }
     }
 
@@ -319,22 +320,22 @@ class AdvancedImageUploadService {
 
   /// Supprime une image et toutes ses variantes
   Future<void> deleteImage(String basePath, String imageId) async {
-    print('🗑️ Suppression image: $basePath/$imageId');
+    developer.log('🗑️ Suppression image: $basePath/$imageId');
 
     for (final size in ImageSize.values) {
       try {
         final ref = _storage.ref('$basePath/${size.name}.jpg');
         await ref.delete();
-        print('✅ Variante ${size.name} supprimée');
+        developer.log('✅ Variante ${size.name} supprimée');
       } catch (e) {
-        print('⚠️ Erreur suppression ${size.name}: $e');
+        developer.log('⚠️ Erreur suppression ${size.name}: $e');
       }
     }
   }
 
   /// Supprime une collection d'images
   Future<void> deleteImageCollection(String basePath) async {
-    print('🗑️ Suppression collection: $basePath');
+    developer.log('🗑️ Suppression collection: $basePath');
 
     try {
       final ref = _storage.ref(basePath);
@@ -350,9 +351,9 @@ class AdvancedImageUploadService {
         await _deleteFolder(prefix);
       }
 
-      print('✅ Collection supprimée');
+      developer.log('✅ Collection supprimée');
     } catch (e) {
-      print('❌ Erreur suppression collection: $e');
+      developer.log('❌ Erreur suppression collection: $e');
     }
   }
 
@@ -384,7 +385,7 @@ class AdvancedImageUploadService {
         uploadedAt: DateTime.parse(
           metadata.customMetadata?['uploadedAt'] ?? DateTime.now().toIso8601String(),
         ),
-        originalName: metadata.name ?? '',
+        originalName: metadata.name,
         sizeBytes: metadata.size,
         contentType: metadata.contentType,
       );

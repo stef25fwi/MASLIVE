@@ -624,6 +624,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
 
       // Appeler la fonction Cloud
       // Note: Vous devrez implémenter l'appel à la fonction Cloud ici
+      if (!mounted) return;
       
       Navigator.pop(context);
       
@@ -636,6 +637,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
       
       await _loadData();
     } catch (e) {
+      if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -655,6 +657,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
       );
 
       await _categoryService.initializeCategories();
+      if (!mounted) return;
       
       Navigator.pop(context);
       
@@ -667,6 +670,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
       
       await _loadData();
     } catch (e) {
+      if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

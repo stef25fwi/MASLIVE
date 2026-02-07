@@ -1,4 +1,5 @@
 /// Utilitaires géodésiques pour calculs de positions GPS précis
+library;
 import 'dart:math';
 
 class GeoUtils {

@@ -1,7 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
-import '../services/mapbox_token_service.dart';
 
 typedef LngLat = ({double lng, double lat});
 typedef SegmentDef = ({int startIndex, int endIndex, Color color, String name});
@@ -139,9 +136,9 @@ class CircuitMapboxRenderer {
 
   /// Convertit Color Flutter en format hex #RRGGBB
   static String _colorToHex(Color c) {
-    final r = c.red.toRadixString(16).padLeft(2, '0');
-    final g = c.green.toRadixString(16).padLeft(2, '0');
-    final b = c.blue.toRadixString(16).padLeft(2, '0');
+    final r = (c.r * 255).round().toRadixString(16).padLeft(2, '0');
+    final g = (c.g * 255).round().toRadixString(16).padLeft(2, '0');
+    final b = (c.b * 255).round().toRadixString(16).padLeft(2, '0');
     return '#$r$g$b';
   }
 

@@ -1,6 +1,8 @@
 /// Service de cache local avec Hive
 /// Stocke positions et données groupe pour offline mode
+library;
 
+import 'dart:developer' as developer;
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../models/group_admin.dart';
 
@@ -87,7 +89,7 @@ class GroupCacheService {
     trackersBox = await Hive.openBox<CachedGroupTracker>('group_trackers');
 
     _initialized = true;
-    print('✅ GroupCacheService initialized');
+    developer.log('✅ GroupCacheService initialized');
   }
 
   /// Cache une position moyenne
@@ -210,7 +212,7 @@ class GroupCacheService {
       removed++;
     }
 
-    print('🧹 Cache nettoyé: $removed positions supprimées');
+    developer.log('🧹 Cache nettoyé: $removed positions supprimées');
     return removed;
   }
 
@@ -218,7 +220,7 @@ class GroupCacheService {
   Future<void> clearAllCache() async {
     await positionsBox.clear();
     await trackersBox.clear();
-    print('🗑️  Cache vidé complètement');
+    developer.log('🗑️  Cache vidé complètement');
   }
 
   /// Récupère stats du cache
@@ -244,7 +246,7 @@ class GroupCacheService {
   /// Sync cache avec Firestore (batch update)
   /// Utile pour synchroniser après reconnexion réseau
   Future<void> syncCacheMetadata() async {
-    print('🔄 Sync cache metadata...');
+    developer.log('🔄 Sync cache metadata...');
     // À implémenter selon besoins métier
     // Exemple: mettre à jour timestamps, marquer comme synced, etc.
   }

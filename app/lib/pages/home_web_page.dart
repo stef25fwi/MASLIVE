@@ -82,7 +82,7 @@ class _HomeWebPageState extends State<HomeWebPage>
         color: Colors.grey[200],
         child: MapboxWebView(
           key: ValueKey(
-            'mapbox-web-home-${_webMapRebuildTick}-${size.width.toStringAsFixed(0)}x${size.height.toStringAsFixed(0)}',
+            'mapbox-web-home-$_webMapRebuildTick-${size.width.toStringAsFixed(0)}x${size.height.toStringAsFixed(0)}',
           ),
           accessToken: token,
           initialLat: 16.2410,

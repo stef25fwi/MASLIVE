@@ -1,9 +1,7 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/market_circuit_models.dart';
-import '../services/market_map_service.dart';
 import 'circuit_map_editor.dart';
 import 'circuit_validation_checklist_page.dart';
 
@@ -43,8 +41,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   // Données Steps 2-3: Cartes
   List<LngLat> _perimeterPoints = [];
   List<LngLat> _routePoints = [];
-  bool _perimeterModified = false;
-  bool _routeModified = false;
 
   // Step 4: Layers/POI
   List<MarketMapLayer> _layers = [];
@@ -453,7 +449,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       onPointsChanged: (points) {
         setState(() {
           _perimeterPoints = points;
-          _perimeterModified = true;
         });
       },
       onSave: _saveDraft,
@@ -468,7 +463,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       onPointsChanged: (points) {
         setState(() {
           _routePoints = points;
-          _routeModified = true;
         });
       },
       onSave: _saveDraft,
@@ -530,7 +524,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                   ),
                 ),
               );
-            }).toList(),
+            }),
           const SizedBox(height: 32),
           Container(
             padding: const EdgeInsets.all(16),

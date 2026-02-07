@@ -78,7 +78,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                               setState(() => _statusFilter = status),
                         );
                       },
-                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      separatorBuilder: (context, index) => const SizedBox(width: 8),
                       itemCount: _statusOptions.length,
                     ),
                   ),
@@ -121,7 +121,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                   return ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: orders.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    separatorBuilder: (context, index) => const SizedBox(height: 12),
                     itemBuilder: (context, i) {
                       final order = orders[i];
                       return _AdminOrderCard(
@@ -196,7 +196,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: status,
+                initialValue: status,
                 decoration: const InputDecoration(
                   labelText: 'Statut',
                   border: OutlineInputBorder(),
@@ -320,8 +320,9 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                                   SnackBar(content: Text('❌ Erreur: $e')),
                                 );
                               } finally {
-                                if (ctx.mounted)
+                                if (ctx.mounted) {
                                   setModalState(() => saving = false);
+                                }
                               }
                             },
                     ),
@@ -363,8 +364,9 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                                   SnackBar(content: Text('❌ Erreur: $e')),
                                 );
                               } finally {
-                                if (ctx.mounted)
+                                if (ctx.mounted) {
                                   setModalState(() => saving = false);
+                                }
                               }
                             },
                     ),

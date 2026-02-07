@@ -1,4 +1,5 @@
 /// Test simple pour vérifier imports et dépendances
+library;
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

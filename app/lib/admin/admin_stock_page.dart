@@ -241,13 +241,15 @@ class _AdminStockPageState extends State<AdminStockPage> {
                     final title = ((data['name'] ?? data['title']) ?? '')
                         .toString()
                         .toLowerCase();
-                    if (search.isNotEmpty && !title.contains(search))
+                    if (search.isNotEmpty && !title.contains(search)) {
                       return false;
+                    }
 
                     final stock = _computeTotalStock(data);
                     if (_filter == 'out' && stock > 0) return false;
-                    if (_filter == 'low' && !(stock > 0 && stock <= 5))
+                    if (_filter == 'low' && !(stock > 0 && stock <= 5)) {
                       return false;
+                    }
 
                     return true;
                   }).toList();
@@ -259,7 +261,7 @@ class _AdminStockPageState extends State<AdminStockPage> {
                   return ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: docs.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    separatorBuilder: (context, index) => const SizedBox(height: 12),
                     itemBuilder: (context, i) {
                       final doc = docs[i];
                       final data = doc.data();
@@ -586,14 +588,14 @@ class _AdminStockPageState extends State<AdminStockPage> {
 
                         if (!ctx.mounted) return;
                         Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        ScaffoldMessenger.of(ctx).showSnackBar(
                           const SnackBar(content: Text('✅ Stock mis à jour')),
                         );
                       } catch (e) {
                         if (!ctx.mounted) return;
-                        ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(SnackBar(content: Text('❌ Erreur: $e')));
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          SnackBar(content: Text('❌ Erreur: $e')),
+                        );
                       } finally {
                         if (ctx.mounted) setDialogState(() => saving = false);
                       }

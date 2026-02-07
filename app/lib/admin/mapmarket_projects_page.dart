@@ -55,7 +55,7 @@ class _MapMarketProjectsPageState extends State<MapMarketProjectsPage> {
                 return ListView.separated(
                   padding: const EdgeInsets.all(12),
                   itemCount: docs.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  separatorBuilder: (context, index) => const SizedBox(height: 10),
                   itemBuilder: (context, i) {
                     final d = docs[i];
                     final m = d.data() as Map<String, dynamic>;

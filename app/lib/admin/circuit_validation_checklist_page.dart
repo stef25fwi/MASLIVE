@@ -24,7 +24,6 @@ class CircuitValidationChecklistPage extends StatefulWidget {
 class _CircuitValidationChecklistPageState
     extends State<CircuitValidationChecklistPage> {
   late Map<String, bool> _checks;
-  bool _autoValidate = true;
 
   @override
   void initState() {

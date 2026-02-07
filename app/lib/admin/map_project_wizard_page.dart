@@ -596,14 +596,13 @@ class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
                         linkedCircuitId: linkedCircuitId,
                         isVisible: true,
                       );
+                      if (!mounted) return;
 
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Projet publié avec succès !')),
-                        );
-                        Navigator.pop(context);
-                      }
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Projet publié avec succès !')),
+                      );
+                      Navigator.pop(context);
                     },
                     child: const Text(
                       'PUBLIER LE PROJET',
@@ -660,7 +659,7 @@ class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
             circuits.any((c) => c.id == linkedCircuitId) ? linkedCircuitId : null;
 
         return DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           decoration: const InputDecoration(
             labelText: 'Circuit MarketMap associé',
             border: OutlineInputBorder(),

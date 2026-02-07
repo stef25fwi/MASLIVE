@@ -277,7 +277,7 @@ class _BusinessRequestsPageState extends State<BusinessRequestsPage> with Single
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: isPending ? Colors.orange.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                      color: isPending ? Colors.orange.withValues(alpha: 0.1) : Colors.green.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(

@@ -623,7 +623,7 @@ class _CommerceTab extends StatelessWidget {
                                 ? Image.network(
                                     imageUrl,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => const Icon(
+                                    errorBuilder: (context, error, stackTrace) => const Icon(
                                       Icons.image_not_supported,
                                       color: Colors.grey,
                                     ),

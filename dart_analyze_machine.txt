@@ -1,0 +1,314 @@
+ERROR|COMPILE_TIME_ERROR|NON_TYPE_AS_TYPE_ARGUMENT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|29|17|15|The name 'MigrationReport' isn't a type, so it can't be used as a type argument.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|32|5|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|33|5|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|34|5|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_METHOD|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|36|20|15|The method 'MigrationReport' isn't defined for the type 'MigrationScript'.
+ERROR|COMPILE_TIME_ERROR|MISSING_REQUIRED_ARGUMENT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|60|31|18|The named parameter 'contentType' is required, but there's no corresponding argument.
+ERROR|COMPILE_TIME_ERROR|MISSING_REQUIRED_ARGUMENT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|60|31|18|The named parameter 'imageFieldName' is required, but there's no corresponding argument.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|62|5|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|EXTRA_POSITIONAL_ARGUMENTS_COULD_BE_NAMED|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|62|5|32|Too many positional arguments: 0 expected, but 1 found.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|62|37|1|Expected to find ')'.
+ERROR|COMPILE_TIME_ERROR|MISSING_REQUIRED_ARGUMENT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|70|32|18|The named parameter 'contentType' is required, but there's no corresponding argument.
+ERROR|COMPILE_TIME_ERROR|MISSING_REQUIRED_ARGUMENT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|70|32|18|The named parameter 'imageFieldName' is required, but there's no corresponding argument.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|72|5|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|EXTRA_POSITIONAL_ARGUMENTS_COULD_BE_NAMED|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|72|5|34|Too many positional arguments: 0 expected, but 1 found.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|72|39|1|Expected to find ')'.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|82|5|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|NON_TYPE_AS_TYPE_ARGUMENT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|86|17|15|The name 'MigrationReport' isn't a type, so it can't be used as a type argument.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|92|5|4|Instance members can't be accessed from a static method.
+ERROR|SYNTACTIC_ERROR|MISSING_CATCH_OR_FINALLY|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|101|9|3|A try block must be followed by an 'on', 'catch', or 'finally' clause.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|102|5|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|103|5|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|103|10|6|Undefined name 'report'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|106|15|8|Undefined name 'imageUrl'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|106|35|8|Undefined name 'imageUrl'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|107|13|6|Undefined name 'report'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|112|15|4|Undefined name 'data'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|114|13|6|Undefined name 'report'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|119|50|8|Undefined name 'imageUrl'.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|120|7|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|129|23|8|Undefined name 'imageUrl'.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|135|13|4|Instance members can't be accessed from a static method.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|136|13|14|Expected to find ';'.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|136|27|1|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|UNEXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|136|27|1|Unexpected text ':'.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|136|40|2|Expected to find ';'.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|136|42|1|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|UNEXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|136|42|1|Unexpected text ','.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|137|13|10|Expected to find ';'.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|137|23|1|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|UNEXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|137|23|1|Unexpected text ':'.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|138|25|1|Expected to find ';'.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|138|26|1|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|UNEXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|138|26|1|Unexpected text ','.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|139|13|12|Expected to find ';'.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|139|25|1|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|UNEXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|139|25|1|Unexpected text ':'.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|139|54|1|Expected to find ';'.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|139|55|1|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|UNEXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|139|55|1|Unexpected text ','.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|140|11|1|Expected to find ';'.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|140|12|1|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|UNEXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|140|12|1|Unexpected text ')'.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|141|13|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|141|49|8|Undefined name 'imageUrl'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|143|11|6|Undefined name 'report'.
+ERROR|SYNTACTIC_ERROR|EXPECTED_IDENTIFIER_BUT_GOT_KEYWORD|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|144|11|5|'catch' can't be used as an identifier because it's a keyword.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_METHOD|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|144|11|5|The method 'catch' isn't defined for the type 'MigrationScript'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|144|18|1|Undefined name 'e'.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|144|19|1|Expected to find ';'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|145|24|3|Undefined name 'doc'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|145|43|1|Undefined name 'e'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|146|11|6|Undefined name 'report'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|146|32|3|Undefined name 'doc'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|146|42|1|Undefined name 'e'.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|147|11|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|147|24|3|Undefined name 'doc'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|151|7|6|Undefined name 'report'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|154|12|6|Undefined name 'report'.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|164|11|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|164|23|3|Undefined name 'doc'.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|167|11|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|167|23|3|Undefined name 'doc'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|167|42|1|Undefined name 'e'.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|172|7|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|172|37|1|Undefined name 'e'.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|226|7|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|226|50|1|Undefined name 'e'.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|237|5|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|238|5|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|REFERENCED_BEFORE_DECLARATION|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|238|24|14|Local variable 'collectionPath' can't be referenced before it is declared.
+ERROR|COMPILE_TIME_ERROR|NOT_ASSIGNED_POTENTIALLY_NON_NULLABLE_LOCAL_VARIABLE|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|238|24|14|The non-nullable local variable 'collectionPath' must be assigned before it can be used.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|239|5|4|Instance members can't be accessed from a static method.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|240|17|8|Expected to find ';'.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|240|25|1|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|UNEXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|240|25|1|Unexpected text ','.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|241|21|2|Expected to find ';'.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|241|23|1|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|UNEXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|241|23|1|Unexpected text ','.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|242|20|11|Expected to find ';'.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|242|31|1|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|242|31|1|Expected to find ';'.
+ERROR|SYNTACTIC_ERROR|UNEXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|242|31|1|Unexpected text ','.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|243|5|1|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|UNEXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|243|5|1|Unexpected text ')'.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|244|7|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|246|23|10|Undefined name 'imageAsset'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|251|32|10|Undefined name 'imageAsset'.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|252|7|4|Instance members can't be accessed from a static method.
+ERROR|SYNTACTIC_ERROR|EXTRANEOUS_MODIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|255|3|6|Can't have modifier 'static' here.
+ERROR|COMPILE_TIME_ERROR|MISSING_DEFAULT_VALUE_FOR_PARAMETER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|256|5|4|The parameter '_out' can't have a value of 'null' because of its type, but the implicit default value is 'null'.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|256|10|20|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|256|30|1|Expected to find ')'.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|256|41|1|Expected to find '}'.
+ERROR|COMPILE_TIME_ERROR|REFERENCED_BEFORE_DECLARATION|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|260|25|14|Local variable 'collectionPath' can't be referenced before it is declared.
+ERROR|COMPILE_TIME_ERROR|NOT_ASSIGNED_POTENTIALLY_NON_NULLABLE_LOCAL_VARIABLE|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|260|25|14|The non-nullable local variable 'collectionPath' must be assigned before it can be used.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|261|20|9|Undefined name 'fieldName'.
+ERROR|COMPILE_TIME_ERROR|REFERENCED_BEFORE_DECLARATION|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|264|21|14|Local variable 'collectionPath' can't be referenced before it is declared.
+ERROR|COMPILE_TIME_ERROR|NOT_ASSIGNED_POTENTIALLY_NON_NULLABLE_LOCAL_VARIABLE|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|264|21|14|The non-nullable local variable 'collectionPath' must be assigned before it can be used.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|265|16|9|Undefined name 'fieldName'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|271|31|10|Undefined name 'imageAsset'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|273|9|9|Undefined name 'fieldName'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|275|7|7|Undefined name 'cleaned'.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|278|5|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|279|5|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|REFERENCED_BEFORE_DECLARATION|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|279|24|14|Local variable 'collectionPath' can't be referenced before it is declared.
+ERROR|COMPILE_TIME_ERROR|NOT_ASSIGNED_POTENTIALLY_NON_NULLABLE_LOCAL_VARIABLE|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|279|24|14|The non-nullable local variable 'collectionPath' must be assigned before it can be used.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|280|5|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|280|19|9|Undefined name 'fieldName'.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|283|5|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|283|13|8|Undefined name 'snapshot'.
+ERROR|SYNTACTIC_ERROR|EXTRANEOUS_MODIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|284|5|8|Can't have modifier 'required' here.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|284|35|1|Expected to find ';'.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|285|3|1|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|285|3|1|Expected to find ';'.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|285|4|1|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|UNEXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|285|4|1|Unexpected text ';'.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|285|6|5|Expected to find ';'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|285|6|5|Undefined name 'async'.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|290|28|10|Expected to find ';'.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|291|7|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|DOT_SHORTHAND_UNDEFINED_MEMBER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|292|10|5|The static method or constructor 'where' isn't defined for the context type '_'.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|294|5|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|294|14|7|Undefined name 'cleaned'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_GETTER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|295|23|4|The getter 'docs' isn't defined for the type 'FirebaseFirestore'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_GETTER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|298|32|4|The getter 'docs' isn't defined for the type 'FirebaseFirestore'.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|300|5|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|301|5|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|302|5|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|303|13|12|Undefined name 'coverImageId'.
+ERROR|COMPILE_TIME_ERROR|INSTANCE_MEMBER_ACCESS_FROM_STATIC|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|305|5|4|Instance members can't be accessed from a static method.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_GETTER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|305|22|4|The getter 'docs' isn't defined for the type 'FirebaseFirestore'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|307|61|12|Undefined name 'coverImageId'.
+ERROR|COMPILE_TIME_ERROR|CONCRETE_CLASS_WITH_ABSTRACT_MEMBER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|333|9|22|'_out' must have a method body because 'MigrationScript' isn't abstract.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|333|14|5|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|333|19|2|Expected to find ')'.
+ERROR|SYNTACTIC_ERROR|CLASS_IN_CLASS|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|334|1|5|Classes can't be declared inside other classes.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|391|1|1|Expected to find '}'.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|12|3|6|Expected to find ';'.
+ERROR|SYNTACTIC_ERROR|MISSING_CONST_FINAL_VAR_OR_TYPE|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|12|3|6|Variables must be declared using the keywords 'const', 'final', 'var' or a type name.
+ERROR|SYNTACTIC_ERROR|EXPECTED_CLASS_MEMBER|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|12|10|16|Expected a class member.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|12|27|2|Expected to find ';'.
+ERROR|SYNTACTIC_ERROR|MISSING_CONST_FINAL_VAR_OR_TYPE|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|12|27|2|Variables must be declared using the keywords 'const', 'final', 'var' or a type name.
+ERROR|SYNTACTIC_ERROR|MISSING_CONST_FINAL_VAR_OR_TYPE|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|12|30|9|Variables must be declared using the keywords 'const', 'final', 'var' or a type name.
+ERROR|COMPILE_TIME_ERROR|PREFIX_SHADOWED_BY_LOCAL_DECLARATION|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|70|7|9|The prefix 'developer' can't be used here because it's shadowed by a local declaration.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|70|20|1|Expected an identifier.
+ERROR|COMPILE_TIME_ERROR|MISSING_DEFAULT_VALUE_FOR_PARAMETER|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|70|20|0|The parameter '' can't have a value of 'null' because of its type, but the implicit default value is 'null'.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|71|9|26|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|71|35|2|Expected to find ')'.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|72|8|1|Expected to find '}'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|77|48|9|Undefined name 'limitDays'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|81|14|8|Undefined name 'adminUid'.
+WARNING|STATIC_WARNING|UNUSED_ELEMENT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|8|6|4|The declaration '_out' isn't referenced.
+WARNING|STATIC_WARNING|UNUSED_LOCAL_VARIABLE|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|211|23|0|The value of the local variable '<unnamed>' isn't used.
+WARNING|STATIC_WARNING|DEAD_CODE|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|226|7|1774|Dead code.
+WARNING|STATIC_WARNING|UNUSED_LABEL|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|240|7|9|The label 'imageUrl' isn't used.
+WARNING|STATIC_WARNING|UNUSED_LABEL|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|241|7|9|The label 'parentId' isn't used.
+WARNING|STATIC_WARNING|UNUSED_LABEL|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|242|7|12|The label 'contentType' isn't used.
+WARNING|STATIC_WARNING|UNUSED_ELEMENT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|255|23|16|The declaration 'cleanupOldFields' isn't referenced.
+INFO|LINT|UNNECESSARY_UNDERSCORES|/workspaces/MASLIVE/app/lib/admin/admin_orders_page.dart|81|45|2|Unnecessary use of multiple underscores.
+INFO|LINT|UNNECESSARY_UNDERSCORES|/workspaces/MASLIVE/app/lib/admin/admin_orders_page.dart|124|43|2|Unnecessary use of multiple underscores.
+INFO|LINT|UNNECESSARY_UNDERSCORES|/workspaces/MASLIVE/app/lib/admin/admin_product_categories_page.dart|115|47|2|Unnecessary use of multiple underscores.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/admin/admin_products_page.dart|203|7|16|Don't use 'BuildContext's across async gaps.
+INFO|LINT|UNNECESSARY_UNDERSCORES|/workspaces/MASLIVE/app/lib/admin/admin_stock_page.dart|264|43|2|Unnecessary use of multiple underscores.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/admin/admin_stock_page.dart|591|46|7|Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/admin/admin_stock_page.dart|597|27|7|Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/admin/admin_system_settings_page.dart|500|9|16|Don't use 'BuildContext's across async gaps.
+INFO|LINT|UNNECESSARY_UNDERSCORES|/workspaces/MASLIVE/app/lib/admin/admin_tracking_page.dart|247|37|2|Unnecessary use of multiple underscores.
+INFO|LINT|UNNECESSARY_UNDERSCORES|/workspaces/MASLIVE/app/lib/admin/admin_tracking_page_v2.dart|247|37|2|Unnecessary use of multiple underscores.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/assistant_step_by_step/mapbox_web_circuit_map.dart|2|1|27|'dart:html' is deprecated and shouldn't be used. Use package:web and dart:js_interop instead.
+INFO|LINT|AVOID_WEB_LIBRARIES_IN_FLUTTER|/workspaces/MASLIVE/app/lib/admin/assistant_step_by_step/mapbox_web_circuit_map.dart|2|1|27|Don't use web-only libraries outside Flutter web plugins.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/assistant_step_by_step/mapbox_web_circuit_map.dart|3|1|23|'dart:js' is deprecated and shouldn't be used. Use dart:js_interop instead.
+INFO|LINT|AVOID_WEB_LIBRARIES_IN_FLUTTER|/workspaces/MASLIVE/app/lib/admin/assistant_step_by_step/mapbox_web_circuit_map.dart|3|1|23|Don't use web-only libraries outside Flutter web plugins.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/assistant_step_by_step/mapbox_web_circuit_map.dart|261|17|3|'red' is deprecated and shouldn't be used. Use (*.r * 255.0).round().clamp(0, 255).
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/assistant_step_by_step/mapbox_web_circuit_map.dart|262|17|5|'green' is deprecated and shouldn't be used. Use (*.g * 255.0).round().clamp(0, 255).
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/assistant_step_by_step/mapbox_web_circuit_map.dart|263|17|4|'blue' is deprecated and shouldn't be used. Use (*.b * 255.0).round().clamp(0, 255).
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/business_requests_page.dart|280|56|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/business_requests_page.dart|280|88|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/admin/category_management_page.dart|340|21|7|Don't use 'BuildContext's across async gaps.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/admin/category_management_page.dart|342|28|7|Don't use 'BuildContext's across async gaps.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/admin/category_management_page.dart|349|21|7|Don't use 'BuildContext's across async gaps.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/admin/category_management_page.dart|350|28|7|Don't use 'BuildContext's across async gaps.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/circuit_mapbox_renderer.dart|139|17|3|'red' is deprecated and shouldn't be used. Use (*.r * 255.0).round().clamp(0, 255).
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/circuit_mapbox_renderer.dart|140|17|5|'green' is deprecated and shouldn't be used. Use (*.g * 255.0).round().clamp(0, 255).
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/circuit_mapbox_renderer.dart|141|17|4|'blue' is deprecated and shouldn't be used. Use (*.b * 255.0).round().clamp(0, 255).
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/commerce_analytics_page.dart|301|28|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/commerce_analytics_page.dart|301|52|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/create_product_dialog.dart|300|47|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/create_product_dialog.dart|551|27|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/create_product_dialog.dart|553|46|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|LINT|UNNECESSARY_UNDERSCORES|/workspaces/MASLIVE/app/lib/admin/create_product_dialog.dart|585|37|2|Unnecessary use of multiple underscores.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/create_product_dialog.dart|594|62|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/create_product_dialog.dart|623|49|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/create_product_dialog.dart|663|33|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/create_product_dialog.dart|678|33|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/admin/map_project_wizard_page.dart|601|46|7|Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/admin/map_project_wizard_page.dart|605|39|7|Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check.
+INFO|LINT|UNNECESSARY_UNDERSCORES|/workspaces/MASLIVE/app/lib/admin/mapmarket_projects_page.dart|58|41|2|Unnecessary use of multiple underscores.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/admin/marketmap_perimeter_page.dart|306|59|7|Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/poi_assistant_page.dart|894|41|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/poi_assistant_page.dart|898|45|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/admin/super_admin_space.dart|628|21|7|Don't use 'BuildContext's across async gaps.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/admin/super_admin_space.dart|630|28|7|Don't use 'BuildContext's across async gaps.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/admin/super_admin_space.dart|639|21|7|Don't use 'BuildContext's across async gaps.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/admin/super_admin_space.dart|640|28|7|Don't use 'BuildContext's across async gaps.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/admin/super_admin_space.dart|659|21|7|Don't use 'BuildContext's across async gaps.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/admin/super_admin_space.dart|661|28|7|Don't use 'BuildContext's across async gaps.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/admin/super_admin_space.dart|670|21|7|Don't use 'BuildContext's across async gaps.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/admin/super_admin_space.dart|671|28|7|Don't use 'BuildContext's across async gaps.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/user_profile_preview_page.dart|156|59|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/user_profile_preview_page.dart|233|33|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/admin/user_profile_preview_page.dart|627|61|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|1422|47|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|LINT|UNNECESSARY_UNDERSCORES|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|1588|40|2|Unnecessary use of multiple underscores.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|1591|51|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|LINT|UNNECESSARY_UNDERSCORES|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|1630|26|2|Unnecessary use of multiple underscores.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|1791|37|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|LINT|UNNECESSARY_UNDERSCORES|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|1810|47|2|Unnecessary use of multiple underscores.
+INFO|LINT|UNNECESSARY_UNDERSCORES|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|1810|51|3|Unnecessary use of multiple underscores.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|2196|51|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|2285|59|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|2346|57|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|2443|57|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|2625|47|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|LINT|UNNECESSARY_UNDERSCORES|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|2676|53|2|Unnecessary use of multiple underscores.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|2690|61|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|LINT|UNNECESSARY_UNDERSCORES|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|2759|40|2|Unnecessary use of multiple underscores.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|2762|51|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|LINT|UNNECESSARY_UNDERSCORES|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|2812|43|2|Unnecessary use of multiple underscores.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|2865|45|7|Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|2866|52|7|Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|2871|52|7|Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check.
+INFO|LINT|UNNECESSARY_UNDERSCORES|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|3069|41|2|Unnecessary use of multiple underscores.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|3143|55|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/commerce_module_single_file.dart|3204|51|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
+INFO|LINT|CONSTANT_IDENTIFIER_NAMES|/workspaces/MASLIVE/app/lib/constants/superadmin_articles_init.dart|7|34|29|The constant name 'SUPERADMIN_ARTICLES_INIT_DATA' isn't a lowerCamelCase identifier.
+INFO|HINT|UNNECESSARY_IMPORT|/workspaces/MASLIVE/app/lib/examples/image_management_integration_example.dart|6|8|33|The import of 'package:flutter/foundation.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart'.
+INFO|LINT|AVOID_TYPES_AS_PARAMETER_NAMES|/workspaces/MASLIVE/app/lib/models/product_model.dart|62|49|3|The parameter name 'sum' matches a visible type name.
+INFO|LINT|FILE_NAMES|/workspaces/MASLIVE/app/lib/pages/admin_dashboard_page_REMOVED.dart|1|1|0|The file name 'admin_dashboard_page_REMOVED.dart' isn't a lower_case_with_underscores identifier.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/pages/commerce/create_media_page.dart|81|28|7|Don't use 'BuildContext's across async gaps.
+INFO|LINT|UNNECESSARY_UNDERSCORES|/workspaces/MASLIVE/app/lib/pages/group_profile_page.dart|626|55|2|Unnecessary use of multiple underscores.
+INFO|LINT|UNNECESSARY_UNDERSCORES|/workspaces/MASLIVE/app/lib/pages/group_profile_page.dart|626|59|3|Unnecessary use of multiple underscores.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/pages/home_map_page_3d.dart|309|35|5|'value' is deprecated and shouldn't be used. Use component accessors like .r or .g, or toARGB32 for an explicit conversion.
+INFO|HINT|DEPRECATED_MEMBER_USE|/workspaces/MASLIVE/app/lib/pages/home_map_page_3d.dart|310|39|5|'value' is deprecated and shouldn't be used. Use component accessors like .r or .g, or toARGB32 for an explicit conversion.
+INFO|LINT|UNNECESSARY_UNDERSCORES|/workspaces/MASLIVE/app/lib/pages/home_map_page_web.dart|456|43|2|Unnecessary use of multiple underscores.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/pages/home_map_page_web.dart|509|43|7|Don't use 'BuildContext's across async gaps.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/pages/home_map_page_web.dart|937|41|7|Don't use 'BuildContext's across async gaps.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/pages/home_map_page_web.dart|949|59|7|Don't use 'BuildContext's across async gaps.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/pages/home_map_page_web.dart|974|49|7|Don't use 'BuildContext's across async gaps.
+INFO|HINT|UNNECESSARY_IMPORT|/workspaces/MASLIVE/app/lib/pages/superadmin_articles_page.dart|2|8|33|The import of 'package:flutter/foundation.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart'.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/pages/superadmin_articles_page.dart|308|34|7|Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/pages/superadmin_articles_page.dart|313|34|7|Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/pages/superadmin_articles_page.dart|342|34|7|Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/pages/superadmin_articles_page.dart|347|34|7|Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/pages/superadmin_articles_page.dart|867|40|7|Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/pages/superadmin_articles_page.dart|886|29|7|Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|39|5|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|49|5|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|59|5|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|69|5|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|79|5|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|80|5|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|98|7|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|113|13|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|119|13|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|125|11|5|Don't invoke 'print' in production code.
+INFO|LINT|EMPTY_STATEMENTS|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|140|13|1|Unnecessary empty statement.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|142|11|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|145|11|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|150|7|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|205|7|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|217|5|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|218|5|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|219|5|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|224|7|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|232|7|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|236|5|5|Don't invoke 'print' in production code.
+INFO|LINT|EMPTY_STATEMENTS|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|243|6|1|Unnecessary empty statement.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|250|5|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|251|5|5|Don't invoke 'print' in production code.
+INFO|LINT|USE_FUNCTION_TYPE_SYNTAX_FOR_PARAMETERS|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|256|5|36|Use the generic function type syntax to declare the parameter '_out'.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|259|5|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|260|5|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|261|5|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|268|5|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|276|7|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|286|5|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|287|5|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|288|5|5|Don't invoke 'print' in production code.
+INFO|LINT|AWAIT_ONLY_FUTURES|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|290|22|5|Uses 'await' on an instance of 'FirebaseFirestore', which is not a subtype of 'Future'.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|295|5|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|323|9|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|325|9|5|Don't invoke 'print' in production code.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|329|5|5|Don't invoke 'print' in production code.
+INFO|LINT|STRICT_TOP_LEVEL_INFERENCE|/workspaces/MASLIVE/app/lib/scripts/migrate_images.dart|333|9|4|Missing type annotation.
+INFO|LINT|PREFER_TYPING_UNINITIALIZED_VARIABLES|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|12|3|6|An uninitialized field should have an explicit type annotation.
+INFO|LINT|STRICT_TOP_LEVEL_INFERENCE|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|12|3|6|Missing type annotation.
+INFO|LINT|PREFER_TYPING_UNINITIALIZED_VARIABLES|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|12|27|2|An uninitialized field should have an explicit type annotation.
+INFO|LINT|STRICT_TOP_LEVEL_INFERENCE|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|12|27|2|Missing type annotation.
+INFO|LINT|PREFER_TYPING_UNINITIALIZED_VARIABLES|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|12|30|9|An uninitialized field should have an explicit type annotation.
+INFO|LINT|STRICT_TOP_LEVEL_INFERENCE|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|12|30|9|Missing type annotation.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|43|7|5|Don't invoke 'print' in production code.
+INFO|LINT|USE_FUNCTION_TYPE_SYNTAX_FOR_PARAMETERS|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|70|7|102|Use the generic function type syntax to declare the parameter ''.
+INFO|LINT|AVOID_PRINT|/workspaces/MASLIVE/app/lib/services/group/group_history_service.dart|129|5|5|Don't invoke 'print' in production code.
+INFO|LINT|USE_BUILD_CONTEXT_SYNCHRONOUSLY|/workspaces/MASLIVE/app/lib/widgets/image_upload_widgets.dart|297|28|7|Don't use 'BuildContext's across async gaps.

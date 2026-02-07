@@ -34,7 +34,7 @@ class _AddPlacePageState extends State<AddPlacePage> {
           : MapboxTokenService.getTokenSync();
 
   // Web: rebuild pour recentrer après sélection
-  int _webRebuildTick = 0;
+  final int _webRebuildTick = 0;
 
   // Mobile
   MapboxMap? _mapboxMap;
@@ -127,10 +127,7 @@ class _AddPlacePageState extends State<AddPlacePage> {
 
   Future<void> _ensurePointManager() async {
     if (_mapboxMap == null) return;
-    if (_pointManager == null) {
-      _pointManager =
-          await _mapboxMap!.annotations.createPointAnnotationManager();
-    }
+    _pointManager ??= await _mapboxMap!.annotations.createPointAnnotationManager();
   }
 
   Future<void> _syncNativeAnnotations() async {

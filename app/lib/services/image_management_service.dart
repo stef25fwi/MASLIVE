@@ -1,9 +1,9 @@
+import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/image_asset.dart';
 import 'image_optimization_service.dart';
-import 'storage_service.dart';
 
 /// Service de gestion centralisée des images
 /// Unifie upload, optimisation, stockage Firestore et Storage
@@ -15,7 +15,6 @@ class ImageManagementService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final ImageOptimizationService _optimizer = ImageOptimizationService.instance;
-  final StorageService _storage = StorageService.instance;
 
   User? get _currentUser => _auth.currentUser;
 
@@ -33,7 +32,7 @@ class ImageManagementService {
     final user = _currentUser;
     if (user == null) throw Exception('User not authenticated');
 
-    print('📸 [ImageManagement] Upload image pour $parentId');
+    developer.log('📸 [ImageManagement] Upload image pour $parentId');
 
     // 1. Générer ID unique
     final imageId = _firestore.collection(_collectionName).doc().id;
@@ -78,7 +77,7 @@ class ImageManagementService {
         .doc(imageId)
         .set(imageAsset.toMap());
 
-    print('✅ [ImageManagement] Image uploadée: $imageId');
+    developer.log('✅ [ImageManagement] Image uploadée: $imageId');
     onProgress?.call(1.0);
 
     return imageAsset;
@@ -92,7 +91,7 @@ class ImageManagementService {
     List<String>? altTexts,
     void Function(double progress)? onProgress,
   }) async {
-    print('📸 [ImageManagement] Upload collection: ${files.length} images');
+    developer.log('📸 [ImageManagement] Upload collection: ${files.length} images');
 
     final images = <ImageAsset>[];
     final totalFiles = files.length;
@@ -150,7 +149,7 @@ class ImageManagementService {
         images: images,
       );
     } catch (e) {
-      print('⚠️ [ImageManagement] Erreur récupération collection: $e');
+      developer.log('⚠️ [ImageManagement] Erreur récupération collection: $e');
       return ImageCollection(parentId: parentId);
     }
   }
@@ -186,7 +185,7 @@ class ImageManagementService {
       if (!doc.exists) return null;
       return ImageAsset.fromMap(doc.data()!, doc.id);
     } catch (e) {
-      print('⚠️ [ImageManagement] Erreur récupération image: $e');
+      developer.log('⚠️ [ImageManagement] Erreur récupération image: $e');
       return null;
     }
   }
@@ -205,14 +204,14 @@ class ImageManagementService {
     }
 
     await batch.commit();
-    print('✅ [ImageManagement] Ordre mis à jour: ${imageIds.length} images');
+    developer.log('✅ [ImageManagement] Ordre mis à jour: ${imageIds.length} images');
   }
 
   /// Définir image de couverture
   Future<void> setCoverImage(String parentId, String imageId) async {
     // Stocker dans metadata du parent (selon le type)
     // Pour l'instant, on le garde dans l'ImageCollection côté client
-    print('✅ [ImageManagement] Cover défini: $imageId pour $parentId');
+    developer.log('✅ [ImageManagement] Cover défini: $imageId pour $parentId');
   }
 
   /// Supprimer une image
@@ -235,9 +234,9 @@ class ImageManagementService {
         'updatedAt': Timestamp.fromDate(DateTime.now()),
       });
 
-      print('✅ [ImageManagement] Image supprimée: $imageId');
+      developer.log('✅ [ImageManagement] Image supprimée: $imageId');
     } catch (e) {
-      print('⚠️ [ImageManagement] Erreur suppression: $e');
+      developer.log('⚠️ [ImageManagement] Erreur suppression: $e');
       rethrow;
     }
   }
@@ -271,9 +270,9 @@ class ImageManagementService {
       }
 
       await batch.commit();
-      print('✅ [ImageManagement] Collection supprimée: $parentId');
+      developer.log('✅ [ImageManagement] Collection supprimée: $parentId');
     } catch (e) {
-      print('⚠️ [ImageManagement] Erreur suppression collection: $e');
+      developer.log('⚠️ [ImageManagement] Erreur suppression collection: $e');
       rethrow;
     }
   }

@@ -1,4 +1,6 @@
 /// Service pour gérer la visibilité du groupe sur les cartes
+library;
+import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class GroupMapVisibilityService {
@@ -19,7 +21,7 @@ class GroupMapVisibilityService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('❌ Erreur ajout visibilité carte: $e');
+      developer.log('❌ Erreur ajout visibilité carte: $e');
       rethrow;
     }
   }
@@ -35,7 +37,7 @@ class GroupMapVisibilityService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('❌ Erreur suppression visibilité carte: $e');
+      developer.log('❌ Erreur suppression visibilité carte: $e');
       rethrow;
     }
   }
@@ -69,7 +71,7 @@ class GroupMapVisibilityService {
       final data = doc.data() as Map<String, dynamic>;
       return List<String>.from(data['visibleMapIds'] ?? []);
     } catch (e) {
-      print('❌ Erreur récupération cartes visibles: $e');
+      developer.log('❌ Erreur récupération cartes visibles: $e');
       return [];
     }
   }

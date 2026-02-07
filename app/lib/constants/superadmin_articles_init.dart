@@ -2,6 +2,7 @@
 /// 
 /// Cet objet contient les articles de base (casquette, t-shirt, porteclé, bandana)
 /// qui seront pré-créés dans Firestore lors de la première utilisation
+library;
 
 const List<Map<String, dynamic>> SUPERADMIN_ARTICLES_INIT_DATA = [
   {

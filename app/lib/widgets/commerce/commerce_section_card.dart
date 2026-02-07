@@ -75,9 +75,9 @@ class CommerceSectionCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: color.withAlpha(26),
+          color: color.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withAlpha(77)),
+          border: Border.all(color: color.withValues(alpha: 0.30)),
         ),
         child: Row(
           children: [

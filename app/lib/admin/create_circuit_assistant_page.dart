@@ -38,7 +38,7 @@ class CreateCircuitAssistantPage extends StatefulWidget {
 class _CreateCircuitAssistantPageState
     extends State<CreateCircuitAssistantPage> {
   CreateCircuitResult? _lastCreated;
-  bool _busy = false;
+  final bool _busy = false;
 
   @override
   Widget build(BuildContext context) {

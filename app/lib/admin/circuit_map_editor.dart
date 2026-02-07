@@ -30,10 +30,10 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   late List<LngLat> _points;
   final List<List<LngLat>> _history = [];
   int _historyIndex = -1;
-  bool _isEditingEnabled = true;
+  final bool _isEditingEnabled = true;
   int? _selectedPointIndex;
-  double _simplificationThreshold = 0.0001;
-  bool _showToolbar = true;
+  final double _simplificationThreshold = 0.0001;
+  final bool _showToolbar = true;
 
   @override
   void initState() {
@@ -89,36 +89,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     widget.onPointsChanged(_points);
   }
 
-  void _movePoint(int index, LngLat newPoint) {
-    setState(() {
-      _points[index] = newPoint;
-    });
-    _saveToHistory();
-    widget.onPointsChanged(_points);
-  }
-
-  void _insertPointAfter(int index, LngLat point) {
-    setState(() {
-      _points.insert(index + 1, point);
-    });
-    _saveToHistory();
-    widget.onPointsChanged(_points);
-  }
-
   // ============ Outils avancés ============
-
-  void _snapToExistingPoints(int index, double snapDistance) {
-    final point = _points[index];
-    for (int i = 0; i < _points.length; i++) {
-      if (i == index) continue;
-      final other = _points[i];
-      final distance = _distanceBetween(point, other);
-      if (distance < snapDistance) {
-        _movePoint(index, other);
-        return;
-      }
-    }
-  }
 
   void _simplifyTrack() {
     // Algorithme Douglas-Peucker simplifié
@@ -469,11 +440,11 @@ class PathPainter extends CustomPainter {
     if (points.length < 2) return;
 
     // Conversion approximative lng/lat en pixels
-    final convertPoint = (LngLat p) {
+    Offset convertPoint(LngLat p) {
       final x = (p.lng + 61.5) * 3000; // Approximatif
       final y = (16.2 - p.lat) * 2000; // Approximatif
       return Offset(x.clamp(0, size.width), y.clamp(0, size.height));
-    };
+    }
 
     final path = Path();
     path.moveTo(convertPoint(points[0]).dx, convertPoint(points[0]).dy);

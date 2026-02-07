@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -583,7 +582,7 @@ class _PhotosPickerStrip extends StatelessWidget {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: photos.isEmpty ? 1 : photos.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              separatorBuilder: (context, index) => const SizedBox(width: 10),
               itemBuilder: (context, i) {
                 if (photos.isEmpty) {
                   return Container(

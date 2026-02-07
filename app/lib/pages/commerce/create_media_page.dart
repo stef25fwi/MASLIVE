@@ -34,7 +34,7 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
   MediaType _mediaType = MediaType.photo;
 
   List<String> _mediaUrls = [];
-  List<XFile> _selectedFiles = [];
+  final List<XFile> _selectedFiles = [];
   double _uploadProgress = 0.0;
 
   @override
@@ -325,7 +325,7 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                           ),
                           const SizedBox(height: 16),
                           DropdownButtonFormField<MediaType>(
-                            value: _mediaType,
+                            initialValue: _mediaType,
                             decoration: InputDecoration(
                               labelText: 'Type de média',
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -341,7 +341,7 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                           ),
                           const SizedBox(height: 16),
                           DropdownButtonFormField<ScopeType>(
-                            value: _selectedScopeType,
+                            initialValue: _selectedScopeType,
                             decoration: InputDecoration(
                               labelText: 'Portée',
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/image_models.dart';
 import '../services/advanced_image_upload_service.dart';
+import 'dart:typed_data';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
@@ -293,6 +294,7 @@ class _ImageGalleryUploadWidgetState extends State<ImageGalleryUploadWidget> {
         });
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
       );

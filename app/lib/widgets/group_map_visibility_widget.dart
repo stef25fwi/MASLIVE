@@ -1,4 +1,5 @@
 /// Widget pour gérer la visibilité du groupe sur les cartes
+library;
 import 'package:flutter/material.dart';
 import '../../models/map_preset_model.dart';
 import '../../services/group/group_map_visibility_service.dart';

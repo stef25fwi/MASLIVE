@@ -43,7 +43,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   // ========== CONSTANTES ==========
   static const Duration _resizeDebounceDelay = Duration(milliseconds: 80);
   static const Duration _menuAnimationDuration = Duration(milliseconds: 300);
-  static const Duration _menuOpenDelay = Duration.zero;
   static const Duration _mapReadyDelay = Duration(milliseconds: 300);
   static const Duration _navCloseDelay = Duration(milliseconds: 2500);
   static const int _trackingIntervalSeconds = 15;
@@ -76,7 +75,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   StreamSubscription<geo.Position>? _positionSub;
   Position? _userPos; // Mapbox Position (lng, lat)
-  bool _followUser = true;
+  final bool _followUser = true;
   bool _requestingGps = false;
   bool _isTracking = false;
   bool _isMapReady = false;

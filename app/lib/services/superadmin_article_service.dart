@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:developer' as developer;
 import '../models/superadmin_article.dart';
 
 /// Service pour gérer les articles du superadmin
@@ -75,7 +76,7 @@ class SuperadminArticleService {
       if (!doc.exists) return null;
       return SuperadminArticle.fromMap(doc.data() ?? {}, doc.id);
     } catch (e) {
-      print('Erreur lors de la récupération de l\'article: $e');
+      developer.log('Erreur lors de la récupération de l\'article: $e');
       return null;
     }
   }
@@ -92,7 +93,7 @@ class SuperadminArticleService {
           .map((doc) => SuperadminArticle.fromMap(doc.data(), doc.id))
           .toList();
     } catch (e) {
-      print('Erreur lors de la récupération des articles: $e');
+      developer.log('Erreur lors de la récupération des articles: $e');
       return [];
     }
   }
@@ -115,7 +116,7 @@ class SuperadminArticleService {
           .map((doc) => SuperadminArticle.fromMap(doc.data(), doc.id))
           .toList();
     } catch (e) {
-      print('Erreur lors de la récupération des articles de catégorie: $e');
+      developer.log('Erreur lors de la récupération des articles de catégorie: $e');
       return [];
     }
   }
@@ -146,7 +147,7 @@ class SuperadminArticleService {
       
       await _firestore.collection(_collectionName).doc(id).update(data);
     } catch (e) {
-      print('Erreur lors de la mise à jour de l\'article: $e');
+      developer.log('Erreur lors de la mise à jour de l\'article: $e');
       rethrow;
     }
   }
@@ -159,7 +160,7 @@ class SuperadminArticleService {
         'updatedAt': Timestamp.fromDate(DateTime.now()),
       });
     } catch (e) {
-      print('Erreur lors de la mise à jour du stock: $e');
+      developer.log('Erreur lors de la mise à jour du stock: $e');
       rethrow;
     }
   }
@@ -172,7 +173,7 @@ class SuperadminArticleService {
         'updatedAt': Timestamp.fromDate(DateTime.now()),
       });
     } catch (e) {
-      print('Erreur lors du changement de statut: $e');
+      developer.log('Erreur lors du changement de statut: $e');
       rethrow;
     }
   }
@@ -182,7 +183,7 @@ class SuperadminArticleService {
     try {
       await _firestore.collection(_collectionName).doc(id).delete();
     } catch (e) {
-      print('Erreur lors de la suppression de l\'article: $e');
+      developer.log('Erreur lors de la suppression de l\'article: $e');
       rethrow;
     }
   }
@@ -200,7 +201,7 @@ class SuperadminArticleService {
       
       return stats;
     } catch (e) {
-      print('Erreur lors de la récupération des stats: $e');
+      developer.log('Erreur lors de la récupération des stats: $e');
       return {};
     }
   }

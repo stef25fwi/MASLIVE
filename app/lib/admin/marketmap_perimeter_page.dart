@@ -303,7 +303,8 @@ class _MarketMapPerimeterPageState extends State<MarketMapPerimeterPage> {
                             ? null
                             : () async {
                                 await _save(lockAfter: true);
-                                if (mounted) Navigator.of(context).pop();
+                                if (!mounted) return;
+                                Navigator.of(context).pop();
                               },
                         icon: _saving
                             ? const SizedBox(

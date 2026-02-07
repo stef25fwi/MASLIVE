@@ -1,5 +1,6 @@
 /// Modèles pour la gestion avancée des images
 /// Structure unifiée pour tous les types de contenu (articles, produits, médias)
+library;
 
 /// Variantes de taille d'une image
 class ImageVariants {

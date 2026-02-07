@@ -125,6 +125,17 @@
       "problemMatcher": []
     },
     {
+      "label": "MASLIVE: Dart analyze (dump machine)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && dart analyze --format=machine > /workspaces/MASLIVE/dart_analyze_machine.txt || true && echo 'WROTE: /workspaces/MASLIVE/dart_analyze_machine.txt' && wc -l /workspaces/MASLIVE/dart_analyze_machine.txt",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git add commit push",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add app/lib/widgets/web_mapbox_gl_map.dart app/pubspec.yaml .vscode/tasks.json && git commit -m \"fix(web): mapbox ready callback interop\" && git push origin main",

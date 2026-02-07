@@ -493,6 +493,7 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
         ),
       ),
     );
+    if (!mounted) return;
 
     if (confirmed == true) {
       // Demander une seconde confirmation

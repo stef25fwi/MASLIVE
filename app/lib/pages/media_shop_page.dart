@@ -1368,14 +1368,14 @@ class _PremiumPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withAlpha(235),
+        color: Colors.white.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.black.withAlpha(26)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.10)),
         boxShadow: [
           BoxShadow(
             blurRadius: 10,
             offset: const Offset(0, 6),
-            color: Colors.black.withAlpha(20),
+            color: Colors.black.withValues(alpha: 0.08),
           ),
         ],
       ),
@@ -1413,13 +1413,13 @@ class BottomSelectionBarV21 extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border(
-                top: BorderSide(color: Colors.black.withAlpha(20)),
+                top: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
               ),
               boxShadow: [
                 BoxShadow(
                   blurRadius: 18,
                   offset: const Offset(0, -6),
-                  color: Colors.black.withAlpha(15),
+                  color: Colors.black.withValues(alpha: 0.06),
                 ),
               ],
             ),
@@ -1504,7 +1504,7 @@ class _PhotoPreviewSheetV21State extends State<_PhotoPreviewSheetV21> {
           const SizedBox(height: 6),
           Text(
             '${item.groupName} • ${item.photographerName}',
-            style: TextStyle(color: Colors.black.withAlpha(179)),
+            style: TextStyle(color: Colors.black.withValues(alpha: 0.70)),
           ),
           const SizedBox(height: 6),
           Row(
@@ -1516,7 +1516,7 @@ class _PhotoPreviewSheetV21State extends State<_PhotoPreviewSheetV21> {
               const Spacer(),
               Text(
                 _fmtDate(item.eventDate),
-                style: TextStyle(color: Colors.black.withAlpha(153)),
+                style: TextStyle(color: Colors.black.withValues(alpha: 0.60)),
               ),
             ],
           ),
@@ -1648,7 +1648,7 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.black.withAlpha(26)),
+                    border: Border.all(color: Colors.black.withValues(alpha: 0.10)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1666,7 +1666,7 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                         disc.discountCents > 0
                             ? 'Pack appliqué: ${disc.rule} • ajoute des photos pour maximiser la réduction.'
                             : 'Astuce: dès 3 photos → -10%, 5 photos → -20%, 10 photos → -30%.',
-                        style: TextStyle(color: Colors.black.withAlpha(153)),
+                        style: TextStyle(color: Colors.black.withValues(alpha: 0.60)),
                       ),
                     ],
                   ),
@@ -1712,7 +1712,7 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Text(
                     'Ton panier est vide.',
-                    style: TextStyle(color: Colors.black.withAlpha(166)),
+                    style: TextStyle(color: Colors.black.withValues(alpha: 0.65)),
                   ),
                 )
               else
@@ -1754,7 +1754,7 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    color: Colors.black.withAlpha(179),
+                                    color: Colors.black.withValues(alpha: 0.70),
                                   ),
                                 ),
                               ],
@@ -1882,7 +1882,7 @@ class _CartSheetV21State extends State<_CartSheetV21> {
                 'Après paiement: ton webhook Stripe doit passer la commande en "paid" '
                 'et écrire /users/{uid}/purchases/{photoId}.',
                 style: TextStyle(
-                  color: Colors.black.withAlpha(153),
+                  color: Colors.black.withValues(alpha: 0.60),
                   fontSize: 12,
                 ),
               ),
@@ -2091,10 +2091,10 @@ class _CheckBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = disabled
-      ? Colors.black.withAlpha(38)
+      ? Colors.black.withValues(alpha: 0.15)
         : (isOn ? Colors.black : Colors.white);
     final fg = disabled
-      ? Colors.black.withAlpha(89)
+      ? Colors.black.withValues(alpha: 0.35)
         : (isOn ? Colors.white : Colors.black);
 
     return Container(
@@ -2103,7 +2103,7 @@ class _CheckBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.black.withAlpha(26)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.10)),
       ),
       alignment: Alignment.center,
       child: Icon(
@@ -2154,7 +2154,7 @@ class _GlassHeaderButton extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: Colors.white.withAlpha(41),
+        color: Colors.white.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(22),
         child: InkWell(
           onTap: onTap,
@@ -2165,7 +2165,7 @@ class _GlassHeaderButton extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withAlpha(56)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
             ),
             child: child,
           ),
@@ -2271,7 +2271,7 @@ class _Drop extends StatelessWidget {
           borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha(20),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -2433,7 +2433,7 @@ class _DateRangeField extends StatelessWidget {
           borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha(20),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),

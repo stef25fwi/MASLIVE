@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:developer' as developer;
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import '../models/image_models.dart';
@@ -38,7 +39,9 @@ class ImageProcessingService {
 
     // 2. Extraire métadonnées
     final metadata = _extractMetadata(originalImage, file.name);
-    print('📊 Image: ${metadata['width']}x${metadata['height']}, ${metadata['sizeBytes']} bytes');
+    developer.log(
+      "📊 Image: ${metadata['width']}x${metadata['height']}, ${metadata['sizeBytes']} bytes",
+    );
 
     final results = <ImageSize, Uint8List>{};
 
@@ -73,7 +76,7 @@ class ImageProcessingService {
     // Logs de compression
     for (final entry in results.entries) {
       final sizeKb = (entry.value.lengthInBytes / 1024).toStringAsFixed(1);
-      print('✅ ${entry.key.name}: $sizeKb KB');
+      developer.log('✅ ${entry.key.name}: $sizeKb KB');
     }
 
     return results;

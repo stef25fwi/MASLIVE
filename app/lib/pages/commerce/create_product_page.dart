@@ -1,13 +1,11 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../models/commerce_submission.dart';
 import '../../services/commerce/commerce_service.dart';
-import '../../ui/theme/maslive_theme.dart';
 import '../../ui/widgets/rainbow_loading_indicator.dart';
 
 /// Page de création/édition d'un produit
@@ -42,7 +40,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
   bool _isActive = true;
 
   List<String> _mediaUrls = [];
-  List<XFile> _selectedFiles = [];
+  final List<XFile> _selectedFiles = [];
   double _uploadProgress = 0.0;
 
   String _normalizeTitle(String input) {
@@ -133,41 +131,41 @@ class _CreateProductPageState extends State<CreateProductPage> {
   }
 
   Future<bool> _checkGalleryPermission() async {
-    print('🔐 Vérification permission galerie...');
+    debugPrint('🔐 Vérification permission galerie...');
     try {
       if (kIsWeb) {
-        print('✅ Permission galerie: N/A sur web');
+        debugPrint('✅ Permission galerie: N/A sur web');
         return true;
       }
 
       if (Platform.isAndroid) {
         // Android 13+ a besoin de READ_MEDIA_IMAGES
         PermissionStatus status = await Permission.photos.request();
-        print('📱 Android - Permission photos: $status');
+        debugPrint('📱 Android - Permission photos: $status');
         return status.isGranted;
       } else if (Platform.isIOS) {
         PermissionStatus status = await Permission.photos.request();
-        print('📱 iOS - Permission photos: $status');
+        debugPrint('📱 iOS - Permission photos: $status');
         return status.isGranted;
       }
 
       return true;
     } catch (e) {
-      print('⚠️  Erreur vérification permission: $e');
+      debugPrint('⚠️  Erreur vérification permission: $e');
       return false;
     }
   }
 
   Future<bool> _checkCameraPermission() async {
-    print('🔐 Vérification permission caméra...');
+    debugPrint('🔐 Vérification permission caméra...');
     try {
       if (kIsWeb) return true;
 
       PermissionStatus status = await Permission.camera.request();
-      print('📷 Permission caméra: $status');
+      debugPrint('📷 Permission caméra: $status');
       return status.isGranted;
     } catch (e) {
-      print('⚠️  Erreur vérification caméra: $e');
+      debugPrint('⚠️  Erreur vérification caméra: $e');
       return false;
     }
   }
@@ -203,19 +201,19 @@ class _CreateProductPageState extends State<CreateProductPage> {
 
   Future<void> _pickFromGallery() async {
     if (_isPickerBusy) {
-      print('⚠️  Sélection en cours, attendez...');
+      debugPrint('⚠️  Sélection en cours, attendez...');
       return;
     }
 
     setState(() => _isPickerBusy = true);
 
     try {
-      print('📸 Début sélection images...');
+      debugPrint('📸 Début sélection images...');
 
       // Vérifier les permissions
       final hasPermission = await _checkGalleryPermission();
       if (!hasPermission) {
-        print('❌ Permission galerie refusée');
+        debugPrint('❌ Permission galerie refusée');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -232,18 +230,18 @@ class _CreateProductPageState extends State<CreateProductPage> {
       // Réinitialiser le picker pour éviter les problèmes de cache
       _picker = ImagePicker();
 
-      print('🎬 Ouverture galerie...');
+      debugPrint('🎬 Ouverture galerie...');
       final files = await _picker.pickMultiImage(
         imageQuality: 88,
       ).timeout(
         const Duration(seconds: 60),
         onTimeout: () {
-          print('⏱️  Timeout sélection galerie');
+          debugPrint('⏱️  Timeout sélection galerie');
           return [];
         },
       );
 
-      print('📸 ${files.length} images sélectionnées');
+      debugPrint('📸 ${files.length} images sélectionnées');
 
       if (!mounted) return;
 
@@ -251,7 +249,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
         setState(() {
           _selectedFiles.addAll(files);
         });
-        print('✅ Images ajoutées: ${_selectedFiles.length} total');
+        debugPrint('✅ Images ajoutées: ${_selectedFiles.length} total');
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -262,10 +260,10 @@ class _CreateProductPageState extends State<CreateProductPage> {
           );
         }
       } else {
-        print('ℹ️  Aucune image sélectionnée (annulation utilisateur)');
+        debugPrint('ℹ️  Aucune image sélectionnée (annulation utilisateur)');
       }
     } on PlatformException catch (e) {
-      print('❌ Erreur plateforme galerie: ${e.code} - ${e.message}');
+      debugPrint('❌ Erreur plateforme galerie: ${e.code} - ${e.message}');
       if (mounted) {
         String errorMsg = 'Erreur galerie';
         if (e.code == 'photo_access_denied') {
@@ -281,7 +279,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
         );
       }
     } catch (e) {
-      print('❌ Erreur sélection galerie: $e (${e.runtimeType})');
+      debugPrint('❌ Erreur sélection galerie: $e (${e.runtimeType})');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -300,19 +298,19 @@ class _CreateProductPageState extends State<CreateProductPage> {
   Future<void> _pickFromCamera() async {
     if (kIsWeb) return;
     if (_isPickerBusy) {
-      print('⚠️  Sélection en cours, attendez...');
+      debugPrint('⚠️  Sélection en cours, attendez...');
       return;
     }
 
     setState(() => _isPickerBusy = true);
 
     try {
-      print('📷 Ouverture caméra...');
+      debugPrint('📷 Ouverture caméra...');
 
       // Vérifier les permissions
       final hasPermission = await _checkCameraPermission();
       if (!hasPermission) {
-        print('❌ Permission caméra refusée');
+        debugPrint('❌ Permission caméra refusée');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -336,7 +334,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
       ).timeout(
         const Duration(seconds: 60),
         onTimeout: () {
-          print('⏱️  Timeout sélection caméra');
+          debugPrint('⏱️  Timeout sélection caméra');
           return null;
         },
       );
@@ -347,7 +345,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
         setState(() {
           _selectedFiles.add(file);
         });
-        print('✅ Photo ajoutée: ${_selectedFiles.length} total');
+        debugPrint('✅ Photo ajoutée: ${_selectedFiles.length} total');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('✅ Photo ajoutée'),
@@ -355,10 +353,10 @@ class _CreateProductPageState extends State<CreateProductPage> {
           ),
         );
       } else {
-        print('ℹ️  Aucune photo prise (annulation utilisateur)');
+        debugPrint('ℹ️  Aucune photo prise (annulation utilisateur)');
       }
     } on PlatformException catch (e) {
-      print('❌ Erreur plateforme caméra: ${e.code} - ${e.message}');
+      debugPrint('❌ Erreur plateforme caméra: ${e.code} - ${e.message}');
       if (mounted) {
         String errorMsg = 'Erreur caméra';
         if (e.code == 'camera_access_denied') {
@@ -372,7 +370,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
         );
       }
     } catch (e) {
-      print('❌ Erreur caméra: $e (${e.runtimeType})');
+      debugPrint('❌ Erreur caméra: $e (${e.runtimeType})');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -415,18 +413,18 @@ class _CreateProductPageState extends State<CreateProductPage> {
 
       // Upload des nouveaux fichiers
       if (_selectedFiles.isNotEmpty) {
-        print('📤 Début upload de ${_selectedFiles.length} fichiers...');
+        debugPrint('📤 Début upload de ${_selectedFiles.length} fichiers...');
         String submissionId = _existing?.id ?? 'temp_${DateTime.now().millisecondsSinceEpoch}';
-        print('📤 SubmissionId: $submissionId, ScopeId: ${_scopeId.isEmpty ? "global" : _scopeId}');
+        debugPrint('📤 SubmissionId: $submissionId, ScopeId: ${_scopeId.isEmpty ? "global" : _scopeId}');
 
         if (kIsWeb) {
-          print('📤 Mode WEB détecté');
+          debugPrint('📤 Mode WEB détecté');
           for (int i = 0; i < _selectedFiles.length; i++) {
             final file = _selectedFiles[i];
-            print('📤 Upload fichier ${i + 1}/${_selectedFiles.length}: ${file.name}');
+            debugPrint('📤 Upload fichier ${i + 1}/${_selectedFiles.length}: ${file.name}');
             try {
               final bytes = await file.readAsBytes();
-              print('📤 Bytes lus: ${bytes.length}');
+              debugPrint('📤 Bytes lus: ${bytes.length}');
               
               final url = await _service.uploadMediaBytes(
                 scopeId: _scopeId.isEmpty ? 'global' : _scopeId,
@@ -434,19 +432,19 @@ class _CreateProductPageState extends State<CreateProductPage> {
                 bytes: bytes,
                 filename: file.name,
                 onProgress: (progress) {
-                  print('📤 Progression: ${(progress * 100).toStringAsFixed(0)}%');
+                  debugPrint('📤 Progression: ${(progress * 100).toStringAsFixed(0)}%');
                   setState(() => _uploadProgress = progress);
                 },
               );
-              print('✅ Upload réussi: $url');
+              debugPrint('✅ Upload réussi: $url');
               _mediaUrls.add(url);
             } catch (e) {
-              print('❌ Erreur upload fichier ${i + 1}: $e');
+              debugPrint('❌ Erreur upload fichier ${i + 1}: $e');
               throw Exception('Échec upload fichier ${file.name}: $e');
             }
           }
         } else {
-          print('📤 Mode MOBILE détecté');
+          debugPrint('📤 Mode MOBILE détecté');
           try {
             final files = _selectedFiles.map((xf) => File(xf.path)).toList();
             final urls = await _service.uploadMediaFiles(
@@ -454,19 +452,19 @@ class _CreateProductPageState extends State<CreateProductPage> {
               submissionId: submissionId,
               files: files,
               onProgress: (progress) {
-                print('📤 Progression globale: ${(progress * 100).toStringAsFixed(0)}%');
+                debugPrint('📤 Progression globale: ${(progress * 100).toStringAsFixed(0)}%');
                 setState(() => _uploadProgress = progress);
               },
             );
-            print('✅ Upload de ${urls.length} fichiers réussi');
+            debugPrint('✅ Upload de ${urls.length} fichiers réussi');
             _mediaUrls.addAll(urls);
           } catch (e) {
-            print('❌ Erreur upload mobile: $e');
+            debugPrint('❌ Erreur upload mobile: $e');
             throw Exception('Échec upload: $e');
           }
         }
         _selectedFiles.clear();
-        print('✅ Upload terminé, URLs totales: ${_mediaUrls.length}');
+        debugPrint('✅ Upload terminé, URLs totales: ${_mediaUrls.length}');
       }
 
       if (_isEditing && _existing != null) {
@@ -539,14 +537,14 @@ class _CreateProductPageState extends State<CreateProductPage> {
 
       // Upload des fichiers
       if (_selectedFiles.isNotEmpty) {
-        print('📤 [Review] Début upload de ${_selectedFiles.length} fichiers...');
+        debugPrint('📤 [Review] Début upload de ${_selectedFiles.length} fichiers...');
         String submissionId = _existing?.id ?? 'temp_${DateTime.now().millisecondsSinceEpoch}';
 
         if (kIsWeb) {
-          print('📤 [Review] Mode WEB');
+          debugPrint('📤 [Review] Mode WEB');
           for (int i = 0; i < _selectedFiles.length; i++) {
             final file = _selectedFiles[i];
-            print('📤 [Review] Upload ${i + 1}/${_selectedFiles.length}: ${file.name}');
+            debugPrint('📤 [Review] Upload ${i + 1}/${_selectedFiles.length}: ${file.name}');
             try {
               final bytes = await file.readAsBytes();
               final url = await _service.uploadMediaBytes(
@@ -558,15 +556,15 @@ class _CreateProductPageState extends State<CreateProductPage> {
                   setState(() => _uploadProgress = progress);
                 },
               );
-              print('✅ [Review] Upload réussi: $url');
+              debugPrint('✅ [Review] Upload réussi: $url');
               _mediaUrls.add(url);
             } catch (e) {
-              print('❌ [Review] Erreur upload: $e');
+              debugPrint('❌ [Review] Erreur upload: $e');
               throw Exception('Échec upload ${file.name}: $e');
             }
           }
         } else {
-          print('📤 [Review] Mode MOBILE');
+          debugPrint('📤 [Review] Mode MOBILE');
           try {
             final files = _selectedFiles.map((xf) => File(xf.path)).toList();
             final urls = await _service.uploadMediaFiles(
@@ -577,10 +575,10 @@ class _CreateProductPageState extends State<CreateProductPage> {
                 setState(() => _uploadProgress = progress);
               },
             );
-            print('✅ [Review] ${urls.length} fichiers uploadés');
+            debugPrint('✅ [Review] ${urls.length} fichiers uploadés');
             _mediaUrls.addAll(urls);
           } catch (e) {
-            print('❌ [Review] Erreur: $e');
+            debugPrint('❌ [Review] Erreur: $e');
             throw Exception('Échec upload: $e');
           }
         }
@@ -812,7 +810,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
 
                           // Scope
                           DropdownButtonFormField<ScopeType>(
-                            value: _selectedScopeType,
+                            initialValue: _selectedScopeType,
                             decoration: InputDecoration(
                               labelText: 'Portée',
                               border: OutlineInputBorder(
@@ -855,7 +853,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
                             title: const Text('Produit actif'),
                             value: _isActive,
                             onChanged: (val) => setState(() => _isActive = val),
-                            activeColor: Colors.grey[700],
+                            activeThumbColor: Colors.grey[700],
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),

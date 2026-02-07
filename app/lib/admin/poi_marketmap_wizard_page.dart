@@ -779,7 +779,7 @@ class _CircuitStyleSelector extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: currentId,
+              initialValue: currentId,
               decoration: const InputDecoration(
                 labelText: 'Style',
                 border: OutlineInputBorder(),

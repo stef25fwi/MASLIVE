@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
@@ -41,8 +40,6 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
   bool _showActionsMenu = false;
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
-
-  static const Duration _menuOpenDelay = Duration.zero;
   // Offset vertical du menu d'actions pour ne pas chevaucher la boussole
   static const double _actionsMenuTopOffset = 160;
 
@@ -456,7 +453,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                   return ListView.separated(
                     shrinkWrap: true,
                     itemCount: presets.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (context, index) => const Divider(height: 1),
                     itemBuilder: (context, index) {
                       final preset = presets[index];
                       final isSelected = _selectedPreset?.id == preset.id;
@@ -507,6 +504,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                               ],
                             ),
                           );
+                          if (!mounted) return;
 
                           if (confirm == true) {
                             Navigator.pop(context);
@@ -935,12 +933,11 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                                 Future.delayed(
                                   const Duration(milliseconds: 500),
                                   () {
-                                    if (mounted) {
-                                      Navigator.pushNamed(
-                                        context,
-                                        '/account-ui',
-                                      );
-                                    }
+                                    if (!mounted) return;
+                                    Navigator.pushNamed(
+                                      context,
+                                      '/account-ui',
+                                    );
                                   },
                                 );
                               } else {
@@ -948,9 +945,9 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                                 Future.delayed(
                                   const Duration(milliseconds: 500),
                                   () {
-                                    if (mounted) {
-                                      Navigator.pushNamed(context, '/login');
-                                    }
+                                    if (!mounted) return;
+                                    Navigator.pushNamed(context, '/login');
+                                  },
                                   },
                                 );
                               }
@@ -973,9 +970,8 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                       onTap: () {
                         _closeNavWithDelay();
                         Future.delayed(const Duration(milliseconds: 500), () {
-                          if (mounted) {
-                            Navigator.pushNamed(context, '/shop-ui');
-                          }
+                          if (!mounted) return;
+                          Navigator.pushNamed(context, '/shop-ui');
                         });
                       },
                     ),

@@ -208,7 +208,7 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha((0.1 * 255).round()),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             spreadRadius: 2,
           ),
@@ -244,7 +244,7 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
             child: ListView.separated(
               padding: const EdgeInsets.all(12),
               itemCount: groups.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              separatorBuilder: (context, index) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final g = groups[index];
                 return _buildGroupCard(g);

@@ -3,7 +3,7 @@ import 'dart:html' as html;
 import 'dart:js' as js;
 import 'dart:ui_web' as ui_web;
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
 
 typedef LngLat = ({double lng, double lat});
@@ -86,7 +86,7 @@ class _MapboxWebCircuitMapState extends State<MapboxWebCircuitMap> {
 
   void _initJsIfNeeded() {
     if (_jsInitialized) {
-      if (kDebugMode) print('⏭️  Mapbox déjà initialisé');
+      if (kDebugMode) debugPrint('⏭️  Mapbox déjà initialisé');
       return;
     }
     if (widget.mapboxToken.isEmpty) {
@@ -96,7 +96,7 @@ class _MapboxWebCircuitMapState extends State<MapboxWebCircuitMap> {
               'Token Mapbox manquant. Configure MAPBOX_ACCESS_TOKEN (ou MAPBOX_TOKEN legacy).';
         });
       }
-      if (kDebugMode) print('❌ Token vide');
+      if (kDebugMode) debugPrint('❌ Token vide');
       return;
     }
 
@@ -108,7 +108,7 @@ class _MapboxWebCircuitMapState extends State<MapboxWebCircuitMap> {
               'Mapbox JS non chargé (masliveMapbox absent). Vérifie app/web/mapbox_circuit.js et app/web/index.html.';
         });
       }
-      if (kDebugMode) print('❌ API masliveMapbox non trouvée');
+      if (kDebugMode) debugPrint('❌ API masliveMapbox non trouvée');
       return;
     }
 
@@ -116,10 +116,10 @@ class _MapboxWebCircuitMapState extends State<MapboxWebCircuitMap> {
 
     try {
       if (kDebugMode) {
-        print('🗺️ Initialisation Mapbox...');
-        print('  • Token: ${widget.mapboxToken.substring(0, 10)}...');
-        print('  • Container: $_divId');
-        print('  • Coordonnées: [${center.lng}, ${center.lat}]');
+        debugPrint('🗺️ Initialisation Mapbox...');
+        debugPrint('  • Token: ${widget.mapboxToken.substring(0, 10)}...');
+        debugPrint('  • Container: $_divId');
+        debugPrint('  • Coordonnées: [${center.lng}, ${center.lat}]');
       }
       
       final result = api.callMethod('init', [
@@ -130,7 +130,7 @@ class _MapboxWebCircuitMapState extends State<MapboxWebCircuitMap> {
       ]);
       
       if (result == true) {
-        if (kDebugMode) print('✅ Mapbox initialisé avec succès');
+        if (kDebugMode) debugPrint('✅ Mapbox initialisé avec succès');
         _jsInitialized = true;
         if (_error != null) {
           setState(() {
@@ -142,11 +142,11 @@ class _MapboxWebCircuitMapState extends State<MapboxWebCircuitMap> {
           _pushDataToJs();
         });
       } else {
-        if (kDebugMode) print('⚠️  Résultat init: $result');
+        if (kDebugMode) debugPrint('⚠️  Résultat init: $result');
         throw Exception('init() retourné: $result');
       }
     } catch (e) {
-      if (kDebugMode) print('❌ Erreur d\'initialisation Mapbox: $e');
+      if (kDebugMode) debugPrint('❌ Erreur d\'initialisation Mapbox: $e');
       if (_error == null) {
         setState(() {
           _error = 'Erreur d\'initialisation Mapbox (JS): $e';
@@ -158,12 +158,12 @@ class _MapboxWebCircuitMapState extends State<MapboxWebCircuitMap> {
   void _pushDataToJs() {
     final api = js.context['masliveMapbox'];
     if (api == null) {
-      if (kDebugMode) print('❌ masliveMapbox API non disponible');
+      if (kDebugMode) debugPrint('❌ masliveMapbox API non disponible');
       return;
     }
 
     try {
-      if (kDebugMode) print('📤 Envoi des données GeoJSON à Mapbox...');
+      if (kDebugMode) debugPrint('📤 Envoi des données GeoJSON à Mapbox...');
       
       final result = api.callMethod('setData', [
         js.JsObject.jsify({
@@ -174,12 +174,12 @@ class _MapboxWebCircuitMapState extends State<MapboxWebCircuitMap> {
       ]);
       
       if (result == true) {
-        if (kDebugMode) print('✅ Données envoyées avec succès');
+        if (kDebugMode) debugPrint('✅ Données envoyées avec succès');
       } else {
-        if (kDebugMode) print('⚠️  Réponse setData: $result');
+        if (kDebugMode) debugPrint('⚠️  Réponse setData: $result');
       }
     } catch (e) {
-      if (kDebugMode) print('❌ Erreur _pushDataToJs: $e');
+      if (kDebugMode) debugPrint('❌ Erreur _pushDataToJs: $e');
     }
   }
 
@@ -258,9 +258,9 @@ class _MapboxWebCircuitMapState extends State<MapboxWebCircuitMap> {
   }
 
   String _toHex(Color c) {
-    final r = c.red.toRadixString(16).padLeft(2, '0');
-    final g = c.green.toRadixString(16).padLeft(2, '0');
-    final b = c.blue.toRadixString(16).padLeft(2, '0');
+    final r = (c.r * 255).round().toRadixString(16).padLeft(2, '0');
+    final g = (c.g * 255).round().toRadixString(16).padLeft(2, '0');
+    final b = (c.b * 255).round().toRadixString(16).padLeft(2, '0');
     return '#$r$g$b';
   }
 
