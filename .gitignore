@@ -141,3 +141,8 @@ app.*.symbols
 # Firebase secrets
 firebase-debug.log
 .runtimeconfig.json
+
+# Local analysis outputs / artefacts
+dart_analyze_machine.txt
+shop_files.zip
+shop_files*.zip

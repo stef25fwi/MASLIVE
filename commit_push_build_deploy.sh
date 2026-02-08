@@ -47,6 +47,12 @@ if [[ -z "$commit_msg" ]]; then
 	exit 1
 fi
 
+echo "[0/5] 🧹 Nettoyage artefacts locaux..."
+rm -f dart_analyze_machine.txt shop_files.zip 2>/dev/null || true
+git rm --cached --ignore-unmatch dart_analyze_machine.txt shop_files.zip >/dev/null 2>&1 || true
+echo "✅ Artefacts nettoyés"
+echo ""
+
 echo "[1/5] 📝 Stage des fichiers (en excluant node_modules)..."
 git add -A
 

@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -43,8 +44,10 @@ class _StorexShopPageState extends State<StorexShopPage> {
       _StorexAccount(shopId: widget.shopId, groupId: widget.groupId),
     ];
 
-    return Scaffold(
-      body: pages[tab],
+    return DefaultTextStyle.merge(
+      style: const TextStyle(fontWeight: FontWeight.w600),
+      child: Scaffold(
+        body: pages[tab],
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
@@ -63,6 +66,7 @@ class _StorexShopPageState extends State<StorexShopPage> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -95,22 +99,22 @@ class StorexRepo {
   final String? groupId;
 
   Query<Map<String, dynamic>> base() {
-    Query<Map<String, dynamic>> q = FirebaseFirestore.instance
-        .collection('products')
-        .where('status', isEqualTo: 'published')
-        .where('isVisible', isEqualTo: true)
-        .where('isActive', isEqualTo: true);
-
-    // moderationStatus: approved (si le champ existe). Si tu as des docs sans ce champ,
-    // on filtrera côté client (voir _onlyApproved()).
-    // Donc: pas de where ici pour éviter d’exclure ceux sans champ.
-    if (shopId != null && shopId!.trim().isNotEmpty) {
-      q = q.where('shopId', isEqualTo: shopId);
+    final sid = shopId?.trim();
+    if (sid != null && sid.isNotEmpty) {
+      // Compat: ancienne boutique => shops/{shopId}/products
+      return FirebaseFirestore.instance
+          .collection('shops')
+          .doc(sid)
+          .collection('products')
+          .where('isActive', isEqualTo: true);
     }
+
+    // Fallback: nouveau schéma (si utilisé ailleurs)
+    Query<Map<String, dynamic>> q = FirebaseFirestore.instance.collection('products');
     if (groupId != null && groupId!.trim().isNotEmpty) {
       q = q.where('groupId', isEqualTo: groupId);
     }
-    return q;
+    return q.where('isActive', isEqualTo: true);
   }
 
   Query<Map<String, dynamic>> bestSeller({int limit = 12}) {
@@ -118,10 +122,15 @@ class StorexRepo {
   }
 
   Query<Map<String, dynamic>> byCategory({required String categoryId, int limit = 80}) {
-    return base()
-        .where('categoryId', isEqualTo: categoryId)
-        .orderBy('updatedAt', descending: true)
-        .limit(limit);
+    final sid = shopId?.trim();
+    final q = base();
+    if (sid != null && sid.isNotEmpty) {
+      // Ancienne boutique: champ categoryId présent.
+      return q.where('categoryId', isEqualTo: categoryId).orderBy('updatedAt', descending: true).limit(limit);
+    }
+
+    // Nouveau schéma possible: categoryId
+    return q.where('categoryId', isEqualTo: categoryId).orderBy('updatedAt', descending: true).limit(limit);
   }
 
   Stream<Set<String>> wishlistIds() {
@@ -199,7 +208,11 @@ class _StorexHome extends StatelessWidget {
           ),
         ),
         centerTitle: true,
-        title: const Text("storex", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w500)),
+        title: Image.asset(
+          'assets/images/maslivelogo.png',
+          height: 28,
+          fit: BoxFit.contain,
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.search, color: Colors.black54),
@@ -219,7 +232,7 @@ class _StorexHome extends StatelessWidget {
           // calc top categories for banners
           final counts = <String, int>{};
           for (final p in products) {
-            final cid = (p.categoryId ?? '').trim();
+            final cid = p.category.trim();
             if (cid.isEmpty) continue;
             counts[cid] = (counts[cid] ?? 0) + 1;
           }
@@ -254,14 +267,14 @@ class _StorexHome extends StatelessWidget {
                     return ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: min(products.length, 10),
-                      separatorBuilder: (_, __) => const SizedBox(width: 10),
+                      separatorBuilder: (_, index) => const SizedBox(width: 10),
                       itemBuilder: (_, i) {
                         final p = products[i];
                         return _BestCard(
                           p: p,
                           wished: wish.contains(p.id),
                           onWish: () => repo.toggleWish(p),
-                          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProductDetailPage(product: p))),
+                            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProductDetailPage(groupId: "MASLIVE", product: p))),
                         );
                       },
                     );
@@ -274,7 +287,7 @@ class _StorexHome extends StatelessWidget {
               _BannerTile(
                 title: catA.toUpperCase(),
                 subtitle: "${counts[catA] ?? 0} items",
-                image: products.firstWhere((x) => (x.categoryId ?? '') == catA, orElse: () => products.first),
+                  image: products.firstWhere((x) => x.category == catA, orElse: () => products.first),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _ListPage(shopId: shopId, groupId: groupId, categoryId: catA, title: catA))),
               ),
 
@@ -283,7 +296,7 @@ class _StorexHome extends StatelessWidget {
               _BannerTile(
                 title: catB.toUpperCase(),
                 subtitle: "${counts[catB] ?? 0} items",
-                image: products.firstWhere((x) => (x.categoryId ?? '') == catB, orElse: () => products.first),
+                  image: products.firstWhere((x) => x.category == catB, orElse: () => products.first),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _ListPage(shopId: shopId, groupId: groupId, categoryId: catB, title: catB))),
               ),
             ],
@@ -368,7 +381,7 @@ class _BannerTile extends StatelessWidget {
             ),
             Positioned.fill(
               child: Container(
-                decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), color: Colors.white.withOpacity(0.55)),
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), color: Colors.white.withAlpha((0.55 * 255).round())),
               ),
             ),
             Positioned(
@@ -404,9 +417,15 @@ class _StorexDrawer extends StatelessWidget {
     final repo = StorexRepo(shopId: shopId, groupId: groupId);
 
     return Drawer(
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
+      backgroundColor: Colors.transparent,
+      child: ClipRRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            color: Colors.white.withAlpha(230),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
           child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: repo.bestSeller(limit: 250).snapshots(),
             builder: (context, snap) {
@@ -415,7 +434,7 @@ class _StorexDrawer extends StatelessWidget {
 
               final set = <String>{};
               for (final p in products) {
-                final c = (p.categoryId ?? p.category ?? '').toString().trim();
+                final c = p.category.trim();
                 if (c.isNotEmpty) set.add(c);
               }
               final cats = set.toList()..sort();
@@ -424,7 +443,11 @@ class _StorexDrawer extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("storex", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w500)),
+                  Image.asset(
+                    'assets/images/maslivelogo.png',
+                    height: 34,
+                    fit: BoxFit.contain,
+                  ),
                   const SizedBox(height: 18),
                   _DrawerItem("Home", () => Navigator.of(context).pop()),
                   _DrawerItem("Search", () {
@@ -457,6 +480,9 @@ class _StorexDrawer extends StatelessWidget {
               );
             },
           ),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -475,7 +501,7 @@ class _DrawerItem extends StatelessWidget {
       onTap: onTap,
       child: Padding(
         padding: EdgeInsets.symmetric(vertical: small ? 8 : 12),
-        child: Text(label, style: TextStyle(fontSize: small ? 14 : 16, color: Colors.black54)),
+        child: Text(label, style: TextStyle(fontSize: small ? 14 : 16, color: Colors.black54, fontWeight: FontWeight.w700)),
       ),
     );
   }
@@ -545,11 +571,11 @@ class _SearchPageState extends State<_SearchPage> {
                   return ListView.separated(
                     padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
                     itemCount: min(filtered.length, 40),
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, index) => const SizedBox(height: 10),
                     itemBuilder: (_, i) {
                       final p = filtered[i];
                       return InkWell(
-                        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProductDetailPage(product: p))),
+                        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProductDetailPage(groupId: "MASLIVE", product: p))),
                         child: Row(
                           children: [
                             Container(
@@ -620,7 +646,7 @@ class _StorexCategory extends StatelessWidget {
 
           final counts = <String, int>{};
           for (final p in products) {
-            final c = (p.categoryId ?? p.category ?? '').toString().trim();
+            final c = p.category.trim();
             if (c.isEmpty) continue;
             counts[c] = (counts[c] ?? 0) + 1;
           }
@@ -649,7 +675,7 @@ class _StorexCategory extends StatelessWidget {
                     children: [
                       Positioned.fill(
                         child: Container(
-                          decoration: BoxDecoration(color: Colors.black.withOpacity(0.18), borderRadius: BorderRadius.circular(10)),
+                          decoration: BoxDecoration(color: Colors.black.withAlpha((0.18 * 255).round()), borderRadius: BorderRadius.circular(10)),
                         ),
                       ),
                       Center(
@@ -736,7 +762,7 @@ class _ListPageState extends State<_ListPage> {
                     final p = products[i];
                     final wished = wish.contains(p.id);
                     return InkWell(
-                      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProductDetailPage(product: p))),
+                       onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProductDetailPage(groupId: "MASLIVE", product: p))),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -769,12 +795,12 @@ class _ListPageState extends State<_ListPage> {
               return ListView.separated(
                 padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
                 itemCount: products.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                separatorBuilder: (_, index) => const SizedBox(height: 10),
                 itemBuilder: (_, i) {
                   final p = products[i];
                   final wished = wish.contains(p.id);
                   return InkWell(
-                    onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProductDetailPage(product: p))),
+                      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProductDetailPage(groupId: "MASLIVE", product: p))),
                     child: Row(
                       children: [
                         Container(
@@ -926,7 +952,7 @@ class _WishlistPage extends StatelessWidget {
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
             itemCount: docs.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (_, index) => const SizedBox(height: 12),
             itemBuilder: (_, i) {
               final d = docs[i].data();
               final title = (d['title'] ?? 'Produit').toString();
@@ -1069,7 +1095,7 @@ class _Img extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _ImgRaw(imagePath: p.imagePath ?? '', imageUrl: p.imageUrl ?? '', fit: fit);
+    return _ImgRaw(imagePath: p.imagePath ?? '', imageUrl: p.imageUrl, fit: fit);
   }
 }
 
@@ -1085,10 +1111,10 @@ class _ImgRaw extends StatelessWidget {
     final u = imageUrl.trim();
 
     if (p.startsWith('assets/')) {
-      return Image.asset(p, fit: fit, width: double.infinity, height: double.infinity, errorBuilder: (_, __, ___) => _fallback());
+      return Image.asset(p, fit: fit, width: double.infinity, height: double.infinity, errorBuilder: (context, error, stackTrace) => _fallback());
     }
     if (u.startsWith('http')) {
-      return Image.network(u, fit: fit, width: double.infinity, height: double.infinity, errorBuilder: (_, __, ___) => _fallback());
+      return Image.network(u, fit: fit, width: double.infinity, height: double.infinity, errorBuilder: (context, error, stackTrace) => _fallback());
     }
     return _fallback();
   }

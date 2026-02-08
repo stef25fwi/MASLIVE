@@ -27,6 +27,7 @@ import 'admin_moderation_page.dart';
 import 'commerce_analytics_page.dart';
 import 'user_profile_preview_page.dart';
 import '../pages/superadmin_articles_page.dart';
+import '../commerce_module_single_file.dart';
 
 /// Dashboard admin principal 10/10 avec toutes les fonctionnalités
 class AdminMainDashboard extends StatefulWidget {
@@ -291,7 +292,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const ProductManagementPage(
+                             builder: (_) => ProductManagementPage(
                               shopId: 'global',
                             ),
                           ),

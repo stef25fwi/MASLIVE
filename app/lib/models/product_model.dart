@@ -66,6 +66,13 @@ class GroupProduct {
 
   factory GroupProduct.fromMap(String id, Map<String, dynamic> data) {
     final status = (data['moderationStatus'] ?? '').toString().trim();
+
+    // Compat ancien schéma (commerce_module_single_file Product)
+    final legacyName = (data['name'] ?? '').toString();
+    final legacyPrice = data['price'];
+    final legacyMainImageUrl = (data['mainImageUrl'] ?? '').toString();
+    final legacyCategoryId = (data['categoryId'] ?? '').toString();
+    final legacyImages = data['images'];
     
     // Parser le stock par variante
     Map<String, int>? stockByVariant;
@@ -89,19 +96,50 @@ class GroupProduct {
     if (data['tags'] != null) {
       tags = List<String>.from(data['tags'] as List);
     }
+
+    int priceCents;
+    final pc = data['priceCents'];
+    if (pc is int) {
+      priceCents = pc;
+    } else if (pc is num) {
+      priceCents = pc.round();
+    } else if (legacyPrice is num) {
+      priceCents = (legacyPrice * 100).round();
+    } else {
+      priceCents = 0;
+    }
+
+    String imageUrl = (data['imageUrl'] ?? '').toString();
+    if (imageUrl.trim().isEmpty) {
+      imageUrl = legacyMainImageUrl;
+    }
+
+    String? imageUrl2;
+    final rawImageUrl2 = (data['imageUrl2'] as String?);
+    if (rawImageUrl2 != null && rawImageUrl2.trim().isNotEmpty) {
+      imageUrl2 = rawImageUrl2;
+    } else if (legacyImages is List && legacyImages.length > 1) {
+      final second = legacyImages[1];
+      if (second is Map) {
+        final url = (second['url'] ?? '').toString();
+        if (url.trim().isNotEmpty) imageUrl2 = url;
+      }
+    }
     
     return GroupProduct(
       id: id,
-      title: (data['title'] ?? '') as String,
-      priceCents: (data['priceCents'] ?? 0) as int,
-      imageUrl: (data['imageUrl'] ?? '') as String,
-      imageUrl2: (data['imageUrl2'] as String?)?.trim().isEmpty == true
-          ? null
-          : data['imageUrl2'] as String?,
+      title: ((data['title'] ?? '').toString().trim().isNotEmpty
+        ? (data['title'] ?? '').toString()
+        : legacyName),
+      priceCents: priceCents,
+      imageUrl: imageUrl,
+      imageUrl2: imageUrl2,
       imagePath: (data['imagePath'] as String?)?.trim().isEmpty == true
           ? null
           : data['imagePath'] as String?,
-      category: (data['category'] ?? 'T-shirts') as String,
+      category: ((data['category'] ?? '').toString().trim().isNotEmpty
+        ? (data['category'] ?? '').toString()
+        : (legacyCategoryId.trim().isNotEmpty ? legacyCategoryId : 'T-shirts')),
       isActive: (data['isActive'] ?? true) as bool,
       moderationStatus: status.isEmpty
           ? ((data['isActive'] ?? true) == true ? 'approved' : 'pending')

@@ -980,7 +980,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                       onTap: () {
                         _closeNavWithDelay();
                         Future.delayed(const Duration(milliseconds: 500), () {
-                          if (!mounted) return;
+                          if (!context.mounted) return;
                           Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (_) => const StorexShopPage(

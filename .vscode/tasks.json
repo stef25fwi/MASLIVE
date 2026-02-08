@@ -232,7 +232,7 @@
     {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy",
       "type": "shell",
-      "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat: amélioration shop (stock, assets, admin commerce)\"",
+      "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat(shop): boutique Storex (logo+glass) + legacy articles\"",
       "problemMatcher": [],
       "isBackground": false,
       "group": {

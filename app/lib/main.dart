@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'firebase_options.dart';
 import 'session/session_controller.dart';
@@ -38,6 +37,7 @@ import 'pages/business_request_page.dart';
 import 'pages/mapbox_web_map_page.dart';
 import 'pages/default_map_page.dart';
 import 'admin/super_admin_space.dart';
+import 'commerce_module_single_file.dart';
 import 'admin/category_management_page.dart';
 import 'admin/role_management_page.dart';
 import 'admin/admin_circuits_page.dart';
@@ -162,7 +162,7 @@ class MasLiveApp extends StatelessWidget {
                     ModalRoute.of(ctx)?.settings.arguments as String?;
                 return GroupShopPage(groupId: groupId ?? 'groupe_demo');
               },
-              '/admin/commerce': (_) => const ProductManagementPage(
+              '/admin/commerce': (_) => ProductManagementPage(
                     shopId: 'global',
                   ),
               '/boutique': (_) => const StorexShopPage(
