@@ -31,6 +31,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  final _perimeterEditorController = CircuitMapEditorController();
+  final _routeEditorController = CircuitMapEditorController();
+
   // Formulaire Step 1: Infos
   final _nameController = TextEditingController();
   final _countryController = TextEditingController();
@@ -58,6 +61,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   @override
   void dispose() {
     _pageController.dispose();
+    _perimeterEditorController.dispose();
+    _routeEditorController.dispose();
     _nameController.dispose();
     _countryController.dispose();
     _eventController.dispose();
@@ -306,6 +311,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           ),
           const Divider(height: 1),
 
+          if (_currentStep == 1 || _currentStep == 2) _buildCentralMapToolsBar(),
+
           // Pages
           Expanded(
             child: PageView(
@@ -446,6 +453,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       title: 'Définir le périmètre',
       subtitle: 'Tracez la zone de couverture (polygon fermé)',
       points: _perimeterPoints,
+      controller: _perimeterEditorController,
+      showToolbar: false,
       onPointsChanged: (points) {
         setState(() {
           _perimeterPoints = points;
@@ -460,6 +469,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       title: 'Définir le tracé',
       subtitle: 'Tracez l\'itinéraire du circuit (polyline)',
       points: _routePoints,
+      controller: _routeEditorController,
+      showToolbar: false,
       onPointsChanged: (points) {
         setState(() {
           _routePoints = points;
@@ -467,6 +478,85 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       },
       onSave: _saveDraft,
       mode: 'polyline',
+    );
+  }
+
+  Widget _buildCentralMapToolsBar() {
+    final isPerimeter = _currentStep == 1;
+    final controller = isPerimeter ? _perimeterEditorController : _routeEditorController;
+
+    return Material(
+      color: Colors.white,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: AnimatedBuilder(
+          animation: controller,
+          builder: (context, _) {
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.undo),
+                    onPressed: controller.canUndo ? controller.undo : null,
+                    tooltip: 'Annuler',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.redo),
+                    onPressed: controller.canRedo ? controller.redo : null,
+                    tooltip: 'Rétablir',
+                  ),
+                  const VerticalDivider(),
+
+                  if (isPerimeter)
+                    IconButton(
+                      icon: const Icon(Icons.loop_rounded),
+                      onPressed: controller.pointCount >= 2 ? controller.closePath : null,
+                      tooltip: 'Fermer le polygone',
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.flip_to_back),
+                    onPressed: controller.pointCount >= 2 ? controller.reversePath : null,
+                    tooltip: 'Inverser sens',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.compress_rounded),
+                    onPressed: controller.pointCount >= 3 ? controller.simplifyTrack : null,
+                    tooltip: 'Simplifier tracé',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_sweep),
+                    onPressed: controller.pointCount > 0 ? controller.clearAll : null,
+                    tooltip: 'Effacer tous',
+                  ),
+                  const VerticalDivider(),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${controller.pointCount} points',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '${controller.distanceKm.toStringAsFixed(2)} km',
+                          style: const TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 

@@ -1,8 +1,79 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import '../services/mapbox_token_service.dart';
 
 typedef LngLat = ({double lng, double lat});
+
+class CircuitMapEditorController extends ChangeNotifier {
+  VoidCallback? _undo;
+  VoidCallback? _redo;
+  VoidCallback? _reversePath;
+  VoidCallback? _closePath;
+  VoidCallback? _simplifyTrack;
+  VoidCallback? _clearAll;
+
+  bool _canUndo = false;
+  bool _canRedo = false;
+  int _pointCount = 0;
+  double _distanceKm = 0;
+
+  bool get canUndo => _canUndo;
+  bool get canRedo => _canRedo;
+  int get pointCount => _pointCount;
+  double get distanceKm => _distanceKm;
+
+  void undo() => _undo?.call();
+  void redo() => _redo?.call();
+  void reversePath() => _reversePath?.call();
+  void closePath() => _closePath?.call();
+  void simplifyTrack() => _simplifyTrack?.call();
+  void clearAll() => _clearAll?.call();
+
+  void _attach({
+    required VoidCallback undo,
+    required VoidCallback redo,
+    required VoidCallback reversePath,
+    required VoidCallback closePath,
+    required VoidCallback simplifyTrack,
+    required VoidCallback clearAll,
+  }) {
+    _undo = undo;
+    _redo = redo;
+    _reversePath = reversePath;
+    _closePath = closePath;
+    _simplifyTrack = simplifyTrack;
+    _clearAll = clearAll;
+  }
+
+  void _detach() {
+    _undo = null;
+    _redo = null;
+    _reversePath = null;
+    _closePath = null;
+    _simplifyTrack = null;
+    _clearAll = null;
+  }
+
+  void _updateFromEditor({
+    required bool canUndo,
+    required bool canRedo,
+    required int pointCount,
+    required double distanceKm,
+  }) {
+    final changed = canUndo != _canUndo ||
+        canRedo != _canRedo ||
+        pointCount != _pointCount ||
+        distanceKm != _distanceKm;
+
+    _canUndo = canUndo;
+    _canRedo = canRedo;
+    _pointCount = pointCount;
+    _distanceKm = distanceKm;
+
+    if (changed) notifyListeners();
+  }
+}
 
 class CircuitMapEditor extends StatefulWidget {
   final String title;
@@ -11,6 +82,8 @@ class CircuitMapEditor extends StatefulWidget {
   final ValueChanged<List<LngLat>> onPointsChanged;
   final VoidCallback onSave;
   final String mode; // 'polygon' ou 'polyline'
+  final bool showToolbar;
+  final CircuitMapEditorController? controller;
 
   const CircuitMapEditor({
     super.key,
@@ -20,6 +93,8 @@ class CircuitMapEditor extends StatefulWidget {
     required this.onPointsChanged,
     required this.onSave,
     this.mode = 'polygon',
+    this.showToolbar = true,
+    this.controller,
   });
 
   @override
@@ -40,6 +115,57 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     super.initState();
     _points = List.from(widget.points);
     _saveToHistory();
+
+    widget.controller?._attach(
+      undo: _undo,
+      redo: _redo,
+      reversePath: _reversePath,
+      closePath: _closePath,
+      simplifyTrack: _simplifyTrack,
+      clearAll: _clearAll,
+    );
+    _syncController();
+  }
+
+  @override
+  void didUpdateWidget(covariant CircuitMapEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller?._detach();
+      widget.controller?._attach(
+        undo: _undo,
+        redo: _redo,
+        reversePath: _reversePath,
+        closePath: _closePath,
+        simplifyTrack: _simplifyTrack,
+        clearAll: _clearAll,
+      );
+    }
+
+    if (!listEquals(oldWidget.points, widget.points)) {
+      _points = List.from(widget.points);
+      _history
+        ..clear()
+        ..add(List.from(_points));
+      _historyIndex = 0;
+      _syncController();
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller?._detach();
+    super.dispose();
+  }
+
+  void _syncController() {
+    widget.controller?._updateFromEditor(
+      canUndo: _historyIndex > 0,
+      canRedo: _historyIndex < _history.length - 1,
+      pointCount: _points.length,
+      distanceKm: _totalDistance(),
+    );
   }
 
   // ============ Gestion historique (Undo/Redo) ============
@@ -51,6 +177,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     }
     _history.add(List.from(_points));
     _historyIndex = _history.length - 1;
+    _syncController();
   }
 
   void _undo() {
@@ -58,6 +185,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
       _historyIndex--;
       setState(() => _points = List.from(_history[_historyIndex]));
       widget.onPointsChanged(_points);
+      _syncController();
     }
   }
 
@@ -66,6 +194,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
       _historyIndex++;
       setState(() => _points = List.from(_history[_historyIndex]));
       widget.onPointsChanged(_points);
+      _syncController();
     }
   }
 
@@ -78,6 +207,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     });
     _saveToHistory();
     widget.onPointsChanged(_points);
+    _syncController();
   }
 
   void _removePoint(int index) {
@@ -87,6 +217,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     });
     _saveToHistory();
     widget.onPointsChanged(_points);
+    _syncController();
   }
 
   // ============ Outils avancés ============
@@ -99,6 +230,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     setState(() => _points = simplified);
     _saveToHistory();
     widget.onPointsChanged(_points);
+    _syncController();
   }
 
   List<LngLat> _douglasPeucker(List<LngLat> points, double epsilon) {
@@ -155,6 +287,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     setState(() => _points = _points.reversed.toList());
     _saveToHistory();
     widget.onPointsChanged(_points);
+    _syncController();
   }
 
   void _closePath() {
@@ -163,6 +296,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
       setState(() => _points.add(_points.first));
       _saveToHistory();
       widget.onPointsChanged(_points);
+      _syncController();
     }
   }
 
@@ -182,6 +316,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
               setState(() => _points.clear());
               _saveToHistory();
               widget.onPointsChanged(_points);
+              _syncController();
             },
             child: const Text('Effacer', style: TextStyle(color: Colors.red)),
           ),
@@ -227,7 +362,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
         ),
 
         // Toolbar
-        if (_showToolbar)
+        if (_showToolbar && widget.showToolbar)
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
