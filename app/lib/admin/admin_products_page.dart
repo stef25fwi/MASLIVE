@@ -188,16 +188,20 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
   }
 
   Future<void> _seedShopAssetsProducts() async {
+    final messenger = ScaffoldMessenger.of(context);
+
     late final List<String> assetPaths;
     try {
       assetPaths = await _loadAllShopImageAssets();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(content: Text('Impossible de lire AssetManifest.json: $e')),
       );
       return;
     }
+
+    if (!mounted) return;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -299,7 +303,7 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
       await batch.commit();
     }
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       SnackBar(
         content: Text('Produits seedés depuis assets/shop ✅ ($totalUpserted)'),
       ),
@@ -952,24 +956,26 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                       ),
                       child: imageController.text.isNotEmpty
                           ? (imageController.text.startsWith('assets/')
-                              ? Image.asset(
-                                  imageController.text,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      _buildImageError(
-                                    icon: Icons.image,
-                                    label: 'Asset non trouvé',
-                                  ),
-                                )
-                              : Image.network(
-                                  imageController.text,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      _buildImageError(
-                                    icon: Icons.broken_image,
-                                    label: 'URL invalide',
-                                  ),
-                                ))
+                                ? Image.asset(
+                                    imageController.text,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            _buildImageError(
+                                              icon: Icons.image,
+                                              label: 'Asset non trouvé',
+                                            ),
+                                  )
+                                : Image.network(
+                                    imageController.text,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            _buildImageError(
+                                              icon: Icons.broken_image,
+                                              label: 'URL invalide',
+                                            ),
+                                  ))
                           : _buildImageError(
                               icon: Icons.image_not_supported,
                               label: 'Aucune image',
@@ -1010,8 +1016,8 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                     TextButton.icon(
                       onPressed: () async {
                         Navigator.pop(dialogContext);
-                        final productName = ((data['name'] ?? data['title']) ?? '')
-                            .toString();
+                        final productName =
+                            ((data['name'] ?? data['title']) ?? '').toString();
                         await _deleteProduct(
                           productId,
                           productName,
@@ -1038,30 +1044,34 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                     final messenger = ScaffoldMessenger.of(context);
 
                     try {
-                      final price = double.tryParse(priceController.text) ?? 0.0;
+                      final price =
+                          double.tryParse(priceController.text) ?? 0.0;
                       final stock = int.tryParse(stockController.text) ?? 0;
 
-                      await _firestore.collection('products').doc(productId).update(
-                        {
-                          'name': nameController.text.trim(),
-                          'title': nameController.text.trim(),
-                          'description': descController.text.trim(),
-                          'price': price,
-                          'priceCents': (price * 100).round(),
-                          'stock': stock,
-                          'stockByVariant': <String, int>{'default|default': stock},
-                          'category': selectedCategory,
-                          'groupId': selectedGroup.toLowerCase(),
-                          'group': selectedGroup,
-                          'imageUrl': imageController.text.trim().isNotEmpty
-                              ? imageController.text.trim()
-                              : null,
-                          'isAvailable': isAvailable,
-                          'isActive': isAvailable,
-                          'moderationStatus': 'approved',
-                          'updatedAt': FieldValue.serverTimestamp(),
-                        },
-                      );
+                      await _firestore
+                          .collection('products')
+                          .doc(productId)
+                          .update({
+                            'name': nameController.text.trim(),
+                            'title': nameController.text.trim(),
+                            'description': descController.text.trim(),
+                            'price': price,
+                            'priceCents': (price * 100).round(),
+                            'stock': stock,
+                            'stockByVariant': <String, int>{
+                              'default|default': stock,
+                            },
+                            'category': selectedCategory,
+                            'groupId': selectedGroup.toLowerCase(),
+                            'group': selectedGroup,
+                            'imageUrl': imageController.text.trim().isNotEmpty
+                                ? imageController.text.trim()
+                                : null,
+                            'isAvailable': isAvailable,
+                            'isActive': isAvailable,
+                            'moderationStatus': 'approved',
+                            'updatedAt': FieldValue.serverTimestamp(),
+                          });
 
                       try {
                         await _firestore
@@ -1104,7 +1114,9 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                       );
                     } catch (e) {
                       if (!mounted) return;
-                      messenger.showSnackBar(SnackBar(content: Text('Erreur: $e')));
+                      messenger.showSnackBar(
+                        SnackBar(content: Text('Erreur: $e')),
+                      );
                     }
                   },
                   child: const Text('Enregistrer'),
