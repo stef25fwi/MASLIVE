@@ -24,7 +24,7 @@ import 'pages/account_admin_page.dart';
 import 'pages/account_page.dart';
 import 'pages/orders_page.dart';
 import 'pages/map_admin_editor_page.dart';
-import 'pages/shop_page_new.dart';
+import 'pages/storex_shop_page.dart';
 import 'pages/pending_products_page.dart';
 import 'pages/search_page.dart';
 import 'pages/circuit_import_export_page.dart';
@@ -56,7 +56,6 @@ import 'ui/theme/maslive_theme.dart';
 import 'ui/widgets/honeycomb_background.dart';
 import 'l10n/app_localizations.dart';
 import 'pages/circuit_editor_workflow_page.dart';
-import 'commerce_module_single_file.dart';
 import 'pages/commerce/create_product_page.dart';
 import 'pages/commerce/create_media_page.dart';
 import 'pages/commerce/my_submissions_page.dart';
@@ -145,7 +144,10 @@ class MasLiveApp extends StatelessWidget {
               // '/mapbox-google-light': (_) => const GoogleLightMapPage(), // Moved to legacy
               '/mapbox-web': (_) => const MapboxWebMapPage(), // Mapbox GL JS via HtmlElementView
               '/account-ui': (_) => const AccountUiPage(),
-              '/shop-ui': (_) => const ShopPixelPerfectPage(),
+              '/shop-ui': (_) => const StorexShopPage(
+                    shopId: "global",
+                    groupId: "MASLIVE",
+                  ),
               '/group-ui': (_) => const GroupProfilePage(groupId: 'demo'),
               '/app': (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
@@ -163,12 +165,10 @@ class MasLiveApp extends StatelessWidget {
               '/admin/commerce': (_) => const ProductManagementPage(
                     shopId: 'global',
                   ),
-              '/boutique': (ctx) {
-                final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
-                final shopId = (args?['shopId'] as String?) ?? 'global';
-                final uid = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
-                return BoutiquePage(shopId: shopId, userId: uid);
-              },
+              '/boutique': (_) => const StorexShopPage(
+                    shopId: "global",
+                    groupId: "MASLIVE",
+                  ),
               '/account': (_) => const AccountAndAdminPage(),
               '/account-admin': (_) => const AccountAndAdminPage(),
               '/orders': (_) => const OrdersPage(),

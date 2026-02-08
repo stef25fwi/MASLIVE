@@ -24,6 +24,7 @@ import '../services/mapbox_token_service.dart';
 import '../l10n/app_localizations.dart' as l10n;
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
 import '../ui/widgets/mapbox_token_dialog.dart';
+import 'storex_shop_page.dart';
 
 enum _MapAction { ville, tracking, visiter, encadrement, food, wc, parking }
 
@@ -977,11 +978,17 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                       icon: Icons.shopping_bag_rounded,
                       tooltip: l10n.AppLocalizations.of(context)!.shop,
                       onTap: () {
-                        final navigator = Navigator.of(context);
                         _closeNavWithDelay();
                         Future.delayed(const Duration(milliseconds: 500), () {
                           if (!mounted) return;
-                          navigator.pushNamed('/shop-ui');
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const StorexShopPage(
+                                shopId: "global",
+                                groupId: "MASLIVE",
+                              ),
+                            ),
+                          );
                         });
                       },
                     ),

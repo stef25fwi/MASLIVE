@@ -26,6 +26,7 @@ import '../services/market_map_service.dart';
 import '../models/market_poi.dart';
 import '../ui/widgets/marketmap_poi_selector_sheet.dart';
 import '../l10n/app_localizations.dart' as l10n;
+import 'storex_shop_page.dart';
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
 
 // Menu vertical: modes/actions (filtrage POIs)
@@ -1124,7 +1125,14 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                       icon: Icons.shopping_bag_rounded,
                       tooltip: l10n.AppLocalizations.of(context)!.shop,
                       onTap: () {
-                        Navigator.pushNamed(context, '/shop-ui');
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const StorexShopPage(
+                              shopId: "global",
+                              groupId: "MASLIVE",
+                            ),
+                          ),
+                        );
                       },
                     ),
                     const SizedBox(width: 10),

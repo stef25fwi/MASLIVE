@@ -22,7 +22,7 @@ import 'business_requests_page.dart';
 import 'create_circuit_assistant_page.dart';
 import 'poi_marketmap_wizard_page.dart';
 import 'circuit_wizard_entry_page.dart';
-import '../commerce_module_single_file.dart';
+import '../pages/storex_shop_page.dart';
 import 'admin_moderation_page.dart';
 import 'commerce_analytics_page.dart';
 import 'user_profile_preview_page.dart';
@@ -329,10 +329,9 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => BoutiquePage(
-                          shopId: 'global',
-                          userId:
-                              FirebaseAuth.instance.currentUser?.uid ?? 'guest',
+                        builder: (_) => const StorexShopPage(
+                          shopId: "global",
+                          groupId: "MASLIVE",
                         ),
                       ),
                     ),

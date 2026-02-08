@@ -4,7 +4,7 @@ import '../ui/theme/maslive_theme.dart';
 import '../ui/widgets/gradient_header.dart';
 import '../ui/widgets/honeycomb_background.dart';
 import '../ui/widgets/maslive_card.dart';
-import 'shop_page_new.dart';
+import 'storex_shop_page.dart';
 import 'group_add_item_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -45,7 +45,12 @@ class _GroupProfilePageState extends State<GroupProfilePage> {
                           onPressed: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const ShopPixelPerfectPage()),
+                              MaterialPageRoute(
+                                builder: (_) => const StorexShopPage(
+                                  shopId: "global",
+                                  groupId: "MASLIVE",
+                                ),
+                              ),
                             );
                           },
                           icon: const Icon(Icons.shopping_bag_outlined),

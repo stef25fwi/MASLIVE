@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'shop_page_new.dart';
+import 'storex_shop_page.dart';
 
 class GroupShopPage extends StatelessWidget {
   const GroupShopPage({super.key, required this.groupId});
@@ -8,6 +8,9 @@ class GroupShopPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ShopPixelPerfectPage();
+    return const StorexShopPage(
+      shopId: "global",
+      groupId: "MASLIVE",
+    );
   }
 }

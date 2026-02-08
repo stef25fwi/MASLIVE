@@ -11,7 +11,7 @@ import '../admin/admin_main_dashboard.dart';
 import '../admin/admin_stock_page.dart';
 import '../admin/admin_product_categories_page.dart';
 import '../admin/commerce_analytics_page.dart';
-import 'shop_page_new.dart';
+import 'storex_shop_page.dart';
 
 const Color _adminAccent = Color(0xFF1E88E5);
 
@@ -528,7 +528,10 @@ class _CommerceQuickLinks extends StatelessWidget {
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => ShopPixelPerfectPage(shopId: shopId),
+                builder: (_) => const StorexShopPage(
+                  shopId: "global",
+                  groupId: "MASLIVE",
+                ),
               ),
             );
           },

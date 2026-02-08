@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'cart_page.dart';
-import 'media_shop_page.dart';
+import 'storex_shop_page.dart';
 import 'product_detail_page.dart';
 import '../models/group_product.dart';
 import '../services/cart_service.dart';
@@ -388,7 +388,10 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => const MediaShopPage(),
+                                  builder: (_) => const StorexShopPage(
+                                    shopId: "global",
+                                    groupId: "MASLIVE",
+                                  ),
                                 ),
                               );
                             },

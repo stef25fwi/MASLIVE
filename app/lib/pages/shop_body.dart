@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/product_model.dart';
 import '../shop/widgets/product_tile.dart';
-import 'media_shop_page.dart';
+import 'storex_shop_page.dart';
 import 'product_detail_page.dart';
 import '../services/cart_service.dart';
 import 'cart_page.dart';
@@ -334,7 +334,10 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => const MediaShopPage(),
+                                  builder: (_) => const StorexShopPage(
+                                    shopId: "global",
+                                    groupId: "MASLIVE",
+                                  ),
                                 ),
                               );
                             },

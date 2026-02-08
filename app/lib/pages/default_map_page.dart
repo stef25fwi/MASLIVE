@@ -26,6 +26,7 @@ import '../l10n/app_localizations.dart' as l10n;
 import '../services/market_map_service.dart';
 import '../models/market_poi.dart';
 import '../utils/web_viewport_resize.dart';
+import 'storex_shop_page.dart';
 
 // Menu vertical: modes/actions (pour refléter la sélection UI)
 // Note: seul le tracking et les projets sont pleinement câblés ici.
@@ -802,7 +803,14 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                           icon: Icons.shopping_bag_rounded,
                           tooltip: l10n.AppLocalizations.of(context)!.shop,
                           onTap: () {
-                            Navigator.pushNamed(context, '/shop-ui');
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const StorexShopPage(
+                                  shopId: "global",
+                                  groupId: "MASLIVE",
+                                ),
+                              ),
+                            );
                           },
                         ),
                         const SizedBox(width: 10),

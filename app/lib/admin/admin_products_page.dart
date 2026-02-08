@@ -6,7 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
 
 import 'create_product_dialog.dart';
-import '../pages/shop_page_new.dart';
+import '../pages/storex_shop_page.dart';
 import '../services/storage_service.dart';
 
 /// Page de gestion des produits
@@ -382,7 +382,10 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => ShopPixelPerfectPage(shopId: widget.shopId),
+                builder: (_) => const StorexShopPage(
+                  shopId: "global",
+                  groupId: "MASLIVE",
+                ),
               ),
             ),
           ),
