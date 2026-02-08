@@ -4,7 +4,7 @@
 /// qui seront pré-créés dans Firestore lors de la première utilisation
 library;
 
-const List<Map<String, dynamic>> SUPERADMIN_ARTICLES_INIT_DATA = [
+const List<Map<String, dynamic>> superadminArticlesInitData = [
   {
     'name': 'Casquette MAS\'LIVE',
     'description': 'Casquette officiellement siglée MAS\'LIVE. Tissu respirant, ajustable.',
@@ -60,7 +60,7 @@ const List<Map<String, dynamic>> SUPERADMIN_ARTICLES_INIT_DATA = [
 ///   const db = admin.firestore();
 ///   const batch = db.batch();
 ///   
-///   for (const article of SUPERADMIN_ARTICLES_INIT_DATA) {
+///   for (const article of superadminArticlesInitData) {
 ///     const ref = db.collection('superadmin_articles').doc();
 ///     batch.set(ref, {
 ///       ...article,

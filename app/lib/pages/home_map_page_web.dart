@@ -504,7 +504,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                               ],
                             ),
                           );
-                          if (!mounted) return;
+                          if (!context.mounted) return;
 
                           if (confirm == true) {
                             Navigator.pop(context);
@@ -933,7 +933,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                                 Future.delayed(
                                   const Duration(milliseconds: 500),
                                   () {
-                                    if (!mounted) return;
+                                    if (!context.mounted) return;
                                     Navigator.pushNamed(
                                       context,
                                       '/account-ui',
@@ -945,7 +945,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                                 Future.delayed(
                                   const Duration(milliseconds: 500),
                                   () {
-                                    if (!mounted) return;
+                                    if (!context.mounted) return;
                                     Navigator.pushNamed(context, '/login');
                                   },
                                 );
@@ -969,7 +969,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                       onTap: () {
                         _closeNavWithDelay();
                         Future.delayed(const Duration(milliseconds: 500), () {
-                          if (!mounted) return;
+                          if (!context.mounted) return;
                           Navigator.pushNamed(context, '/shop-ui');
                         });
                       },

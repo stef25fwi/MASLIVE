@@ -297,7 +297,7 @@ class _CreateProductDialogState extends State<_CreateProductDialog> {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: cs.primary.withOpacity(.10),
+                            color: cs.primary.withAlpha(26),
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Icon(Icons.add_box_rounded, color: cs.primary),
@@ -548,9 +548,9 @@ class _PhotosPickerStrip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: cs.primary.withOpacity(.06),
+        color: cs.primary.withAlpha(15),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: cs.primary.withOpacity(.12)),
+        border: Border.all(color: cs.primary.withAlpha(31)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -591,7 +591,7 @@ class _PhotosPickerStrip extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.black.withOpacity(.06)),
+                      border: Border.all(color: Colors.black.withAlpha(15)),
                     ),
                     child: const Row(
                       children: [
@@ -620,7 +620,7 @@ class _PhotosPickerStrip extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(.55),
+                            color: Colors.black.withAlpha(140),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
@@ -660,7 +660,7 @@ class _XFileThumb extends StatelessWidget {
           return Container(
             width: 78,
             height: 78,
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withAlpha(10),
             alignment: Alignment.center,
             child: const Icon(Icons.broken_image_outlined, size: 20),
           );
@@ -675,7 +675,7 @@ class _XFileThumb extends StatelessWidget {
           return Container(
             width: 78,
             height: 78,
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withAlpha(10),
             alignment: Alignment.center,
             child: const SizedBox(
               width: 18,

@@ -59,7 +59,7 @@ class GroupProduct {
   int get totalStock {
     if (stockQty != null) return stockQty!;
     if (stockByVariant == null) return 999; // stock virtuellement illimité
-    return stockByVariant!.values.fold<int>(0, (sum, v) => sum + (v));
+    return stockByVariant!.values.fold<int>(0, (total, v) => total + v);
   }
 
   bool get isOutOfStock => totalStock <= 0;

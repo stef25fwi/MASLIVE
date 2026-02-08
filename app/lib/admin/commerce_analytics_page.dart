@@ -298,7 +298,7 @@ class _CommerceAnalyticsPageState extends State<CommerceAnalyticsPage> {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+            colors: [color.withAlpha(26), color.withAlpha(13)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),

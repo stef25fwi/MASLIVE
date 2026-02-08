@@ -596,7 +596,7 @@ class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
                         linkedCircuitId: linkedCircuitId,
                         isVisible: true,
                       );
-                      if (!mounted) return;
+                      if (!context.mounted) return;
 
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(

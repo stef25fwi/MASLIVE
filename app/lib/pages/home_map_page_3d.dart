@@ -306,8 +306,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           textField: p.name,
           textSize: 12.0,
           textOffset: const [0.0, 1.2],
-          textColor: Colors.black.value,
-          textHaloColor: Colors.white.value,
+          textColor: Colors.black.toARGB32(),
+          textHaloColor: Colors.white.toARGB32(),
           textHaloWidth: 1.0,
         );
         await manager.create(opt);

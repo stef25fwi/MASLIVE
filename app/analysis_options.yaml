@@ -8,3 +8,4 @@ analyzer:
     - "**/*_legacy.dart"
     - "**/*_backup.dart"
     - "**/*_redirect.dart"
+    - "lib/pages/admin_dashboard_page_REMOVED.dart"

@@ -1419,7 +1419,7 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                         BoxShadow(
                           blurRadius: 20,
                           offset: const Offset(0, 6),
-                          color: Colors.black.withOpacity(0.06),
+                          color: Colors.black.withAlpha(15),
                         ),
                       ],
                     ),
@@ -1588,7 +1588,7 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                           builder: (context, child) {
                             if (!c.busy) return const SizedBox.shrink();
                             return Container(
-                              color: Colors.black.withOpacity(0.08),
+                              color: Colors.black.withAlpha(20),
                               child: const Center(
                                 child: SizedBox(
                                   width: 36,
@@ -1788,7 +1788,7 @@ class ProductTileAdmin extends StatelessWidget {
               BoxShadow(
                 blurRadius: 18,
                 offset: const Offset(0, 10),
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withAlpha(13),
               ),
             ],
           ),
@@ -2193,7 +2193,7 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
       fillColor: Colors.white,
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: Colors.blue.withOpacity(0.3)),
+        borderSide: BorderSide(color: Colors.blue.withAlpha(77)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -2440,7 +2440,7 @@ class _StockQuickEditorDialogState extends State<StockQuickEditorDialog> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                  border: Border.all(color: Colors.blue.withAlpha(77)),
                 ),
                 child: Row(
                   children: [
@@ -2622,7 +2622,7 @@ class _BoutiquePageState extends State<BoutiquePage> {
                         BoxShadow(
                           blurRadius: 20,
                           offset: const Offset(0, 6),
-                          color: Colors.black.withOpacity(0.06),
+                          color: Colors.black.withAlpha(15),
                         ),
                       ],
                     ),
@@ -2759,7 +2759,7 @@ class _BoutiquePageState extends State<BoutiquePage> {
                           builder: (context, child) {
                             if (!c.busy) return const SizedBox.shrink();
                             return Container(
-                              color: Colors.black.withOpacity(0.08),
+                              color: Colors.black.withAlpha(20),
                               child: const Center(child: CircularProgressIndicator()),
                             );
                           },
@@ -2860,14 +2860,14 @@ class _BoutiquePageState extends State<BoutiquePage> {
                                 userId: widget.userId,
                                 items: items,
                               );
-                              if (!mounted) return;
+                              if (!context.mounted) return;
                               setState(() => cart.clear());
                               Navigator.pop(context);
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: Text('Commande créée: $orderId')),
                               );
                             } catch (e) {
-                              if (!mounted) return;
+                              if (!context.mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: Text('Checkout impossible: $e')),
                               );
@@ -3201,7 +3201,7 @@ class _PriceRangeDialogState extends State<_PriceRangeDialog> {
       fillColor: Colors.white,
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: Colors.blue.withOpacity(0.3)),
+        borderSide: BorderSide(color: Colors.blue.withAlpha(77)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),

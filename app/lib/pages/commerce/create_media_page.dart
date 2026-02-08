@@ -74,10 +74,13 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
   Future<void> _pickImages() async {
     try {
       final files = await _picker.pickMultiImage(imageQuality: 88);
-      if (files.isNotEmpty && mounted) {
+      if (!mounted) return;
+
+      if (files.isNotEmpty) {
         setState(() => _selectedFiles.addAll(files));
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erreur: $e')),
       );

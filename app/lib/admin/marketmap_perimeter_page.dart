@@ -183,7 +183,7 @@ class _MarketMapPerimeterPageState extends State<MarketMapPerimeterPage> {
         _locked = lockAfter ? true : _locked;
       });
 
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -194,7 +194,7 @@ class _MarketMapPerimeterPageState extends State<MarketMapPerimeterPage> {
         ),
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erreur sauvegarde périmètre: $e')),
       );
@@ -303,7 +303,7 @@ class _MarketMapPerimeterPageState extends State<MarketMapPerimeterPage> {
                             ? null
                             : () async {
                                 await _save(lockAfter: true);
-                                if (!mounted) return;
+                                if (!context.mounted) return;
                                 Navigator.of(context).pop();
                               },
                         icon: _saving

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -19,8 +18,9 @@ class SuperadminArticlesPage extends StatefulWidget {
 
 class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
   final SuperadminArticleService _articleService = SuperadminArticleService();
-  
-  String _selectedCategory = 'tous'; // tous, casquette, tshirt, porteclé, bandana
+
+  String _selectedCategory =
+      'tous'; // tous, casquette, tshirt, porteclé, bandana
 
   @override
   Widget build(BuildContext context) {
@@ -51,14 +51,20 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
             // Filtre par catégorie
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: _buildCategoryFilter(),
               ),
             ),
             // Bouton ajouter
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.add),
                   label: const Text('Ajouter un article'),
@@ -76,7 +82,9 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               sliver: StreamBuilder<List<SuperadminArticle>>(
                 stream: _articleService.streamActiveArticles(
-                  category: _selectedCategory == 'tous' ? null : _selectedCategory,
+                  category: _selectedCategory == 'tous'
+                      ? null
+                      : _selectedCategory,
                 ),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
@@ -100,19 +108,17 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
                   }
 
                   return SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                      childAspectRatio: 0.75,
-                    ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final article = snapshot.data![index];
-                        return _buildArticleCard(article);
-                      },
-                      childCount: snapshot.data!.length,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          childAspectRatio: 0.75,
+                        ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final article = snapshot.data![index];
+                      return _buildArticleCard(article);
+                    }, childCount: snapshot.data!.length),
                   );
                 },
               ),
@@ -126,7 +132,7 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
 
   Widget _buildCategoryFilter() {
     final categories = ['tous', ...SuperadminArticleService.validCategories];
-    
+
     return SizedBox(
       height: 44,
       child: ListView.builder(
@@ -135,13 +141,11 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
         itemBuilder: (context, index) {
           final category = categories[index];
           final isSelected = _selectedCategory == category;
-          
+
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: FilterChip(
-              label: Text(
-                category[0].toUpperCase() + category.substring(1),
-              ),
+              label: Text(category[0].toUpperCase() + category.substring(1)),
               selected: isSelected,
               onSelected: (selected) {
                 setState(() {
@@ -176,23 +180,35 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
             child: Container(
               width: double.infinity,
               decoration: BoxDecoration(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(12),
+                ),
                 color: Colors.grey.shade200,
               ),
               child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(12),
+                ),
                 child: article.imageUrl.isNotEmpty
                     ? Image.network(
                         article.imageUrl,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           return Center(
-                            child: Icon(Icons.image, size: 32, color: Colors.grey.shade400),
+                            child: Icon(
+                              Icons.image,
+                              size: 32,
+                              color: Colors.grey.shade400,
+                            ),
                           );
                         },
                       )
                     : Center(
-                        child: Icon(Icons.image, size: 32, color: Colors.grey.shade400),
+                        child: Icon(
+                          Icons.image,
+                          size: 32,
+                          color: Colors.grey.shade400,
+                        ),
                       ),
               ),
             ),
@@ -207,7 +223,10 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
                   article.name,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -224,7 +243,10 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
                   children: [
                     Text(
                       'Stock: ${article.stock}',
-                      style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                     InkWell(
                       onTap: () => _showArticleMenu(article),
@@ -271,12 +293,18 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
               title: Text(article.isActive ? 'Désactiver' : 'Activer'),
               onTap: () async {
                 Navigator.pop(context);
-                await _articleService.toggleArticleStatus(article.id, !article.isActive);
+                await _articleService.toggleArticleStatus(
+                  article.id,
+                  !article.isActive,
+                );
               },
             ),
             ListTile(
               leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text('Supprimer', style: TextStyle(color: Colors.red)),
+              title: const Text(
+                'Supprimer',
+                style: TextStyle(color: Colors.red),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 _showDeleteConfirmation(article);
@@ -293,6 +321,7 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
       context: context,
       builder: (context) => _ArticleEditDialog(
         onSave: (article) async {
+          final messenger = ScaffoldMessenger.of(context);
           try {
             await _articleService.createArticle(
               name: article['name'],
@@ -303,16 +332,14 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
               stock: article['stock'],
               sku: article['sku'],
             );
-            
+
             if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
+            messenger.showSnackBar(
               const SnackBar(content: Text('✅ Article créé avec succès')),
             );
           } catch (e) {
             if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('❌ Erreur: $e')),
-            );
+            messenger.showSnackBar(SnackBar(content: Text('❌ Erreur: $e')));
           }
         },
       ),
@@ -325,6 +352,7 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
       builder: (context) => _ArticleEditDialog(
         article: article,
         onSave: (updatedData) async {
+          final messenger = ScaffoldMessenger.of(context);
           try {
             final updated = article.copyWith(
               name: updatedData['name'],
@@ -335,18 +363,16 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
               stock: updatedData['stock'],
               sku: updatedData['sku'],
             );
-            
+
             await _articleService.updateArticle(article.id, updated);
 
             if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
+            messenger.showSnackBar(
               const SnackBar(content: Text('✅ Article mis à jour')),
             );
           } catch (e) {
             if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('❌ Erreur: $e')),
-            );
+            messenger.showSnackBar(SnackBar(content: Text('❌ Erreur: $e')));
           }
         },
       ),
@@ -355,7 +381,7 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
 
   void _showUpdateStockDialog(SuperadminArticle article) {
     final controller = TextEditingController(text: article.stock.toString());
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -363,9 +389,7 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            hintText: 'Nouveau stock',
-          ),
+          decoration: const InputDecoration(hintText: 'Nouveau stock'),
         ),
         actions: [
           TextButton(
@@ -384,9 +408,9 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
                 );
               } catch (e) {
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('❌ Erreur: $e')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('❌ Erreur: $e')));
               }
             },
             child: const Text('Mettre à jour'),
@@ -418,9 +442,9 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
                 );
               } catch (e) {
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('❌ Erreur: $e')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('❌ Erreur: $e')));
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -437,10 +461,7 @@ class _ArticleEditDialog extends StatefulWidget {
   final SuperadminArticle? article;
   final Function(Map<String, dynamic>) onSave;
 
-  const _ArticleEditDialog({
-    this.article,
-    required this.onSave,
-  });
+  const _ArticleEditDialog({this.article, required this.onSave});
 
   @override
   State<_ArticleEditDialog> createState() => _ArticleEditDialogState();
@@ -461,7 +482,7 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
   XFile? _selectedImageFile;
   bool _isUploading = false;
   double _uploadProgress = 0.0;
-  
+
   // Assets disponibles
   static const List<String> availableAssets = [
     'assets/images/maslivelogo.png',
@@ -473,9 +494,15 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.article?.name ?? '');
-    _descriptionController = TextEditingController(text: widget.article?.description ?? '');
-    _priceController = TextEditingController(text: widget.article?.price.toString() ?? '');
-    _stockController = TextEditingController(text: widget.article?.stock.toString() ?? '');
+    _descriptionController = TextEditingController(
+      text: widget.article?.description ?? '',
+    );
+    _priceController = TextEditingController(
+      text: widget.article?.price.toString() ?? '',
+    );
+    _stockController = TextEditingController(
+      text: widget.article?.stock.toString() ?? '',
+    );
     _skuController = TextEditingController(text: widget.article?.sku ?? '');
     _selectedCategory = widget.article?.category ?? 'casquette';
     _imageUrl = widget.article?.imageUrl ?? '';
@@ -495,7 +522,7 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
     try {
       final status = await Permission.photos.status;
       if (status.isGranted) return true;
-      
+
       final result = await Permission.photos.request();
       return result.isGranted;
     } catch (e) {
@@ -546,16 +573,16 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
     } catch (e) {
       debugPrint('❌ Erreur sélection image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Erreur: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('❌ Erreur: $e')));
       }
     }
   }
 
   Future<void> _pickImageFromAssets() async {
     if (!mounted) return;
-    
+
     final selected = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -598,7 +625,7 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
 
   Future<void> _showImageSourcePicker() async {
     if (!mounted) return;
-    
+
     showModalBottomSheet(
       context: context,
       builder: (context) => Container(
@@ -641,7 +668,7 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
 
     try {
       String? imageUrl;
-      
+
       // Cas 1: Upload depuis asset (déjà sélectionné, contient "assets/")
       if (_imageUrl.contains('assets/')) {
         debugPrint('📦 Upload depuis asset: $_imageUrl');
@@ -673,9 +700,9 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
     } catch (e) {
       debugPrint('❌ Erreur upload image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Erreur upload: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('❌ Erreur upload: $e')));
       }
       return null;
     } finally {
@@ -691,7 +718,9 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.article == null ? 'Ajouter un article' : 'Modifier l\'article'),
+      title: Text(
+        widget.article == null ? 'Ajouter un article' : 'Modifier l\'article',
+      ),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -723,34 +752,34 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
                           },
                         )
                       : _imageUrl.contains('assets/')
-                          ? Image.asset(
-                              _imageUrl,
+                      ? Image.asset(
+                          _imageUrl,
+                          height: 120,
+                          width: 120,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
                               height: 120,
                               width: 120,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  height: 120,
-                                  width: 120,
-                                  color: Colors.grey.shade200,
-                                  child: const Icon(Icons.broken_image),
-                                );
-                              },
-                            )
-                          : Image.network(
-                              _imageUrl,
+                              color: Colors.grey.shade200,
+                              child: const Icon(Icons.broken_image),
+                            );
+                          },
+                        )
+                      : Image.network(
+                          _imageUrl,
+                          height: 120,
+                          width: 120,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
                               height: 120,
                               width: 120,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  height: 120,
-                                  width: 120,
-                                  color: Colors.grey.shade200,
-                                  child: const Icon(Icons.image),
-                                );
-                              },
-                            ),
+                              color: Colors.grey.shade200,
+                              child: const Icon(Icons.image),
+                            );
+                          },
+                        ),
                 ),
               ),
 
@@ -780,17 +809,14 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
                     const SizedBox(height: 8),
                     Text(
                       'Upload: ${(_uploadProgress * 100).toStringAsFixed(0)}%',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ],
                 ),
               ),
 
             const SizedBox(height: 12),
-            
+
             // Champs
             TextField(
               controller: _nameController,
@@ -844,49 +870,57 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
           child: const Text('Annuler'),
         ),
         ElevatedButton(
-          onPressed: _isUploading ? null : () async {
-            final name = _nameController.text.trim();
-            if (name.isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('❌ Le nom est requis')),
-              );
-              return;
-            }
+          onPressed: _isUploading
+              ? null
+              : () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  final navigator = Navigator.of(context);
 
-            // Générer un ID temporaire pour l'upload
-            final articleId = widget.article?.id ?? 
-                'article_${DateTime.now().millisecondsSinceEpoch}';
+                  final name = _nameController.text.trim();
+                  if (name.isEmpty) {
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('❌ Le nom est requis')),
+                    );
+                    return;
+                  }
 
-            // Upload de l'image si sélectionnée
-            String? finalImageUrl = _imageUrl.isNotEmpty ? _imageUrl : null;
-            final shouldUpload = _selectedImageFile != null || _imageUrl.contains('assets/');
-            if (shouldUpload) {
-              finalImageUrl = await _uploadImageIfNeeded(articleId);
-              if (finalImageUrl == null) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('❌ Échec upload image')),
-                );
-                return;
-              }
-            }
+                  // Générer un ID temporaire pour l'upload
+                  final articleId =
+                      widget.article?.id ??
+                      'article_${DateTime.now().millisecondsSinceEpoch}';
 
-            widget.onSave({
-              'name': name,
-              'description': _descriptionController.text.trim(),
-              'category': _selectedCategory,
-              'price': double.tryParse(_priceController.text) ?? 0.0,
-              'stock': int.tryParse(_stockController.text) ?? 0,
-              'sku': _skuController.text.trim(),
-              'imageUrl': finalImageUrl ?? '',
-            });
-            if (!mounted) return;
+                  // Upload de l'image si sélectionnée
+                  String? finalImageUrl = _imageUrl.isNotEmpty
+                      ? _imageUrl
+                      : null;
+                  final shouldUpload =
+                      _selectedImageFile != null ||
+                      _imageUrl.contains('assets/');
+                  if (shouldUpload) {
+                    finalImageUrl = await _uploadImageIfNeeded(articleId);
+                    if (finalImageUrl == null) {
+                      if (!mounted) return;
+                      messenger.showSnackBar(
+                        const SnackBar(content: Text('❌ Échec upload image')),
+                      );
+                      return;
+                    }
+                  }
 
-            Navigator.pop(context);
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.grey[800],
-          ),
+                  widget.onSave({
+                    'name': name,
+                    'description': _descriptionController.text.trim(),
+                    'category': _selectedCategory,
+                    'price': double.tryParse(_priceController.text) ?? 0.0,
+                    'stock': int.tryParse(_stockController.text) ?? 0,
+                    'sku': _skuController.text.trim(),
+                    'imageUrl': finalImageUrl ?? '',
+                  });
+                  if (!mounted) return;
+
+                  navigator.pop();
+                },
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[800]),
           child: _isUploading
               ? const SizedBox(
                   width: 16,
