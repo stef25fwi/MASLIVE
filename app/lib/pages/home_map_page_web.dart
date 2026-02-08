@@ -48,6 +48,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
 
   StreamSubscription<Position>? _positionSub;
   LatLng? _userPos;
+  DateTime? _lastUserPosUiUpdateAt;
   bool _requestingGps = false;
   bool _isTracking = false;
   bool _isMapReady = false;
@@ -219,6 +220,14 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
         .listen((pos) {
           final p = LatLng(pos.latitude, pos.longitude);
           if (!mounted) return;
+
+          final now = DateTime.now();
+          final last = _lastUserPosUiUpdateAt;
+          if (last != null && now.difference(last).inMilliseconds < 350) {
+            // Trop fréquent: laisse passer pour réduire les rebuilds web.
+            return;
+          }
+          _lastUserPosUiUpdateAt = now;
 
           setState(() {
             _userPos = p;

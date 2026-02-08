@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:html' as html;
 import 'dart:js' as js;
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 
 import 'mapbox_web_view_web.dart';
@@ -106,9 +107,36 @@ class _MapboxWebViewState extends State<MapboxWebView> {
     if (_map == null && _container != null && widget.accessToken.isNotEmpty) {
       _initMapbox(_container!);
     }
-    _updateUserMarker();
-    _updateMarkers();
-    _setPolylineGeoJson();
+
+    final userChanged =
+        oldWidget.showUserLocation != widget.showUserLocation ||
+        oldWidget.userLat != widget.userLat ||
+        oldWidget.userLng != widget.userLng;
+    if (userChanged) {
+      _updateUserMarker();
+    }
+
+    final markersChanged =
+        oldWidget.markers.length != widget.markers.length ||
+        oldWidget.markers != widget.markers;
+    if (markersChanged) {
+      _updateMarkers();
+    }
+
+    final polylineChanged =
+        oldWidget.polyline.length != widget.polyline.length ||
+        !listEquals(oldWidget.polyline, widget.polyline);
+    if (polylineChanged) {
+      _setPolylineGeoJson();
+    }
+
+    if (oldWidget.styleUrl != widget.styleUrl && widget.styleUrl != null) {
+      try {
+        _map?.callMethod('setStyle', [widget.styleUrl]);
+      } catch (_) {
+        // ignore
+      }
+    }
   }
 
   void _registerFactory() {
@@ -177,31 +205,21 @@ class _MapboxWebViewState extends State<MapboxWebView> {
     map.callMethod('on', [
       'load',
       (dynamic _) {
-        final compassControl = js.JsObject(
-          mapboxglObj['NavigationControl'],
-          [
-            js.JsObject.jsify({
-              'showZoom': false,
-              'showCompass': true,
-            })
-          ],
-        );
+        final compassControl = js.JsObject(mapboxglObj['NavigationControl'], [
+          js.JsObject.jsify({'showZoom': false, 'showCompass': true}),
+        ]);
         map.callMethod('addControl', [compassControl, 'top-right']);
 
-        final zoomControl = js.JsObject(
-          mapboxglObj['NavigationControl'],
-          [
-            js.JsObject.jsify({
-              'showZoom': true,
-              'showCompass': false,
-            })
-          ],
-        );
+        final zoomControl = js.JsObject(mapboxglObj['NavigationControl'], [
+          js.JsObject.jsify({'showZoom': true, 'showCompass': false}),
+        ]);
         map.callMethod('addControl', [zoomControl, 'top-right']);
 
         final attributionControl = js.JsObject(
           mapboxglObj['AttributionControl'],
-          [js.JsObject.jsify({'compact': true})],
+          [
+            js.JsObject.jsify({'compact': true}),
+          ],
         );
         map.callMethod('addControl', [attributionControl, 'top-left']);
 
@@ -283,17 +301,17 @@ class _MapboxWebViewState extends State<MapboxWebView> {
           ..style.boxShadow = '0 2px 10px rgba(0,0,0,0.25)';
 
         final marker = js.JsObject(mapboxglObj['Marker'], [
-          js.JsObject.jsify({'element': markerEl})
+          js.JsObject.jsify({'element': markerEl}),
         ]);
         marker.callMethod('setLngLat', [
-          js.JsObject.jsify([m.lng, m.lat])
+          js.JsObject.jsify([m.lng, m.lat]),
         ]);
 
         final label = m.label;
         if (label != null && label.trim().isNotEmpty) {
           try {
             final popup = js.JsObject(mapboxglObj['Popup'], [
-              js.JsObject.jsify({'offset': 18})
+              js.JsObject.jsify({'offset': 18}),
             ]);
             popup.callMethod('setText', [label]);
             marker.callMethod('setPopup', [popup]);
@@ -359,10 +377,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
 
     final geojson = js.JsObject.jsify({
       'type': 'Feature',
-      'geometry': {
-        'type': 'LineString',
-        'coordinates': coords,
-      },
+      'geometry': {'type': 'LineString', 'coordinates': coords},
       'properties': {},
     });
 
@@ -374,7 +389,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
       if (!hasSource) {
         map.callMethod('addSource', [
           sourceId,
-          js.JsObject.jsify({'type': 'geojson', 'data': geojson})
+          js.JsObject.jsify({'type': 'geojson', 'data': geojson}),
         ]);
 
         map.callMethod('addLayer', [
@@ -383,12 +398,18 @@ class _MapboxWebViewState extends State<MapboxWebView> {
             'type': 'line',
             'source': sourceId,
             'layout': {'line-join': 'round', 'line-cap': 'round'},
-            'paint': {'line-width': 4, 'line-color': '#111111', 'line-opacity': 0.7},
-          })
+            'paint': {
+              'line-width': 4,
+              'line-color': '#111111',
+              'line-opacity': 0.7,
+            },
+          }),
         ]);
       } else {
         // update data
-        map.callMethod('getSource', [sourceId]).callMethod('setData', [geojson]);
+        map.callMethod('getSource', [sourceId]).callMethod('setData', [
+          geojson,
+        ]);
       }
     } catch (_) {
       // ignore
