@@ -281,6 +281,18 @@
       }
     },
     {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (analyze cleanup)",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"chore: flutter analyze cleanup\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Firebase deploy (hosting+functions+rules+indexes)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && firebase deploy --only hosting,functions,firestore:rules,firestore:indexes",

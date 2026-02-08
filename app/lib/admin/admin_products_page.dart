@@ -199,22 +199,20 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
       return;
     }
 
-    if (!mounted) return;
-
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (context) => AlertDialog(
         title: const Text('Créer des produits depuis assets/shop ?'),
         content: Text(
           'Cela va créer/mettre à jour ${assetPaths.length} produit(s) (1 par image) (shopId: ${widget.shopId}).',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Annuler'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
+            onPressed: () => Navigator.pop(context, true),
             child: const Text('Créer'),
           ),
         ],

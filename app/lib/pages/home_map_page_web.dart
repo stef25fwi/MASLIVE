@@ -453,7 +453,8 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                   return ListView.separated(
                     shrinkWrap: true,
                     itemCount: presets.length,
-                    separatorBuilder: (context, index) => const Divider(height: 1),
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 1),
                     itemBuilder: (context, index) {
                       final preset = presets[index];
                       final isSelected = _selectedPreset?.id == preset.id;
@@ -484,6 +485,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                               )
                             : const Icon(Icons.chevron_right),
                         onTap: () async {
+                          final navigator = Navigator.of(context);
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (_) => AlertDialog(
@@ -507,7 +509,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                           if (!context.mounted) return;
 
                           if (confirm == true) {
-                            Navigator.pop(context);
+                            navigator.pop();
                             _applyPreset(preset);
                           }
                         },
@@ -929,24 +931,23 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                           child: InkWell(
                             onTap: () {
                               if (user != null) {
+                                final navigator = Navigator.of(context);
                                 _closeNavWithDelay();
                                 Future.delayed(
                                   const Duration(milliseconds: 500),
                                   () {
-                                    if (!context.mounted) return;
-                                    Navigator.pushNamed(
-                                      context,
-                                      '/account-ui',
-                                    );
+                                    if (!mounted) return;
+                                    navigator.pushNamed('/account-ui');
                                   },
                                 );
                               } else {
+                                final navigator = Navigator.of(context);
                                 _closeNavWithDelay();
                                 Future.delayed(
                                   const Duration(milliseconds: 500),
                                   () {
-                                    if (!context.mounted) return;
-                                    Navigator.pushNamed(context, '/login');
+                                    if (!mounted) return;
+                                    navigator.pushNamed('/login');
                                   },
                                 );
                               }
@@ -967,10 +968,11 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                       icon: Icons.shopping_bag_rounded,
                       tooltip: l10n.AppLocalizations.of(context)!.shop,
                       onTap: () {
+                        final navigator = Navigator.of(context);
                         _closeNavWithDelay();
                         Future.delayed(const Duration(milliseconds: 500), () {
-                          if (!context.mounted) return;
-                          Navigator.pushNamed(context, '/shop-ui');
+                          if (!mounted) return;
+                          navigator.pushNamed('/shop-ui');
                         });
                       },
                     ),

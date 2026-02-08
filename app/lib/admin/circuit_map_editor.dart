@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import '../services/mapbox_token_service.dart';
+import '../ui/map/maslive_map.dart';
+import '../ui/map/maslive_map_controller.dart';
 
 typedef LngLat = ({double lng, double lat});
 
@@ -110,6 +112,9 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   final double _simplificationThreshold = 0.0001;
   final bool _showToolbar = true;
 
+  final MasLiveMapController _mapController = MasLiveMapController();
+  bool _isMapReady = false;
+
   @override
   void initState() {
     super.initState();
@@ -150,13 +155,51 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
         ..add(List.from(_points));
       _historyIndex = 0;
       _syncController();
+      _renderOnMap();
     }
   }
 
   @override
   void dispose() {
     widget.controller?._detach();
+    _mapController.dispose();
     super.dispose();
+  }
+
+  Future<void> _renderOnMap() async {
+    if (!_isMapReady) return;
+
+    final mapPoints = _points.map((p) => MapPoint(p.lng, p.lat)).toList();
+
+    try {
+      await _mapController.clearAll();
+
+      if (mapPoints.isEmpty) return;
+
+      await _mapController.setMarkers([
+        for (int i = 0; i < mapPoints.length; i++)
+          MapMarker(
+            id: 'p${i + 1}',
+            lng: mapPoints[i].lng,
+            lat: mapPoints[i].lat,
+            size: 1.0,
+          ),
+      ]);
+
+      if (widget.mode == 'polygon') {
+        await _mapController.setPolygon(
+          points: mapPoints,
+          show: mapPoints.length >= 3,
+        );
+      } else {
+        await _mapController.setPolyline(
+          points: mapPoints,
+          show: mapPoints.length >= 2,
+        );
+      }
+    } catch (_) {
+      // Garder le wizard stable même si la carte n'est pas prête/interop KO.
+    }
   }
 
   void _syncController() {
@@ -186,6 +229,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
       setState(() => _points = List.from(_history[_historyIndex]));
       widget.onPointsChanged(_points);
       _syncController();
+      _renderOnMap();
     }
   }
 
@@ -195,6 +239,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
       setState(() => _points = List.from(_history[_historyIndex]));
       widget.onPointsChanged(_points);
       _syncController();
+      _renderOnMap();
     }
   }
 
@@ -208,6 +253,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     _saveToHistory();
     widget.onPointsChanged(_points);
     _syncController();
+    _renderOnMap();
   }
 
   void _removePoint(int index) {
@@ -218,6 +264,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     _saveToHistory();
     widget.onPointsChanged(_points);
     _syncController();
+    _renderOnMap();
   }
 
   // ============ Outils avancés ============
@@ -231,6 +278,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     _saveToHistory();
     widget.onPointsChanged(_points);
     _syncController();
+    _renderOnMap();
   }
 
   List<LngLat> _douglasPeucker(List<LngLat> points, double epsilon) {
@@ -288,6 +336,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     _saveToHistory();
     widget.onPointsChanged(_points);
     _syncController();
+    _renderOnMap();
   }
 
   void _closePath() {
@@ -297,6 +346,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
       _saveToHistory();
       widget.onPointsChanged(_points);
       _syncController();
+      _renderOnMap();
     }
   }
 
@@ -317,6 +367,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
               _saveToHistory();
               widget.onPointsChanged(_points);
               _syncController();
+              _renderOnMap();
             },
             child: const Text('Effacer', style: TextStyle(color: Colors.red)),
           ),
@@ -505,61 +556,45 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
       );
     }
 
-    // Pour la démo, afficher un placeholder
-    // En production, intégrer la vraie carte Mapbox
-    return GestureDetector(
-      onTapDown: (details) {
-        if (_isEditingEnabled) {
-          // Convertir les coordonnées d'écran en lng/lat (approximatif)
-          // À remplacer par l'intégration vraie Mapbox
-          final lng = -61.5 + (details.localPosition.dx / 300) * 0.1;
-          final lat = 16.2 + (details.localPosition.dy / 200) * 0.1;
-          _addPoint((lng: lng, lat: lat));
-        }
-      },
-      child: Container(
-        color: Colors.grey.shade200,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Placeholder map
-            Container(
-              color: Colors.blue.withValues(alpha: 0.1),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.map, size: 48, color: Colors.grey),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Cliquez pour ajouter des points',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                    const SizedBox(height: 8),
-                    if (_points.isNotEmpty)
-                      Text(
-                        '${_points.length} points tracés',
-                        style: const TextStyle(
-                          color: Colors.blue,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Points visualization
-            CustomPaint(
-              painter: PathPainter(
-                points: _points,
-                mode: widget.mode,
-              ),
-              size: Size.fromHeight(400),
-            ),
-          ],
+    return Stack(
+      children: [
+        MasLiveMap(
+          controller: _mapController,
+          initialLng: _points.isNotEmpty ? _points.first.lng : -61.533,
+          initialLat: _points.isNotEmpty ? _points.first.lat : 16.241,
+          initialZoom: _points.isNotEmpty ? 15.0 : 12.0,
+          onMapReady: (ctrl) async {
+            _isMapReady = true;
+            await ctrl.setEditingEnabled(
+              enabled: _isEditingEnabled,
+              onPointAdded: (lat, lng) {
+                if (!_isEditingEnabled) return;
+                _addPoint((lng: lng, lat: lat));
+              },
+            );
+            await _renderOnMap();
+          },
         ),
-      ),
+        Positioned(
+          left: 12,
+          top: 12,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.9),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              child: Text(
+                widget.mode == 'polygon'
+                    ? 'Cliquez pour ajouter des points (polygone)'
+                    : 'Cliquez pour ajouter des points (route)',
+                style: const TextStyle(fontSize: 12),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
