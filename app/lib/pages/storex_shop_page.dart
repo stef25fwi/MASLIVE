@@ -488,7 +488,7 @@ class _StorexDrawer extends StatelessWidget {
                   const Divider(height: 28),
                   Text(
                     l10n.AppLocalizations.of(context)!.categories,
-                    style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w600),
+                    style: const TextStyle(fontSize: 16, color: Colors.black54, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 8),
                   ...finalCats.map((c) => Padding(
@@ -527,7 +527,7 @@ class _DrawerItem extends StatelessWidget {
       onTap: onTap,
       child: Padding(
         padding: EdgeInsets.symmetric(vertical: small ? 8 : 12),
-        child: Text(label, style: TextStyle(fontSize: small ? 14 : 16, color: Colors.black54, fontWeight: FontWeight.w700)),
+        child: Text(label, style: TextStyle(fontSize: small ? 16 : 18, color: Colors.black54, fontWeight: FontWeight.w700)),
       ),
     );
   }
