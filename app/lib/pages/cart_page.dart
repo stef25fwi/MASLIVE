@@ -67,59 +67,41 @@ class CartPage extends StatelessWidget {
           message = e.message ?? 'Erreur inconnue: ${e.code}';
       }
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 6),
-          action: SnackBarAction(
-            label: 'Réessayer',
-            textColor: Colors.white,
-            onPressed: () {
-              final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-              if (currentUserId != null) {
-                _checkout(context, currentUserId);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Veuillez vous reconnecter pour réessayer.'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-          ),
-        ),
-      );
+      _showErrorWithRetry(context, message);
     } catch (e) {
       if (!context.mounted) return;
       Navigator.of(context).pop();
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur: ${e.toString()}'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 6),
-          action: SnackBarAction(
-            label: 'Réessayer',
-            textColor: Colors.white,
-            onPressed: () {
-              final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-              if (currentUserId != null) {
-                _checkout(context, currentUserId);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Veuillez vous reconnecter pour réessayer.'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-          ),
-        ),
-      );
+      _showErrorWithRetry(context, 'Erreur: ${e.toString()}');
     }
+  }
+
+  /// Affiche un message d'erreur avec option de réessayer
+  void _showErrorWithRetry(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: 'Réessayer',
+          textColor: Colors.white,
+          onPressed: () {
+            final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+            if (currentUserId != null) {
+              _checkout(context, currentUserId);
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Veuillez vous reconnecter pour réessayer.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          },
+        ),
+      ),
+    );
   }
 
   @override

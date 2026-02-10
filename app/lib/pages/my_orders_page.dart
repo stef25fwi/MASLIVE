@@ -7,6 +7,7 @@ import '../models/cart_item.dart';
 class MyOrdersPage extends StatelessWidget {
   const MyOrdersPage({super.key});
 
+  /// Format de date pour l'affichage des commandes (ex: "10/02/2024 à 15:30")
   static const _dateFormat = 'dd/MM/yyyy à HH:mm';
 
   @override

@@ -208,7 +208,7 @@ class CartService extends ChangeNotifier {
           continue; // Pas de gestion de stock
         }
         
-        final variantKey = '${item.size}|${item.color}';
+        final variantKey = item.variantKey;
         final stock = stockByVariant[variantKey] as int? ?? 0;
         
         if (stock < item.quantity) {
