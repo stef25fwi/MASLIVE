@@ -31,10 +31,55 @@
       "isBackground": false
     },
     {
+      "label": "MASLIVE: Flutter build web (release + Stripe Premium Price IDs)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && : \"${STRIPE_PREMIUM_MONTHLY_PRICE_ID:?Missing env STRIPE_PREMIUM_MONTHLY_PRICE_ID}\" && : \"${STRIPE_PREMIUM_YEARLY_PRICE_ID:?Missing env STRIPE_PREMIUM_YEARLY_PRICE_ID}\" && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -n \"$TOKEN\" ]; then flutter build web --release --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" --dart-define=STRIPE_PREMIUM_MONTHLY_PRICE_ID=\"$STRIPE_PREMIUM_MONTHLY_PRICE_ID\" --dart-define=STRIPE_PREMIUM_YEARLY_PRICE_ID=\"$STRIPE_PREMIUM_YEARLY_PRICE_ID\"; else flutter build web --release --dart-define=STRIPE_PREMIUM_MONTHLY_PRICE_ID=\"$STRIPE_PREMIUM_MONTHLY_PRICE_ID\" --dart-define=STRIPE_PREMIUM_YEARLY_PRICE_ID=\"$STRIPE_PREMIUM_YEARLY_PRICE_ID\"; fi",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Firebase deploy",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && firebase deploy --only firestore:rules,storage,functions",
       "problemMatcher": []
+    },
+    {
+      "label": "MASLIVE: Firebase deploy (functions only, maslive)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && firebase deploy --only functions --project maslive",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Set Stripe secret (STRIPE_SECRET_KEY) (maslive)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && firebase functions:secrets:set STRIPE_SECRET_KEY --project maslive",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Set Stripe webhook secret (STRIPE_WEBHOOK_SECRET) (maslive)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && firebase functions:secrets:set STRIPE_WEBHOOK_SECRET --project maslive",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
     },
     {
       "label": "MASLIVE: Deploy Firestore Rules",

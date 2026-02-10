@@ -260,7 +260,7 @@ flutter build web --release
 cd .. && firebase deploy --only hosting,firestore:rules
 
 # 6. Verify
-firebase functions:log --limit=10
+firebase functions:log --lines 10
 curl -I https://masslive.web.app
 ```
 

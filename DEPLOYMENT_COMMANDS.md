@@ -82,7 +82,7 @@ firebase deploy --only functions:calculateGroupAveragePosition,firestore:rules,s
 ### Vérifier les logs Cloud Function
 
 ```bash
-firebase functions:log --limit=50
+firebase functions:log --lines 50
 ```
 
 ### Vérifier les règles déployées

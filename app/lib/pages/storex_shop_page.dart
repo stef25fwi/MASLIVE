@@ -8,6 +8,8 @@ import 'cart_page.dart';
 import 'product_detail_page.dart';
 import '../models/group_product.dart';
 import '../services/cart_service.dart';
+import '../widgets/language_switcher.dart';
+import '../l10n/app_localizations.dart' as l10n;
 
 /// ===============================================================
 /// Storex-style Shop for MassLive (Firestore: products + categories)
@@ -207,12 +209,8 @@ class _StorexHome extends StatelessWidget {
             onPressed: () => Scaffold.of(ctx).openDrawer(),
           ),
         ),
-        centerTitle: true,
-        title: Image.asset(
-          'assets/images/maslivelogo.png',
-          height: 28,
-          fit: BoxFit.contain,
-        ),
+        centerTitle: false,
+        title: LanguageSwitcher(),
         actions: [
           IconButton(
             icon: const Icon(Icons.search, color: Colors.black54),
@@ -225,7 +223,9 @@ class _StorexHome extends StatelessWidget {
         builder: (context, snap) {
           if (!snap.hasData) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
           final docs = snap.data!.docs.where((d) => StorexRepo.onlyApproved(d.data())).toList();
-          if (docs.isEmpty) return const _Empty("Aucun produit");
+          if (docs.isEmpty) {
+            return _Empty(l10n.AppLocalizations.of(context)!.noProductsFound);
+          }
 
           final products = docs.map(GroupProduct.fromFirestore).toList();
 
@@ -247,12 +247,25 @@ class _StorexHome extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("BEST SELLER", style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+                  Text(
+                    l10n.AppLocalizations.of(context)!.shopBestSeller,
+                    style: const TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.6),
+                  ),
                   TextButton(
                     onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => _ListPage(shopId: shopId, groupId: groupId, categoryId: null, title: "Best Seller")),
+                      MaterialPageRoute(
+                        builder: (_) => _ListPage(
+                          shopId: shopId,
+                          groupId: groupId,
+                          categoryId: null,
+                          title: l10n.AppLocalizations.of(context)!.shopBestSeller,
+                        ),
+                      ),
                     ),
-                    child: const Text("see more  >", style: TextStyle(color: Colors.black38)),
+                    child: Text(
+                      l10n.AppLocalizations.of(context)!.shopSeeMore,
+                      style: const TextStyle(color: Colors.black38),
+                    ),
                   ),
                 ],
               ),
@@ -286,7 +299,8 @@ class _StorexHome extends StatelessWidget {
 
               _BannerTile(
                 title: catA.toUpperCase(),
-                subtitle: "${counts[catA] ?? 0} items",
+                subtitle:
+                    "${counts[catA] ?? 0} ${l10n.AppLocalizations.of(context)!.itemsLabel}",
                   image: products.firstWhere((x) => x.category == catA, orElse: () => products.first),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _ListPage(shopId: shopId, groupId: groupId, categoryId: catA, title: catA))),
               ),
@@ -295,7 +309,8 @@ class _StorexHome extends StatelessWidget {
 
               _BannerTile(
                 title: catB.toUpperCase(),
-                subtitle: "${counts[catB] ?? 0} items",
+                subtitle:
+                    "${counts[catB] ?? 0} ${l10n.AppLocalizations.of(context)!.itemsLabel}",
                   image: products.firstWhere((x) => x.category == catB, orElse: () => products.first),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _ListPage(shopId: shopId, groupId: groupId, categoryId: catB, title: catB))),
               ),
@@ -449,25 +464,28 @@ class _StorexDrawer extends StatelessWidget {
                     fit: BoxFit.contain,
                   ),
                   const SizedBox(height: 18),
-                  _DrawerItem("Home", () => Navigator.of(context).pop()),
-                  _DrawerItem("Search", () {
+                  _DrawerItem(l10n.AppLocalizations.of(context)!.home, () => Navigator.of(context).pop()),
+                  _DrawerItem(l10n.AppLocalizations.of(context)!.search, () {
                     Navigator.of(context).pop();
                     Navigator.of(context).push(MaterialPageRoute(builder: (_) => _SearchPage(shopId: shopId, groupId: groupId)));
                   }),
-                  _DrawerItem("My Account", () {
+                  _DrawerItem(l10n.AppLocalizations.of(context)!.profile, () {
                     Navigator.of(context).pop();
                     Navigator.of(context).push(MaterialPageRoute(builder: (_) => _StorexAccount(shopId: shopId, groupId: groupId)));
                   }),
-                  _DrawerItem("Sign In", () {
+                  _DrawerItem(l10n.AppLocalizations.of(context)!.signIn, () {
                     Navigator.of(context).pop();
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Brancher ta page login ici")));
                   }),
                   const Divider(height: 28),
-                  const Text("Categories", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600)),
+                  Text(
+                    l10n.AppLocalizations.of(context)!.categories,
+                    style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w600),
+                  ),
                   const SizedBox(height: 8),
                   ...finalCats.map((c) => Padding(
                         padding: const EdgeInsets.only(left: 8),
-                        child: _DrawerItem(c, () {
+                        child: _DrawerItem(c == 'Tous' ? l10n.AppLocalizations.of(context)!.all : c, () {
                           Navigator.of(context).pop();
                           Navigator.of(context).push(
                             MaterialPageRoute(builder: (_) => _ListPage(shopId: shopId, groupId: groupId, categoryId: c == 'Tous' ? null : c, title: c)),
@@ -566,7 +584,9 @@ class _SearchPageState extends State<_SearchPage> {
                   final all = docs.map(GroupProduct.fromFirestore).toList();
 
                   final filtered = q.isEmpty ? all : all.where((p) => p.title.toLowerCase().contains(q.toLowerCase())).toList();
-                  if (filtered.isEmpty) return const _Empty("Aucun résultat");
+                  if (filtered.isEmpty) {
+                    return _Empty(l10n.AppLocalizations.of(context)!.noResults);
+                  }
 
                   return ListView.separated(
                     padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
@@ -629,8 +649,17 @@ class _StorexCategory extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        title: const Text("CATEGORY", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+        title: Text(
+          l10n.AppLocalizations.of(context)!.categories,
+          style: const TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.6,
+          ),
+        ),
         actions: [
+          LanguageSwitcher(),
+          const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.search, color: Colors.black54),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _SearchPage(shopId: shopId, groupId: groupId))),
@@ -652,7 +681,9 @@ class _StorexCategory extends StatelessWidget {
           }
           final cats = counts.keys.toList()..sort();
 
-          if (cats.isEmpty) return const _Empty("Aucune catégorie");
+          if (cats.isEmpty) {
+            return _Empty(l10n.AppLocalizations.of(context)!.noData);
+          }
 
           return GridView.builder(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
@@ -684,7 +715,10 @@ class _StorexCategory extends StatelessWidget {
                           children: [
                             Text(c.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
                             const SizedBox(height: 6),
-                            Text("$count items", style: const TextStyle(color: Colors.white70)),
+                              Text(
+                                "$count ${l10n.AppLocalizations.of(context)!.itemsLabel}",
+                                style: const TextStyle(color: Colors.white70),
+                              ),
                           ],
                         ),
                       ),
@@ -749,7 +783,9 @@ class _ListPageState extends State<_ListPage> {
               if (!snap.hasData) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
               final docs = snap.data!.docs.where((d) => StorexRepo.onlyApproved(d.data())).toList();
               final products = docs.map(GroupProduct.fromFirestore).toList();
-              if (products.isEmpty) return const _Empty("Aucun produit");
+              if (products.isEmpty) {
+                return _Empty(l10n.AppLocalizations.of(context)!.noProductsFound);
+              }
 
               if (grid) {
                 return GridView.builder(
@@ -863,6 +899,10 @@ class _StorexAccount extends StatelessWidget {
             onPressed: () => Scaffold.of(ctx).openDrawer(),
           ),
         ),
+        actions: const [
+          LanguageSwitcher(),
+          SizedBox(width: 8),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
@@ -888,15 +928,27 @@ class _StorexAccount extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          _AccountRow(icon: Icons.receipt_long, label: "My Orders", onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _OrdersPage(repo: repo)))),
-          _AccountRow(icon: Icons.favorite_border, label: "Whis List", onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _WishlistPage(repo: repo)))),
+          _AccountRow(
+            icon: Icons.receipt_long,
+            label: l10n.AppLocalizations.of(context)!.myOrders,
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _OrdersPage(repo: repo))),
+          ),
+          _AccountRow(
+            icon: Icons.favorite_border,
+            label: l10n.AppLocalizations.of(context)!.myFavorites,
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _WishlistPage(repo: repo))),
+          ),
           _AccountRow(
             icon: Icons.logout,
-            label: "Logout",
+            label: l10n.AppLocalizations.of(context)!.logout,
             onTap: () async {
               await FirebaseAuth.instance.signOut();
               // ignore: use_build_context_synchronously
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Déconnecté")));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(l10n.AppLocalizations.of(context)!.logout),
+                ),
+              );
             },
           ),
         ],
@@ -940,14 +992,19 @@ class _WishlistPage extends StatelessWidget {
         backgroundColor: Colors.white, elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black54), onPressed: () => Navigator.of(context).pop()),
         centerTitle: true,
-        title: const Text("WHIS LIST", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w800)),
+        title: Text(
+          l10n.AppLocalizations.of(context)!.myFavorites,
+          style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w800),
+        ),
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: repo.wishlistItems(),
         builder: (context, snap) {
           if (!snap.hasData) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
           final docs = snap.data!.docs;
-          if (docs.isEmpty) return const _Empty("Wishlist vide");
+          if (docs.isEmpty) {
+            return _Empty(l10n.AppLocalizations.of(context)!.noFavoritesYet);
+          }
 
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
@@ -992,8 +1049,14 @@ class _WishlistPage extends StatelessWidget {
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                                 ),
-                                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ADD TO CART (brancher panier)"))),
-                                child: const Text("ADD TO CART"),
+                                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      l10n.AppLocalizations.of(context)!.comingSoon,
+                                    ),
+                                  ),
+                                ),
+                                child: Text(l10n.AppLocalizations.of(context)!.addToCart),
                               ),
                             ),
                           ],
@@ -1023,7 +1086,10 @@ class _OrdersPage extends StatelessWidget {
         backgroundColor: Colors.white, elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black54), onPressed: () => Navigator.of(context).pop()),
         centerTitle: true,
-        title: const Text("MY ORDERS", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w800)),
+        title: Text(
+          l10n.AppLocalizations.of(context)!.myOrders,
+          style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w800),
+        ),
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: repo.orders(),
@@ -1034,7 +1100,11 @@ class _OrdersPage extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
             children: [
-              Text("${docs.length} Orders", textAlign: TextAlign.center, style: const TextStyle(color: Colors.black54)),
+              Text(
+                "${docs.length} ${l10n.AppLocalizations.of(context)!.orders}",
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.black54),
+              ),
               const SizedBox(height: 10),
               Container(height: 44, color: const Color(0xFF1F232A)),
               const SizedBox(height: 6),
@@ -1051,8 +1121,14 @@ class _OrdersPage extends StatelessWidget {
                   children: [
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: Text("Order No $orderNo", style: const TextStyle(fontWeight: FontWeight.w700)),
-                      subtitle: Text("$createdAt  •  $items items", style: const TextStyle(color: Colors.black45)),
+                      title: Text(
+                        '${l10n.AppLocalizations.of(context)!.orderNo} $orderNo',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text(
+                        '$createdAt  •  $items ${l10n.AppLocalizations.of(context)!.itemsLabel}',
+                        style: const TextStyle(color: Colors.black45),
+                      ),
                       trailing: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(color: isCancelled ? Colors.red : Colors.grey, borderRadius: BorderRadius.circular(6)),

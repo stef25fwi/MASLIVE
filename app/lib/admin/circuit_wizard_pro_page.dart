@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/market_circuit_models.dart';
+import '../ui/map/maslive_map.dart';
+import '../ui/map/maslive_map_controller.dart';
 import 'circuit_map_editor.dart';
 import 'circuit_validation_checklist_page.dart';
 
@@ -47,6 +49,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
   // Step 4: Layers/POI
   List<MarketMapLayer> _layers = [];
+  List<MarketMapPOI> _pois = [];
+  MarketMapLayer? _selectedLayer;
+  final MasLiveMapController _poiMapController = MasLiveMapController();
 
   // Brouillon
   Map<String, dynamic> _draftData = {};
@@ -63,6 +68,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     _pageController.dispose();
     _perimeterEditorController.dispose();
     _routeEditorController.dispose();
+    _poiMapController.dispose();
     _nameController.dispose();
     _countryController.dispose();
     _eventController.dispose();
@@ -109,11 +115,31 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
           // Charger layers
           _layers = await _loadLayers();
+
+          // Charger POI
+          _pois = await _loadPois();
+
+          // Couche sélectionnée par défaut
+          if (_layers.isNotEmpty) {
+            _selectedLayer = _layers.firstWhere(
+              (l) => l.type != 'route',
+              orElse: () => _layers.first,
+            );
+          }
         }
       } else {
         // Nouveau brouillon
         _countryController.text = widget.countryId ?? '';
         _eventController.text = widget.eventId ?? '';
+
+        // Initialiser les couches standard en local
+        _layers = await _loadLayers();
+        if (_layers.isNotEmpty) {
+          _selectedLayer = _layers.firstWhere(
+            (l) => l.type != 'route',
+            orElse: () => _layers.first,
+          );
+        }
       }
 
       setState(() => _isLoading = false);
@@ -192,6 +218,22 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         .toList();
   }
 
+  Future<List<MarketMapPOI>> _loadPois() async {
+    if (widget.projectId == null) {
+      return [];
+    }
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('map_projects')
+        .doc(widget.projectId)
+        .collection('pois')
+        .get();
+
+    return snapshot.docs
+        .map((doc) => MarketMapPOI.fromFirestore(doc))
+        .toList();
+  }
+
   Future<void> _saveDraft() async {
     try {
       final projectId = widget.projectId ??
@@ -216,6 +258,24 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         'updatedAt': FieldValue.serverTimestamp(),
         'createdAt': _draftData.isEmpty ? FieldValue.serverTimestamp() : null,
       }, SetOptions(merge: true));
+
+      // Sauvegarder les POI si un projet est défini
+      if (widget.projectId != null) {
+        final poisRef = FirebaseFirestore.instance
+            .collection('map_projects')
+            .doc(projectId)
+            .collection('pois');
+
+        // Pour simplifier: on efface et on réécrit tous les POI
+        final existing = await poisRef.get();
+        for (final doc in existing.docs) {
+          await doc.reference.delete();
+        }
+
+        for (final poi in _pois) {
+          await poisRef.add(poi.toFirestore());
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -561,75 +621,195 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   }
 
   Widget _buildStep4POI() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'Couches et Points d\'intérêt (POI)',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 20),
-          if (_layers.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Header + sélection de couche
+        Container(
+          color: Colors.grey.shade100,
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              const Icon(Icons.place_outlined, color: Colors.blueGrey),
+              const SizedBox(width: 8),
+              const Text(
+                'Points d\'intérêt (POI)',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
-              child: const Text(
-                '⚠️ Les 6 couches standard ont été créées automatiquement. '
-                'Vous pouvez basculer leur visibilité ici.',
-                style: TextStyle(fontSize: 13),
-              ),
-            )
-          else
-            ..._layers.map((layer) {
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  leading: Icon(_getLayerIcon(layer.type)),
-                  title: Text(layer.label),
-                  subtitle: Text('Type: ${layer.type}'),
-                  trailing: Switch(
-                    value: layer.isVisible,
-                    onChanged: (value) async {
-                      // Update in Firestore
-                      if (widget.projectId != null) {
-                        await FirebaseFirestore.instance
-                            .collection('map_projects')
-                            .doc(widget.projectId)
-                            .collection('layers')
-                            .doc(layer.id)
-                            .update({'isVisible': value});
-                        setState(() {
-                          final idx = _layers.indexWhere((l) => l.id == layer.id);
-                          if (idx >= 0) {
-                            _layers[idx] = layer.copyWith(isVisible: value);
-                          }
-                        });
-                      }
+              const SizedBox(width: 16),
+              if (_layers.isNotEmpty)
+                Expanded(
+                  child: DropdownButton<MarketMapLayer>(
+                    isExpanded: true,
+                    value: _selectedLayer,
+                    hint: const Text('Sélectionnez une couche'),
+                    items: _layers
+                        .where((l) => l.type != 'route')
+                        .map(
+                          (layer) => DropdownMenuItem<MarketMapLayer>(
+                            value: layer,
+                            child: Row(
+                              children: [
+                                Icon(_getLayerIcon(layer.type), size: 18),
+                                const SizedBox(width: 8),
+                                Text(layer.label),
+                              ],
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (layer) {
+                      setState(() {
+                        _selectedLayer = layer;
+                      });
+                      _refreshPoiMarkers();
                     },
                   ),
+                )
+              else
+                const Expanded(
+                  child: Text(
+                    'Aucune couche trouvée. Vérifiez la configuration du projet.',
+                    style: TextStyle(fontSize: 12, color: Colors.redAccent),
+                  ),
                 ),
-              );
-            }),
-          const SizedBox(height: 32),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.blue.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.my_location),
+                tooltip: 'Ajouter un POI à la position actuelle',
+                onPressed: _selectedLayer == null ? null : _addPoiAtCurrentCenter,
+              ),
+              IconButton(
+                icon: const Icon(Icons.save_alt),
+                tooltip: 'Enregistrer les POI',
+                onPressed: widget.projectId == null ? null : _saveDraft,
+              ),
+            ],
+          ),
+        ),
+
+        const Divider(height: 1),
+
+        // Carte pleine largeur/hauteur disponible
+        Expanded(
+          child: MasLiveMap(
+            controller: _poiMapController,
+            initialLng: _routePoints.isNotEmpty
+                ? _routePoints.first.lng
+                : (_perimeterPoints.isNotEmpty
+                    ? _perimeterPoints.first.lng
+                    : -61.533),
+            initialLat: _routePoints.isNotEmpty
+                ? _routePoints.first.lat
+                : (_perimeterPoints.isNotEmpty
+                    ? _perimeterPoints.first.lat
+                    : 16.241),
+            initialZoom: _routePoints.isNotEmpty || _perimeterPoints.isNotEmpty
+                ? 14.0
+                : 12.0,
+            onTap: (p) => _onMapTapForPoi(p.lng, p.lat),
+            onMapReady: (ctrl) async {
+              // Afficher les POI existants
+              _refreshPoiMarkers();
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ====== Gestion POI (étape 4) ======
+
+  void _refreshPoiMarkers() async {
+    if (_selectedLayer == null) return;
+
+    final layerType = _selectedLayer!.type;
+    final poisForLayer = _pois.where((p) => p.layerType == layerType).toList();
+
+    await _poiMapController.setMarkers(
+      poisForLayer
+          .map(
+            (poi) => MapMarker(
+              id: poi.id,
+              lng: poi.lng,
+              lat: poi.lat,
+              label: poi.name,
             ),
-            child: const Text(
-              '💡 Gérez la visibilité des couches (Parking, Toilettes, Restaurants, etc.).',
-              style: TextStyle(fontSize: 13),
-            ),
+          )
+          .toList(),
+    );
+  }
+
+  Future<void> _onMapTapForPoi(double lng, double lat) async {
+    if (_selectedLayer == null) return;
+
+    final nameController = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Nouveau point d\'intérêt'),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(
+            labelText: 'Nom du POI',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Ajouter'),
           ),
         ],
       ),
     );
+
+    if (confirmed != true) return;
+
+    final name = nameController.text.trim().isEmpty
+        ? '${_selectedLayer!.label} (${lng.toStringAsFixed(4)}, ${lat.toStringAsFixed(4)})'
+        : nameController.text.trim();
+
+    final poi = MarketMapPOI(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      name: name,
+      layerType: _selectedLayer!.type,
+      lng: lng,
+      lat: lat,
+      description: null,
+      imageUrl: null,
+      metadata: null,
+    );
+
+    setState(() {
+      _pois.add(poi);
+    });
+    _refreshPoiMarkers();
+  }
+
+  Future<void> _addPoiAtCurrentCenter() async {
+    // Version simple : on réutilise le premier point du tracé ou du périmètre
+    double lng;
+    double lat;
+
+    if (_routePoints.isNotEmpty) {
+      lng = _routePoints.first.lng;
+      lat = _routePoints.first.lat;
+    } else if (_perimeterPoints.isNotEmpty) {
+      lng = _perimeterPoints.first.lng;
+      lat = _perimeterPoints.first.lat;
+    } else {
+      // Fallback: centre par défaut
+      lng = -61.533;
+      lat = 16.241;
+    }
+
+    await _onMapTapForPoi(lng, lat);
   }
 
   Widget _buildStep5Validation() {

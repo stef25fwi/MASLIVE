@@ -159,7 +159,7 @@ firebase deploy --only functions,firestore:rules,firestore:indexes,storage
 firebase deploy:list
 
 # 6. Voir logs Cloud Function
-firebase functions:log --limit=50
+firebase functions:log --lines 50
 ```
 
 ---

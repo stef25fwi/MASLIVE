@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../services/cart_service.dart';
 import '../session/require_signin.dart';
 import '../session/session_scope.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'checkout/storex_checkout_stripe.dart';
 
 class CartPage extends StatelessWidget {
   const CartPage({super.key});
@@ -13,41 +13,6 @@ class CartPage extends StatelessWidget {
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,
   );
-
-  Future<void> _checkout(BuildContext context, String userId) async {
-    try {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator()),
-      );
-
-      final checkoutUrl = await CartService.instance.createCheckoutSession(
-        userId,
-      );
-
-      if (!context.mounted) return;
-      Navigator.of(context).pop();
-
-      if (checkoutUrl == null || checkoutUrl.isEmpty) {
-        throw Exception('URL de checkout invalide');
-      }
-
-      final uri = Uri.parse(checkoutUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        throw Exception('Impossible d\'ouvrir le checkout');
-      }
-    } catch (e) {
-      if (!context.mounted) return;
-      Navigator.of(context).pop();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -248,21 +213,18 @@ class CartPage extends StatelessWidget {
                                   context,
                                   session: session,
                                   onSignedIn: () {
-                                    final userId =
-                                        FirebaseAuth.instance.currentUser?.uid;
-                                    if (userId != null) {
-                                      _checkout(context, userId);
-                                    } else {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
+                                    final userId = FirebaseAuth
+                                        .instance.currentUser?.uid;
+                                    if (userId == null) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
                                         const SnackBar(
-                                          content: Text(
-                                            'Utilisateur introuvable',
-                                          ),
+                                          content: Text('Utilisateur introuvable'),
                                         ),
                                       );
+                                      return;
                                     }
+
+                                    StorexCheckoutFlow.start(context);
                                   },
                                 ),
                           icon: const Icon(Icons.lock_outline),

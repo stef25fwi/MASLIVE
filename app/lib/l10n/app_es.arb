@@ -201,5 +201,13 @@
   "priceDesc": "Precio ↓",
   "azSort": "A → Z",
   "noProductsFound": "No se encontraron productos",
-  "changeCategoryOrGroup": "Cambia de categoría, grupo o búsqueda."
+  "changeCategoryOrGroup": "Cambia de categoría, grupo o búsqueda.",
+  "shopBestSeller": "Más vendidos",
+  "shopSeeMore": "Ver más  >",
+  "myOrders": "Mis pedidos",
+  "orders": "Pedidos",
+  "orderNo": "Pedido n.º",
+  "itemsLabel": "artículos",
+  "addToCart": "Añadir al carrito",
+  "comingSoon": "Próximamente"
 }

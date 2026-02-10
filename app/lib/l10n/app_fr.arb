@@ -179,10 +179,10 @@
   "shop": "Boutique",
   "menu": "Menu",
   "visit": "Visiter",
-  "food": "Food",
+  "food": "Restauration",
   "assistance": "Assistance",
   "parking": "Parking",
-  "tracking": "Tracking",
+  "tracking": "Suivi",
   "theShop": "La boutique",
   "merchStickersAccessories": "Merch, stickers, accessoires & photos",
   "allGroups": "Tous les groupes",
@@ -201,5 +201,13 @@
   "priceDesc": "Prix ↓",
   "azSort": "A → Z",
   "noProductsFound": "Aucun produit trouvé",
-  "changeCategoryOrGroup": "Change de catégorie, de groupe ou de recherche."
+  "changeCategoryOrGroup": "Change de catégorie, de groupe ou de recherche.",
+  "shopBestSeller": "Meilleures ventes",
+  "shopSeeMore": "Voir plus  >",
+  "myOrders": "Mes commandes",
+  "orders": "Commandes",
+  "orderNo": "Commande n°",
+  "itemsLabel": "articles",
+  "addToCart": "Ajouter au panier",
+  "comingSoon": "Bientôt disponible"
 }

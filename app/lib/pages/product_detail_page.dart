@@ -5,6 +5,7 @@ import '../services/cart_service.dart';
 import 'cart_page.dart';
 import '../widgets/honeycomb_background.dart';
 import '../widgets/rainbow_header.dart';
+import 'shop/storex_reviews_and_success_pages.dart';
 
 class ProductDetailPage extends StatefulWidget {
   final String groupId;
@@ -359,6 +360,27 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).pushNamed(
+                                StorexRoutes.reviews,
+                                arguments: ReviewsArgs(
+                                  productId: p.id,
+                                  productTitle: p.title,
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.rate_review_outlined, size: 18),
+                            label: const Text('Reviews'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.black87,
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 10),

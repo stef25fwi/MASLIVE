@@ -228,7 +228,7 @@ Suivre le guide: [E2E_TESTS_GUIDE.md](E2E_TESTS_GUIDE.md)
 
 2. **Vérifier les logs** (2 min)
    ```bash
-   firebase functions:log --limit=50
+  firebase functions:log --lines 50
    ```
 
 3. **Tests rapides** (10 min)

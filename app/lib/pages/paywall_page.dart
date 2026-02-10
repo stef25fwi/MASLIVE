@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
@@ -15,6 +16,15 @@ class _PaywallPageState extends State<PaywallPage> {
   bool _loading = true;
   String? _error;
 
+  static const String _monthlyPriceId = String.fromEnvironment(
+    'STRIPE_PREMIUM_MONTHLY_PRICE_ID',
+    defaultValue: '',
+  );
+  static const String _yearlyPriceId = String.fromEnvironment(
+    'STRIPE_PREMIUM_YEARLY_PRICE_ID',
+    defaultValue: '',
+  );
+
   @override
   void initState() {
     super.initState();
@@ -23,6 +33,13 @@ class _PaywallPageState extends State<PaywallPage> {
 
   Future<void> _load() async {
     try {
+      if (kIsWeb) {
+        setState(() {
+          _offerings = null;
+          _loading = false;
+        });
+        return;
+      }
       final offerings = await PremiumService.instance.getOfferings();
       setState(() {
         _offerings = offerings;
@@ -75,6 +92,88 @@ class _PaywallPageState extends State<PaywallPage> {
   }
 
   Widget _buildContent(BuildContext context) {
+    if (kIsWeb) {
+      return Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Débloque MASLIVE Premium',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Paiement via Stripe (abonnement).',
+              style: TextStyle(color: Colors.white70, height: 1.3),
+            ),
+            const SizedBox(height: 18),
+            if (_monthlyPriceId.isEmpty || _yearlyPriceId.isEmpty)
+              const Text(
+                '⚠️ Configuration manquante: ajoute --dart-define=STRIPE_PREMIUM_MONTHLY_PRICE_ID=price_... et --dart-define=STRIPE_PREMIUM_YEARLY_PRICE_ID=price_... au build web.',
+                style: TextStyle(color: Colors.white70, height: 1.3),
+              )
+            else
+              Expanded(
+                child: ListView.separated(
+                  itemCount: 2,
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  itemBuilder: (_, i) {
+                    final isMonthly = i == 0;
+                    final priceId = isMonthly ? _monthlyPriceId : _yearlyPriceId;
+                    final title = isMonthly ? 'Premium Mensuel' : 'Premium Annuel';
+                    final desc = isMonthly
+                        ? 'Accès premium renouvelé chaque mois.'
+                        : 'Accès premium renouvelé chaque année.';
+
+                    return _PackageTile(
+                      title: title,
+                      subtitle: desc,
+                      price: 'Stripe',
+                      onTap: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        try {
+                          final origin = Uri.base.origin;
+                          final successUrl = Uri.parse('$origin/#/paywall?stripe=success');
+                          final cancelUrl = Uri.parse('$origin/#/paywall?stripe=cancel');
+
+                          await PremiumService.instance.startStripeSubscriptionCheckout(
+                            priceId: priceId,
+                            successUrl: successUrl,
+                            cancelUrl: cancelUrl,
+                          );
+                        } catch (e) {
+                          if (!mounted) return;
+                          messenger.showSnackBar(
+                            SnackBar(content: Text('Checkout échoué: $e')),
+                          );
+                        }
+                      },
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 10),
+            ValueListenableBuilder<bool>(
+              valueListenable: PremiumService.instance.isPremium,
+              builder: (_, isPremium, _) {
+                return Text(
+                  isPremium ? '✅ Premium actif' : 'Premium inactif',
+                  style: TextStyle(
+                    color: isPremium ? Colors.white : Colors.white54,
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
     final offering = _offerings?.current;
     final packages = offering?.availablePackages ?? [];
 

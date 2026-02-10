@@ -1119,6 +1119,54 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Change de catégorie, de groupe ou de recherche.'**
   String get changeCategoryOrGroup;
+
+  /// No description provided for @shopBestSeller.
+  ///
+  /// In fr, this message translates to:
+  /// **'Meilleures ventes'**
+  String get shopBestSeller;
+
+  /// No description provided for @shopSeeMore.
+  ///
+  /// In fr, this message translates to:
+  /// **'Voir plus  >'**
+  String get shopSeeMore;
+
+  /// No description provided for @myOrders.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mes commandes'**
+  String get myOrders;
+
+  /// No description provided for @orders.
+  ///
+  /// In fr, this message translates to:
+  /// **'Commandes'**
+  String get orders;
+
+  /// No description provided for @orderNo.
+  ///
+  /// In fr, this message translates to:
+  /// **'Commande n°'**
+  String get orderNo;
+
+  /// No description provided for @itemsLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'articles'**
+  String get itemsLabel;
+
+  /// No description provided for @addToCart.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajouter au panier'**
+  String get addToCart;
+
+  /// No description provided for @comingSoon.
+  ///
+  /// In fr, this message translates to:
+  /// **'Bientôt disponible'**
+  String get comingSoon;
 }
 
 class _AppLocalizationsDelegate

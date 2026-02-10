@@ -176,7 +176,7 @@ firebase deploy --only functions:calculateGroupAveragePosition,firestore:rules,s
 
 ### Étape 3: Vérifier logs (2 min)
 ```bash
-firebase functions:log --limit=50
+firebase functions:log --lines 50
 # Chercher: "Position moyenne calculée"
 ```
 

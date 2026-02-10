@@ -525,4 +525,28 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get changeCategoryOrGroup =>
       'Change de catégorie, de groupe ou de recherche.';
+
+  @override
+  String get shopBestSeller => 'Meilleures ventes';
+
+  @override
+  String get shopSeeMore => 'Voir plus  >';
+
+  @override
+  String get myOrders => 'Mes commandes';
+
+  @override
+  String get orders => 'Commandes';
+
+  @override
+  String get orderNo => 'Commande n°';
+
+  @override
+  String get itemsLabel => 'articles';
+
+  @override
+  String get addToCart => 'Ajouter au panier';
+
+  @override
+  String get comingSoon => 'Bientôt disponible';
 }

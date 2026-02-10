@@ -315,7 +315,7 @@ cd /workspaces/MASLIVE
 firebase deploy --only hosting,firestore:rules
 
 # 4. Monitor
-firebase functions:log --limit=20 --tail
+firebase functions:log --lines 20
 ```
 
 ---

@@ -1,0 +1,1507 @@
+[1mdiff --git a/.vscode/tasks.json b/.vscode/tasks.json[m
+[1mindex 5c808a2..1468a80 100644[m
+[1m--- a/.vscode/tasks.json[m
+[1m+++ b/.vscode/tasks.json[m
+[36m@@ -30,12 +30,57 @@[m
+       "problemMatcher": [],[m
+       "isBackground": false[m
+     },[m
+[32m+[m[32m    {[m
+[32m+[m[32m      "label": "MASLIVE: Flutter build web (release + Stripe Premium Price IDs)",[m
+[32m+[m[32m      "type": "shell",[m
+[32m+[m[32m      "command": "cd /workspaces/MASLIVE/app && : \"${STRIPE_PREMIUM_MONTHLY_PRICE_ID:?Missing env STRIPE_PREMIUM_MONTHLY_PRICE_ID}\" && : \"${STRIPE_PREMIUM_YEARLY_PRICE_ID:?Missing env STRIPE_PREMIUM_YEARLY_PRICE_ID}\" && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -n \"$TOKEN\" ]; then flutter build web --release --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" --dart-define=STRIPE_PREMIUM_MONTHLY_PRICE_ID=\"$STRIPE_PREMIUM_MONTHLY_PRICE_ID\" --dart-define=STRIPE_PREMIUM_YEARLY_PRICE_ID=\"$STRIPE_PREMIUM_YEARLY_PRICE_ID\"; else flutter build web --release --dart-define=STRIPE_PREMIUM_MONTHLY_PRICE_ID=\"$STRIPE_PREMIUM_MONTHLY_PRICE_ID\" --dart-define=STRIPE_PREMIUM_YEARLY_PRICE_ID=\"$STRIPE_PREMIUM_YEARLY_PRICE_ID\"; fi",[m
+[32m+[m[32m      "problemMatcher": [],[m
+[32m+[m[32m      "isBackground": false,[m
+[32m+[m[32m      "presentation": {[m
+[32m+[m[32m        "reveal": "always",[m
+[32m+[m[32m        "panel": "dedicated",[m
+[32m+[m[32m        "clear": true[m
+[32m+[m[32m      }[m
+[32m+[m[32m    },[m
+     {[m
+       "label": "MASLIVE: Firebase deploy",[m
+       "type": "shell",[m
+       "command": "cd /workspaces/MASLIVE && firebase deploy --only firestore:rules,storage,functions",[m
+       "problemMatcher": [][m
+     },[m
+[32m+[m[32m    {[m
+[32m+[m[32m      "label": "MASLIVE: Firebase deploy (functions only, maslive)",[m
+[32m+[m[32m      "type": "shell",[m
+[32m+[m[32m      "command": "cd /workspaces/MASLIVE && firebase deploy --only functions --project maslive",[m
+[32m+[m[32m      "problemMatcher": [],[m
+[32m+[m[32m      "presentation": {[m
+[32m+[m[32m        "reveal": "always",[m
+[32m+[m[32m        "panel": "dedicated",[m
+[32m+[m[32m        "clear": true[m
+[32m+[m[32m      }[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m      "label": "MASLIVE: Set Stripe secret (STRIPE_SECRET_KEY) (maslive)",[m
+[32m+[m[32m      "type": "shell",[m
+[32m+[m[32m      "command": "cd /workspaces/MASLIVE && firebase functions:secrets:set STRIPE_SECRET_KEY --project maslive",[m
+[32m+[m[32m      "problemMatcher": [],[m
+[32m+[m[32m      "presentation": {[m
+[32m+[m[32m        "reveal": "always",[m
+[32m+[m[32m        "panel": "dedicated",[m
+[32m+[m[32m        "clear": true[m
+[32m+[m[32m      }[m
+[32m+[m[32m    },[m
+[32m+[m[32m    {[m
+[32m+[m[32m      "label": "MASLIVE: Set Stripe webhook secret (STRIPE_WEBHOOK_SECRET) (maslive)",[m
+[32m+[m[32m      "type": "shell",[m
+[32m+[m[32m      "command": "cd /workspaces/MASLIVE && firebase functions:secrets:set STRIPE_WEBHOOK_SECRET --project maslive",[m
+[32m+[m[32m      "problemMatcher": [],[m
+[32m+[m[32m      "presentation": {[m
+[32m+[m[32m        "reveal": "always",[m
+[32m+[m[32m        "panel": "dedicated",[m
+[32m+[m[32m        "clear": true[m
+[32m+[m[32m      }[m
+[32m+[m[32m    },[m
+     {[m
+       "label": "MASLIVE: Deploy Firestore Rules",[m
+       "type": "shell",[m
+[1mdiff --git a/00_README_FIRST.md b/00_README_FIRST.md[m
+[1mindex 9814e09..4fb7d4c 100644[m
+[1m--- a/00_README_FIRST.md[m
+[1m+++ b/00_README_FIRST.md[m
+[36m@@ -99,7 +99,7 @@[m [mfirebase deploy --only firestore:rules[m
+ ```bash[m
+ cd /workspaces/MASLIVE[m
+ firebase deploy --only functions:calculateGroupAveragePosition,firestore:rules,storage[m
+[31m-firebase functions:log --limit=50[m
+[32m+[m[32mfirebase functions:log --lines 50[m
+ ```[m
+ [m
+ ### Option 2: Complet (70-90 min)[m
+[1mdiff --git a/DEPLOYMENT_CHECKLIST_MAP_VISIBILITY.md b/DEPLOYMENT_CHECKLIST_MAP_VISIBILITY.md[m
+[1mindex 34f56c7..ad30182 100644[m
+[1m--- a/DEPLOYMENT_CHECKLIST_MAP_VISIBILITY.md[m
+[1m+++ b/DEPLOYMENT_CHECKLIST_MAP_VISIBILITY.md[m
+[36m@@ -248,7 +248,7 @@[m [mfirebase deploy --only functions:calculateGroupAveragePosition[m
+ [m
+ **Check logs**:[m
+ ```bash[m
+[31m-firebase functions:log --limit=10[m
+[32m+[m[32mfirebase functions:log --lines 10[m
+ ```[m
+ [m
+ - [ ] ✅ Pas d'erreurs[m
+[36m@@ -333,7 +333,7 @@[m [mfirebase deploy:list --json 2>/dev/null || firebase projects:list[m
+ ### 9.3 Monitor logs[m
+ [m
+ ```bash[m
+[31m-firebase functions:log --limit=5 --tail[m
+[32m+[m[32mfirebase functions:log --lines 5[m
+ ```[m
+ [m
+ - [ ] ✅ Pas d'erreurs functions[m
+[1mdiff --git a/DEPLOYMENT_COMMANDS.md b/DEPLOYMENT_COMMANDS.md[m
+[1mindex ff1f960..6d0d7c6 100644[m
+[1m--- a/DEPLOYMENT_COMMANDS.md[m
+[1m+++ b/DEPLOYMENT_COMMANDS.md[m
+[36m@@ -82,7 +82,7 @@[m [mfirebase deploy --only functions:calculateGroupAveragePosition,firestore:rules,s[m
+ ### Vérifier les logs Cloud Function[m
+ [m
+ ```bash[m
+[31m-firebase functions:log --limit=50[m
+[32m+[m[32mfirebase functions:log --lines 50[m
+ ```[m
+ [m
+ ### Vérifier les règles déployées[m
+[1mdiff --git a/DEPLOY_COMMANDS.txt b/DEPLOY_COMMANDS.txt[m
+[1mindex bb61a6c..a8c601f 100644[m
+[1m--- a/DEPLOY_COMMANDS.txt[m
+[1m+++ b/DEPLOY_COMMANDS.txt[m
+[36m@@ -18,7 +18,7 @@[m [mfirebase deploy --only storage[m
+ [m
+ VÉRIFIER LES LOGS:[m
+ [m
+[31m-firebase functions:log --limit=50[m
+[32m+[m[32mfirebase functions:log --lines 50[m
+ [m
+ ═══════════════════════════════════════════════════════════════[m
+ [m
+[1mdiff --git a/DEPLOY_NOW.sh b/DEPLOY_NOW.sh[m
+[1mindex da7d569..9f024b0 100644[m
+[1m--- a/DEPLOY_NOW.sh[m
+[1m+++ b/DEPLOY_NOW.sh[m
+[36m@@ -89,5 +89,5 @@[m [mecho "  2. /group-tracker → entrer code → se rattacher"[m
+ echo "  3. Simuler GPS → vérifier positions Firestore"[m
+ echo "  4. /group-live → vérifier marqueur"[m
+ echo ""[m
+[31m-echo "📝 Logs: firebase functions:log --limit=50"[m
+[32m+[m[32mecho "📝 Logs: firebase functions:log --lines 50"[m
+ echo ""[m
+[1mdiff --git a/EXECUTIVE_SUMMARY_MAP_VISIBILITY.md b/EXECUTIVE_SUMMARY_MAP_VISIBILITY.md[m
+[1mindex 2810ea6..551d1ab 100644[m
+[1m--- a/EXECUTIVE_SUMMARY_MAP_VISIBILITY.md[m
+[1m+++ b/EXECUTIVE_SUMMARY_MAP_VISIBILITY.md[m
+[36m@@ -260,7 +260,7 @@[m [mflutter build web --release[m
+ cd .. && firebase deploy --only hosting,firestore:rules[m
+ [m
+ # 6. Verify[m
+[31m-firebase functions:log --limit=10[m
+[32m+[m[32mfirebase functions:log --lines 10[m
+ curl -I https://masslive.web.app[m
+ ```[m
+ [m
+[1mdiff --git a/FINAL_DEPLOYMENT_CHECKLIST.md b/FINAL_DEPLOYMENT_CHECKLIST.md[m
+[1mindex 4506c95..f0185a5 100644[m
+[1m--- a/FINAL_DEPLOYMENT_CHECKLIST.md[m
+[1m+++ b/FINAL_DEPLOYMENT_CHECKLIST.md[m
+[36m@@ -159,7 +159,7 @@[m [mfirebase deploy --only functions,firestore:rules,firestore:indexes,storage[m
+ firebase deploy:list[m
+ [m
+ # 6. Voir logs Cloud Function[m
+[31m-firebase functions:log --limit=50[m
+[32m+[m[32mfirebase functions:log --lines 50[m
+ ```[m
+ [m
+ ---[m
+[1mdiff --git a/FINAL_SUMMARY.md b/FINAL_SUMMARY.md[m
+[1mindex 59cc2fb..62fc241 100644[m
+[1m--- a/FINAL_SUMMARY.md[m
+[1m+++ b/FINAL_SUMMARY.md[m
+[36m@@ -228,7 +228,7 @@[m [mSuivre le guide: [E2E_TESTS_GUIDE.md](E2E_TESTS_GUIDE.md)[m
+ [m
+ 2. **Vérifier les logs** (2 min)[m
+    ```bash[m
+[31m-   firebase functions:log --limit=50[m
+[32m+[m[32m  firebase functions:log --lines 50[m
+    ```[m
+ [m
+ 3. **Tests rapides** (10 min)[m
+[1mdiff --git a/IMPLEMENTATION_5_AMELIORATIONS.md b/IMPLEMENTATION_5_AMELIORATIONS.md[m
+[1mindex ddfcece..55ed9be 100644[m
+[1m--- a/IMPLEMENTATION_5_AMELIORATIONS.md[m
+[1m+++ b/IMPLEMENTATION_5_AMELIORATIONS.md[m
+[36m@@ -364,7 +364,7 @@[m [mfirebase deploy --only functions:calculateGroupAveragePosition[m
+ ### Phase 3: Test complet[m
+ ```bash[m
+ # 1. Tester Cloud Function[m
+[31m-firebase functions:log --limit=50[m
+[32m+[m[32mfirebase functions:log --lines 50[m
+ [m
+ # Vérifier dans logs:[m
+ # ✅ "📍 Calcul position moyenne"[m
+[36m@@ -515,7 +515,7 @@[m [mEn cas de problème:[m
+ [m
+ ```bash[m
+ # Logs Cloud Function[m
+[31m-firebase functions:log --limit=100[m
+[32m+[m[32mfirebase functions:log --lines 100[m
+ [m
+ # Vérifier Firestore write[m
+ firebase firestore:inspect[m
+[1mdiff --git a/PRE_PRODUCTION_CHECKLIST.md b/PRE_PRODUCTION_CHECKLIST.md[m
+[1mindex 9fb4adc..08b2bf8 100644[m
+[1m--- a/PRE_PRODUCTION_CHECKLIST.md[m
+[1m+++ b/PRE_PRODUCTION_CHECKLIST.md[m
+[36m@@ -27,7 +27,7 @@[m [mfirebase deploy --only storage[m
+ [m
+ ### ✅ Vérifier après[m
+ ```bash[m
+[31m-firebase functions:log --limit=20[m
+[32m+[m[32mfirebase functions:log --lines 20[m
+ # Chercher: "Calcul position moyenne" ou erreurs[m
+ ```[m
+ [m
+[1mdiff --git a/QUICK_REFERENCE_MAP_VISIBILITY.md b/QUICK_REFERENCE_MAP_VISIBILITY.md[m
+[1mindex 881ca7a..2bfb068 100644[m
+[1m--- a/QUICK_REFERENCE_MAP_VISIBILITY.md[m
+[1m+++ b/QUICK_REFERENCE_MAP_VISIBILITY.md[m
+[36m@@ -315,7 +315,7 @@[m [mcd /workspaces/MASLIVE[m
+ firebase deploy --only hosting,firestore:rules[m
+ [m
+ # 4. Monitor[m
+[31m-firebase functions:log --limit=20 --tail[m
+[32m+[m[32mfirebase functions:log --lines 20[m
+ ```[m
+ [m
+ ---[m
+[1mdiff --git a/RESOLUTION_COMPLETE_5_AMELIORATIONS.md b/RESOLUTION_COMPLETE_5_AMELIORATIONS.md[m
+[1mindex dac823f..a6bdf41 100644[m
+[1m--- a/RESOLUTION_COMPLETE_5_AMELIORATIONS.md[m
+[1m+++ b/RESOLUTION_COMPLETE_5_AMELIORATIONS.md[m
+[36m@@ -90,7 +90,7 @@[m [mcp functions/group_tracking_improved.js functions/group_tracking.js[m
+ firebase deploy --only functions:calculateGroupAveragePosition[m
+ [m
+ # Vérifier[m
+[31m-firebase functions:log --limit=50[m
+[32m+[m[32mfirebase functions:log --lines 50[m
+ [m
+ # Résultat attendu:[m
+ # ✅ Function deployed[m
+[36m@@ -275,7 +275,7 @@[m [mecho "✅ SETUP COMPLETE - READY TO DEPLOY"[m
+ ### Immédiat (dès que tests passent):[m
+ 1. `firebase deploy --only functions:calculateGroupAveragePosition`[m
+ 2. `firebase deploy --only hosting` (après `flutter build web --release`)[m
+[31m-3. Vérifier logs: `firebase functions:log --limit=50`[m
+[32m+[m[32m3. Vérifier logs: `firebase functions:log --lines 50`[m
+ [m
+ ### Court terme (semaine 1):[m
+ 1. Tester avec groupes réels (1-2 groupes)[m
+[1mdiff --git a/START_HERE.md b/START_HERE.md[m
+[1mindex 6ff8434..4a8a97c 100644[m
+[1m--- a/START_HERE.md[m
+[1m+++ b/START_HERE.md[m
+[36m@@ -93,7 +93,7 @@[m [mcd /workspaces/MASLIVE[m
+ firebase deploy --only functions:calculateGroupAveragePosition,firestore:rules,storage[m
+ [m
+ # Vérifier les logs[m
+[31m-firebase functions:log --limit=50[m
+[32m+[m[32mfirebase functions:log --lines 50[m
+ ```[m
+ [m
+ ### Rapide (10 min)[m
+[1mdiff --git a/SYSTEM_READY_TO_DEPLOY.md b/SYSTEM_READY_TO_DEPLOY.md[m
+[1mindex a1b8bae..6cc535a 100644[m
+[1m--- a/SYSTEM_READY_TO_DEPLOY.md[m
+[1m+++ b/SYSTEM_READY_TO_DEPLOY.md[m
+[36m@@ -44,7 +44,7 @@[m [mfirebase deploy --only firestore:rules[m
+ firebase deploy --only storage[m
+ [m
+ # 4. Vérifier les logs (optionnel)[m
+[31m-firebase functions:log --limit=50[m
+[32m+[m[32mfirebase functions:log --lines 50[m
+ ```[m
+ [m
+ **Après**: Chaque commande doit afficher ✅ "successfully"[m
+[1mdiff --git a/TASK_SUMMARY.md b/TASK_SUMMARY.md[m
+[1mindex 2695717..e9264b3 100644[m
+[1m--- a/TASK_SUMMARY.md[m
+[1m+++ b/TASK_SUMMARY.md[m
+[36m@@ -176,7 +176,7 @@[m [mfirebase deploy --only functions:calculateGroupAveragePosition,firestore:rules,s[m
+ [m
+ ### Étape 3: Vérifier logs (2 min)[m
+ ```bash[m
+[31m-firebase functions:log --limit=50[m
+[32m+[m[32mfirebase functions:log --lines 50[m
+ # Chercher: "Position moyenne calculée"[m
+ ```[m
+ [m
+[1mdiff --git a/VALIDATION_AND_DEPLOYMENT.md b/VALIDATION_AND_DEPLOYMENT.md[m
+[1mindex faf3c5b..dd96699 100644[m
+[1m--- a/VALIDATION_AND_DEPLOYMENT.md[m
+[1m+++ b/VALIDATION_AND_DEPLOYMENT.md[m
+[36m@@ -65,7 +65,7 @@[m [mfirebase deploy --only storage[m
+ [m
+ ```bash[m
+ # Voir les logs de la Cloud Function[m
+[31m-firebase functions:log --limit=50[m
+[32m+[m[32mfirebase functions:log --lines 50[m
+ [m
+ # Chercher:[m
+ # - Pas d'erreurs[m
+[1mdiff --git a/VISUAL_SUMMARY.md b/VISUAL_SUMMARY.md[m
+[1mindex b685490..0f0665a 100644[m
+[1m--- a/VISUAL_SUMMARY.md[m
+[1m+++ b/VISUAL_SUMMARY.md[m
+[36m@@ -147,7 +147,7 @@[m [mMAINTENANT                              PRODUCTION-READY[m
+ │    firestore:rules,\                               │[m
+ │    storage                                         │[m
+ │                                                     │[m
+[31m-│  firebase functions:log --limit=50                 │[m
+[32m+[m[32m│  firebase functions:log --lines 50                 │[m
+ │                                                     │[m
+ │  # Puis tester sur /group-admin                    │[m
+ │                                                     │[m
+[1mdiff --git a/app/lib/main.dart b/app/lib/main.dart[m
+[1mindex 1a27cdd..040f5b1 100644[m
+[1m--- a/app/lib/main.dart[m
+[1m+++ b/app/lib/main.dart[m
+[36m@@ -1,6 +1,7 @@[m
+ import 'package:flutter/material.dart';[m
+ import 'package:flutter/services.dart';[m
+ import 'package:firebase_core/firebase_core.dart';[m
+[32m+[m[32mimport 'package:flutter_stripe/flutter_stripe.dart';[m
+ import 'package:get/get.dart';[m
+ import 'firebase_options.dart';[m
+ import 'session/session_controller.dart';[m
+[36m@@ -24,6 +25,7 @@[m [mimport 'pages/account_page.dart';[m
+ import 'pages/orders_page.dart';[m
+ import 'pages/map_admin_editor_page.dart';[m
+ import 'pages/storex_shop_page.dart';[m
+[32m+[m[32mimport 'pages/shop/storex_reviews_and_success_pages.dart';[m
+ import 'pages/pending_products_page.dart';[m
+ import 'pages/search_page.dart';[m
+ import 'pages/circuit_import_export_page.dart';[m
+[36m@@ -86,6 +88,10 @@[m [mFuture<void> main() async {[m
+ [m
+   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);[m
+ [m
+[32m+[m[32m  Stripe.publishableKey =[m
+[32m+[m[32m      "pk_test_51Ssn0PCCIRtTE2nOVARmqXRG6rRTiNxeuvHiwU2zuqcKYn0l1KdzptkB4ZWlHtYcFedBiGlHqB4OLQcQzXC9A6SY00OcBNOnDr"; // <-- ton publishable key[m
+[32m+[m[32m  await Stripe.instance.applySettings();[m
+[32m+[m
+   // ✅ Initialiser le token Mapbox (charge depuis SharedPreferences si dispo)[m
+   await MapboxTokenService.warmUp();[m
+ [m
+[36m@@ -169,6 +175,10 @@[m [mclass MasLiveApp extends StatelessWidget {[m
+                     shopId: "global",[m
+                     groupId: "MASLIVE",[m
+                   ),[m
+[32m+[m[32m              StorexRoutes.paymentComplete: (_) => const SizedBox.shrink(),[m
+[32m+[m[32m              StorexRoutes.reviews: (_) => const SizedBox.shrink(),[m
+[32m+[m[32m              StorexRoutes.addReview: (_) => const SizedBox.shrink(),[m
+[32m+[m[32m              StorexRoutes.orderTracker: (_) => const SizedBox.shrink(),[m
+               '/account': (_) => const AccountAndAdminPage(),[m
+               '/account-admin': (_) => const AccountAndAdminPage(),[m
+               '/orders': (_) => const OrdersPage(),[m
+[36m@@ -237,6 +247,21 @@[m [mclass MasLiveApp extends StatelessWidget {[m
+                 return GroupExportPage(adminGroupId: adminGroupId, uid: uid);[m
+               },[m
+             },[m
+[32m+[m[32m            onGenerateRoute: (settings) {[m
+[32m+[m[32m              if (settings.name == StorexRoutes.paymentComplete) {[m
+[32m+[m[32m                return PaymentCompletePage.routeFromArgs(settings.arguments);[m
+[32m+[m[32m              }[m
+[32m+[m[32m              if (settings.name == StorexRoutes.reviews) {[m
+[32m+[m[32m                return ReviewsPage.routeFromArgs(settings.arguments);[m
+[32m+[m[32m              }[m
+[32m+[m[32m              if (settings.name == StorexRoutes.addReview) {[m
+[32m+[m[32m                return AddReviewPage.routeFromArgs(settings.arguments);[m
+[32m+[m[32m              }[m
+[32m+[m[32m              if (settings.name == StorexRoutes.orderTracker) {[m
+[32m+[m[32m                return OrderTrackerPage.routeFromArgs(settings.arguments);[m
+[32m+[m[32m              }[m
+[32m+[m[32m              return null;[m
+[32m+[m[32m            },[m
+             builder: (context, child) => HoneycombBackground([m
+               opacity: 0.08,[m
+               child: LocalizedApp([m
+[1mdiff --git a/app/lib/pages/cart_page.dart b/app/lib/pages/cart_page.dart[m
+[1mindex 5aadec7..32d9bf0 100644[m
+[1m--- a/app/lib/pages/cart_page.dart[m
+[1m+++ b/app/lib/pages/cart_page.dart[m
+[36m@@ -1,9 +1,9 @@[m
+ import 'package:flutter/material.dart';[m
+[31m-import 'package:url_launcher/url_launcher.dart';[m
+ import '../services/cart_service.dart';[m
+ import '../session/require_signin.dart';[m
+ import '../session/session_scope.dart';[m
+ import 'package:firebase_auth/firebase_auth.dart';[m
+[32m+[m[32mimport 'checkout/storex_checkout_stripe.dart';[m
+ [m
+ class CartPage extends StatelessWidget {[m
+   const CartPage({super.key});[m
+[36m@@ -14,41 +14,6 @@[m [mclass CartPage extends StatelessWidget {[m
+     end: Alignment.centerRight,[m
+   );[m
+ [m
+[31m-  Future<void> _checkout(BuildContext context, String userId) async {[m
+[31m-    try {[m
+[31m-      showDialog([m
+[31m-        context: context,[m
+[31m-        barrierDismissible: false,[m
+[31m-        builder: (context) => const Center(child: CircularProgressIndicator()),[m
+[31m-      );[m
+[31m-[m
+[31m-      final checkoutUrl = await CartService.instance.createCheckoutSession([m
+[31m-        userId,[m
+[31m-      );[m
+[31m-[m
+[31m-      if (!context.mounted) return;[m
+[31m-      Navigator.of(context).pop();[m
+[31m-[m
+[31m-      if (checkoutUrl == null || checkoutUrl.isEmpty) {[m
+[31m-        throw Exception('URL de checkout invalide');[m
+[31m-      }[m
+[31m-[m
+[31m-      final uri = Uri.parse(checkoutUrl);[m
+[31m-      if (await canLaunchUrl(uri)) {[m
+[31m-        await launchUrl(uri, mode: LaunchMode.externalApplication);[m
+[31m-      } else {[m
+[31m-        throw Exception('Impossible d\'ouvrir le checkout');[m
+[31m-      }[m
+[31m-    } catch (e) {[m
+[31m-      if (!context.mounted) return;[m
+[31m-      Navigator.of(context).pop();[m
+[31m-[m
+[31m-      ScaffoldMessenger.of(context).showSnackBar([m
+[31m-        SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),[m
+[31m-      );[m
+[31m-    }[m
+[31m-  }[m
+[31m-[m
+   @override[m
+   Widget build(BuildContext context) {[m
+     final session = SessionScope.of(context);[m
+[36m@@ -248,21 +213,18 @@[m [mclass CartPage extends StatelessWidget {[m
+                                   context,[m
+                                   session: session,[m
+                                   onSignedIn: () {[m
+[31m-                                    final userId =[m
+[31m-                                        FirebaseAuth.instance.currentUser?.uid;[m
+[31m-                                    if (userId != null) {[m
+[31m-                                      _checkout(context, userId);[m
+[31m-                                    } else {[m
+[31m-                                      ScaffoldMessenger.of([m
+[31m-                                        context,[m
+[31m-                                      ).showSnackBar([m
+[32m+[m[32m                                    final userId = FirebaseAuth[m
+[32m+[m[32m                                        .instance.currentUser?.uid;[m
+[32m+[m[32m                                    if (userId == null) {[m
+[32m+[m[32m                                      ScaffoldMessenger.of(context).showSnackBar([m
+                                         const SnackBar([m
+[31m-                                          content: Text([m
+[31m-                                            'Utilisateur introuvable',[m
+[31m-                                          ),[m
+[32m+[m[32m                                          content: Text('Utilisateur introuvable'),[m
+                                         ),[m
+                                       );[m
+[32m+[m[32m                                      return;[m
+                                     }[m
+[32m+[m
+[32m+[m[32m                                    StorexCheckoutFlow.start(context);[m
+                                   },[m
+                                 ),[m
+                           icon: const Icon(Icons.lock_outline),[m
+[1mdiff --git a/app/lib/pages/paywall_page.dart b/app/lib/pages/paywall_page.dart[m
+[1mindex f37b006..8c3f691 100644[m
+[1m--- a/app/lib/pages/paywall_page.dart[m
+[1m+++ b/app/lib/pages/paywall_page.dart[m
+[36m@@ -1,3 +1,4 @@[m
+[32m+[m[32mimport 'package:flutter/foundation.dart';[m
+ import 'package:flutter/material.dart';[m
+ import 'package:purchases_flutter/purchases_flutter.dart';[m
+ [m
+[36m@@ -15,6 +16,15 @@[m [mclass _PaywallPageState extends State<PaywallPage> {[m
+   bool _loading = true;[m
+   String? _error;[m
+ [m
+[32m+[m[32m  static const String _monthlyPriceId = String.fromEnvironment([m
+[32m+[m[32m    'STRIPE_PREMIUM_MONTHLY_PRICE_ID',[m
+[32m+[m[32m    defaultValue: '',[m
+[32m+[m[32m  );[m
+[32m+[m[32m  static const String _yearlyPriceId = String.fromEnvironment([m
+[32m+[m[32m    'STRIPE_PREMIUM_YEARLY_PRICE_ID',[m
+[32m+[m[32m    defaultValue: '',[m
+[32m+[m[32m  );[m
+[32m+[m
+   @override[m
+   void initState() {[m
+     super.initState();[m
+[36m@@ -23,6 +33,13 @@[m [mclass _PaywallPageState extends State<PaywallPage> {[m
+ [m
+   Future<void> _load() async {[m
+     try {[m
+[32m+[m[32m      if (kIsWeb) {[m
+[32m+[m[32m        setState(() {[m
+[32m+[m[32m          _offerings = null;[m
+[32m+[m[32m          _loading = false;[m
+[32m+[m[32m        });[m
+[32m+[m[32m        return;[m
+[32m+[m[32m      }[m
+       final offerings = await PremiumService.instance.getOfferings();[m
+       setState(() {[m
+         _offerings = offerings;[m
+[36m@@ -75,6 +92,88 @@[m [mclass _PaywallPageState extends State<PaywallPage> {[m
+   }[m
+ [m
+   Widget _buildContent(BuildContext context) {[m
+[32m+[m[32m    if (kIsWeb) {[m
+[32m+[m[32m      return Padding([m
+[32m+[m[32m        padding: const EdgeInsets.all(18),[m
+[32m+[m[32m        child: Column([m
+[32m+[m[32m          crossAxisAlignment: CrossAxisAlignment.start,[m
+[32m+[m[32m          children: [[m
+[32m+[m[32m            const Text([m
+[32m+[m[32m              'Débloque MASLIVE Premium',[m
+[32m+[m[32m              style: TextStyle([m
+[32m+[m[32m                color: Colors.white,[m
+[32m+[m[32m                fontSize: 26,[m
+[32m+[m[32m                fontWeight: FontWeight.w800,[m
+[32m+[m[32m              ),[m
+[32m+[m[32m            ),[m
+[32m+[m[32m            const SizedBox(height: 8),[m
+[32m+[m[32m            const Text([m
+[32m+[m[32m              'Paiement via Stripe (abonnement).',[m
+[32m+[m[32m              style: TextStyle(color: Colors.white70, height: 1.3),[m
+[32m+[m[32m            ),[m
+[32m+[m[32m            const SizedBox(height: 18),[m
+[32m+[m[32m            if (_monthlyPriceId.isEmpty || _yearlyPriceId.isEmpty)[m
+[32m+[m[32m              const Text([m
+[32m+[m[32m                '⚠️ Configuration manquante: ajoute --dart-define=STRIPE_PREMIUM_MONTHLY_PRICE_ID=price_... et --dart-define=STRIPE_PREMIUM_YEARLY_PRICE_ID=price_... au build web.',[m
+[32m+[m[32m                style: TextStyle(color: Colors.white70, height: 1.3),[m
+[32m+[m[32m              )[m
+[32m+[m[32m            else[m
+[32m+[m[32m              Expanded([m
+[32m+[m[32m                child: ListView.separated([m
+[32m+[m[32m                  itemCount: 2,[m
+[32m+[m[32m                  separatorBuilder: (_, _) => const SizedBox(height: 12),[m
+[32m+[m[32m                  itemBuilder: (_, i) {[m
+[32m+[m[32m                    final isMonthly = i == 0;[m
+[32m+[m[32m                    final priceId = isMonthly ? _monthlyPriceId : _yearlyPriceId;[m
+[32m+[m[32m                    final title = isMonthly ? 'Premium Mensuel' : 'Premium Annuel';[m
+[32m+[m[32m                    final desc = isMonthly[m
+[32m+[m[32m                        ? 'Accès premium renouvelé chaque mois.'[m
+[32m+[m[32m                        : 'Accès premium renouvelé chaque année.';[m
+[32m+[m
+[32m+[m[32m                    return _PackageTile([m
+[32m+[m[32m                      title: title,[m
+[32m+[m[32m                      subtitle: desc,[m
+[32m+[m[32m                      price: 'Stripe',[m
+[32m+[m[32m                      onTap: () async {[m
+[32m+[m[32m                        final messenger = ScaffoldMessenger.of(context);[m
+[32m+[m[32m                        try {[m
+[32m+[m[32m                          final origin = Uri.base.origin;[m
+[32m+[m[32m                          final successUrl = Uri.parse('$origin/#/paywall?stripe=success');[m
+[32m+[m[32m                          final cancelUrl = Uri.parse('$origin/#/paywall?stripe=cancel');[m
+[32m+[m
+[32m+[m[32m                          await PremiumService.instance.startStripeSubscriptionCheckout([m
+[32m+[m[32m                            priceId: priceId,[m
+[32m+[m[32m                            successUrl: successUrl,[m
+[32m+[m[32m                            cancelUrl: cancelUrl,[m
+[32m+[m[32m                          );[m
+[32m+[m[32m                        } catch (e) {[m
+[32m+[m[32m                          if (!mounted) return;[m
+[32m+[m[32m                          messenger.showSnackBar([m
+[32m+[m[32m                            SnackBar(content: Text('Checkout échoué: $e')),[m
+[32m+[m[32m                          );[m
+[32m+[m[32m                        }[m
+[32m+[m[32m                      },[m
+[32m+[m[32m                    );[m
+[32m+[m[32m                  },[m
+[32m+[m[32m                ),[m
+[32m+[m[32m              ),[m
+[32m+[m[32m            const SizedBox(height: 10),[m
+[32m+[m[32m            ValueListenableBuilder<bool>([m
+[32m+[m[32m              valueListenable: PremiumService.instance.isPremium,[m
+[32m+[m[32m              builder: (_, isPremium, _) {[m
+[32m+[m[32m                return Text([m
+[32m+[m[32m                  isPremium ? '✅ Premium actif' : 'Premium inactif',[m
+[32m+[m[32m                  style: TextStyle([m
+[32m+[m[32m                    color: isPremium ? Colors.white : Colors.white54,[m
+[32m+[m[32m                  ),[m
+[32m+[m[32m                );[m
+[32m+[m[32m              },[m
+[32m+[m[32m            ),[m
+[32m+[m[32m          ],[m
+[32m+[m[32m        ),[m
+[32m+[m[32m      );[m
+[32m+[m[32m    }[m
+[32m+[m
+     final offering = _offerings?.current;[m
+     final packages = offering?.availablePackages ?? [];[m
+ [m
+[1mdiff --git a/app/lib/pages/product_detail_page.dart b/app/lib/pages/product_detail_page.dart[m
+[1mindex a286a4e..4cb1664 100644[m
+[1m--- a/app/lib/pages/product_detail_page.dart[m
+[1m+++ b/app/lib/pages/product_detail_page.dart[m
+[36m@@ -5,6 +5,7 @@[m [mimport '../services/cart_service.dart';[m
+ import 'cart_page.dart';[m
+ import '../widgets/honeycomb_background.dart';[m
+ import '../widgets/rainbow_header.dart';[m
+[32m+[m[32mimport 'shop/storex_reviews_and_success_pages.dart';[m
+ [m
+ class ProductDetailPage extends StatefulWidget {[m
+   final String groupId;[m
+[36m@@ -361,6 +362,27 @@[m [mclass _ProductDetailPageState extends State<ProductDetailPage> {[m
+                             fontWeight: FontWeight.w900,[m
+                           ),[m
+                         ),[m
+[32m+[m[32m                        const SizedBox(height: 8),[m
+[32m+[m[32m                        Align([m
+[32m+[m[32m                          alignment: Alignment.centerLeft,[m
+[32m+[m[32m                          child: TextButton.icon([m
+[32m+[m[32m                            onPressed: () {[m
+[32m+[m[32m                              Navigator.of(context).pushNamed([m
+[32m+[m[32m                                StorexRoutes.reviews,[m
+[32m+[m[32m                                arguments: ReviewsArgs([m
+[32m+[m[32m                                  productId: p.id,[m
+[32m+[m[32m                                  productTitle: p.title,[m
+[32m+[m[32m                                ),[m
+[32m+[m[32m                              );[m
+[32m+[m[32m                            },[m
+[32m+[m[32m                            icon: const Icon(Icons.rate_review_outlined, size: 18),[m
+[32m+[m[32m                            label: const Text('Reviews'),[m
+[32m+[m[32m                            style: TextButton.styleFrom([m
+[32m+[m[32m                              foregroundColor: Colors.black87,[m
+[32m+[m[32m                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),[m
+[32m+[m[32m                            ),[m
+[32m+[m[32m                          ),[m
+[32m+[m[32m                        ),[m
+                         const SizedBox(height: 10),[m
+                         Text([m
+                           'Produit officiel du groupe • Qualité premium',[m
+[1mdiff --git a/app/lib/services/premium_service.dart b/app/lib/services/premium_service.dart[m
+[1mindex c7c2603..dcae2d3 100644[m
+[1m--- a/app/lib/services/premium_service.dart[m
+[1m+++ b/app/lib/services/premium_service.dart[m
+[36m@@ -1,6 +1,12 @@[m
+ import 'package:firebase_auth/firebase_auth.dart';[m
+[32m+[m[32mimport 'package:cloud_firestore/cloud_firestore.dart';[m
+ import 'package:flutter/foundation.dart';[m
+[32m+[m[32mimport 'package:http/http.dart' as http;[m
+ import 'package:purchases_flutter/purchases_flutter.dart';[m
+[32m+[m[32mimport 'package:url_launcher/url_launcher.dart';[m
+[32m+[m
+[32m+[m[32mimport 'dart:async';[m
+[32m+[m[32mimport 'dart:convert';[m
+ [m
+ class PremiumService {[m
+   PremiumService._();[m
+[36m@@ -9,6 +15,11 @@[m [mclass PremiumService {[m
+   String _entitlementId = 'premium';[m
+   final ValueNotifier<bool> isPremium = ValueNotifier<bool>(false);[m
+ [m
+[32m+[m[32m  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _webUserSub;[m
+[32m+[m
+[32m+[m[32m  static const String _subscriptionCheckoutEndpoint =[m
+[32m+[m[32m      'https://us-east1-maslive.cloudfunctions.net/createSubscriptionCheckoutSession';[m
+[32m+[m
+   Future<void> init({[m
+     required String revenueCatApiKey,[m
+     required String entitlementId,[m
+[36m@@ -16,7 +27,33 @@[m [mclass PremiumService {[m
+     _entitlementId = entitlementId;[m
+ [m
+     if (kIsWeb) {[m
+[31m-      isPremium.value = false;[m
+[32m+[m[32m      // Web: premium via Firestore (users/{uid}.premium.status) driven by Stripe webhooks[m
+[32m+[m[32m      FirebaseAuth.instance.authStateChanges().listen((u) {[m
+[32m+[m[32m        _webUserSub?.cancel();[m
+[32m+[m[32m        _webUserSub = null;[m
+[32m+[m
+[32m+[m[32m        if (u == null) {[m
+[32m+[m[32m          isPremium.value = false;[m
+[32m+[m[32m          return;[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        _webUserSub = FirebaseFirestore.instance[m
+[32m+[m[32m            .collection('users')[m
+[32m+[m[32m            .doc(u.uid)[m
+[32m+[m[32m            .snapshots()[m
+[32m+[m[32m            .listen((snap) {[m
+[32m+[m[32m          final data = snap.data();[m
+[32m+[m[32m          final premium = data?['premium'];[m
+[32m+[m[32m          final status = premium is Map ? premium['status'] : null;[m
+[32m+[m[32m          isPremium.value = status == 'active';[m
+[32m+[m[32m        });[m
+[32m+[m[32m      });[m
+[32m+[m
+[32m+[m[32m      // Trigger initial state[m
+[32m+[m[32m      final user = FirebaseAuth.instance.currentUser;[m
+[32m+[m[32m      if (user == null) {[m
+[32m+[m[32m        isPremium.value = false;[m
+[32m+[m[32m      }[m
+       return;[m
+     }[m
+ [m
+[36m@@ -68,4 +105,43 @@[m [mclass PremiumService {[m
+     await Purchases.restorePurchases();[m
+     await refresh();[m
+   }[m
+[32m+[m
+[32m+[m[32m  Future<void> startStripeSubscriptionCheckout({[m
+[32m+[m[32m    required String priceId,[m
+[32m+[m[32m    required Uri successUrl,[m
+[32m+[m[32m    required Uri cancelUrl,[m
+[32m+[m[32m  }) async {[m
+[32m+[m[32m    final user = FirebaseAuth.instance.currentUser;[m
+[32m+[m[32m    if (user == null) throw StateError('Not signed in');[m
+[32m+[m
+[32m+[m[32m    final token = await user.getIdToken();[m
+[32m+[m[32m    final response = await http[m
+[32m+[m[32m        .post([m
+[32m+[m[32m          Uri.parse(_subscriptionCheckoutEndpoint),[m
+[32m+[m[32m          headers: {[m
+[32m+[m[32m            'Content-Type': 'application/json',[m
+[32m+[m[32m            'Authorization': 'Bearer $token',[m
+[32m+[m[32m          },[m
+[32m+[m[32m          body: jsonEncode({[m
+[32m+[m[32m            'priceId': priceId,[m
+[32m+[m[32m            'successUrl': successUrl.toString(),[m
+[32m+[m[32m            'cancelUrl': cancelUrl.toString(),[m
+[32m+[m[32m          }),[m
+[32m+[m[32m        )[m
+[32m+[m[32m        .timeout(const Duration(seconds: 25));[m
+[32m+[m
+[32m+[m[32m    final body = jsonDecode(response.body) as Map<String, dynamic>;[m
+[32m+[m[32m    if (response.statusCode < 200 || response.statusCode >= 300) {[m
+[32m+[m[32m      throw StateError(body['error']?.toString() ?? 'Checkout failed');[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    final url = body['url']?.toString();[m
+[32m+[m[32m    if (url == null || url.isEmpty) throw StateError('Missing checkout url');[m
+[32m+[m
+[32m+[m[32m    final ok = await launchUrl([m
+[32m+[m[32m      Uri.parse(url),[m
+[32m+[m[32m      mode: LaunchMode.platformDefault,[m
+[32m+[m[32m    );[m
+[32m+[m[32m    if (!ok) throw StateError('Cannot open checkout url');[m
+[32m+[m[32m  }[m
+ }[m
+[1mdiff --git a/app/pubspec.yaml b/app/pubspec.yaml[m
+[1mindex 8e90275..75b911b 100644[m
+[1m--- a/app/pubspec.yaml[m
+[1m+++ b/app/pubspec.yaml[m
+[36m@@ -63,6 +63,9 @@[m [mdependencies:[m
+   firebase_messaging: ^15.2.0[m
+   geolocator: ^13.0.1[m
+ [m
+[32m+[m[32m  # Stripe[m
+[32m+[m[32m  flutter_stripe: ^11.0.0[m
+[32m+[m
+   # Upload images (produits / profil)[m
+   image_picker: ^1.1.2[m
+   permission_handler: ^11.3.1[m
+[1mdiff --git a/deploy.sh b/deploy.sh[m
+[1mindex e361da1..01ed704 100644[m
+[1m--- a/deploy.sh[m
+[1m+++ b/deploy.sh[m
+[36m@@ -163,7 +163,7 @@[m [mecho ""[m
+ echo "📝 Next Steps:"[m
+ echo ""[m
+ echo "1️⃣  Vérifier les logs Cloud Function:"[m
+[31m-echo "   firebase functions:log --limit=50"[m
+[32m+[m[32mecho "   firebase functions:log --lines 50"[m
+ echo ""[m
+ echo "2️⃣  Tester Admin création:"[m
+ echo "   - Ouvrir /group-admin"[m
+[1mdiff --git a/deploy_group_tracking.sh b/deploy_group_tracking.sh[m
+[1mindex 5db067f..b74bbdd 100644[m
+[1m--- a/deploy_group_tracking.sh[m
+[1m+++ b/deploy_group_tracking.sh[m
+[36m@@ -90,7 +90,7 @@[m [mecho "  ✅ Firestore Rules: group_* collections"[m
+ echo "  ✅ Storage Rules: group_shops/* uploads"[m
+ echo ""[m
+ echo "📝 Next Steps:"[m
+[31m-echo "  1. Vérifier les logs: firebase functions:log --limit=50"[m
+[32m+[m[32mecho "  1. Vérifier les logs: firebase functions:log --lines 50"[m
+ echo "  2. Tester Admin creation: /group-admin"[m
+ echo "  3. Tester Tracker linking: /group-tracker"[m
+ echo "  4. Tester GPS tracking: Start tracking"[m
+[1mdiff --git a/functions/index.js b/functions/index.js[m
+[1mindex e7844ce..aa53d9d 100644[m
+[1m--- a/functions/index.js[m
+[1m+++ b/functions/index.js[m
+[36m@@ -8,41 +8,31 @@[m
+ const admin = require("firebase-admin");[m
+ const ngeohash = require("ngeohash");[m
+ const { setGlobalOptions } = require("firebase-functions/v2");[m
+[32m+[m[32mconst { defineSecret } = require("firebase-functions/params");[m
+ const {[m
+   onDocumentCreated,[m
+   onDocumentUpdated,[m
+ } = require("firebase-functions/v2/firestore");[m
+ const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");[m
+ [m
+[32m+[m[32mconst STRIPE_SECRET_KEY = defineSecret("STRIPE_SECRET_KEY");[m
+[32m+[m[32mconst STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET");[m
+[32m+[m
+ // Stripe SDK (lazy initialization)[m
+ const stripeModule = require("stripe");[m
+ let stripe = null;[m
+ [m
+ function getStripeWebhookSecret() {[m
+[31m-  try {[m
+[31m-    const config = require("firebase-functions").config();[m
+[31m-    return config.stripe?.webhook_secret || process.env.STRIPE_WEBHOOK_SECRET;[m
+[31m-  } catch (e) {[m
+[31m-    return process.env.STRIPE_WEBHOOK_SECRET;[m
+[31m-  }[m
+[32m+[m[32m  return STRIPE_WEBHOOK_SECRET.value() || process.env.STRIPE_WEBHOOK_SECRET;[m
+ }[m
+ [m
+ function getStripe() {[m
+   if (!stripe) {[m
+[31m-    // Try Firebase config first, then environment variables[m
+[31m-    let apiKey = null;[m
+[31m-    [m
+[31m-    try {[m
+[31m-      const config = require("firebase-functions").config();[m
+[31m-      apiKey = config.stripe?.secret_key || process.env.STRIPE_SECRET_KEY;[m
+[31m-    } catch (e) {[m
+[31m-      apiKey = process.env.STRIPE_SECRET_KEY;[m
+[31m-    }[m
+[31m-    [m
+[32m+[m[32m    const apiKey = STRIPE_SECRET_KEY.value() || process.env.STRIPE_SECRET_KEY;[m
+     if (!apiKey) {[m
+       throw new Error([m
+         "STRIPE_SECRET_KEY not configured. Run: " +[m
+[31m-        "firebase functions:config:set stripe.secret_key=\"sk_test_...\""[m
+[32m+[m[32m        "firebase functions:secrets:set STRIPE_SECRET_KEY"[m
+       );[m
+     }[m
+     stripe = stripeModule(apiKey);[m
+[36m@@ -50,6 +40,60 @@[m [mfunction getStripe() {[m
+   return stripe;[m
+ }[m
+ [m
+[32m+[m[32mfunction getStripeV20240620() {[m
+[32m+[m[32m  // Stripe client specifically pinned for createStorexPaymentIntent[m
+[32m+[m[32m  const apiKey = STRIPE_SECRET_KEY.value() || process.env.STRIPE_SECRET_KEY;[m
+[32m+[m
+[32m+[m[32m  if (!apiKey) {[m
+[32m+[m[32m    throw new Error([m
+[32m+[m[32m      "STRIPE_SECRET_KEY not configured. Run: " +[m
+[32m+[m[32m        "firebase functions:secrets:set STRIPE_SECRET_KEY"[m
+[32m+[m[32m    );[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  return stripeModule(apiKey, { apiVersion: "2024-06-20" });[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mfunction isAllowedRedirectUrl(url) {[m
+[32m+[m[32m  if (typeof url !== "string" || url.trim().length === 0) return false;[m
+[32m+[m[32m  try {[m
+[32m+[m[32m    const u = new URL(url);[m
+[32m+[m[32m    if (u.protocol === "https:") return true;[m
+[32m+[m[32m    // Allow local development[m
+[32m+[m[32m    if (u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1")) {[m
+[32m+[m[32m      return true;[m
+[32m+[m[32m    }[m
+[32m+[m[32m    return false;[m
+[32m+[m[32m  } catch {[m
+[32m+[m[32m    return false;[m
+[32m+[m[32m  }[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32masync function getUidFromAuthorizationHeader(req) {[m
+[32m+[m[32m  const h = req.headers.authorization || req.headers.Authorization;[m
+[32m+[m[32m  if (!h || typeof h !== "string") return null;[m
+[32m+[m[32m  const m = h.match(/^Bearer\s+(.+)$/i);[m
+[32m+[m[32m  if (!m) return null;[m
+[32m+[m[32m  const idToken = m[1];[m
+[32m+[m[32m  try {[m
+[32m+[m[32m    const decoded = await admin.auth().verifyIdToken(idToken);[m
+[32m+[m[32m    return decoded?.uid || null;[m
+[32m+[m[32m  } catch {[m
+[32m+[m[32m    return null;[m
+[32m+[m[32m  }[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32masync function findUserIdByStripeSubscriptionId(subscriptionId) {[m
+[32m+[m[32m  if (!subscriptionId) return null;[m
+[32m+[m[32m  const snap = await db[m
+[32m+[m[32m    .collection("users")[m
+[32m+[m[32m    .where("stripe.subscriptionId", "==", subscriptionId)[m
+[32m+[m[32m    .limit(1)[m
+[32m+[m[32m    .get();[m
+[32m+[m[32m  if (snap.empty) return null;[m
+[32m+[m[32m  return snap.docs[0].id;[m
+[32m+[m[32m}[m
+[32m+[m
+ [m
+ setGlobalOptions({ region: "us-east1" });[m
+ [m
+[36m@@ -240,6 +284,115 @@[m [mexports.nearbySearch = onCall([m
+   }[m
+ );[m
+ [m
+[32m+[m[32m/**[m
+[32m+[m[32m * createStorexPaymentIntent (callable)[m
+[32m+[m[32m * Lit users/{uid}/cart (source de vérité), crée users/{uid}/orders/{orderId}[m
+[32m+[m[32m * puis renvoie { orderId, clientSecret }.[m
+[32m+[m[32m */[m
+[32m+[m[32mexports.createStorexPaymentIntent = onCall([m
+[32m+[m[32m  { region: "us-east1", secrets: [STRIPE_SECRET_KEY] },[m
+[32m+[m[32m  async (req) => {[m
+[32m+[m[32m  const auth = req.auth;[m
+[32m+[m[32m  if (!auth) throw new HttpsError("unauthenticated", "Sign in required");[m
+[32m+[m[32m  const uid = auth.uid;[m
+[32m+[m
+[32m+[m[32m  const data = req.data || {};[m
+[32m+[m[32m  const currency = String(data.currency || "eur").toLowerCase();[m
+[32m+[m[32m  const shippingCents = Number(data.shippingCents || 0);[m
+[32m+[m[32m  const shippingMethod = String(data.shippingMethod || "flat_rate");[m
+[32m+[m[32m  const address = data.address || {};[m
+[32m+[m
+[32m+[m[32m  // 1) Lire le panier Firestore (source de vérité)[m
+[32m+[m[32m  const cartSnap = await admin[m
+[32m+[m[32m    .firestore()[m
+[32m+[m[32m    .collection("users")[m
+[32m+[m[32m    .doc(uid)[m
+[32m+[m[32m    .collection("cart")[m
+[32m+[m[32m    .get();[m
+[32m+[m
+[32m+[m[32m  if (cartSnap.empty) throw new HttpsError("failed-precondition", "Cart empty");[m
+[32m+[m
+[32m+[m[32m  let subtotalCents = 0;[m
+[32m+[m[32m  const items = [];[m
+[32m+[m
+[32m+[m[32m  for (const doc of cartSnap.docs) {[m
+[32m+[m[32m    const it = doc.data();[m
+[32m+[m[32m    const priceCents = Number(it.priceCents || 0);[m
+[32m+[m[32m    const qty = Number(it.quantity || 1);[m
+[32m+[m[32m    if (priceCents <= 0 || qty <= 0) continue;[m
+[32m+[m
+[32m+[m[32m    subtotalCents += priceCents * qty;[m
+[32m+[m
+[32m+[m[32m    items.push({[m
+[32m+[m[32m      key: doc.id,[m
+[32m+[m[32m      groupId: it.groupId || "",[m
+[32m+[m[32m      productId: it.productId || "",[m
+[32m+[m[32m      title: it.title || "",[m
+[32m+[m[32m      priceCents,[m
+[32m+[m[32m      quantity: qty,[m
+[32m+[m[32m      size: it.size || "M",[m
+[32m+[m[32m      color: it.color || "Noir",[m
+[32m+[m[32m      imageUrl: it.imageUrl || "",[m
+[32m+[m[32m      imagePath: it.imagePath || null,[m
+[32m+[m[32m    });[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  if (subtotalCents <= 0) {[m
+[32m+[m[32m    throw new HttpsError("failed-precondition", "Cart total invalid");[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  // 2) Valider shipping (whitelist)[m
+[32m+[m[32m  const allowedShipping = new Set([0, 500, 2000]);[m
+[32m+[m[32m  const safeShipping = allowedShipping.has(shippingCents) ? shippingCents : 2000;[m
+[32m+[m
+[32m+[m[32m  const totalCents = subtotalCents + safeShipping;[m
+[32m+[m
+[32m+[m[32m  // 3) Créer order[m
+[32m+[m[32m  const orderRef = admin[m
+[32m+[m[32m    .firestore()[m
+[32m+[m[32m    .collection("users")[m
+[32m+[m[32m    .doc(uid)[m
+[32m+[m[32m    .collection("orders")[m
+[32m+[m[32m    .doc();[m
+[32m+[m
+[32m+[m[32m  await orderRef.set({[m
+[32m+[m[32m    status: "pending_payment",[m
+[32m+[m[32m    currency: currency.toUpperCase(),[m
+[32m+[m[32m    subtotalCents,[m
+[32m+[m[32m    shippingCents: safeShipping,[m
+[32m+[m[32m    totalCents,[m
+[32m+[m[32m    shippingMethod,[m
+[32m+[m[32m    shippingAddress: address,[m
+[32m+[m[32m    items,[m
+[32m+[m[32m    paymentMethod: "stripe",[m
+[32m+[m[32m    createdAt: admin.firestore.FieldValue.serverTimestamp(),[m
+[32m+[m[32m    updatedAt: admin.firestore.FieldValue.serverTimestamp(),[m
+[32m+[m[32m  });[m
+[32m+[m
+[32m+[m[32m  // 4) PaymentIntent[m
+[32m+[m[32m  const stripeClient = getStripeV20240620();[m
+[32m+[m[32m  const pi = await stripeClient.paymentIntents.create([m
+[32m+[m[32m    {[m
+[32m+[m[32m      amount: totalCents,[m
+[32m+[m[32m      currency,[m
+[32m+[m[32m      automatic_payment_methods: { enabled: true },[m
+[32m+[m[32m      metadata: { uid, orderId: orderRef.id },[m
+[32m+[m[32m    },[m
+[32m+[m[32m    { idempotencyKey: orderRef.id }[m
+[32m+[m[32m  );[m
+[32m+[m
+[32m+[m[32m  await orderRef.update({[m
+[32m+[m[32m    stripe: { paymentIntentId: pi.id },[m
+[32m+[m[32m    updatedAt: admin.firestore.FieldValue.serverTimestamp(),[m
+[32m+[m[32m  });[m
+[32m+[m
+[32m+[m[32m  return {[m
+[32m+[m[32m    orderId: orderRef.id,[m
+[32m+[m[32m    clientSecret: pi.client_secret,[m
+[32m+[m[32m  };[m
+[32m+[m[32m  }[m
+[32m+[m[32m);[m
+[32m+[m
+ async function sendPendingProductNotification({ groupId, productId, product }) {[m
+   // Récupérer les tokens des admins master[m
+   const [isAdminSnap, roleAdminSnap] = await Promise.all([[m
+[36m@@ -1114,6 +1267,7 @@[m [mexports.createCheckoutSessionForOrder = onCall([m
+     cpu: 0.083,[m
+     memory: "256MiB",[m
+     timeoutSeconds: 30,[m
+[32m+[m[32m    secrets: [STRIPE_SECRET_KEY],[m
+   },[m
+   async (request) => {[m
+     if (!request.auth) {[m
+[36m@@ -1219,6 +1373,191 @@[m [mexports.createCheckoutSessionForOrder = onCall([m
+   }[m
+ );[m
+ [m
+[32m+[m[32m/**[m
+[32m+[m[32m * createCheckoutSession (HTTP)[m
+[32m+[m[32m * Achat unique (photos/articles) via Stripe Checkout.[m
+[32m+[m[32m * Body: { orderId, successUrl, cancelUrl }[m
+[32m+[m[32m * - Lit /orders/{orderId}[m
+[32m+[m[32m * - items attendus: [{ priceId: "price_...", qty?: number }][m
+[32m+[m[32m * Returns: { url, sessionId }[m
+[32m+[m[32m */[m
+[32m+[m[32mexports.createCheckoutSession = onRequest([m
+[32m+[m[32m  {[m
+[32m+[m[32m    region: "us-east1",[m
+[32m+[m[32m    cpu: 0.083,[m
+[32m+[m[32m    memory: "256MiB",[m
+[32m+[m[32m    timeoutSeconds: 30,[m
+[32m+[m[32m    secrets: [STRIPE_SECRET_KEY],[m
+[32m+[m[32m  },[m
+[32m+[m[32m  async (req, res) => {[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      // CORS minimal (si appelé depuis web/mobile)[m
+[32m+[m[32m      res.set("Access-Control-Allow-Origin", "*");[m
+[32m+[m[32m      res.set("Access-Control-Allow-Methods", "POST, OPTIONS");[m
+[32m+[m[32m      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");[m
+[32m+[m[32m      if (req.method === "OPTIONS") return res.status(204).send("");[m
+[32m+[m
+[32m+[m[32m      if (req.method !== "POST") {[m
+[32m+[m[32m        return res.status(405).json({ error: "POST only" });[m
+[32m+[m[32m      }[m
+[32m+[m
+[32m+[m[32m      const { orderId, successUrl, cancelUrl } = req.body || {};[m
+[32m+[m
+[32m+[m[32m      if (!orderId || typeof orderId !== "string") {[m
+[32m+[m[32m        return res.status(400).json({ error: "orderId required" });[m
+[32m+[m[32m      }[m
+[32m+[m[32m      if (!isAllowedRedirectUrl(successUrl) || !isAllowedRedirectUrl(cancelUrl)) {[m
+[32m+[m[32m        return res[m
+[32m+[m[32m          .status(400)[m
+[32m+[m[32m          .json({ error: "successUrl & cancelUrl required (https)" });[m
+[32m+[m[32m      }[m
+[32m+[m
+[32m+[m[32m      const orderRef = db.collection("orders").doc(orderId);[m
+[32m+[m[32m      const orderSnap = await orderRef.get();[m
+[32m+[m[32m      if (!orderSnap.exists) {[m
+[32m+[m[32m        return res.status(404).json({ error: "order not found" });[m
+[32m+[m[32m      }[m
+[32m+[m
+[32m+[m[32m      const order = orderSnap.data() || {};[m
+[32m+[m[32m      const status = (order.status || "pending").toString();[m
+[32m+[m[32m      if (status !== "pending") {[m
+[32m+[m[32m        return res.status(409).json({ error: `order status is ${status}` });[m
+[32m+[m[32m      }[m
+[32m+[m
+[32m+[m[32m      const items = Array.isArray(order.items) ? order.items : [];[m
+[32m+[m[32m      const line_items = items[m
+[32m+[m[32m        .map((it) => {[m
+[32m+[m[32m          const priceId = it.priceId;[m
+[32m+[m[32m          const qty = Number(it.qty || 1);[m
+[32m+[m[32m          if (!priceId || typeof priceId !== "string") return null;[m
+[32m+[m[32m          if (!Number.isFinite(qty) || qty <= 0) return null;[m
+[32m+[m[32m          return { price: priceId, quantity: Math.floor(qty) };[m
+[32m+[m[32m        })[m
+[32m+[m[32m        .filter(Boolean);[m
+[32m+[m
+[32m+[m[32m      if (!line_items.length) {[m
+[32m+[m[32m        return res.status(400).json({ error: "order has no items (priceId missing)" });[m
+[32m+[m[32m      }[m
+[32m+[m
+[32m+[m[32m      const stripeClient = getStripe();[m
+[32m+[m[32m      const session = await stripeClient.checkout.sessions.create([m
+[32m+[m[32m        {[m
+[32m+[m[32m          mode: "payment",[m
+[32m+[m[32m          line_items,[m
+[32m+[m[32m          success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,[m
+[32m+[m[32m          cancel_url: cancelUrl,[m
+[32m+[m[32m          metadata: {[m
+[32m+[m[32m            orderId,[m
+[32m+[m[32m            uid: typeof order.uid === "string" ? order.uid : "",[m
+[32m+[m[32m            kind: "one_time",[m
+[32m+[m[32m          },[m
+[32m+[m[32m          client_reference_id: orderId,[m
+[32m+[m[32m        },[m
+[32m+[m[32m        { idempotencyKey: `order_${orderId}` }[m
+[32m+[m[32m      );[m
+[32m+[m
+[32m+[m[32m      await orderRef.set([m
+[32m+[m[32m        {[m
+[32m+[m[32m          stripe: {[m
+[32m+[m[32m            sessionId: session.id,[m
+[32m+[m[32m            sessionUrl: session.url || null,[m
+[32m+[m[32m            paymentIntentId: session.payment_intent || null,[m
+[32m+[m[32m          },[m
+[32m+[m[32m          updatedAt: admin.firestore.FieldValue.serverTimestamp(),[m
+[32m+[m[32m        },[m
+[32m+[m[32m        { merge: true }[m
+[32m+[m[32m      );[m
+[32m+[m
+[32m+[m[32m      return res.json({ url: session.url, sessionId: session.id });[m
+[32m+[m[32m    } catch (e) {[m
+[32m+[m[32m      console.error("createCheckoutSession error", e);[m
+[32m+[m[32m      return res.status(500).json({ error: String(e?.message || e) });[m
+[32m+[m[32m    }[m
+[32m+[m[32m  }[m
+[32m+[m[32m);[m
+[32m+[m
+[32m+[m[32m/**[m
+[32m+[m[32m * createSubscriptionCheckoutSession (HTTP)[m
+[32m+[m[32m * Abonnement via Stripe Checkout.[m
+[32m+[m[32m * Body: { priceId, successUrl, cancelUrl }[m
+[32m+[m[32m * Auth: Authorization: Bearer <Firebase ID token>[m
+[32m+[m[32m * Returns: { url, sessionId }[m
+[32m+[m[32m */[m
+[32m+[m[32mexports.createSubscriptionCheckoutSession = onRequest([m
+[32m+[m[32m  {[m
+[32m+[m[32m    region: "us-east1",[m
+[32m+[m[32m    cpu: 0.083,[m
+[32m+[m[32m    memory: "256MiB",[m
+[32m+[m[32m    timeoutSeconds: 30,[m
+[32m+[m[32m    secrets: [STRIPE_SECRET_KEY],[m
+[32m+[m[32m  },[m
+[32m+[m[32m  async (req, res) => {[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      res.set("Access-Control-Allow-Origin", "*");[m
+[32m+[m[32m      res.set("Access-Control-Allow-Methods", "POST, OPTIONS");[m
+[32m+[m[32m      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");[m
+[32m+[m[32m      if (req.method === "OPTIONS") return res.status(204).send("");[m
+[32m+[m
+[32m+[m[32m      if (req.method !== "POST") {[m
+[32m+[m[32m        return res.status(405).json({ error: "POST only" });[m
+[32m+[m[32m      }[m
+[32m+[m
+[32m+[m[32m      const uid = await getUidFromAuthorizationHeader(req);[m
+[32m+[m[32m      if (!uid) {[m
+[32m+[m[32m        return res.status(401).json({ error: "Unauthorized" });[m
+[32m+[m[32m      }[m
+[32m+[m
+[32m+[m[32m      const { priceId, successUrl, cancelUrl } = req.body || {};[m
+[32m+[m
+[32m+[m[32m      if (!priceId || typeof priceId !== "string" || !priceId.startsWith("price_")) {[m
+[32m+[m[32m        return res.status(400).json({ error: "priceId required" });[m
+[32m+[m[32m      }[m
+[32m+[m[32m      if (!isAllowedRedirectUrl(successUrl) || !isAllowedRedirectUrl(cancelUrl)) {[m
+[32m+[m[32m        return res[m
+[32m+[m[32m          .status(400)[m
+[32m+[m[32m          .json({ error: "successUrl & cancelUrl required (https)" });[m
+[32m+[m[32m      }[m
+[32m+[m
+[32m+[m[32m      const stripeClient = getStripe();[m
+[32m+[m[32m      const session = await stripeClient.checkout.sessions.create([m
+[32m+[m[32m        {[m
+[32m+[m[32m          mode: "subscription",[m
+[32m+[m[32m          line_items: [{ price: priceId, quantity: 1 }],[m
+[32m+[m[32m          success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,[m
+[32m+[m[32m          cancel_url: cancelUrl,[m
+[32m+[m[32m          metadata: { uid, kind: "subscription" },[m
+[32m+[m[32m          client_reference_id: uid,[m
+[32m+[m[32m          subscription_data: {[m
+[32m+[m[32m            metadata: { uid, kind: "subscription" },[m
+[32m+[m[32m          },[m
+[32m+[m[32m        },[m
+[32m+[m[32m        { idempotencyKey: `sub_${uid}_${priceId}` }[m
+[32m+[m[32m      );[m
+[32m+[m
+[32m+[m[32m      await db[m
+[32m+[m[32m        .collection("users")[m
+[32m+[m[32m        .doc(uid)[m
+[32m+[m[32m        .set([m
+[32m+[m[32m          {[m
+[32m+[m[32m            premium: {[m
+[32m+[m[32m              status: "checkout_pending",[m
+[32m+[m[32m            },[m
+[32m+[m[32m            stripe: {[m
+[32m+[m[32m              pendingCheckoutSessionId: session.id,[m
+[32m+[m[32m            },[m
+[32m+[m[32m            updatedAt: admin.firestore.FieldValue.serverTimestamp(),[m
+[32m+[m[32m          },[m
+[32m+[m[32m          { merge: true }[m
+[32m+[m[32m        );[m
+[32m+[m
+[32m+[m[32m      return res.json({ url: session.url, sessionId: session.id });[m
+[32m+[m[32m    } catch (e) {[m
+[32m+[m[32m      console.error("createSubscriptionCheckoutSession error", e);[m
+[32m+[m[32m      return res.status(500).json({ error: String(e?.message || e) });[m
+[32m+[m[32m    }[m
+[32m+[m[32m  }[m
+[32m+[m[32m);[m
+[32m+[m
+ /**[m
+  * createMediaShopCheckout[m
+  * Crée une Checkout Session Stripe pour le Media Shop (photos vendues)[m
+[36m@@ -1231,6 +1570,7 @@[m [mexports.createMediaShopCheckout = onCall([m
+     cpu: 0.083,[m
+     memory: "256MiB",[m
+     timeoutSeconds: 30,[m
+[32m+[m[32m    secrets: [STRIPE_SECRET_KEY],[m
+   },[m
+   async (request) => {[m
+     if (!request.auth) {[m
+[36m@@ -1369,6 +1709,7 @@[m [mexports.createBusinessConnectOnboardingLink = onCall([m
+     cpu: 0.083,[m
+     memory: "256MiB",[m
+     timeoutSeconds: 30,[m
+[32m+[m[32m    secrets: [STRIPE_SECRET_KEY],[m
+   },[m
+   async (request) => {[m
+     if (!request.auth) {[m
+[36m@@ -1465,6 +1806,7 @@[m [mexports.refreshBusinessConnectStatus = onCall([m
+     cpu: 0.083,[m
+     memory: "256MiB",[m
+     timeoutSeconds: 30,[m
+[32m+[m[32m    secrets: [STRIPE_SECRET_KEY],[m
+   },[m
+   async (request) => {[m
+     if (!request.auth) {[m
+[36m@@ -1539,6 +1881,7 @@[m [mexports.stripeWebhook = onRequest([m
+     cpu: 0.083,[m
+     memory: "256MiB",[m
+     timeoutSeconds: 30,[m
+[32m+[m[32m    secrets: [STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET],[m
+     // CORS non nécessaire pour les webhooks (appelés par Stripe directement)[m
+   },[m
+   async (req, res) => {[m
+[36m@@ -1581,6 +1924,22 @@[m [mexports.stripeWebhook = onRequest([m
+           await handleCheckoutSessionCompleted(event.data.object);[m
+           break;[m
+ [m
+[32m+[m[32m        case "customer.subscription.updated":[m
+[32m+[m[32m          await handleCustomerSubscriptionUpdated(event.data.object);[m
+[32m+[m[32m          break;[m
+[32m+[m
+[32m+[m[32m        case "customer.subscription.deleted":[m
+[32m+[m[32m          await handleCustomerSubscriptionDeleted(event.data.object);[m
+[32m+[m[32m          break;[m
+[32m+[m
+[32m+[m[32m        case "invoice.paid":[m
+[32m+[m[32m          await handleInvoicePaid(event.data.object);[m
+[32m+[m[32m          break;[m
+[32m+[m
+[32m+[m[32m        case "invoice.payment_failed":[m
+[32m+[m[32m          await handleInvoicePaymentFailed(event.data.object);[m
+[32m+[m[32m          break;[m
+[32m+[m
+         case "payment_intent.succeeded":[m
+           await handlePaymentIntentSucceeded(event.data.object);[m
+           break;[m
+[36m@@ -1613,26 +1972,69 @@[m [mexports.stripeWebhook = onRequest([m
+ async function handleCheckoutSessionCompleted(session) {[m
+   console.log("Processing checkout.session.completed:", session.id);[m
+ [m
+[31m-  const orderId = session.metadata?.orderId;[m
+[31m-  const userId = session.metadata?.userId;[m
+[32m+[m[32m  // Supporte 2 modèles:[m
+[32m+[m[32m  // - Nouveau modèle simple: /orders/{orderId}[m
+[32m+[m[32m  // - Modèle existant Media Shop: /users/{uid}/orders/{orderId}[m
+[32m+[m[32m  const orderId = session.metadata?.orderId || session.client_reference_id;[m
+[32m+[m[32m  const uid = session.metadata?.uid || session.metadata?.userId;[m
+[32m+[m
+[32m+[m[32m  if (!orderId) {[m
+[32m+[m[32m    console.warn("Missing orderId in session metadata");[m
+[32m+[m[32m    return;[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  // 1) Essaye d'abord /orders/{orderId}[m
+[32m+[m[32m  const rootOrderRef = db.collection("orders").doc(orderId);[m
+[32m+[m[32m  const rootSnap = await rootOrderRef.get();[m
+[32m+[m[32m  if (rootSnap.exists) {[m
+[32m+[m[32m    await rootOrderRef.set([m
+[32m+[m[32m      {[m
+[32m+[m[32m        status: "paid",[m
+[32m+[m[32m        paidAt: admin.firestore.FieldValue.serverTimestamp(),[m
+[32m+[m[32m        stripe: {[m
+[32m+[m[32m          sessionId: session.id,[m
+[32m+[m[32m          paymentIntentId: session.payment_intent || null,[m
+[32m+[m[32m        },[m
+[32m+[m[32m        updatedAt: admin.firestore.FieldValue.serverTimestamp(),[m
+[32m+[m[32m      },[m
+[32m+[m[32m      { merge: true }[m
+[32m+[m[32m    );[m
+ [m
+[31m-  if (!orderId || !userId) {[m
+[31m-    console.warn("Missing orderId or userId in session metadata");[m
+[32m+[m[32m    if (uid && typeof uid === "string") {[m
+[32m+[m[32m      await db[m
+[32m+[m[32m        .collection("users")[m
+[32m+[m[32m        .doc(uid)[m
+[32m+[m[32m        .collection("purchases")[m
+[32m+[m[32m        .doc(orderId)[m
+[32m+[m[32m        .set([m
+[32m+[m[32m          {[m
+[32m+[m[32m            orderId,[m
+[32m+[m[32m            createdAt: admin.firestore.FieldValue.serverTimestamp(),[m
+[32m+[m[32m          },[m
+[32m+[m[32m          { merge: true }[m
+[32m+[m[32m        );[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    console.log(`Root order ${orderId} marked as paid`);[m
+     return;[m
+   }[m
+ [m
+[31m-  const orderRef = db.collection("users").doc(userId).collection("orders").doc(orderId);[m
+[31m-  const orderSnap = await orderRef.get();[m
+[32m+[m[32m  // 2) Fallback vers modèle existant users/{uid}/orders/{orderId}[m
+[32m+[m[32m  if (!uid || typeof uid !== "string") {[m
+[32m+[m[32m    console.warn("Missing uid/userId in session metadata for users orders");[m
+[32m+[m[32m    return;[m
+[32m+[m[32m  }[m
+ [m
+[31m-  if (!orderSnap.exists) {[m
+[31m-    console.warn(`Order ${orderId} not found for user ${userId}`);[m
+[32m+[m[32m  const userOrderRef = db.collection("users").doc(uid).collection("orders").doc(orderId);[m
+[32m+[m[32m  const userOrderSnap = await userOrderRef.get();[m
+[32m+[m[32m  if (!userOrderSnap.exists) {[m
+[32m+[m[32m    console.warn(`Order ${orderId} not found (root nor user ${uid})`);[m
+     return;[m
+   }[m
+ [m
+[31m-  const order = orderSnap.data();[m
+[32m+[m[32m  const order = userOrderSnap.data() || {};[m
+ [m
+[31m-  // Met à jour le statut de la commande[m
+[31m-  await orderRef.update({[m
+[32m+[m[32m  await userOrderRef.update({[m
+     status: "paid",[m
+     paidAt: admin.firestore.FieldValue.serverTimestamp(),[m
+     stripeSessionId: session.id,[m
+[36m@@ -1640,7 +2042,6 @@[m [masync function handleCheckoutSessionCompleted(session) {[m
+     updatedAt: admin.firestore.FieldValue.serverTimestamp(),[m
+   });[m
+ [m
+[31m-  // Crée les documents purchases pour chaque photo[m
+   const items = order.items || [];[m
+   const batch = db.batch();[m
+ [m
+[36m@@ -1648,7 +2049,7 @@[m [masync function handleCheckoutSessionCompleted(session) {[m
+     const photoId = item.photoId;[m
+     if (!photoId) continue;[m
+ [m
+[31m-    const purchaseRef = db.collection("users").doc(userId).collection("purchases").doc(photoId);[m
+[32m+[m[32m    const purchaseRef = db.collection("users").doc(uid).collection("purchases").doc(photoId);[m
+     batch.set(purchaseRef, {[m
+       photoId,[m
+       orderId,[m
+[36m@@ -1666,7 +2067,110 @@[m [masync function handleCheckoutSessionCompleted(session) {[m
+ [m
+   await batch.commit();[m
+ [m
+[31m-  console.log(`Order ${orderId} marked as paid, ${items.length} purchases created`);[m
+[32m+[m[32m  console.log(`User order ${orderId} marked as paid, ${items.length} purchases created`);[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32masync function handleCustomerSubscriptionUpdated(subscription) {[m
+[32m+[m[32m  const subscriptionId = subscription?.id;[m
+[32m+[m[32m  const uid = subscription?.metadata?.uid;[m
+[32m+[m
+[32m+[m[32m  const resolvedUid = uid || (await findUserIdByStripeSubscriptionId(subscriptionId));[m
+[32m+[m[32m  if (!resolvedUid) {[m
+[32m+[m[32m    console.warn("Subscription updated: cannot resolve uid", subscriptionId);[m
+[32m+[m[32m    return;[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  const status = (subscription?.status || "unknown").toString();[m
+[32m+[m[32m  const isActive = status === "active" || status === "trialing";[m
+[32m+[m
+[32m+[m[32m  await db[m
+[32m+[m[32m    .collection("users")[m
+[32m+[m[32m    .doc(resolvedUid)[m
+[32m+[m[32m    .set([m
+[32m+[m[32m      {[m
+[32m+[m[32m        premium: {[m
+[32m+[m[32m          status: isActive ? "active" : "inactive",[m
+[32m+[m[32m          updatedAt: admin.firestore.FieldValue.serverTimestamp(),[m
+[32m+[m[32m        },[m
+[32m+[m[32m        stripe: {[m
+[32m+[m[32m          customerId: subscription?.customer || null,[m
+[32m+[m[32m          subscriptionId: subscriptionId || null,[m
+[32m+[m[32m          subscriptionStatus: status,[m
+[32m+[m[32m        },[m
+[32m+[m[32m        updatedAt: admin.firestore.FieldValue.serverTimestamp(),[m
+[32m+[m[32m      },[m
+[32m+[m[32m      { merge: true }[m
+[32m+[m[32m    );[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32masync function handleCustomerSubscriptionDeleted(subscription) {[m
+[32m+[m[32m  const subscriptionId = subscription?.id;[m
+[32m+[m[32m  const uid = subscription?.metadata?.uid;[m
+[32m+[m
+[32m+[m[32m  const resolvedUid = uid || (await findUserIdByStripeSubscriptionId(subscriptionId));[m
+[32m+[m[32m  if (!resolvedUid) {[m
+[32m+[m[32m    console.warn("Subscription deleted: cannot resolve uid", subscriptionId);[m
+[32m+[m[32m    return;[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  await db[m
+[32m+[m[32m    .collection("users")[m
+[32m+[m[32m    .doc(resolvedUid)[m
+[32m+[m[32m    .set([m
+[32m+[m[32m      {[m
+[32m+[m[32m        premium: {[m
+[32m+[m[32m          status: "inactive",[m
+[32m+[m[32m          updatedAt: admin.firestore.FieldValue.serverTimestamp(),[m
+[32m+[m[32m        },[m
+[32m+[m[32m        stripe: {[m
+[32m+[m[32m          subscriptionStatus: "deleted",[m
+[32m+[m[32m        },[m
+[32m+[m[32m        updatedAt: admin.firestore.FieldValue.serverTimestamp(),[m
+[32m+[m[32m      },[m
+[32m+[m[32m      { merge: true }[m
+[32m+[m[32m    );[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32masync function handleInvoicePaid(invoice) {[m
+[32m+[m[32m  const subscriptionId = invoice?.subscription;[m
+[32m+[m[32m  if (!subscriptionId) return;[m
+[32m+[m[32m  const uid = await findUserIdByStripeSubscriptionId(subscriptionId);[m
+[32m+[m[32m  if (!uid) return;[m
+[32m+[m
+[32m+[m[32m  await db[m
+[32m+[m[32m    .collection("users")[m
+[32m+[m[32m    .doc(uid)[m
+[32m+[m[32m    .set([m
+[32m+[m[32m      {[m
+[32m+[m[32m        premium: {[m
+[32m+[m[32m          status: "active",[m
+[32m+[m[32m          lastPaidAt: admin.firestore.FieldValue.serverTimestamp(),[m
+[32m+[m[32m        },[m
+[32m+[m[32m        updatedAt: admin.firestore.FieldValue.serverTimestamp(),[m
+[32m+[m[32m      },[m
+[32m+[m[32m      { merge: true }[m
+[32m+[m[32m    );[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32masync function handleInvoicePaymentFailed(invoice) {[m
+[32m+[m[32m  const subscriptionId = invoice?.subscription;[m
+[32m+[m[32m  if (!subscriptionId) return;[m
+[32m+[m[32m  const uid = await findUserIdByStripeSubscriptionId(subscriptionId);[m
+[32m+[m[32m  if (!uid) return;[m
+[32m+[m
+[32m+[m[32m  await db[m
+[32m+[m[32m    .collection("users")[m
+[32m+[m[32m    .doc(uid)[m
+[32m+[m[32m    .set([m
+[32m+[m[32m      {[m
+[32m+[m[32m        premium: {[m
+[32m+[m[32m          status: "inactive",[m
+[32m+[m[32m          lastPaymentFailedAt: admin.firestore.FieldValue.serverTimestamp(),[m
+[32m+[m[32m        },[m
+[32m+[m[32m        updatedAt: admin.firestore.FieldValue.serverTimestamp(),[m
+[32m+[m[32m      },[m
+[32m+[m[32m      { merge: true }[m
+[32m+[m[32m    );[m
+ }[m
+ [m
+ /**[m
+[36m@@ -1676,8 +2180,34 @@[m [masync function handleCheckoutSessionCompleted(session) {[m
+ async function handlePaymentIntentSucceeded(paymentIntent) {[m
+   console.log("Processing payment_intent.succeeded:", paymentIntent.id);[m
+ [m
+[31m-  // Logique additionnelle si nécessaire (notifications, analytics, etc.)[m
+[31m-  // La plupart du traitement est fait dans checkout.session.completed[m
+[32m+[m[32m  const uid = paymentIntent.metadata?.uid;[m
+[32m+[m[32m  const orderId = paymentIntent.metadata?.orderId;[m
+[32m+[m
+[32m+[m[32m  if (!uid || !orderId) {[m
+[32m+[m[32m    console.warn("Missing uid or orderId in payment intent metadata");[m
+[32m+[m[32m    return;[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  const orderRef = db[m
+[32m+[m[32m    .collection("users")[m
+[32m+[m[32m    .doc(uid)[m
+[32m+[m[32m    .collection("orders")[m
+[32m+[m[32m    .doc(orderId);[m
+[32m+[m
+[32m+[m[32m  await orderRef.set([m
+[32m+[m[32m    {[m
+[32m+[m[32m      status: "paid",[m
+[32m+[m[32m      paidAt: admin.firestore.FieldValue.serverTimestamp(),[m
+[32m+[m[32m      stripe: {[m
+[32m+[m[32m        paymentIntentId: paymentIntent.id,[m
+[32m+[m[32m        status: paymentIntent.status || "succeeded",[m
+[32m+[m[32m      },[m
+[32m+[m[32m      updatedAt: admin.firestore.FieldValue.serverTimestamp(),[m
+[32m+[m[32m    },[m
+[32m+[m[32m    { merge: true }[m
+[32m+[m[32m  );[m
+[32m+[m
+[32m+[m[32m  console.log(`Order ${orderId} marked as paid via payment_intent.succeeded`);[m
+ }[m
+ [m
+ /**[m

@@ -8,46 +8,90 @@
 const admin = require("firebase-admin");
 const ngeohash = require("ngeohash");
 const { setGlobalOptions } = require("firebase-functions/v2");
+const { defineSecret } = require("firebase-functions/params");
 const {
   onDocumentCreated,
   onDocumentUpdated,
 } = require("firebase-functions/v2/firestore");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 
+const STRIPE_SECRET_KEY = defineSecret("STRIPE_SECRET_KEY");
+const STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET");
+
 // Stripe SDK (lazy initialization)
 const stripeModule = require("stripe");
 let stripe = null;
 
 function getStripeWebhookSecret() {
-  try {
-    const config = require("firebase-functions").config();
-    return config.stripe?.webhook_secret || process.env.STRIPE_WEBHOOK_SECRET;
-  } catch (e) {
-    return process.env.STRIPE_WEBHOOK_SECRET;
-  }
+  return STRIPE_WEBHOOK_SECRET.value() || process.env.STRIPE_WEBHOOK_SECRET;
 }
 
 function getStripe() {
   if (!stripe) {
-    // Try Firebase config first, then environment variables
-    let apiKey = null;
-    
-    try {
-      const config = require("firebase-functions").config();
-      apiKey = config.stripe?.secret_key || process.env.STRIPE_SECRET_KEY;
-    } catch (e) {
-      apiKey = process.env.STRIPE_SECRET_KEY;
-    }
-    
+    const apiKey = STRIPE_SECRET_KEY.value() || process.env.STRIPE_SECRET_KEY;
     if (!apiKey) {
       throw new Error(
         "STRIPE_SECRET_KEY not configured. Run: " +
-        "firebase functions:config:set stripe.secret_key=\"sk_test_...\""
+        "firebase functions:secrets:set STRIPE_SECRET_KEY"
       );
     }
     stripe = stripeModule(apiKey);
   }
   return stripe;
+}
+
+function getStripeV20240620() {
+  // Stripe client specifically pinned for createStorexPaymentIntent
+  const apiKey = STRIPE_SECRET_KEY.value() || process.env.STRIPE_SECRET_KEY;
+
+  if (!apiKey) {
+    throw new Error(
+      "STRIPE_SECRET_KEY not configured. Run: " +
+        "firebase functions:secrets:set STRIPE_SECRET_KEY"
+    );
+  }
+
+  return stripeModule(apiKey, { apiVersion: "2024-06-20" });
+}
+
+function isAllowedRedirectUrl(url) {
+  if (typeof url !== "string" || url.trim().length === 0) return false;
+  try {
+    const u = new URL(url);
+    if (u.protocol === "https:") return true;
+    // Allow local development
+    if (u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1")) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+async function getUidFromAuthorizationHeader(req) {
+  const h = req.headers.authorization || req.headers.Authorization;
+  if (!h || typeof h !== "string") return null;
+  const m = h.match(/^Bearer\s+(.+)$/i);
+  if (!m) return null;
+  const idToken = m[1];
+  try {
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    return decoded?.uid || null;
+  } catch {
+    return null;
+  }
+}
+
+async function findUserIdByStripeSubscriptionId(subscriptionId) {
+  if (!subscriptionId) return null;
+  const snap = await db
+    .collection("users")
+    .where("stripe.subscriptionId", "==", subscriptionId)
+    .limit(1)
+    .get();
+  if (snap.empty) return null;
+  return snap.docs[0].id;
 }
 
 
@@ -237,6 +281,115 @@ exports.nearbySearch = onCall(
       .slice(0, limit);
 
     return { ok: true, count: arr.length, items: arr };
+  }
+);
+
+/**
+ * createStorexPaymentIntent (callable)
+ * Lit users/{uid}/cart (source de vérité), crée users/{uid}/orders/{orderId}
+ * puis renvoie { orderId, clientSecret }.
+ */
+exports.createStorexPaymentIntent = onCall(
+  { region: "us-east1", secrets: [STRIPE_SECRET_KEY] },
+  async (req) => {
+  const auth = req.auth;
+  if (!auth) throw new HttpsError("unauthenticated", "Sign in required");
+  const uid = auth.uid;
+
+  const data = req.data || {};
+  const currency = String(data.currency || "eur").toLowerCase();
+  const shippingCents = Number(data.shippingCents || 0);
+  const shippingMethod = String(data.shippingMethod || "flat_rate");
+  const address = data.address || {};
+
+  // 1) Lire le panier Firestore (source de vérité)
+  const cartSnap = await admin
+    .firestore()
+    .collection("users")
+    .doc(uid)
+    .collection("cart")
+    .get();
+
+  if (cartSnap.empty) throw new HttpsError("failed-precondition", "Cart empty");
+
+  let subtotalCents = 0;
+  const items = [];
+
+  for (const doc of cartSnap.docs) {
+    const it = doc.data();
+    const priceCents = Number(it.priceCents || 0);
+    const qty = Number(it.quantity || 1);
+    if (priceCents <= 0 || qty <= 0) continue;
+
+    subtotalCents += priceCents * qty;
+
+    items.push({
+      key: doc.id,
+      groupId: it.groupId || "",
+      productId: it.productId || "",
+      title: it.title || "",
+      priceCents,
+      quantity: qty,
+      size: it.size || "M",
+      color: it.color || "Noir",
+      imageUrl: it.imageUrl || "",
+      imagePath: it.imagePath || null,
+    });
+  }
+
+  if (subtotalCents <= 0) {
+    throw new HttpsError("failed-precondition", "Cart total invalid");
+  }
+
+  // 2) Valider shipping (whitelist)
+  const allowedShipping = new Set([0, 500, 2000]);
+  const safeShipping = allowedShipping.has(shippingCents) ? shippingCents : 2000;
+
+  const totalCents = subtotalCents + safeShipping;
+
+  // 3) Créer order
+  const orderRef = admin
+    .firestore()
+    .collection("users")
+    .doc(uid)
+    .collection("orders")
+    .doc();
+
+  await orderRef.set({
+    status: "pending_payment",
+    currency: currency.toUpperCase(),
+    subtotalCents,
+    shippingCents: safeShipping,
+    totalCents,
+    shippingMethod,
+    shippingAddress: address,
+    items,
+    paymentMethod: "stripe",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // 4) PaymentIntent
+  const stripeClient = getStripeV20240620();
+  const pi = await stripeClient.paymentIntents.create(
+    {
+      amount: totalCents,
+      currency,
+      automatic_payment_methods: { enabled: true },
+      metadata: { uid, orderId: orderRef.id },
+    },
+    { idempotencyKey: orderRef.id }
+  );
+
+  await orderRef.update({
+    stripe: { paymentIntentId: pi.id },
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return {
+    orderId: orderRef.id,
+    clientSecret: pi.client_secret,
+  };
   }
 );
 
@@ -1114,6 +1267,7 @@ exports.createCheckoutSessionForOrder = onCall(
     cpu: 0.083,
     memory: "256MiB",
     timeoutSeconds: 30,
+    secrets: [STRIPE_SECRET_KEY],
   },
   async (request) => {
     if (!request.auth) {
@@ -1220,6 +1374,191 @@ exports.createCheckoutSessionForOrder = onCall(
 );
 
 /**
+ * createCheckoutSession (HTTP)
+ * Achat unique (photos/articles) via Stripe Checkout.
+ * Body: { orderId, successUrl, cancelUrl }
+ * - Lit /orders/{orderId}
+ * - items attendus: [{ priceId: "price_...", qty?: number }]
+ * Returns: { url, sessionId }
+ */
+exports.createCheckoutSession = onRequest(
+  {
+    region: "us-east1",
+    cpu: 0.083,
+    memory: "256MiB",
+    timeoutSeconds: 30,
+    secrets: [STRIPE_SECRET_KEY],
+  },
+  async (req, res) => {
+    try {
+      // CORS minimal (si appelé depuis web/mobile)
+      res.set("Access-Control-Allow-Origin", "*");
+      res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      if (req.method === "OPTIONS") return res.status(204).send("");
+
+      if (req.method !== "POST") {
+        return res.status(405).json({ error: "POST only" });
+      }
+
+      const { orderId, successUrl, cancelUrl } = req.body || {};
+
+      if (!orderId || typeof orderId !== "string") {
+        return res.status(400).json({ error: "orderId required" });
+      }
+      if (!isAllowedRedirectUrl(successUrl) || !isAllowedRedirectUrl(cancelUrl)) {
+        return res
+          .status(400)
+          .json({ error: "successUrl & cancelUrl required (https)" });
+      }
+
+      const orderRef = db.collection("orders").doc(orderId);
+      const orderSnap = await orderRef.get();
+      if (!orderSnap.exists) {
+        return res.status(404).json({ error: "order not found" });
+      }
+
+      const order = orderSnap.data() || {};
+      const status = (order.status || "pending").toString();
+      if (status !== "pending") {
+        return res.status(409).json({ error: `order status is ${status}` });
+      }
+
+      const items = Array.isArray(order.items) ? order.items : [];
+      const line_items = items
+        .map((it) => {
+          const priceId = it.priceId;
+          const qty = Number(it.qty || 1);
+          if (!priceId || typeof priceId !== "string") return null;
+          if (!Number.isFinite(qty) || qty <= 0) return null;
+          return { price: priceId, quantity: Math.floor(qty) };
+        })
+        .filter(Boolean);
+
+      if (!line_items.length) {
+        return res.status(400).json({ error: "order has no items (priceId missing)" });
+      }
+
+      const stripeClient = getStripe();
+      const session = await stripeClient.checkout.sessions.create(
+        {
+          mode: "payment",
+          line_items,
+          success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: cancelUrl,
+          metadata: {
+            orderId,
+            uid: typeof order.uid === "string" ? order.uid : "",
+            kind: "one_time",
+          },
+          client_reference_id: orderId,
+        },
+        { idempotencyKey: `order_${orderId}` }
+      );
+
+      await orderRef.set(
+        {
+          stripe: {
+            sessionId: session.id,
+            sessionUrl: session.url || null,
+            paymentIntentId: session.payment_intent || null,
+          },
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      return res.json({ url: session.url, sessionId: session.id });
+    } catch (e) {
+      console.error("createCheckoutSession error", e);
+      return res.status(500).json({ error: String(e?.message || e) });
+    }
+  }
+);
+
+/**
+ * createSubscriptionCheckoutSession (HTTP)
+ * Abonnement via Stripe Checkout.
+ * Body: { priceId, successUrl, cancelUrl }
+ * Auth: Authorization: Bearer <Firebase ID token>
+ * Returns: { url, sessionId }
+ */
+exports.createSubscriptionCheckoutSession = onRequest(
+  {
+    region: "us-east1",
+    cpu: 0.083,
+    memory: "256MiB",
+    timeoutSeconds: 30,
+    secrets: [STRIPE_SECRET_KEY],
+  },
+  async (req, res) => {
+    try {
+      res.set("Access-Control-Allow-Origin", "*");
+      res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      if (req.method === "OPTIONS") return res.status(204).send("");
+
+      if (req.method !== "POST") {
+        return res.status(405).json({ error: "POST only" });
+      }
+
+      const uid = await getUidFromAuthorizationHeader(req);
+      if (!uid) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { priceId, successUrl, cancelUrl } = req.body || {};
+
+      if (!priceId || typeof priceId !== "string" || !priceId.startsWith("price_")) {
+        return res.status(400).json({ error: "priceId required" });
+      }
+      if (!isAllowedRedirectUrl(successUrl) || !isAllowedRedirectUrl(cancelUrl)) {
+        return res
+          .status(400)
+          .json({ error: "successUrl & cancelUrl required (https)" });
+      }
+
+      const stripeClient = getStripe();
+      const session = await stripeClient.checkout.sessions.create(
+        {
+          mode: "subscription",
+          line_items: [{ price: priceId, quantity: 1 }],
+          success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: cancelUrl,
+          metadata: { uid, kind: "subscription" },
+          client_reference_id: uid,
+          subscription_data: {
+            metadata: { uid, kind: "subscription" },
+          },
+        },
+        { idempotencyKey: `sub_${uid}_${priceId}` }
+      );
+
+      await db
+        .collection("users")
+        .doc(uid)
+        .set(
+          {
+            premium: {
+              status: "checkout_pending",
+            },
+            stripe: {
+              pendingCheckoutSessionId: session.id,
+            },
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+
+      return res.json({ url: session.url, sessionId: session.id });
+    } catch (e) {
+      console.error("createSubscriptionCheckoutSession error", e);
+      return res.status(500).json({ error: String(e?.message || e) });
+    }
+  }
+);
+
+/**
  * createMediaShopCheckout
  * Crée une Checkout Session Stripe pour le Media Shop (photos vendues)
  * { userId: string }
@@ -1231,6 +1570,7 @@ exports.createMediaShopCheckout = onCall(
     cpu: 0.083,
     memory: "256MiB",
     timeoutSeconds: 30,
+    secrets: [STRIPE_SECRET_KEY],
   },
   async (request) => {
     if (!request.auth) {
@@ -1369,6 +1709,7 @@ exports.createBusinessConnectOnboardingLink = onCall(
     cpu: 0.083,
     memory: "256MiB",
     timeoutSeconds: 30,
+    secrets: [STRIPE_SECRET_KEY],
   },
   async (request) => {
     if (!request.auth) {
@@ -1465,6 +1806,7 @@ exports.refreshBusinessConnectStatus = onCall(
     cpu: 0.083,
     memory: "256MiB",
     timeoutSeconds: 30,
+    secrets: [STRIPE_SECRET_KEY],
   },
   async (request) => {
     if (!request.auth) {
@@ -1539,6 +1881,7 @@ exports.stripeWebhook = onRequest(
     cpu: 0.083,
     memory: "256MiB",
     timeoutSeconds: 30,
+    secrets: [STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET],
     // CORS non nécessaire pour les webhooks (appelés par Stripe directement)
   },
   async (req, res) => {
@@ -1581,6 +1924,22 @@ exports.stripeWebhook = onRequest(
           await handleCheckoutSessionCompleted(event.data.object);
           break;
 
+        case "customer.subscription.updated":
+          await handleCustomerSubscriptionUpdated(event.data.object);
+          break;
+
+        case "customer.subscription.deleted":
+          await handleCustomerSubscriptionDeleted(event.data.object);
+          break;
+
+        case "invoice.paid":
+          await handleInvoicePaid(event.data.object);
+          break;
+
+        case "invoice.payment_failed":
+          await handleInvoicePaymentFailed(event.data.object);
+          break;
+
         case "payment_intent.succeeded":
           await handlePaymentIntentSucceeded(event.data.object);
           break;
@@ -1613,26 +1972,69 @@ exports.stripeWebhook = onRequest(
 async function handleCheckoutSessionCompleted(session) {
   console.log("Processing checkout.session.completed:", session.id);
 
-  const orderId = session.metadata?.orderId;
-  const userId = session.metadata?.userId;
+  // Supporte 2 modèles:
+  // - Nouveau modèle simple: /orders/{orderId}
+  // - Modèle existant Media Shop: /users/{uid}/orders/{orderId}
+  const orderId = session.metadata?.orderId || session.client_reference_id;
+  const uid = session.metadata?.uid || session.metadata?.userId;
 
-  if (!orderId || !userId) {
-    console.warn("Missing orderId or userId in session metadata");
+  if (!orderId) {
+    console.warn("Missing orderId in session metadata");
     return;
   }
 
-  const orderRef = db.collection("users").doc(userId).collection("orders").doc(orderId);
-  const orderSnap = await orderRef.get();
+  // 1) Essaye d'abord /orders/{orderId}
+  const rootOrderRef = db.collection("orders").doc(orderId);
+  const rootSnap = await rootOrderRef.get();
+  if (rootSnap.exists) {
+    await rootOrderRef.set(
+      {
+        status: "paid",
+        paidAt: admin.firestore.FieldValue.serverTimestamp(),
+        stripe: {
+          sessionId: session.id,
+          paymentIntentId: session.payment_intent || null,
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
 
-  if (!orderSnap.exists) {
-    console.warn(`Order ${orderId} not found for user ${userId}`);
+    if (uid && typeof uid === "string") {
+      await db
+        .collection("users")
+        .doc(uid)
+        .collection("purchases")
+        .doc(orderId)
+        .set(
+          {
+            orderId,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+    }
+
+    console.log(`Root order ${orderId} marked as paid`);
     return;
   }
 
-  const order = orderSnap.data();
+  // 2) Fallback vers modèle existant users/{uid}/orders/{orderId}
+  if (!uid || typeof uid !== "string") {
+    console.warn("Missing uid/userId in session metadata for users orders");
+    return;
+  }
 
-  // Met à jour le statut de la commande
-  await orderRef.update({
+  const userOrderRef = db.collection("users").doc(uid).collection("orders").doc(orderId);
+  const userOrderSnap = await userOrderRef.get();
+  if (!userOrderSnap.exists) {
+    console.warn(`Order ${orderId} not found (root nor user ${uid})`);
+    return;
+  }
+
+  const order = userOrderSnap.data() || {};
+
+  await userOrderRef.update({
     status: "paid",
     paidAt: admin.firestore.FieldValue.serverTimestamp(),
     stripeSessionId: session.id,
@@ -1640,7 +2042,6 @@ async function handleCheckoutSessionCompleted(session) {
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  // Crée les documents purchases pour chaque photo
   const items = order.items || [];
   const batch = db.batch();
 
@@ -1648,7 +2049,7 @@ async function handleCheckoutSessionCompleted(session) {
     const photoId = item.photoId;
     if (!photoId) continue;
 
-    const purchaseRef = db.collection("users").doc(userId).collection("purchases").doc(photoId);
+    const purchaseRef = db.collection("users").doc(uid).collection("purchases").doc(photoId);
     batch.set(purchaseRef, {
       photoId,
       orderId,
@@ -1666,7 +2067,110 @@ async function handleCheckoutSessionCompleted(session) {
 
   await batch.commit();
 
-  console.log(`Order ${orderId} marked as paid, ${items.length} purchases created`);
+  console.log(`User order ${orderId} marked as paid, ${items.length} purchases created`);
+}
+
+async function handleCustomerSubscriptionUpdated(subscription) {
+  const subscriptionId = subscription?.id;
+  const uid = subscription?.metadata?.uid;
+
+  const resolvedUid = uid || (await findUserIdByStripeSubscriptionId(subscriptionId));
+  if (!resolvedUid) {
+    console.warn("Subscription updated: cannot resolve uid", subscriptionId);
+    return;
+  }
+
+  const status = (subscription?.status || "unknown").toString();
+  const isActive = status === "active" || status === "trialing";
+
+  await db
+    .collection("users")
+    .doc(resolvedUid)
+    .set(
+      {
+        premium: {
+          status: isActive ? "active" : "inactive",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        stripe: {
+          customerId: subscription?.customer || null,
+          subscriptionId: subscriptionId || null,
+          subscriptionStatus: status,
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+}
+
+async function handleCustomerSubscriptionDeleted(subscription) {
+  const subscriptionId = subscription?.id;
+  const uid = subscription?.metadata?.uid;
+
+  const resolvedUid = uid || (await findUserIdByStripeSubscriptionId(subscriptionId));
+  if (!resolvedUid) {
+    console.warn("Subscription deleted: cannot resolve uid", subscriptionId);
+    return;
+  }
+
+  await db
+    .collection("users")
+    .doc(resolvedUid)
+    .set(
+      {
+        premium: {
+          status: "inactive",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        stripe: {
+          subscriptionStatus: "deleted",
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+}
+
+async function handleInvoicePaid(invoice) {
+  const subscriptionId = invoice?.subscription;
+  if (!subscriptionId) return;
+  const uid = await findUserIdByStripeSubscriptionId(subscriptionId);
+  if (!uid) return;
+
+  await db
+    .collection("users")
+    .doc(uid)
+    .set(
+      {
+        premium: {
+          status: "active",
+          lastPaidAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+}
+
+async function handleInvoicePaymentFailed(invoice) {
+  const subscriptionId = invoice?.subscription;
+  if (!subscriptionId) return;
+  const uid = await findUserIdByStripeSubscriptionId(subscriptionId);
+  if (!uid) return;
+
+  await db
+    .collection("users")
+    .doc(uid)
+    .set(
+      {
+        premium: {
+          status: "inactive",
+          lastPaymentFailedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
 }
 
 /**
@@ -1676,8 +2180,34 @@ async function handleCheckoutSessionCompleted(session) {
 async function handlePaymentIntentSucceeded(paymentIntent) {
   console.log("Processing payment_intent.succeeded:", paymentIntent.id);
 
-  // Logique additionnelle si nécessaire (notifications, analytics, etc.)
-  // La plupart du traitement est fait dans checkout.session.completed
+  const uid = paymentIntent.metadata?.uid;
+  const orderId = paymentIntent.metadata?.orderId;
+
+  if (!uid || !orderId) {
+    console.warn("Missing uid or orderId in payment intent metadata");
+    return;
+  }
+
+  const orderRef = db
+    .collection("users")
+    .doc(uid)
+    .collection("orders")
+    .doc(orderId);
+
+  await orderRef.set(
+    {
+      status: "paid",
+      paidAt: admin.firestore.FieldValue.serverTimestamp(),
+      stripe: {
+        paymentIntentId: paymentIntent.id,
+        status: paymentIntent.status || "succeeded",
+      },
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  console.log(`Order ${orderId} marked as paid via payment_intent.succeeded`);
 }
 
 /**

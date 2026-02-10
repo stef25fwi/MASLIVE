@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:get/get.dart';
 import 'firebase_options.dart';
 import 'session/session_controller.dart';
@@ -24,6 +25,7 @@ import 'pages/account_page.dart';
 import 'pages/orders_page.dart';
 import 'pages/map_admin_editor_page.dart';
 import 'pages/storex_shop_page.dart';
+import 'pages/shop/storex_reviews_and_success_pages.dart';
 import 'pages/pending_products_page.dart';
 import 'pages/search_page.dart';
 import 'pages/circuit_import_export_page.dart';
@@ -85,6 +87,10 @@ Future<void> main() async {
   );
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  Stripe.publishableKey =
+      "pk_test_51Ssn0PCCIRtTE2nOVARmqXRG6rRTiNxeuvHiwU2zuqcKYn0l1KdzptkB4ZWlHtYcFedBiGlHqB4OLQcQzXC9A6SY00OcBNOnDr"; // <-- ton publishable key
+  await Stripe.instance.applySettings();
 
   // ✅ Initialiser le token Mapbox (charge depuis SharedPreferences si dispo)
   await MapboxTokenService.warmUp();
@@ -169,6 +175,10 @@ class MasLiveApp extends StatelessWidget {
                     shopId: "global",
                     groupId: "MASLIVE",
                   ),
+              StorexRoutes.paymentComplete: (_) => const SizedBox.shrink(),
+              StorexRoutes.reviews: (_) => const SizedBox.shrink(),
+              StorexRoutes.addReview: (_) => const SizedBox.shrink(),
+              StorexRoutes.orderTracker: (_) => const SizedBox.shrink(),
               '/account': (_) => const AccountAndAdminPage(),
               '/account-admin': (_) => const AccountAndAdminPage(),
               '/orders': (_) => const OrdersPage(),
@@ -236,6 +246,21 @@ class MasLiveApp extends StatelessWidget {
                 final uid = args?['uid'] as String?;
                 return GroupExportPage(adminGroupId: adminGroupId, uid: uid);
               },
+            },
+            onGenerateRoute: (settings) {
+              if (settings.name == StorexRoutes.paymentComplete) {
+                return PaymentCompletePage.routeFromArgs(settings.arguments);
+              }
+              if (settings.name == StorexRoutes.reviews) {
+                return ReviewsPage.routeFromArgs(settings.arguments);
+              }
+              if (settings.name == StorexRoutes.addReview) {
+                return AddReviewPage.routeFromArgs(settings.arguments);
+              }
+              if (settings.name == StorexRoutes.orderTracker) {
+                return OrderTrackerPage.routeFromArgs(settings.arguments);
+              }
+              return null;
             },
             builder: (context, child) => HoneycombBackground(
               opacity: 0.08,

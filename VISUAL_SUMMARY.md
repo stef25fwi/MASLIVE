@@ -147,7 +147,7 @@ MAINTENANT                              PRODUCTION-READY
 │    firestore:rules,\                               │
 │    storage                                         │
 │                                                     │
-│  firebase functions:log --limit=50                 │
+│  firebase functions:log --lines 50                 │
 │                                                     │
 │  # Puis tester sur /group-admin                    │
 │                                                     │

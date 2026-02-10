@@ -364,7 +364,7 @@ firebase deploy --only functions:calculateGroupAveragePosition
 ### Phase 3: Test complet
 ```bash
 # 1. Tester Cloud Function
-firebase functions:log --limit=50
+firebase functions:log --lines 50
 
 # Vérifier dans logs:
 # ✅ "📍 Calcul position moyenne"
@@ -515,7 +515,7 @@ En cas de problème:
 
 ```bash
 # Logs Cloud Function
-firebase functions:log --limit=100
+firebase functions:log --lines 100
 
 # Vérifier Firestore write
 firebase firestore:inspect

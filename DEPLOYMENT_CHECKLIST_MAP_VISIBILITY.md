@@ -248,7 +248,7 @@ firebase deploy --only functions:calculateGroupAveragePosition
 
 **Check logs**:
 ```bash
-firebase functions:log --limit=10
+firebase functions:log --lines 10
 ```
 
 - [ ] ✅ Pas d'erreurs
@@ -333,7 +333,7 @@ firebase deploy:list --json 2>/dev/null || firebase projects:list
 ### 9.3 Monitor logs
 
 ```bash
-firebase functions:log --limit=5 --tail
+firebase functions:log --lines 5
 ```
 
 - [ ] ✅ Pas d'erreurs functions

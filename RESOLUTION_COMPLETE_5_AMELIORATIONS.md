@@ -90,7 +90,7 @@ cp functions/group_tracking_improved.js functions/group_tracking.js
 firebase deploy --only functions:calculateGroupAveragePosition
 
 # Vérifier
-firebase functions:log --limit=50
+firebase functions:log --lines 50
 
 # Résultat attendu:
 # ✅ Function deployed
@@ -275,7 +275,7 @@ echo "✅ SETUP COMPLETE - READY TO DEPLOY"
 ### Immédiat (dès que tests passent):
 1. `firebase deploy --only functions:calculateGroupAveragePosition`
 2. `firebase deploy --only hosting` (après `flutter build web --release`)
-3. Vérifier logs: `firebase functions:log --limit=50`
+3. Vérifier logs: `firebase functions:log --lines 50`
 
 ### Court terme (semaine 1):
 1. Tester avec groupes réels (1-2 groupes)

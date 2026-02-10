@@ -27,7 +27,7 @@ firebase deploy --only storage
 
 ### ✅ Vérifier après
 ```bash
-firebase functions:log --limit=20
+firebase functions:log --lines 20
 # Chercher: "Calcul position moyenne" ou erreurs
 ```
 
