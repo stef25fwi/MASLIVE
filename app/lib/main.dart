@@ -23,6 +23,7 @@ import 'pages/paywall_page.dart';
 import 'pages/account_admin_page.dart';
 import 'pages/account_page.dart';
 import 'pages/orders_page.dart';
+import 'pages/my_orders_page.dart';
 import 'pages/map_admin_editor_page.dart';
 import 'pages/storex_shop_page.dart';
 import 'pages/shop/storex_reviews_and_success_pages.dart';
@@ -181,7 +182,7 @@ class MasLiveApp extends StatelessWidget {
               StorexRoutes.orderTracker: (_) => const SizedBox.shrink(),
               '/account': (_) => const AccountAndAdminPage(),
               '/account-admin': (_) => const AccountAndAdminPage(),
-              '/orders': (_) => const OrdersPage(),
+              '/orders': (_) => const MyOrdersPage(),
               '/map-admin': (_) => const MapAdminEditorPage(),
               '/group-member': (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments as Map?;

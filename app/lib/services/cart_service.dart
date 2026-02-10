@@ -182,9 +182,58 @@ class CartService extends ChangeNotifier {
     _afterLocalMutation();
   }
 
+  /// Valide que tous les articles du panier ont du stock disponible
+  /// Retourne une liste des articles problématiques
+  Future<List<String>> validateStock() async {
+    final problematicItems = <String>[];
+    
+    for (final item in _itemsByKey.values) {
+      try {
+        // Récupérer le produit depuis Firestore pour vérifier le stock actuel
+        final productDoc = await FirebaseFirestore.instance
+            .collectionGroup('products')
+            .where('id', isEqualTo: item.productId)
+            .limit(1)
+            .get();
+        
+        if (productDoc.docs.isEmpty) {
+          problematicItems.add('${item.title}: produit introuvable');
+          continue;
+        }
+        
+        final productData = productDoc.docs.first.data();
+        final stockByVariant = productData['stockByVariant'] as Map<String, dynamic>?;
+        
+        if (stockByVariant == null) {
+          continue; // Pas de gestion de stock
+        }
+        
+        final variantKey = '${item.size}|${item.color}';
+        final stock = stockByVariant[variantKey] as int? ?? 0;
+        
+        if (stock < item.quantity) {
+          problematicItems.add(
+            '${item.title} (${item.size}, ${item.color}): stock insuffisant (dispo: $stock, demandé: ${item.quantity})'
+          );
+        }
+      } catch (e) {
+        debugPrint('Error validating stock for ${item.productId}: $e');
+        problematicItems.add('${item.title}: erreur de validation');
+      }
+    }
+    
+    return problematicItems;
+  }
+
   /// Créer une commande et obtenir l'URL de checkout Stripe
   Future<String?> createCheckoutSession(String userId) async {
     if (_itemsByKey.isEmpty) return null;
+
+    // Valider le stock avant de créer la session
+    final stockIssues = await validateStock();
+    if (stockIssues.isNotEmpty) {
+      throw Exception('Stock insuffisant:\n${stockIssues.join('\n')}');
+    }
 
     try {
       final callable = FirebaseFunctions.instanceFor(region: 'us-east1')

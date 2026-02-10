@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'cart_page.dart';
 import 'product_detail_page.dart';
+import 'my_orders_page.dart';
 import '../models/group_product.dart';
 import '../services/cart_service.dart';
 import '../widgets/language_switcher.dart';
@@ -931,7 +932,7 @@ class _StorexAccount extends StatelessWidget {
           _AccountRow(
             icon: Icons.receipt_long,
             label: l10n.AppLocalizations.of(context)!.myOrders,
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _OrdersPage(repo: repo))),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyOrdersPage())),
           ),
           _AccountRow(
             icon: Icons.favorite_border,

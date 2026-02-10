@@ -3,6 +3,8 @@ import '../services/cart_service.dart';
 import '../session/require_signin.dart';
 import '../session/session_scope.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'checkout/storex_checkout_stripe.dart';
 
 class CartPage extends StatelessWidget {
@@ -13,6 +15,88 @@ class CartPage extends StatelessWidget {
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,
   );
+
+  Future<void> _checkout(BuildContext context, String userId) async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      final checkoutUrl = await CartService.instance.createCheckoutSession(userId);
+
+      if (!context.mounted) return;
+      Navigator.of(context).pop();
+
+      if (checkoutUrl == null || checkoutUrl.isEmpty) {
+        throw Exception('URL de checkout manquante');
+      }
+
+      final uri = Uri.parse(checkoutUrl);
+      if (!await canLaunchUrl(uri)) {
+        throw Exception('Impossible d\'ouvrir l\'URL de paiement');
+      }
+
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } on FirebaseFunctionsException catch (e) {
+      if (!context.mounted) return;
+      Navigator.of(context).pop();
+      
+      String message = 'Erreur lors de la création du paiement';
+      
+      switch (e.code) {
+        case 'unauthenticated':
+          message = 'Vous devez être connecté pour commander';
+          break;
+        case 'permission-denied':
+          message = 'Accès refusé. Vérifiez vos permissions.';
+          break;
+        case 'failed-precondition':
+          message = 'Votre panier est vide';
+          break;
+        case 'resource-exhausted':
+          message = 'Trop de requêtes. Réessayez dans quelques instants.';
+          break;
+        case 'unavailable':
+          message = 'Service temporairement indisponible. Réessayez.';
+          break;
+        default:
+          message = e.message ?? 'Erreur inconnue: ${e.code}';
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: 'Réessayer',
+            textColor: Colors.white,
+            onPressed: () => _checkout(context, userId),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.of(context).pop();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: 'Réessayer',
+            textColor: Colors.white,
+            onPressed: () => _checkout(context, userId),
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
