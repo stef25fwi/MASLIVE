@@ -79,6 +79,13 @@ class CartPage extends StatelessWidget {
               final currentUserId = FirebaseAuth.instance.currentUser?.uid;
               if (currentUserId != null) {
                 _checkout(context, currentUserId);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Veuillez vous reconnecter pour réessayer.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
               }
             },
           ),
@@ -100,6 +107,13 @@ class CartPage extends StatelessWidget {
               final currentUserId = FirebaseAuth.instance.currentUser?.uid;
               if (currentUserId != null) {
                 _checkout(context, currentUserId);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Veuillez vous reconnecter pour réessayer.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
               }
             },
           ),

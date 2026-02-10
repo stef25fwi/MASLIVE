@@ -7,6 +7,8 @@ import '../models/cart_item.dart';
 class MyOrdersPage extends StatelessWidget {
   const MyOrdersPage({super.key});
 
+  static const _dateFormat = 'dd/MM/yyyy à HH:mm';
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -226,7 +228,7 @@ class _OrderCard extends StatelessWidget {
             if (createdAt != null) ...[
               const SizedBox(height: 8),
               Text(
-                DateFormat('dd/MM/yyyy à HH:mm').format(createdAt!),
+                DateFormat(MyOrdersPage._dateFormat).format(createdAt!),
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.black.withOpacity(0.4),
