@@ -75,7 +75,12 @@ class CartPage extends StatelessWidget {
           action: SnackBarAction(
             label: 'Réessayer',
             textColor: Colors.white,
-            onPressed: () => _checkout(context, userId),
+            onPressed: () {
+              final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+              if (currentUserId != null) {
+                _checkout(context, currentUserId);
+              }
+            },
           ),
         ),
       );
@@ -91,7 +96,12 @@ class CartPage extends StatelessWidget {
           action: SnackBarAction(
             label: 'Réessayer',
             textColor: Colors.white,
-            onPressed: () => _checkout(context, userId),
+            onPressed: () {
+              final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+              if (currentUserId != null) {
+                _checkout(context, currentUserId);
+              }
+            },
           ),
         ),
       );

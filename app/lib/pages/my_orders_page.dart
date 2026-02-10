@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import '../models/cart_item.dart';
 
 class MyOrdersPage extends StatelessWidget {
@@ -225,7 +226,7 @@ class _OrderCard extends StatelessWidget {
             if (createdAt != null) ...[
               const SizedBox(height: 8),
               Text(
-                '${createdAt!.day}/${createdAt!.month}/${createdAt!.year} à ${createdAt!.hour}:${createdAt!.minute.toString().padLeft(2, '0')}',
+                DateFormat('dd/MM/yyyy à HH:mm').format(createdAt!),
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.black.withOpacity(0.4),

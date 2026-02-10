@@ -217,7 +217,7 @@ class CartService extends ChangeNotifier {
           );
         }
       } catch (e) {
-        debugPrint('Error validating stock for ${item.productId}: $e');
+        debugPrint('Error validating stock for ${item.productId} (${item.size}, ${item.color}): $e');
         problematicItems.add('${item.title}: erreur de validation');
       }
     }
