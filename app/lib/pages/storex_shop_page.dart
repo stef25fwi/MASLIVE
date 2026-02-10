@@ -459,10 +459,17 @@ class _StorexDrawer extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Image.asset(
-                    'assets/images/maslivelogo.png',
-                    height: 34,
-                    fit: BoxFit.contain,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Image.asset(
+                        'assets/images/maslivelogo.png',
+                        height: 34,
+                        fit: BoxFit.contain,
+                      ),
+                      // Bouton langue identique à celui du header
+                      LanguageSwitcher(),
+                    ],
                   ),
                   const SizedBox(height: 18),
                   _DrawerItem(l10n.AppLocalizations.of(context)!.home, () => Navigator.of(context).pop()),
