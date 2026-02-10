@@ -209,5 +209,76 @@
   "orderNo": "Pedido n.º",
   "itemsLabel": "artículos",
   "addToCart": "Añadir al carrito",
-  "comingSoon": "Próximamente"
+  "comingSoon": "Próximamente",
+  "retry": "Reintentar",
+  "reconnectToRetry": "Por favor, vuelva a conectarse para reintentar.",
+  "emptyCart": "Vaciar",
+  "userNotFound": "Usuario no encontrado",
+  "placeOrder": "Realizar pedido",
+  "checkoutMissingUrl": "URL de pago faltante",
+  "cannotOpenPaymentUrl": "No se puede abrir la URL de pago",
+  "paymentCreationError": "Error al crear el pago",
+  "mustBeLoggedInToOrder": "Debe iniciar sesión para realizar el pedido",
+  "accessDeniedCheckPermissions": "Acceso denegado. Verifique sus permisos.",
+  "yourCartIsEmpty": "Su carrito está vacío",
+  "tooManyRequestsRetryLater": "Demasiadas solicitudes. Reintente en unos momentos.",
+  "serviceTemporarilyUnavailableRetry": "Servicio temporalmente no disponible. Reintente.",
+  "unknownError": "Error desconocido: {code}",
+  "@unknownError": {
+    "description": "Unknown error message",
+    "placeholders": {
+      "code": {
+        "type": "String",
+        "example": "unknown-error"
+      }
+    }
+  },
+  "errorLabel": "Error: {message}",
+  "@errorLabel": {
+    "description": "Error message label",
+    "placeholders": {
+      "message": {
+        "type": "String",
+        "example": "Something went wrong"
+      }
+    }
+  },
+  "reviews": "Reseñas",
+  "size": "Talla",
+  "color": "Color",
+  "productUnavailable": "❌ Producto no disponible",
+  "insufficientStock": "❌ Stock insuficiente (disponible: {stock})",
+  "@insufficientStock": {
+    "description": "Insufficient stock message",
+    "placeholders": {
+      "stock": {
+        "type": "int",
+        "example": "5"
+      }
+    }
+  },
+  "addedToCart": "✅ Añadido: {quantity} x {title} ({size}, {color})",
+  "@addedToCart": {
+    "description": "Added to cart message",
+    "placeholders": {
+      "quantity": {
+        "type": "int",
+        "example": "2"
+      },
+      "title": {
+        "type": "String",
+        "example": "Camiseta"
+      },
+      "size": {
+        "type": "String",
+        "example": "M"
+      },
+      "color": {
+        "type": "String",
+        "example": "Negro"
+      }
+    }
+  },
+  "connectLoginPage": "Conecta tu página de inicio de sesión aquí",
+  "user": "Usuario"
 }

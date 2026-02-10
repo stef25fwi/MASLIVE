@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'cart_page.dart';
 import 'product_detail_page.dart';
+import 'my_orders_page.dart';
 import '../models/group_product.dart';
 import '../services/cart_service.dart';
 import '../widgets/language_switcher.dart';
@@ -458,10 +459,17 @@ class _StorexDrawer extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Image.asset(
-                    'assets/images/maslivelogo.png',
-                    height: 34,
-                    fit: BoxFit.contain,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Image.asset(
+                        'assets/images/maslivelogo.png',
+                        height: 34,
+                        fit: BoxFit.contain,
+                      ),
+                      // Bouton langue identique à celui du header
+                      LanguageSwitcher(),
+                    ],
                   ),
                   const SizedBox(height: 18),
                   _DrawerItem(l10n.AppLocalizations.of(context)!.home, () => Navigator.of(context).pop()),
@@ -475,12 +483,12 @@ class _StorexDrawer extends StatelessWidget {
                   }),
                   _DrawerItem(l10n.AppLocalizations.of(context)!.signIn, () {
                     Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Brancher ta page login ici")));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.AppLocalizations.of(context)!.connectLoginPage)));
                   }),
                   const Divider(height: 28),
                   Text(
                     l10n.AppLocalizations.of(context)!.categories,
-                    style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w600),
+                    style: const TextStyle(fontSize: 16, color: Colors.black54, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 8),
                   ...finalCats.map((c) => Padding(
@@ -519,7 +527,7 @@ class _DrawerItem extends StatelessWidget {
       onTap: onTap,
       child: Padding(
         padding: EdgeInsets.symmetric(vertical: small ? 8 : 12),
-        child: Text(label, style: TextStyle(fontSize: small ? 14 : 16, color: Colors.black54, fontWeight: FontWeight.w700)),
+        child: Text(label, style: TextStyle(fontSize: small ? 16 : 18, color: Colors.black54, fontWeight: FontWeight.w700)),
       ),
     );
   }
@@ -919,7 +927,7 @@ class _StorexAccount extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(user?.displayName ?? "User", style: const TextStyle(fontWeight: FontWeight.w800)),
+                    Text(user?.displayName ?? l10n.AppLocalizations.of(context)!.user, style: const TextStyle(fontWeight: FontWeight.w800)),
                     const SizedBox(height: 4),
                     Text(user?.email ?? "not-signed-in", style: const TextStyle(color: Colors.black38)),
                   ],
@@ -931,7 +939,7 @@ class _StorexAccount extends StatelessWidget {
           _AccountRow(
             icon: Icons.receipt_long,
             label: l10n.AppLocalizations.of(context)!.myOrders,
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _OrdersPage(repo: repo))),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyOrdersPage())),
           ),
           _AccountRow(
             icon: Icons.favorite_border,

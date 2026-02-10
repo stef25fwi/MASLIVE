@@ -26,6 +26,9 @@ class CartItem {
 
   String get key => '$groupId::$productId::$size::$color';
 
+  /// Retourne la clé de variante pour le stock (format: "taille|couleur")
+  String get variantKey => '$size|$color';
+
   // Retourne l'image à utiliser (priorité à imagePath si défini)
   String get displayImage => imagePath ?? imageUrl;
   

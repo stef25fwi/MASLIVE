@@ -209,5 +209,76 @@
   "orderNo": "Commande n°",
   "itemsLabel": "articles",
   "addToCart": "Ajouter au panier",
-  "comingSoon": "Bientôt disponible"
+  "comingSoon": "Bientôt disponible",
+  "retry": "Réessayer",
+  "reconnectToRetry": "Veuillez vous reconnecter pour réessayer.",
+  "emptyCart": "Vider",
+  "userNotFound": "Utilisateur introuvable",
+  "placeOrder": "Commander",
+  "checkoutMissingUrl": "URL de checkout manquante",
+  "cannotOpenPaymentUrl": "Impossible d'ouvrir l'URL de paiement",
+  "paymentCreationError": "Erreur lors de la création du paiement",
+  "mustBeLoggedInToOrder": "Vous devez être connecté pour commander",
+  "accessDeniedCheckPermissions": "Accès refusé. Vérifiez vos permissions.",
+  "yourCartIsEmpty": "Votre panier est vide",
+  "tooManyRequestsRetryLater": "Trop de requêtes. Réessayez dans quelques instants.",
+  "serviceTemporarilyUnavailableRetry": "Service temporairement indisponible. Réessayez.",
+  "unknownError": "Erreur inconnue: {code}",
+  "@unknownError": {
+    "description": "Unknown error message",
+    "placeholders": {
+      "code": {
+        "type": "String",
+        "example": "unknown-error"
+      }
+    }
+  },
+  "errorLabel": "Erreur: {message}",
+  "@errorLabel": {
+    "description": "Error message label",
+    "placeholders": {
+      "message": {
+        "type": "String",
+        "example": "Something went wrong"
+      }
+    }
+  },
+  "reviews": "Avis",
+  "size": "Taille",
+  "color": "Couleur",
+  "productUnavailable": "❌ Produit indisponible",
+  "insufficientStock": "❌ Stock insuffisant (disponible: {stock})",
+  "@insufficientStock": {
+    "description": "Insufficient stock message",
+    "placeholders": {
+      "stock": {
+        "type": "int",
+        "example": "5"
+      }
+    }
+  },
+  "addedToCart": "✅ Ajouté: {quantity} x {title} ({size}, {color})",
+  "@addedToCart": {
+    "description": "Added to cart message",
+    "placeholders": {
+      "quantity": {
+        "type": "int",
+        "example": "2"
+      },
+      "title": {
+        "type": "String",
+        "example": "T-shirt"
+      },
+      "size": {
+        "type": "String",
+        "example": "M"
+      },
+      "color": {
+        "type": "String",
+        "example": "Noir"
+      }
+    }
+  },
+  "connectLoginPage": "Brancher ta page login ici",
+  "user": "Utilisateur"
 }
