@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'checkout/storex_checkout_stripe.dart';
+import '../l10n/app_localizations.dart' as l10n;
 
 class CartPage extends StatelessWidget {
   const CartPage({super.key});
@@ -32,12 +33,12 @@ class CartPage extends StatelessWidget {
       Navigator.of(context).pop();
 
       if (checkoutUrl == null || checkoutUrl.isEmpty) {
-        throw Exception('URL de checkout manquante');
+        throw Exception(l10n.AppLocalizations.of(context)!.checkoutMissingUrl);
       }
 
       final uri = Uri.parse(checkoutUrl);
       if (!await canLaunchUrl(uri)) {
-        throw Exception('Impossible d\'ouvrir l\'URL de paiement');
+        throw Exception(l10n.AppLocalizations.of(context)!.cannotOpenPaymentUrl);
       }
 
       await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -45,26 +46,26 @@ class CartPage extends StatelessWidget {
       if (!context.mounted) return;
       Navigator.of(context).pop();
       
-      String message = 'Erreur lors de la création du paiement';
+      String message = l10n.AppLocalizations.of(context)!.paymentCreationError;
       
       switch (e.code) {
         case 'unauthenticated':
-          message = 'Vous devez être connecté pour commander';
+          message = l10n.AppLocalizations.of(context)!.mustBeLoggedInToOrder;
           break;
         case 'permission-denied':
-          message = 'Accès refusé. Vérifiez vos permissions.';
+          message = l10n.AppLocalizations.of(context)!.accessDeniedCheckPermissions;
           break;
         case 'failed-precondition':
-          message = 'Votre panier est vide';
+          message = l10n.AppLocalizations.of(context)!.yourCartIsEmpty;
           break;
         case 'resource-exhausted':
-          message = 'Trop de requêtes. Réessayez dans quelques instants.';
+          message = l10n.AppLocalizations.of(context)!.tooManyRequestsRetryLater;
           break;
         case 'unavailable':
-          message = 'Service temporairement indisponible. Réessayez.';
+          message = l10n.AppLocalizations.of(context)!.serviceTemporarilyUnavailableRetry;
           break;
         default:
-          message = e.message ?? 'Erreur inconnue: ${e.code}';
+          message = e.message ?? l10n.AppLocalizations.of(context)!.unknownError.replaceAll('{code}', e.code);
       }
       
       _showErrorWithRetry(context, message);
@@ -72,7 +73,7 @@ class CartPage extends StatelessWidget {
       if (!context.mounted) return;
       Navigator.of(context).pop();
       
-      _showErrorWithRetry(context, 'Erreur: ${e.toString()}');
+      _showErrorWithRetry(context, l10n.AppLocalizations.of(context)!.errorLabel.replaceAll('{message}', e.toString()));
     }
   }
 
@@ -84,7 +85,7 @@ class CartPage extends StatelessWidget {
         backgroundColor: Colors.red,
         duration: const Duration(seconds: 6),
         action: SnackBarAction(
-          label: 'Réessayer',
+          label: l10n.AppLocalizations.of(context)!.retry,
           textColor: Colors.white,
           onPressed: () {
             final currentUserId = FirebaseAuth.instance.currentUser?.uid;
@@ -92,8 +93,8 @@ class CartPage extends StatelessWidget {
               _checkout(context, currentUserId);
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Veuillez vous reconnecter pour réessayer.'),
+                SnackBar(
+                  content: Text(l10n.AppLocalizations.of(context)!.reconnectToRetry),
                   backgroundColor: Colors.red,
                 ),
               );
@@ -291,7 +292,7 @@ class CartPage extends StatelessWidget {
                           onPressed: items.isEmpty
                               ? null
                               : () => CartService.instance.clear(),
-                          child: const Text('Vider'),
+                          child: Text(l10n.AppLocalizations.of(context)!.emptyCart),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -307,8 +308,8 @@ class CartPage extends StatelessWidget {
                                         .instance.currentUser?.uid;
                                     if (userId == null) {
                                       ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Utilisateur introuvable'),
+                                        SnackBar(
+                                          content: Text(l10n.AppLocalizations.of(context)!.userNotFound),
                                         ),
                                       );
                                       return;
@@ -318,7 +319,7 @@ class CartPage extends StatelessWidget {
                                   },
                                 ),
                           icon: const Icon(Icons.lock_outline),
-                          label: const Text('Commander'),
+                          label: Text(l10n.AppLocalizations.of(context)!.placeOrder),
                         ),
                       ),
                     ],

@@ -6,6 +6,7 @@ import 'cart_page.dart';
 import '../widgets/honeycomb_background.dart';
 import '../widgets/rainbow_header.dart';
 import 'shop/storex_reviews_and_success_pages.dart';
+import '../l10n/app_localizations.dart' as l10n;
 
 class ProductDetailPage extends StatefulWidget {
   final String groupId;
@@ -412,7 +413,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         ),
                         const SizedBox(height: 10),
                         _rowSelector(
-                          label: 'Taille',
+                          label: l10n.AppLocalizations.of(context)!.size,
                           value: size,
                           choices: p.sizes,
                           onPick: (v) => setState(() {
@@ -422,7 +423,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         ),
                         const SizedBox(height: 10),
                         _rowSelector(
-                          label: 'Couleur',
+                          label: l10n.AppLocalizations.of(context)!.color,
                           value: color,
                           choices: p.colors,
                           onPick: (v) => setState(() {
@@ -526,8 +527,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     
     if (stockAvailable <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('❌ Produit indisponible'),
+        SnackBar(
+          content: Text(l10n.AppLocalizations.of(context)!.productUnavailable),
           backgroundColor: Colors.red,
         ),
       );
@@ -537,7 +538,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     if (quantity > stockAvailable) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('❌ Stock insuffisant (disponible: $stockAvailable)'),
+          content: Text(l10n.AppLocalizations.of(context)!.insufficientStock.replaceAll('{stock}', stockAvailable.toString())),
           backgroundColor: Colors.red,
         ),
       );
@@ -555,10 +556,16 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('✅ Ajouté: $quantity x ${p.title} ($size, $color)'),
+        content: Text(
+          l10n.AppLocalizations.of(context)!.addedToCart
+            .replaceAll('{quantity}', quantity.toString())
+            .replaceAll('{title}', p.title)
+            .replaceAll('{size}', size)
+            .replaceAll('{color}', color)
+        ),
         backgroundColor: const Color(0xFF0F766E),
         action: SnackBarAction(
-          label: 'Panier',
+          label: l10n.AppLocalizations.of(context)!.cart,
           textColor: Colors.white,
           onPressed: () {
             Navigator.of(context).push(

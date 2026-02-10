@@ -483,7 +483,7 @@ class _StorexDrawer extends StatelessWidget {
                   }),
                   _DrawerItem(l10n.AppLocalizations.of(context)!.signIn, () {
                     Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Brancher ta page login ici")));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.AppLocalizations.of(context)!.connectLoginPage)));
                   }),
                   const Divider(height: 28),
                   Text(
@@ -927,7 +927,7 @@ class _StorexAccount extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(user?.displayName ?? "User", style: const TextStyle(fontWeight: FontWeight.w800)),
+                    Text(user?.displayName ?? l10n.AppLocalizations.of(context)!.user, style: const TextStyle(fontWeight: FontWeight.w800)),
                     const SizedBox(height: 4),
                     Text(user?.email ?? "not-signed-in", style: const TextStyle(color: Colors.black38)),
                   ],

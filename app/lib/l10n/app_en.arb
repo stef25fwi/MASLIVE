@@ -209,5 +209,76 @@
   "orderNo": "Order No",
   "itemsLabel": "items",
   "addToCart": "Add to cart",
-  "comingSoon": "Coming soon"
+  "comingSoon": "Coming soon",
+  "retry": "Retry",
+  "reconnectToRetry": "Please reconnect to retry.",
+  "emptyCart": "Empty cart",
+  "userNotFound": "User not found",
+  "placeOrder": "Place order",
+  "checkoutMissingUrl": "Checkout URL missing",
+  "cannotOpenPaymentUrl": "Cannot open payment URL",
+  "paymentCreationError": "Error creating payment",
+  "mustBeLoggedInToOrder": "You must be logged in to order",
+  "accessDeniedCheckPermissions": "Access denied. Check your permissions.",
+  "yourCartIsEmpty": "Your cart is empty",
+  "tooManyRequestsRetryLater": "Too many requests. Retry in a few moments.",
+  "serviceTemporarilyUnavailableRetry": "Service temporarily unavailable. Retry.",
+  "unknownError": "Unknown error: {code}",
+  "@unknownError": {
+    "description": "Unknown error message",
+    "placeholders": {
+      "code": {
+        "type": "String",
+        "example": "unknown-error"
+      }
+    }
+  },
+  "errorLabel": "Error: {message}",
+  "@errorLabel": {
+    "description": "Error message label",
+    "placeholders": {
+      "message": {
+        "type": "String",
+        "example": "Something went wrong"
+      }
+    }
+  },
+  "reviews": "Reviews",
+  "size": "Size",
+  "color": "Color",
+  "productUnavailable": "❌ Product unavailable",
+  "insufficientStock": "❌ Insufficient stock (available: {stock})",
+  "@insufficientStock": {
+    "description": "Insufficient stock message",
+    "placeholders": {
+      "stock": {
+        "type": "int",
+        "example": "5"
+      }
+    }
+  },
+  "addedToCart": "✅ Added: {quantity} x {title} ({size}, {color})",
+  "@addedToCart": {
+    "description": "Added to cart message",
+    "placeholders": {
+      "quantity": {
+        "type": "int",
+        "example": "2"
+      },
+      "title": {
+        "type": "String",
+        "example": "T-shirt"
+      },
+      "size": {
+        "type": "String",
+        "example": "M"
+      },
+      "color": {
+        "type": "String",
+        "example": "Black"
+      }
+    }
+  },
+  "connectLoginPage": "Connect your login page here",
+  "user": "User"
 }
