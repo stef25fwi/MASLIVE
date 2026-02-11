@@ -42,7 +42,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
   // Offset vertical du menu d'actions pour ne pas chevaucher la boussole
-  static const double _actionsMenuTopOffset = 160;
+  static const double _actionsMenuTopOffset = 190;
 
   final GeolocationService _geo = GeolocationService.instance;
   final MapPresetsService _presetService = MapPresetsService();
@@ -94,6 +94,13 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
     _bootstrapLocation();
     _loadUserGroupId();
     _loadRuntimeMapboxToken();
+    // Préchargement des icônes pour éviter les retards d'affichage
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      precacheImage(
+        const AssetImage('assets/images/icon wc parking.png'),
+        context,
+      );
+    });
   }
 
   Future<void> _loadRuntimeMapboxToken() async {
@@ -750,7 +757,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.65),
+                          color: Colors.white.withValues(alpha: 0.40),
                           borderRadius: const BorderRadius.vertical(
                             top: Radius.circular(24),
                             bottom: Radius.circular(24),

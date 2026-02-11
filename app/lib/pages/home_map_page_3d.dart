@@ -56,7 +56,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   static const double _defaultPitch = 45.0;
   static const double _minZoom3dBuildings = 14.5;
   // Offset vertical du menu d'actions pour ne pas chevaucher la boussole
-  static const double _actionsMenuTopOffset = 160;
+  static const double _actionsMenuTopOffset = 190;
 
   // ========== ÉTAT UI ==========
   bool _showActionsMenu = false;
@@ -142,6 +142,13 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     _bootstrapLocation(); // Permissions GPS + position initiale
     _loadUserGroupId(); // Données utilisateur Firebase
     _loadRuntimeMapboxToken(); // Token Mapbox dynamique
+    // Préchargement des icônes pour éviter les retards d'affichage
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      precacheImage(
+        const AssetImage('assets/images/icon wc parking.png'),
+        context,
+      );
+    });
   }
 
   void _initMapboxToken() {
@@ -935,7 +942,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.65),
+                          color: Colors.white.withValues(alpha: 0.40),
                           borderRadius: const BorderRadius.vertical(
                             top: Radius.circular(24),
                             bottom: Radius.circular(24),

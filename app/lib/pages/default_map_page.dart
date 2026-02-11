@@ -109,6 +109,14 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     _bootstrapLocation();
     _loadUserGroupId();
 
+    // Préchargement des icônes pour éviter les retards d'affichage
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      precacheImage(
+        const AssetImage('assets/images/icon wc parking.png'),
+        context,
+      );
+    });
+
     // Si la carte ne peut pas être affichée (non-web / token manquant),
     // on ne bloque pas le splash indéfiniment.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -518,7 +526,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           builder: (context, constraints) {
             final size = ui.Size(constraints.maxWidth, constraints.maxHeight);
             final topInset = MediaQuery.of(context).padding.top;
-            final menuTopOffset = topInset + 104;
+            final menuTopOffset = topInset + 134;
 
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _scheduleResize(size);
@@ -595,7 +603,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                               vertical: 10,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.9),
+                              color: Colors.white.withValues(alpha: 0.40),
                               boxShadow: MasliveTheme.cardShadow,
                               borderRadius: const BorderRadius.vertical(
                                 top: Radius.circular(24),
