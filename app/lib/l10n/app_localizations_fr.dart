@@ -459,7 +459,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get visit => 'Visiter';
 
   @override
-  String get food => 'Food';
+  String get food => 'Restauration';
 
   @override
   String get assistance => 'Assistance';
@@ -468,7 +468,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get parking => 'Parking';
 
   @override
-  String get tracking => 'Tracking';
+  String get tracking => 'Suivi';
 
   @override
   String get theShop => 'La boutique';

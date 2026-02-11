@@ -7,6 +7,7 @@ repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
 commit_msg="${1:-}"
+push_branch_arg="${2:-}"
 
 echo "📤 COMMIT + PUSH + BUILD + DEPLOY"
 echo "==============================="
@@ -83,9 +84,14 @@ git commit -m "$commit_msg" || {
 echo "✅ Committé"
 echo ""
 
-echo "[3/5] 🔄 Push vers origin (branche courante)..."
-current_branch="$(git branch --show-current)"
-git push origin "$current_branch"
+if [[ -n "$push_branch_arg" ]]; then
+	push_branch="$push_branch_arg"
+else
+	push_branch="$(git branch --show-current)"
+fi
+
+echo "[3/5] 🔄 Push vers origin ($push_branch)..."
+git push origin "$push_branch"
 echo "✅ Push terminé"
 echo ""
 

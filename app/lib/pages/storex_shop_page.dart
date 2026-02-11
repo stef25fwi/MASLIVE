@@ -899,9 +899,9 @@ class _StorexAccount extends StatelessWidget {
             onPressed: () => Scaffold.of(ctx).openDrawer(),
           ),
         ),
-        actions: const [
+        actions: [
           LanguageSwitcher(),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
         ],
       ),
       body: ListView(
