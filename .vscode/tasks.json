@@ -307,6 +307,18 @@
       }
     },
     {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (security stripe)",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"security(stripe): fix critical vulnerabilities + reduce CPU quota\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (docs)",
       "type": "shell",
       "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"chore(docs): add cleanup + deployment summaries\"",
