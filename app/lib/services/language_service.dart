@@ -32,18 +32,47 @@ class LanguageService extends GetxService {
     'es': '🇪🇸',
   };
 
+  static String? _normalizeLanguageCode(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return null;
+
+    // Accepte des formats type "fr_FR", "fr-FR", "en_US", etc.
+    final lower = trimmed.toLowerCase();
+    final split = lower.split(RegExp('[_-]'));
+    final code = split.isNotEmpty ? split.first : lower;
+
+    // Les codes attendus ici sont "fr", "en", "es".
+    if (code.length < 2) return null;
+    return code;
+  }
+
   Future<LanguageService> init() async {
     _prefs = await SharedPreferences.getInstance();
     
     // Charger la langue sauvegardée
     final savedLanguage = _prefs.getString(_languageKey);
     if (savedLanguage != null) {
-      _locale.value = Locale(savedLanguage);
+      final code = _normalizeLanguageCode(savedLanguage);
+      if (code != null &&
+          supportedLocales.any((l) => l.languageCode == code)) {
+        _locale.value = Locale(code);
+      } else {
+        // Nettoie une valeur legacy invalide (ex: "fr_FR") qui peut bloquer
+        // AppLocalizations au lancement.
+        await _prefs.remove(_languageKey);
+        _locale.value = const Locale('fr');
+      }
     } else {
       // Utiliser la langue du système ou par défaut français
       final deviceLocale = Get.deviceLocale;
-      if (deviceLocale != null && supportedLocales.contains(deviceLocale)) {
-        _locale.value = deviceLocale;
+      if (deviceLocale != null) {
+        final code = _normalizeLanguageCode(deviceLocale.languageCode);
+        if (code != null &&
+            supportedLocales.any((l) => l.languageCode == code)) {
+          _locale.value = Locale(code);
+        } else {
+          _locale.value = const Locale('fr');
+        }
       } else {
         _locale.value = const Locale('fr');
       }

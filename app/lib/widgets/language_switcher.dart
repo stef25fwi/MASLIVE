@@ -6,14 +6,15 @@ import '../services/language_service.dart';
 /// Icône de sélecteur de langue dans l'AppBar
 class LanguageSwitcher extends StatelessWidget {
   final LanguageService languageService = Get.find<LanguageService>();
+  final Color? textColor;
 
-  LanguageSwitcher({super.key});
+  LanguageSwitcher({super.key, this.textColor});
 
   @override
   Widget build(BuildContext context) {
     return Obx(
       () => PopupMenuButton<String>(
-        icon: const Icon(Icons.language),
+        icon: Icon(Icons.language, color: textColor),
         tooltip: AppLocalizations.of(context)!.changeLanguage,
         onSelected: (languageCode) async {
           await languageService.changeLanguage(languageCode);

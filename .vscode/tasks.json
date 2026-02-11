@@ -17,13 +17,6 @@
       "problemMatcher": []
     },
     {
-      "label": "MASLIVE: Flutter build web (verbose)",
-      "type": "shell",
-      "command": "cd /workspaces/MASLIVE/app && flutter build web --release -v",
-      "problemMatcher": [],
-      "isBackground": false
-    },
-    {
       "label": "MASLIVE: Flutter build web (release)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE/app && flutter build web --release",

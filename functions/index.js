@@ -355,8 +355,22 @@ exports.createStorexPaymentIntent = onCall(
     .collection("orders")
     .doc();
 
+  // groupId: prend le premier item non vide (sinon string vide)
+  const groupId = items.find((x) => (x.groupId || "").trim().length > 0)?.groupId || "";
+
+  // orderNo: générer un numéro de commande lisible (ORD-YYYYMMDD-shortId)
+  const now = new Date();
+  const datePart = now.toISOString().slice(0, 10).replace(/-/g, "");
+  const shortId = orderRef.id.slice(0, 6).toUpperCase();
+  const orderNo = `ORD-${datePart}-${shortId}`;
+
+  // itemsCount: nombre total d'items
+  const itemsCount = items.length;
+
   await orderRef.set({
-    status: "pending_payment",
+    orderNo,
+    itemsCount,
+    status: "pending",
     currency: currency.toUpperCase(),
     subtotalCents,
     shippingCents: safeShipping,
@@ -365,9 +379,43 @@ exports.createStorexPaymentIntent = onCall(
     shippingAddress: address,
     items,
     paymentMethod: "stripe",
+    userId: uid,
+    groupId,
+    totalPrice: totalCents,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
+
+  // 3b) Miroir dans /orders/{orderId} pour l'admin + pages commandes
+  // Schéma compatible avec app/lib/models/order_model.dart
+  const rootOrderRef = admin.firestore().collection("orders").doc(orderRef.id);
+  await rootOrderRef.set(
+    {
+      orderNo,
+      itemsCount,
+      userId: uid,
+      groupId,
+      items: items.map((it) => ({
+        productId: it.productId || "",
+        title: it.title || "",
+        quantity: Number(it.quantity || 1),
+        pricePerUnit: Number(it.priceCents || 0),
+      })),
+      totalPrice: totalCents,
+      status: "pending",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      deliveredAt: null,
+      storex: {
+        currency: currency.toUpperCase(),
+        subtotalCents,
+        shippingCents: safeShipping,
+        totalCents,
+        shippingMethod,
+      },
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
 
   // 4) PaymentIntent
   const stripeClient = getStripeV20240620();
@@ -385,6 +433,14 @@ exports.createStorexPaymentIntent = onCall(
     stripe: { paymentIntentId: pi.id },
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
+
+  await rootOrderRef.set(
+    {
+      stripe: { paymentIntentId: pi.id },
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
 
   return {
     orderId: orderRef.id,
@@ -2196,7 +2252,22 @@ async function handlePaymentIntentSucceeded(paymentIntent) {
 
   await orderRef.set(
     {
-      status: "paid",
+      status: "confirmed",
+      paidAt: admin.firestore.FieldValue.serverTimestamp(),
+      stripe: {
+        paymentIntentId: paymentIntent.id,
+        status: paymentIntent.status || "succeeded",
+      },
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  // Miroir root order (si présent)
+  const rootOrderRef = db.collection("orders").doc(orderId);
+  await rootOrderRef.set(
+    {
+      status: "confirmed",
       paidAt: admin.firestore.FieldValue.serverTimestamp(),
       stripe: {
         paymentIntentId: paymentIntent.id,

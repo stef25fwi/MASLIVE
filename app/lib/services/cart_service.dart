@@ -146,6 +146,7 @@ class CartService extends ChangeNotifier {
       title: product.title,
       priceCents: product.priceCents,
       imageUrl: product.imageUrl,
+      imagePath: product.imagePath,
       size: size,
       color: color,
       quantity: quantity,
@@ -154,6 +155,41 @@ class CartService extends ChangeNotifier {
     final existing = _itemsByKey[next.key];
     if (existing != null) {
       _itemsByKey[next.key] = existing.copyWith(quantity: existing.quantity + quantity);
+    } else {
+      _itemsByKey[next.key] = next;
+    }
+    _afterLocalMutation();
+  }
+
+  /// Ajout direct depuis des données partielles (ex: wishlist)
+  /// sans nécessiter de `GroupProduct` complet.
+  void addItemFromFields({
+    required String groupId,
+    required String productId,
+    required String title,
+    required int priceCents,
+    String imageUrl = '',
+    String? imagePath,
+    String size = 'M',
+    String color = 'Noir',
+    int quantity = 1,
+  }) {
+    final next = CartItem(
+      groupId: groupId,
+      productId: productId,
+      title: title,
+      priceCents: priceCents,
+      imageUrl: imageUrl,
+      imagePath: imagePath,
+      size: size,
+      color: color,
+      quantity: quantity,
+    );
+
+    final existing = _itemsByKey[next.key];
+    if (existing != null) {
+      _itemsByKey[next.key] =
+          existing.copyWith(quantity: existing.quantity + quantity);
     } else {
       _itemsByKey[next.key] = next;
     }

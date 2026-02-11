@@ -387,7 +387,7 @@ class _StorexPaymentPageState extends State<StorexPaymentPage> {
         (r) => false,
         arguments: PaymentCompleteArgs(
           orderCode: orderId,
-          continueToRoute: '/shop',
+          continueToRoute: '/boutique',
         ),
       );
     } on StripeException catch (e) {

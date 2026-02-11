@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
@@ -88,9 +89,17 @@ Future<void> main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  Stripe.publishableKey =
-      "pk_test_51Ssn0PCCIRtTE2nOVARmqXRG6rRTiNxeuvHiwU2zuqcKYn0l1KdzptkB4ZWlHtYcFedBiGlHqB4OLQcQzXC9A6SY00OcBNOnDr"; // <-- ton publishable key
-  await Stripe.instance.applySettings();
+  // ⚠️ Sur web, l'init Stripe peut bloquer le démarrage (loader infini avant runApp).
+  // On évite tout `await` Stripe côté web.
+  if (!kIsWeb) {
+    Stripe.publishableKey =
+        "pk_test_51Ssn0PCCIRtTE2nOVARmqXRG6rRTiNxeuvHiwU2zuqcKYn0l1KdzptkB4ZWlHtYcFedBiGlHqB4OLQcQzXC9A6SY00OcBNOnDr"; // <-- ton publishable key
+    try {
+      await Stripe.instance.applySettings();
+    } catch (_) {
+      // Ne bloque pas le démarrage si Stripe n'est pas prêt.
+    }
+  }
 
   // ✅ Initialiser le token Mapbox (charge depuis SharedPreferences si dispo)
   await MapboxTokenService.warmUp();
@@ -175,10 +184,43 @@ class MasLiveApp extends StatelessWidget {
                     shopId: "global",
                     groupId: "MASLIVE",
                   ),
-              StorexRoutes.paymentComplete: (_) => const SizedBox.shrink(),
-              StorexRoutes.reviews: (_) => const SizedBox.shrink(),
-              StorexRoutes.addReview: (_) => const SizedBox.shrink(),
-              StorexRoutes.orderTracker: (_) => const SizedBox.shrink(),
+              StorexRoutes.paymentComplete: (ctx) {
+                final args = ModalRoute.of(ctx)?.settings.arguments;
+                if (args is PaymentCompleteArgs) {
+                  return PaymentCompletePage(
+                    orderCode: args.orderCode,
+                    continueToRoute: args.continueToRoute,
+                  );
+                }
+                return const _RouteArgsErrorPage(routeName: StorexRoutes.paymentComplete);
+              },
+              StorexRoutes.reviews: (ctx) {
+                final args = ModalRoute.of(ctx)?.settings.arguments;
+                if (args is ReviewsArgs) {
+                  return ReviewsPage(
+                    productId: args.productId,
+                    productTitle: args.productTitle,
+                  );
+                }
+                return const _RouteArgsErrorPage(routeName: StorexRoutes.reviews);
+              },
+              StorexRoutes.addReview: (ctx) {
+                final args = ModalRoute.of(ctx)?.settings.arguments;
+                if (args is AddReviewArgs) {
+                  return AddReviewPage(
+                    productId: args.productId,
+                    productTitle: args.productTitle,
+                  );
+                }
+                return const _RouteArgsErrorPage(routeName: StorexRoutes.addReview);
+              },
+              StorexRoutes.orderTracker: (ctx) {
+                final args = ModalRoute.of(ctx)?.settings.arguments;
+                if (args is OrderTrackerArgs) {
+                  return OrderTrackerPage(orderId: args.orderId);
+                }
+                return const _RouteArgsErrorPage(routeName: StorexRoutes.orderTracker);
+              },
               '/account': (_) => const AccountAndAdminPage(),
               '/account-admin': (_) => const AccountAndAdminPage(),
               '/orders': (_) => const OrdersPage(),
@@ -248,18 +290,6 @@ class MasLiveApp extends StatelessWidget {
               },
             },
             onGenerateRoute: (settings) {
-              if (settings.name == StorexRoutes.paymentComplete) {
-                return PaymentCompletePage.routeFromArgs(settings.arguments);
-              }
-              if (settings.name == StorexRoutes.reviews) {
-                return ReviewsPage.routeFromArgs(settings.arguments);
-              }
-              if (settings.name == StorexRoutes.addReview) {
-                return AddReviewPage.routeFromArgs(settings.arguments);
-              }
-              if (settings.name == StorexRoutes.orderTracker) {
-                return OrderTrackerPage.routeFromArgs(settings.arguments);
-              }
               return null;
             },
             builder: (context, child) => HoneycombBackground(
@@ -271,6 +301,27 @@ class MasLiveApp extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _RouteArgsErrorPage extends StatelessWidget {
+  const _RouteArgsErrorPage({required this.routeName});
+  final String routeName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Navigation')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'Erreur: arguments manquants pour la route $routeName',
+            textAlign: TextAlign.center,
+          ),
+        ),
       ),
     );
   }

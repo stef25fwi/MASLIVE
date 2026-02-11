@@ -24,6 +24,13 @@ class StorexShopPage extends StatefulWidget {
   final String? shopId;
   final String? groupId;
 
+  // Gradient rainbow (référence cart_page.dart)
+  static const rainbowGradient = LinearGradient(
+    colors: [Color(0xFFFFE36A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+  );
+
   @override
   State<StorexShopPage> createState() => _StorexShopPageState();
 }
@@ -201,19 +208,22 @@ class _StorexHome extends StatelessWidget {
       backgroundColor: Colors.white,
       drawer: _StorexDrawer(shopId: shopId, groupId: groupId),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
+        ),
         elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
         leading: Builder(
           builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.black54),
+            icon: const Icon(Icons.menu),
             onPressed: () => Scaffold.of(ctx).openDrawer(),
           ),
         ),
         centerTitle: false,
-        title: LanguageSwitcher(),
+        title: LanguageSwitcher(textColor: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search, color: Colors.black54),
+            icon: const Icon(Icons.search),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _SearchPage(shopId: shopId, groupId: groupId))),
           ),
         ],
@@ -287,7 +297,14 @@ class _StorexHome extends StatelessWidget {
                           p: p,
                           wished: wish.contains(p.id),
                           onWish: () => repo.toggleWish(p),
-                            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProductDetailPage(groupId: "MASLIVE", product: p))),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ProductDetailPage(
+                                groupId: (groupId ?? 'MASLIVE'),
+                                product: p,
+                              ),
+                            ),
+                          ),
                         );
                       },
                     );
@@ -439,7 +456,16 @@ class _StorexDrawer extends StatelessWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
           child: Container(
-            color: Colors.white.withAlpha(230),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withAlpha(240),
+                  const Color(0xFFF8F9FA).withAlpha(240),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
             child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
@@ -472,15 +498,15 @@ class _StorexDrawer extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 18),
-                  _DrawerItem(l10n.AppLocalizations.of(context)!.home, () => Navigator.of(context).pop()),
+                  _DrawerItem(l10n.AppLocalizations.of(context)!.home, () => Navigator.of(context).pop(), icon: Icons.home_outlined),
                   _DrawerItem(l10n.AppLocalizations.of(context)!.search, () {
                     Navigator.of(context).pop();
                     Navigator.of(context).push(MaterialPageRoute(builder: (_) => _SearchPage(shopId: shopId, groupId: groupId)));
-                  }),
+                  }, icon: Icons.search),
                   _DrawerItem(l10n.AppLocalizations.of(context)!.profile, () {
                     Navigator.of(context).pop();
                     Navigator.of(context).push(MaterialPageRoute(builder: (_) => _StorexAccount(shopId: shopId, groupId: groupId)));
-                  }),
+                  }, icon: Icons.person_outline),
                   _DrawerItem(l10n.AppLocalizations.of(context)!.signIn, () {
                     Navigator.of(context).pop();
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -525,18 +551,28 @@ class _StorexDrawer extends StatelessWidget {
 }
 
 class _DrawerItem extends StatelessWidget {
-  const _DrawerItem(this.label, this.onTap, {this.small = false});
+  const _DrawerItem(this.label, this.onTap, {this.small = false, this.icon});
   final String label;
   final VoidCallback onTap;
   final bool small;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: EdgeInsets.symmetric(vertical: small ? 8 : 12),
-        child: Text(label, style: TextStyle(fontSize: small ? 14 : 16, color: Colors.black54, fontWeight: FontWeight.w700)),
+        padding: EdgeInsets.symmetric(
+          vertical: small ? 8 : 12,
+          horizontal: small ? 0 : 4,
+        ),
+        child: Row(
+          children: [
+            if (icon != null) ...[Icon(icon, size: 18, color: Colors.black54), const SizedBox(width: 8)],
+            Text(label, style: TextStyle(fontSize: small ? 14 : 16, color: Colors.black54, fontWeight: FontWeight.w700)),
+          ],
+        ),
       ),
     );
   }
@@ -612,7 +648,14 @@ class _SearchPageState extends State<_SearchPage> {
                     itemBuilder: (_, i) {
                       final p = filtered[i];
                       return InkWell(
-                        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProductDetailPage(groupId: "MASLIVE", product: p))),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ProductDetailPage(
+                              groupId: (widget.groupId ?? 'MASLIVE'),
+                              product: p,
+                            ),
+                          ),
+                        ),
                         child: Row(
                           children: [
                             Container(
@@ -663,13 +706,16 @@ class _StorexCategory extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
+        ),
         elevation: 0,
         centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
           l10n.AppLocalizations.of(context)!.categories,
           style: const TextStyle(
-            color: Colors.black87,
+            color: Colors.white,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.6,
           ),
@@ -780,13 +826,36 @@ class _ListPageState extends State<_ListPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white, elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black54), onPressed: () => Navigator.of(context).pop()),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
+        ),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         centerTitle: true,
-        title: Text(widget.title.toUpperCase(), style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w700)),
+        title: Text(
+          widget.title.toUpperCase(),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        ),
         actions: [
-          IconButton(icon: Icon(grid ? Icons.view_list : Icons.grid_view, color: Colors.black54), onPressed: () => setState(() => grid = !grid)),
-          IconButton(icon: const Icon(Icons.search, color: Colors.black54), onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _SearchPage(shopId: widget.shopId, groupId: widget.groupId)))),
+          IconButton(
+            icon: Icon(grid ? Icons.view_list : Icons.grid_view),
+            onPressed: () => setState(() => grid = !grid),
+          ),
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => _SearchPage(
+                  shopId: widget.shopId,
+                  groupId: widget.groupId
+                )
+              )
+            ),
+          ),
         ],
       ),
       body: StreamBuilder<Set<String>>(
@@ -815,7 +884,14 @@ class _ListPageState extends State<_ListPage> {
                     final p = products[i];
                     final wished = wish.contains(p.id);
                     return InkWell(
-                       onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProductDetailPage(groupId: "MASLIVE", product: p))),
+                       onTap: () => Navigator.of(context).push(
+                         MaterialPageRoute(
+                           builder: (_) => ProductDetailPage(
+                             groupId: (widget.groupId ?? 'MASLIVE'),
+                             product: p,
+                           ),
+                         ),
+                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -853,7 +929,14 @@ class _ListPageState extends State<_ListPage> {
                   final p = products[i];
                   final wished = wish.contains(p.id);
                   return InkWell(
-                      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProductDetailPage(groupId: "MASLIVE", product: p))),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ProductDetailPage(
+                            groupId: (widget.groupId ?? 'MASLIVE'),
+                            product: p,
+                          ),
+                        ),
+                      ),
                     child: Row(
                       children: [
                         Container(
@@ -908,16 +991,19 @@ class _StorexAccount extends StatelessWidget {
       backgroundColor: Colors.white,
       drawer: _StorexDrawer(shopId: shopId, groupId: groupId),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
+        ),
         elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
         leading: Builder(
           builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.black54),
+            icon: const Icon(Icons.menu),
             onPressed: () => Scaffold.of(ctx).openDrawer(),
           ),
         ),
         actions: [
-          LanguageSwitcher(),
+          LanguageSwitcher(textColor: Colors.white),
           const SizedBox(width: 8),
         ],
       ),
@@ -1002,8 +1088,72 @@ class _WishlistPage extends StatelessWidget {
   const _WishlistPage({required this.repo});
   final StorexRepo repo;
 
+  Future<GroupProduct?> _fetchProductById(String productId) async {
+    final sid = repo.shopId?.trim();
+    if (sid != null && sid.isNotEmpty) {
+      final shopRef = FirebaseFirestore.instance
+          .collection('shops')
+          .doc(sid)
+          .collection('products')
+          .doc(productId);
+
+      final shopSnap = await shopRef.get();
+      if (shopSnap.exists) return GroupProduct.fromFirestore(shopSnap);
+    }
+
+    final rootRef = FirebaseFirestore.instance.collection('products').doc(productId);
+    final rootSnap = await rootRef.get();
+    if (rootSnap.exists) return GroupProduct.fromFirestore(rootSnap);
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black54),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          centerTitle: true,
+          title: Text(
+            l10n.AppLocalizations.of(context)!.myFavorites,
+            style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w800),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  l10n.AppLocalizations.of(context)!.login,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Connecte-toi pour voir ta wishlist.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.black54),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: () => Navigator.pushNamed(context, '/login'),
+                  child: const Text('Se connecter'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -1030,6 +1180,7 @@ class _WishlistPage extends StatelessWidget {
             separatorBuilder: (_, index) => const SizedBox(height: 12),
             itemBuilder: (_, i) {
               final d = docs[i].data();
+              final productId = docs[i].id;
               final title = (d['title'] ?? 'Produit').toString();
               final priceCents = (d['priceCents'] is num) ? (d['priceCents'] as num).toInt() : null;
               final price = priceCents == null ? '' : "€${(priceCents / 100).toStringAsFixed(2)}";
@@ -1067,13 +1218,38 @@ class _WishlistPage extends StatelessWidget {
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                                 ),
-                                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      l10n.AppLocalizations.of(context)!.comingSoon,
-                                    ),
-                                  ),
-                                ),
+                                onPressed: () async {
+                                  final messenger = ScaffoldMessenger.of(context);
+                                  try {
+                                    debugPrint('[SHOP] Add wishlist item to cart: $productId');
+                                    final p = await _fetchProductById(productId);
+                                    if (p == null) {
+                                      messenger.showSnackBar(
+                                        const SnackBar(content: Text('Produit introuvable.')),
+                                      );
+                                      return;
+                                    }
+
+                                    final size = p.sizes.isNotEmpty ? p.sizes.first : 'M';
+                                    final color = p.colors.isNotEmpty ? p.colors.first : 'Noir';
+
+                                    CartService.instance.addProduct(
+                                      groupId: (repo.groupId ?? 'MASLIVE'),
+                                      product: p,
+                                      size: size,
+                                      color: color,
+                                      quantity: 1,
+                                    );
+
+                                    messenger.showSnackBar(
+                                      const SnackBar(content: Text('Ajouté au panier ✅')),
+                                    );
+                                  } catch (e) {
+                                    messenger.showSnackBar(
+                                      SnackBar(content: Text('Erreur ajout panier: $e')),
+                                    );
+                                  }
+                                },
                                 child: Text(l10n.AppLocalizations.of(context)!.addToCart),
                               ),
                             ),
@@ -1098,6 +1274,51 @@ class _OrdersPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black54),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          centerTitle: true,
+          title: Text(
+            l10n.AppLocalizations.of(context)!.myOrders,
+            style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w800),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  l10n.AppLocalizations.of(context)!.login,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Connecte-toi pour voir tes commandes.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.black54),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: () => Navigator.pushNamed(context, '/login'),
+                  child: const Text('Se connecter'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -1130,7 +1351,10 @@ class _OrdersPage extends StatelessWidget {
                 final d = doc.data();
                 final orderNo = (d['orderNo'] ?? doc.id).toString();
                 final status = (d['status'] ?? 'processing').toString();
-                final items = (d['itemsCount'] ?? 1).toString();
+                final itemsCount = (d['items'] is List)
+                  ? (d['items'] as List).length
+                  : ((d['itemsCount'] ?? 1) as num).toInt();
+                final items = itemsCount.toString();
                 final createdAt = (d['createdAt'] as Timestamp?)?.toDate().toString() ?? "";
 
                 final isCancelled = status.toLowerCase().contains('cancel');

@@ -152,13 +152,19 @@
     function removeSplashFromWeb() {
       document.getElementById("splash")?.remove();
       document.getElementById("splash-branding")?.remove();
+      document.getElementById("splash-loader")?.remove();
       document.body.style.background = "transparent";
     }
+
+    // Retire le loader dès que Flutter a rendu la première frame.
+    window.addEventListener('flutter-first-frame', function () {
+      removeSplashFromWeb();
+    });
   </script>
 </head>
 <body>
   <!-- Splash natif blanc avec loader uniquement -->
-  <div class="loader"></div>
+  <div id="splash-loader" class="loader"></div>
   
   
   
