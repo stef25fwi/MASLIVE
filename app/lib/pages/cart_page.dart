@@ -145,6 +145,15 @@ class CartPage extends StatelessWidget {
                                         ),
                                       ),
                                     ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '€${(item.priceCents / 100).toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 15,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
                                     const SizedBox(height: 8),
                                     Row(
                                       children: [

@@ -1,5 +1,4 @@
 import 'dart:math';
-import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -208,11 +207,9 @@ class _StorexHome extends StatelessWidget {
       backgroundColor: Colors.white,
       drawer: _StorexDrawer(shopId: shopId, groupId: groupId),
       appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
-        ),
+        backgroundColor: Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.black54),
         leading: Builder(
           builder: (ctx) => IconButton(
             icon: const Icon(Icons.menu),
@@ -220,7 +217,7 @@ class _StorexHome extends StatelessWidget {
           ),
         ),
         centerTitle: false,
-        title: LanguageSwitcher(textColor: Colors.white),
+        title: LanguageSwitcher(),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -451,24 +448,10 @@ class _StorexDrawer extends StatelessWidget {
     final repo = StorexRepo(shopId: shopId, groupId: groupId);
 
     return Drawer(
-      backgroundColor: Colors.transparent,
-      child: ClipRRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.white.withAlpha(240),
-                  const Color(0xFFF8F9FA).withAlpha(240),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
+      backgroundColor: Colors.white,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
           child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: repo.bestSeller(limit: 250).snapshots(),
             builder: (context, snap) {
@@ -486,63 +469,67 @@ class _StorexDrawer extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Image.asset(
-                        'assets/images/maslivelogo.png',
-                        height: 34,
-                        fit: BoxFit.contain,
-                      ),
-                      LanguageSwitcher(),
-                    ],
+                  Image.asset(
+                    'assets/images/maslivelogo.png',
+                    height: 40,
+                    fit: BoxFit.contain,
                   ),
-                  const SizedBox(height: 18),
-                  _DrawerItem(l10n.AppLocalizations.of(context)!.home, () => Navigator.of(context).pop(), icon: Icons.home_outlined),
+                  const SizedBox(height: 30),
+                  _DrawerItem(l10n.AppLocalizations.of(context)!.home, () => Navigator.of(context).pop(), icon: Icons.home_rounded),
+                  const SizedBox(height: 4),
                   _DrawerItem(l10n.AppLocalizations.of(context)!.search, () {
                     Navigator.of(context).pop();
                     Navigator.of(context).push(MaterialPageRoute(builder: (_) => _SearchPage(shopId: shopId, groupId: groupId)));
-                  }, icon: Icons.search),
+                  }, icon: Icons.search_rounded),
+                  const SizedBox(height: 4),
                   _DrawerItem(l10n.AppLocalizations.of(context)!.profile, () {
                     Navigator.of(context).pop();
                     Navigator.of(context).push(MaterialPageRoute(builder: (_) => _StorexAccount(shopId: shopId, groupId: groupId)));
-                  }, icon: Icons.person_outline),
-                  _DrawerItem(l10n.AppLocalizations.of(context)!.signIn, () {
-                    Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(l10n.AppLocalizations.of(context)!.comingSoon)),
-                    );
-                  }),
-                  const Divider(height: 28),
-                  Text(
-                    l10n.AppLocalizations.of(context)!.categories,
-                    style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w600),
+                  }, icon: Icons.person_rounded),
+                  const Divider(height: 32, thickness: 1),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, bottom: 12),
+                    child: Text(
+                      l10n.AppLocalizations.of(context)!.categories.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.black45,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                  ...finalCats.map((c) => _DrawerItem(
+                    c == _allCategoryId ? l10n.AppLocalizations.of(context)!.all : c,
+                    () {
+                      Navigator.of(context).pop();
+                      final title = c == _allCategoryId ? l10n.AppLocalizations.of(context)!.all : c;
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => _ListPage(
+                            shopId: shopId,
+                            groupId: groupId,
+                            categoryId: c == _allCategoryId ? null : c,
+                            title: title,
+                          ),
+                        ),
+                      );
+                    },
+                    small: true,
+                  )),
+                  const Spacer(),
+                  const Divider(height: 1),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      LanguageSwitcher(),
+                    ],
                   ),
                   const SizedBox(height: 8),
-                  ...finalCats.map((c) => Padding(
-                        padding: const EdgeInsets.only(left: 8),
-                        child: _DrawerItem(c == _allCategoryId ? l10n.AppLocalizations.of(context)!.all : c, () {
-                          Navigator.of(context).pop();
-                          final title = c == _allCategoryId ? l10n.AppLocalizations.of(context)!.all : c;
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => _ListPage(
-                                shopId: shopId,
-                                groupId: groupId,
-                                categoryId: c == _allCategoryId ? null : c,
-                                title: title,
-                              ),
-                            ),
-                          );
-                        }, small: true),
-                      )),
-                  const Spacer(),
                 ],
               );
             },
-          ),
-              ),
-            ),
           ),
         ),
       ),
@@ -551,7 +538,7 @@ class _StorexDrawer extends StatelessWidget {
 }
 
 class _DrawerItem extends StatelessWidget {
-  const _DrawerItem(this.label, this.onTap, {this.small = false, this.icon});
+  const _DrawerItem(this.label, this. onTap, {this.small = false, this.icon});
   final String label;
   final VoidCallback onTap;
   final bool small;
@@ -561,16 +548,27 @@ class _DrawerItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
         padding: EdgeInsets.symmetric(
-          vertical: small ? 8 : 12,
-          horizontal: small ? 0 : 4,
+          vertical: small ? 10 : 14,
+          horizontal: 12,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
-            if (icon != null) ...[Icon(icon, size: 18, color: Colors.black54), const SizedBox(width: 8)],
-            Text(label, style: TextStyle(fontSize: small ? 14 : 16, color: Colors.black54, fontWeight: FontWeight.w700)),
+            if (icon != null) ...[Icon(icon, size: 20, color: Colors.black87), const SizedBox(width: 12)],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: small ? 14 : 16,
+                color: Colors.black87,
+                fontWeight: small ? FontWeight.w600 : FontWeight.w700,
+              ),
+            ),
           ],
         ),
       ),
@@ -706,23 +704,20 @@ class _StorexCategory extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
-        ),
+        backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.black54),
         title: Text(
           l10n.AppLocalizations.of(context)!.categories,
           style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
+            color: Colors.black87,
+            fontWeight: FontWeight.w800,
             letterSpacing: 0.6,
           ),
         ),
         actions: [
           LanguageSwitcher(),
-          const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.search, color: Colors.black54),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _SearchPage(shopId: shopId, groupId: groupId))),
@@ -1041,20 +1036,27 @@ class _StorexAccount extends StatelessWidget {
             label: l10n.AppLocalizations.of(context)!.myFavorites,
             onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _WishlistPage(repo: repo))),
           ),
-          _AccountRow(
-            icon: Icons.logout,
-            label: l10n.AppLocalizations.of(context)!.logout,
-            onTap: () async {
-              final messenger = ScaffoldMessenger.of(context);
-              final logoutLabel = l10n.AppLocalizations.of(context)!.logout;
-              await FirebaseAuth.instance.signOut();
-              messenger.showSnackBar(
-                SnackBar(
-                  content: Text(logoutLabel),
-                ),
-              );
-            },
-          ),
+          if (user != null)
+            _AccountRow(
+              icon: Icons.logout,
+              label: l10n.AppLocalizations.of(context)!.logout,
+              onTap: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                final logoutLabel = l10n.AppLocalizations.of(context)!.logout;
+                await FirebaseAuth.instance.signOut();
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(logoutLabel),
+                  ),
+                );
+              },
+            )
+          else
+            _AccountRow(
+              icon: Icons.login,
+              label: l10n.AppLocalizations.of(context)!.signIn,
+              onTap: () => Navigator.pushNamed(context, '/login'),
+            ),
         ],
       ),
     );
