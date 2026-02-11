@@ -959,11 +959,12 @@ class _StorexAccount extends StatelessWidget {
             icon: Icons.logout,
             label: l10n.AppLocalizations.of(context)!.logout,
             onTap: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              final logoutLabel = l10n.AppLocalizations.of(context)!.logout;
               await FirebaseAuth.instance.signOut();
-              // ignore: use_build_context_synchronously
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 SnackBar(
-                  content: Text(l10n.AppLocalizations.of(context)!.logout),
+                  content: Text(logoutLabel),
                 ),
               );
             },
