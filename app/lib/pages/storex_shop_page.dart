@@ -427,6 +427,8 @@ class _StorexDrawer extends StatelessWidget {
   final String? shopId;
   final String? groupId;
 
+  static const String _allCategoryId = '__all__';
+
   @override
   Widget build(BuildContext context) {
     final repo = StorexRepo(shopId: shopId, groupId: groupId);
@@ -453,15 +455,21 @@ class _StorexDrawer extends StatelessWidget {
                 if (c.isNotEmpty) set.add(c);
               }
               final cats = set.toList()..sort();
-              final finalCats = ['Tous', ...cats];
+              final finalCats = <String>[_allCategoryId, ...cats];
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Image.asset(
-                    'assets/images/maslivelogo.png',
-                    height: 34,
-                    fit: BoxFit.contain,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Image.asset(
+                        'assets/images/maslivelogo.png',
+                        height: 34,
+                        fit: BoxFit.contain,
+                      ),
+                      LanguageSwitcher(),
+                    ],
                   ),
                   const SizedBox(height: 18),
                   _DrawerItem(l10n.AppLocalizations.of(context)!.home, () => Navigator.of(context).pop()),
@@ -475,7 +483,9 @@ class _StorexDrawer extends StatelessWidget {
                   }),
                   _DrawerItem(l10n.AppLocalizations.of(context)!.signIn, () {
                     Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Brancher ta page login ici")));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(l10n.AppLocalizations.of(context)!.comingSoon)),
+                    );
                   }),
                   const Divider(height: 28),
                   Text(
@@ -485,15 +495,22 @@ class _StorexDrawer extends StatelessWidget {
                   const SizedBox(height: 8),
                   ...finalCats.map((c) => Padding(
                         padding: const EdgeInsets.only(left: 8),
-                        child: _DrawerItem(c == 'Tous' ? l10n.AppLocalizations.of(context)!.all : c, () {
+                        child: _DrawerItem(c == _allCategoryId ? l10n.AppLocalizations.of(context)!.all : c, () {
                           Navigator.of(context).pop();
+                          final title = c == _allCategoryId ? l10n.AppLocalizations.of(context)!.all : c;
                           Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => _ListPage(shopId: shopId, groupId: groupId, categoryId: c == 'Tous' ? null : c, title: c)),
+                            MaterialPageRoute(
+                              builder: (_) => _ListPage(
+                                shopId: shopId,
+                                groupId: groupId,
+                                categoryId: c == _allCategoryId ? null : c,
+                                title: title,
+                              ),
+                            ),
                           );
                         }, small: true),
                       )),
                   const Spacer(),
-                  Text("shopId=${shopId ?? '-'}  groupId=${groupId ?? '-'}", style: const TextStyle(color: Colors.black26)),
                 ],
               );
             },

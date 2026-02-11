@@ -81,8 +81,8 @@ class LanguageSidebar extends StatelessWidget {
                   _LanguageButton(
                     label: 'FR',
                     isSelected: locService.language == AppLanguage.fr,
-                    onPressed: () {
-                      locService.setLanguage(AppLanguage.fr);
+                    onPressed: () async {
+                      await locService.setLanguage(AppLanguage.fr);
                       onLanguageChanged?.call();
                     },
                   ),
@@ -90,8 +90,8 @@ class LanguageSidebar extends StatelessWidget {
                   _LanguageButton(
                     label: 'EN',
                     isSelected: locService.language == AppLanguage.en,
-                    onPressed: () {
-                      locService.setLanguage(AppLanguage.en);
+                    onPressed: () async {
+                      await locService.setLanguage(AppLanguage.en);
                       onLanguageChanged?.call();
                     },
                   ),
@@ -99,8 +99,8 @@ class LanguageSidebar extends StatelessWidget {
                   _LanguageButton(
                     label: 'ES',
                     isSelected: locService.language == AppLanguage.es,
-                    onPressed: () {
-                      locService.setLanguage(AppLanguage.es);
+                    onPressed: () async {
+                      await locService.setLanguage(AppLanguage.es);
                       onLanguageChanged?.call();
                     },
                   ),
@@ -175,9 +175,4 @@ class _LanguageButton extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Widget pour utiliser la traduction partout
-extension Translations on BuildContext {
-  String tr(String key) => AppLocalizations().translate(key);
 }

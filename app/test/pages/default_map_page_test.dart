@@ -13,6 +13,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class MockLanguageService extends GetxService implements LanguageService {
   @override
   Locale get locale => const Locale('fr');
+
+  @override
+  Rx<Locale> get localeRx => const Locale('fr').obs;
   
   @override
   String get currentLanguageCode => 'fr';

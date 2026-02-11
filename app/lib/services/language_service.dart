@@ -10,6 +10,7 @@ class LanguageService extends GetxService {
   late SharedPreferences _prefs;
 
   Locale get locale => _locale.value;
+  Rx<Locale> get localeRx => _locale;
   String get currentLanguageCode => _locale.value.languageCode;
 
   // Langues supportées

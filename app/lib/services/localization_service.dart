@@ -1,20 +1,74 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+import 'language_service.dart';
 
 enum AppLanguage { fr, en, es }
 
 class LocalizationService extends ChangeNotifier {
   static final LocalizationService _instance = LocalizationService._();
   factory LocalizationService() => _instance;
-  LocalizationService._();
+  LocalizationService._() {
+    _bindToLanguageServiceIfAvailable();
+  }
+
+  Worker? _localeWorker;
 
   AppLanguage _language = AppLanguage.fr;
   AppLanguage get language => _language;
 
-  void setLanguage(AppLanguage lang) {
-    if (_language != lang) {
-      _language = lang;
-      notifyListeners();
+  void _bindToLanguageServiceIfAvailable() {
+    if (!Get.isRegistered<LanguageService>()) return;
+    final langService = Get.find<LanguageService>();
+    _syncFromCode(langService.currentLanguageCode, notify: false);
+
+    _localeWorker ??= ever<Locale>(
+      langService.localeRx,
+      (loc) => _syncFromCode(loc.languageCode),
+    );
+  }
+
+  static AppLanguage _fromCode(String code) {
+    switch (code) {
+      case 'en':
+        return AppLanguage.en;
+      case 'es':
+        return AppLanguage.es;
+      case 'fr':
+      default:
+        return AppLanguage.fr;
     }
+  }
+
+  static String _toCode(AppLanguage lang) {
+    switch (lang) {
+      case AppLanguage.en:
+        return 'en';
+      case AppLanguage.es:
+        return 'es';
+      case AppLanguage.fr:
+        return 'fr';
+    }
+  }
+
+  void _syncFromCode(String code, {bool notify = true}) {
+    final next = _fromCode(code);
+    if (_language == next) return;
+    _language = next;
+    if (notify) notifyListeners();
+  }
+
+  Future<void> setLanguage(AppLanguage lang) async {
+    _bindToLanguageServiceIfAvailable();
+    if (Get.isRegistered<LanguageService>()) {
+      final langService = Get.find<LanguageService>();
+      await langService.changeLanguage(_toCode(lang));
+      // La synchro + notifyListeners est assurée par le worker.
+      return;
+    }
+
+    // Fallback (si LanguageService non dispo)
+    _syncFromCode(_toCode(lang));
   }
 
   String get languageCode {

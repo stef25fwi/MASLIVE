@@ -8,6 +8,8 @@ import 'storex_shop_page.dart';
 import 'product_detail_page.dart';
 import '../models/group_product.dart';
 import '../services/cart_service.dart';
+import '../widgets/language_switcher.dart';
+import '../l10n/app_localizations.dart';
 
 class ShopPixelPerfectPage extends StatefulWidget {
   const ShopPixelPerfectPage({super.key, this.shopId});
@@ -698,6 +700,8 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return SliverAppBar(
       expandedHeight: height,
       backgroundColor: Colors.transparent,
@@ -729,14 +733,16 @@ class _Header extends StatelessWidget {
                       children: [
                         _BackButton(onTap: onBackTap),
                         const Spacer(),
+                        LanguageSwitcher(),
+                        const SizedBox(width: 8),
                         _CartButton(onTap: onCartTap),
                       ],
                     ),
                     const SizedBox(height: 4),
-                    const Text(
-                      "La Boutique",
+                    Text(
+                      l10n.theShop,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 46,
                         height: 1.0,
                         fontWeight: FontWeight.w900,
@@ -761,10 +767,10 @@ class _Header extends StatelessWidget {
                               color: Colors.white.withValues(alpha: 0.22),
                             ),
                           ),
-                          child: const Text(
-                            "Trouve des produits officiels et des photos\nd'événements.",
+                          child: Text(
+                            l10n.merchStickersAccessories,
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
                               fontSize: 17,
