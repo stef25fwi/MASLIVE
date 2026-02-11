@@ -446,90 +446,134 @@ class _StorexDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final repo = StorexRepo(shopId: shopId, groupId: groupId);
+    final localizations = l10n.AppLocalizations.of(context)!;
 
     return Drawer(
       backgroundColor: Colors.white,
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
-          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: repo.bestSeller(limit: 250).snapshots(),
-            builder: (context, snap) {
-              final docs = (snap.data?.docs ?? []).where((d) => StorexRepo.onlyApproved(d.data())).toList();
-              final products = docs.map(GroupProduct.fromFirestore).toList();
-
-              final set = <String>{};
-              for (final p in products) {
-                final c = p.category.trim();
-                if (c.isNotEmpty) set.add(c);
-              }
-              final cats = set.toList()..sort();
-              final finalCats = <String>[_allCategoryId, ...cats];
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Image.asset(
-                    'assets/images/maslivelogo.png',
-                    height: 40,
-                    fit: BoxFit.contain,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Logo
+              Image.asset(
+                'assets/images/maslivelogo.png',
+                height: 40,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(height: 30),
+              
+              // Éléments fixes
+              _DrawerItem(
+                localizations.home,
+                () => Navigator.of(context).pop(),
+                icon: Icons.home_rounded,
+              ),
+              const SizedBox(height: 4),
+              _DrawerItem(
+                localizations.search,
+                () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => _SearchPage(shopId: shopId, groupId: groupId),
+                  ));
+                },
+                icon: Icons.search_rounded,
+              ),
+              const SizedBox(height: 4),
+              _DrawerItem(
+                localizations.profile,
+                () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => _StorexAccount(shopId: shopId, groupId: groupId),
+                  ));
+                },
+                icon: Icons.person_rounded,
+              ),
+              
+              const Divider(height: 32, thickness: 1),
+              
+              // Header catégories
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 12),
+                child: Text(
+                  localizations.categories.toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.black45,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
                   ),
-                  const SizedBox(height: 30),
-                  _DrawerItem(l10n.AppLocalizations.of(context)!.home, () => Navigator.of(context).pop(), icon: Icons.home_rounded),
-                  const SizedBox(height: 4),
-                  _DrawerItem(l10n.AppLocalizations.of(context)!.search, () {
-                    Navigator.of(context).pop();
-                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => _SearchPage(shopId: shopId, groupId: groupId)));
-                  }, icon: Icons.search_rounded),
-                  const SizedBox(height: 4),
-                  _DrawerItem(l10n.AppLocalizations.of(context)!.profile, () {
-                    Navigator.of(context).pop();
-                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => _StorexAccount(shopId: shopId, groupId: groupId)));
-                  }, icon: Icons.person_rounded),
-                  const Divider(height: 32, thickness: 1),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4, bottom: 12),
-                    child: Text(
-                      l10n.AppLocalizations.of(context)!.categories.toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.black45,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ),
-                  ...finalCats.map((c) => _DrawerItem(
-                    c == _allCategoryId ? l10n.AppLocalizations.of(context)!.all : c,
-                    () {
-                      Navigator.of(context).pop();
-                      final title = c == _allCategoryId ? l10n.AppLocalizations.of(context)!.all : c;
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => _ListPage(
-                            shopId: shopId,
-                            groupId: groupId,
-                            categoryId: c == _allCategoryId ? null : c,
-                            title: title,
-                          ),
+                ),
+              ),
+              
+              // Catégories dynamiques
+              Expanded(
+                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: repo.bestSeller(limit: 250).snapshots(),
+                  builder: (context, snap) {
+                    if (!snap.hasData) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                       );
-                    },
-                    small: true,
-                  )),
-                  const Spacer(),
-                  const Divider(height: 1),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      LanguageSwitcher(),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
+                    }
+
+                    final docs = (snap.data?.docs ?? [])
+                        .where((d) => StorexRepo.onlyApproved(d.data()))
+                        .toList();
+                    final products = docs.map(GroupProduct.fromFirestore).toList();
+
+                    final set = <String>{};
+                    for (final p in products) {
+                      final c = p.category.trim();
+                      if (c.isNotEmpty) set.add(c);
+                    }
+                    final cats = set.toList()..sort();
+                    final finalCats = <String>[_allCategoryId, ...cats];
+
+                    return ListView(
+                      padding: EdgeInsets.zero,
+                      children: finalCats.map((c) {
+                        return _DrawerItem(
+                          c == _allCategoryId ? localizations.all : c,
+                          () {
+                            Navigator.of(context).pop();
+                            final title = c == _allCategoryId ? localizations.all : c;
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => _ListPage(
+                                  shopId: shopId,
+                                  groupId: groupId,
+                                  categoryId: c == _allCategoryId ? null : c,
+                                  title: title,
+                                ),
+                              ),
+                            );
+                          },
+                          small: true,
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
+              ),
+              
+              // Footer
+              const Divider(height: 1),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  LanguageSwitcher(),
                 ],
-              );
-            },
+              ),
+              const SizedBox(height: 8),
+            ],
           ),
         ),
       ),
