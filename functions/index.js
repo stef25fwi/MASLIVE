@@ -22,6 +22,72 @@ const STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET");
 const stripeModule = require("stripe");
 let stripe = null;
 
+const DEFAULT_STOREX_SHOP_ID = "global";
+
+function toSafeInt(n, fallback = 0) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return fallback;
+  return Math.trunc(x);
+}
+
+function looksLikeNonEmptyString(v) {
+  return typeof v === "string" && v.trim().length > 0;
+}
+
+function assertPositiveCents(value, name) {
+  const cents = toSafeInt(value, 0);
+  if (cents <= 0) {
+    throw new HttpsError("failed-precondition", `${name} must be > 0`);
+  }
+  return cents;
+}
+
+async function fetchStorexProductsById(productIds, { shopId = DEFAULT_STOREX_SHOP_ID } = {}) {
+  const unique = Array.from(new Set((productIds || []).filter(Boolean)));
+  if (!unique.length) return new Map();
+
+  const primaryRefs = unique.map((id) => db.collection("shops").doc(shopId).collection("products").doc(id));
+  const primarySnaps = await db.getAll(...primaryRefs);
+  const out = new Map();
+
+  const missing = [];
+  for (let i = 0; i < unique.length; i++) {
+    const id = unique[i];
+    const snap = primarySnaps[i];
+    if (snap.exists) {
+      out.set(id, snap.data() || {});
+    } else {
+      missing.push(id);
+    }
+  }
+
+  if (missing.length) {
+    const fallbackRefs = missing.map((id) => db.collection("products").doc(id));
+    const fallbackSnaps = await db.getAll(...fallbackRefs);
+    for (let i = 0; i < missing.length; i++) {
+      const id = missing[i];
+      const snap = fallbackSnaps[i];
+      if (snap.exists) out.set(id, snap.data() || {});
+    }
+  }
+
+  return out;
+}
+
+async function fetchPhotosById(photoIds) {
+  const unique = Array.from(new Set((photoIds || []).filter(Boolean)));
+  if (!unique.length) return new Map();
+  const refs = unique.map((id) => db.collection("photos").doc(id));
+  const snaps = await db.getAll(...refs);
+  const out = new Map();
+  for (let i = 0; i < unique.length; i++) {
+    const id = unique[i];
+    const snap = snaps[i];
+    if (snap.exists) out.set(id, snap.data() || {});
+  }
+  return out;
+}
+
 function getStripeWebhookSecret() {
   return STRIPE_WEBHOOK_SECRET.value() || process.env.STRIPE_WEBHOOK_SECRET;
 }
@@ -58,12 +124,21 @@ function isAllowedRedirectUrl(url) {
   if (typeof url !== "string" || url.trim().length === 0) return false;
   try {
     const u = new URL(url);
-    if (u.protocol === "https:") return true;
+
     // Allow local development
     if (u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1")) {
       return true;
     }
-    return false;
+
+    // Production: strict allowlist
+    if (u.protocol !== "https:") return false;
+
+    const allowedHosts = new Set([
+      "maslive.web.app",
+      "maslive.firebaseapp.com",
+    ]);
+
+    return allowedHosts.has(u.hostname);
   } catch {
     return false;
   }
@@ -312,28 +387,49 @@ exports.createStorexPaymentIntent = onCall(
 
   if (cartSnap.empty) throw new HttpsError("failed-precondition", "Cart empty");
 
+  // IMPORTANT: Ne jamais faire confiance aux montants venant de users/{uid}/cart.
+  // On recalcule les prix depuis la source de vérité (products).
+  const cartDocs = cartSnap.docs.map((d) => ({ id: d.id, data: d.data() || {} }));
+  const productIds = cartDocs
+    .map((x) => x.data.productId)
+    .filter((v) => typeof v === "string" && v.trim().length > 0);
+  const productsById = await fetchStorexProductsById(productIds);
+
   let subtotalCents = 0;
   const items = [];
 
-  for (const doc of cartSnap.docs) {
-    const it = doc.data();
-    const priceCents = Number(it.priceCents || 0);
-    const qty = Number(it.quantity || 1);
-    if (priceCents <= 0 || qty <= 0) continue;
+  for (const doc of cartDocs) {
+    const it = doc.data;
+    const productId = typeof it.productId === "string" ? it.productId.trim() : "";
+    if (!productId) continue;
 
+    const qty = clamp(toSafeInt(it.quantity, 1), 1, 99);
+    const product = productsById.get(productId);
+    if (!product) {
+      throw new HttpsError("failed-precondition", `Product not found: ${productId}`);
+    }
+
+    if (product.isActive === false) {
+      throw new HttpsError("failed-precondition", `Product inactive: ${productId}`);
+    }
+    if (looksLikeNonEmptyString(product.moderationStatus) && String(product.moderationStatus).toLowerCase() !== "approved") {
+      throw new HttpsError("failed-precondition", `Product not approved: ${productId}`);
+    }
+
+    const priceCents = assertPositiveCents(product.priceCents, "product.priceCents");
     subtotalCents += priceCents * qty;
 
     items.push({
       key: doc.id,
       groupId: it.groupId || "",
-      productId: it.productId || "",
-      title: it.title || "",
+      productId,
+      title: looksLikeNonEmptyString(product.title) ? product.title : (it.title || ""),
       priceCents,
       quantity: qty,
       size: it.size || "M",
       color: it.color || "Noir",
-      imageUrl: it.imageUrl || "",
-      imagePath: it.imagePath || null,
+      imageUrl: looksLikeNonEmptyString(product.imageUrl) ? product.imageUrl : (it.imageUrl || ""),
+      imagePath: product.imagePath || it.imagePath || null,
     });
   }
 
@@ -496,7 +592,13 @@ async function sendPendingProductNotification({ groupId, productId, product }) {
  * Notifie tous les admins master (users/{uid}.isAdmin == true OU role == 'admin').
  */
 exports.notifyPendingProductCreated = onDocumentCreated(
-  "groups/{groupId}/products/{productId}",
+  {
+    document: "groups/{groupId}/products/{productId}",
+    cpu: 0.083,
+    memory: "256MiB",
+    timeoutSeconds: 30,
+    maxInstances: 2,
+  },
   async (event) => {
     const snap = event.data;
     if (!snap) return;
@@ -520,7 +622,13 @@ exports.notifyPendingProductCreated = onDocumentCreated(
  * Déclenchée quand un produit passe à nouveau en pending (ex: correction après refus).
  */
 exports.notifyPendingProductResubmitted = onDocumentUpdated(
-  "groups/{groupId}/products/{productId}",
+  {
+    document: "groups/{groupId}/products/{productId}",
+    cpu: 0.083,
+    memory: "256MiB",
+    timeoutSeconds: 30,
+    maxInstances: 2,
+  },
   async (event) => {
     const before = event.data?.before;
     const after = event.data?.after;
@@ -1065,7 +1173,13 @@ const defaultUserCategories = [
  * Callable uniquement par un admin ou super admin
  */
 exports.initializeUserCategories = onCall(
-  { region: "us-east1" },
+  {
+    region: "us-east1",
+    cpu: 0.083,
+    memory: "256MiB",
+    timeoutSeconds: 60,
+    maxInstances: 2,
+  },
   async (request) => {
     const uid = request.auth?.uid;
 
@@ -1132,7 +1246,13 @@ exports.initializeUserCategories = onCall(
  * Callable par l'utilisateur lui-même (si auto-assignable) ou par un admin
  */
 exports.assignUserCategory = onCall(
-  { region: "us-east1" },
+  {
+    region: "us-east1",
+    cpu: 0.083,
+    memory: "256MiB",
+    timeoutSeconds: 60,
+    maxInstances: 2,
+  },
   async (request) => {
     const uid = request.auth?.uid;
     const {
@@ -1250,7 +1370,13 @@ exports.assignUserCategory = onCall(
  * Callable uniquement par un admin
  */
 exports.revokeUserCategory = onCall(
-  { region: "us-east1" },
+  {
+    region: "us-east1",
+    cpu: 0.083,
+    memory: "256MiB",
+    timeoutSeconds: 60,
+    maxInstances: 2,
+  },
   async (request) => {
     const uid = request.auth?.uid;
     const { targetUserId, categoryId } = request.data || {};
@@ -1347,6 +1473,11 @@ exports.createCheckoutSessionForOrder = onCall(
 
     const orderData = orderSnap.data();
 
+    // Idempotence: si une session existe déjà sur la commande, la réutiliser.
+    if (orderData?.stripeSessionUrl && typeof orderData.stripeSessionUrl === "string") {
+      return { checkoutUrl: orderData.stripeSessionUrl };
+    }
+
     if (orderData.status !== "pending") {
       throw new HttpsError(
         "failed-precondition",
@@ -1354,13 +1485,52 @@ exports.createCheckoutSessionForOrder = onCall(
       );
     }
 
+    // IMPORTANT: Ne jamais faire confiance aux montants venant de users/{uid}/orders.
+    // On recalcule les prix depuis la source de vérité (photos).
+
     // 2. Prépare les line_items pour Stripe
     const items = orderData.items || [];
     if (items.length === 0) {
       throw new HttpsError("invalid-argument", "Order has no items");
     }
 
-    const lineItems = items.map((item) => ({
+    // Recalcul prix photo depuis /photos
+    const photoIds = items
+      .map((it) => it.photoId)
+      .filter((v) => typeof v === "string" && v.trim().length > 0);
+    const photosById = await fetchPhotosById(photoIds);
+
+    const validatedItems = items.map((item) => {
+      const photoId = typeof item.photoId === "string" ? item.photoId.trim() : "";
+      if (!photoId) {
+        throw new HttpsError("failed-precondition", "Missing photoId in order item");
+      }
+
+      const photo = photosById.get(photoId);
+      if (!photo) {
+        throw new HttpsError("failed-precondition", `Photo not found: ${photoId}`);
+      }
+      if (photo.isActive === false) {
+        throw new HttpsError("failed-precondition", `Photo inactive: ${photoId}`);
+      }
+      if (looksLikeNonEmptyString(photo.moderationStatus) && String(photo.moderationStatus).toLowerCase() !== "approved") {
+        throw new HttpsError("failed-precondition", `Photo not approved: ${photoId}`);
+      }
+
+      const priceCents = assertPositiveCents(photo.priceCents, "photo.priceCents");
+      return {
+        ...item,
+        priceCents,
+        eventName: looksLikeNonEmptyString(photo.eventName) ? photo.eventName : (item.eventName || ""),
+        groupName: looksLikeNonEmptyString(photo.groupName) ? photo.groupName : (item.groupName || ""),
+        photographerName: looksLikeNonEmptyString(photo.photographerName) ? photo.photographerName : (item.photographerName || ""),
+      };
+    });
+
+    // Discount venant du client: on ne l'applique pas sans une politique côté serveur.
+    const discountCents = 0;
+
+    const lineItems = validatedItems.map((item) => ({
       price_data: {
         currency: "eur",
         product_data: {
@@ -1377,27 +1547,11 @@ exports.createCheckoutSessionForOrder = onCall(
       quantity: 1,
     }));
 
-    // Applique le discount si présent
-    const discountCents = orderData.discountCents || 0;
-    if (discountCents > 0) {
-      // Ajoute une ligne négative pour le discount
-      lineItems.push({
-        price_data: {
-          currency: "eur",
-          product_data: {
-            name: `Réduction ${orderData.discountRule || "Pack"} (-${orderData.discountPercent || 0}%)`,
-            description: `Pack discount appliqué`,
-          },
-          unit_amount: -discountCents, // Montant négatif
-        },
-        quantity: 1,
-      });
-    }
-
     // 3. Crée une Checkout Session Stripe
     try {
       const stripeClient = getStripe();
-      const session = await stripeClient.checkout.sessions.create({
+      const session = await stripeClient.checkout.sessions.create(
+        {
         mode: "payment",
         line_items: lineItems,
         success_url: `https://maslive.web.app/success?orderId=${orderId}`,
@@ -1405,11 +1559,13 @@ exports.createCheckoutSessionForOrder = onCall(
         metadata: {
           orderId,
           userId: uid,
-          itemCount: items.length,
-          totalCents: orderData.totalCents || 0,
+          itemCount: validatedItems.length,
+          totalCents: validatedItems.reduce((sum, it) => sum + toSafeInt(it.priceCents, 0), 0) - discountCents,
         },
         customer_email: request.auth.token.email || undefined,
-      });
+        },
+        { idempotencyKey: `users_${uid}_order_${orderId}` }
+      );
 
       // 4. Sauvegarde le sessionId dans la commande
       await orderRef.update({
@@ -1457,6 +1613,11 @@ exports.createCheckoutSession = onRequest(
         return res.status(405).json({ error: "POST only" });
       }
 
+      const uid = await getUidFromAuthorizationHeader(req);
+      if (!uid) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
       const { orderId, successUrl, cancelUrl } = req.body || {};
 
       if (!orderId || typeof orderId !== "string") {
@@ -1475,6 +1636,13 @@ exports.createCheckoutSession = onRequest(
       }
 
       const order = orderSnap.data() || {};
+
+      // Ownership check: l'utilisateur ne peut créer une session que pour sa commande.
+      const orderUid = typeof order.uid === "string" ? order.uid : (typeof order.userId === "string" ? order.userId : "");
+      if (!orderUid || orderUid !== uid) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
       const status = (order.status || "pending").toString();
       if (status !== "pending") {
         return res.status(409).json({ error: `order status is ${status}` });
@@ -1504,7 +1672,7 @@ exports.createCheckoutSession = onRequest(
           cancel_url: cancelUrl,
           metadata: {
             orderId,
-            uid: typeof order.uid === "string" ? order.uid : "",
+            uid,
             kind: "one_time",
           },
           client_reference_id: orderId,
@@ -1657,27 +1825,93 @@ exports.createMediaShopCheckout = onCall(
       cartItems.push({ id: doc.id, ...doc.data() });
     });
 
+    // IMPORTANT: Ne jamais faire confiance aux montants venant de users/{uid}/cart.
+    // On supporte 2 types d'items:
+    // - Storex (produits): productId présent -> prix depuis products
+    // - Media Shop (photos): photoId ou id -> prix depuis photos
+    const storexProductIds = cartItems
+      .map((it) => (typeof it.productId === "string" ? it.productId.trim() : ""))
+      .filter(Boolean);
+    const photosIds = cartItems
+      .map((it) => (typeof it.photoId === "string" ? it.photoId.trim() : ""))
+      .filter(Boolean);
+
+    const productsById = await fetchStorexProductsById(storexProductIds);
+    const photosById = await fetchPhotosById(photosIds);
+
     // 2. Crée la commande dans Firestore
     const orderRef = db.collection("users").doc(uid).collection("orders").doc();
     const orderId = orderRef.id;
 
-    const items = cartItems.map((item) => ({
-      photoId: item.photoId || item.id,
-      priceCents: item.priceCents || 0,
-      thumbPath: item.imageUrl || item.thumbPath || "",
-      fullPath: item.fullPath || "",
-      eventName: item.eventName || "",
-      groupName: item.groupName || "",
-      photographerName: item.photographerName || "",
-      photographerId: item.photographerId || null,
-      title: item.title || "",
-      size: item.size || "",
-      color: item.color || "",
-      quantity: item.quantity || 1,
-    }));
+    const items = cartItems.map((item) => {
+      const productId = typeof item.productId === "string" ? item.productId.trim() : "";
+      const qty = clamp(toSafeInt(item.quantity, 1), 1, 99);
+
+      // Storex product item
+      if (productId) {
+        const product = productsById.get(productId);
+        if (!product) {
+          throw new HttpsError("failed-precondition", `Product not found: ${productId}`);
+        }
+        if (product.isActive === false) {
+          throw new HttpsError("failed-precondition", `Product inactive: ${productId}`);
+        }
+        if (looksLikeNonEmptyString(product.moderationStatus) && String(product.moderationStatus).toLowerCase() !== "approved") {
+          throw new HttpsError("failed-precondition", `Product not approved: ${productId}`);
+        }
+
+        const priceCents = assertPositiveCents(product.priceCents, "product.priceCents");
+        return {
+          productId,
+          priceCents,
+          thumbPath: looksLikeNonEmptyString(product.imageUrl) ? product.imageUrl : (item.imageUrl || ""),
+          fullPath: "",
+          eventName: "",
+          groupName: item.groupId || "",
+          photographerName: "",
+          photographerId: null,
+          title: looksLikeNonEmptyString(product.title) ? product.title : (item.title || ""),
+          size: item.size || "",
+          color: item.color || "",
+          quantity: qty,
+        };
+      }
+
+      // Media Shop photo item
+      const photoId = typeof item.photoId === "string" && item.photoId.trim().length > 0
+        ? item.photoId.trim()
+        : item.id;
+      const photo = photosById.get(photoId);
+      if (!photo) {
+        throw new HttpsError("failed-precondition", `Photo not found: ${photoId}`);
+      }
+      if (photo.isActive === false) {
+        throw new HttpsError("failed-precondition", `Photo inactive: ${photoId}`);
+      }
+      if (looksLikeNonEmptyString(photo.moderationStatus) && String(photo.moderationStatus).toLowerCase() !== "approved") {
+        throw new HttpsError("failed-precondition", `Photo not approved: ${photoId}`);
+      }
+
+      const priceCents = assertPositiveCents(photo.priceCents, "photo.priceCents");
+      return {
+        photoId,
+        priceCents,
+        thumbPath: looksLikeNonEmptyString(photo.thumbPath) ? photo.thumbPath : (item.imageUrl || item.thumbPath || ""),
+        thumbUrl: looksLikeNonEmptyString(photo.thumbUrl) ? photo.thumbUrl : (item.thumbUrl || ""),
+        fullPath: looksLikeNonEmptyString(photo.fullPath) ? photo.fullPath : (item.fullPath || ""),
+        eventName: looksLikeNonEmptyString(photo.eventName) ? photo.eventName : (item.eventName || ""),
+        groupName: looksLikeNonEmptyString(photo.groupName) ? photo.groupName : (item.groupName || ""),
+        photographerName: looksLikeNonEmptyString(photo.photographerName) ? photo.photographerName : (item.photographerName || ""),
+        photographerId: item.photographerId || null,
+        title: looksLikeNonEmptyString(photo.title) ? photo.title : (item.title || ""),
+        size: item.size || "",
+        color: item.color || "",
+        quantity: qty,
+      };
+    });
 
     const totalCents = items.reduce((sum, item) => {
-      return sum + (item.priceCents * (item.quantity || 1));
+      return sum + (toSafeInt(item.priceCents, 0) * (toSafeInt(item.quantity, 1)));
     }, 0);
 
     const orderData = {
@@ -1695,40 +1929,49 @@ exports.createMediaShopCheckout = onCall(
     await orderRef.set(orderData);
 
     // 3. Crée les line_items pour Stripe
-    const lineItems = items.map((item) => ({
-      price_data: {
-        currency: "eur",
-        product_data: {
-          name: item.title || `Photo ${item.photoId}`,
-          description: `${item.eventName || ""} ${item.groupName || ""}`.trim(),
-          images: item.thumbPath ? [item.thumbPath] : [],
-          metadata: {
-            photoId: item.photoId,
-            eventName: item.eventName || "",
-            groupName: item.groupName || "",
+    const lineItems = items.map((item) => {
+      // Privilégier thumbUrl (URL publique HTTPS) pour Stripe, sinon omettre l'image
+      const imageUrl = looksLikeNonEmptyString(item.thumbUrl) ? item.thumbUrl : null;
+      const images = imageUrl && imageUrl.startsWith("https://") ? [imageUrl] : [];
+
+      return {
+        price_data: {
+          currency: "eur",
+          product_data: {
+            name: item.title || `Photo ${item.photoId || "?"}`,
+            description: `${item.eventName || ""} ${item.groupName || ""}`.trim(),
+            images,
+            metadata: {
+              photoId: item.photoId || "",
+              eventName: item.eventName || "",
+              groupName: item.groupName || "",
+            },
           },
+          unit_amount: item.priceCents,
         },
-        unit_amount: item.priceCents,
-      },
-      quantity: item.quantity || 1,
-    }));
+        quantity: item.quantity || 1,
+      };
+    });
 
     // 4. Crée une Checkout Session Stripe
     try {
       const stripeClient = getStripe();
-      const session = await stripeClient.checkout.sessions.create({
-        mode: "payment",
-        line_items: lineItems,
-        success_url: `https://maslive.web.app/success?orderId=${orderId}`,
-        cancel_url: `https://maslive.web.app/cancel?orderId=${orderId}`,
-        metadata: {
-          orderId,
-          userId: uid,
-          itemCount: items.length,
-          totalCents,
+      const session = await stripeClient.checkout.sessions.create(
+        {
+          mode: "payment",
+          line_items: lineItems,
+          success_url: `https://maslive.web.app/success?orderId=${orderId}`,
+          cancel_url: `https://maslive.web.app/cancel?orderId=${orderId}`,
+          metadata: {
+            orderId,
+            userId: uid,
+            itemCount: items.length,
+            totalCents,
+          },
+          customer_email: request.auth.token.email || undefined,
         },
-        customer_email: request.auth.token.email || undefined,
-      });
+        { idempotencyKey: `mediaShop_${uid}_${orderId}` }
+      );
 
       // 5. Met à jour la commande avec le sessionId
       await orderRef.update({
@@ -1737,10 +1980,9 @@ exports.createMediaShopCheckout = onCall(
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      // 6. Vide le panier après création de la commande
-      const batch = db.batch();
-      cartSnap.forEach((doc) => batch.delete(doc.ref));
-      await batch.commit();
+      // 6. NE PAS vider le panier ici : attendre la confirmation de paiement (webhook checkout.session.completed)
+      // pour éviter la perte du panier si l'utilisateur annule ou échoue.
+      // Le panier sera vidé par handleCheckoutSessionCompleted() après paiement confirmé.
 
       return { checkoutUrl: session.url };
     } catch (error) {
@@ -2123,6 +2365,19 @@ async function handleCheckoutSessionCompleted(session) {
 
   await batch.commit();
 
+  // Vider le panier de l'utilisateur après paiement confirmé
+  try {
+    const cartSnap = await db.collection("users").doc(uid).collection("cart").get();
+    if (!cartSnap.empty) {
+      const cartBatch = db.batch();
+      cartSnap.forEach((doc) => cartBatch.delete(doc.ref));
+      await cartBatch.commit();
+      console.log(`Cart cleared for user ${uid} after successful payment`);
+    }
+  } catch (err) {
+    console.error(`Failed to clear cart for user ${uid}:`, err);
+  }
+
   console.log(`User order ${orderId} marked as paid, ${items.length} purchases created`);
 }
 
@@ -2335,9 +2590,17 @@ async function handleAccountUpdated(account) {
 /**
  * Approuve une soumission commerce et la publie dans /shops/{scopeId}/products ou /media
  */
-exports.approveCommerceSubmission = onCall(async (request) => {
-  const { submissionId } = request.data;
-  const uid = request.auth?.uid;
+exports.approveCommerceSubmission = onCall(
+  {
+    region: "us-east1",
+    cpu: 0.083,
+    memory: "256MiB",
+    timeoutSeconds: 60,
+    maxInstances: 2,
+  },
+  async (request) => {
+    const { submissionId } = request.data;
+    const uid = request.auth?.uid;
 
   if (!uid) {
     throw new HttpsError("unauthenticated", "User must be authenticated");
@@ -2435,12 +2698,21 @@ exports.approveCommerceSubmission = onCall(async (request) => {
   console.log(`Submission ${submissionId} approved by ${uid} and published to ${targetPath}/${submissionId}`);
 
   return { success: true, publishedRef: `${targetPath}/${submissionId}` };
-});
+  }
+);
 
 /**
  * Refuse une soumission commerce avec une note
  */
-exports.rejectCommerceSubmission = onCall(async (request) => {
+exports.rejectCommerceSubmission = onCall(
+  {
+    region: "us-east1",
+    cpu: 0.083,
+    memory: "256MiB",
+    timeoutSeconds: 60,
+    maxInstances: 2,
+  },
+  async (request) => {
   const { submissionId, note } = request.data;
   const uid = request.auth?.uid;
 
@@ -2501,7 +2773,8 @@ exports.rejectCommerceSubmission = onCall(async (request) => {
   console.log(`Submission ${submissionId} rejected by ${uid}`);
 
   return { success: true };
-});
+  }
+);
 
 // ============================================================================
 // COMMERCE NOTIFICATIONS (Cloud Functions Gen 2)
@@ -2511,7 +2784,13 @@ exports.rejectCommerceSubmission = onCall(async (request) => {
  * Notifier le propriétaire quand sa soumission est approuvée
  */
 exports.notifyCommerceApproved = onDocumentUpdated(
-  "commerce_submissions/{submissionId}",
+  {
+    document: "commerce_submissions/{submissionId}",
+    cpu: 0.083,
+    memory: "256MiB",
+    timeoutSeconds: 30,
+    maxInstances: 2,
+  },
   async (event) => {
     const before = event.data.before.data();
     const after = event.data.after.data();
@@ -2558,7 +2837,13 @@ exports.notifyCommerceApproved = onDocumentUpdated(
  * Notifier le propriétaire quand sa soumission est refusée
  */
 exports.notifyCommerceRejected = onDocumentUpdated(
-  "commerce_submissions/{submissionId}",
+  {
+    document: "commerce_submissions/{submissionId}",
+    cpu: 0.083,
+    memory: "256MiB",
+    timeoutSeconds: 30,
+    maxInstances: 2,
+  },
   async (event) => {
     const before = event.data.before.data();
     const after = event.data.after.data();

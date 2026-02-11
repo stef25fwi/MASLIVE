@@ -98,7 +98,14 @@ const GeoUtils = {
  * Utilise centroïde géodésique + pondération accuracy
  */
 exports.calculateGroupAveragePosition = onDocumentWritten(
-  "group_positions/{adminGroupId}/members/{uid}",
+  {
+    document: "group_positions/{adminGroupId}/members/{uid}",
+    region: "us-east1",
+    cpu: 0.25,
+    memory: "256MiB",
+    timeoutSeconds: 60,
+    maxInstances: 5,
+  },
   async (event) => {
     const adminGroupId = event.params.adminGroupId;
 
