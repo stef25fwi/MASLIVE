@@ -13,8 +13,6 @@ class AdminStockPage extends StatefulWidget {
 }
 
 class _AdminStockPageState extends State<AdminStockPage> {
-  final _db = FirebaseFirestore.instance;
-
   final _searchCtrl = TextEditingController();
   String _filter = 'all';
 
@@ -42,12 +40,12 @@ class _AdminStockPageState extends State<AdminStockPage> {
     }
 
     try {
-      final shopProductsSnap = await _db
+      final shopProductsSnap = await FirebaseFirestore.instance
           .collection('shops')
           .doc(shopId)
           .collection('products')
           .get();
-      final rootProductsSnap = await _db
+      final rootProductsSnap = await FirebaseFirestore.instance
           .collection('products')
           .where('shopId', isEqualTo: shopId)
           .get();
@@ -86,12 +84,12 @@ class _AdminStockPageState extends State<AdminStockPage> {
     }
 
     try {
-      final shopProductsSnap = await _db
+      final shopProductsSnap = await FirebaseFirestore.instance
           .collection('shops')
           .doc(shopId)
           .collection('products')
           .get();
-      final rootProductsSnap = await _db
+      final rootProductsSnap = await FirebaseFirestore.instance
           .collection('products')
           .where('shopId', isEqualTo: shopId)
           .get();
@@ -109,13 +107,13 @@ class _AdminStockPageState extends State<AdminStockPage> {
       final missingInRoot = shopIds.difference(rootIds);
       final missingInShop = rootIds.difference(shopIds);
 
-      final batch = _db.batch();
+      final batch = FirebaseFirestore.instance.batch();
 
       for (final id in missingInRoot) {
         final data = {...shopDocsById[id]!};
         data['shopId'] = shopId;
         data['updatedAt'] = FieldValue.serverTimestamp();
-        final ref = _db.collection('products').doc(id);
+        final ref = FirebaseFirestore.instance.collection('products').doc(id);
         batch.set(ref, data, SetOptions(merge: true));
       }
 
@@ -123,7 +121,7 @@ class _AdminStockPageState extends State<AdminStockPage> {
         final data = {...rootDocsById[id]!};
         data['shopId'] = shopId;
         data['updatedAt'] = FieldValue.serverTimestamp();
-        final ref = _db
+        final ref = FirebaseFirestore.instance
             .collection('shops')
             .doc(shopId)
             .collection('products')
@@ -211,14 +209,14 @@ class _AdminStockPageState extends State<AdminStockPage> {
             Expanded(
               child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: (widget.shopId != null && widget.shopId!.trim().isNotEmpty)
-                ? _db
+                ? FirebaseFirestore.instance
                   .collection('shops')
                   .doc(widget.shopId)
                   .collection('products')
                   .orderBy('updatedAt', descending: true)
                   .limit(400)
                   .snapshots()
-                : _db
+                : FirebaseFirestore.instance
                   .collection('products')
                   .orderBy('updatedAt', descending: true)
                   .limit(400)
@@ -572,13 +570,13 @@ class _AdminStockPageState extends State<AdminStockPage> {
                           'updatedAt': FieldValue.serverTimestamp(),
                         };
 
-                        await _db
+                        await FirebaseFirestore.instance
                             .collection('products')
                             .doc(productId)
                             .set(payload, SetOptions(merge: true));
 
                         if (shopId != null && shopId.isNotEmpty) {
-                          await _db
+                          await FirebaseFirestore.instance
                               .collection('shops')
                               .doc(shopId)
                               .collection('products')

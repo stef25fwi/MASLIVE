@@ -5,9 +5,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'cart_page.dart';
 import 'product_detail_page.dart';
-import 'media_shop_page.dart';
 import '../models/group_product.dart';
 import '../services/cart_service.dart';
+import '../shop/widgets/shop_drawer.dart';
 import '../widgets/language_switcher.dart';
 import '../l10n/app_localizations.dart' as l10n;
 
@@ -206,7 +206,34 @@ class _StorexHome extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      drawer: _StorexDrawer(shopId: shopId, groupId: groupId),
+      drawer: ShopDrawer(
+        shopId: shopId,
+        groupId: groupId,
+        onNavigateHome: () => Navigator.of(context).pop(),
+        onNavigateSearch: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => _SearchPage(shopId: shopId, groupId: groupId),
+          ));
+        },
+        onNavigateProfile: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => _StorexAccount(shopId: shopId, groupId: groupId),
+          ));
+        },
+        onNavigateCategory: (categoryId, title) {
+          Navigator.of(context).pop();
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => _ListPage(
+              shopId: shopId,
+              groupId: groupId,
+              categoryId: categoryId,
+              title: title,
+            ),
+          ));
+        },
+      ),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -424,258 +451,6 @@ class _BannerTile extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(subtitle, style: const TextStyle(color: Colors.black38)),
                 ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// =======================
-/// DRAWER
-/// =======================
-
-class _StorexDrawer extends StatelessWidget {
-  const _StorexDrawer({required this.shopId, required this.groupId});
-  final String? shopId;
-  final String? groupId;
-
-  static const String _allCategoryId = '__all__';
-
-  @override
-  Widget build(BuildContext context) {
-    final repo = StorexRepo(shopId: shopId, groupId: groupId);
-    final localizations = l10n.AppLocalizations.of(context)!;
-
-    return Drawer(
-      backgroundColor: Colors.white,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Logo
-              Image.asset(
-                'assets/images/maslivelogo.png',
-                height: 40,
-                fit: BoxFit.contain,
-              ),
-              const SizedBox(height: 30),
-              
-              // Éléments fixes
-              _DrawerItem(
-                localizations.home,
-                () => Navigator.of(context).pop(),
-                icon: Icons.home_rounded,
-              ),
-              const SizedBox(height: 4),
-              _DrawerItem(
-                localizations.search,
-                () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => _SearchPage(shopId: shopId, groupId: groupId),
-                  ));
-                },
-                icon: Icons.search_rounded,
-              ),
-              const SizedBox(height: 4),
-              _DrawerItem(
-                localizations.profile,
-                () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => _StorexAccount(shopId: shopId, groupId: groupId),
-                  ));
-                },
-                icon: Icons.person_rounded,
-              ),
-              
-              const Divider(height: 32, thickness: 1),
-              
-              // Media Shop section (boutique média)
-              InkWell(
-                onTap: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => const MediaShopPage(),
-                  ));
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF4A90E2), Color(0xFF357ABD)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.blue.withValues(alpha: 0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.shopping_bag_rounded,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Text(
-                          'Media Shop',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                      const Icon(
-                        Icons.arrow_forward_ios,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Header catégories
-              Padding(
-                padding: const EdgeInsets.only(left: 4, bottom: 12),
-                child: Text(
-                  localizations.categories.toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.black45,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ),
-              
-              // Catégories dynamiques
-              Expanded(
-                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: repo.bestSeller(limit: 250).snapshots(),
-                  builder: (context, snap) {
-                    if (!snap.hasData) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(20),
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      );
-                    }
-
-                    final docs = (snap.data?.docs ?? [])
-                        .where((d) => StorexRepo.onlyApproved(d.data()))
-                        .toList();
-                    final products = docs.map(GroupProduct.fromFirestore).toList();
-
-                    final set = <String>{};
-                    for (final p in products) {
-                      final c = p.category.trim();
-                      if (c.isNotEmpty) set.add(c);
-                    }
-                    final cats = set.toList()..sort();
-                    final finalCats = <String>[_allCategoryId, ...cats];
-
-                    return ListView(
-                      padding: EdgeInsets.zero,
-                      children: finalCats.map((c) {
-                        return _DrawerItem(
-                          c == _allCategoryId ? localizations.all : c,
-                          () {
-                            Navigator.of(context).pop();
-                            final title = c == _allCategoryId ? localizations.all : c;
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => _ListPage(
-                                  shopId: shopId,
-                                  groupId: groupId,
-                                  categoryId: c == _allCategoryId ? null : c,
-                                  title: title,
-                                ),
-                              ),
-                            );
-                          },
-                          small: true,
-                        );
-                      }).toList(),
-                    );
-                  },
-                ),
-              ),
-              
-              // Footer
-              const Divider(height: 1),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  LanguageSwitcher(),
-                ],
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DrawerItem extends StatelessWidget {
-  const _DrawerItem(this.label, this. onTap, {this.small = false, this.icon});
-  final String label;
-  final VoidCallback onTap;
-  final bool small;
-  final IconData? icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          vertical: small ? 10 : 14,
-          horizontal: 12,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            if (icon != null) ...[Icon(icon, size: 20, color: Colors.black87), const SizedBox(width: 12)],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: small ? 14 : 16,
-                color: Colors.black87,
-                fontWeight: small ? FontWeight.w600 : FontWeight.w700,
               ),
             ),
           ],
@@ -1093,7 +868,36 @@ class _StorexAccount extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      drawer: _StorexDrawer(shopId: shopId, groupId: groupId),
+      drawer: ShopDrawer(
+        shopId: shopId,
+        groupId: groupId,
+        onNavigateHome: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).pushReplacement(MaterialPageRoute(
+            builder: (_) => _StorexHome(shopId: shopId, groupId: groupId),
+          ));
+        },
+        onNavigateSearch: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => _SearchPage(shopId: shopId, groupId: groupId),
+          ));
+        },
+        onNavigateProfile: () {
+          Navigator.of(context).pop();
+        },
+        onNavigateCategory: (categoryId, title) {
+          Navigator.of(context).pop();
+          Navigator.of(context).pushReplacement(MaterialPageRoute(
+            builder: (_) => _ListPage(
+              shopId: shopId,
+              groupId: groupId,
+              categoryId: categoryId,
+              title: title,
+            ),
+          ));
+        },
+      ),
       appBar: AppBar(
         flexibleSpace: Container(
           decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),

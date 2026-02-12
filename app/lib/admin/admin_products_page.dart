@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import 'create_product_dialog.dart';
 import '../pages/storex_shop_page.dart';
+import '../services/commerce/product_repository.dart';
 import '../services/storage_service.dart';
 
 /// Page de gestion des produits
@@ -20,7 +21,7 @@ class AdminProductsPage extends StatefulWidget {
 }
 
 class _AdminProductsPageState extends State<AdminProductsPage> {
-  final _firestore = FirebaseFirestore.instance;
+  final _productRepo = ProductRepository.instance;
   final _storageService = StorageService.instance;
   String _searchQuery = '';
   String? _filterCategory;
@@ -108,12 +109,6 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
   String _basenameNoExt(String path) {
     final filename = _basename(path);
     return filename.replaceFirst(RegExp(r'\.[^.]+$'), '');
-  }
-
-  String _seedIdForAsset(String assetPath) {
-    final base = _basenameNoExt(assetPath);
-    final safe = base.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
-    return 'asset_$safe';
   }
 
   String _titleCase(String input) {
@@ -226,8 +221,6 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
 
     if (confirmed != true) return;
 
-    final now = FieldValue.serverTimestamp();
-
     int priceCentsForCategory(String category) {
       switch (category) {
         case 'Vêtements':
@@ -242,27 +235,16 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
     }
 
     // Firestore batch: max 500 opérations. Ici on fait 2 writes par asset.
-    const maxOpsPerBatch = 500;
-    const opsPerAsset = 2;
-    final maxAssetsPerBatch = maxOpsPerBatch ~/ opsPerAsset;
-
+    // Utilisation de ProductRepository pour créer les produits
     int totalUpserted = 0;
-    for (var i = 0; i < assetPaths.length; i += maxAssetsPerBatch) {
-      final slice = assetPaths.sublist(
-        i,
-        (i + maxAssetsPerBatch) > assetPaths.length
-            ? assetPaths.length
-            : (i + maxAssetsPerBatch),
-      );
-
-      final batch = _firestore.batch();
-
-      for (final assetPath in slice) {
+    for (var i = 0; i < assetPaths.length; i++) {
+      final assetPath = assetPaths[i];
+      
+      try {
         final title = _deriveTitle(assetPath);
         final category = _deriveCategory(assetPath);
         final priceCents = priceCentsForCategory(category);
         final groupId = _deriveGroupId(category);
-        final id = _seedIdForAsset(assetPath);
 
         final payload = <String, dynamic>{
           // Champs shop
@@ -276,9 +258,6 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
           'stockByVariant': const {'default|default': 999},
           'availableSizes': const ['Unique'],
           'availableColors': const ['Default'],
-          'shopId': widget.shopId,
-          'updatedAt': now,
-          'createdAt': now,
 
           // Champs legacy admin
           'name': title,
@@ -286,21 +265,18 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
           'price': (priceCents / 100.0),
           'stock': 999,
           'isAvailable': true,
+          'alertQty': 50,
         };
 
-        final rootRef = _firestore.collection('products').doc(id);
-        final shopRef = _firestore
-            .collection('shops')
-            .doc(widget.shopId)
-            .collection('products')
-            .doc(id);
-
-        batch.set(rootRef, payload, SetOptions(merge: true));
-        batch.set(shopRef, payload, SetOptions(merge: true));
+        await _productRepo.createProduct(
+          shopId: widget.shopId,
+          data: payload,
+        );
         totalUpserted += 1;
+      } catch (e) {
+        debugPrint('Erreur création produit $assetPath: $e');
+        // Continue avec les autres produits
       }
-
-      await batch.commit();
     }
     if (!mounted) return;
     messenger.showSnackBar(
@@ -338,7 +314,7 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
 
   Future<void> _loadProductCategories() async {
     try {
-      final snap = await _firestore
+      final snap = await FirebaseFirestore.instance
           .collection('productCategories')
           .orderBy('name')
           .limit(200)
@@ -492,7 +468,7 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
           // Liste des produits
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: _firestore
+              stream: FirebaseFirestore.instance
                   .collection('products')
                   .orderBy('createdAt', descending: true)
                   .snapshots(),
@@ -787,13 +763,13 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
       );
 
       // Mise à jour du produit
-      await _firestore.collection('products').doc(productId).update({
+      await FirebaseFirestore.instance.collection('products').doc(productId).update({
         'imageUrl': downloadUrl,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
       // Mise à jour du miroir shop
-      await _firestore
+      await FirebaseFirestore.instance
           .collection('shops')
           .doc(shopId)
           .collection('products')
@@ -1051,7 +1027,7 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                           double.tryParse(priceController.text) ?? 0.0;
                       final stock = int.tryParse(stockController.text) ?? 0;
 
-                      await _firestore
+                      await FirebaseFirestore.instance
                           .collection('products')
                           .doc(productId)
                           .update({
@@ -1077,7 +1053,7 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                           });
 
                       try {
-                        await _firestore
+                        await FirebaseFirestore.instance
                             .collection('shops')
                             .doc(shopIdFromDoc)
                             .collection('products')
@@ -1171,10 +1147,10 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
 
     if (confirmed == true) {
       try {
-        await _firestore.collection('products').doc(productId).delete();
+        await FirebaseFirestore.instance.collection('products').doc(productId).delete();
 
         // miroir shop (best-effort)
-        await _firestore
+        await FirebaseFirestore.instance
             .collection('shops')
             .doc(shopId ?? widget.shopId)
             .collection('products')

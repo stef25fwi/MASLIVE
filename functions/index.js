@@ -2285,6 +2285,8 @@ async function handleCheckoutSessionCompleted(session) {
   const rootOrderRef = db.collection("orders").doc(orderId);
   const rootSnap = await rootOrderRef.get();
   if (rootSnap.exists) {
+    const rootOrder = rootSnap.data() || {};
+
     await rootOrderRef.set(
       {
         status: "paid",
@@ -2311,6 +2313,79 @@ async function handleCheckoutSessionCompleted(session) {
           },
           { merge: true }
         );
+    }
+
+    // Décrémenter le stock des produits root order
+    try {
+      const items = rootOrder.items || [];
+      const productsToDecrement = items
+        .filter((item) => item.productId && typeof item.productId === "string")
+        .map((item) => ({
+          productId: item.productId,
+          quantity: Number(item.quantity || 1),
+        }))
+        .filter((p) => p.quantity > 0);
+
+      if (productsToDecrement.length > 0) {
+        await db.runTransaction(async (transaction) => {
+          const productRefs = {};
+          const productDocs = {};
+          for (const { productId } of productsToDecrement) {
+            const rootRef = db.collection("products").doc(productId);
+            const rootSnap = await transaction.get(rootRef);
+            productRefs[productId] = rootRef;
+            productDocs[productId] = rootSnap.exists ? rootSnap.data() : null;
+
+            if (rootOrder.shopId) {
+              const shopRef = db
+                .collection("shops")
+                .doc(rootOrder.shopId)
+                .collection("products")
+                .doc(productId);
+              const shopSnap = await transaction.get(shopRef);
+              productRefs[`${productId}_shop`] = shopRef;
+              if (shopSnap.exists) {
+                productDocs[`${productId}_shop`] = shopSnap.data();
+              }
+            }
+          }
+
+          for (const { productId, quantity } of productsToDecrement) {
+            const product = productDocs[productId];
+            if (!product) continue;
+
+            const currentStock = Number(product.stock || 0);
+            const newStock = Math.max(0, currentStock - quantity);
+
+            const updateData = {
+              stock: newStock,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            };
+
+            const alertQty = Number(product.alertQty || 0);
+            if (alertQty > 0) {
+              if (newStock === 0) {
+                updateData.stockStatus = "out_of_stock";
+              } else if (newStock <= alertQty) {
+                updateData.stockStatus = "low_stock";
+              } else {
+                updateData.stockStatus = "in_stock";
+              }
+            }
+
+            transaction.update(productRefs[productId], updateData);
+            if (productRefs[`${productId}_shop`]) {
+              transaction.update(productRefs[`${productId}_shop`], updateData);
+            }
+
+            console.log(
+              `Stock decremented (root order) for product ${productId}: ${currentStock} -> ${newStock} (-${quantity})`
+            );
+          }
+        });
+      }
+    } catch (stockErr) {
+      console.error(`Failed to decrement stock for root order ${orderId}:`, stockErr);
     }
 
     console.log(`Root order ${orderId} marked as paid`);
@@ -2364,6 +2439,90 @@ async function handleCheckoutSessionCompleted(session) {
   }
 
   await batch.commit();
+
+  // Décrémenter le stock des produits achetés (transaction Firestore)
+  try {
+    const productsToDecrement = items
+      .filter((item) => item.productId && typeof item.productId === "string")
+      .map((item) => ({
+        productId: item.productId,
+        quantity: Number(item.quantity || 1),
+      }))
+      .filter((p) => p.quantity > 0);
+
+    if (productsToDecrement.length > 0) {
+      await db.runTransaction(async (transaction) => {
+        // Lire tous les produits concernés
+        const productRefs = {};
+        const productDocs = {};
+        for (const { productId } of productsToDecrement) {
+          // Lire dans /products (source de vérité)
+          const rootRef = db.collection("products").doc(productId);
+          const rootSnap = await transaction.get(rootRef);
+          productRefs[productId] = rootRef;
+          productDocs[productId] = rootSnap.exists ? rootSnap.data() : null;
+
+          // Lire aussi miroir /shops/{shopId}/products si shopId présent
+          if (order.shopId) {
+            const shopRef = db
+              .collection("shops")
+              .doc(order.shopId)
+              .collection("products")
+              .doc(productId);
+            const shopSnap = await transaction.get(shopRef);
+            productRefs[`${productId}_shop`] = shopRef;
+            if (shopSnap.exists) {
+              productDocs[`${productId}_shop`] = shopSnap.data();
+            }
+          }
+        }
+
+        // Calculer nouveaux stocks et appliquer les updates
+        for (const { productId, quantity } of productsToDecrement) {
+          const product = productDocs[productId];
+          if (!product) {
+            console.warn(`Product ${productId} not found, skipping stock decrement`);
+            continue;
+          }
+
+          const currentStock = Number(product.stock || 0);
+          const newStock = Math.max(0, currentStock - quantity); // Empêcher stock négatif
+
+          const updateData = {
+            stock: newStock,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          };
+
+          // Auto-update stockStatus si alertQty présent
+          const alertQty = Number(product.alertQty || 0);
+          if (alertQty > 0) {
+            if (newStock === 0) {
+              updateData.stockStatus = "out_of_stock";
+            } else if (newStock <= alertQty) {
+              updateData.stockStatus = "low_stock";
+            } else {
+              updateData.stockStatus = "in_stock";
+            }
+          }
+
+          // Update /products (root)
+          transaction.update(productRefs[productId], updateData);
+
+          // Update /shops/{shopId}/products (miroir)
+          if (productRefs[`${productId}_shop`]) {
+            transaction.update(productRefs[`${productId}_shop`], updateData);
+          }
+
+          console.log(
+            `Stock decremented for product ${productId}: ${currentStock} -> ${newStock} (-${quantity})`
+          );
+        }
+      });
+    }
+  } catch (stockErr) {
+    console.error(`Failed to decrement stock for order ${orderId}:`, stockErr);
+    // Ne pas bloquer le paiement si le stock échoue (ordre déjà marqué payé)
+  }
 
   // Vider le panier de l'utilisateur après paiement confirmé
   try {
