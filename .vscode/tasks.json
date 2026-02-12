@@ -191,6 +191,17 @@
       }
     },
     {
+      "label": "MASLIVE: Git commit + push (orders inbox vendeur)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/main.dart app/lib/pages/account_admin_page.dart app/lib/services/notifications_service.dart app/lib/pages/seller/seller_inbox_page.dart app/lib/pages/seller/seller_order_detail_page.dart firestore.rules functions/index.js functions/package.json MASLIVE_GESTION_COMMANDES_INBOX_VENDEUR_PUSH_DEEPLINK.md && git commit -m \"feat(orders): inbox vendeur + push + deep link\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git commit + push (fix web bootstrap)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add app/web/flutter_bootstrap.js && git commit -m \"fix(web): restore flutter_bootstrap.js\" && git push origin main",
