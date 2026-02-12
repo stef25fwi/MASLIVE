@@ -109,6 +109,17 @@
 
 ---
 
+### 🛍️ FLOW BOUTIQUE - Admin groupe → publication
+**Fichier:** `FLOW_BOUTIQUE_COMPTE_ADMIN_GROUPE_PUBLICATION.md`
+- **Durée:** 6 minutes
+- **Pour:** Développeurs + admins
+- **Contient:** UI → Firestore → Functions → affichage boutique (Storex)
+- **Résumé:** Le parcours complet (draft → pending → approved) + incohérences système A/B
+
+✨ **Parfait pour:** Comprendre pourquoi/ où ça publie
+
+---
+
 ## 🗂️ Fichiers de code
 
 ### 🎯 Modèle de données
