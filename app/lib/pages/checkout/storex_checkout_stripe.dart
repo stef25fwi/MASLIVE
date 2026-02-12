@@ -13,12 +13,12 @@ enum ShippingMethod { free, flatRate, localPickup }
 class ShippingAddress {
   String firstName = '';
   String lastName = '';
-  String country = 'United States';
-  String state = 'Arizona';
+  String country = 'France';
+  String state = '';
   String addressLine1 = '';
   String addressLine2 = '';
-  String region = 'CA';
-  String zip = '94103';
+  String region = '';
+  String zip = '';
   String email = '';
   String phone = '';
 
@@ -27,7 +27,8 @@ class ShippingAddress {
       lastName.trim().isNotEmpty &&
       addressLine1.trim().isNotEmpty &&
       zip.trim().isNotEmpty &&
-      email.trim().isNotEmpty;
+      email.trim().isNotEmpty &&
+      phone.trim().isNotEmpty;
 
   Map<String, dynamic> toMap() => {
         'firstName': firstName.trim(),
@@ -64,24 +65,90 @@ class _StorexDeliveryPageState extends State<StorexDeliveryPage> {
   ShippingMethod shipping = ShippingMethod.flatRate;
   final addr = ShippingAddress();
 
-  final _fn = TextEditingController(text: 'John');
-  final _ln = TextEditingController(text: 'Doe');
-  final _addr1 = TextEditingController(text: '969 Market2');
+  final _fn = TextEditingController();
+  final _ln = TextEditingController();
+  final _addr1 = TextEditingController();
   final _addr2 = TextEditingController();
-  final _zip = TextEditingController(text: '94103');
-  final _email = TextEditingController(text: 'john.doe@example.com');
-  final _phone = TextEditingController(text: '(555) 555-5555');
+  final _zip = TextEditingController();
+  final _email = TextEditingController();
+  final _phone = TextEditingController();
   late final TextEditingController _regionCtrl;
 
-  String country = 'United States';
-  String state = 'Arizona';
-  String region = 'CA';
+  String country = 'France';
+  String state = '';
+  String region = '';
+
+  bool _loadingProfile = false;
+
+  CollectionReference<Map<String, dynamic>> _shopProfileCol(String uid) {
+    return FirebaseFirestore.instance.collection('users').doc(uid).collection('shop_profile');
+  }
+
+  Future<void> _loadProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    setState(() => _loadingProfile = true);
+    try {
+      // Source: users/{uid}/shop_profile/shipping
+      final doc = await _shopProfileCol(user.uid).doc('shipping').get();
+      final data = doc.data();
+      if (data == null) return;
+
+      final raw = (data['shippingAddress'] is Map) ? (data['shippingAddress'] as Map) : data;
+      String s(String k) => (raw[k] ?? '').toString();
+
+      if (_fn.text.trim().isEmpty) _fn.text = s('firstName');
+      if (_ln.text.trim().isEmpty) _ln.text = s('lastName');
+      if (_addr1.text.trim().isEmpty) _addr1.text = s('addressLine1');
+      if (_addr2.text.trim().isEmpty) _addr2.text = s('addressLine2');
+      if (_zip.text.trim().isEmpty) _zip.text = s('zip');
+      if (_phone.text.trim().isEmpty) _phone.text = s('phone');
+
+      final email = s('email');
+      final authEmail = user.email ?? '';
+      if (_email.text.trim().isEmpty) {
+        _email.text = email.trim().isNotEmpty ? email : authEmail;
+      }
+
+      final c = s('country').trim();
+      final st = s('state').trim();
+      final rg = s('region').trim();
+      if (c.isNotEmpty) country = c;
+      if (st.isNotEmpty) state = st;
+      if (rg.isNotEmpty) {
+        region = rg;
+        _regionCtrl.text = rg;
+      }
+
+      _sync();
+      if (mounted) setState(() {});
+    } finally {
+      if (mounted) setState(() => _loadingProfile = false);
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    await _shopProfileCol(user.uid).doc('shipping').set(
+      {
+        'shippingAddress': addr.toMap(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+  }
 
   @override
   void initState() {
     super.initState();
     _regionCtrl = TextEditingController(text: region);
     _sync();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadProfile();
+    });
   }
 
   int get shippingCents {
@@ -209,7 +276,7 @@ class _StorexDeliveryPageState extends State<StorexDeliveryPage> {
               Expanded(
                 child: _Dropdown(
                   value: country,
-                  items: const ['United States', 'France', 'Guadeloupe', 'Martinique'],
+                  items: const ['France', 'Guadeloupe', 'Martinique', 'United States', 'Other'],
                   onChanged: (v) => setState(() {
                     country = v;
                     _sync();
@@ -220,7 +287,7 @@ class _StorexDeliveryPageState extends State<StorexDeliveryPage> {
               Expanded(
                 child: _Dropdown(
                   value: state,
-                  items: const ['Arizona', 'California', 'New York', 'Other'],
+                  items: const ['', 'France (Métropole)', 'Guadeloupe', 'Martinique', 'Other'],
                   onChanged: (v) => setState(() {
                     state = v;
                     _sync();
@@ -230,32 +297,57 @@ class _StorexDeliveryPageState extends State<StorexDeliveryPage> {
             ],
           ),
           const SizedBox(height: 12),
-          _Field(ctrl: _addr1, hint: 'Address Line 1', onChanged: (_) => _sync()),
+          _Field(ctrl: _addr1, hint: 'Adresse (ligne 1)', onChanged: (_) => _sync()),
           const SizedBox(height: 12),
-          _Field(ctrl: _addr2, hint: 'Address Line 2', onChanged: (_) => _sync()),
+          _Field(ctrl: _addr2, hint: 'Adresse (ligne 2)', onChanged: (_) => _sync()),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _Field(ctrl: _regionCtrl, hint: 'CA', readOnly: true)),
+              Expanded(
+                child: _Field(
+                  ctrl: _regionCtrl,
+                  hint: 'Région (optionnel)',
+                  readOnly: false,
+                  onChanged: (v) {
+                    region = v;
+                    _sync();
+                  },
+                ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _Field(ctrl: _zip, hint: '94103', onChanged: (_) => _sync())),
+              Expanded(
+                child: _Field(
+                  ctrl: _zip,
+                  hint: 'Code postal',
+                  keyboard: TextInputType.number,
+                  onChanged: (_) => _sync(),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           _Field(
             ctrl: _email,
-            hint: 'john.doe@example.com',
+            hint: 'Email',
             keyboard: TextInputType.emailAddress,
             onChanged: (_) => _sync(),
           ),
           const SizedBox(height: 12),
           _Field(
             ctrl: _phone,
-            hint: '(555) 555-5555',
+            hint: 'Téléphone',
             keyboard: TextInputType.phone,
             onChanged: (_) => _sync(),
           ),
           const SizedBox(height: 18),
+          if (_loadingProfile)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 10),
+              child: Text(
+                'Chargement de vos coordonnées…',
+                style: TextStyle(color: Colors.black45, fontWeight: FontWeight.w600),
+              ),
+            ),
           if (cart.isEmpty)
             const Text('Ton panier est vide.', style: TextStyle(color: Colors.black45))
           else
@@ -271,10 +363,11 @@ class _StorexDeliveryPageState extends State<StorexDeliveryPage> {
                   _sync();
                   if (!addr.isValid) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Please complete required fields')),
+                      const SnackBar(content: Text('Merci de compléter vos coordonnées (nom, adresse, email, téléphone).')),
                     );
                     return;
                   }
+                  _saveProfile();
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => StorexPaymentPage(

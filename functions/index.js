@@ -38,6 +38,36 @@ function uniqueStrings(arr) {
   return Array.from(new Set((arr || []).filter((x) => typeof x === "string" && x.trim().length > 0).map((x) => x.trim())));
 }
 
+function normalizeShippingAddress(address) {
+  const a = (address && typeof address === "object") ? address : {};
+  const s = (k, max = 120) => {
+    const v = (typeof a[k] === "string") ? a[k].trim() : "";
+    return v.length > max ? v.slice(0, max) : v;
+  };
+
+  const out = {
+    firstName: s("firstName", 80),
+    lastName: s("lastName", 80),
+    country: s("country", 80),
+    state: s("state", 80),
+    addressLine1: s("addressLine1", 200),
+    addressLine2: s("addressLine2", 200),
+    region: s("region", 120),
+    zip: s("zip", 20),
+    email: s("email", 160),
+    phone: s("phone", 40),
+  };
+
+  // Champs requis (aligné avec l'app)
+  if (!out.firstName || !out.lastName || !out.addressLine1 || !out.zip || !out.email || !out.phone) {
+    throw new HttpsError("invalid-argument", "Shipping address incomplete");
+  }
+  if (!out.email.includes("@")) {
+    throw new HttpsError("invalid-argument", "Invalid email");
+  }
+  return out;
+}
+
 function deepLinkForOrder(orderId) {
   return `maslive://orders/${orderId}`;
 }
@@ -383,7 +413,7 @@ exports.createStorexPaymentIntent = onCall(
   const currency = String(data.currency || "eur").toLowerCase();
   const shippingCents = Number(data.shippingCents || 0);
   const shippingMethod = String(data.shippingMethod || "flat_rate");
-  const address = data.address || {};
+  const shippingAddress = normalizeShippingAddress(data.address);
 
   // 1) Lire le panier Firestore (source de vérité)
   const cartSnap = await admin
@@ -464,6 +494,8 @@ exports.createStorexPaymentIntent = onCall(
     .collection("orders")
     .doc();
 
+  const shopId = DEFAULT_STOREX_SHOP_ID;
+
   // groupId: prend le premier item non vide (sinon string vide)
   const groupId = items.find((x) => (x.groupId || "").trim().length > 0)?.groupId || "";
 
@@ -485,11 +517,12 @@ exports.createStorexPaymentIntent = onCall(
     shippingCents: safeShipping,
     totalCents,
     shippingMethod,
-    shippingAddress: address,
+    shippingAddress,
     items,
     paymentMethod: "stripe",
     userId: uid,
     groupId,
+    shopId,
     totalPrice: totalCents,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -506,8 +539,11 @@ exports.createStorexPaymentIntent = onCall(
       itemsCount,
       userId: uid,
       buyerId: uid,
+      buyerEmail: shippingAddress.email,
       groupId,
+      shopId,
       sellerIds,
+      shippingAddress,
       items: items.map((it) => ({
         productId: it.productId || "",
         title: it.title || "",

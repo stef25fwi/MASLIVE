@@ -37,6 +37,9 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
           final data = doc.data() ?? {};
           final status = (data['status'] ?? 'pending').toString();
           final buyerId = (data['buyerId'] ?? data['userId'] ?? '').toString();
+            final shippingAddress = (data['shippingAddress'] is Map)
+              ? (data['shippingAddress'] as Map).cast<String, dynamic>()
+              : const <String, dynamic>{};
           final items = (data['items'] is List) ? (data['items'] as List).cast<dynamic>() : const <dynamic>[];
 
           final myItems = uid == null
@@ -59,6 +62,47 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
               ),
               const SizedBox(height: 10),
               Text('Acheteur: $buyerId', style: const TextStyle(color: Colors.black54)),
+              if (shippingAddress.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Livraison', style: TextStyle(fontWeight: FontWeight.w900)),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${(shippingAddress['firstName'] ?? '').toString()} ${(shippingAddress['lastName'] ?? '').toString()}'.trim(),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 4),
+                      if (((shippingAddress['addressLine1'] ?? '').toString()).trim().isNotEmpty)
+                        Text((shippingAddress['addressLine1'] ?? '').toString()),
+                      if (((shippingAddress['addressLine2'] ?? '').toString()).trim().isNotEmpty)
+                        Text((shippingAddress['addressLine2'] ?? '').toString()),
+                      const SizedBox(height: 4),
+                      Text(
+                        [
+                          (shippingAddress['zip'] ?? '').toString().trim(),
+                          (shippingAddress['region'] ?? '').toString().trim(),
+                          (shippingAddress['country'] ?? '').toString().trim(),
+                        ].where((s) => s.isNotEmpty).join(' '),
+                        style: const TextStyle(color: Colors.black87),
+                      ),
+                      const SizedBox(height: 6),
+                      if (((shippingAddress['email'] ?? '').toString()).trim().isNotEmpty)
+                        Text('Email: ${(shippingAddress['email'] ?? '').toString()}', style: const TextStyle(color: Colors.black54)),
+                      if (((shippingAddress['phone'] ?? '').toString()).trim().isNotEmpty)
+                        Text('Téléphone: ${(shippingAddress['phone'] ?? '').toString()}', style: const TextStyle(color: Colors.black54)),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 10),
               _StatusChip(status: status),
               const SizedBox(height: 16),
@@ -160,6 +204,14 @@ class _StatusChip extends StatelessWidget {
     Color color;
     String label;
     switch (status) {
+      case 'confirmed':
+        color = Colors.blue;
+        label = 'Confirmée';
+        break;
+      case 'processing':
+        color = Colors.blueGrey;
+        label = 'En cours';
+        break;
       case 'validated':
         color = Colors.green;
         label = 'Validée';
