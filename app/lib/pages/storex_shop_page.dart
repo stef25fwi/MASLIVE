@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'cart_page.dart';
+import 'media_shop_page.dart';
 import 'product_detail_page.dart';
 import '../models/group_product.dart';
 import '../services/cart_service.dart';
@@ -338,6 +339,17 @@ class _StorexHome extends StatelessWidget {
               ),
 
               const SizedBox(height: 14),
+
+              _BannerTile(
+                title: l10n.AppLocalizations.of(context)!.shopPhotoStoreTitle.toUpperCase(),
+                subtitle: l10n.AppLocalizations.of(context)!.visit,
+                image: products.first,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const MediaShopPage()),
+                ),
+              ),
+
+              const SizedBox(height: 12),
 
               _BannerTile(
                 title: catA.toUpperCase(),

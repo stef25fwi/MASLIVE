@@ -310,8 +310,8 @@ class ProductRepository {
 
   /// Décrémente le stock de plusieurs produits (après paiement)
   /// 
-  /// items: List<Map> avec keys 'productId' et 'quantity'
-  /// Returns: Map<productId, newStock>
+  /// items: `List<Map<String, dynamic>>` avec keys 'productId' et 'quantity'
+  /// Returns: `Map<String, int>` (productId -> newStock)
   Future<Map<String, int>> decrementStockBatch({
     required String shopId,
     required List<Map<String, dynamic>> items,

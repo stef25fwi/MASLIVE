@@ -526,6 +526,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get changeCategoryOrGroup => 'Change category, group or search.';
 
   @override
+  String get shopPhotoStoreTitle => 'Photo Shop';
+
+  @override
   String get shopBestSeller => 'Best sellers';
 
   @override

@@ -1120,6 +1120,12 @@ abstract class AppLocalizations {
   /// **'Change de catégorie, de groupe ou de recherche.'**
   String get changeCategoryOrGroup;
 
+  /// No description provided for @shopPhotoStoreTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'La Boutique Photo'**
+  String get shopPhotoStoreTitle;
+
   /// No description provided for @shopBestSeller.
   ///
   /// In fr, this message translates to:

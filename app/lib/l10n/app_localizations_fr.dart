@@ -527,6 +527,9 @@ class AppLocalizationsFr extends AppLocalizations {
       'Change de catégorie, de groupe ou de recherche.';
 
   @override
+  String get shopPhotoStoreTitle => 'La Boutique Photo';
+
+  @override
   String get shopBestSeller => 'Meilleures ventes';
 
   @override
