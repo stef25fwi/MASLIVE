@@ -26,7 +26,7 @@ import 'splash_wrapper_page.dart' show mapReadyNotifier;
 import '../ui/widgets/mapbox_token_dialog.dart';
 import 'storex_shop_page.dart';
 
-enum _MapAction { ville, tracking, visiter, encadrement, food, wc, parking }
+enum _MapAction { ville, tracking, visiter, encadrement, food, parking, language }
 
 class HomeMapPageWeb extends StatefulWidget {
   const HomeMapPageWeb({super.key});
@@ -879,12 +879,12 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                                 tintOnSelected: false,
                                 highlightBackgroundOnSelected: false,
                                 showBorder: false,
-                                selected: _selected == _MapAction.wc,
+                                selected: _selected == _MapAction.language,
                                 onTap: () {
-                                  setState(() {
-                                    _selected = _MapAction.wc;
-                                  });
                                   _cycleLanguage();
+                                  setState(() {
+                                    _selected = _MapAction.language;
+                                  });
                                   _closeNavWithDelay();
                                 },
                                 onLongPress: _openLanguagePicker,

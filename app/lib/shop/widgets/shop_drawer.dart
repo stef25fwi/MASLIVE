@@ -165,47 +165,50 @@ class ShopDrawer extends StatelessWidget {
               
               // Catégories dynamiques
               Expanded(
-                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: repo.bestSeller(limit: 250).snapshots(),
-                  builder: (context, snap) {
-                    if (!snap.hasData) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(20),
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      );
-                    }
-
-                    final docs = (snap.data?.docs ?? [])
-                        .where((d) => StorexRepo.onlyApproved(d.data()))
-                        .toList();
-                    final products = docs.map(GroupProduct.fromFirestore).toList();
-
-                    final set = <String>{};
-                    for (final p in products) {
-                      final c = p.category.trim();
-                      if (c.isNotEmpty) set.add(c);
-                    }
-                    final cats = set.toList()..sort();
-                    final finalCats = <String>[_allCategoryId, ...cats];
-
-                    return ListView(
-                      padding: EdgeInsets.zero,
-                      children: finalCats.map((c) {
-                        return ShopDrawerItem(
-                          c == _allCategoryId ? localizations.all : c,
-                          () {
-                            Navigator.of(context).pop();
-                            final title = c == _allCategoryId ? localizations.all : c;
-                            final categoryId = c == _allCategoryId ? null : c;
-                            onNavigateCategory(categoryId, title);
-                          },
-                          small: true,
+                child: Container(
+                  color: Colors.white,
+                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: repo.bestSeller(limit: 250).snapshots(),
+                    builder: (context, snap) {
+                      if (!snap.hasData) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20),
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
                         );
-                      }).toList(),
-                    );
-                  },
+                      }
+
+                      final docs = (snap.data?.docs ?? [])
+                          .where((d) => StorexRepo.onlyApproved(d.data()))
+                          .toList();
+                      final products = docs.map(GroupProduct.fromFirestore).toList();
+
+                      final set = <String>{};
+                      for (final p in products) {
+                        final c = p.category.trim();
+                        if (c.isNotEmpty) set.add(c);
+                      }
+                      final cats = set.toList()..sort();
+                      final finalCats = <String>[_allCategoryId, ...cats];
+
+                      return ListView(
+                        padding: EdgeInsets.zero,
+                        children: finalCats.map((c) {
+                          return ShopDrawerItem(
+                            c == _allCategoryId ? localizations.all : c,
+                            () {
+                              Navigator.of(context).pop();
+                              final title = c == _allCategoryId ? localizations.all : c;
+                              final categoryId = c == _allCategoryId ? null : c;
+                              onNavigateCategory(categoryId, title);
+                            },
+                            small: true,
+                          );
+                        }).toList(),
+                      );
+                    },
+                  ),
                 ),
               ),
               
