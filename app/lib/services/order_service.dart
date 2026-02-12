@@ -8,6 +8,46 @@ class OrderService {
 
   final _db = FirebaseFirestore.instance;
 
+  Future<String?> _sellerIdForProductId(String productId) async {
+    if (productId.trim().isEmpty) return null;
+
+    Map<String, dynamic>? data;
+
+    // 1) Priorité Storex: shops/global/products/{productId}
+    try {
+      final storexSnap = await _db
+          .collection('shops')
+          .doc('global')
+          .collection('products')
+          .doc(productId)
+          .get();
+      if (storexSnap.exists) data = storexSnap.data();
+    } catch (_) {}
+
+    // 2) Fallback legacy: products/{productId}
+    if (data == null) {
+      try {
+        final legacySnap = await _db.collection('products').doc(productId).get();
+        if (legacySnap.exists) data = legacySnap.data();
+      } catch (_) {}
+    }
+
+    if (data == null) return null;
+
+    String pick(String key) {
+      final v = data?[key];
+      return (v is String) ? v.trim() : '';
+    }
+
+    final ownerId = pick('ownerId');
+    if (ownerId.isNotEmpty) return ownerId;
+    final ownerUid = pick('ownerUid');
+    if (ownerUid.isNotEmpty) return ownerUid;
+    final sellerId = pick('sellerId');
+    if (sellerId.isNotEmpty) return sellerId;
+    return null;
+  }
+
   /// Créer une nouvelle commande
   Future<String> createOrder({
     required String userId,
@@ -16,10 +56,43 @@ class OrderService {
     required int totalPrice,
     String? notes,
   }) async {
+    final itemMaps = items.map((i) => i.toMap()).toList();
+
+    // IMPORTANT: sellerIds doit être un array unique pour isSellerOfOrder.
+    // On tente de le dériver depuis les produits.
+    final productIds = itemMaps
+        .map((m) => (m['productId'] ?? '').toString().trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+
+    final sellerByProductId = <String, String>{};
+    if (productIds.isNotEmpty) {
+      final results = await Future.wait(
+        productIds.map((pid) async => MapEntry(pid, await _sellerIdForProductId(pid))),
+      );
+      for (final e in results) {
+        final sellerId = (e.value ?? '').trim();
+        if (sellerId.isNotEmpty) sellerByProductId[e.key] = sellerId;
+      }
+    }
+
+    for (final m in itemMaps) {
+      final pid = (m['productId'] ?? '').toString().trim();
+      final sellerId = sellerByProductId[pid];
+      if (sellerId != null && sellerId.isNotEmpty) {
+        m['sellerId'] = sellerId;
+      }
+    }
+
+    final sellerIds = sellerByProductId.values.toSet().toList()..sort();
+
     final docRef = await _db.collection('orders').add({
       'userId': userId,
+      'buyerId': userId,
       'groupId': groupId,
-      'items': items.map((i) => i.toMap()).toList(),
+      'sellerIds': sellerIds,
+      'items': itemMaps,
       'totalPrice': totalPrice,
       'status': 'pending',
       'createdAt': FieldValue.serverTimestamp(),

@@ -720,6 +720,33 @@ exports.notifySellersOnOrderCreate = onDocumentCreated(
       .filter(Boolean);
     const sellerIds = uniqueStrings([...(Array.isArray(order.sellerIds) ? order.sellerIds : []), ...sellerIdsFromItems]);
 
+    // ✅ Garantit sellerIds unique dans la commande (utile pour rules/isSellerOfOrder)
+    try {
+      const stored = Array.isArray(order.sellerIds) ? uniqueStrings(order.sellerIds) : [];
+      const storedKey = JSON.stringify([...stored].sort());
+      const desiredKey = JSON.stringify([...sellerIds].sort());
+
+      const patch = {};
+      if (storedKey !== desiredKey) patch.sellerIds = sellerIds;
+      if (typeof order.buyerId !== "string" || order.buyerId.trim().length === 0) {
+        if (typeof order.userId === "string" && order.userId.trim().length > 0) {
+          patch.buyerId = order.userId.trim();
+        }
+      }
+
+      if (Object.keys(patch).length) {
+        await db.collection("orders").doc(orderId).set(
+          {
+            ...patch,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+    } catch (e) {
+      logger.warn(`Failed to normalize sellerIds for order ${orderId}`, e);
+    }
+
     if (!sellerIds.length) {
       logger.warn(`Order ${orderId} has no sellers`);
       return;

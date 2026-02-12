@@ -202,6 +202,17 @@
       }
     },
     {
+      "label": "MASLIVE: Git commit + push (sellerIds unique orders)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add functions/index.js app/lib/services/order_service.dart .vscode/tasks.json && git commit -m \"fix(orders): ensure unique sellerIds\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git commit + push (fix web bootstrap)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add app/web/flutter_bootstrap.js && git commit -m \"fix(web): restore flutter_bootstrap.js\" && git push origin main",
