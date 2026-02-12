@@ -4,6 +4,7 @@ import 'mapbox_web_map_page.dart';
 import 'media_tab_combined_page.dart';
 import 'group_profile_page.dart';
 import 'search_page.dart';
+import '../shop_orders_notifications.dart';
 
 class AppShell extends StatefulWidget {
   final String groupId;
@@ -15,6 +16,14 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PushService.instance.init(context);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
