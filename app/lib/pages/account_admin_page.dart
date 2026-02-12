@@ -121,6 +121,17 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
                         },
                       ),
 
+                      const SizedBox(height: 12),
+
+                      _SectionCard(
+                        title: "Inbox vendeur",
+                        subtitle: "Commandes à valider",
+                        icon: Icons.inbox,
+                        onTap: () {
+                          Navigator.of(context).pushNamed('/seller-inbox');
+                        },
+                      ),
+
                       const SizedBox(height: 20),
 
                       if (isAdmin) ...[

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/widgets.dart';
 
 class NotificationsService {
@@ -69,6 +70,29 @@ class NotificationsService {
   }
 
   Future<void> _saveTokenForUser(String uid, String token) async {
+    final safeDocId = token.replaceAll('/', '_');
+    final platform = kIsWeb
+        ? 'web'
+        : (defaultTargetPlatform == TargetPlatform.iOS
+            ? 'ios'
+            : (defaultTargetPlatform == TargetPlatform.android ? 'android' : 'unknown'));
+
+    // 1) Nouveau stockage: users/{uid}/devices/{deviceId}
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('devices')
+        .doc(safeDocId)
+        .set(
+      {
+        'token': token,
+        'platform': platform,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+
+    // 2) Back-compat: tableau users/{uid}.fcmTokens (utilisé par d'autres notifs)
     await FirebaseFirestore.instance.collection('users').doc(uid).set(
       {
         'fcmTokens': FieldValue.arrayUnion([token]),
@@ -80,12 +104,24 @@ class NotificationsService {
 
   void _handleMessage(RemoteMessage message) {
     final type = (message.data['type'] ?? '').toString();
-    if (type != 'pending_product') return;
-
     final nav = _navigatorKey?.currentState;
     if (nav == null) return;
 
-    // On ouvre la liste de modération (l'accès reste protégé côté UI).
-    nav.pushNamed('/pending-products');
+    if (type == 'pending_product') {
+      // On ouvre la liste de modération (l'accès reste protégé côté UI).
+      nav.pushNamed('/pending-products');
+      return;
+    }
+
+    if (type == 'order') {
+      String orderId = (message.data['orderId'] ?? '').toString();
+      final deepLink = (message.data['deepLink'] ?? '').toString();
+      if (orderId.isEmpty && deepLink.startsWith('maslive://orders/')) {
+        orderId = deepLink.split('/').last;
+      }
+      if (orderId.isEmpty) return;
+      nav.pushNamed('/seller-order', arguments: orderId);
+      return;
+    }
   }
 }

@@ -7,7 +7,7 @@
 
 const admin = require("firebase-admin");
 const ngeohash = require("ngeohash");
-const { setGlobalOptions } = require("firebase-functions/v2");
+const { setGlobalOptions, logger } = require("firebase-functions/v2");
 const { defineSecret } = require("firebase-functions/params");
 const {
   onDocumentCreated,
@@ -32,6 +32,14 @@ function toSafeInt(n, fallback = 0) {
 
 function looksLikeNonEmptyString(v) {
   return typeof v === "string" && v.trim().length > 0;
+}
+
+function uniqueStrings(arr) {
+  return Array.from(new Set((arr || []).filter((x) => typeof x === "string" && x.trim().length > 0).map((x) => x.trim())));
+}
+
+function deepLinkForOrder(orderId) {
+  return `maslive://orders/${orderId}`;
 }
 
 function assertPositiveCents(value, name) {
@@ -426,6 +434,11 @@ exports.createStorexPaymentIntent = onCall(
       title: looksLikeNonEmptyString(product.title) ? product.title : (it.title || ""),
       priceCents,
       quantity: qty,
+      sellerId: looksLikeNonEmptyString(product.ownerId)
+        ? product.ownerId
+        : (looksLikeNonEmptyString(product.ownerUid)
+            ? product.ownerUid
+            : (looksLikeNonEmptyString(product.sellerId) ? product.sellerId : "")),
       size: it.size || "M",
       color: it.color || "Noir",
       imageUrl: looksLikeNonEmptyString(product.imageUrl) ? product.imageUrl : (it.imageUrl || ""),
@@ -485,17 +498,22 @@ exports.createStorexPaymentIntent = onCall(
   // 3b) Miroir dans /orders/{orderId} pour l'admin + pages commandes
   // Schéma compatible avec app/lib/models/order_model.dart
   const rootOrderRef = admin.firestore().collection("orders").doc(orderRef.id);
+
+  const sellerIds = uniqueStrings(items.map((it) => it.sellerId));
   await rootOrderRef.set(
     {
       orderNo,
       itemsCount,
       userId: uid,
+      buyerId: uid,
       groupId,
+      sellerIds,
       items: items.map((it) => ({
         productId: it.productId || "",
         title: it.title || "",
         quantity: Number(it.quantity || 1),
         pricePerUnit: Number(it.priceCents || 0),
+        sellerId: it.sellerId || "",
       })),
       totalPrice: totalCents,
       status: "pending",
@@ -542,6 +560,182 @@ exports.createStorexPaymentIntent = onCall(
     orderId: orderRef.id,
     clientSecret: pi.client_secret,
   };
+  }
+);
+
+async function writeInboxMessage({ sellerId, orderId, buyerId, nbItems }) {
+  const title = "Nouvelle commande";
+  const body = `Une commande est en attente de validation.${nbItems ? ` (${nbItems} article(s))` : ""}`;
+
+  const message = {
+    type: "order",
+    title,
+    body,
+    orderId,
+    deepLink: deepLinkForOrder(orderId),
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    read: false,
+    actionLabel: "Consulter la commande",
+    meta: {
+      buyerId: buyerId || "",
+    },
+  };
+
+  await admin
+    .firestore()
+    .collection("users")
+    .doc(sellerId)
+    .collection("inbox")
+    .add(message);
+}
+
+async function getFcmTokensForUser(uid) {
+  const tokens = [];
+
+  // Preferred storage: users/{uid}/devices/{deviceId}
+  try {
+    const snap = await admin.firestore().collection("users").doc(uid).collection("devices").get();
+    snap.forEach((d) => {
+      const t = d.get("token");
+      if (typeof t === "string" && t.length > 10) tokens.push(t);
+    });
+  } catch (_) {}
+
+  // Back-compat: users/{uid}.fcmTokens (array)
+  if (tokens.length === 0) {
+    try {
+      const userSnap = await admin.firestore().collection("users").doc(uid).get();
+      const data = userSnap.exists ? (userSnap.data() || {}) : {};
+      const arr = Array.isArray(data.fcmTokens) ? data.fcmTokens : [];
+      for (const t of arr) {
+        if (typeof t === "string" && t.length > 10) tokens.push(t);
+      }
+    } catch (_) {}
+  }
+
+  return uniqueStrings(tokens);
+}
+
+async function cleanupInvalidTokens(uid, invalidTokensSet) {
+  if (!invalidTokensSet || invalidTokensSet.size === 0) return;
+
+  // Remove from devices collection
+  try {
+    const devicesSnap = await admin.firestore().collection("users").doc(uid).collection("devices").get();
+    const batch = admin.firestore().batch();
+    devicesSnap.forEach((doc) => {
+      const token = doc.get("token");
+      if (typeof token === "string" && invalidTokensSet.has(token)) {
+        batch.delete(doc.ref);
+      }
+      // Also support token-as-docId
+      if (invalidTokensSet.has(doc.id)) {
+        batch.delete(doc.ref);
+      }
+    });
+    await batch.commit();
+  } catch (_) {}
+
+  // Remove from legacy user doc array
+  try {
+    await admin.firestore().collection("users").doc(uid).set(
+      {
+        fcmTokens: admin.firestore.FieldValue.arrayRemove(Array.from(invalidTokensSet)),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (_) {}
+}
+
+async function sendPushToSeller({ sellerId, orderId, nbItems }) {
+  const tokens = await getFcmTokensForUser(sellerId);
+  if (!tokens.length) {
+    logger.info(`No FCM tokens for seller ${sellerId}`);
+    return;
+  }
+
+  const title = "Nouvelle commande";
+  const body = `Commande à valider${nbItems ? ` (${nbItems} article(s))` : ""}`;
+
+  const message = {
+    tokens,
+    notification: { title, body },
+    data: {
+      type: "order",
+      orderId,
+      deepLink: deepLinkForOrder(orderId),
+    },
+    android: {
+      priority: "high",
+      notification: {
+        channelId: "orders",
+      },
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: "default",
+        },
+      },
+    },
+  };
+
+  const resp = await admin.messaging().sendEachForMulticast(message);
+
+  const invalid = new Set();
+  resp.responses.forEach((r, idx) => {
+    if (!r.success) {
+      const code = (r.error && r.error.code) ? r.error.code : "";
+      if (
+        String(code).includes("registration-token-not-registered") ||
+        String(code).includes("invalid-registration-token") ||
+        String(code).includes("messaging/invalid-argument") ||
+        String(code).includes("messaging/registration-token-not-registered")
+      ) {
+        invalid.add(tokens[idx]);
+      }
+      logger.warn(`Push failed seller=${sellerId} tokenIndex=${idx} code=${code}`, r.error);
+    }
+  });
+
+  await cleanupInvalidTokens(sellerId, invalid);
+}
+
+// Inbox vendeur + Push sur création de commande root (/orders/{orderId})
+exports.notifySellersOnOrderCreate = onDocumentCreated(
+  {
+    document: "orders/{orderId}",
+    region: "us-east1",
+  },
+  async (event) => {
+    const orderId = event.params.orderId;
+    const snap = event.data;
+    if (!snap) return;
+
+    const order = snap.data() || {};
+    const items = Array.isArray(order.items) ? order.items : [];
+    const sellerIdsFromItems = items
+      .map((it) => (it && typeof it.sellerId === "string" ? it.sellerId : ""))
+      .filter(Boolean);
+    const sellerIds = uniqueStrings([...(Array.isArray(order.sellerIds) ? order.sellerIds : []), ...sellerIdsFromItems]);
+
+    if (!sellerIds.length) {
+      logger.warn(`Order ${orderId} has no sellers`);
+      return;
+    }
+
+    const nbItems = items.length;
+    const buyerId = typeof order.buyerId === "string" ? order.buyerId : (typeof order.userId === "string" ? order.userId : "");
+
+    await Promise.all(
+      sellerIds.map(async (sellerId) => {
+        await writeInboxMessage({ sellerId, orderId, buyerId, nbItems });
+        await sendPushToSeller({ sellerId, orderId, nbItems });
+      })
+    );
+
+    logger.info(`Notified sellers for order ${orderId}`, { sellerIds });
   }
 );
 

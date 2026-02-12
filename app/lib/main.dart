@@ -59,6 +59,8 @@ import 'ui/theme/maslive_theme.dart';
 import 'ui/widgets/honeycomb_background.dart';
 import 'l10n/app_localizations.dart';
 import 'pages/circuit_editor_workflow_page.dart';
+import 'pages/seller/seller_inbox_page.dart';
+import 'pages/seller/seller_order_detail_page.dart';
 import 'pages/commerce/create_product_page.dart';
 import 'pages/commerce/create_media_page.dart';
 import 'pages/commerce/my_submissions_page.dart';
@@ -224,6 +226,15 @@ class MasLiveApp extends StatelessWidget {
               '/account': (_) => const AccountAndAdminPage(),
               '/account-admin': (_) => const AccountAndAdminPage(),
               '/orders': (_) => const OrdersPage(),
+              '/seller-inbox': (_) => const SellerInboxPage(),
+              '/seller-order': (ctx) {
+                final args = ModalRoute.of(ctx)?.settings.arguments;
+                final orderId = args is String ? args : null;
+                if (orderId == null || orderId.trim().isEmpty) {
+                  return const _RouteArgsErrorPage(routeName: '/seller-order');
+                }
+                return SellerOrderDetailPage(orderId: orderId);
+              },
               '/map-admin': (_) => const MapAdminEditorPage(),
               '/group-member': (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
