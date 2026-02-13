@@ -351,8 +351,32 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
   final _eventController = TextEditingController();
   final _nameController = TextEditingController();
 
+  TextEditingController? _countryAutocompleteController;
+  VoidCallback? _countryAutocompleteListener;
+
+  void _attachCountryAutocompleteController(TextEditingController controller) {
+    if (_countryAutocompleteController == controller) return;
+
+    final prevController = _countryAutocompleteController;
+    final prevListener = _countryAutocompleteListener;
+    if (prevController != null && prevListener != null) {
+      prevController.removeListener(prevListener);
+    }
+
+    _countryAutocompleteController = controller;
+    _countryAutocompleteListener = () {
+      _countryController.value = controller.value;
+    };
+    controller.addListener(_countryAutocompleteListener!);
+  }
+
   @override
   void dispose() {
+    final prevController = _countryAutocompleteController;
+    final prevListener = _countryAutocompleteListener;
+    if (prevController != null && prevListener != null) {
+      prevController.removeListener(prevListener);
+    }
     _countryController.dispose();
     _eventController.dispose();
     _nameController.dispose();
@@ -507,9 +531,7 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
           },
           fieldViewBuilder: (context, textCtrl, focusNode, onFieldSubmitted) {
             textCtrl.value = _countryController.value;
-            textCtrl.addListener(() {
-              _countryController.value = textCtrl.value;
-            });
+            _attachCountryAutocompleteController(textCtrl);
 
             return TextField(
               controller: textCtrl,
