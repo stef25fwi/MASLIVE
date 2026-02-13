@@ -17,6 +17,7 @@ class MapboxWebView extends StatelessWidget {
   final ValueChanged<({double lng, double lat})>? onTapLngLat;
   final VoidCallback? onMapReady;
   final List<MapMarker> markers;
+  final bool interactive;
 
   const MapboxWebView({
     super.key,
@@ -33,6 +34,7 @@ class MapboxWebView extends StatelessWidget {
     this.onTapLngLat,
     this.onMapReady,
     this.markers = const [],
+    this.interactive = true,
   });
 
   @override

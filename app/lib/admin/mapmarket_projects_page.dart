@@ -136,7 +136,7 @@ class _MapMarketProjectsPageState extends State<MapMarketProjectsPage> {
                         dense: true,
                         title: Text(
                           formatCountryLabelWithFlag(
-                            name: _countryDisplay(c),
+                            name: _countryNameWithCode(c),
                             iso2: _countryCodeFor(c),
                           ),
                         ),
@@ -296,6 +296,13 @@ class _MapMarketProjectsPageState extends State<MapMarketProjectsPage> {
     final name = c.name.trim().isEmpty ? c.id : c.name.trim();
     final upperName = name.toUpperCase();
     return code.isEmpty ? '$flag $upperName' : '$flag $upperName $code';
+  }
+
+  String _countryNameWithCode(MarketCountry c) {
+    final code = _countryCodeFor(c);
+    final name = c.name.trim().isEmpty ? c.id : c.name.trim();
+    final upperName = name.toUpperCase();
+    return code.isEmpty ? upperName : '$upperName $code';
   }
 
   String _countryCodeFor(MarketCountry c) {

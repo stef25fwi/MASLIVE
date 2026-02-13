@@ -26,6 +26,7 @@ class MapboxWebView extends StatefulWidget {
   final ValueChanged<({double lng, double lat})>? onTapLngLat;
   final VoidCallback? onMapReady;
   final List<({double lng, double lat})> polyline;
+  final bool interactive;
 
   /// Marqueurs additionnels (ex: POIs) à afficher sur la carte.
   /// Utilise la convention Mapbox (lng, lat).
@@ -47,6 +48,7 @@ class MapboxWebView extends StatefulWidget {
     this.onMapReady,
     this.polyline = const [],
     this.markers = const [],
+    this.interactive = true,
   });
 
   @override
@@ -104,6 +106,9 @@ class _MapboxWebViewState extends State<MapboxWebView> {
   @override
   void didUpdateWidget(covariant MapboxWebView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.interactive != widget.interactive) {
+      _syncPointerEvents();
+    }
     if (_map == null && _container != null && widget.accessToken.isNotEmpty) {
       _initMapbox(_container!);
     }
@@ -144,7 +149,8 @@ class _MapboxWebViewState extends State<MapboxWebView> {
       final container = html.DivElement()
         ..id = 'mapbox-container-$viewId'
         ..style.width = '100%'
-        ..style.height = '100%';
+        ..style.height = '100%'
+        ..style.pointerEvents = widget.interactive ? 'auto' : 'none';
 
       _containerId ??= container.id;
       _container ??= container;
@@ -155,6 +161,12 @@ class _MapboxWebViewState extends State<MapboxWebView> {
 
       return container;
     });
+  }
+
+  void _syncPointerEvents() {
+    final container = _container;
+    if (container == null) return;
+    container.style.pointerEvents = widget.interactive ? 'auto' : 'none';
   }
 
   void _initMapbox(html.DivElement container) {
