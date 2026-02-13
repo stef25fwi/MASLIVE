@@ -257,6 +257,17 @@
       }
     },
     {
+      "label": "MASLIVE: Git commit + push (wizard nouveau circuit event editable)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/admin/circuit_wizard_entry_page.dart .vscode/tasks.json && git commit -m \"feat(wizard): editable event + country flags/code in new circuit popup\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git commit + push (firestore indexes marketMap)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add firestore.indexes.json .vscode/tasks.json && git commit -m \"chore(firestore): add marketMap composite indexes\" && git push origin main",

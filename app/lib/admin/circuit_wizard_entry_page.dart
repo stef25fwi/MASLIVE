@@ -245,11 +245,39 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
     }
 
     try {
+      final countryId = input.countryId.trim();
+      final eventId = input.eventId.trim();
+
+      // Si l'utilisateur saisit un événement (editable), on s'assure que le doc existe.
+      // (Sinon le wizard pro ne pourra pas charger les streams marketMap.)
+      if (countryId.isNotEmpty && eventId.isNotEmpty) {
+        final eventRef = _firestore
+            .collection('marketMap')
+            .doc(countryId)
+            .collection('events')
+            .doc(eventId);
+        final snap = await eventRef.get();
+        if (!snap.exists) {
+          final eventName = input.eventName.trim().isEmpty
+              ? eventId
+              : input.eventName.trim();
+          await eventRef.set({
+            'name': eventName,
+            'slug': eventId,
+            'countryId': countryId,
+            'startDate': null,
+            'endDate': null,
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+      }
+
       final ref = _firestore.collection('map_projects').doc();
       await ref.set({
         'name': input.name.trim(),
-        'countryId': input.countryId.trim(),
-        'eventId': input.eventId.trim(),
+        'countryId': countryId,
+        'eventId': eventId,
         'description': '',
         'styleUrl': '',
         'perimeter': <dynamic>[],
@@ -325,11 +353,13 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
 class _NewCircuitInput {
   final String countryId;
   final String eventId;
+  final String eventName;
   final String name;
 
   const _NewCircuitInput({
     required this.countryId,
     required this.eventId,
+    required this.eventName,
     required this.name,
   });
 }
@@ -355,6 +385,9 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
   TextEditingController? _countryAutocompleteController;
   VoidCallback? _countryAutocompleteListener;
 
+  TextEditingController? _eventAutocompleteController;
+  VoidCallback? _eventAutocompleteListener;
+
   void _attachCountryAutocompleteController(TextEditingController controller) {
     if (_countryAutocompleteController == controller) return;
 
@@ -371,12 +404,33 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
     controller.addListener(_countryAutocompleteListener!);
   }
 
+  void _attachEventAutocompleteController(TextEditingController controller) {
+    if (_eventAutocompleteController == controller) return;
+
+    final prevController = _eventAutocompleteController;
+    final prevListener = _eventAutocompleteListener;
+    if (prevController != null && prevListener != null) {
+      prevController.removeListener(prevListener);
+    }
+
+    _eventAutocompleteController = controller;
+    _eventAutocompleteListener = () {
+      _eventController.value = controller.value;
+    };
+    controller.addListener(_eventAutocompleteListener!);
+  }
+
   @override
   void dispose() {
     final prevController = _countryAutocompleteController;
     final prevListener = _countryAutocompleteListener;
     if (prevController != null && prevListener != null) {
       prevController.removeListener(prevListener);
+    }
+    final prevEventController = _eventAutocompleteController;
+    final prevEventListener = _eventAutocompleteListener;
+    if (prevEventController != null && prevEventListener != null) {
+      prevEventController.removeListener(prevEventListener);
     }
     _countryController.dispose();
     _eventController.dispose();
@@ -388,8 +442,21 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
     return _selectedCountry?.id.trim() ?? _countryController.text.trim();
   }
 
+  String get _eventName {
+    final selected = _selectedEvent;
+    if (selected != null) {
+      final n = selected.name.trim();
+      return n.isEmpty ? selected.id.trim() : n;
+    }
+    return _eventController.text.trim();
+  }
+
   String get _eventId {
-    return _selectedEvent?.id.trim() ?? _eventController.text.trim();
+    final selected = _selectedEvent;
+    if (selected != null) return selected.id.trim();
+    final raw = _eventController.text.trim();
+    if (raw.isEmpty) return '';
+    return MarketMapService.slugify(raw);
   }
 
   bool get _isValid {
@@ -405,7 +472,9 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
 
   String _countrySuggestionLabel(MarketCountry c) {
     final iso2 = _countryCodeFor(c);
-    return formatCountryLabelWithFlag(name: _countryDisplay(c), iso2: iso2);
+    final name = _countryDisplay(c);
+    final withCode = iso2.isEmpty ? name : '$name ($iso2)';
+    return formatCountryLabelWithFlag(name: withCode, iso2: iso2);
   }
 
   String _countryCodeFor(MarketCountry c) {
@@ -465,6 +534,7 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
                     _NewCircuitInput(
                       countryId: _countryId,
                       eventId: _eventId,
+                      eventName: _eventName,
                       name: _nameController.text.trim(),
                     ),
                   ),
@@ -617,9 +687,9 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
   Widget _buildEventField() {
     final country = _selectedCountry;
     if (country == null) {
-      return DropdownButtonFormField<String>(
-        items: const <DropdownMenuItem<String>>[],
-        onChanged: null,
+      return TextField(
+        controller: _eventController,
+        enabled: false,
         decoration: const InputDecoration(
           labelText: 'Événement',
           border: OutlineInputBorder(),
@@ -653,12 +723,19 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
         final items = snap.data ?? const <MarketEvent>[];
 
         // Sélection par défaut: premier événement du pays (le stream est déjà trié).
-        if (!_defaultEventApplied && _selectedEvent == null && items.isNotEmpty) {
+        if (!_defaultEventApplied &&
+            _selectedEvent == null &&
+            _eventController.text.trim().isEmpty &&
+            items.isNotEmpty) {
           _defaultEventApplied = true;
           final preferred = items.first;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            setState(() => _selectedEvent = preferred);
+            setState(() {
+              _selectedEvent = preferred;
+              _eventController.text =
+                  preferred.name.trim().isEmpty ? preferred.id : preferred.name.trim();
+            });
           });
         }
 
@@ -680,37 +757,66 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
           );
         }
 
-        final selectedId = _selectedEvent?.id;
-        final value = items.any((e) => e.id == selectedId) ? selectedId : null;
+        return Autocomplete<MarketEvent>(
+          initialValue: TextEditingValue(text: _eventController.text),
+          displayStringForOption: (e) => e.name.trim().isEmpty ? e.id : e.name.trim(),
+          optionsBuilder: (TextEditingValue value) {
+            final q = value.text.trim().toLowerCase();
+            if (q.isEmpty) return items;
+            return items.where((e) {
+              final name = (e.name.trim().isEmpty ? e.id : e.name).toLowerCase();
+              return name.contains(q) || e.id.toLowerCase().contains(q);
+            });
+          },
+          fieldViewBuilder: (context, textCtrl, focusNode, onFieldSubmitted) {
+            textCtrl.value = _eventController.value;
+            _attachEventAutocompleteController(textCtrl);
 
-        return DropdownButtonFormField<String>(
-          initialValue: value,
-          decoration: const InputDecoration(
-            labelText: 'Événement',
-            border: OutlineInputBorder(),
-          ),
-          items: [
-            for (final e in items)
-              DropdownMenuItem(
-                value: e.id,
-                child: Text(e.name.trim().isEmpty ? e.id : e.name.trim()),
-              ),
-          ],
-          onChanged: (id) {
-            if (id == null) return;
-            final selected = items.firstWhere(
-              (e) => e.id == id,
-              orElse: () => MarketEvent(
-                id: '',
-                countryId: country.id,
-                name: '',
-                slug: '',
+            return TextField(
+              controller: textCtrl,
+              focusNode: focusNode,
+              onChanged: (_) {
+                setState(() {
+                  _selectedEvent = null;
+                });
+              },
+              decoration: const InputDecoration(
+                labelText: 'Événement',
+                hintText: 'Ex: Carnaval 2026',
+                border: OutlineInputBorder(),
+                helperText: 'Vous pouvez saisir un nouvel événement',
               ),
             );
-            if (selected.id.isEmpty) return;
+          },
+          optionsViewBuilder: (context, onSelected, options) {
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 4,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 460, maxHeight: 260),
+                  child: ListView.builder(
+                    padding: EdgeInsets.zero,
+                    itemCount: options.length,
+                    itemBuilder: (context, i) {
+                      final e = options.elementAt(i);
+                      final name = e.name.trim().isEmpty ? e.id : e.name.trim();
+                      return ListTile(
+                        dense: true,
+                        title: Text(name),
+                        subtitle: Text(e.id),
+                        onTap: () => onSelected(e),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            );
+          },
+          onSelected: (e) {
             setState(() {
-              _selectedEvent = selected;
-              _eventController.clear();
+              _selectedEvent = e;
+              _eventController.text = e.name.trim().isEmpty ? e.id : e.name.trim();
             });
           },
         );
