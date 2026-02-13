@@ -627,6 +627,17 @@
         "panel": "dedicated",
         "clear": true
       }
+    },
+    {
+      "label": "MASLIVE: Git commit + push (docs + livraison)",
+      "type": "shell",
+      "command": "set -euo pipefail\ncd /workspaces/MASLIVE\n\nDOC_FILES=\"FLOW_BOUTIQUE_COMPTE_ADMIN_GROUPE_PUBLICATION.md DOCUMENTATION_INDEX.md\"\nCODE_FILES=\"app/lib/pages/checkout/storex_checkout_stripe.dart app/lib/pages/seller/seller_order_detail_page.dart functions/index.js\"\n\nDOC_STATUS=$(git status --porcelain -- $DOC_FILES || true)\nif [ -n \"$DOC_STATUS\" ]; then\n  git add $DOC_FILES\n  git commit -m \"docs(shop): document flow publication boutique\"\nfi\n\nCODE_STATUS=$(git status --porcelain -- $CODE_FILES || true)\nif [ -n \"$CODE_STATUS\" ]; then\n  git add $CODE_FILES\n  git commit -m \"feat(shop): persist shipping profile + attach shippingAddress to orders\"\nfi\n\ngit push origin main\n",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
     }
   ]
 }

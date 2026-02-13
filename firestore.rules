@@ -765,6 +765,14 @@ service cloud.firestore {
           || isMasterAdmin()
         );
       }
+
+      // Sous-collection: POIs (points d'intérêt du circuit)
+      match /pois/{poiId} {
+        allow read, write: if isSignedIn() && (
+          request.auth.uid == get(/databases/$(database)/documents/map_projects/$(projectId)).data.uid
+          || isMasterAdmin()
+        );
+      }
     }
 
     // ========== REFUS PAR DÉFAUT ==========

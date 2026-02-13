@@ -235,14 +235,43 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
       builder: (ctx) => _NameInputDialog(),
     );
 
-    if (name != null && mounted) {
+    if (name == null || !mounted) return;
+
+    final user = _auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vous devez être connecté.')),
+      );
+      return;
+    }
+
+    try {
+      final ref = _firestore.collection('map_projects').doc();
+      await ref.set({
+        'name': name.trim(),
+        'countryId': '',
+        'eventId': '',
+        'description': '',
+        'styleUrl': '',
+        'perimeter': <dynamic>[],
+        'route': <dynamic>[],
+        'status': 'draft',
+        'uid': user.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
       Navigator.push<void>(
         context,
         MaterialPageRoute(
-          builder: (_) => CircuitWizardProPage(
-            // Pas de projectId => nouveau projet
-          ),
+          builder: (_) => CircuitWizardProPage(projectId: ref.id),
         ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('❌ Erreur: $e')),
       );
     }
   }

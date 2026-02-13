@@ -28,6 +28,7 @@ class CircuitWizardProPage extends StatefulWidget {
 }
 
 class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
+  String? _projectId;
   late PageController _pageController;
   int _currentStep = 0;
   bool _isLoading = false;
@@ -59,6 +60,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   @override
   void initState() {
     super.initState();
+    _projectId = widget.projectId;
     _pageController = PageController();
     _loadDraftOrInitialize();
   }
@@ -82,10 +84,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       setState(() => _isLoading = true);
 
       // Si un projectId est fouirni, le charger
-      if (widget.projectId != null) {
+      if (_projectId != null) {
         final doc = await FirebaseFirestore.instance
             .collection('map_projects')
-            .doc(widget.projectId)
+            .doc(_projectId)
             .get();
 
         if (doc.exists) {
@@ -145,14 +147,19 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       setState(() => _isLoading = false);
     } catch (e) {
       setState(() {
-        _errorMessage = 'Erreur chargement: $e';
+        if (e is FirebaseException) {
+          _errorMessage =
+              'Erreur chargement (${e.code}): ${e.message ?? e.toString()}';
+        } else {
+          _errorMessage = 'Erreur chargement: $e';
+        }
         _isLoading = false;
       });
     }
   }
 
   Future<List<MarketMapLayer>> _loadLayers() async {
-    if (widget.projectId == null) {
+    if (_projectId == null) {
       // Initialiser les 6 couches standard
       return [
         MarketMapLayer(
@@ -208,7 +215,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
     final snapshot = await FirebaseFirestore.instance
         .collection('map_projects')
-        .doc(widget.projectId)
+    .doc(_projectId)
         .collection('layers')
         .orderBy('zIndex')
         .get();
@@ -219,13 +226,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   }
 
   Future<List<MarketMapPOI>> _loadPois() async {
-    if (widget.projectId == null) {
+    if (_projectId == null) {
       return [];
     }
 
     final snapshot = await FirebaseFirestore.instance
         .collection('map_projects')
-        .doc(widget.projectId)
+        .doc(_projectId)
         .collection('pois')
         .get();
 
@@ -236,45 +243,50 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
   Future<void> _saveDraft() async {
     try {
-      final projectId = widget.projectId ??
-          FirebaseFirestore.instance.collection('map_projects').doc().id;
-      final uid = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
 
-      await FirebaseFirestore.instance
-          .collection('map_projects')
-          .doc(projectId)
-          .set({
+      final isNew = _projectId == null;
+      final projectId = _projectId ?? FirebaseFirestore.instance.collection('map_projects').doc().id;
+      _projectId = projectId;
+
+      final data = <String, dynamic>{
         'name': _nameController.text.trim(),
         'countryId': _countryController.text.trim(),
         'eventId': _eventController.text.trim(),
         'description': _descriptionController.text.trim(),
         'styleUrl': _styleUrlController.text.trim(),
-        'perimeter': _perimeterPoints
-            .map((p) => {'lng': p.lng, 'lat': p.lat})
-            .toList(),
+        'perimeter': _perimeterPoints.map((p) => {'lng': p.lng, 'lat': p.lat}).toList(),
         'route': _routePoints.map((p) => {'lng': p.lng, 'lat': p.lat}).toList(),
         'status': 'draft',
-        'uid': uid,
+        'uid': user.uid,
         'updatedAt': FieldValue.serverTimestamp(),
-        'createdAt': _draftData.isEmpty ? FieldValue.serverTimestamp() : null,
-      }, SetOptions(merge: true));
+      };
+      if (isNew) {
+        data['createdAt'] = FieldValue.serverTimestamp();
+      }
 
-      // Sauvegarder les POI si un projet est défini
-      if (widget.projectId != null) {
-        final poisRef = FirebaseFirestore.instance
-            .collection('map_projects')
-            .doc(projectId)
-            .collection('pois');
+      await FirebaseFirestore.instance
+          .collection('map_projects')
+          .doc(projectId)
+          .set(data, SetOptions(merge: true));
 
-        // Pour simplifier: on efface et on réécrit tous les POI
-        final existing = await poisRef.get();
-        for (final doc in existing.docs) {
-          await doc.reference.delete();
-        }
+      // Sauvegarder les POI
+      final poisRef = FirebaseFirestore.instance
+          .collection('map_projects')
+          .doc(projectId)
+          .collection('pois');
 
-        for (final poi in _pois) {
-          await poisRef.add(poi.toFirestore());
-        }
+      // Pour simplifier: on efface et on réécrit tous les POI
+      final existing = await poisRef.get();
+      for (final doc in existing.docs) {
+        await doc.reference.delete();
+      }
+
+      for (final poi in _pois) {
+        await poisRef.add(poi.toFirestore());
       }
 
       if (mounted) {
@@ -283,9 +295,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         );
       }
     } catch (e) {
+      debugPrint('WizardPro _saveDraft error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Erreur: $e')),
+          SnackBar(
+            content: Text(
+              e is FirebaseException
+                  ? '❌ Firestore (${e.code}): ${e.message ?? e.toString()}'
+                  : '❌ Erreur: $e',
+            ),
+          ),
         );
       }
     }
@@ -628,62 +647,66 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         Container(
           color: Colors.grey.shade100,
           padding: const EdgeInsets.all(12),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(Icons.place_outlined, color: Colors.blueGrey),
-              const SizedBox(width: 8),
-              const Text(
-                'Points d\'intérêt (POI)',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(width: 16),
-              if (_layers.isNotEmpty)
-                Expanded(
-                  child: DropdownButton<MarketMapLayer>(
-                    isExpanded: true,
-                    value: _selectedLayer,
-                    hint: const Text('Sélectionnez une couche'),
-                    items: _layers
-                        .where((l) => l.type != 'route')
-                        .map(
-                          (layer) => DropdownMenuItem<MarketMapLayer>(
-                            value: layer,
-                            child: Row(
-                              children: [
-                                Icon(_getLayerIcon(layer.type), size: 18),
-                                const SizedBox(width: 8),
-                                Text(layer.label),
-                              ],
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (layer) {
-                      setState(() {
-                        _selectedLayer = layer;
-                      });
-                      _refreshPoiMarkers();
-                    },
+              Row(
+                children: [
+                  const Icon(Icons.place_outlined, color: Colors.blueGrey),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Points d\'intérêt (POI)',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
                   ),
+                  IconButton(
+                    icon: const Icon(Icons.my_location),
+                    tooltip: 'Ajouter un POI à la position actuelle',
+                    onPressed:
+                        _selectedLayer == null ? null : _addPoiAtCurrentCenter,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.save_alt),
+                    tooltip: 'Enregistrer les POI',
+                    onPressed: _isLoading ? null : _saveDraft,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (_layers.isNotEmpty)
+                DropdownButton<MarketMapLayer>(
+                  isExpanded: true,
+                  value: _selectedLayer,
+                  hint: const Text('Choisissez une couche pour placer des points'),
+                  items: _layers
+                      .where((l) => l.type != 'route')
+                      .map(
+                        (layer) => DropdownMenuItem<MarketMapLayer>(
+                          value: layer,
+                          child: Row(
+                            children: [
+                              Icon(_getLayerIcon(layer.type), size: 18),
+                              const SizedBox(width: 8),
+                              Text(layer.label),
+                            ],
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (layer) {
+                    setState(() {
+                      _selectedLayer = layer;
+                    });
+                    _refreshPoiMarkers();
+                  },
                 )
               else
-                const Expanded(
-                  child: Text(
-                    'Aucune couche trouvée. Vérifiez la configuration du projet.',
-                    style: TextStyle(fontSize: 12, color: Colors.redAccent),
-                  ),
+                const Text(
+                  'Aucune couche trouvée. Vérifiez la configuration du projet.',
+                  style: TextStyle(fontSize: 12, color: Colors.redAccent),
                 ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.my_location),
-                tooltip: 'Ajouter un POI à la position actuelle',
-                onPressed: _selectedLayer == null ? null : _addPoiAtCurrentCenter,
-              ),
-              IconButton(
-                icon: const Icon(Icons.save_alt),
-                tooltip: 'Enregistrer les POI',
-                onPressed: widget.projectId == null ? null : _saveDraft,
-              ),
             ],
           ),
         ),
@@ -898,8 +921,19 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     try {
       setState(() => _isLoading = true);
 
-      final projectId = widget.projectId ??
-          FirebaseFirestore.instance.collection('map_projects').doc().id;
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      if (_projectId == null) {
+        await _saveDraft();
+      }
+
+      final projectId = _projectId;
+      if (projectId == null) {
+        throw Exception('Project not initialized');
+      }
 
       await FirebaseFirestore.instance
           .collection('map_projects')
@@ -918,9 +952,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         Navigator.pop(context);
       }
     } catch (e) {
+      debugPrint('WizardPro _publishCircuit error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Erreur publication: $e')),
+          SnackBar(
+            content: Text(
+              e is FirebaseException
+                  ? '❌ Publication Firestore (${e.code}): ${e.message ?? e.toString()}'
+                  : '❌ Erreur publication: $e',
+            ),
+          ),
         );
       }
     } finally {

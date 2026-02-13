@@ -167,9 +167,6 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
             // Section Carte & Navigation
             _buildSectionTitle('Carte & Navigation', Icons.map),
             const SizedBox(height: 12),
-            // Tuiles "Parcours", "Points d'intérêt" et "Bibliothèque de Maps"
-            // retirées pour simplifier le dashboard. L'entrée principale
-            // pour les circuits et POI reste l'Assistant Wizard plus bas.
             _buildDashboardCard(
               title: 'MapMarket',
               subtitle: 'Créer / éditer / publier des cartes (Mapbox-only)',
@@ -192,15 +189,14 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildDashboardCard(
-                    title: 'Assistant Wizard',
-                    subtitle: 'Création guidée de circuits étape par étape',
-                    icon: Icons.assistant,
-                    color: Colors.purple,
+                    title: '🗺️ Wizard Circuit Pro',
+                    subtitle: 'Créer/éditer des circuits (outil unique)',
+                    icon: Icons.auto_fix_high,
+                    color: Colors.deepPurple,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) =>
-                            const AdminAssistantStepByStepHomePage(),
+                        builder: (_) => const CircuitWizardEntryPage(),
                       ),
                     ),
                   ),
@@ -217,19 +213,6 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
               onTap: () => Navigator.pushNamed(
                 context,
                 '/admin/marketmap-debug',
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildDashboardCard(
-              title: '🗺️ Wizard Circuit Pro',
-              subtitle: 'Créer/éditer circuits avec 6 étapes professionnelles',
-              icon: Icons.auto_fix_high,
-              color: Colors.deepPurple,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const CircuitWizardEntryPage(),
-                ),
               ),
             ),
             const SizedBox(height: 24),
