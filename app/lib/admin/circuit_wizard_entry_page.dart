@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/market_circuit_models.dart';
+import '../models/market_country.dart';
+import '../models/market_event.dart';
+import '../services/market_map_service.dart';
 import 'circuit_wizard_pro_page.dart';
 
 class CircuitWizardEntryPage extends StatefulWidget {
@@ -18,10 +21,7 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Création de Circuits'),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('Création de Circuits'), elevation: 0),
       body: Column(
         children: [
           // Header
@@ -33,10 +33,7 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
               children: [
                 const Text(
                   '🗺️ Wizard Circuit Pro',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 const Text(
@@ -83,9 +80,11 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                final projects = snapshot.data?.docs
-                    .map((doc) => CircuitProject.fromFirestore(doc))
-                    .toList() ?? [];
+                final projects =
+                    snapshot.data?.docs
+                        .map((doc) => CircuitProject.fromFirestore(doc))
+                        .toList() ??
+                    [];
 
                 if (projects.isEmpty) {
                   return Center(
@@ -150,9 +149,7 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
           ),
           child: Icon(
             project.status == 'published' ? Icons.check_circle : Icons.edit,
-            color: project.status == 'published'
-                ? Colors.green
-                : Colors.orange,
+            color: project.status == 'published' ? Colors.green : Colors.orange,
           ),
         ),
         title: Text(
@@ -172,11 +169,12 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
               spacing: 8,
               children: [
                 Chip(
-                  label: Text(project.status == 'published' ? '✅ Publié' : '✏️ Brouillon'),
-                  backgroundColor:
-                      project.status == 'published'
-                          ? Colors.green.withValues(alpha: 0.2)
-                          : Colors.orange.withValues(alpha: 0.2),
+                  label: Text(
+                    project.status == 'published' ? '✅ Publié' : '✏️ Brouillon',
+                  ),
+                  backgroundColor: project.status == 'published'
+                      ? Colors.green.withValues(alpha: 0.2)
+                      : Colors.orange.withValues(alpha: 0.2),
                   labelStyle: TextStyle(
                     fontSize: 10,
                     color: project.status == 'published'
@@ -230,12 +228,12 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
   }
 
   Future<void> _createNewProject() async {
-    final name = await showDialog<String>(
+    final input = await showDialog<_NewCircuitInput>(
       context: context,
-      builder: (ctx) => _NameInputDialog(),
+      builder: (ctx) => _NewCircuitInputDialog(),
     );
 
-    if (name == null || !mounted) return;
+    if (input == null || !mounted) return;
 
     final user = _auth.currentUser;
     if (user == null) {
@@ -248,9 +246,9 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
     try {
       final ref = _firestore.collection('map_projects').doc();
       await ref.set({
-        'name': name.trim(),
-        'countryId': '',
-        'eventId': '',
+        'name': input.name.trim(),
+        'countryId': input.countryId.trim(),
+        'eventId': input.eventId.trim(),
         'description': '',
         'styleUrl': '',
         'perimeter': <dynamic>[],
@@ -270,9 +268,9 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ Erreur: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('❌ Erreur: $e')));
     }
   }
 
@@ -308,45 +306,120 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
       try {
         await _firestore.collection('map_projects').doc(projectId).delete();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('✅ Circuit supprimé')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('✅ Circuit supprimé')));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('❌ Erreur: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('❌ Erreur: $e')));
         }
       }
     }
   }
 }
 
-class _NameInputDialog extends StatefulWidget {
-  @override
-  State<_NameInputDialog> createState() => _NameInputDialogState();
+class _NewCircuitInput {
+  final String countryId;
+  final String eventId;
+  final String name;
+
+  const _NewCircuitInput({
+    required this.countryId,
+    required this.eventId,
+    required this.name,
+  });
 }
 
-class _NameInputDialogState extends State<_NameInputDialog> {
-  final _controller = TextEditingController();
+class _NewCircuitInputDialog extends StatefulWidget {
+  @override
+  State<_NewCircuitInputDialog> createState() => _NewCircuitInputDialogState();
+}
+
+class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
+  final MarketMapService _marketMapService = MarketMapService();
+
+  MarketCountry? _selectedCountry;
+  MarketEvent? _selectedEvent;
+
+  bool _defaultCountryApplied = false;
+  bool _defaultEventApplied = false;
+
+  final _countryController = TextEditingController();
+  final _eventController = TextEditingController();
+  final _nameController = TextEditingController();
 
   @override
   void dispose() {
-    _controller.dispose();
+    _countryController.dispose();
+    _eventController.dispose();
+    _nameController.dispose();
     super.dispose();
+  }
+
+  String get _countryId {
+    return _selectedCountry?.id.trim() ?? _countryController.text.trim();
+  }
+
+  String get _eventId {
+    return _selectedEvent?.id.trim() ?? _eventController.text.trim();
+  }
+
+  bool get _isValid {
+    return _countryId.isNotEmpty &&
+        _eventId.isNotEmpty &&
+        _nameController.text.trim().isNotEmpty;
+  }
+
+  String _countryDisplay(MarketCountry c) {
+    final name = c.name.trim().isEmpty ? c.id : c.name.trim();
+    return name.toUpperCase();
+  }
+
+  String _countryCodeFor(MarketCountry c) {
+    final id = c.id.trim();
+    if (id.length == 2) return id.toUpperCase();
+
+    final slug = c.slug.trim().toLowerCase();
+    final name = c.name.trim().toLowerCase();
+    const known = <String, String>{
+      'guadeloupe': 'GP',
+      'martinique': 'MQ',
+      'guyane': 'GF',
+      'reunion': 'RE',
+      'réunion': 'RE',
+      'saint-martin': 'MF',
+      'saint martin': 'MF',
+    };
+
+    return known[slug] ?? known[name] ?? '';
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Nom du circuit'),
-      content: TextField(
-        controller: _controller,
-        onChanged: (_) => setState(() {}),
-        decoration: const InputDecoration(
-          hintText: 'Ex: Circuit Côte Nord',
-          border: OutlineInputBorder(),
+      title: const Text('Nouveau circuit'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildCountryField(),
+            const SizedBox(height: 12),
+            _buildEventField(),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _nameController,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                labelText: 'Nom du circuit',
+                hintText: 'Ex: Circuit Côte Nord',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
         ),
       ),
       actions: [
@@ -355,12 +428,222 @@ class _NameInputDialogState extends State<_NameInputDialog> {
           child: const Text('Annuler'),
         ),
         ElevatedButton(
-          onPressed: _controller.text.trim().isEmpty
+          onPressed: !_isValid
               ? null
-              : () => Navigator.pop(context, _controller.text.trim()),
+              : () => Navigator.pop(
+                    context,
+                    _NewCircuitInput(
+                      countryId: _countryId,
+                      eventId: _eventId,
+                      name: _nameController.text.trim(),
+                    ),
+                  ),
           child: const Text('Créer'),
         ),
       ],
+    );
+  }
+
+  Widget _buildCountryField() {
+    return StreamBuilder<List<MarketCountry>>(
+      stream: _marketMapService.watchCountries(),
+      builder: (context, snap) {
+        final items = snap.data ?? const <MarketCountry>[];
+
+        // Sélection par défaut: Guadeloupe si dispo, sinon premier pays.
+        if (!_defaultCountryApplied &&
+            _selectedCountry == null &&
+            _countryController.text.trim().isEmpty &&
+            items.isNotEmpty) {
+          final preferred = items.firstWhere(
+            (c) =>
+                _countryCodeFor(c) == 'GP' ||
+                c.id.toLowerCase() == 'gp' ||
+                c.slug.toLowerCase() == 'guadeloupe' ||
+                c.name.toLowerCase() == 'guadeloupe',
+            orElse: () => items.first,
+          );
+
+          _defaultCountryApplied = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            setState(() {
+              _selectedCountry = preferred;
+              _selectedEvent = null;
+              _defaultEventApplied = false;
+              _countryController.text = _countryDisplay(preferred);
+              _eventController.clear();
+            });
+          });
+        }
+
+        if (items.isEmpty) {
+          return TextField(
+            controller: _countryController,
+            onChanged: (_) {
+              setState(() {
+                _selectedCountry = null;
+                _selectedEvent = null;
+              });
+            },
+            decoration: const InputDecoration(
+              labelText: 'Pays',
+              hintText: 'Ex: guadeloupe',
+              border: OutlineInputBorder(),
+            ),
+          );
+        }
+
+        return Autocomplete<MarketCountry>(
+          initialValue: TextEditingValue(text: _countryController.text),
+          displayStringForOption: _countryDisplay,
+          optionsBuilder: (TextEditingValue value) {
+            final q = value.text.trim().toLowerCase();
+            if (q.isEmpty) return items;
+            return items.where((c) {
+              final text = _countryDisplay(c).toLowerCase();
+              return text.contains(q) || c.id.toLowerCase().contains(q);
+            });
+          },
+          fieldViewBuilder: (context, textCtrl, focusNode, onFieldSubmitted) {
+            textCtrl.value = _countryController.value;
+            textCtrl.addListener(() {
+              _countryController.value = textCtrl.value;
+            });
+
+            return TextField(
+              controller: textCtrl,
+              focusNode: focusNode,
+              onChanged: (_) {
+                setState(() {
+                  _selectedCountry = null;
+                  _selectedEvent = null;
+                });
+              },
+              decoration: const InputDecoration(
+                labelText: 'Pays',
+                border: OutlineInputBorder(),
+              ),
+            );
+          },
+          optionsViewBuilder: (context, onSelected, options) {
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 4,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 460, maxHeight: 300),
+                  child: ListView.builder(
+                    padding: EdgeInsets.zero,
+                    itemCount: options.length,
+                    itemBuilder: (context, i) {
+                      final c = options.elementAt(i);
+                      return ListTile(
+                        dense: true,
+                        title: Text(_countryDisplay(c)),
+                        subtitle: Text(c.id),
+                        onTap: () => onSelected(c),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            );
+          },
+          onSelected: (c) {
+            setState(() {
+              _selectedCountry = c;
+              _selectedEvent = null;
+              _defaultEventApplied = false;
+              _countryController.text = _countryDisplay(c);
+              _eventController.clear();
+            });
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildEventField() {
+    final country = _selectedCountry;
+    if (country == null) {
+      return DropdownButtonFormField<String>(
+        items: const <DropdownMenuItem<String>>[],
+        onChanged: null,
+        decoration: const InputDecoration(
+          labelText: 'Événement',
+          border: OutlineInputBorder(),
+          helperText: 'Sélectionnez d\'abord un pays',
+        ),
+      );
+    }
+
+    return StreamBuilder<List<MarketEvent>>(
+      stream: _marketMapService.watchEvents(countryId: country.id),
+      builder: (context, snap) {
+        final items = snap.data ?? const <MarketEvent>[];
+
+        // Sélection par défaut: premier événement du pays (le stream est déjà trié).
+        if (!_defaultEventApplied && _selectedEvent == null && items.isNotEmpty) {
+          _defaultEventApplied = true;
+          final preferred = items.first;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            setState(() => _selectedEvent = preferred);
+          });
+        }
+
+        if (items.isEmpty) {
+          return TextField(
+            controller: _eventController,
+            onChanged: (_) {
+              setState(() {
+                _selectedEvent = null;
+              });
+            },
+            decoration: const InputDecoration(
+              labelText: 'Événement',
+              hintText: 'Ex: TRAIL_2026',
+              border: OutlineInputBorder(),
+            ),
+          );
+        }
+
+        final selectedId = _selectedEvent?.id;
+        final value = items.any((e) => e.id == selectedId) ? selectedId : null;
+
+        return DropdownButtonFormField<String>(
+          initialValue: value,
+          decoration: const InputDecoration(
+            labelText: 'Événement',
+            border: OutlineInputBorder(),
+          ),
+          items: [
+            for (final e in items)
+              DropdownMenuItem(
+                value: e.id,
+                child: Text(e.name.trim().isEmpty ? e.id : e.name.trim()),
+              ),
+          ],
+          onChanged: (id) {
+            if (id == null) return;
+            final selected = items.firstWhere(
+              (e) => e.id == id,
+              orElse: () => MarketEvent(
+                id: '',
+                countryId: country.id,
+                name: '',
+                slug: '',
+              ),
+            );
+            if (selected.id.isEmpty) return;
+            setState(() {
+              _selectedEvent = selected;
+              _eventController.clear();
+            });
+          },
+        );
+      },
     );
   }
 }

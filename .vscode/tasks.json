@@ -213,6 +213,17 @@
       }
     },
     {
+      "label": "MASLIVE: Git commit + push (wizard nouveau circuit popup)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/admin/circuit_wizard_entry_page.dart .vscode/tasks.json && git commit -m \"feat(wizard): popup nouveau circuit (pays+événement+nom)\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git commit + push (single-file shop orders notifications)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add app/lib/shop_orders_notifications.dart app/lib/pages/app_shell.dart app/pubspec.yaml .vscode/tasks.json && git commit -m \"feat(orders): single-file notifications (Navigator)\" && git push origin main",
