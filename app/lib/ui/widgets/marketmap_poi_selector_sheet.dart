@@ -5,6 +5,7 @@ import '../../models/market_country.dart';
 import '../../models/market_event.dart';
 import '../../models/market_layer.dart';
 import '../../services/market_map_service.dart';
+import '../../utils/country_flag.dart';
 
 class MarketMapPoiSelection {
   const MarketMapPoiSelection._({
@@ -148,7 +149,19 @@ class _MarketMapPoiSelectorSheetState extends State<_MarketMapPoiSelectorSheet> 
                 ),
                 items: [
                   for (final c in items)
-                    DropdownMenuItem(value: c.id, child: Text(c.name)),
+                    DropdownMenuItem(
+                      value: c.id,
+                      child: Text(
+                        formatCountryLabelWithFlag(
+                          name: c.name,
+                          iso2: guessIso2FromMarketMapCountry(
+                            id: c.id,
+                            slug: c.slug,
+                            name: c.name,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
                 onChanged: (id) {
                   if (id == null) return;

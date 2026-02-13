@@ -5,6 +5,7 @@ import '../models/market_circuit.dart';
 import '../models/market_country.dart';
 import '../models/market_event.dart';
 import '../services/market_map_service.dart';
+import '../utils/country_flag.dart';
 
 class MapMarketProjectsPage extends StatefulWidget {
   const MapMarketProjectsPage({super.key});
@@ -133,7 +134,12 @@ class _MapMarketProjectsPageState extends State<MapMarketProjectsPage> {
                       final c = options.elementAt(i);
                       return ListTile(
                         dense: true,
-                        title: Text(_countryDisplay(c)),
+                        title: Text(
+                          formatCountryLabelWithFlag(
+                            name: _countryDisplay(c),
+                            iso2: _countryCodeFor(c),
+                          ),
+                        ),
                         onTap: () => onSelected(c),
                       );
                     },

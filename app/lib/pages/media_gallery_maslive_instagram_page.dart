@@ -7,7 +7,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../models/market_country.dart';
+import '../services/market_map_service.dart';
 import '../services/media_permissions_service.dart';
+import '../utils/country_flag.dart';
 
 class MediaGalleryMasliveInstagramPage extends StatefulWidget {
   const MediaGalleryMasliveInstagramPage({super.key});
@@ -850,6 +853,9 @@ class _FiltersSheetMaslive extends StatefulWidget {
 }
 
 class _FiltersSheetMasliveState extends State<_FiltersSheetMaslive> {
+  final MarketMapService _marketMapService = MarketMapService();
+  final FocusNode _countryFocusNode = FocusNode();
+
   late final TextEditingController _country;
   late final TextEditingController _event;
   late final TextEditingController _circuit;
@@ -871,7 +877,107 @@ class _FiltersSheetMasliveState extends State<_FiltersSheetMaslive> {
     _country.dispose();
     _event.dispose();
     _circuit.dispose();
+    _countryFocusNode.dispose();
     super.dispose();
+  }
+
+  Widget _buildMasliveCountryAutocomplete() {
+    return StreamBuilder<List<MarketCountry>>(
+      stream: _marketMapService.watchCountries(),
+      builder: (context, snap) {
+        final items = snap.data ?? const <MarketCountry>[];
+
+        // Fallback: champ texte simple si liste indisponible.
+        if (snap.hasError || items.isEmpty) {
+          return _MasliveField(
+            label: 'Pays',
+            hint: 'ex: Guadeloupe',
+            controller: _country,
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Pays',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF2B2F36),
+              ),
+            ),
+            const SizedBox(height: 6),
+            RawAutocomplete<MarketCountry>(
+              textEditingController: _country,
+              focusNode: _countryFocusNode,
+              displayStringForOption: (c) => c.name,
+              optionsBuilder: (value) {
+                final q = value.text.trim().toLowerCase();
+                if (q.isEmpty) return items;
+                return items.where((c) {
+                  final name = c.name.toLowerCase();
+                  return name.contains(q) || c.id.toLowerCase().contains(q);
+                });
+              },
+              fieldViewBuilder: (context, textCtrl, focusNode, onFieldSubmitted) {
+                return TextField(
+                  controller: textCtrl,
+                  focusNode: focusNode,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    hintText: 'ex: Guadeloupe',
+                    hintStyle: const TextStyle(color: Color(0xFF9AA0A8)),
+                    filled: true,
+                    fillColor: const Color(0xFFF7F7F8),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                );
+              },
+              optionsViewBuilder: (context, onSelected, options) {
+                return Align(
+                  alignment: Alignment.topLeft,
+                  child: Material(
+                    elevation: 4,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 520, maxHeight: 300),
+                      child: ListView.builder(
+                        padding: EdgeInsets.zero,
+                        itemCount: options.length,
+                        itemBuilder: (context, i) {
+                          final c = options.elementAt(i);
+                          final iso2 = guessIso2FromMarketMapCountry(
+                            id: c.id,
+                            slug: c.slug,
+                            name: c.name,
+                          );
+                          return ListTile(
+                            dense: true,
+                            title: Text(
+                              formatCountryLabelWithFlag(name: c.name, iso2: iso2),
+                            ),
+                            subtitle: Text(c.id),
+                            onTap: () => onSelected(c),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                );
+              },
+              onSelected: (c) {
+                // On conserve le nom sans emoji dans le champ.
+                _country.text = c.name;
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -913,11 +1019,7 @@ class _FiltersSheetMasliveState extends State<_FiltersSheetMaslive> {
             const SizedBox(height: 14),
 
             // Champs (optionnels)
-            _MasliveField(
-              label: 'Pays',
-              hint: 'ex: Guadeloupe',
-              controller: _country,
-            ),
+            _buildMasliveCountryAutocomplete(),
             const SizedBox(height: 10),
             _MasliveField(
               label: 'Événement',
@@ -1243,6 +1345,9 @@ class _AddMediaSheet extends StatefulWidget {
 }
 
 class _AddMediaSheetState extends State<_AddMediaSheet> {
+  final MarketMapService _marketMapService = MarketMapService();
+  final FocusNode _countryFocusNode = FocusNode();
+
   final _countryCtrl = TextEditingController();
   final _eventCtrl = TextEditingController();
   final _circuitCtrl = TextEditingController();
@@ -1258,6 +1363,7 @@ class _AddMediaSheetState extends State<_AddMediaSheet> {
     _countryCtrl.dispose();
     _eventCtrl.dispose();
     _circuitCtrl.dispose();
+    _countryFocusNode.dispose();
     super.dispose();
   }
 
@@ -1404,12 +1510,79 @@ class _AddMediaSheetState extends State<_AddMediaSheet> {
           ),
           const SizedBox(height: 12),
 
-          TextField(
-            controller: _countryCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Pays',
-              hintText: 'Ex: Guadeloupe',
-            ),
+          StreamBuilder<List<MarketCountry>>(
+            stream: _marketMapService.watchCountries(),
+            builder: (context, snap) {
+              final items = snap.data ?? const <MarketCountry>[];
+
+              if (snap.hasError || items.isEmpty) {
+                return TextField(
+                  controller: _countryCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Pays',
+                    hintText: 'Ex: Guadeloupe',
+                  ),
+                );
+              }
+
+              return RawAutocomplete<MarketCountry>(
+                textEditingController: _countryCtrl,
+                focusNode: _countryFocusNode,
+                displayStringForOption: (c) => c.name,
+                optionsBuilder: (value) {
+                  final q = value.text.trim().toLowerCase();
+                  if (q.isEmpty) return items;
+                  return items.where((c) {
+                    final name = c.name.toLowerCase();
+                    return name.contains(q) || c.id.toLowerCase().contains(q);
+                  });
+                },
+                fieldViewBuilder: (context, textCtrl, focusNode, onFieldSubmitted) {
+                  return TextField(
+                    controller: textCtrl,
+                    focusNode: focusNode,
+                    decoration: const InputDecoration(
+                      labelText: 'Pays',
+                      hintText: 'Ex: Guadeloupe',
+                    ),
+                  );
+                },
+                optionsViewBuilder: (context, onSelected, options) {
+                  return Align(
+                    alignment: Alignment.topLeft,
+                    child: Material(
+                      elevation: 4,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 520, maxHeight: 300),
+                        child: ListView.builder(
+                          padding: EdgeInsets.zero,
+                          itemCount: options.length,
+                          itemBuilder: (context, i) {
+                            final c = options.elementAt(i);
+                            final iso2 = guessIso2FromMarketMapCountry(
+                              id: c.id,
+                              slug: c.slug,
+                              name: c.name,
+                            );
+                            return ListTile(
+                              dense: true,
+                              title: Text(
+                                formatCountryLabelWithFlag(name: c.name, iso2: iso2),
+                              ),
+                              subtitle: Text(c.id),
+                              onTap: () => onSelected(c),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  );
+                },
+                onSelected: (c) {
+                  _countryCtrl.text = c.name;
+                },
+              );
+            },
           ),
           const SizedBox(height: 8),
 

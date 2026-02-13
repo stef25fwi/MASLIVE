@@ -22,6 +22,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 
 import '../ui/theme/maslive_theme.dart';
 import '../ui/widgets/honeycomb_background.dart';
+import '../utils/country_flag.dart';
 import '../widgets/rainbow_header.dart';
 
 /// -----------------------------------------------------------------------------
@@ -1121,6 +1122,7 @@ class FilterBarStickyV21 extends StatelessWidget {
                     label: 'Pays',
                     value: filters.country,
                     items: facets.countries,
+                    labelBuilder: formatCountryNameWithFlag,
                     onChanged: (v) => onChanged(
                       filters.copyWith(
                         country: v,
@@ -2249,19 +2251,23 @@ class _Drop extends StatelessWidget {
     required this.value,
     required this.items,
     required this.onChanged,
+    this.labelBuilder,
   });
 
   final String label;
   final String? value;
   final List<String> items;
   final ValueChanged<String?> onChanged;
+  final String Function(String value)? labelBuilder;
 
   @override
   Widget build(BuildContext context) {
-    final display = value ?? 'Tout';
+    final display = value == null
+        ? 'Tout'
+        : (labelBuilder?.call(value!) ?? value!);
     final options = <_SheetOption<String>>[
       const _SheetOption<String>(null, 'Tout'),
-      ...items.map((e) => _SheetOption<String>(e, e)),
+      ...items.map((e) => _SheetOption<String>(e, labelBuilder?.call(e) ?? e)),
     ];
 
     return SizedBox(

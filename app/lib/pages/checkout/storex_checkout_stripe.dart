@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import '../../utils/country_flag.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
 import '../../models/cart_item.dart';
@@ -277,6 +279,7 @@ class _StorexDeliveryPageState extends State<StorexDeliveryPage> {
                 child: _Dropdown(
                   value: country,
                   items: const ['France', 'Guadeloupe', 'Martinique', 'United States', 'Other'],
+                  labelBuilder: formatCountryNameWithFlag,
                   onChanged: (v) => setState(() {
                     country = v;
                     _sync();
@@ -674,10 +677,16 @@ class _Field extends StatelessWidget {
 }
 
 class _Dropdown extends StatelessWidget {
-  const _Dropdown({required this.value, required this.items, required this.onChanged});
+  const _Dropdown({
+    required this.value,
+    required this.items,
+    required this.onChanged,
+    this.labelBuilder,
+  });
   final String value;
   final List<String> items;
   final ValueChanged<String> onChanged;
+  final String Function(String value)? labelBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -691,7 +700,14 @@ class _Dropdown extends StatelessWidget {
         underline: const SizedBox(),
         isExpanded: true,
         icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black45),
-        items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+        items: items
+            .map(
+              (e) => DropdownMenuItem(
+                value: e,
+                child: Text(labelBuilder?.call(e) ?? e),
+              ),
+            )
+            .toList(),
         onChanged: (v) => onChanged(v ?? value),
       ),
     );

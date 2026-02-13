@@ -7,6 +7,7 @@ import '../models/market_country.dart';
 import '../models/market_event.dart';
 import '../models/market_layer.dart';
 import '../services/market_map_service.dart';
+import '../utils/country_flag.dart';
 
 class POIMarketMapWizardPage extends StatefulWidget {
   const POIMarketMapWizardPage({
@@ -432,7 +433,19 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
                       ),
                       items: [
                         for (final c in items)
-                          DropdownMenuItem(value: c.id, child: Text(c.name)),
+                          DropdownMenuItem(
+                            value: c.id,
+                            child: Text(
+                              formatCountryLabelWithFlag(
+                                name: c.name,
+                                iso2: guessIso2FromMarketMapCountry(
+                                  id: c.id,
+                                  slug: c.slug,
+                                  name: c.name,
+                                ),
+                              ),
+                            ),
+                          ),
                       ],
                       onChanged: (id) {
                         final selected = items.firstWhere(
@@ -531,7 +544,16 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
             ],
           ),
           const SizedBox(height: 16),
-          Text('Pays: ${country.name}'),
+          Text(
+            'Pays: ${formatCountryLabelWithFlag(
+              name: country.name,
+              iso2: guessIso2FromMarketMapCountry(
+                id: country.id,
+                slug: country.slug,
+                name: country.name,
+              ),
+            )}',
+          ),
         ],
       ),
     );

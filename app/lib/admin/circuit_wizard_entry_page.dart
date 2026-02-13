@@ -5,6 +5,7 @@ import '../models/market_circuit_models.dart';
 import '../models/market_country.dart';
 import '../models/market_event.dart';
 import '../services/market_map_service.dart';
+import '../utils/country_flag.dart';
 import 'circuit_wizard_pro_page.dart';
 
 class CircuitWizardEntryPage extends StatefulWidget {
@@ -402,6 +403,11 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
     return name.toUpperCase();
   }
 
+  String _countrySuggestionLabel(MarketCountry c) {
+    final iso2 = _countryCodeFor(c);
+    return formatCountryLabelWithFlag(name: _countryDisplay(c), iso2: iso2);
+  }
+
   String _countryCodeFor(MarketCountry c) {
     final id = c.id.trim();
     if (id.length == 2) return id.toUpperCase();
@@ -584,7 +590,7 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
                       final c = options.elementAt(i);
                       return ListTile(
                         dense: true,
-                        title: Text(_countryDisplay(c)),
+                        title: Text(_countrySuggestionLabel(c)),
                         subtitle: Text(c.id),
                         onTap: () => onSelected(c),
                       );

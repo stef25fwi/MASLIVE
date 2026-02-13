@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../models/market_country.dart';
 import '../../models/market_event.dart';
 import '../../services/market_map_service.dart';
+import '../../utils/country_flag.dart';
 
 class CreateCircuitStep1Dialog extends StatefulWidget {
   const CreateCircuitStep1Dialog({super.key, this.service});
@@ -236,7 +237,16 @@ class _CreateCircuitStep1DialogState extends State<CreateCircuitStep1Dialog> {
                     items.add(
                       DropdownMenuItem(
                         value: c.id,
-                        child: Text(c.name),
+                        child: Text(
+                          formatCountryLabelWithFlag(
+                            name: c.name,
+                            iso2: guessIso2FromMarketMapCountry(
+                              id: c.id,
+                              slug: c.slug,
+                              name: c.name,
+                            ),
+                          ),
+                        ),
                       ),
                     );
                   }
