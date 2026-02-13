@@ -472,6 +472,26 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
     return StreamBuilder<List<MarketCountry>>(
       stream: _marketMapService.watchCountries(),
       builder: (context, snap) {
+        if (snap.hasError) {
+          return TextField(
+            controller: _countryController,
+            onChanged: (_) {
+              setState(() {
+                _selectedCountry = null;
+                _selectedEvent = null;
+              });
+            },
+            decoration: const InputDecoration(
+              labelText: 'Pays',
+              hintText: 'Ex: guadeloupe',
+              border: OutlineInputBorder(),
+              helperText:
+                  'Impossible de charger la liste (marketMap). Vérifiez les droits Firestore. Saisie libre activée.',
+              suffixIcon: Icon(Icons.warning_amber_rounded),
+            ),
+          );
+        }
+
         final items = snap.data ?? const <MarketCountry>[];
 
         // Sélection par défaut: Guadeloupe si dispo, sinon premier pays.
@@ -514,6 +534,8 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
               labelText: 'Pays',
               hintText: 'Ex: guadeloupe',
               border: OutlineInputBorder(),
+              helperText:
+                  'Aucun pays disponible dans marketMap. Saisie libre activée.',
             ),
           );
         }
@@ -603,6 +625,25 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
     return StreamBuilder<List<MarketEvent>>(
       stream: _marketMapService.watchEvents(countryId: country.id),
       builder: (context, snap) {
+        if (snap.hasError) {
+          return TextField(
+            controller: _eventController,
+            onChanged: (_) {
+              setState(() {
+                _selectedEvent = null;
+              });
+            },
+            decoration: const InputDecoration(
+              labelText: 'Événement',
+              hintText: 'Ex: TRAIL_2026',
+              border: OutlineInputBorder(),
+              helperText:
+                  'Impossible de charger la liste (marketMap). Vérifiez les droits Firestore. Saisie libre activée.',
+              suffixIcon: Icon(Icons.warning_amber_rounded),
+            ),
+          );
+        }
+
         final items = snap.data ?? const <MarketEvent>[];
 
         // Sélection par défaut: premier événement du pays (le stream est déjà trié).
@@ -627,6 +668,8 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
               labelText: 'Événement',
               hintText: 'Ex: TRAIL_2026',
               border: OutlineInputBorder(),
+              helperText:
+                  'Aucun événement disponible pour ce pays dans marketMap. Saisie libre activée.',
             ),
           );
         }
