@@ -39,15 +39,6 @@ if git ls-files -z "functions/.env" "functions/.env.*" "functions/.runtimeconfig
 	exit 1
 fi
 
-if [[ -z "$commit_msg" ]]; then
-	read -r -p "Message de commit: " commit_msg
-fi
-
-if [[ -z "$commit_msg" ]]; then
-	echo "❌ Message de commit vide."
-	exit 1
-fi
-
 echo "[0/5] 🧹 Nettoyage artefacts locaux..."
 rm -f dart_analyze_machine.txt shop_files.zip 2>/dev/null || true
 git rm --cached --ignore-unmatch dart_analyze_machine.txt shop_files.zip >/dev/null 2>&1 || true
@@ -76,13 +67,25 @@ fi
 echo "✅ Stagés"
 echo ""
 
-echo "[2/5] 📦 Commit..."
-git commit -m "$commit_msg" || {
-	echo "ℹ️ Rien à committer."
-	exit 0
-}
-echo "✅ Committé"
-echo ""
+if git diff --cached --quiet; then
+	echo "[2/5] 📦 Commit..."
+	echo "ℹ️ Rien à committer. On continue (build+deploy)."
+	echo ""
+else
+	if [[ -z "$commit_msg" ]]; then
+		read -r -p "Message de commit: " commit_msg
+	fi
+
+	if [[ -z "$commit_msg" ]]; then
+		echo "❌ Message de commit vide."
+		exit 1
+	fi
+
+	echo "[2/5] 📦 Commit..."
+	git commit -m "$commit_msg"
+	echo "✅ Committé"
+	echo ""
+fi
 
 if [[ -n "$push_branch_arg" ]]; then
 	push_branch="$push_branch_arg"
