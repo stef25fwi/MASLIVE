@@ -459,7 +459,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get visit => 'Visiter';
 
   @override
-  String get food => 'Restauration';
+  String get food => 'Food';
 
   @override
   String get assistance => 'Assistance';

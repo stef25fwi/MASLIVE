@@ -991,7 +991,7 @@ abstract class AppLocalizations {
   /// No description provided for @food.
   ///
   /// In fr, this message translates to:
-  /// **'Restauration'**
+  /// **'Food'**
   String get food;
 
   /// No description provided for @assistance.

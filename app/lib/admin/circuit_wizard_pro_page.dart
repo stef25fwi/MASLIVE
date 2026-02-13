@@ -188,7 +188,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         ),
         MarketMapLayer(
           id: '4',
-          label: 'Restauration',
+          label: 'Food',
           type: 'food',
           isVisible: true,
           zIndex: 4,

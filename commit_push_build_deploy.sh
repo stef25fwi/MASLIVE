@@ -106,7 +106,19 @@ echo ""
 
 echo "[5/5] 🚀 Build Flutter web + Deploy Firebase..."
 (cd app && flutter pub get && flutter build web --release)
-firebase deploy --only hosting,functions,firestore:rules,firestore:indexes
+
+FIREBASE_CMD="firebase"
+if ! command -v firebase >/dev/null 2>&1; then
+	echo "ℹ️ firebase CLI non trouvé, fallback via npx firebase-tools"
+	if command -v npx >/dev/null 2>&1; then
+		FIREBASE_CMD="npx --yes firebase-tools"
+	else
+		echo "❌ ERREUR: ni firebase CLI ni npx ne sont disponibles."
+		exit 127
+	fi
+fi
+
+$FIREBASE_CMD deploy --only hosting,functions,firestore:rules,firestore:indexes
 echo "✅ Déployé"
 echo ""
 
