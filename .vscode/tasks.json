@@ -86,6 +86,17 @@
       }
     },
     {
+      "label": "MASLIVE: Deploy Firestore Indexes (maslive)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && firebase deploy --only firestore:indexes --project maslive",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Build Web & Deploy Hosting + Firestore Rules",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE/app && flutter pub get && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -n \"$TOKEN\" ]; then flutter build web --release --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\"; else flutter build web --release; fi && cd .. && firebase deploy --only hosting,firestore:rules",
@@ -238,6 +249,17 @@
       "label": "MASLIVE: Git commit + push (wizard marketMap errors)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add app/lib/admin/circuit_wizard_entry_page.dart .vscode/tasks.json && git commit -m \"fix(wizard): surface marketMap load errors in new circuit dialog\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Git commit + push (firestore indexes marketMap)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add firestore.indexes.json .vscode/tasks.json && git commit -m \"chore(firestore): add marketMap composite indexes\" && git push origin main",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",

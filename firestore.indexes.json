@@ -184,6 +184,22 @@
       ]
     },
     {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "startDate", "order": "DESCENDING"},
+        {"fieldPath": "name", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "circuits",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "updatedAt", "order": "DESCENDING"},
+        {"fieldPath": "name", "order": "ASCENDING"}
+      ]
+    },
+    {
       "collectionGroup": "media",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
