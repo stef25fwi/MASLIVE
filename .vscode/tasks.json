@@ -268,6 +268,17 @@
       }
     },
     {
+      "label": "MASLIVE: Git commit + push (ui flags pays)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/utils/country_flag.dart app/lib/admin/circuit_wizard_entry_page.dart app/lib/admin/mapmarket_projects_page.dart app/lib/admin/poi_marketmap_wizard_page.dart app/lib/ui/widgets/marketmap_poi_selector_sheet.dart app/lib/ui/wizard/create_circuit_step1_dialog.dart app/lib/pages/checkout/storex_checkout_stripe.dart app/lib/pages/media_gallery_maslive_instagram_page.dart app/lib/pages/media_shop_page.dart app/lib/pages/business_signup_page.dart && git commit -m \"feat(ui): show country flags in country selectors\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git commit + push (single-file shop orders notifications)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add app/lib/shop_orders_notifications.dart app/lib/pages/app_shell.dart app/pubspec.yaml .vscode/tasks.json && git commit -m \"feat(orders): single-file notifications (Navigator)\" && git push origin main",
