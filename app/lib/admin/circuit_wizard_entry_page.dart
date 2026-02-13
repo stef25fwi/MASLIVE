@@ -382,27 +382,8 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
   final _eventController = TextEditingController();
   final _nameController = TextEditingController();
 
-  TextEditingController? _countryAutocompleteController;
-  VoidCallback? _countryAutocompleteListener;
-
   TextEditingController? _eventAutocompleteController;
   VoidCallback? _eventAutocompleteListener;
-
-  void _attachCountryAutocompleteController(TextEditingController controller) {
-    if (_countryAutocompleteController == controller) return;
-
-    final prevController = _countryAutocompleteController;
-    final prevListener = _countryAutocompleteListener;
-    if (prevController != null && prevListener != null) {
-      prevController.removeListener(prevListener);
-    }
-
-    _countryAutocompleteController = controller;
-    _countryAutocompleteListener = () {
-      _countryController.value = controller.value;
-    };
-    controller.addListener(_countryAutocompleteListener!);
-  }
 
   void _attachEventAutocompleteController(TextEditingController controller) {
     if (_eventAutocompleteController == controller) return;
@@ -422,11 +403,6 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
 
   @override
   void dispose() {
-    final prevController = _countryAutocompleteController;
-    final prevListener = _countryAutocompleteListener;
-    if (prevController != null && prevListener != null) {
-      prevController.removeListener(prevListener);
-    }
     final prevEventController = _eventAutocompleteController;
     final prevEventListener = _eventAutocompleteListener;
     if (prevEventController != null && prevEventListener != null) {
@@ -616,66 +592,36 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
           );
         }
 
-        return Autocomplete<MarketCountry>(
-          initialValue: TextEditingValue(text: _countryController.text),
-          displayStringForOption: _countryDisplay,
-          optionsBuilder: (TextEditingValue value) {
-            final q = value.text.trim().toLowerCase();
-            if (q.isEmpty) return items;
-            return items.where((c) {
-              final text = _countryDisplay(c).toLowerCase();
-              return text.contains(q) || c.id.toLowerCase().contains(q);
-            });
-          },
-          fieldViewBuilder: (context, textCtrl, focusNode, onFieldSubmitted) {
-            textCtrl.value = _countryController.value;
-            _attachCountryAutocompleteController(textCtrl);
+        final selectedId = _selectedCountry?.id;
+        final currentValue =
+            items.any((c) => c.id == selectedId) ? selectedId : null;
 
-            return TextField(
-              controller: textCtrl,
-              focusNode: focusNode,
-              onChanged: (_) {
-                setState(() {
-                  _selectedCountry = null;
-                  _selectedEvent = null;
-                });
-              },
-              decoration: const InputDecoration(
-                labelText: 'Pays',
-                border: OutlineInputBorder(),
+        return DropdownButtonFormField<String>(
+          initialValue: currentValue,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            labelText: 'Pays',
+            border: OutlineInputBorder(),
+          ),
+          items: [
+            for (final c in items)
+              DropdownMenuItem(
+                value: c.id,
+                child: Text(_countrySuggestionLabel(c)),
               ),
+          ],
+          onChanged: (id) {
+            if (id == null) return;
+            final selected = items.firstWhere(
+              (c) => c.id == id,
+              orElse: () => const MarketCountry(id: '', name: '', slug: ''),
             );
-          },
-          optionsViewBuilder: (context, onSelected, options) {
-            return Align(
-              alignment: Alignment.topLeft,
-              child: Material(
-                elevation: 4,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 460, maxHeight: 300),
-                  child: ListView.builder(
-                    padding: EdgeInsets.zero,
-                    itemCount: options.length,
-                    itemBuilder: (context, i) {
-                      final c = options.elementAt(i);
-                      return ListTile(
-                        dense: true,
-                        title: Text(_countrySuggestionLabel(c)),
-                        subtitle: Text(c.id),
-                        onTap: () => onSelected(c),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            );
-          },
-          onSelected: (c) {
+            if (selected.id.isEmpty) return;
             setState(() {
-              _selectedCountry = c;
+              _selectedCountry = selected;
               _selectedEvent = null;
               _defaultEventApplied = false;
-              _countryController.text = _countryDisplay(c);
+              _countryController.text = _countryDisplay(selected);
               _eventController.clear();
             });
           },
