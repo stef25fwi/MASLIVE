@@ -185,10 +185,32 @@
       }
     },
     {
+      "label": "MASLIVE: Flutter test (route_style_pro)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && flutter test test/route_style_pro/route_style_config_test.dart",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git add commit push",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add app/lib/widgets/web_mapbox_gl_map.dart app/pubspec.yaml .vscode/tasks.json && git commit -m \"fix(web): mapbox ready callback interop\" && git push origin main",
       "problemMatcher": []
+    },
+    {
+      "label": "MASLIVE: Git commit + push (route-style-pro integrate)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/route_style_pro app/test/route_style_pro app/lib/admin/circuit_wizard_pro_page.dart app/lib/main.dart app/pubspec.yaml .vscode/tasks.json && git commit -m \"feat(route-style-pro): integrate into circuit wizard\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
     },
     {
       "label": "MASLIVE: Git commit + push (wizard route style)",

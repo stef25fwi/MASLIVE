@@ -6,6 +6,8 @@ import '../ui/map/maslive_map.dart';
 import '../ui/map/maslive_map_controller.dart';
 import 'circuit_map_editor.dart';
 import 'circuit_validation_checklist_page.dart';
+import '../route_style_pro/models/route_style_config.dart' as rsp;
+import '../route_style_pro/ui/route_style_wizard_pro_page.dart';
 
 typedef LngLat = ({double lng, double lat});
 
@@ -65,6 +67,91 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
   // Brouillon
   Map<String, dynamic> _draftData = {};
+
+  Future<void> _openRouteStylePro() async {
+    // Assure un projectId existant avant d'ouvrir le wizard Pro.
+    await _saveDraft();
+
+    final projectId = _projectId;
+    if (!mounted) return;
+    if (projectId == null || projectId.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('❌ Impossible: projet non sauvegardé')),
+      );
+      return;
+    }
+
+    await Navigator.of(context).pushNamed(
+      '/admin/route-style-pro',
+      arguments: RouteStyleProArgs(
+        projectId: projectId,
+        circuitId: widget.circuitId,
+        initialRoute: _routePoints.isNotEmpty
+            ? <rsp.LatLng>[for (final p in _routePoints) (lat: p.lat, lng: p.lng)]
+            : null,
+      ),
+    );
+
+    await _reloadRouteAndStyleFromFirestore(projectId);
+  }
+
+  Future<void> _reloadRouteAndStyleFromFirestore(String projectId) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('map_projects')
+          .doc(projectId)
+          .get();
+
+      if (!doc.exists) return;
+      final data = doc.data() ?? <String, dynamic>{};
+
+      void applyRouteStyle(Map<String, dynamic> m) {
+        final color = (m['color'] as String?)?.trim();
+        if (color != null && color.isNotEmpty) {
+          _routeColorHex = color;
+        }
+        final w = m['width'];
+        if (w is num) _routeWidth = w.toDouble();
+        final rl = m['roadLike'];
+        if (rl is bool) _routeRoadLike = rl;
+        final sh = m['shadow3d'];
+        if (sh is bool) _routeShadow3d = sh;
+        final sd = m['showDirection'];
+        if (sd is bool) _routeShowDirection = sd;
+        final ad = m['animateDirection'];
+        if (ad is bool) _routeAnimateDirection = ad;
+        final sp = m['animationSpeed'];
+        if (sp is num) _routeAnimationSpeed = sp.toDouble();
+      }
+
+      final routeStyle = data['routeStyle'];
+      if (routeStyle is Map) {
+        applyRouteStyle(Map<String, dynamic>.from(routeStyle));
+      }
+
+      final routeData = data['route'] as List<dynamic>?;
+      if (routeData != null) {
+        double asDouble(dynamic v) => v is num ? v.toDouble() : 0.0;
+        _routePoints = routeData.map((p) {
+          final m = Map<String, dynamic>.from(p as Map);
+          return (lng: asDouble(m['lng']), lat: asDouble(m['lat']));
+        }).toList();
+      }
+
+      _draftData = data;
+
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      debugPrint('WizardPro _reloadRouteAndStyleFromFirestore error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Erreur recharge style: $e')),
+        );
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -851,6 +938,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
               ],
             ),
           ),
+
+        const SizedBox(width: 8),
+        OutlinedButton.icon(
+          onPressed: _openRouteStylePro,
+          icon: const Icon(Icons.tune, size: 18),
+          label: const Text('Style Pro'),
+        ),
       ],
     );
   }

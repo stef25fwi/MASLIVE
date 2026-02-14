@@ -67,6 +67,7 @@ import 'pages/commerce/my_submissions_page.dart';
 import 'admin/admin_moderation_page.dart';
 import 'admin/commerce_analytics_page.dart';
 import 'admin/circuit_wizard_pro_page.dart';
+import 'route_style_pro/ui/route_style_wizard_pro_page.dart';
 import 'pages/group/admin_group_dashboard_page.dart';
 import 'pages/group/tracker_group_profile_page.dart';
 import 'pages/group/group_map_live_page.dart';
@@ -254,6 +255,18 @@ class MasLiveApp extends StatelessWidget {
               '/admin/circuit-wizard/:projectId': (ctx) {
                 final projectId = ModalRoute.of(ctx)?.settings.arguments as String?;
                 return CircuitWizardProPage(projectId: projectId);
+              },
+              '/admin/route-style-pro': (ctx) {
+                final args = ModalRoute.of(ctx)?.settings.arguments;
+                if (args is RouteStyleProArgs) {
+                  return RouteStyleWizardProPage(
+                    projectId: args.projectId,
+                    circuitId: args.circuitId,
+                    initialRoute: args.initialRoute,
+                  );
+                }
+                // Sans args: fallback local + itinéraire de démo.
+                return const RouteStyleWizardProPage();
               },
               '/admin/superadmin': (_) => const SuperAdminSpace(),
               '/admin/categories': (_) => const CategoryManagementPage(),
