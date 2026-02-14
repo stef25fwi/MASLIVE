@@ -408,13 +408,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           // Progress indicator
           SizedBox(
             height: 60,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: 7,
-              itemBuilder: (context, index) {
+            child: Row(
+              children: List.generate(7, (index) {
                 return Expanded(
                   child: GestureDetector(
-                    onTap: index <= _currentStep ? () => _pageController.jumpToPage(index) : null,
+                    onTap: index <= _currentStep
+                        ? () => _pageController.jumpToPage(index)
+                        : null,
                     child: _StepIndicator(
                       step: index,
                       label: _getStepLabel(index),
@@ -424,7 +424,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                     ),
                   ),
                 );
-              },
+              }),
             ),
           ),
           const Divider(height: 1),
