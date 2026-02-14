@@ -44,11 +44,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   final _descriptionController = TextEditingController();
   final _styleUrlController = TextEditingController();
 
-  // Données Steps 2-3: Cartes
+  // Données Steps 2-4: Cartes
   List<LngLat> _perimeterPoints = [];
   List<LngLat> _routePoints = [];
 
-  // Style du tracé (Step 3)
+  // Style du tracé (Step 3 + Step 4)
   String _routeColorHex = '#1A73E8';
   double _routeWidth = 6.0;
   bool _routeRoadLike = true;
@@ -410,7 +410,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
             height: 60,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              itemCount: 6,
+              itemCount: 7,
               itemBuilder: (context, index) {
                 return Expanded(
                   child: GestureDetector(
@@ -429,7 +429,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           ),
           const Divider(height: 1),
 
-          if (_currentStep == 1 || _currentStep == 2) _buildCentralMapToolsBar(),
+          if (_currentStep == 1 || _currentStep == 2 || _currentStep == 3)
+            _buildCentralMapToolsBar(),
 
           // Pages
           Expanded(
@@ -443,9 +444,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                 _buildStep1Infos(),
                 _buildStep2Perimeter(),
                 _buildStep3Route(),
-                _buildStep4POI(),
-                _buildStep5Validation(),
-                _buildStep6Publish(),
+                _buildStep4Style(),
+                _buildStep5POI(),
+                _buildStep6Validation(),
+                _buildStep7Publish(),
               ],
             ),
           ),
@@ -471,7 +473,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                   onPressed: _saveDraft,
                   label: const Text('Sauvegarder'),
                 ),
-                if (_currentStep < 5)
+                if (_currentStep < 6)
                   ElevatedButton(
                     onPressed: () => _continueToStep(_currentStep + 1),
                     child: const Text('Suivant →'),
@@ -489,6 +491,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       'Infos',
       'Périmètre',
       'Tracé',
+      'Style',
       'POI',
       'Validation',
       'Publication'
@@ -608,6 +611,32 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     );
   }
 
+  Widget _buildStep4Style() {
+    return CircuitMapEditor(
+      title: 'Style du tracé (Waze)',
+      subtitle: 'Réglez l\'apparence de l\'itinéraire',
+      points: _routePoints,
+      controller: _routeEditorController,
+      showToolbar: false,
+      onPointsChanged: (points) {
+        setState(() {
+          _routePoints = points;
+        });
+      },
+      onSave: _saveDraft,
+      mode: 'polyline',
+
+      // Style itinéraire routier
+      polylineColor: _parseHexColor(_routeColorHex, fallback: Colors.blue),
+      polylineWidth: _routeWidth,
+      polylineRoadLike: _routeRoadLike,
+      polylineShadow3d: _routeShadow3d,
+      polylineShowDirection: _routeShowDirection,
+      polylineAnimateDirection: _routeAnimateDirection,
+      polylineAnimationSpeed: _routeAnimationSpeed,
+    );
+  }
+
   Widget _buildCentralMapToolsBar() {
     final isPerimeter = _currentStep == 1;
     final controller = isPerimeter ? _perimeterEditorController : _routeEditorController;
@@ -679,7 +708,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                     ),
                   ),
 
-                  if (!isPerimeter) ...[
+                  if (!isPerimeter && _currentStep == 3) ...[
                     const VerticalDivider(),
                     _buildRouteStyleControls(),
                   ],
@@ -798,6 +827,30 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
             color: _routeAnimateDirection ? Colors.green : Colors.grey,
           ),
         ),
+
+        if (_routeAnimateDirection)
+          SizedBox(
+            width: 160,
+            child: Row(
+              children: [
+                const Text('V',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: Slider(
+                    value: _routeAnimationSpeed.clamp(0.5, 5.0),
+                    min: 0.5,
+                    max: 5.0,
+                    divisions: 9,
+                    label: _routeAnimationSpeed.toStringAsFixed(1),
+                    onChanged: (v) {
+                      setState(() => _routeAnimationSpeed = v);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -810,102 +863,106 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     return Color(0xFF000000 | rgb);
   }
 
-  Widget _buildStep4POI() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget _buildStep5POI() {
+    return Stack(
       children: [
-        // Header + sélection de couche
-        Container(
-          color: Colors.grey.shade100,
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.place_outlined, color: Colors.blueGrey),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Points d\'intérêt (POI)',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.my_location),
-                    tooltip: 'Ajouter un POI à la position actuelle',
-                    onPressed:
-                        _selectedLayer == null ? null : _addPoiAtCurrentCenter,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.save_alt),
-                    tooltip: 'Enregistrer les POI',
-                    onPressed: _isLoading ? null : _saveDraft,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              if (_layers.isNotEmpty)
-                DropdownButton<MarketMapLayer>(
-                  isExpanded: true,
-                  value: _selectedLayer,
-                  hint: const Text('Choisissez une couche pour placer des points'),
-                  items: _layers
-                      .where((l) => l.type != 'route')
-                      .map(
-                        (layer) => DropdownMenuItem<MarketMapLayer>(
-                          value: layer,
-                          child: Row(
-                            children: [
-                              Icon(_getLayerIcon(layer.type), size: 18),
-                              const SizedBox(width: 8),
-                              Text(layer.label),
-                            ],
-                          ),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (layer) {
-                    setState(() {
-                      _selectedLayer = layer;
-                    });
-                    _refreshPoiMarkers();
-                  },
-                )
-              else
-                const Text(
-                  'Aucune couche trouvée. Vérifiez la configuration du projet.',
-                  style: TextStyle(fontSize: 12, color: Colors.redAccent),
-                ),
-            ],
-          ),
+        MasLiveMap(
+          controller: _poiMapController,
+          initialLng: _routePoints.isNotEmpty
+              ? _routePoints.first.lng
+              : (_perimeterPoints.isNotEmpty
+                  ? _perimeterPoints.first.lng
+                  : -61.533),
+          initialLat: _routePoints.isNotEmpty
+              ? _routePoints.first.lat
+              : (_perimeterPoints.isNotEmpty
+                  ? _perimeterPoints.first.lat
+                  : 16.241),
+          initialZoom: _routePoints.isNotEmpty || _perimeterPoints.isNotEmpty
+              ? 14.0
+              : 12.0,
+          onTap: (p) => _onMapTapForPoi(p.lng, p.lat),
+          onMapReady: (ctrl) async {
+            _refreshPoiMarkers();
+          },
         ),
 
-        const Divider(height: 1),
-
-        // Carte pleine largeur/hauteur disponible
-        Expanded(
-          child: MasLiveMap(
-            controller: _poiMapController,
-            initialLng: _routePoints.isNotEmpty
-                ? _routePoints.first.lng
-                : (_perimeterPoints.isNotEmpty
-                    ? _perimeterPoints.first.lng
-                    : -61.533),
-            initialLat: _routePoints.isNotEmpty
-                ? _routePoints.first.lat
-                : (_perimeterPoints.isNotEmpty
-                    ? _perimeterPoints.first.lat
-                    : 16.241),
-            initialZoom: _routePoints.isNotEmpty || _perimeterPoints.isNotEmpty
-                ? 14.0
-                : 12.0,
-            onTap: (p) => _onMapTapForPoi(p.lng, p.lat),
-            onMapReady: (ctrl) async {
-              // Afficher les POI existants
-              _refreshPoiMarkers();
-            },
+        Positioned(
+          left: 12,
+          right: 12,
+          top: 12,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.place_outlined, color: Colors.blueGrey),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Points d\'intérêt (POI)',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.my_location),
+                        tooltip: 'Ajouter un POI à la position actuelle',
+                        onPressed: _selectedLayer == null
+                            ? null
+                            : _addPoiAtCurrentCenter,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.save_alt),
+                        tooltip: 'Enregistrer les POI',
+                        onPressed: _isLoading ? null : _saveDraft,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (_layers.isNotEmpty)
+                    DropdownButton<MarketMapLayer>(
+                      isExpanded: true,
+                      value: _selectedLayer,
+                      hint: const Text(
+                          'Choisissez une couche pour placer des points'),
+                      items: _layers
+                          .where((l) => l.type != 'route')
+                          .map(
+                            (layer) => DropdownMenuItem<MarketMapLayer>(
+                              value: layer,
+                              child: Row(
+                                children: [
+                                  Icon(_getLayerIcon(layer.type), size: 18),
+                                  const SizedBox(width: 8),
+                                  Text(layer.label),
+                                ],
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (layer) {
+                        setState(() {
+                          _selectedLayer = layer;
+                        });
+                        _refreshPoiMarkers();
+                      },
+                    )
+                  else
+                    const Text(
+                      'Aucune couche trouvée. Vérifiez la configuration du projet.',
+                      style: TextStyle(fontSize: 12, color: Colors.redAccent),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ],
@@ -1006,7 +1063,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     await _onMapTapForPoi(lng, lat);
   }
 
-  Widget _buildStep5Validation() {
+  Widget _buildStep6Validation() {
     return CircuitValidationChecklistPage(
       perimeterPoints: _perimeterPoints,
       routePoints: _routePoints,
@@ -1015,7 +1072,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     );
   }
 
-  Widget _buildStep6Publish() {
+  Widget _buildStep7Publish() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
