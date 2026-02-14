@@ -202,6 +202,17 @@
       }
     },
     {
+      "label": "MASLIVE: Git commit + push (wizard points depart/arrivee)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/admin/circuit_map_editor.dart .vscode/tasks.json && git commit -m \"feat(wizard): départ/arrivée + bouclage\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git add commit push (group tracking)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add .vscode/tasks.json firestore.rules firestore.indexes.json functions/index.js functions/group_tracking.js GROUP_TRACKING_DELIVERABLE.md GROUP_TRACKING_SYSTEM_GUIDE.md app/pubspec.yaml app/lib/main.dart app/lib/models/group_admin.dart app/lib/models/group_tracker.dart app/lib/models/group_media.dart app/lib/models/group_product.dart app/lib/models/track_session.dart app/lib/pages/group app/lib/services/group app/lib/widgets/group_stats_bar_chart.dart && git commit -m \"feat(group): module tracking (admin/tracker) + rules/indexes\" && git push origin main",

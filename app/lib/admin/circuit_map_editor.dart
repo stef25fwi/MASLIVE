@@ -212,6 +212,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
             lng: mapPoints[i].lng,
             lat: mapPoints[i].lat,
             size: 1.0,
+            label: '${i + 1}',
           ),
       ]);
 
@@ -386,6 +387,77 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     }
   }
 
+  bool get _isClosedLoop {
+    if (_points.length < 2) return false;
+    return _points.first == _points.last;
+  }
+
+  Future<void> _promptCloseLoopIfNeeded() async {
+    if (!mounted) return;
+    if (widget.mode != 'polyline') return;
+    if (_points.length < 2) return;
+    if (_isClosedLoop) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Boucler le circuit ?'),
+        content: const Text(
+          'Voulez-vous fermer le tracé en plaçant le dernier point sur la même position que le 1er point (Départ) ?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Non'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Oui, boucler'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      _closePath();
+    }
+  }
+
+  void _setArrivalPoint(int index) {
+    if (widget.mode != 'polyline') return;
+    if (_points.length < 2) return;
+    if (index <= 0) return; // départ intouchable
+
+    // Si le tracé est bouclé (dernier == premier), on enlève le point de bouclage.
+    final points = List<LngLat>.from(_points);
+    if (points.length >= 2 && points.first == points.last) {
+      points.removeLast();
+    }
+
+    if (index >= points.length) return;
+
+    final picked = points.removeAt(index);
+    points.add(picked);
+
+    setState(() {
+      _points = points;
+      _selectedPointIndex = points.length - 1;
+    });
+    _saveToHistory();
+    widget.onPointsChanged(_points);
+    _syncController();
+    _renderOnMap();
+  }
+
+  String _pointRoleLabel(int index) {
+    if (index == 0) return 'Départ';
+    if (_isClosedLoop && index == _points.length - 1) return 'Bouclage';
+    if (widget.mode == 'polyline' && !_isClosedLoop && index == _points.length - 1) {
+      return 'Arrivée';
+    }
+    return 'Point';
+  }
+
   void _clearAll() {
     showDialog(
       context: context,
@@ -535,6 +607,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
               itemBuilder: (context, index) {
                 final point = _points[index];
                 final isSelected = _selectedPointIndex == index;
+                final role = _pointRoleLabel(index);
                 return ListTile(
                   dense: true,
                   selected: isSelected,
@@ -551,18 +624,35 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                     ),
                   ),
                   title: Text(
+                    '${index + 1}/ $role',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: role == 'Point' ? FontWeight.w600 : FontWeight.bold,
+                    ),
+                  ),
+                  subtitle: Text(
                     '${point.lng.toStringAsFixed(5)}, ${point.lat.toStringAsFixed(5)}',
-                    style: const TextStyle(fontSize: 12),
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
                   ),
                   trailing: PopupMenuButton(
                     itemBuilder: (ctx) => [
+                      if (widget.mode == 'polyline' && index > 0 && index != _points.length - 1)
+                        PopupMenuItem(
+                          child: Text('Définir comme Arrivée (point ${index + 1})'),
+                          onTap: () => _setArrivalPoint(index),
+                        ),
                       PopupMenuItem(
-                        child: const Text('Supprimer'),
+                        child: Text('Supprimer (point ${index + 1})'),
                         onTap: () => _removePoint(index),
                       ),
                     ],
                   ),
-                  onTap: () => setState(() => _selectedPointIndex = index),
+                  onTap: () async {
+                    setState(() => _selectedPointIndex = index);
+                    if (index == 0 && _points.length >= 2) {
+                      await _promptCloseLoopIfNeeded();
+                    }
+                  },
                 );
               },
             ),
