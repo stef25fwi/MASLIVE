@@ -87,6 +87,15 @@ class CircuitMapEditor extends StatefulWidget {
   final bool showToolbar;
   final CircuitMapEditorController? controller;
 
+  // Style polyline (mode == 'polyline')
+  final Color polylineColor;
+  final double polylineWidth;
+  final bool polylineRoadLike;
+  final bool polylineShadow3d;
+  final bool polylineShowDirection;
+  final bool polylineAnimateDirection;
+  final double polylineAnimationSpeed;
+
   const CircuitMapEditor({
     super.key,
     required this.title,
@@ -97,6 +106,14 @@ class CircuitMapEditor extends StatefulWidget {
     this.mode = 'polygon',
     this.showToolbar = true,
     this.controller,
+
+    this.polylineColor = const Color(0xFF0A84FF),
+    this.polylineWidth = 4.0,
+    this.polylineRoadLike = false,
+    this.polylineShadow3d = false,
+    this.polylineShowDirection = false,
+    this.polylineAnimateDirection = false,
+    this.polylineAnimationSpeed = 1.0,
   });
 
   @override
@@ -157,6 +174,18 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
       _syncController();
       _renderOnMap();
     }
+
+    final polyStyleChanged =
+        oldWidget.polylineColor != widget.polylineColor ||
+        oldWidget.polylineWidth != widget.polylineWidth ||
+        oldWidget.polylineRoadLike != widget.polylineRoadLike ||
+        oldWidget.polylineShadow3d != widget.polylineShadow3d ||
+        oldWidget.polylineShowDirection != widget.polylineShowDirection ||
+        oldWidget.polylineAnimateDirection != widget.polylineAnimateDirection ||
+        oldWidget.polylineAnimationSpeed != widget.polylineAnimationSpeed;
+    if (widget.mode == 'polyline' && polyStyleChanged) {
+      _renderOnMap();
+    }
   }
 
   @override
@@ -195,6 +224,13 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
         await _mapController.setPolyline(
           points: mapPoints,
           show: mapPoints.length >= 2,
+          color: widget.polylineColor,
+          width: widget.polylineWidth,
+          roadLike: widget.polylineRoadLike,
+          shadow3d: widget.polylineShadow3d,
+          showDirection: widget.polylineShowDirection,
+          animateDirection: widget.polylineAnimateDirection,
+          animationSpeed: widget.polylineAnimationSpeed,
         );
       }
     } catch (_) {

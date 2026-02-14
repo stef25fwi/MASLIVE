@@ -124,7 +124,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       }
     };
 
-    controller.setPolylineImpl = (points, color, width, show) async {
+    controller.setPolylineImpl = (points, color, width, show, options) async {
       if (!show) {
         await _polylineManager?.deleteAll();
         return;
@@ -132,12 +132,43 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       await _ensurePolylineManager();
       await _polylineManager?.deleteAll();
       final coords = points.map((p) => Position(p.lng, p.lat)).toList();
-      final opt = PolylineAnnotationOptions(
-        geometry: LineString(coordinates: coords),
-        lineColor: color.toARGB32(),
-        lineWidth: width,
-      );
-      await _polylineManager?.create(opt);
+
+      // Rendu type "itinéraire routier": plusieurs couches (shadow/casing/core/center)
+      // ⚠️ Sur natif (annotations), pas de symbol line-placement simple → flèches/animation non gérées ici.
+      final baseWidth = width;
+      final shadowEnabled = options.shadow3d;
+      final roadLike = options.roadLike;
+
+      // Helpers de couleur
+        int to255(double v) => (v * 255.0).round().clamp(0, 255);
+        int argbWithAlpha(Color c, int a) =>
+          Color.fromARGB(a, to255(c.r), to255(c.g), to255(c.b)).toARGB32();
+      final shadowColor = argbWithAlpha(const Color(0xFF000000), 90);
+      final casingColor = argbWithAlpha(const Color(0xFF000000), 140);
+      final centerColor = argbWithAlpha(const Color(0xFFFFFFFF), 190);
+
+      Future<void> addLine({required int lineColor, required double lineWidth}) async {
+        final opt = PolylineAnnotationOptions(
+          geometry: LineString(coordinates: coords),
+          lineColor: lineColor,
+          lineWidth: lineWidth,
+        );
+        await _polylineManager?.create(opt);
+      }
+
+      if (!roadLike) {
+        await addLine(lineColor: color.toARGB32(), lineWidth: baseWidth);
+        return;
+      }
+
+      if (shadowEnabled) {
+        await addLine(lineColor: shadowColor, lineWidth: baseWidth + 8.0);
+      }
+      await addLine(lineColor: casingColor, lineWidth: baseWidth + 5.0);
+      await addLine(lineColor: color.toARGB32(), lineWidth: baseWidth);
+
+      final centerWidth = (baseWidth * 0.33).clamp(1.0, baseWidth);
+      await addLine(lineColor: centerColor, lineWidth: centerWidth);
     };
 
     controller.setPolygonImpl = (points, fillColor, strokeColor, strokeWidth, show) async {

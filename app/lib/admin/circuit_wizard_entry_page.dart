@@ -631,8 +631,8 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
   }
 
   Widget _buildEventField() {
-    final country = _selectedCountry;
-    if (country == null) {
+    final countryId = _countryId;
+    if (countryId.isEmpty) {
       return TextField(
         controller: _eventController,
         enabled: false,
@@ -645,7 +645,7 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
     }
 
     return StreamBuilder<List<MarketEvent>>(
-      stream: _marketMapService.watchEvents(countryId: country.id),
+      stream: _marketMapService.watchEvents(countryId: countryId),
       builder: (context, snap) {
         if (snap.hasError) {
           return TextField(
@@ -703,6 +703,10 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
           );
         }
 
+        final helperText = _selectedCountry == null
+            ? 'Pays saisi manuellement: vous pouvez saisir un nouvel événement'
+            : 'Vous pouvez saisir un nouvel événement';
+
         return Autocomplete<MarketEvent>(
           initialValue: TextEditingValue(text: _eventController.text),
           displayStringForOption: (e) => e.name.trim().isEmpty ? e.id : e.name.trim(),
@@ -726,11 +730,11 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
                   _selectedEvent = null;
                 });
               },
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Événement',
                 hintText: 'Ex: Carnaval 2026',
                 border: OutlineInputBorder(),
-                helperText: 'Vous pouvez saisir un nouvel événement',
+                helperText: helperText,
               ),
             );
           },

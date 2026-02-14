@@ -318,7 +318,7 @@
   // - Manipulation de la carte via containerId + JSON
   // ============================================================
 
-  const _v2State = new Map(); // containerId -> { map, markers: Map<string, Marker> }
+  const _v2State = new Map(); // containerId -> { map, markers: Map<string, Marker>, routeAnim }
 
   function _postToFlutter(obj) {
     try {
@@ -335,9 +335,24 @@
 
   function _ensureState(containerId, map) {
     if (_v2State.has(containerId)) return _v2State.get(containerId);
-    const state = { map, markers: new Map() };
+    const state = { map, markers: new Map(), routeAnim: null };
     _v2State.set(containerId, state);
     return state;
+  }
+
+  function _parseBool(v, fallback) {
+    if (typeof v === 'boolean') return v;
+    if (typeof v === 'string') {
+      if (v.toLowerCase() === 'true') return true;
+      if (v.toLowerCase() === 'false') return false;
+    }
+    return fallback;
+  }
+
+  function _clampNumber(n, min, max, fallback) {
+    const x = Number(n);
+    if (!isFinite(x)) return fallback;
+    return Math.max(min, Math.min(max, x));
   }
 
   function _removeLayerIfExists(map, layerId) {
@@ -358,6 +373,109 @@
     } catch (_) {
       // ignore
     }
+  }
+
+  function _ensureArrowImage(map) {
+    try {
+      if (map.hasImage && map.hasImage('maslive_arrow')) return;
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, 64, 64);
+      ctx.fillStyle = 'white';
+      ctx.beginPath();
+      ctx.moveTo(18, 32);
+      ctx.lineTo(46, 18);
+      ctx.lineTo(46, 46);
+      ctx.closePath();
+      ctx.fill();
+      map.addImage('maslive_arrow', ctx.getImageData(0, 0, 64, 64), { sdf: false });
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  function _removeRouteLayersAndSource(map) {
+    _removeLayerIfExists(map, 'maslive_polyline_center');
+    _removeLayerIfExists(map, 'maslive_polyline_core');
+    _removeLayerIfExists(map, 'maslive_polyline_casing');
+    _removeLayerIfExists(map, 'maslive_polyline_shadow');
+    _removeLayerIfExists(map, 'maslive_polyline_arrows');
+    _removeLayerIfExists(map, 'maslive_polyline_layer');
+    _removeSourceIfExists(map, 'maslive_polyline');
+  }
+
+  function _stopRouteAnimation(state) {
+    try {
+      if (!state || !state.routeAnim) return;
+      const ra = state.routeAnim;
+      state.routeAnim = null;
+      if (ra.timer) {
+        clearInterval(ra.timer);
+      }
+      if (ra.marker) {
+        try { ra.marker.remove(); } catch (_) {}
+      }
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  function _startRouteAnimation(state, coords, speed) {
+    if (!state || !state.map) return;
+    const map = state.map;
+
+    _stopRouteAnimation(state);
+    if (!coords || coords.length < 2) return;
+
+    const segLens = [];
+    let total = 0;
+    for (let i = 0; i < coords.length - 1; i++) {
+      const a = coords[i];
+      const b = coords[i + 1];
+      const dx = b[0] - a[0];
+      const dy = b[1] - a[1];
+      const len = Math.sqrt(dx * dx + dy * dy);
+      segLens.push(len);
+      total += len;
+    }
+    if (total <= 0) return;
+
+    const el = document.createElement('div');
+    el.style.width = '10px';
+    el.style.height = '10px';
+    el.style.borderRadius = '50%';
+    el.style.background = 'white';
+    el.style.border = '2px solid rgba(0,0,0,0.35)';
+    const marker = new mapboxgl.Marker({ element: el }).setLngLat(coords[0]).addTo(map);
+
+    const s = _clampNumber(speed, 0.1, 10.0, 1.0);
+    let t = 0;
+    const timer = setInterval(() => {
+      try {
+        t += 0.0025 * s;
+        if (t > 1) t -= 1;
+        let dist = t * total;
+        let idx = 0;
+        while (idx < segLens.length && dist > segLens[idx]) {
+          dist -= segLens[idx];
+          idx++;
+        }
+        if (idx >= segLens.length) idx = segLens.length - 1;
+        const a = coords[idx];
+        const b = coords[idx + 1];
+        const seg = segLens[idx] || 1;
+        const u = dist / seg;
+        const lng = a[0] + (b[0] - a[0]) * u;
+        const lat = a[1] + (b[1] - a[1]) * u;
+        marker.setLngLat([lng, lat]);
+      } catch (_) {
+        // ignore
+      }
+    }, 33);
+
+    state.routeAnim = { timer, marker };
   }
 
   window.MasliveMapboxV2 = {
@@ -450,18 +568,25 @@
       }
     },
 
-    setPolyline: function(containerId, pointsJson, colorHex, width, show) {
-      const map = _getMap(containerId);
+    setPolyline: function(containerId, pointsJson, colorHex, width, show, optionsJson) {
+      const state = _v2State.get(containerId);
+      const map = state ? state.map : null;
       if (!map) return;
       const sourceId = 'maslive_polyline';
-      const layerId = 'maslive_polyline_layer';
 
       try {
         if (!show) {
-          _removeLayerIfExists(map, layerId);
-          _removeSourceIfExists(map, sourceId);
+          _stopRouteAnimation(state);
+          _removeRouteLayersAndSource(map);
           return;
         }
+
+        const opts = optionsJson ? JSON.parse(optionsJson) : {};
+        const roadLike = _parseBool(opts.roadLike, true);
+        const shadow3d = _parseBool(opts.shadow3d, true);
+        const showDirection = _parseBool(opts.showDirection, true);
+        const animateDirection = _parseBool(opts.animateDirection, false);
+        const animationSpeed = _clampNumber(opts.animationSpeed, 0.1, 10.0, 1.0);
 
         const points = pointsJson ? JSON.parse(pointsJson) : [];
         const coords = points.map((p) => [Number(p.lng), Number(p.lat)]);
@@ -473,17 +598,107 @@
         const src = map.getSource(sourceId);
         if (!src) {
           map.addSource(sourceId, { type: 'geojson', data: geojson });
+        } else {
+          src.setData(geojson);
+        }
+
+        // Recréer les couches pour refléter le style
+        _removeLayerIfExists(map, 'maslive_polyline_center');
+        _removeLayerIfExists(map, 'maslive_polyline_core');
+        _removeLayerIfExists(map, 'maslive_polyline_casing');
+        _removeLayerIfExists(map, 'maslive_polyline_shadow');
+        _removeLayerIfExists(map, 'maslive_polyline_arrows');
+        _removeLayerIfExists(map, 'maslive_polyline_layer');
+
+        const w = Number(width || 6);
+        const mainColor = String(colorHex || '#1A73E8');
+
+        if (!roadLike) {
           map.addLayer({
-            id: layerId,
+            id: 'maslive_polyline_layer',
             type: 'line',
             source: sourceId,
             paint: {
-              'line-width': Number(width || 3),
-              'line-color': String(colorHex || '#FF0000'),
+              'line-width': w,
+              'line-color': mainColor,
+              'line-cap': 'round',
+              'line-join': 'round',
             },
           });
         } else {
-          src.setData(geojson);
+          if (shadow3d) {
+            map.addLayer({
+              id: 'maslive_polyline_shadow',
+              type: 'line',
+              source: sourceId,
+              paint: {
+                'line-width': w + 8,
+                'line-color': 'rgba(0,0,0,0.25)',
+                'line-blur': 1.2,
+                'line-cap': 'round',
+                'line-join': 'round',
+              },
+            });
+          }
+
+          map.addLayer({
+            id: 'maslive_polyline_casing',
+            type: 'line',
+            source: sourceId,
+            paint: {
+              'line-width': w + 5,
+              'line-color': 'rgba(0,0,0,0.45)',
+              'line-cap': 'round',
+              'line-join': 'round',
+            },
+          });
+
+          map.addLayer({
+            id: 'maslive_polyline_core',
+            type: 'line',
+            source: sourceId,
+            paint: {
+              'line-width': w,
+              'line-color': mainColor,
+              'line-cap': 'round',
+              'line-join': 'round',
+            },
+          });
+
+          map.addLayer({
+            id: 'maslive_polyline_center',
+            type: 'line',
+            source: sourceId,
+            paint: {
+              'line-width': Math.max(1, Math.min(w, w * 0.33)),
+              'line-color': 'rgba(255,255,255,0.85)',
+              'line-cap': 'round',
+              'line-join': 'round',
+            },
+          });
+        }
+
+        if (showDirection) {
+          _ensureArrowImage(map);
+          map.addLayer({
+            id: 'maslive_polyline_arrows',
+            type: 'symbol',
+            source: sourceId,
+            layout: {
+              'symbol-placement': 'line',
+              'symbol-spacing': 120,
+              'icon-image': 'maslive_arrow',
+              'icon-size': 0.35,
+              'icon-allow-overlap': true,
+              'icon-rotation-alignment': 'map',
+            },
+          });
+        }
+
+        if (animateDirection) {
+          _startRouteAnimation(state, coords, animationSpeed);
+        } else {
+          _stopRouteAnimation(state);
         }
       } catch (e) {
         console.error('❌ MasliveMapboxV2.setPolyline error:', e);
@@ -546,6 +761,7 @@
       const map = state ? state.map : null;
       if (!map) return;
       try {
+        _stopRouteAnimation(state);
         // markers
         state.markers.forEach((marker) => {
           try { marker.remove(); } catch (_) {}
@@ -553,6 +769,11 @@
         state.markers.clear();
 
         // layers/sources
+        _removeLayerIfExists(map, 'maslive_polyline_center');
+        _removeLayerIfExists(map, 'maslive_polyline_core');
+        _removeLayerIfExists(map, 'maslive_polyline_casing');
+        _removeLayerIfExists(map, 'maslive_polyline_shadow');
+        _removeLayerIfExists(map, 'maslive_polyline_arrows');
         _removeLayerIfExists(map, 'maslive_polyline_layer');
         _removeSourceIfExists(map, 'maslive_polyline');
         _removeLayerIfExists(map, 'maslive_polygon_line');

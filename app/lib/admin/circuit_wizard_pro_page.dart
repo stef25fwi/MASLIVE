@@ -48,6 +48,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   List<LngLat> _perimeterPoints = [];
   List<LngLat> _routePoints = [];
 
+  // Style du tracé (Step 3)
+  String _routeColorHex = '#1A73E8';
+  double _routeWidth = 6.0;
+  bool _routeRoadLike = true;
+  bool _routeShadow3d = true;
+  bool _routeShowDirection = true;
+  bool _routeAnimateDirection = false;
+  double _routeAnimationSpeed = 1.0;
+
   // Step 4: Layers/POI
   List<MarketMapLayer> _layers = [];
   List<MarketMapPOI> _pois = [];
@@ -97,6 +106,27 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           _eventController.text = _draftData['eventId'] ?? '';
           _descriptionController.text = _draftData['description'] ?? '';
           _styleUrlController.text = _draftData['styleUrl'] ?? '';
+
+          // Style tracé
+          final routeStyle = _draftData['routeStyle'];
+          if (routeStyle is Map) {
+            final m = Map<String, dynamic>.from(routeStyle);
+            _routeColorHex = (m['color'] as String?)?.trim().isNotEmpty == true
+                ? (m['color'] as String).trim()
+                : _routeColorHex;
+            final w = m['width'];
+            if (w is num) _routeWidth = w.toDouble();
+            final rl = m['roadLike'];
+            if (rl is bool) _routeRoadLike = rl;
+            final sh = m['shadow3d'];
+            if (sh is bool) _routeShadow3d = sh;
+            final sd = m['showDirection'];
+            if (sd is bool) _routeShowDirection = sd;
+            final ad = m['animateDirection'];
+            if (ad is bool) _routeAnimateDirection = ad;
+            final sp = m['animationSpeed'];
+            if (sp is num) _routeAnimationSpeed = sp.toDouble();
+          }
 
           // Charger points
           final perimData = _draftData['perimeter'] as List<dynamic>?;
@@ -260,6 +290,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         'styleUrl': _styleUrlController.text.trim(),
         'perimeter': _perimeterPoints.map((p) => {'lng': p.lng, 'lat': p.lat}).toList(),
         'route': _routePoints.map((p) => {'lng': p.lng, 'lat': p.lat}).toList(),
+        'routeStyle': {
+          'color': _routeColorHex,
+          'width': _routeWidth,
+          'roadLike': _routeRoadLike,
+          'shadow3d': _routeShadow3d,
+          'showDirection': _routeShowDirection,
+          'animateDirection': _routeAnimateDirection,
+          'animationSpeed': _routeAnimationSpeed,
+        },
         'status': 'draft',
         'uid': user.uid,
         'updatedAt': FieldValue.serverTimestamp(),
@@ -557,6 +596,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       },
       onSave: _saveDraft,
       mode: 'polyline',
+
+      // Style itinéraire routier
+      polylineColor: _parseHexColor(_routeColorHex, fallback: Colors.blue),
+      polylineWidth: _routeWidth,
+      polylineRoadLike: _routeRoadLike,
+      polylineShadow3d: _routeShadow3d,
+      polylineShowDirection: _routeShowDirection,
+      polylineAnimateDirection: _routeAnimateDirection,
+      polylineAnimationSpeed: _routeAnimationSpeed,
     );
   }
 
@@ -630,6 +678,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                       ],
                     ),
                   ),
+
+                  if (!isPerimeter) ...[
+                    const VerticalDivider(),
+                    _buildRouteStyleControls(),
+                  ],
                 ],
               ),
             );
@@ -637,6 +690,124 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildRouteStyleControls() {
+    final colors = <String, String>{
+      '#1A73E8': 'Bleu',
+      '#34A853': 'Vert',
+      '#EF4444': 'Rouge',
+      '#F59E0B': 'Orange',
+      '#9333EA': 'Violet',
+    };
+
+    return Row(
+      children: [
+        PopupMenuButton<String>(
+          tooltip: 'Couleur du tracé',
+          initialValue: _routeColorHex,
+          onSelected: (hex) {
+            setState(() => _routeColorHex = hex);
+          },
+          itemBuilder: (context) => [
+            for (final e in colors.entries)
+              PopupMenuItem<String>(
+                value: e.key,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: _parseHexColor(e.key, fallback: Colors.blue),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(e.value),
+                  ],
+                ),
+              ),
+          ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Icon(
+              Icons.color_lens,
+              color: _parseHexColor(_routeColorHex, fallback: Colors.blue),
+            ),
+          ),
+        ),
+
+        SizedBox(
+          width: 140,
+          child: Row(
+            children: [
+              const Text('L',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              Expanded(
+                child: Slider(
+                  value: _routeWidth.clamp(2.0, 18.0),
+                  min: 2.0,
+                  max: 18.0,
+                  divisions: 16,
+                  label: _routeWidth.toStringAsFixed(0),
+                  onChanged: (v) {
+                    setState(() => _routeWidth = v);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        IconButton(
+          tooltip: 'Itinéraire routier',
+          onPressed: () => setState(() => _routeRoadLike = !_routeRoadLike),
+          icon: Icon(
+            Icons.route,
+            color: _routeRoadLike ? Colors.blue : Colors.grey,
+          ),
+        ),
+        IconButton(
+          tooltip: 'Ombre 3D',
+          onPressed: _routeRoadLike
+              ? () => setState(() => _routeShadow3d = !_routeShadow3d)
+              : null,
+          icon: Icon(
+            Icons.layers,
+            color: (_routeRoadLike && _routeShadow3d)
+                ? Colors.blueGrey
+                : Colors.grey,
+          ),
+        ),
+        IconButton(
+          tooltip: 'Sens (flèches)',
+          onPressed: () => setState(() => _routeShowDirection = !_routeShowDirection),
+          icon: Icon(
+            Icons.navigation,
+            color: _routeShowDirection ? Colors.blueGrey : Colors.grey,
+          ),
+        ),
+        IconButton(
+          tooltip: 'Animation sens de marche',
+          onPressed: () => setState(() => _routeAnimateDirection = !_routeAnimateDirection),
+          icon: Icon(
+            _routeAnimateDirection
+                ? Icons.pause_circle_filled
+                : Icons.play_circle_filled,
+            color: _routeAnimateDirection ? Colors.green : Colors.grey,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Color _parseHexColor(String hex, {required Color fallback}) {
+    final h = hex.trim();
+    final m = RegExp(r'^#?([0-9a-fA-F]{6})$').firstMatch(h);
+    if (m == null) return fallback;
+    final rgb = int.parse(m.group(1)!, radix: 16);
+    return Color(0xFF000000 | rgb);
   }
 
   Widget _buildStep4POI() {

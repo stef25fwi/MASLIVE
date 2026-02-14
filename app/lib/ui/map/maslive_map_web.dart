@@ -131,19 +131,15 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       }
     };
 
-    controller.setPolylineImpl = (points, color, width, show) async {
+    controller.setPolylineImpl = (points, color, width, show, options) async {
       try {
         final pointsJson = jsonEncode([
           for (final p in points) {'lng': p.lng, 'lat': p.lat}
         ]);
         final colorHex = '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2, 8)}';
-        _mbSetPolyline(
-          _containerId,
-          pointsJson,
-          colorHex,
-          width,
-          show,
-        );
+        // Options avancées (itinéraire routier, flèches, animation, ombrage)
+        final optionsJson = jsonEncode(options.toJson());
+        _mbSetPolyline(_containerId, pointsJson, colorHex, width, show, optionsJson);
       } catch (e) {
         debugPrint('⚠️ setPolyline error: $e');
       }
@@ -357,6 +353,7 @@ external void _mbSetPolyline(
   String colorHex,
   double width,
   bool show,
+  String optionsJson,
 );
 
 @JS('MasliveMapboxV2.setPolygon')

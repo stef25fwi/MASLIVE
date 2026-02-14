@@ -19,7 +19,13 @@ class MasLiveMapController {
   Future<void> Function(List<MapMarker> markers)? _setMarkersImpl;
 
   /// Callback interne pour setPolyline
-  Future<void> Function(List<MapPoint> points, Color color, double width, bool show)? _setPolylineImpl;
+  Future<void> Function(
+    List<MapPoint> points,
+    Color color,
+    double width,
+    bool show,
+    PolylineRenderOptions options,
+  )? _setPolylineImpl;
 
   /// Callback interne pour setPolygon
   Future<void> Function(List<MapPoint> points, Color fillColor, Color strokeColor, double strokeWidth, bool show)? _setPolygonImpl;
@@ -56,7 +62,16 @@ class MasLiveMapController {
   }
 
   /// @nodoc - Usage interne seulement
-  set setPolylineImpl(Future<void> Function(List<MapPoint> points, Color color, double width, bool show)? impl) {
+  set setPolylineImpl(
+    Future<void> Function(
+      List<MapPoint> points,
+      Color color,
+      double width,
+      bool show,
+      PolylineRenderOptions options,
+    )?
+        impl,
+  ) {
     _setPolylineImpl = impl;
   }
 
@@ -121,8 +136,25 @@ class MasLiveMapController {
     Color color = const Color(0xFF0A84FF),
     double width = 4.0,
     bool show = true,
+    bool roadLike = false,
+    bool shadow3d = false,
+    bool showDirection = false,
+    bool animateDirection = false,
+    double animationSpeed = 1.0,
   }) async {
-    await _setPolylineImpl?.call(points, color, width, show);
+    await _setPolylineImpl?.call(
+      points,
+      color,
+      width,
+      show,
+      PolylineRenderOptions(
+        roadLike: roadLike,
+        shadow3d: shadow3d,
+        showDirection: showDirection,
+        animateDirection: animateDirection,
+        animationSpeed: animationSpeed,
+      ),
+    );
   }
 
   /// Afficher un polygone (zone, circuit fermé)
@@ -160,6 +192,31 @@ class MasLiveMapController {
     _setEditingEnabledImpl = null;
     _clearAllImpl = null;
   }
+}
+
+/// Options de rendu avancées pour une polyligne (itinéraire routier)
+class PolylineRenderOptions {
+  final bool roadLike;
+  final bool shadow3d;
+  final bool showDirection;
+  final bool animateDirection;
+  final double animationSpeed;
+
+  const PolylineRenderOptions({
+    this.roadLike = true,
+    this.shadow3d = true,
+    this.showDirection = true,
+    this.animateDirection = false,
+    this.animationSpeed = 1.0,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'roadLike': roadLike,
+        'shadow3d': shadow3d,
+        'showDirection': showDirection,
+        'animateDirection': animateDirection,
+        'animationSpeed': animationSpeed,
+      };
 }
 
 /// Modèle de données pour un point sur la carte
