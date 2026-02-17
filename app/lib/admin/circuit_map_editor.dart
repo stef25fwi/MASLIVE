@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'dart:math' as math;
 import '../services/mapbox_token_service.dart';
 import '../ui/map/maslive_map.dart';
@@ -603,6 +604,14 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   }
 
   Widget _buildMap() {
+    Widget interceptPointersIfNeeded(Widget child) {
+      // Sur Flutter web + HtmlElementView (Mapbox), certains clics peuvent
+      // "traverser" les overlays et déclencher aussi le handler JS du map.
+      // PointerInterceptor évite ce click-through.
+      if (!kIsWeb) return child;
+      return PointerInterceptor(child: child);
+    }
+
     final token = MapboxTokenService.getTokenSync();
 
     if (token.isEmpty) {
@@ -648,18 +657,20 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
         Positioned(
           left: 12,
           top: 12,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.9),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              child: Text(
-                widget.mode == 'polygon'
-                    ? 'Cliquez pour ajouter des points (polygone)'
-                    : 'Cliquez pour ajouter des points (route)',
-                style: const TextStyle(fontSize: 12),
+          child: interceptPointersIfNeeded(
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: Text(
+                  widget.mode == 'polygon'
+                      ? 'Cliquez pour ajouter des points (polygone)'
+                      : 'Cliquez pour ajouter des points (route)',
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
             ),
           ),
@@ -670,71 +681,74 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
             left: 12,
             right: 12,
             bottom: 12,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.92),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 160),
-                child: ListView.builder(
-                  itemCount: _points.length,
-                  itemBuilder: (context, index) {
-                    final point = _points[index];
-                    final isSelected = _selectedPointIndex == index;
-                    final role = _pointRoleLabel(index);
-                    return ListTile(
-                      dense: true,
-                      selected: isSelected,
-                      leading: CircleAvatar(
-                        radius: 12,
-                        backgroundColor: isSelected ? Colors.blue : Colors.grey,
-                        child: Text(
-                          '${index + 1}',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      title: Text(
-                        '${index + 1}/ $role',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight:
-                              role == 'Point' ? FontWeight.w600 : FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: Text(
-                        '${point.lng.toStringAsFixed(5)}, ${point.lat.toStringAsFixed(5)}',
-                        style:
-                            const TextStyle(fontSize: 11, color: Colors.grey),
-                      ),
-                      trailing: PopupMenuButton(
-                        itemBuilder: (ctx) => [
-                          if (widget.mode == 'polyline' &&
-                              index > 0 &&
-                              index != _points.length - 1)
-                            PopupMenuItem(
-                              child: Text(
-                                  'Définir comme Arrivée (point ${index + 1})'),
-                              onTap: () => _setArrivalPoint(index),
+            child: interceptPointersIfNeeded(
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 160),
+                  child: ListView.builder(
+                    itemCount: _points.length,
+                    itemBuilder: (context, index) {
+                      final point = _points[index];
+                      final isSelected = _selectedPointIndex == index;
+                      final role = _pointRoleLabel(index);
+                      return ListTile(
+                        dense: true,
+                        selected: isSelected,
+                        leading: CircleAvatar(
+                          radius: 12,
+                          backgroundColor: isSelected ? Colors.blue : Colors.grey,
+                          child: Text(
+                            '${index + 1}',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
                             ),
-                          PopupMenuItem(
-                            child: Text('Supprimer (point ${index + 1})'),
-                            onTap: () => _removePoint(index),
                           ),
-                        ],
-                      ),
-                      onTap: () async {
-                        setState(() => _selectedPointIndex = index);
-                        if (index == 0 && _points.length >= 2) {
-                          await _promptCloseLoopIfNeeded();
-                        }
-                      },
-                    );
-                  },
+                        ),
+                        title: Text(
+                          '${index + 1}/ $role',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: role == 'Point'
+                                ? FontWeight.w600
+                                : FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${point.lng.toStringAsFixed(5)}, ${point.lat.toStringAsFixed(5)}',
+                          style:
+                              const TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                        trailing: PopupMenuButton(
+                          itemBuilder: (ctx) => [
+                            if (widget.mode == 'polyline' &&
+                                index > 0 &&
+                                index != _points.length - 1)
+                              PopupMenuItem(
+                                child: Text(
+                                    'Définir comme Arrivée (point ${index + 1})'),
+                                onTap: () => _setArrivalPoint(index),
+                              ),
+                            PopupMenuItem(
+                              child: Text('Supprimer (point ${index + 1})'),
+                              onTap: () => _removePoint(index),
+                            ),
+                          ],
+                        ),
+                        onTap: () async {
+                          setState(() => _selectedPointIndex = index);
+                          if (index == 0 && _points.length >= 2) {
+                            await _promptCloseLoopIfNeeded();
+                          }
+                        },
+                      );
+                    },
+                  ),
                 ),
               ),
             ),

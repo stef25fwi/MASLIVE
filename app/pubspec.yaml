@@ -84,6 +84,9 @@ dependencies:
   get: ^4.6.6
   shared_preferences: ^2.5.4
   url_launcher: ^6.3.2
+
+  # Empêche les clics de traverser les overlays (Flutter web + HtmlElementView)
+  pointer_interceptor: ^0.10.1
   
   # Charts & exports
   fl_chart: ^0.70.1
