@@ -86,6 +86,7 @@ class CircuitMapEditor extends StatefulWidget {
   final String mode; // 'polygon' ou 'polyline'
   final bool showToolbar;
   final CircuitMapEditorController? controller;
+  final String? styleUrl;
 
   // Style polyline (mode == 'polyline')
   final Color polylineColor;
@@ -106,6 +107,7 @@ class CircuitMapEditor extends StatefulWidget {
     this.mode = 'polygon',
     this.showToolbar = true,
     this.controller,
+    this.styleUrl,
 
     this.polylineColor = const Color(0xFF0A84FF),
     this.polylineWidth = 4.0,
@@ -628,6 +630,9 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
           initialLng: _points.isNotEmpty ? _points.first.lng : -61.533,
           initialLat: _points.isNotEmpty ? _points.first.lat : 16.241,
           initialZoom: _points.isNotEmpty ? 15.0 : 12.0,
+          styleUrl: (widget.styleUrl != null && widget.styleUrl!.trim().isNotEmpty)
+              ? widget.styleUrl!.trim()
+              : null,
           onMapReady: (ctrl) async {
             _isMapReady = true;
             await ctrl.setEditingEnabled(

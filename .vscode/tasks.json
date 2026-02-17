@@ -196,21 +196,21 @@
       }
     },
     {
-      "label": "MASLIVE: Git add commit push",
+      "label": "MASLIVE: Flutter test (all)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE && git add app/lib/widgets/web_mapbox_gl_map.dart app/pubspec.yaml .vscode/tasks.json && git commit -m \"fix(web): mapbox ready callback interop\" && git push origin main",
-      "problemMatcher": []
-    },
-    {
-      "label": "MASLIVE: Git commit + push (route-style-pro integrate)",
-      "type": "shell",
-      "command": "cd /workspaces/MASLIVE && git add app/lib/route_style_pro app/test/route_style_pro app/lib/admin/circuit_wizard_pro_page.dart app/lib/main.dart app/pubspec.yaml .vscode/tasks.json && git commit -m \"feat(route-style-pro): integrate into circuit wizard\" && git push origin main",
+      "command": "cd /workspaces/MASLIVE/app && flutter test",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
         "clear": true
       }
+    },
+    {
+      "label": "MASLIVE: Git add commit push",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/widgets/web_mapbox_gl_map.dart app/pubspec.yaml .vscode/tasks.json && git commit -m \"fix(web): mapbox ready callback interop\" && git push origin main",
+      "problemMatcher": []
     },
     {
       "label": "MASLIVE: Git commit + push (wizard route style)",
@@ -224,7 +224,18 @@
       }
     },
     {
-      "label": "MASLIVE: Git commit + push (wizard points depart/arrivee)",
+      "label": "MASLIVE: 🖼️ Test Image System (fallback all)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && if [ -f test/test_image_system.dart ]; then flutter test test/test_image_system.dart; else echo 'WARN: test/test_image_system.dart absent; exécution de flutter test (all)'; flutter test; fi",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Git commit + push (wizard départ/arrivée + bouclage)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add app/lib/admin/circuit_map_editor.dart .vscode/tasks.json && git commit -m \"feat(wizard): départ/arrivée + bouclage\" && git push origin main",
       "problemMatcher": [],
@@ -464,6 +475,30 @@
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (wizard stepper fix)",
       "type": "shell",
       "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"fix(wizard): stepper steps layout\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (route style pro flow)",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat(wizard): style pro (initialRoute + preserve flags)\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (wizard pro: mapmarket + resize + POI)",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat(wizard-pro): mapmarket publish + resize orientation + POI tools\"",
       "problemMatcher": [],
       "isBackground": false,
       "presentation": {

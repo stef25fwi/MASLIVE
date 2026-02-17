@@ -52,12 +52,30 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   late final String _containerId;
   bool _isMapReady = false;
   void Function(double lat, double lng)? _onPointAddedCallback;
+  Timer? _pendingResize;
+  Size? _lastConstraintsSize;
+  late final _MasliveMetricsObserver _metricsObserver;
 
   @override
   void initState() {
     super.initState();
     _containerId = 'maslive-mapbox-${DateTime.now().microsecondsSinceEpoch}';
+    _metricsObserver = _MasliveMetricsObserver(onMetrics: _scheduleResize);
+    WidgetsBinding.instance.addObserver(_metricsObserver);
     _loadMapboxToken();
+  }
+
+  void _scheduleResize() {
+    if (!_isMapReady) return;
+    _pendingResize?.cancel();
+    _pendingResize = Timer(const Duration(milliseconds: 80), () {
+      if (!mounted || !_isMapReady) return;
+      try {
+        _mbResize(_containerId);
+      } catch (_) {
+        // ignore
+      }
+    });
   }
 
   Future<void> _loadMapboxToken() async {
@@ -82,6 +100,9 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   void _onMapReady() {
     _isMapReady = true;
     _connectController();
+    // Important: après init (et après setStyle), la carte peut avoir une taille 0
+    // si l'orientation vient de changer. On force un resize léger.
+    _scheduleResize();
     final controller = widget.controller;
     if (controller != null) {
       widget.onMapReady?.call(controller);
@@ -182,6 +203,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   @override
   void dispose() {
     _onPointAddedCallback = null;
+    _pendingResize?.cancel();
+    WidgetsBinding.instance.removeObserver(_metricsObserver);
     try {
       _mbDestroy(_containerId);
     } catch (_) {
@@ -205,24 +228,52 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       );
     }
 
-    return _MapboxWebViewCustom(
-      key: ValueKey('maslive-map-web-$_containerId'),
-      containerId: _containerId,
-      accessToken: _mapboxToken,
-      initialLat: widget.initialLat,
-      initialLng: widget.initialLng,
-      initialZoom: widget.initialZoom,
-      initialPitch: widget.initialPitch,
-      initialBearing: widget.initialBearing,
-      styleUrl: widget.styleUrl,
-      onMapReady: _onMapReady,
-      onTap: (lng, lat) {
-        if (_onPointAddedCallback != null) {
-          _onPointAddedCallback!(lat, lng);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        final h = constraints.maxHeight;
+        if (w.isFinite && h.isFinite) {
+          final size = Size(w, h);
+          if (_lastConstraintsSize != size) {
+            _lastConstraintsSize = size;
+            // Après un changement de layout (rotation, split view, etc.)
+            // il faut appeler map.resize() pour que Mapbox GL JS recalcule son canvas.
+            WidgetsBinding.instance.addPostFrameCallback((_) => _scheduleResize());
+          }
         }
-        widget.onTap?.call(MapPoint(lng, lat));
+
+        return _MapboxWebViewCustom(
+          key: ValueKey('maslive-map-web-$_containerId'),
+          containerId: _containerId,
+          accessToken: _mapboxToken,
+          initialLat: widget.initialLat,
+          initialLng: widget.initialLng,
+          initialZoom: widget.initialZoom,
+          initialPitch: widget.initialPitch,
+          initialBearing: widget.initialBearing,
+          styleUrl: widget.styleUrl,
+          onMapReady: _onMapReady,
+          onTap: (lng, lat) {
+            if (_onPointAddedCallback != null) {
+              _onPointAddedCallback!(lat, lng);
+            }
+            widget.onTap?.call(MapPoint(lng, lat));
+          },
+        );
       },
     );
+  }
+}
+
+/// Observer minimal pour déclencher un resize map sur changement de métriques.
+/// On évite de mixer un `with WidgetsBindingObserver` sur le State (risque de conflits).
+class _MasliveMetricsObserver with WidgetsBindingObserver {
+  final VoidCallback onMetrics;
+  _MasliveMetricsObserver({required this.onMetrics});
+
+  @override
+  void didChangeMetrics() {
+    onMetrics();
   }
 }
 
@@ -339,6 +390,9 @@ external bool _mbInit(String containerId, String token, String optionsJson);
 
 @JS('MasliveMapboxV2.moveTo')
 external void _mbMoveTo(String containerId, double lng, double lat, double zoom, bool animate);
+
+@JS('MasliveMapboxV2.resize')
+external void _mbResize(String containerId);
 
 @JS('MasliveMapboxV2.setStyle')
 external void _mbSetStyle(String containerId, String styleUrl);

@@ -527,6 +527,16 @@
       }
     },
 
+    resize: function(containerId) {
+      const map = _getMap(containerId);
+      if (!map) return;
+      try {
+        map.resize();
+      } catch (e) {
+        console.error('❌ MasliveMapboxV2.resize error:', e);
+      }
+    },
+
     setStyle: function(containerId, styleUrl) {
       const map = _getMap(containerId);
       if (!map) return;

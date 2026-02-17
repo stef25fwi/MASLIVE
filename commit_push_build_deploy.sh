@@ -128,4 +128,4 @@ echo ""
 echo "════════════════════════════"
 echo "✅ LIVRAISON TERMINÉE"
 echo "════════════════════════════"
-Commit + Push + Build + Deploy
+echo "✅ Commit + Push + Build + Deploy"

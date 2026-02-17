@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/market_circuit_models.dart';
+import '../services/market_map_service.dart';
 import '../ui/map/maslive_map.dart';
 import '../ui/map/maslive_map_controller.dart';
 import 'circuit_map_editor.dart';
 import 'circuit_validation_checklist_page.dart';
 import '../route_style_pro/models/route_style_config.dart' as rsp;
+import '../route_style_pro/services/route_snap_service.dart' as snap;
 import '../route_style_pro/ui/route_style_wizard_pro_page.dart';
 
 typedef LngLat = ({double lng, double lat});
@@ -64,6 +66,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   List<MarketMapPOI> _pois = [];
   MarketMapLayer? _selectedLayer;
   final MasLiveMapController _poiMapController = MasLiveMapController();
+
+  bool _isSnappingRoute = false;
 
   // Brouillon
   Map<String, dynamic> _draftData = {};
@@ -639,6 +643,32 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
               border: OutlineInputBorder(),
             ),
           ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox(
+              height: 220,
+              child: MasLiveMap(
+                initialLng: _routePoints.isNotEmpty
+                    ? _routePoints.first.lng
+                    : (_perimeterPoints.isNotEmpty
+                        ? _perimeterPoints.first.lng
+                        : -61.533),
+                initialLat: _routePoints.isNotEmpty
+                    ? _routePoints.first.lat
+                    : (_perimeterPoints.isNotEmpty
+                        ? _perimeterPoints.first.lat
+                        : 16.241),
+                initialZoom:
+                    (_routePoints.isNotEmpty || _perimeterPoints.isNotEmpty)
+                        ? 13.5
+                        : 12.0,
+                styleUrl: _styleUrlController.text.trim().isEmpty
+                    ? null
+                    : _styleUrlController.text.trim(),
+              ),
+            ),
+          ),
           const SizedBox(height: 32),
           Container(
             padding: const EdgeInsets.all(16),
@@ -662,6 +692,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       subtitle: 'Tracez la zone de couverture (polygon fermé)',
       points: _perimeterPoints,
       controller: _perimeterEditorController,
+      styleUrl: _styleUrlController.text.trim().isEmpty
+          ? null
+          : _styleUrlController.text.trim(),
       showToolbar: false,
       onPointsChanged: (points) {
         setState(() {
@@ -678,6 +711,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       subtitle: 'Tracez l\'itinéraire du circuit (polyline)',
       points: _routePoints,
       controller: _routeEditorController,
+      styleUrl: _styleUrlController.text.trim().isEmpty
+          ? null
+          : _styleUrlController.text.trim(),
       showToolbar: false,
       onPointsChanged: (points) {
         setState(() {
@@ -704,6 +740,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       subtitle: 'Réglez l\'apparence de l\'itinéraire',
       points: _routePoints,
       controller: _routeEditorController,
+      styleUrl: _styleUrlController.text.trim().isEmpty
+          ? null
+          : _styleUrlController.text.trim(),
       showToolbar: false,
       onPointsChanged: (points) {
         setState(() {
@@ -767,6 +806,22 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                     onPressed: controller.pointCount >= 3 ? controller.simplifyTrack : null,
                     tooltip: 'Simplifier tracé',
                   ),
+
+                  if (!isPerimeter && _currentStep == 2) ...[
+                    IconButton(
+                      icon: _isSnappingRoute
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.alt_route_rounded),
+                      onPressed: (!_isSnappingRoute && controller.pointCount >= 2)
+                          ? _snapRouteToRoads
+                          : null,
+                      tooltip: 'Snap sur route (Waze)',
+                    ),
+                  ],
                   IconButton(
                     icon: const Icon(Icons.delete_sweep),
                     onPressed: controller.pointCount > 0 ? controller.clearAll : null,
@@ -795,7 +850,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                     ),
                   ),
 
-                  if (!isPerimeter && _currentStep == 3) ...[
+                  if (!isPerimeter && (_currentStep == 2 || _currentStep == 3)) ...[
                     const VerticalDivider(),
                     _buildRouteStyleControls(),
                   ],
@@ -806,6 +861,48 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _snapRouteToRoads() async {
+    if (_routePoints.length < 2) return;
+    if (_isSnappingRoute) return;
+
+    setState(() => _isSnappingRoute = true);
+    try {
+      final service = snap.RouteSnapService();
+      final input = <rsp.LatLng>[for (final p in _routePoints) (lat: p.lat, lng: p.lng)];
+
+      final snapped = await service.snapToRoad(
+        input,
+        options: const snap.SnapOptions(
+          toleranceMeters: 35.0,
+          simplifyPercent: 0.0,
+        ),
+      );
+
+      final output = <LngLat>[for (final p in snapped.points) (lng: p.lng, lat: p.lat)];
+      if (!mounted) return;
+
+      setState(() {
+        _routePoints = output;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('✅ Tracé aligné sur la route (${output.length} points)')),
+      );
+
+      if (_projectId != null) {
+        await _saveDraft();
+      }
+    } catch (e) {
+      debugPrint('WizardPro _snapRouteToRoads error: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('❌ Snap impossible: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSnappingRoute = false);
+    }
   }
 
   Widget _buildRouteStyleControls() {
@@ -975,6 +1072,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           initialZoom: _routePoints.isNotEmpty || _perimeterPoints.isNotEmpty
               ? 14.0
               : 12.0,
+          styleUrl: _styleUrlController.text.trim().isEmpty
+              ? null
+              : _styleUrlController.text.trim(),
           onTap: (p) => _onMapTapForPoi(p.lng, p.lat),
           onMapReady: (ctrl) async {
             _refreshPoiMarkers();
@@ -1054,6 +1154,71 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                       'Aucune couche trouvée. Vérifiez la configuration du projet.',
                       style: TextStyle(fontSize: 12, color: Colors.redAccent),
                     ),
+
+                  if (_selectedLayer != null) ...[
+                    const SizedBox(height: 10),
+                    ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      title: Text(
+                        'POI de la couche: ${_selectedLayer!.label}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${_pois.where((p) => p.layerType == _selectedLayer!.type).length} POI',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      children: [
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 220),
+                          child: ListView(
+                            shrinkWrap: true,
+                            children: [
+                              for (final poi
+                                  in _pois.where((p) => p.layerType == _selectedLayer!.type))
+                                ListTile(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: const Icon(
+                                    Icons.place_outlined,
+                                    size: 18,
+                                  ),
+                                  title: Text(
+                                    poi.name,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    '${poi.lng.toStringAsFixed(5)}, ${poi.lat.toStringAsFixed(5)}',
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        tooltip: 'Modifier',
+                                        icon: const Icon(Icons.edit, size: 18),
+                                        onPressed: () => _editPoi(poi),
+                                      ),
+                                      IconButton(
+                                        tooltip: 'Supprimer',
+                                        icon:
+                                            const Icon(Icons.delete_outline, size: 18),
+                                        onPressed: () => _deletePoi(poi),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1133,6 +1298,62 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
     setState(() {
       _pois.add(poi);
+    });
+    _refreshPoiMarkers();
+  }
+
+  Future<void> _editPoi(MarketMapPOI poi) async {
+    final nameController = TextEditingController(text: poi.name);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Modifier le POI'),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(
+            labelText: 'Nom du POI',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    final nextName = nameController.text.trim();
+    if (nextName.isEmpty) return;
+
+    setState(() {
+      final idx = _pois.indexWhere((p) => p.id == poi.id);
+      if (idx >= 0) {
+        _pois[idx] = MarketMapPOI(
+          id: poi.id,
+          name: nextName,
+          layerType: poi.layerType,
+          lng: poi.lng,
+          lat: poi.lat,
+          description: poi.description,
+          imageUrl: poi.imageUrl,
+          metadata: poi.metadata,
+        );
+      }
+    });
+    _refreshPoiMarkers();
+  }
+
+  void _deletePoi(MarketMapPOI poi) {
+    setState(() {
+      _pois.removeWhere((p) => p.id == poi.id);
     });
     _refreshPoiMarkers();
   }
@@ -1257,6 +1478,25 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         throw Exception('Project not initialized');
       }
 
+      final countryId = _countryController.text.trim();
+      final eventId = _eventController.text.trim();
+      final marketCircuitId = (widget.circuitId?.trim().isNotEmpty ?? false)
+          ? widget.circuitId!.trim()
+          : projectId;
+
+      Map<String, double> computeCenter() {
+        if (_routePoints.isNotEmpty) {
+          return {'lat': _routePoints.first.lat, 'lng': _routePoints.first.lng};
+        }
+        if (_perimeterPoints.isNotEmpty) {
+          return {
+            'lat': _perimeterPoints.first.lat,
+            'lng': _perimeterPoints.first.lng,
+          };
+        }
+        return const {'lat': 16.241, 'lng': -61.533};
+      }
+
       await FirebaseFirestore.instance
           .collection('map_projects')
           .doc(projectId)
@@ -1265,7 +1505,138 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         'isVisible': true,
         'publishedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
+        'circuitId': marketCircuitId,
       });
+
+      // IMPORTANT: la liste "MapMarket" (menu Carte) lit la structure marketMap.
+      // On sync donc la publication vers marketMap/{countryId}/events/{eventId}/circuits/{marketCircuitId}.
+      if (countryId.isNotEmpty && eventId.isNotEmpty) {
+        final db = FirebaseFirestore.instance;
+        final countryRef = db.collection('marketMap').doc(countryId);
+        final eventRef = countryRef.collection('events').doc(eventId);
+        final circuitRef = eventRef.collection('circuits').doc(marketCircuitId);
+
+        final name = _nameController.text.trim();
+        final styleUrl = _styleUrlController.text.trim();
+        final center = computeCenter();
+        final slug = MarketMapService.slugify(name.isEmpty ? marketCircuitId : name);
+
+        await db.runTransaction((tx) async {
+          final serverNow = FieldValue.serverTimestamp();
+
+          // Country (best-effort)
+          final countrySnap = await tx.get(countryRef);
+          if (!countrySnap.exists) {
+            tx.set(countryRef, {
+              'name': countryId,
+              'slug': countryId,
+              'createdAt': serverNow,
+              'updatedAt': serverNow,
+            });
+          } else {
+            tx.update(countryRef, {'updatedAt': serverNow});
+          }
+
+          // Event (best-effort)
+          final eventSnap = await tx.get(eventRef);
+          if (!eventSnap.exists) {
+            tx.set(eventRef, {
+              'name': eventId,
+              'slug': eventId,
+              'countryId': countryId,
+              'startDate': null,
+              'endDate': null,
+              'createdAt': serverNow,
+              'updatedAt': serverNow,
+            });
+          } else {
+            tx.update(eventRef, {'updatedAt': serverNow});
+          }
+
+          // Circuit upsert
+          final circuitSnap = await tx.get(circuitRef);
+          final base = <String, dynamic>{
+            'name': name.isEmpty ? marketCircuitId : name,
+            'slug': slug,
+            'status': 'published',
+            'countryId': countryId,
+            'eventId': eventId,
+            'createdByUid': user.uid,
+            'perimeterLocked': false,
+            'zoomLocked': false,
+            'center': center,
+            'initialZoom': 14,
+            'bounds': null,
+            'styleId': null,
+            'styleUrl': styleUrl.isEmpty ? null : styleUrl,
+            'isVisible': true,
+            'wizardState': {
+              'wizardStep': 7,
+              'completedSteps': [1, 2, 3, 4, 5, 6, 7],
+            },
+            'sourceProjectId': projectId,
+            'updatedAt': serverNow,
+          };
+
+          if (!circuitSnap.exists) {
+            tx.set(circuitRef, {
+              ...base,
+              'createdAt': serverNow,
+            });
+
+            // Layers par défaut (comme MarketMapService.createCircuitStep1)
+            final layersCol = circuitRef.collection('layers');
+
+            tx.set(layersCol.doc('perimeter'), {
+              'type': 'perimeter',
+              'isEnabled': true,
+              'order': 0,
+              'style': {
+                'fillOpacity': 0.15,
+                'lineWidth': 3,
+              },
+              'params': {
+                'snapToRoad': false,
+                'showLabels': true,
+              },
+              'createdAt': serverNow,
+              'updatedAt': serverNow,
+            });
+
+            tx.set(layersCol.doc('pois'), {
+              'type': 'pois',
+              'isEnabled': true,
+              'order': 1,
+              'style': {
+                'icon': 'marker',
+                'iconSize': 1.0,
+              },
+              'params': {
+                'showLabels': true,
+              },
+              'createdAt': serverNow,
+              'updatedAt': serverNow,
+            });
+
+            tx.set(layersCol.doc('track'), {
+              'type': 'track',
+              'isEnabled': true,
+              'order': 2,
+              'style': {
+                'lineWidth': 4,
+                'opacity': 1.0,
+              },
+              'params': {
+                'snapToRoad': false,
+              },
+              'createdAt': serverNow,
+              'updatedAt': serverNow,
+            });
+          } else {
+            tx.set(circuitRef, base, SetOptions(merge: true));
+          }
+        });
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
