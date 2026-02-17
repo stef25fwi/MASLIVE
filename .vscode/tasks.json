@@ -508,6 +508,12 @@
       }
     },
     {
+      "label": "MASLIVE: Git commit + push (route-style-pro initialRoute)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/main.dart .vscode/tasks.json && git commit -m \"fix(route-style-pro): forward initialRoute\" && git push",
+      "problemMatcher": []
+    },
+    {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (prompt)",
       "type": "shell",
       "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh",

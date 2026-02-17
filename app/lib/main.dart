@@ -262,6 +262,7 @@ class MasLiveApp extends StatelessWidget {
                   return RouteStyleWizardProPage(
                     projectId: args.projectId,
                     circuitId: args.circuitId,
+                    initialRoute: args.initialRoute,
                   );
                 }
                 // Sans args: fallback local + itinéraire de démo.
