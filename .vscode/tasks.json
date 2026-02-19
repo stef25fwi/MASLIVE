@@ -11,6 +11,17 @@
       }
     },
     {
+      "label": "MASLIVE: Git commit + push (saas pro 2026 final)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && if git ls-files --error-unmatch serviceAccountKey.json >/dev/null 2>&1; then echo 'ERROR: serviceAccountKey.json tracked'; exit 1; fi && if git ls-files '*firebase-adminsdk*.json' | grep -q .; then echo 'ERROR: firebase-adminsdk key tracked'; exit 1; fi && if git ls-files 'functions/.env' 'functions/.env.*' 'functions/.runtimeconfig.json' | grep -q .; then echo 'ERROR: functions secret file tracked'; exit 1; fi && git add -A && git commit -m \"feat(wizard): SaaS Pro 2026 (schema/versioning/audit/rules/templates/quality/perf)\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Flutter pub get",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE/app && flutter pub get",

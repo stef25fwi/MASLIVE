@@ -4,11 +4,12 @@ import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/market_circuit_models.dart';
-import '../services/market_map_service.dart';
+import '../services/circuit_repository.dart';
+import '../services/circuit_versioning_service.dart';
+import '../services/publish_quality_service.dart';
 import '../ui/map/maslive_map.dart';
 import '../ui/map/maslive_map_controller.dart';
 import 'circuit_map_editor.dart';
-import 'circuit_validation_checklist_page.dart';
 import '../route_style_pro/models/route_style_config.dart' as rsp;
 import '../route_style_pro/services/route_snap_service.dart' as snap;
 import '../route_style_pro/ui/route_style_wizard_pro_page.dart';
@@ -34,11 +35,23 @@ class CircuitWizardProPage extends StatefulWidget {
 }
 
 class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
+  static const int _poiPageSize = 100;
+  static const int _poiLimit = 2000;
+
+  final CircuitRepository _repository = CircuitRepository();
+  final CircuitVersioningService _versioning = CircuitVersioningService();
+  final PublishQualityService _qualityService = PublishQualityService();
+
   String? _projectId;
   late PageController _pageController;
   int _currentStep = 0;
   bool _isLoading = false;
   String? _errorMessage;
+  String? _currentUserRole;
+  String? _currentGroupId;
+
+  List<CircuitTemplate> _templates = [];
+  CircuitTemplate? _selectedTemplate;
 
   final _perimeterEditorController = CircuitMapEditorController();
   final _routeEditorController = CircuitMapEditorController();
@@ -66,6 +79,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   // Step 4: Layers/POI
   List<MarketMapLayer> _layers = [];
   List<MarketMapPOI> _pois = [];
+  DocumentSnapshot<Map<String, dynamic>>? _poisLastDoc;
+  bool _hasMorePois = false;
+  bool _isLoadingMorePois = false;
   MarketMapLayer? _selectedLayer;
   final MasLiveMapController _poiMapController = MasLiveMapController();
 
@@ -73,6 +89,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
   // Brouillon
   Map<String, dynamic> _draftData = {};
+
+  PublishQualityReport get _qualityReport => _qualityService.evaluate(
+        perimeter: _perimeterPoints,
+        route: _routePoints,
+        routeColorHex: _routeColorHex,
+        routeWidth: _routeWidth,
+        layers: _layers,
+        pois: _pois,
+      );
 
   Future<void> _openRouteStylePro() async {
     // Assure un projectId existant avant d'ouvrir le wizard Pro.
@@ -167,6 +192,152 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     _loadDraftOrInitialize();
   }
 
+  Future<void> _ensureActorContext() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+    final data = userDoc.data() ?? const <String, dynamic>{};
+    _currentUserRole = (data['role'] as String?) ?? 'creator';
+    _currentGroupId = (data['groupId'] as String?) ?? 'default';
+  }
+
+  Map<String, dynamic> _buildCurrentData() {
+    return {
+      'name': _nameController.text.trim(),
+      'countryId': _countryController.text.trim(),
+      'eventId': _eventController.text.trim(),
+      'description': _descriptionController.text.trim(),
+      'styleUrl': _styleUrlController.text.trim(),
+      'perimeter':
+          _perimeterPoints.map((p) => {'lng': p.lng, 'lat': p.lat}).toList(),
+      'route': _routePoints.map((p) => {'lng': p.lng, 'lat': p.lat}).toList(),
+      'routeStyle': {
+        'color': _routeColorHex,
+        'width': _routeWidth,
+        'roadLike': _routeRoadLike,
+        'shadow3d': _routeShadow3d,
+        'showDirection': _routeShowDirection,
+        'animateDirection': _routeAnimateDirection,
+        'animationSpeed': _routeAnimationSpeed,
+      },
+    };
+  }
+
+  Future<void> _loadTemplates() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    _templates = await _repository.listTemplates(actorUid: user.uid);
+  }
+
+  Future<void> _applyTemplate(CircuitTemplate template) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    await _ensureActorContext();
+    final result = await _repository.createProjectFromTemplate(
+      template: template,
+      groupId: _currentGroupId ?? 'default',
+      actorUid: user.uid,
+      projectId: _projectId,
+    );
+    _projectId = result['projectId'] as String;
+    final current = Map<String, dynamic>.from(
+      (result['current'] as Map?) ?? const <String, dynamic>{},
+    );
+    _nameController.text = (current['name'] as String?) ?? _nameController.text;
+    _descriptionController.text =
+        (current['description'] as String?) ?? _descriptionController.text;
+    _selectedTemplate = template;
+    await _loadDraftOrInitialize();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('✅ Modèle appliqué: ${template.name}')),
+    );
+  }
+
+  Future<void> _saveVersionSnapshot() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || _projectId == null) return;
+    await _ensureActorContext();
+    await _versioning.saveDraftVersion(
+      projectId: _projectId!,
+      actorUid: user.uid,
+      actorRole: _currentUserRole ?? 'creator',
+      groupId: _currentGroupId ?? 'default',
+      currentData: _buildCurrentData(),
+      layers: _layers,
+      pois: _pois,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('✅ Version sauvegardée')), 
+    );
+  }
+
+  Future<void> _showDraftHistory() async {
+    if (_projectId == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ℹ️ Sauvegarde d’abord le projet.')),
+      );
+      return;
+    }
+
+    final drafts = await _versioning.listDrafts(projectId: _projectId!, pageSize: 30);
+    if (!mounted) return;
+
+    final selected = await showDialog<CircuitDraftVersion>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Historique des versions'),
+        content: SizedBox(
+          width: 520,
+          child: drafts.isEmpty
+              ? const Text('Aucune version disponible')
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: drafts.length,
+                  itemBuilder: (_, index) {
+                    final d = drafts[index];
+                    return ListTile(
+                      title: Text('Version ${d.version}'),
+                      subtitle: Text(
+                        d.createdAt?.toLocal().toString() ?? 'Date inconnue',
+                      ),
+                      onTap: () => Navigator.pop(ctx, d),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Fermer'),
+          ),
+        ],
+      ),
+    );
+
+    if (selected == null) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    await _ensureActorContext();
+    await _versioning.restoreDraft(
+      projectId: _projectId!,
+      draftId: selected.id,
+      actorUid: user.uid,
+      actorRole: _currentUserRole ?? 'creator',
+      groupId: _currentGroupId ?? 'default',
+    );
+    await _loadDraftOrInitialize();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('✅ Version ${selected.version} restaurée')),
+    );
+  }
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -185,15 +356,20 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     try {
       setState(() => _isLoading = true);
 
+      await _ensureActorContext();
+      await _loadTemplates();
+
       // Si un projectId est fouirni, le charger
       if (_projectId != null) {
-        final doc = await FirebaseFirestore.instance
-            .collection('map_projects')
-            .doc(_projectId)
-            .get();
+        final data = await _repository.loadProjectCurrent(
+          projectId: _projectId!,
+          fallbackCountryId: widget.countryId,
+          fallbackEventId: widget.eventId,
+          fallbackCircuitId: widget.circuitId,
+        );
 
-        if (doc.exists) {
-          _draftData = doc.data() ?? {};
+        if (data != null) {
+          _draftData = data;
           _nameController.text = _draftData['name'] ?? '';
           _countryController.text = _draftData['countryId'] ?? '';
           _eventController.text = _draftData['eventId'] ?? '';
@@ -241,8 +417,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           // Charger layers
           _layers = await _loadLayers();
 
-          // Charger POI
-          _pois = await _loadPois();
+          // Charger POI (paginé)
+          await _loadPoisFirstPage();
 
           // Couche sélectionnée par défaut
           if (_layers.isNotEmpty) {
@@ -259,6 +435,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
         // Initialiser les couches standard en local
         _layers = await _loadLayers();
+        _pois = [];
+        _poisLastDoc = null;
+        _hasMorePois = false;
+        _isLoadingMorePois = false;
         if (_layers.isNotEmpty) {
           _selectedLayer = _layers.firstWhere(
             (l) => l.type != 'route',
@@ -348,20 +528,49 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         .toList();
   }
 
-  Future<List<MarketMapPOI>> _loadPois() async {
+  Future<void> _loadPoisFirstPage() async {
     if (_projectId == null) {
-      return [];
+      _pois = [];
+      _poisLastDoc = null;
+      _hasMorePois = false;
+      _isLoadingMorePois = false;
+      return;
     }
 
-    final snapshot = await FirebaseFirestore.instance
-        .collection('map_projects')
-        .doc(_projectId)
-        .collection('pois')
-        .get();
+    final page = await _repository.listPoisPage(
+      projectId: _projectId!,
+      pageSize: _poiPageSize,
+    );
 
-    return snapshot.docs
-        .map((doc) => MarketMapPOI.fromFirestore(doc))
-        .toList();
+    _pois = page.docs.map((doc) => MarketMapPOI.fromFirestore(doc)).toList();
+    _poisLastDoc = page.docs.isNotEmpty ? page.docs.last : null;
+    _hasMorePois = page.docs.length == _poiPageSize;
+  }
+
+  Future<void> _loadMorePoisPage() async {
+    if (_projectId == null || _isLoadingMorePois || !_hasMorePois) return;
+
+    setState(() => _isLoadingMorePois = true);
+    try {
+      final page = await _repository.listPoisPage(
+        projectId: _projectId!,
+        pageSize: _poiPageSize,
+        startAfter: _poisLastDoc,
+      );
+
+      final incoming = page.docs.map((doc) => MarketMapPOI.fromFirestore(doc)).toList();
+      final existingIds = _pois.map((p) => p.id).toSet();
+      _pois.addAll(incoming.where((p) => !existingIds.contains(p.id)));
+
+      _poisLastDoc = page.docs.isNotEmpty ? page.docs.last : _poisLastDoc;
+      _hasMorePois = page.docs.length == _poiPageSize;
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingMorePois = false);
+      } else {
+        _isLoadingMorePois = false;
+      }
+    }
   }
 
   Future<void> _saveDraft() async {
@@ -371,55 +580,30 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         throw Exception('User not authenticated');
       }
 
+      await _ensureActorContext();
+
       final isNew = _projectId == null;
-      final projectId = _projectId ?? FirebaseFirestore.instance.collection('map_projects').doc().id;
+      final projectId = _projectId ?? _repository.createProjectId();
       _projectId = projectId;
 
-      final data = <String, dynamic>{
-        'name': _nameController.text.trim(),
-        'countryId': _countryController.text.trim(),
-        'eventId': _eventController.text.trim(),
-        'description': _descriptionController.text.trim(),
-        'styleUrl': _styleUrlController.text.trim(),
-        'perimeter': _perimeterPoints.map((p) => {'lng': p.lng, 'lat': p.lat}).toList(),
-        'route': _routePoints.map((p) => {'lng': p.lng, 'lat': p.lat}).toList(),
-        'routeStyle': {
-          'color': _routeColorHex,
-          'width': _routeWidth,
-          'roadLike': _routeRoadLike,
-          'shadow3d': _routeShadow3d,
-          'showDirection': _routeShowDirection,
-          'animateDirection': _routeAnimateDirection,
-          'animationSpeed': _routeAnimationSpeed,
-        },
-        'status': 'draft',
-        'uid': user.uid,
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-      if (isNew) {
-        data['createdAt'] = FieldValue.serverTimestamp();
-      }
+      final previousRouteCount = (_draftData['route'] as List?)?.length ?? 0;
+      final previousPoiCount = _pois.length;
+      final currentData = _buildCurrentData();
 
-      await FirebaseFirestore.instance
-          .collection('map_projects')
-          .doc(projectId)
-          .set(data, SetOptions(merge: true));
+      await _repository.saveDraft(
+        projectId: projectId,
+        actorUid: user.uid,
+        actorRole: _currentUserRole ?? 'creator',
+        groupId: _currentGroupId ?? 'default',
+        currentData: currentData,
+        layers: _layers,
+        pois: _pois,
+        previousRouteCount: previousRouteCount,
+        previousPoiCount: previousPoiCount,
+        isNew: isNew,
+      );
 
-      // Sauvegarder les POI
-      final poisRef = FirebaseFirestore.instance
-          .collection('map_projects')
-          .doc(projectId)
-          .collection('pois');
-
-      // Pour simplifier: on efface et on réécrit tous les POI
-      final existing = await poisRef.get();
-      for (final doc in existing.docs) {
-        await doc.reference.delete();
-      }
-
-      for (final poi in _pois) {
-        await poisRef.add(poi.toFirestore());
-      }
+      _draftData = currentData;
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -444,7 +628,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
   Future<void> _continueToStep(int step) async {
     // Valider l'étape courante
-    if (_currentStep == 0) {
+    if (_currentStep == 1) {
       if (_nameController.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('❌ Nom requis')),
@@ -502,7 +686,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           SizedBox(
             height: 60,
             child: Row(
-              children: List.generate(7, (index) {
+              children: List.generate(8, (index) {
                 return Expanded(
                   child: GestureDetector(
                     onTap: index <= _currentStep
@@ -522,7 +706,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           ),
           const Divider(height: 1),
 
-          if (_currentStep == 1 || _currentStep == 2 || _currentStep == 3)
+          if (_currentStep == 2 || _currentStep == 3 || _currentStep == 4)
             _buildCentralMapToolsBar(),
 
           // Pages
@@ -534,6 +718,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                 setState(() => _currentStep = page);
               },
               children: [
+                _buildStep0Template(),
                 _buildStep1Infos(),
                 _buildStep2Perimeter(),
                 _buildStep3Route(),
@@ -566,7 +751,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                   onPressed: _saveDraft,
                   label: const Text('Sauvegarder'),
                 ),
-                if (_currentStep < 6)
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.bookmark_add_outlined),
+                  onPressed: (_projectId == null) ? null : _saveVersionSnapshot,
+                  label: const Text('Sauvegarder version'),
+                ),
+                if (_currentStep < 7)
                   ElevatedButton(
                     onPressed: () => _continueToStep(_currentStep + 1),
                     child: const Text('Suivant →'),
@@ -581,15 +771,71 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
   String _getStepLabel(int step) {
     const labels = [
+      'Template',
       'Infos',
       'Périmètre',
       'Tracé',
       'Style',
       'POI',
-      'Validation',
+      'Pré-pub',
       'Publication'
     ];
     return labels[step];
+  }
+
+  Widget _buildStep0Template() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Choisir un modèle (optionnel)',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Tu peux démarrer depuis un template global ou passer cette étape.',
+            style: TextStyle(fontSize: 13, color: Colors.black54),
+          ),
+          const SizedBox(height: 20),
+          DropdownButtonFormField<CircuitTemplate>(
+            initialValue: _selectedTemplate,
+            items: _templates
+                .map(
+                  (t) => DropdownMenuItem<CircuitTemplate>(
+                    value: t,
+                    child: Text('${t.name} (${t.category})'),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) => setState(() => _selectedTemplate = value),
+            decoration: const InputDecoration(
+              labelText: 'Template',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              ElevatedButton.icon(
+                icon: const Icon(Icons.auto_awesome),
+                onPressed: _selectedTemplate == null
+                    ? null
+                    : () => _applyTemplate(_selectedTemplate!),
+                label: const Text('Appliquer le modèle'),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.history),
+                onPressed: _showDraftHistory,
+                label: const Text('Historique'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildStep1Infos() {
@@ -766,7 +1012,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   }
 
   Widget _buildCentralMapToolsBar() {
-    final isPerimeter = _currentStep == 1;
+    final isPerimeter = _currentStep == 2;
     final controller = isPerimeter ? _perimeterEditorController : _routeEditorController;
 
     return Material(
@@ -809,7 +1055,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                     tooltip: 'Simplifier tracé',
                   ),
 
-                  if (!isPerimeter && _currentStep == 2) ...[
+                  if (!isPerimeter && _currentStep == 3) ...[
                     IconButton(
                       icon: _isSnappingRoute
                           ? const SizedBox(
@@ -852,7 +1098,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                     ),
                   ),
 
-                  if (!isPerimeter && (_currentStep == 2 || _currentStep == 3)) ...[
+                  if (!isPerimeter && (_currentStep == 3 || _currentStep == 4)) ...[
                     const VerticalDivider(),
                     _buildRouteStyleControls(),
                   ],
@@ -1121,7 +1367,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                         IconButton(
                           icon: const Icon(Icons.my_location),
                           tooltip: 'Ajouter un POI à la position actuelle',
-                          onPressed: _selectedLayer == null
+                          onPressed: (_selectedLayer == null || _pois.length >= _poiLimit)
                               ? null
                               : _addPoiAtCurrentCenter,
                         ),
@@ -1132,6 +1378,44 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Text(
+                          'POI: ${_pois.length}/$_poiLimit',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: _pois.length >= _poiLimit
+                                ? Colors.redAccent
+                                : (_pois.length >= (_poiLimit * 0.9)
+                                    ? Colors.orange
+                                    : Colors.black87),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (_hasMorePois || _isLoadingMorePois)
+                          TextButton.icon(
+                            onPressed: _isLoadingMorePois ? null : _loadMorePoisPage,
+                            icon: _isLoadingMorePois
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.expand_more, size: 16),
+                            label: const Text('Charger +100'),
+                          ),
+                      ],
+                    ),
+                    if (_pois.length >= _poiLimit)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Limite atteinte: supprime des POI pour continuer.',
+                          style: TextStyle(fontSize: 12, color: Colors.redAccent),
+                        ),
+                      ),
                     const SizedBox(height: 8),
                     if (poiLayers.isNotEmpty)
                       Row(
@@ -1221,6 +1505,21 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                               ],
                             ),
                           ),
+                          if (_hasMorePois || _isLoadingMorePois)
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton.icon(
+                                onPressed: _isLoadingMorePois ? null : _loadMorePoisPage,
+                                icon: _isLoadingMorePois
+                                    ? const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                    : const Icon(Icons.more_horiz),
+                                label: const Text('Voir plus'),
+                              ),
+                            ),
                         ],
                       ),
                     ],
@@ -1314,6 +1613,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
   Future<void> _onMapTapForPoi(double lng, double lat) async {
     if (_selectedLayer == null) return;
+    if (_pois.length >= _poiLimit) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Limite atteinte: 2000 POI maximum par projet'),
+          ),
+        );
+      }
+      return;
+    }
 
     final nameController = TextEditingController();
 
@@ -1441,15 +1750,54 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   }
 
   Widget _buildStep6Validation() {
-    return CircuitValidationChecklistPage(
-      perimeterPoints: _perimeterPoints,
-      routePoints: _routePoints,
-      name: _nameController.text.trim(),
-      country: _countryController.text.trim(),
+    final report = _qualityReport;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Pré-publication',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Score qualité: ${report.score}/100',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: report.canPublish ? Colors.green : Colors.orange,
+            ),
+          ),
+          const SizedBox(height: 10),
+          LinearProgressIndicator(
+            value: report.score / 100,
+            minHeight: 8,
+            color: report.canPublish ? Colors.green : Colors.orange,
+          ),
+          const SizedBox(height: 20),
+          for (final item in report.items)
+            ListTile(
+              dense: true,
+              leading: Icon(
+                item.ok ? Icons.check_circle : Icons.error_outline,
+                color: item.ok ? Colors.green : Colors.redAccent,
+              ),
+              title: Text(item.label),
+              subtitle: (!item.ok && item.hint != null)
+                  ? Text(item.hint!)
+                  : null,
+              trailing: item.required
+                  ? const Chip(label: Text('Requis'))
+                  : const Chip(label: Text('Optionnel')),
+            ),
+        ],
+      ),
     );
   }
 
   Widget _buildStep7Publish() {
+    final report = _qualityReport;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -1490,9 +1838,20 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                   'Points tracé: ${_routePoints.length}',
                   style: const TextStyle(fontSize: 13),
                 ),
+                Text(
+                  'Score qualité: ${report.score}/100',
+                  style: const TextStyle(fontSize: 13),
+                ),
               ],
             ),
           ),
+          if (!report.canPublish) ...[
+            const SizedBox(height: 12),
+            const Text(
+              '❌ Publication bloquée: corrige les points requis de l’étape Pré-publication.',
+              style: TextStyle(color: Colors.redAccent),
+            ),
+          ],
           const SizedBox(height: 32),
           const Text(
             'Options de publication',
@@ -1501,7 +1860,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           const SizedBox(height: 16),
           ElevatedButton.icon(
             icon: const Icon(Icons.cloud_upload),
-            onPressed: _publishCircuit,
+            onPressed: report.canPublish ? _publishCircuit : null,
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               backgroundColor: Colors.green,
@@ -1531,6 +1890,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         throw Exception('User not authenticated');
       }
 
+      await _ensureActorContext();
+
+      final report = _qualityReport;
+      if (!report.canPublish) {
+        throw StateError('Pré-publication non conforme: corrige les points bloquants.');
+      }
+
       if (_projectId == null) {
         await _saveDraft();
       }
@@ -1546,158 +1912,26 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           ? widget.circuitId!.trim()
           : projectId;
 
-      Map<String, double> computeCenter() {
-        if (_routePoints.isNotEmpty) {
-          return {'lat': _routePoints.first.lat, 'lng': _routePoints.first.lng};
-        }
-        if (_perimeterPoints.isNotEmpty) {
-          return {
-            'lat': _perimeterPoints.first.lat,
-            'lng': _perimeterPoints.first.lng,
-          };
-        }
-        return const {'lat': 16.241, 'lng': -61.533};
+      if (countryId.isEmpty || eventId.isEmpty) {
+        throw StateError('Pays et événement requis pour publier.');
       }
 
-      await FirebaseFirestore.instance
-          .collection('map_projects')
-          .doc(projectId)
-          .update({
-        'status': 'published',
-        'isVisible': true,
-        'publishedAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        'circuitId': marketCircuitId,
-      });
-
-      // IMPORTANT: la liste "MapMarket" (menu Carte) lit la structure marketMap.
-      // On sync donc la publication vers marketMap/{countryId}/events/{eventId}/circuits/{marketCircuitId}.
-      if (countryId.isNotEmpty && eventId.isNotEmpty) {
-        final db = FirebaseFirestore.instance;
-        final countryRef = db.collection('marketMap').doc(countryId);
-        final eventRef = countryRef.collection('events').doc(eventId);
-        final circuitRef = eventRef.collection('circuits').doc(marketCircuitId);
-
-        final name = _nameController.text.trim();
-        final styleUrl = _styleUrlController.text.trim();
-        final center = computeCenter();
-        final slug = MarketMapService.slugify(name.isEmpty ? marketCircuitId : name);
-
-        await db.runTransaction((tx) async {
-          final serverNow = FieldValue.serverTimestamp();
-
-          // Country (best-effort)
-          final countrySnap = await tx.get(countryRef);
-          if (!countrySnap.exists) {
-            tx.set(countryRef, {
-              'name': countryId,
-              'slug': countryId,
-              'createdAt': serverNow,
-              'updatedAt': serverNow,
-            });
-          } else {
-            tx.update(countryRef, {'updatedAt': serverNow});
-          }
-
-          // Event (best-effort)
-          final eventSnap = await tx.get(eventRef);
-          if (!eventSnap.exists) {
-            tx.set(eventRef, {
-              'name': eventId,
-              'slug': eventId,
-              'countryId': countryId,
-              'startDate': null,
-              'endDate': null,
-              'createdAt': serverNow,
-              'updatedAt': serverNow,
-            });
-          } else {
-            tx.update(eventRef, {'updatedAt': serverNow});
-          }
-
-          // Circuit upsert
-          final circuitSnap = await tx.get(circuitRef);
-          final base = <String, dynamic>{
-            'name': name.isEmpty ? marketCircuitId : name,
-            'slug': slug,
-            'status': 'published',
-            'countryId': countryId,
-            'eventId': eventId,
-            'createdByUid': user.uid,
-            'perimeterLocked': false,
-            'zoomLocked': false,
-            'center': center,
-            'initialZoom': 14,
-            'bounds': null,
-            'styleId': null,
-            'styleUrl': styleUrl.isEmpty ? null : styleUrl,
-            'isVisible': true,
-            'wizardState': {
-              'wizardStep': 7,
-              'completedSteps': [1, 2, 3, 4, 5, 6, 7],
-            },
-            'sourceProjectId': projectId,
-            'updatedAt': serverNow,
-          };
-
-          if (!circuitSnap.exists) {
-            tx.set(circuitRef, {
-              ...base,
-              'createdAt': serverNow,
-            });
-
-            // Layers par défaut (comme MarketMapService.createCircuitStep1)
-            final layersCol = circuitRef.collection('layers');
-
-            tx.set(layersCol.doc('perimeter'), {
-              'type': 'perimeter',
-              'isEnabled': true,
-              'order': 0,
-              'style': {
-                'fillOpacity': 0.15,
-                'lineWidth': 3,
-              },
-              'params': {
-                'snapToRoad': false,
-                'showLabels': true,
-              },
-              'createdAt': serverNow,
-              'updatedAt': serverNow,
-            });
-
-            tx.set(layersCol.doc('pois'), {
-              'type': 'pois',
-              'isEnabled': true,
-              'order': 1,
-              'style': {
-                'icon': 'marker',
-                'iconSize': 1.0,
-              },
-              'params': {
-                'showLabels': true,
-              },
-              'createdAt': serverNow,
-              'updatedAt': serverNow,
-            });
-
-            tx.set(layersCol.doc('track'), {
-              'type': 'track',
-              'isEnabled': true,
-              'order': 2,
-              'style': {
-                'lineWidth': 4,
-                'opacity': 1.0,
-              },
-              'params': {
-                'snapToRoad': false,
-              },
-              'createdAt': serverNow,
-              'updatedAt': serverNow,
-            });
-          } else {
-            tx.set(circuitRef, base, SetOptions(merge: true));
-          }
-        });
+      await _versioning.lockProject(projectId: projectId, uid: user.uid);
+      try {
+        await _repository.publishToMarketMap(
+          projectId: projectId,
+          actorUid: user.uid,
+          actorRole: _currentUserRole ?? 'creator',
+          groupId: _currentGroupId ?? 'default',
+          countryId: countryId,
+          eventId: eventId,
+          marketCircuitId: marketCircuitId,
+          currentData: _buildCurrentData(),
+          layers: _layers,
+          pois: _pois,
+        );
+      } finally {
+        await _versioning.unlockProject(projectId: projectId);
       }
 
       if (mounted) {

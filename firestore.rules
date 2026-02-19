@@ -29,12 +29,16 @@ service cloud.firestore {
     // Rôles hiérarchiques:
     // - 'user' (utilisateur standard - priorité 10)
     // - 'tracker' (utilisateur traceur - priorité 20)
-    // - 'group' (administrateur de groupe - priorité 50)
+    // - 'group' / 'group-admin' (administrateur de groupe - priorité 50)
     // - 'admin' (administrateur master - priorité 90)
-    // - 'superAdmin' (super administrateur - priorité 100)
+    // - 'superAdmin' / 'super-admin' (super administrateur - priorité 100)
 
     function isSuperAdmin() {
-      return hasUserDoc() && userRole() == 'superAdmin';
+      return hasUserDoc() && (
+        userRole() == 'superAdmin'
+        || userRole() == 'super-admin'
+        || userRole() == 'superadmin'
+      );
     }
 
     function isMasterAdmin() {
@@ -42,13 +46,20 @@ service cloud.firestore {
         getUserData().isAdmin == true 
         || userRole() == 'admin'
         || userRole() == 'superAdmin'
+        || userRole() == 'super-admin'
+        || userRole() == 'superadmin'
       );
     }
 
     function isGroupAdmin(groupId) {
       return hasUserDoc() 
-        && userRole() == 'group' 
+        && (userRole() == 'group' || userRole() == 'group-admin') 
         && userGroupId() == groupId;
+    }
+
+    function isAnyGroupAdmin() {
+      return hasUserDoc()
+        && (userRole() == 'group' || userRole() == 'group-admin');
     }
 
     // ========== VÉRIFICATIONS DE PERMISSIONS ==========
@@ -444,11 +455,11 @@ service cloud.firestore {
     // Écriture: réservée aux admins master (wizard admin).
     match /marketMap/{countryId} {
       allow read: if true;
-      allow create, update, delete: if isMasterAdmin();
+      allow create, update, delete: if isMasterAdmin() || isAnyGroupAdmin();
 
       match /{document=**} {
         allow read: if true;
-        allow create, update, delete: if isMasterAdmin();
+        allow create, update, delete: if isMasterAdmin() || isAnyGroupAdmin();
       }
     }
 
@@ -748,31 +759,152 @@ service cloud.firestore {
       allow create, update, delete: if isSuperAdmin();
     }
 
-    // ========== COLLECTION: MAP_PROJECTS (Circuit Wizard Pro) ==========
-    match /map_projects/{projectId} {
-      // Créer: l'utilisateur doit être signé et le créateur
-      allow create: if isSignedIn() && request.auth.uid == request.resource.data.uid;
-      
-      // Lire/Modifier/Supprimer: propriétaire ou master admin
-      allow read, update, delete: if isSignedIn() && (
-        request.auth.uid == resource.data.uid || isMasterAdmin()
-      );
-      
-      // Sous-collection: Layers (couches de la carte)
-      match /layers/{layerId} {
-        allow read, write: if isSignedIn() && (
-          request.auth.uid == get(/databases/$(database)/documents/map_projects/$(projectId)).data.uid
-          || isMasterAdmin()
+    // ========== COLLECTION: MAP_PROJECTS (Circuit Wizard Pro SaaS Pro 2026) ==========
+    function mapProjectDoc(projectId) {
+      return get(/databases/$(database)/documents/map_projects/$(projectId)).data;
+    }
+
+    function isProjectCreator(projectId) {
+      return isSignedIn()
+        && (
+          mapProjectDoc(projectId).createdBy == request.auth.uid
+          || mapProjectDoc(projectId).uid == request.auth.uid
         );
+    }
+
+    function projectGroupId(projectId) {
+      return mapProjectDoc(projectId).groupId;
+    }
+
+    function canReadProject(projectId) {
+      return isMasterAdmin()
+        || isProjectCreator(projectId)
+        || isGroupAdmin(projectGroupId(projectId));
+    }
+
+    function canWriteProject(projectId) {
+      return isMasterAdmin()
+        || isProjectCreator(projectId)
+        || isGroupAdmin(projectGroupId(projectId));
+    }
+
+    function canPublishProject(projectId) {
+      return isMasterAdmin() || isGroupAdmin(projectGroupId(projectId));
+    }
+
+    function isAllowedStatus(status) {
+      return status in ['draft', 'published'];
+    }
+
+    function validPointListShape(points, maxSize) {
+      return points is list
+        && points.size() <= maxSize
+        && (
+          points.size() == 0
+          || (
+            points[0] is map
+            && points[0].lat is number
+            && points[0].lng is number
+          )
+        );
+    }
+
+    function validCurrentShape(current) {
+      return current is map
+        && current.name is string
+        && current.countryId is string
+        && current.eventId is string
+        && current.routeStyle is map
+        && validPointListShape(current.route, 5000)
+        && validPointListShape(current.perimeter, 1000);
+    }
+
+    function validProjectPayloadCreate() {
+      return request.resource.data.uid == request.auth.uid
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.groupId is string
+        && (isMasterAdmin() || request.resource.data.groupId == userGroupId())
+        && request.resource.data.sourceOfTruth == 'map_projects'
+        && request.resource.data.current is map
+        && validCurrentShape(request.resource.data.current)
+        && isAllowedStatus(request.resource.data.status)
+        && validPointListShape(request.resource.data.route, 5000)
+        && validPointListShape(request.resource.data.perimeter, 1000);
+    }
+
+    function validProjectPayloadUpdate(projectId) {
+      return request.resource.data.sourceOfTruth == 'map_projects'
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.groupId == resource.data.groupId
+        && request.resource.data.current is map
+        && validCurrentShape(request.resource.data.current)
+        && isAllowedStatus(request.resource.data.status)
+        && validPointListShape(request.resource.data.route, 5000)
+        && validPointListShape(request.resource.data.perimeter, 1000)
+        && (
+          resource.data.status != 'draft'
+          || request.resource.data.status != 'published'
+          || canPublishProject(projectId)
+        );
+    }
+
+    function isAllowedAuditAction(action) {
+      return action in [
+        'create_project',
+        'save_draft',
+        'restore_draft',
+        'publish',
+        'update_style',
+        'update_route',
+        'update_pois'
+      ];
+    }
+
+    match /map_projects/{projectId} {
+      allow create: if isSignedIn() && validProjectPayloadCreate();
+
+      allow read: if isSignedIn() && canReadProject(projectId);
+
+      allow update: if isSignedIn()
+        && canWriteProject(projectId)
+        && validProjectPayloadUpdate(projectId);
+
+      allow delete: if isSignedIn() && (isMasterAdmin() || isProjectCreator(projectId));
+
+      match /layers/{layerId} {
+        allow read, create, update: if isSignedIn() && canWriteProject(projectId);
+        allow delete: if isSignedIn() && canWriteProject(projectId);
       }
 
-      // Sous-collection: POIs (points d'intérêt du circuit)
       match /pois/{poiId} {
-        allow read, write: if isSignedIn() && (
-          request.auth.uid == get(/databases/$(database)/documents/map_projects/$(projectId)).data.uid
-          || isMasterAdmin()
-        );
+        allow read, create, update: if isSignedIn() && canWriteProject(projectId);
+        allow delete: if isSignedIn() && canWriteProject(projectId);
       }
+
+      match /drafts/{draftId} {
+        allow read, create, update: if isSignedIn() && canWriteProject(projectId);
+        allow delete: if isSignedIn() && isSuperAdmin();
+      }
+    }
+
+    // ========== COLLECTION: AUDIT EVENTS ==========
+    match /audit_events/{eventId} {
+      allow read: if isSignedIn() && isMasterAdmin();
+      allow create: if isSignedIn()
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorRole is string
+        && isAllowedAuditAction(request.resource.data.action)
+        && request.resource.data.target is map
+        && request.resource.data.target.projectId is string
+        && request.resource.data.target.groupId is string;
+      allow update, delete: if false;
+    }
+
+    // ========== COLLECTION: CIRCUIT TEMPLATES ==========
+    match /circuit_templates/{templateId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSignedIn() && isMasterAdmin();
     }
 
     // ========== REFUS PAR DÉFAUT ==========
