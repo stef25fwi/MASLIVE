@@ -3,10 +3,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/market_circuit_models.dart';
 import '../models/market_country.dart';
-import '../models/market_event.dart';
 import '../services/market_map_service.dart';
-import '../utils/country_flag.dart';
 import 'circuit_wizard_pro_page.dart';
+
+String _iso2ToFlagEmoji(String iso2) {
+  final code = iso2.trim().toUpperCase();
+  if (code.length != 2) return '🏳️';
+  const base = 0x1F1E6;
+  final first = base + (code.codeUnitAt(0) - 65);
+  final second = base + (code.codeUnitAt(1) - 65);
+  return String.fromCharCode(first) + String.fromCharCode(second);
+}
 
 class CircuitWizardEntryPage extends StatefulWidget {
   const CircuitWizardEntryPage({super.key});
@@ -265,8 +272,8 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
             'name': eventName,
             'slug': eventId,
             'countryId': countryId,
-            'startDate': null,
-            'endDate': null,
+            'startDate': Timestamp.fromDate(input.date),
+            'endDate': Timestamp.fromDate(input.date),
             'createdAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
@@ -277,7 +284,11 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
       await ref.set({
         'name': input.name.trim(),
         'countryId': countryId,
+        'countryName': input.countryName,
+        'countryIso2': input.countryIso2,
         'eventId': eventId,
+        'eventName': input.eventName,
+        'eventDate': Timestamp.fromDate(input.date),
         'description': '',
         'styleUrl': '',
         'perimeter': <dynamic>[],
@@ -352,19 +363,27 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
 
 class _NewCircuitInput {
   final String countryId;
+  final String countryName;
+  final String? countryIso2;
   final String eventId;
   final String eventName;
   final String name;
+  final DateTime date;
 
   const _NewCircuitInput({
     required this.countryId,
+    required this.countryName,
+    required this.countryIso2,
     required this.eventId,
     required this.eventName,
     required this.name,
+    required this.date,
   });
 }
 
 class _NewCircuitInputDialog extends StatefulWidget {
+  const _NewCircuitInputDialog();
+
   @override
   State<_NewCircuitInputDialog> createState() => _NewCircuitInputDialogState();
 }
@@ -372,85 +391,39 @@ class _NewCircuitInputDialog extends StatefulWidget {
 class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
   final MarketMapService _marketMapService = MarketMapService();
 
-  MarketCountry? _selectedCountry;
-  MarketEvent? _selectedEvent;
-
-  bool _defaultCountryApplied = false;
-  bool _defaultEventApplied = false;
-
   final _countryController = TextEditingController();
   final _eventController = TextEditingController();
   final _nameController = TextEditingController();
 
-  TextEditingController? _eventAutocompleteController;
-  VoidCallback? _eventAutocompleteListener;
-
-  void _attachEventAutocompleteController(TextEditingController controller) {
-    if (_eventAutocompleteController == controller) return;
-
-    final prevController = _eventAutocompleteController;
-    final prevListener = _eventAutocompleteListener;
-    if (prevController != null && prevListener != null) {
-      prevController.removeListener(prevListener);
-    }
-
-    _eventAutocompleteController = controller;
-    _eventAutocompleteListener = () {
-      _eventController.value = controller.value;
-    };
-    controller.addListener(_eventAutocompleteListener!);
-  }
+  MarketCountry? _selectedCountry;
+  DateTime _date = DateTime.now();
+  String _countryQuery = '';
 
   @override
   void dispose() {
-    final prevEventController = _eventAutocompleteController;
-    final prevEventListener = _eventAutocompleteListener;
-    if (prevEventController != null && prevEventListener != null) {
-      prevEventController.removeListener(prevEventListener);
-    }
     _countryController.dispose();
     _eventController.dispose();
     _nameController.dispose();
     super.dispose();
   }
 
-  String get _countryId {
-    return _selectedCountry?.id.trim() ?? _countryController.text.trim();
-  }
-
-  String get _eventName {
-    final selected = _selectedEvent;
-    if (selected != null) {
-      final n = selected.name.trim();
-      return n.isEmpty ? selected.id.trim() : n;
-    }
-    return _eventController.text.trim();
-  }
-
-  String get _eventId {
-    final selected = _selectedEvent;
-    if (selected != null) return selected.id.trim();
-    final raw = _eventController.text.trim();
-    if (raw.isEmpty) return '';
-    return MarketMapService.slugify(raw);
-  }
-
   bool get _isValid {
-    return _countryId.isNotEmpty &&
-        _eventId.isNotEmpty &&
+    return _selectedCountry != null &&
+        _eventController.text.trim().isNotEmpty &&
         _nameController.text.trim().isNotEmpty;
   }
 
-  String _countryDisplay(MarketCountry c) {
-    final name = c.name.trim().isEmpty ? c.id : c.name.trim();
-    return name.toUpperCase();
+  String _eventName() => _eventController.text.trim();
+
+  String _eventId() {
+    final name = _eventName();
+    if (name.isEmpty) return '';
+    return MarketMapService.slugify(name);
   }
 
-  String _countrySuggestionLabel(MarketCountry c) {
-    final iso2 = _countryCodeFor(c);
-    final name = _countryDisplay(c);
-    final withCode = iso2.isEmpty ? name : '$name ($iso2)';
-    return formatCountryLabelWithFlag(name: withCode, iso2: iso2);
+  String _countryLabel(MarketCountry c) {
+    final name = c.name.trim().isEmpty ? c.id : c.name.trim();
+    return name;
   }
 
   String _countryCodeFor(MarketCountry c) {
@@ -472,305 +445,232 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
     return known[slug] ?? known[name] ?? '';
   }
 
+  String _formatDate(DateTime d) {
+    final y = d.year.toString().padLeft(4, '0');
+    final m = d.month.toString().padLeft(2, '0');
+    final day = d.day.toString().padLeft(2, '0');
+    return '$y-$m-$day';
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _date = DateTime(picked.year, picked.month, picked.day);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Nouveau circuit'),
-      content: SizedBox(
-        width: 420,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildCountryField(),
-            const SizedBox(height: 12),
-            _buildEventField(),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _nameController,
-              onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                labelText: 'Nom du circuit',
-                hintText: 'Ex: Circuit Côte Nord',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
+    return Dialog(
+      backgroundColor: Colors.white,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.shade300),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Annuler'),
-        ),
-        ElevatedButton(
-          onPressed: !_isValid
-              ? null
-              : () => Navigator.pop(
-                    context,
-                    _NewCircuitInput(
-                      countryId: _countryId,
-                      eventId: _eventId,
-                      eventName: _eventName,
-                      name: _nameController.text.trim(),
-                    ),
+      child: SizedBox(
+        width: 520,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: StreamBuilder<List<MarketCountry>>(
+            stream: _marketMapService.watchCountries(),
+            builder: (context, snapshot) {
+              final countries = snapshot.data ?? const <MarketCountry>[];
+              final filtered = countries
+                  .where((c) => _countryLabel(c)
+                      .toLowerCase()
+                      .contains(_countryQuery.toLowerCase()))
+                  .toList()
+                ..sort((a, b) => _countryLabel(a).compareTo(_countryLabel(b)));
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Nouveau circuit',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
                   ),
-          child: const Text('Créer'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCountryField() {
-    return StreamBuilder<List<MarketCountry>>(
-      stream: _marketMapService.watchCountries(),
-      builder: (context, snap) {
-        if (snap.hasError) {
-          return TextField(
-            controller: _countryController,
-            onChanged: (_) {
-              setState(() {
-                _selectedCountry = null;
-                _selectedEvent = null;
-              });
-            },
-            decoration: const InputDecoration(
-              labelText: 'Pays',
-              hintText: 'Ex: guadeloupe',
-              border: OutlineInputBorder(),
-              helperText:
-                  'Impossible de charger la liste (marketMap). Vérifiez les droits Firestore. Saisie libre activée.',
-              suffixIcon: Icon(Icons.warning_amber_rounded),
-            ),
-          );
-        }
-
-        final items = snap.data ?? const <MarketCountry>[];
-
-        // Sélection par défaut: Guadeloupe si dispo, sinon premier pays.
-        if (!_defaultCountryApplied &&
-            _selectedCountry == null &&
-            _countryController.text.trim().isEmpty &&
-            items.isNotEmpty) {
-          final preferred = items.firstWhere(
-            (c) =>
-                _countryCodeFor(c) == 'GP' ||
-                c.id.toLowerCase() == 'gp' ||
-                c.slug.toLowerCase() == 'guadeloupe' ||
-                c.name.toLowerCase() == 'guadeloupe',
-            orElse: () => items.first,
-          );
-
-          _defaultCountryApplied = true;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            setState(() {
-              _selectedCountry = preferred;
-              _selectedEvent = null;
-              _defaultEventApplied = false;
-              _countryController.text = _countryDisplay(preferred);
-              _eventController.clear();
-            });
-          });
-        }
-
-        if (items.isEmpty) {
-          return TextField(
-            controller: _countryController,
-            onChanged: (_) {
-              setState(() {
-                _selectedCountry = null;
-                _selectedEvent = null;
-              });
-            },
-            decoration: const InputDecoration(
-              labelText: 'Pays',
-              hintText: 'Ex: guadeloupe',
-              border: OutlineInputBorder(),
-              helperText:
-                  'Aucun pays disponible dans marketMap. Saisie libre activée.',
-            ),
-          );
-        }
-
-        final selectedId = _selectedCountry?.id;
-        final currentValue =
-            items.any((c) => c.id == selectedId) ? selectedId : null;
-
-        return DropdownButtonFormField<String>(
-          initialValue: currentValue,
-          isExpanded: true,
-          decoration: const InputDecoration(
-            labelText: 'Pays',
-            border: OutlineInputBorder(),
-          ),
-          items: [
-            for (final c in items)
-              DropdownMenuItem(
-                value: c.id,
-                child: Text(_countrySuggestionLabel(c)),
-              ),
-          ],
-          onChanged: (id) {
-            if (id == null) return;
-            final selected = items.firstWhere(
-              (c) => c.id == id,
-              orElse: () => const MarketCountry(id: '', name: '', slug: ''),
-            );
-            if (selected.id.isEmpty) return;
-            setState(() {
-              _selectedCountry = selected;
-              _selectedEvent = null;
-              _defaultEventApplied = false;
-              _countryController.text = _countryDisplay(selected);
-              _eventController.clear();
-            });
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildEventField() {
-    final countryId = _countryId;
-    if (countryId.isEmpty) {
-      return TextField(
-        controller: _eventController,
-        enabled: false,
-        decoration: const InputDecoration(
-          labelText: 'Événement',
-          border: OutlineInputBorder(),
-          helperText: 'Sélectionnez d\'abord un pays',
-        ),
-      );
-    }
-
-    return StreamBuilder<List<MarketEvent>>(
-      stream: _marketMapService.watchEvents(countryId: countryId),
-      builder: (context, snap) {
-        if (snap.hasError) {
-          return TextField(
-            controller: _eventController,
-            onChanged: (_) {
-              setState(() {
-                _selectedEvent = null;
-              });
-            },
-            decoration: const InputDecoration(
-              labelText: 'Événement',
-              hintText: 'Ex: TRAIL_2026',
-              border: OutlineInputBorder(),
-              helperText:
-                  'Impossible de charger la liste (marketMap). Vérifiez les droits Firestore. Saisie libre activée.',
-              suffixIcon: Icon(Icons.warning_amber_rounded),
-            ),
-          );
-        }
-
-        final items = snap.data ?? const <MarketEvent>[];
-
-        // Sélection par défaut: premier événement du pays (le stream est déjà trié).
-        if (!_defaultEventApplied &&
-            _selectedEvent == null &&
-            _eventController.text.trim().isEmpty &&
-            items.isNotEmpty) {
-          _defaultEventApplied = true;
-          final preferred = items.first;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            setState(() {
-              _selectedEvent = preferred;
-              _eventController.text =
-                  preferred.name.trim().isEmpty ? preferred.id : preferred.name.trim();
-            });
-          });
-        }
-
-        if (items.isEmpty) {
-          return TextField(
-            controller: _eventController,
-            onChanged: (_) {
-              setState(() {
-                _selectedEvent = null;
-              });
-            },
-            decoration: const InputDecoration(
-              labelText: 'Événement',
-              hintText: 'Ex: TRAIL_2026',
-              border: OutlineInputBorder(),
-              helperText:
-                  'Aucun événement disponible pour ce pays dans marketMap. Saisie libre activée.',
-            ),
-          );
-        }
-
-        final helperText = _selectedCountry == null
-            ? 'Pays saisi manuellement: vous pouvez saisir un nouvel événement'
-            : 'Vous pouvez saisir un nouvel événement';
-
-        return Autocomplete<MarketEvent>(
-          initialValue: TextEditingValue(text: _eventController.text),
-          displayStringForOption: (e) => e.name.trim().isEmpty ? e.id : e.name.trim(),
-          optionsBuilder: (TextEditingValue value) {
-            final q = value.text.trim().toLowerCase();
-            if (q.isEmpty) return items;
-            return items.where((e) {
-              final name = (e.name.trim().isEmpty ? e.id : e.name).toLowerCase();
-              return name.contains(q) || e.id.toLowerCase().contains(q);
-            });
-          },
-          fieldViewBuilder: (context, textCtrl, focusNode, onFieldSubmitted) {
-            textCtrl.value = _eventController.value;
-            _attachEventAutocompleteController(textCtrl);
-
-            return TextField(
-              controller: textCtrl,
-              focusNode: focusNode,
-              onChanged: (_) {
-                setState(() {
-                  _selectedEvent = null;
-                });
-              },
-              decoration: InputDecoration(
-                labelText: 'Événement',
-                hintText: 'Ex: Carnaval 2026',
-                border: OutlineInputBorder(),
-                helperText: helperText,
-              ),
-            );
-          },
-          optionsViewBuilder: (context, onSelected, options) {
-            return Align(
-              alignment: Alignment.topLeft,
-              child: Material(
-                elevation: 4,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 460, maxHeight: 260),
-                  child: ListView.builder(
-                    padding: EdgeInsets.zero,
-                    itemCount: options.length,
-                    itemBuilder: (context, i) {
-                      final e = options.elementAt(i);
-                      final name = e.name.trim().isEmpty ? e.id : e.name.trim();
-                      return ListTile(
-                        dense: true,
-                        title: Text(name),
-                        subtitle: Text(e.id),
-                        onTap: () => onSelected(e),
-                      );
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _countryController,
+                    decoration: InputDecoration(
+                      labelText: 'Pays',
+                      hintText: 'Rechercher un pays…',
+                      filled: true,
+                      fillColor: Colors.grey.shade100,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      prefixIcon: Padding(
+                        padding: const EdgeInsets.only(left: 12, right: 8),
+                        child: Center(
+                          widthFactor: 1,
+                          child: Text(
+                            _selectedCountry == null
+                                ? '🏳️'
+                                : _iso2ToFlagEmoji(_countryCodeFor(_selectedCountry!)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _countryQuery = value;
+                        _selectedCountry = null;
+                      });
                     },
                   ),
-                ),
-              ),
-            );
-          },
-          onSelected: (e) {
-            setState(() {
-              _selectedEvent = e;
-              _eventController.text = e.name.trim().isEmpty ? e.id : e.name.trim();
-            });
-          },
-        );
-      },
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 180,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: filtered.isEmpty
+                        ? Center(
+                            child: Text(
+                              'Aucun pays trouvé',
+                              style: TextStyle(color: Colors.grey.shade600),
+                            ),
+                          )
+                        : ListView.separated(
+                            itemCount: filtered.length,
+                            separatorBuilder: (context, index) => Divider(
+                              height: 1,
+                              color: Colors.grey.shade200,
+                            ),
+                            itemBuilder: (_, i) {
+                              final c = filtered[i];
+                              final iso2 = _countryCodeFor(c);
+                              return ListTile(
+                                dense: true,
+                                leading: Text(
+                                  _iso2ToFlagEmoji(iso2),
+                                  style: const TextStyle(fontSize: 18),
+                                ),
+                                title: Text(_countryLabel(c)),
+                                subtitle: iso2.isEmpty ? null : Text(iso2),
+                                onTap: () {
+                                  setState(() {
+                                    _selectedCountry = c;
+                                    _countryController.text = _countryLabel(c);
+                                    _countryQuery = _countryLabel(c);
+                                  });
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _eventController,
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      labelText: 'Événement',
+                      hintText: 'Ex: Carnaval, Festival…',
+                      filled: true,
+                      fillColor: Colors.grey.shade100,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _nameController,
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      labelText: 'Nom du circuit',
+                      hintText: 'Ex: Défilé Centre-ville…',
+                      filled: true,
+                      fillColor: Colors.grey.shade100,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: Text('Date : ${_formatDate(_date)}'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: _pickDate,
+                        icon: const Icon(Icons.calendar_month),
+                        label: const Text('Choisir'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: !_isValid
+                          ? null
+                          : () {
+                              final country = _selectedCountry;
+                              if (country == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Sélectionnez un pays.'),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              Navigator.pop(
+                                context,
+                                _NewCircuitInput(
+                                  countryId: country.id.trim(),
+                                  countryName: _countryLabel(country),
+                                  countryIso2: _countryCodeFor(country),
+                                  eventId: _eventId(),
+                                  eventName: _eventName(),
+                                  name: _nameController.text.trim(),
+                                  date: _date,
+                                ),
+                              );
+                            },
+                      child: const Text('Continuer'),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
     );
   }
 }
