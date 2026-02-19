@@ -599,7 +599,115 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
         Expanded(
           child: _buildMap(),
         ),
+
+        _buildPointsSection(),
       ],
+    );
+  }
+
+  Widget _buildPointsSection() {
+    if (_points.isEmpty) {
+      return Container(
+        color: Colors.white,
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+        child: Row(
+          children: const [
+            Icon(Icons.info_outline, size: 16, color: Colors.grey),
+            SizedBox(width: 8),
+            Text(
+              'Liste des points: ajoutez des points sur la carte',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(12, 10, 12, 6),
+              child: Text(
+                'Liste des points',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
+            ),
+            const Divider(height: 1),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 180),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: _points.length,
+                itemBuilder: (context, index) {
+                  final point = _points[index];
+                  final isSelected = _selectedPointIndex == index;
+                  final role = _pointRoleLabel(index);
+                  return ListTile(
+                    dense: true,
+                    selected: isSelected,
+                    leading: CircleAvatar(
+                      radius: 12,
+                      backgroundColor: isSelected ? Colors.blue : Colors.grey,
+                      child: Text(
+                        '${index + 1}',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    title: Text(
+                      '${index + 1}/ $role',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight:
+                            role == 'Point' ? FontWeight.w600 : FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '${point.lng.toStringAsFixed(5)}, ${point.lat.toStringAsFixed(5)}',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                    trailing: PopupMenuButton(
+                      itemBuilder: (ctx) => [
+                        if (widget.mode == 'polyline' &&
+                            index > 0 &&
+                            index != _points.length - 1)
+                          PopupMenuItem(
+                            child: Text(
+                                'Définir comme Arrivée (point ${index + 1})'),
+                            onTap: () => _setArrivalPoint(index),
+                          ),
+                        PopupMenuItem(
+                          child: Text('Supprimer (point ${index + 1})'),
+                          onTap: () => _removePoint(index),
+                        ),
+                      ],
+                    ),
+                    onTap: () async {
+                      setState(() => _selectedPointIndex = index);
+                      if (index == 0 && _points.length >= 2) {
+                        await _promptCloseLoopIfNeeded();
+                      }
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -676,83 +784,6 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
           ),
         ),
 
-        if (_points.isNotEmpty)
-          Positioned(
-            left: 12,
-            right: 12,
-            bottom: 12,
-            child: interceptPointersIfNeeded(
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.92),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 160),
-                  child: ListView.builder(
-                    itemCount: _points.length,
-                    itemBuilder: (context, index) {
-                      final point = _points[index];
-                      final isSelected = _selectedPointIndex == index;
-                      final role = _pointRoleLabel(index);
-                      return ListTile(
-                        dense: true,
-                        selected: isSelected,
-                        leading: CircleAvatar(
-                          radius: 12,
-                          backgroundColor: isSelected ? Colors.blue : Colors.grey,
-                          child: Text(
-                            '${index + 1}',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        title: Text(
-                          '${index + 1}/ $role',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: role == 'Point'
-                                ? FontWeight.w600
-                                : FontWeight.bold,
-                          ),
-                        ),
-                        subtitle: Text(
-                          '${point.lng.toStringAsFixed(5)}, ${point.lat.toStringAsFixed(5)}',
-                          style:
-                              const TextStyle(fontSize: 11, color: Colors.grey),
-                        ),
-                        trailing: PopupMenuButton(
-                          itemBuilder: (ctx) => [
-                            if (widget.mode == 'polyline' &&
-                                index > 0 &&
-                                index != _points.length - 1)
-                              PopupMenuItem(
-                                child: Text(
-                                    'Définir comme Arrivée (point ${index + 1})'),
-                                onTap: () => _setArrivalPoint(index),
-                              ),
-                            PopupMenuItem(
-                              child: Text('Supprimer (point ${index + 1})'),
-                              onTap: () => _removePoint(index),
-                            ),
-                          ],
-                        ),
-                        onTap: () async {
-                          setState(() => _selectedPointIndex = index);
-                          if (index == 0 && _points.length >= 2) {
-                            await _promptCloseLoopIfNeeded();
-                          }
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
-          ),
       ],
     );
   }

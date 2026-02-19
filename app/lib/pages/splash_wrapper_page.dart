@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'splash_screen.dart';
 import 'default_map_page.dart';
 import 'home_map_page_3d.dart';
+import '../services/startup_preload_service.dart';
 import '../utils/web_viewport_resize.dart';
 
 /// Notificateur global pour savoir quand la carte est prête
@@ -18,8 +19,11 @@ class SplashWrapperPage extends StatefulWidget {
 }
 
 class _SplashWrapperPageState extends State<SplashWrapperPage> {
-  bool _showHome = false;
+  final bool _showHome = true;
   bool _mapReady = false;
+  bool _mapSignalReady = false;
+  bool _assetsReady = false;
+  bool _didHideSplash = false;
   late DateTime _splashStartTime;
 
   Widget get _homeAfterSplash =>
@@ -34,18 +38,18 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
     // Écouter quand la carte est prête
     mapReadyNotifier.addListener(_onMapReady);
 
-    // Pré-charger la page home immédiatement pour que la carte commence à se charger
+    // Précharger les assets visuels pendant le splash.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        setState(() => _showHome = true);
-      }
+      _startAssetPreload();
     });
 
     // Timeout de secours : si la carte ne notifie pas dans les 5 secondes, on affiche quand même
     Future.delayed(const Duration(seconds: 5), () {
-      if (mounted && !_mapReady) {
-        debugPrint('⚠️ SplashWrapperPage: Timeout - forçage du masquage du splash après 5 secondes');
-        _hideSplash();
+      if (mounted && !_didHideSplash) {
+        debugPrint(
+          '⚠️ SplashWrapperPage: Timeout - forçage du masquage du splash après 5 secondes',
+        );
+        _hideSplash(force: true);
       }
     });
   }
@@ -57,34 +61,60 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
   }
 
   void _onMapReady() {
-    if (mapReadyNotifier.value && !_mapReady) {
-      // Calcul du délai écoulé depuis le démarrage du splash
-      final elapsedSeconds = DateTime.now()
-          .difference(_splashStartTime)
-          .inSeconds;
-
-      // Minimum 2.5 secondes de splashscreen
-      if (elapsedSeconds < 2.5) {
-        debugPrint(
-          '⏳ SplashWrapperPage: Carte prête mais délai minimum non atteint ($elapsedSeconds sec < 2.5 sec)',
-        );
-        final remainingMs = (2500 - (elapsedSeconds * 1000)).toInt();
-        Future.delayed(Duration(milliseconds: remainingMs), () {
-          if (mounted) {
-            _hideSplash();
-          }
-        });
-      } else {
-        debugPrint(
-          '✅ SplashWrapperPage: Carte prête et délai minimum atteint, masquage du splashscreen',
-        );
-        _hideSplash();
-      }
-    }
+    if (!mapReadyNotifier.value || _mapSignalReady) return;
+    _mapSignalReady = true;
+    _tryHideSplash();
   }
 
-  void _hideSplash() {
-    setState(() => _mapReady = true);
+  Future<void> _startAssetPreload() async {
+    final assets = await StartupPreloadService.collectSplashImageAssets();
+    if (!mounted) return;
+
+    try {
+      for (final path in assets) {
+        await precacheImage(AssetImage(path), context);
+      }
+      await StartupPreloadService.warmupMapStyleAsset();
+    } catch (_) {
+      // Ne bloque jamais le démarrage.
+    }
+
+    if (!mounted) return;
+    _assetsReady = true;
+    _tryHideSplash();
+  }
+
+  void _tryHideSplash() {
+    if (_didHideSplash) return;
+    if (!_mapSignalReady || !_assetsReady) return;
+
+    final elapsedMs = DateTime.now().difference(_splashStartTime).inMilliseconds;
+    final remainingMs = 2500 - elapsedMs;
+
+    if (remainingMs > 0) {
+      debugPrint(
+        '⏳ SplashWrapperPage: attente délai minimum splash (${remainingMs}ms restantes)',
+      );
+      Future.delayed(Duration(milliseconds: remainingMs), () {
+        if (mounted) _hideSplash();
+      });
+      return;
+    }
+
+    _hideSplash();
+  }
+
+  void _hideSplash({bool force = false}) {
+    if (_didHideSplash) return;
+    _didHideSplash = true;
+    setState(() {
+      _mapReady = true;
+      if (force) {
+        _mapSignalReady = true;
+        _assetsReady = true;
+      }
+    });
+
     // Restaurer les barres système
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 

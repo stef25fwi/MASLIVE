@@ -257,25 +257,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     );
   }
 
-  Future<void> _saveVersionSnapshot() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null || _projectId == null) return;
-    await _ensureActorContext();
-    await _versioning.saveDraftVersion(
-      projectId: _projectId!,
-      actorUid: user.uid,
-      actorRole: _currentUserRole ?? 'creator',
-      groupId: _currentGroupId ?? 'default',
-      currentData: _buildCurrentData(),
-      layers: _layers,
-      pois: _pois,
-    );
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('✅ Version sauvegardée')), 
-    );
-  }
-
   Future<void> _showDraftHistory() async {
     if (_projectId == null) {
       if (!mounted) return;
@@ -750,11 +731,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                   icon: const Icon(Icons.save),
                   onPressed: _saveDraft,
                   label: const Text('Sauvegarder'),
-                ),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.bookmark_add_outlined),
-                  onPressed: (_projectId == null) ? null : _saveVersionSnapshot,
-                  label: const Text('Sauvegarder version'),
                 ),
                 if (_currentStep < 7)
                   ElevatedButton(
