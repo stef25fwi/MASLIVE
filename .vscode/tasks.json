@@ -22,6 +22,28 @@
       }
     },
     {
+      "label": "MASLIVE: Build web(no-wasm) + Firebase deploy full",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -n \"$TOKEN\" ]; then flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\"; else flutter build web --release --no-wasm-dry-run; fi && cd /workspaces/MASLIVE && firebase deploy --only hosting,functions,firestore:rules,firestore:indexes",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Git commit + push (functions node22 migration)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add .vscode/tasks.json README.md firebase.json functions/package.json functions/package-lock.json && git commit -m \"chore(functions): migrate runtime to Node.js 22\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Flutter pub get",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE/app && flutter pub get",

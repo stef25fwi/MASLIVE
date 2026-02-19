@@ -1,5 +1,5 @@
 # MASLIVE
-MAS’LIVE  app geolocalitsation live tracking shop 
+MAS’LIVE app geolocalisation live tracking shop.
 
 ## Commandes “à cliquer” (VS Code)
 
@@ -15,3 +15,15 @@ Pour les lancer: `Terminal` → `Run Task...` puis choisir la tâche.
 
 - Tout-en-un: `bash /workspaces/MASLIVE/scripts/setup_deploy.sh`
 - Ou en une ligne: `cd /workspaces/MASLIVE/app && flutter pub get && cd /workspaces/MASLIVE && firebase deploy --only firestore:rules,functions`
+
+## Migration Firebase Functions → Node.js 22
+
+La configuration du projet est préparée pour Node.js 22:
+
+- `functions/package.json` → `"engines": { "node": "22" }`
+- `firebase.json` → `"runtime": "nodejs22"`
+
+Déploiement recommandé:
+
+- `cd /workspaces/MASLIVE/functions && npm ci`
+- `cd /workspaces/MASLIVE && firebase deploy --only functions --project maslive`
