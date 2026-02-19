@@ -12,7 +12,7 @@ cd /workspaces/MASLIVE
 echo ""
 echo "📱 Étape 1: Build Flutter Web..."
 cd app
-flutter build web --release
+flutter build web --release --no-wasm-dry-run
 cd ..
 
 echo ""
