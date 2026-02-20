@@ -105,6 +105,27 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   StreamSubscription? _marketPoisSub;
   List<MarketPoi> _marketPois = const <MarketPoi>[];
 
+  // === MarketMap POIs (GeoJSON Layers) ===
+  // ignore: unused_field
+  static const String _mmPoiSourceId = 'mm_pois_src';
+  // ignore: unused_field
+  static const String _mmPoiLayerPrefix = 'mm_pois_layer__'; // + type
+  // ignore: unused_field
+  GeoJsonSource? _mmPoiSource;
+  // ignore: unused_field
+  final Set<String> _mmPoiLayerIds = <String>{};
+
+  // Types supportés pour filtrage rapide par action
+  // ignore: unused_field
+  static const List<String> _mmTypes = <String>[
+    'visit',
+    'food',
+    'assistance',
+    'parking',
+    'wc',
+    'market', // fallback
+  ];
+
   String get _effectiveMapboxToken => _runtimeMapboxToken.isNotEmpty
       ? _runtimeMapboxToken
       : MapboxTokenService.getTokenSync();
