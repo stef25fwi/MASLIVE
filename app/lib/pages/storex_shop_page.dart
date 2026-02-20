@@ -236,9 +236,11 @@ class _StorexHome extends StatelessWidget {
         },
       ),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
+        ),
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black54),
+        iconTheme: const IconThemeData(color: Colors.white),
         leading: Builder(
           builder: (ctx) => IconButton(
             icon: const Icon(Icons.menu),
@@ -246,7 +248,7 @@ class _StorexHome extends StatelessWidget {
           ),
         ),
         centerTitle: false,
-        title: LanguageSwitcher(),
+        title: LanguageSwitcher(textColor: Colors.white),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -600,22 +602,24 @@ class _StorexCategory extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
+        ),
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.black54),
+        iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
           l10n.AppLocalizations.of(context)!.categories,
           style: const TextStyle(
-            color: Colors.black87,
+            color: Colors.white,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.6,
           ),
         ),
         actions: [
-          LanguageSwitcher(),
+          LanguageSwitcher(textColor: Colors.white),
           IconButton(
-            icon: const Icon(Icons.search, color: Colors.black54),
+            icon: const Icon(Icons.search, color: Colors.white),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _SearchPage(shopId: shopId, groupId: groupId))),
           )
         ],
@@ -1041,16 +1045,19 @@ class _WishlistPage extends StatelessWidget {
       return Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
+          ),
           elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.white),
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black54),
+            icon: const Icon(Icons.arrow_back),
             onPressed: () => Navigator.of(context).pop(),
           ),
           centerTitle: true,
           title: Text(
             l10n.AppLocalizations.of(context)!.myFavorites,
-            style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w800),
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
           ),
         ),
         body: Center(
@@ -1084,12 +1091,16 @@ class _WishlistPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white, elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black54), onPressed: () => Navigator.of(context).pop()),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
+        ),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.of(context).pop()),
         centerTitle: true,
         title: Text(
           l10n.AppLocalizations.of(context)!.myFavorites,
-          style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w800),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
         ),
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -1206,16 +1217,19 @@ class _OrdersPage extends StatelessWidget {
       return Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
+          ),
           elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.white),
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black54),
+            icon: const Icon(Icons.arrow_back),
             onPressed: () => Navigator.of(context).pop(),
           ),
           centerTitle: true,
           title: Text(
             l10n.AppLocalizations.of(context)!.myOrders,
-            style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w800),
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
           ),
         ),
         body: Center(
@@ -1249,12 +1263,16 @@ class _OrdersPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white, elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black54), onPressed: () => Navigator.of(context).pop()),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
+        ),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.of(context).pop()),
         centerTitle: true,
         title: Text(
           l10n.AppLocalizations.of(context)!.myOrders,
-          style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w800),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
         ),
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
