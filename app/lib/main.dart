@@ -73,6 +73,7 @@ import 'pages/group/tracker_group_profile_page.dart';
 import 'pages/group/group_map_live_page.dart';
 import 'pages/group/group_track_history_page.dart';
 import 'pages/group/group_export_page.dart';
+import 'pages/public/marketmap_public_viewer_page.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -291,6 +292,27 @@ class MasLiveApp extends StatelessWidget {
               '/commerce/my-submissions': (_) => const MySubmissionsPage(),
               '/admin/moderation': (_) => const AdminModerationPage(),
               '/admin/commerce-analytics': (_) => const CommerceAnalyticsPage(),
+
+              // Public (mobile): viewer MarketMap
+              '/public/marketmap': (ctx) {
+                final args = ModalRoute.of(ctx)?.settings.arguments;
+                if (args is Map) {
+                  final countryId = args['countryId'] as String?;
+                  final eventId = args['eventId'] as String?;
+                  final initialCircuitId = args['initialCircuitId'] as String?;
+                  final accessToken = args['accessToken'] as String?;
+
+                  if (countryId != null && eventId != null) {
+                    return MarketMapPublicViewerPage(
+                      countryId: countryId,
+                      eventId: eventId,
+                      initialCircuitId: initialCircuitId,
+                      accessToken: accessToken,
+                    );
+                  }
+                }
+                return const _RouteArgsErrorPage(routeName: '/public/marketmap');
+              },
 
               // Groupe (Admin/Tracker)
               '/group-admin': (_) => const AdminGroupDashboardPage(),
