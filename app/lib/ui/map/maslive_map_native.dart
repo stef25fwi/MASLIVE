@@ -197,6 +197,67 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       await _polygonManager?.deleteAll();
       await _userLocationManager?.deleteAll();
     };
+
+    controller.fitBoundsImpl = (west, south, east, north, padding, animate) async {
+      if (_mapboxMap == null) return;
+      try {
+        final bounds = CoordinateBounds(
+          southwest: Point(coordinates: Position(west, south)),
+          northeast: Point(coordinates: Position(east, north)),
+          infiniteBounds: false,
+        );
+        final camera = await _mapboxMap!.cameraForCoordinateBounds(
+          bounds,
+          MbxEdgeInsets(top: padding, left: padding, bottom: padding, right: padding),
+          0.0,
+          0.0,
+          null,
+          null,
+        );
+        if (animate) {
+          await _mapboxMap!.flyTo(camera, MapAnimationOptions(duration: 900));
+        } else {
+          await _mapboxMap!.setCamera(camera);
+        }
+      } catch (e) {
+        debugPrint('⚠️ fitBounds native error: $e');
+      }
+    };
+
+    controller.setMaxBoundsImpl = (west, south, east, north) async {
+      if (_mapboxMap == null) return;
+      try {
+        if (west == null || south == null || east == null || north == null) {
+          await _mapboxMap!.setBounds(
+            CameraBoundsOptions(bounds: null),
+          );
+          return;
+        }
+        final bounds = CoordinateBounds(
+          southwest: Point(coordinates: Position(west, south)),
+          northeast: Point(coordinates: Position(east, north)),
+          infiniteBounds: false,
+        );
+        await _mapboxMap!.setBounds(
+          CameraBoundsOptions(bounds: bounds),
+        );
+      } catch (e) {
+        debugPrint('⚠️ setMaxBounds native error: $e');
+      }
+    };
+
+    controller.getCameraCenterImpl = () async {
+      if (_mapboxMap == null) return null;
+      try {
+        final state = await _mapboxMap!.getCameraState();
+        final center = state.center;
+        final coords = center.coordinates;
+        return MapPoint(coords.lng.toDouble(), coords.lat.toDouble());
+      } catch (e) {
+        debugPrint('⚠️ getCameraCenter native error: $e');
+        return null;
+      }
+    };
   }
 
   Future<void> _ensureMarkersManager() async {

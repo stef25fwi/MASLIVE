@@ -198,6 +198,47 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         // ignore
       }
     };
+
+    controller.fitBoundsImpl = (west, south, east, north, padding, animate) async {
+      try {
+        _mbFitBounds(_containerId, west, south, east, north, padding, animate);
+      } catch (e) {
+        debugPrint('⚠️ fitBounds error: $e');
+      }
+    };
+
+    controller.setMaxBoundsImpl = (west, south, east, north) async {
+      try {
+        if (west == null || south == null || east == null || north == null) {
+          _mbSetMaxBounds(_containerId, null);
+          return;
+        }
+        final boundsJson = jsonEncode([
+          [west, south],
+          [east, north],
+        ]);
+        _mbSetMaxBounds(_containerId, boundsJson);
+      } catch (e) {
+        debugPrint('⚠️ setMaxBounds error: $e');
+      }
+    };
+
+    controller.getCameraCenterImpl = () async {
+      try {
+        final raw = _mbGetCenter(_containerId);
+        if (raw == null || raw.isEmpty) return null;
+        final decoded = jsonDecode(raw);
+        if (decoded is! Map) return null;
+        final lng = decoded['lng'];
+        final lat = decoded['lat'];
+        if (lng is num && lat is num) {
+          return MapPoint(lng.toDouble(), lat.toDouble());
+        }
+      } catch (e) {
+        debugPrint('⚠️ getCenter error: $e');
+      }
+      return null;
+    };
   }
 
   @override
@@ -423,6 +464,23 @@ external void _mbSetPolygon(
 
 @JS('MasliveMapboxV2.clearAll')
 external void _mbClearAll(String containerId);
+
+@JS('MasliveMapboxV2.fitBounds')
+external void _mbFitBounds(
+  String containerId,
+  double west,
+  double south,
+  double east,
+  double north,
+  double padding,
+  bool animate,
+);
+
+@JS('MasliveMapboxV2.setMaxBounds')
+external void _mbSetMaxBounds(String containerId, String? boundsJson);
+
+@JS('MasliveMapboxV2.getCenter')
+external String? _mbGetCenter(String containerId);
 
 @JS('MasliveMapboxV2.destroy')
 external void _mbDestroy(String containerId);

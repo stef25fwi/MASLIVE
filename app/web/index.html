@@ -35,9 +35,10 @@
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
   
   <script>
-    // Token Mapbox - OPTIONNEL : passe le via --dart-define=MAPBOX_ACCESS_TOKEN=ton_token
-    // Laisse vide ou "" pour forcer l'utilisation de --dart-define uniquement
-    window.__MAPBOX_TOKEN__ = "pk.eyJ1Ijoic3RlZjk3MWZ3aSIsImEiOiJjbWt1aDBqNW8yMmdmM2RvcXg4aThrcGRzIn0.7vrVoNjhUFHW1c8f-Dbczg";
+    // Token Mapbox injecté via --dart-define=MAPBOX_ACCESS_TOKEN=<ton_token> au moment du build
+    // ou configuré dynamiquement via l'interface admin (SharedPreferences).
+    // NE PAS mettre le token en dur ici : il serait versionné et public.
+    window.__MAPBOX_TOKEN__ = "";
 
     // Style par défaut (ton style "box")
     window.__MAPBOX_STYLE__ = "mapbox://styles/mapbox/streets-v12";

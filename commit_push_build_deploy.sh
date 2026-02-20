@@ -33,7 +33,7 @@ if git ls-files -z -- "*firebase-adminsdk*.json" | head -c 1 | grep -q .; then
 	echo "   Fix: git rm --cached <fichier>.json && git commit -m 'chore: stop tracking firebase admin sdk key'"
 	exit 1
 fi
-if git ls-files -z "functions/.env" "functions/.env.*" "functions/.runtimeconfig.json" | head -c 1 | grep -q .; then
+if git ls-files -z "functions/.env" "functions/.env.*" "functions/.runtimeconfig.json" | tr '\0' '\n' | grep -v '\.env\.example' | head -c 1 | grep -q .; then
 	echo "❌ ERREUR: un fichier de config secret Functions est suivi par Git (functions/.env* ou functions/.runtimeconfig.json)."
 	echo "   Fix: git rm --cached functions/.env* functions/.runtimeconfig.json && git commit -m 'chore: stop tracking functions secrets'"
 	exit 1
@@ -59,7 +59,7 @@ if git diff --cached --name-only -- "*firebase-adminsdk*.json" | head -n 1 | gre
 	echo "   Fix: git reset -- <fichier>.json && ajoute-le à .gitignore"
 	exit 1
 fi
-if git diff --cached --name-only -- "functions/.env" "functions/.env."* "functions/.runtimeconfig.json" | head -n 1 | grep -q .; then
+if git diff --cached --name-only -- "functions/.env" "functions/.env."* "functions/.runtimeconfig.json" | grep -v '\.env\.example' | head -n 1 | grep -q .; then
 	echo "❌ ERREUR: un fichier secret Functions est stagé (functions/.env* ou functions/.runtimeconfig.json)."
 	echo "   Fix: git reset -- functions/.env functions/.env.* functions/.runtimeconfig.json && ajoute-les à .gitignore"
 	exit 1

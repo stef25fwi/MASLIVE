@@ -57,6 +57,18 @@
       "isBackground": false
     },
     {
+      "label": "MASLIVE: Flutter build web (release no-wasm)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && flutter pub get && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -n \"$TOKEN\" ]; then echo \"Using MAPBOX token from env\"; flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\"; else echo \"No MAPBOX token in env; building without MAPBOX_ACCESS_TOKEN define\"; flutter build web --release --no-wasm-dry-run; fi",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Flutter build web (release + Stripe Premium Price IDs)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE/app && : \"${STRIPE_PREMIUM_MONTHLY_PRICE_ID:?Missing env STRIPE_PREMIUM_MONTHLY_PRICE_ID}\" && : \"${STRIPE_PREMIUM_YEARLY_PRICE_ID:?Missing env STRIPE_PREMIUM_YEARLY_PRICE_ID}\" && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -n \"$TOKEN\" ]; then flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" --dart-define=STRIPE_PREMIUM_MONTHLY_PRICE_ID=\"$STRIPE_PREMIUM_MONTHLY_PRICE_ID\" --dart-define=STRIPE_PREMIUM_YEARLY_PRICE_ID=\"$STRIPE_PREMIUM_YEARLY_PRICE_ID\"; else flutter build web --release --no-wasm-dry-run --dart-define=STRIPE_PREMIUM_MONTHLY_PRICE_ID=\"$STRIPE_PREMIUM_MONTHLY_PRICE_ID\" --dart-define=STRIPE_PREMIUM_YEARLY_PRICE_ID=\"$STRIPE_PREMIUM_YEARLY_PRICE_ID\"; fi",
@@ -100,6 +112,17 @@
       "label": "MASLIVE: Set Stripe webhook secret (STRIPE_WEBHOOK_SECRET) (maslive)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && firebase functions:secrets:set STRIPE_WEBHOOK_SECRET --project maslive",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: 🗺️ Set Mapbox token (.env)",
+      "type": "shell",
+      "command": "read -rsp $'\\nColle ton token Mapbox (pk.eyJ1...) puis appuie sur Entrée:\\n' TOKEN && if [[ -z \"$TOKEN\" ]]; then echo '❌ Token vide, annulé.'; exit 1; fi && ENV_FILE=/workspaces/MASLIVE/.env && touch \"$ENV_FILE\" && for VAR in MAPBOX_ACCESS_TOKEN MAPBOX_PUBLIC_TOKEN MAPBOX_TOKEN; do if grep -q \"^${VAR}=\" \"$ENV_FILE\"; then sed -i \"s|^${VAR}=.*|${VAR}=${TOKEN}|\" \"$ENV_FILE\"; else echo \"${VAR}=${TOKEN}\" >> \"$ENV_FILE\"; fi; done && echo '' && echo \"✅ Token mis à jour dans $ENV_FILE\" && echo '⚠️  Ce fichier est dans .gitignore — ne pas le committer.'",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -672,6 +695,21 @@
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (i18n + shop langue)",
       "type": "shell",
       "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat(i18n): unify language systems + shop language buttons\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "group": {
+        "kind": "build"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (wizard pro + token security)",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat(wizard): ProCircuitWizardPage step2+step3 + DraftRoute model + fix(security): remove hardcoded mapbox token\"",
       "problemMatcher": [],
       "isBackground": false,
       "group": {

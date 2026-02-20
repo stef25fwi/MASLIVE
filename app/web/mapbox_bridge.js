@@ -568,6 +568,19 @@
           el.style.borderRadius = '50%';
           el.style.border = '2px solid white';
 
+          // Label (numéro, etc.)
+          const label = (m.label === null || m.label === undefined) ? '' : String(m.label);
+          if (label && label.length > 0) {
+            el.style.display = 'flex';
+            el.style.alignItems = 'center';
+            el.style.justifyContent = 'center';
+            el.style.color = '#000';
+            el.style.fontSize = Math.max(10, Math.floor(size * 0.55)) + 'px';
+            el.style.fontWeight = '700';
+            el.style.textShadow = '0 0 2px rgba(255,255,255,0.9)';
+            el.textContent = label;
+          }
+
           const marker = new mapboxgl.Marker({ element: el })
             .setLngLat([Number(m.lng), Number(m.lat)])
             .addTo(map);
@@ -575,6 +588,49 @@
         }
       } catch (e) {
         console.error('❌ MasliveMapboxV2.setMarkers error:', e);
+      }
+    },
+
+    fitBounds: function(containerId, west, south, east, north, padding, animate) {
+      const map = _getMap(containerId);
+      if (!map) return;
+      try {
+        const bounds = [[Number(west), Number(south)], [Number(east), Number(north)]];
+        const options = {
+          padding: Number(padding || 48),
+          duration: animate ? 900 : 0,
+        };
+        map.fitBounds(bounds, options);
+      } catch (e) {
+        console.error('❌ MasliveMapboxV2.fitBounds error:', e);
+      }
+    },
+
+    setMaxBounds: function(containerId, boundsJson) {
+      const map = _getMap(containerId);
+      if (!map) return;
+      try {
+        if (!boundsJson) {
+          map.setMaxBounds(null);
+          return;
+        }
+        const b = JSON.parse(boundsJson);
+        // b: [[west,south],[east,north]]
+        map.setMaxBounds(b);
+      } catch (e) {
+        console.error('❌ MasliveMapboxV2.setMaxBounds error:', e);
+      }
+    },
+
+    getCenter: function(containerId) {
+      const map = _getMap(containerId);
+      if (!map) return null;
+      try {
+        const c = map.getCenter();
+        return JSON.stringify({ lng: c.lng, lat: c.lat, zoom: map.getZoom() });
+      } catch (e) {
+        console.error('❌ MasliveMapboxV2.getCenter error:', e);
+        return null;
       }
     },
 

@@ -131,6 +131,13 @@ app.*.symbols
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 !/dev/ci/**/Gemfile.lock
 
+# Fichiers .env (secrets locaux, jamais commiter)
+.env
+.env.*
+!.env.example
+app/.env
+app/.env.*
+
 # Stripe & API secrets (NEVER commit)
 # These patterns prevent accidentally committing secrets even if they appear in docs
 **/sk_test_*

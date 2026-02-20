@@ -36,6 +36,16 @@ class MasLiveMapController {
   /// Callback interne pour clearAll
   Future<void> Function()? _clearAllImpl;
 
+  /// Callback interne pour fitBounds
+  Future<void> Function(double west, double south, double east, double north, double padding, bool animate)?
+      _fitBoundsImpl;
+
+  /// Callback interne pour setMaxBounds
+  Future<void> Function(double? west, double? south, double? east, double? north)? _setMaxBoundsImpl;
+
+  /// Callback interne pour getCameraCenter
+  Future<MapPoint?> Function()? _getCameraCenterImpl;
+
   // =====================================================================
   // SETTERS publics pour brancher les implémentations (Web/Native)
   // ⚠️ Ne PAS utiliser dans le code applicatif, réservés aux impl internes
@@ -88,6 +98,25 @@ class MasLiveMapController {
   /// @nodoc - Usage interne seulement
   set clearAllImpl(Future<void> Function()? impl) {
     _clearAllImpl = impl;
+  }
+
+  /// @nodoc - Usage interne seulement
+  set fitBoundsImpl(
+    Future<void> Function(double west, double south, double east, double north, double padding, bool animate)? impl,
+  ) {
+    _fitBoundsImpl = impl;
+  }
+
+  /// @nodoc - Usage interne seulement
+  set setMaxBoundsImpl(
+    Future<void> Function(double? west, double? south, double? east, double? north)? impl,
+  ) {
+    _setMaxBoundsImpl = impl;
+  }
+
+  /// @nodoc - Usage interne seulement
+  set getCameraCenterImpl(Future<MapPoint?> Function()? impl) {
+    _getCameraCenterImpl = impl;
   }
 
   // =====================================================================
@@ -181,6 +210,34 @@ class MasLiveMapController {
     await _clearAllImpl?.call();
   }
 
+  /// Ajuste la caméra pour englober des bounds
+  Future<void> fitBounds({
+    required double west,
+    required double south,
+    required double east,
+    required double north,
+    double padding = 48.0,
+    bool animate = true,
+  }) async {
+    await _fitBoundsImpl?.call(west, south, east, north, padding, animate);
+  }
+
+  /// Limite le déplacement de la carte à des bounds.
+  /// Passer `null` pour désactiver le verrouillage.
+  Future<void> setMaxBounds({
+    double? west,
+    double? south,
+    double? east,
+    double? north,
+  }) async {
+    await _setMaxBoundsImpl?.call(west, south, east, north);
+  }
+
+  /// Retourne le centre courant de la caméra (si supporté).
+  Future<MapPoint?> getCameraCenter() async {
+    return _getCameraCenterImpl?.call();
+  }
+
   /// Dispose (à appeler dans le dispose du State)
   void dispose() {
     _moveToImpl = null;
@@ -191,6 +248,9 @@ class MasLiveMapController {
     _setPolygonImpl = null;
     _setEditingEnabledImpl = null;
     _clearAllImpl = null;
+    _fitBoundsImpl = null;
+    _setMaxBoundsImpl = null;
+    _getCameraCenterImpl = null;
   }
 }
 

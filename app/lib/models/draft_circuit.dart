@@ -2,6 +2,45 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 enum PerimeterMode { polygon, circle }
 
+enum RouteMode { manual, autoDriving, hybrid }
+
+class DraftRoute {
+  /// Points posés par l’utilisateur (numérotés)
+  final List<Point> routePoints;
+
+  /// Géométrie finale à dessiner (manual ou calculée)
+  final List<Point> routeGeometry;
+
+  /// "Relier les points" activé ?
+  final bool connected;
+
+  /// manual/auto/hybrid
+  final RouteMode mode;
+
+  const DraftRoute({
+    this.routePoints = const [],
+    this.routeGeometry = const [],
+    this.connected = false,
+    this.mode = RouteMode.manual,
+  });
+
+  DraftRoute copyWith({
+    List<Point>? routePoints,
+    List<Point>? routeGeometry,
+    bool? connected,
+    RouteMode? mode,
+  }) {
+    return DraftRoute(
+      routePoints: routePoints ?? this.routePoints,
+      routeGeometry: routeGeometry ?? this.routeGeometry,
+      connected: connected ?? this.connected,
+      mode: mode ?? this.mode,
+    );
+  }
+
+  bool get hasEnoughPoints => routePoints.length >= 2;
+}
+
 class DraftPerimeter {
   final PerimeterMode mode;
 
@@ -55,6 +94,7 @@ class DraftCircuit {
   final DateTime? date;
   final String? countryIso2;
   final DraftPerimeter? perimeter;
+  final DraftRoute route;
 
   const DraftCircuit({
     required this.countryId,
@@ -64,6 +104,7 @@ class DraftCircuit {
     required this.date,
     required this.countryIso2,
     required this.perimeter,
+    this.route = const DraftRoute(),
   });
 
   factory DraftCircuit.empty() {
@@ -75,6 +116,7 @@ class DraftCircuit {
       date: null,
       countryIso2: null,
       perimeter: null,
+      route: DraftRoute(),
     );
   }
 
@@ -86,6 +128,7 @@ class DraftCircuit {
     DateTime? date,
     String? countryIso2,
     DraftPerimeter? perimeter,
+    DraftRoute? route,
   }) {
     return DraftCircuit(
       countryId: countryId ?? this.countryId,
@@ -95,6 +138,7 @@ class DraftCircuit {
       date: date ?? this.date,
       countryIso2: countryIso2 ?? this.countryIso2,
       perimeter: perimeter ?? this.perimeter,
+      route: route ?? this.route,
     );
   }
 }
