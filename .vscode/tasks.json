@@ -726,6 +726,21 @@
       }
     },
     {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (Mapbox web errors + MarketMap public)",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/git_commit_push_build_deploy.sh \"fix(mapbox): surface web errors + add public marketmap viewer\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "group": {
+        "kind": "build"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (i18n + shop langue)",
       "type": "shell",
       "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat(i18n): unify language systems + shop language buttons\"",

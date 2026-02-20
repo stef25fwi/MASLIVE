@@ -66,6 +66,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
   StreamSubscription<html.Event>? _resizeSub;
   String? _error;
   bool _didNotifyReady = false;
+  bool _didReportMapboxError = false;
 
   @override
   void initState() {
@@ -205,8 +206,52 @@ class _MapboxWebViewState extends State<MapboxWebView> {
       'attributionControl': false,
     });
 
-    final map = js.JsObject(mapboxglObj['Map'], [mapConfig]);
+    js.JsObject map;
+    try {
+      map = js.JsObject(mapboxglObj['Map'], [mapConfig]);
+    } catch (e) {
+      if (_error == null) {
+        setState(() {
+          _error = 'Erreur initialisation Mapbox GL JS: $e';
+        });
+      }
+      return;
+    }
     _map = map;
+
+    // Capture les erreurs runtime (token invalide, style 401, WebGL, réseau...).
+    try {
+      map.callMethod('on', [
+        'error',
+        (dynamic evt) {
+          if (!mounted) return;
+          if (_didReportMapboxError) return;
+
+          String message = '';
+          try {
+            final dynError = (evt is js.JsObject) ? evt['error'] : null;
+            if (dynError != null) {
+              final m = (dynError is js.JsObject) ? dynError['message'] : null;
+              message = (m ?? dynError).toString();
+            } else if (evt is js.JsObject) {
+              message = evt.toString();
+            } else {
+              message = evt.toString();
+            }
+          } catch (_) {
+            message = evt.toString();
+          }
+
+          _didReportMapboxError = true;
+          setState(() {
+            _error = 'Erreur Mapbox: $message\n\n'
+                'Causes fréquentes: token invalide / token restreint au domaine, style non autorisé, ou WebGL indisponible.';
+          });
+        },
+      ]);
+    } catch (_) {
+      // ignore
+    }
 
     if (_error != null) {
       setState(() {
