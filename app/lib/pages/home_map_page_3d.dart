@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart' hide Visibility;
@@ -12,6 +14,7 @@ import 'package:geolocator/geolocator.dart'
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../ui/theme/maslive_theme.dart';
 import '../ui/widgets/gradient_header.dart';
@@ -92,7 +95,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   // Annotations managers
   PointAnnotationManager? _userAnnotationManager;
-  PointAnnotationManager? _placesAnnotationManager;
   // ignore: unused_field
   PointAnnotationManager? _groupsAnnotationManager;
   // ignore: unused_field
@@ -106,17 +108,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   List<MarketPoi> _marketPois = const <MarketPoi>[];
 
   // === MarketMap POIs (GeoJSON Layers) ===
-  // ignore: unused_field
   static const String _mmPoiSourceId = 'mm_pois_src';
-  // ignore: unused_field
   static const String _mmPoiLayerPrefix = 'mm_pois_layer__'; // + type
-  // ignore: unused_field
   GeoJsonSource? _mmPoiSource;
-  // ignore: unused_field
   final Set<String> _mmPoiLayerIds = <String>{};
 
   // Types supportés pour filtrage rapide par action
-  // ignore: unused_field
   static const List<String> _mmTypes = <String>[
     'visit',
     'food',
@@ -266,6 +263,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         debugPrint('⚠️ Erreur chargement style circuit: $e');
       }
     }
+    // IMPORTANT: un changement de style supprime les sources/layers runtime
+    await _ensureMarketPoiGeoJsonRuntime(forceRebuild: true);
     final center = circuit.center;
     final lng = (center['lng'] ?? _fallbackCenter.lng).toDouble();
     final lat = (center['lat'] ?? _fallbackCenter.lat).toDouble();
@@ -280,10 +279,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         )
         .listen((pois) async {
           if (!mounted) return;
-          setState(() {
-            _marketPois = pois;
-          });
-          await _renderMarketPoiMarkers();
+          setState(() => _marketPois = pois);
+          await _renderMarketPoiMarkers(); // GeoJSON update + visibility
         });
   }
 
@@ -310,36 +307,307 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   }
 
   Future<void> _renderMarketPoiMarkers() async {
-    final manager = _placesAnnotationManager;
-    if (manager == null) return;
+    // =========================
+    // MarketMap POIs (GeoJSON)
+    // =========================
 
-    try {
-      await manager.deleteAll();
-    } catch (_) {
-      // ignore
+    if (_mapboxMap == null) return;
+
+    // Si pas de selection -> vider
+    if (!_marketPoiSelection.enabled ||
+        _marketPoiSelection.country == null ||
+        _marketPoiSelection.event == null ||
+        _marketPoiSelection.circuit == null) {
+      _marketPois = const <MarketPoi>[];
+      await _ensureMarketPoiGeoJsonRuntime();
+      await _updateMarketPoiGeoJson();
+      await _applyPoiTypeVisibility();
+      return;
     }
 
-    if (!_marketPoiSelection.enabled) return;
+    await _ensureMarketPoiGeoJsonRuntime();
+    await _updateMarketPoiGeoJson();
+    await _applyPoiTypeVisibility();
+  }
 
-    final filterType = _actionToPoiType(_selectedAction);
-    for (final p in _marketPois.where(
-      (poi) => filterType == null || poi.type == filterType,
-    )) {
-      if (p.lat == 0.0 && p.lng == 0.0) continue;
+  String _mmLayerIdForType(String type) => '$_mmPoiLayerPrefix$type';
+
+  String _typeFromPoi(MarketPoi poi) {
+    // On essaie plusieurs champs possibles (robuste)
+    // Ajuste si ton MarketPoi a un champ sûr (ex: poi.layerId)
+    final dynamicAny = (poi as dynamic);
+
+    String? pick(dynamic v) {
+      final s = (v == null) ? '' : v.toString().trim();
+      return s.isEmpty ? null : s;
+    }
+
+    final t = pick(dynamicAny.type) ??
+        pick(dynamicAny.layerId) ??
+        pick(dynamicAny.layerType) ??
+        '';
+
+    final norm = t.toLowerCase();
+    if (_mmTypes.contains(norm)) return norm;
+
+    // Mapping de compat (si tes couches utilisent d'autres noms)
+    if (norm == 'visiter') return 'visit';
+    if (norm == 'tour') return 'visit';
+    if (norm == 'toilet' || norm == 'toilets') return 'wc';
+
+    return 'market';
+  }
+
+  String _labelFromPoi(MarketPoi poi) {
+    final d = (poi as dynamic);
+    final v = (d.name ?? d.title ?? '').toString().trim();
+    return v;
+  }
+
+  String _descFromPoi(MarketPoi poi) {
+    final d = (poi as dynamic);
+    final v = (d.description ?? d.desc ?? '').toString().trim();
+    return v;
+  }
+
+  (double, double)? _coordFromPoi(MarketPoi poi) {
+    final d = (poi as dynamic);
+
+    // Cas 1: champs lat/lng
+    final lat = d.lat;
+    final lng = d.lng;
+    if (lat is num && lng is num) {
+      return (lng.toDouble(), lat.toDouble());
+    }
+
+    // Cas 2: GeoPoint location
+    final loc = d.location;
+    if (loc is GeoPoint) {
+      return (loc.longitude, loc.latitude);
+    }
+
+    return null;
+  }
+
+  static String _emptyPoiFeatureCollection() =>
+      jsonEncode({'type': 'FeatureCollection', 'features': []});
+
+  Future<void> _ensureMarketPoiGeoJsonRuntime({bool forceRebuild = false}) async {
+    final map = _mapboxMap;
+    if (map == null) return;
+
+    // Petit retry car setStyleURI peut rendre le style indisponible quelques ms
+    for (int attempt = 0; attempt < 6; attempt++) {
       try {
-        final opt = PointAnnotationOptions(
-          geometry: Point(coordinates: Position(p.lng, p.lat)),
-          iconImage: 'marker-15',
-          iconSize: 1.2,
-          iconColor: _poiColorForType(p.type).toARGB32(),
-          textField: p.name,
-          textSize: 12.0,
-          textOffset: const [0.0, 1.2],
-          textColor: Colors.black.toARGB32(),
-          textHaloColor: Colors.white.toARGB32(),
-          textHaloWidth: 1.0,
+        final style = map.style;
+
+        // Si on force rebuild, on purge les layers runtime
+        if (forceRebuild) {
+          for (final layerId in _mmPoiLayerIds.toList()) {
+            try {
+              await style.removeStyleLayer(layerId);
+            } catch (_) {
+              // ignore
+            }
+            _mmPoiLayerIds.remove(layerId);
+          }
+          try {
+            await style.removeStyleSource(_mmPoiSourceId);
+          } catch (_) {
+            // ignore
+          }
+          _mmPoiSource = null;
+        }
+
+        // Source
+        if (_mmPoiSource == null) {
+          try {
+            await style.addSource(
+              GeoJsonSource(id: _mmPoiSourceId, data: _emptyPoiFeatureCollection()),
+            );
+          } catch (_) {
+            // ignore (déjà présent)
+          }
+
+          // Cluster (optionnel selon version SDK)
+          try {
+            await style.setStyleSourceProperty(_mmPoiSourceId, 'cluster', true);
+            await style.setStyleSourceProperty(
+              _mmPoiSourceId,
+              'clusterRadius',
+              55,
+            );
+            await style.setStyleSourceProperty(
+              _mmPoiSourceId,
+              'clusterMaxZoom',
+              14,
+            );
+          } catch (_) {
+            // ignore
+          }
+
+          _mmPoiSource = GeoJsonSource(id: _mmPoiSourceId, data: '');
+        }
+
+        // Layers par type (visit/food/...)
+        for (final type in _mmTypes) {
+          final layerId = _mmLayerIdForType(type);
+          if (_mmPoiLayerIds.contains(layerId) && !forceRebuild) continue;
+
+          // addLayer peut throw si déjà présent -> on ignore
+          try {
+            final color = _poiColorForType(type);
+            final layer = CircleLayer(
+              id: layerId,
+              sourceId: _mmPoiSourceId,
+              circleRadius: 7.0,
+              circleColor: color.toARGB32(),
+              circleOpacity: 0.95,
+              circleStrokeColor: Colors.white.toARGB32(),
+              circleStrokeWidth: 2.0,
+            );
+            await style.addLayer(layer);
+
+            // Filter: ["==", ["get","type"], "food"]
+            await style.setStyleLayerProperty(layerId, 'filter', [
+              '==',
+              ['get', 'type'],
+              type,
+            ]);
+          } catch (_) {
+            // ignore
+          }
+
+          _mmPoiLayerIds.add(layerId);
+        }
+
+        return; // OK
+      } catch (_) {
+        await Future.delayed(const Duration(milliseconds: 120));
+      }
+    }
+  }
+
+  Future<void> _updateMarketPoiGeoJson() async {
+    final map = _mapboxMap;
+    if (map == null) return;
+    if (_mmPoiSource == null) return;
+
+    final feats = <Map<String, dynamic>>[];
+
+    for (final poi in _marketPois) {
+      final coord = _coordFromPoi(poi);
+      if (coord == null) continue;
+
+      final type = _typeFromPoi(poi);
+      final name = _labelFromPoi(poi);
+      final desc = _descFromPoi(poi);
+      final d = (poi as dynamic);
+
+      // Champs “fiche”
+      final imageUrl =
+          (d.imageUrl ?? d.photoUrl ?? d.image ?? '').toString().trim();
+      final address =
+          (d.address ?? d.adresse ?? d.locationLabel ?? '').toString().trim();
+
+      // Horaires (supporte string OU map/list)
+      final openingHoursRaw = d.openingHours ?? d.hours ?? d.horaires;
+      final openingHours = (openingHoursRaw is String)
+          ? openingHoursRaw.trim()
+          : (openingHoursRaw != null ? jsonEncode(openingHoursRaw) : '');
+
+      // Contacts / liens
+      final phone =
+          (d.phone ?? d.tel ?? d.telephone ?? '').toString().trim();
+      final website = (d.website ?? d.site ?? '').toString().trim();
+      final instagram =
+          (d.instagram ?? d.ig ?? '').toString().trim();
+      final facebook =
+          (d.facebook ?? d.fb ?? '').toString().trim();
+      final whatsapp = (d.whatsapp ?? '').toString().trim();
+      final email = (d.email ?? '').toString().trim();
+      final mapsUrl =
+          (d.mapsUrl ?? d.googleMapsUrl ?? d.mapUrl ?? '').toString().trim();
+
+      // Si tu as un champ metadata Map, on le merge aussi (optionnel)
+      Map<String, dynamic> meta = <String, dynamic>{};
+      try {
+        final m = d.metadata;
+        if (m is Map) meta = Map<String, dynamic>.from(m);
+      } catch (_) {
+        // ignore
+      }
+
+      feats.add({
+        'type': 'Feature',
+        'id': d.id?.toString() ?? '',
+        'geometry': {
+          'type': 'Point',
+          'coordinates': [coord.$1, coord.$2],
+        },
+        'properties': {
+          'type': type,
+          'name': name,
+          'desc': desc,
+          'imageUrl': imageUrl,
+          'lng': coord.$1,
+          'lat': coord.$2,
+
+          // fiche complète
+          'address': address,
+          'openingHours': openingHours,
+          'phone': phone,
+          'website': website,
+          'instagram': instagram,
+          'facebook': facebook,
+          'whatsapp': whatsapp,
+          'email': email,
+          'mapsUrl': mapsUrl,
+
+          // meta brute (si utile côté UI)
+          'meta': meta,
+        }
+      });
+    }
+
+    final fc = {'type': 'FeatureCollection', 'features': feats};
+    try {
+      await map.style.setStyleSourceProperty(
+        _mmPoiSourceId,
+        'data',
+        jsonEncode(fc),
+      );
+    } catch (_) {
+      // Fallback: remove+add
+      try {
+        await map.style.removeStyleSource(_mmPoiSourceId);
+      } catch (_) {
+        // ignore
+      }
+      try {
+        await map.style.addSource(
+          GeoJsonSource(id: _mmPoiSourceId, data: jsonEncode(fc)),
         );
-        await manager.create(opt);
+      } catch (_) {
+        // ignore
+      }
+    }
+  }
+
+  Future<void> _applyPoiTypeVisibility() async {
+    final map = _mapboxMap;
+    if (map == null) return;
+
+    final wanted = _actionToPoiType(_selectedAction); // visit/food/...
+    for (final type in _mmTypes) {
+      final layerId = _mmLayerIdForType(type);
+      final visible = (wanted == null) ? true : (type == wanted);
+      try {
+        await map.style.setStyleLayerProperty(
+          layerId,
+          'visibility',
+          visible ? 'visible' : 'none',
+        );
       } catch (_) {
         // ignore
       }
@@ -647,8 +915,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       // 3. Créer les annotation managers pour les marqueurs
       _userAnnotationManager = await mapboxMap.annotations
           .createPointAnnotationManager();
-      _placesAnnotationManager = await mapboxMap.annotations
-          .createPointAnnotationManager();
       _groupsAnnotationManager = await mapboxMap.annotations
           .createPointAnnotationManager();
       _circuitsAnnotationManager = await mapboxMap.annotations
@@ -668,8 +934,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     // 5. Afficher le marqueur utilisateur si position disponible
     await _updateUserMarker();
 
-    // 5b. Afficher les POIs MarketMap si un circuit est sélectionné
-    await _renderMarketPoiMarkers();
+    // 5b. MarketMap POIs via GeoJSON layers (plus scalable)
+    await _renderMarketPoiMarkers(); // (on garde le nom, mais on change l'implémentation)
 
     // 6. Appliquer le resize initial si LayoutBuilder a déjà capturé la taille
     if (_lastSize != null) {
@@ -677,6 +943,188 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         _scheduleResize(_lastSize!);
       });
     }
+  }
+
+  Future<void> _onMapTap(ScreenCoordinate sc) async {
+    final map = _mapboxMap;
+    if (map == null) return;
+
+    // Si pas de sélection MarketMap active, on ignore
+    if (!_marketPoiSelection.enabled ||
+        _marketPoiSelection.country == null ||
+        _marketPoiSelection.event == null ||
+        _marketPoiSelection.circuit == null) {
+      return;
+    }
+
+    // Nos layers POI GeoJSON: mm_pois_layer__visit / food / wc / ...
+    final layerIds = _mmTypes.map(_mmLayerIdForType).toList();
+
+    try {
+      final res = await map.queryRenderedFeatures(
+        RenderedQueryGeometry.fromScreenCoordinate(sc),
+        RenderedQueryOptions(layerIds: layerIds, filter: null),
+      );
+
+      if (res.isEmpty) return;
+
+      final feature = res.first?.queriedFeature.feature;
+      if (feature == null) return;
+
+      final props = (feature['properties'] as Map?)
+              ?.cast<String, dynamic>() ??
+          const <String, dynamic>{};
+
+      // --- Cluster handling (si cluster:true sur la source) ---
+      final isCluster = (props['cluster'] == true) ||
+          (props['cluster']?.toString() == 'true');
+
+      if (isCluster) {
+        // Zoom sur le cluster (simple)
+        // On récupère le point du cluster si dispo
+        final geom = feature['geometry'];
+        if (geom is Map && geom['type'] == 'Point') {
+          final coords = geom['coordinates'];
+          if (coords is List && coords.length >= 2) {
+            final lng = (coords[0] as num).toDouble();
+            final lat = (coords[1] as num).toDouble();
+            // zoom +1.5 (ajuste)
+            await map.easeTo(
+              CameraOptions(
+                center: Point(coordinates: Position(lng, lat)),
+                zoom: (_defaultZoom + 2.0),
+              ),
+              MapAnimationOptions(duration: 450),
+            );
+          }
+        }
+        return;
+      }
+
+      // --- POI normal ---
+      final name = (props['name'] ?? '').toString();
+      final desc = (props['desc'] ?? '').toString();
+      final type = (props['type'] ?? '').toString();
+      final imageUrl = (props['imageUrl'] ?? '').toString();
+      final lng = (props['lng'] is num)
+          ? (props['lng'] as num).toDouble()
+          : null;
+      final lat = (props['lat'] is num)
+          ? (props['lat'] as num).toDouble()
+          : null;
+
+      final address = (props['address'] ?? '').toString();
+      final openingHours = (props['openingHours'] ?? '').toString();
+      final phone = (props['phone'] ?? '').toString();
+      final website = (props['website'] ?? '').toString();
+      final instagram = (props['instagram'] ?? '').toString();
+      final facebook = (props['facebook'] ?? '').toString();
+      final whatsapp = (props['whatsapp'] ?? '').toString();
+      final email = (props['email'] ?? '').toString();
+      final mapsUrl = (props['mapsUrl'] ?? '').toString();
+
+      Map<String, dynamic>? meta;
+      final metaRaw = props['meta'];
+      if (metaRaw is Map) {
+        meta = metaRaw.map((k, v) => MapEntry(k.toString(), v));
+      } else if (metaRaw is String && metaRaw.trim().isNotEmpty) {
+        try {
+          final decoded = jsonDecode(metaRaw);
+          if (decoded is Map) {
+            meta = decoded.map((k, v) => MapEntry(k.toString(), v));
+          }
+        } catch (_) {
+          // ignore
+        }
+      }
+
+      if (!mounted) return;
+      _showPoiPolaroid(
+        title: name.isEmpty ? 'Point d\'intérêt' : name,
+        description: desc,
+        category: type,
+        imageUrl: imageUrl.isEmpty ? null : imageUrl,
+        lng: lng,
+        lat: lat,
+        address: address,
+        openingHours: openingHours,
+        phone: phone,
+        website: website,
+        instagram: instagram,
+        facebook: facebook,
+        whatsapp: whatsapp,
+        email: email,
+        mapsUrl: mapsUrl,
+        meta: meta ?? const <String, dynamic>{},
+      );
+    } catch (e) {
+      debugPrint('⚠️ Tap POI queryRenderedFeatures error: $e');
+    }
+  }
+
+  /// Affiche un overlay style "polaroïd" pour un POI.
+  void _showPoiPolaroid({
+    required String title,
+    required String description,
+    required String category,
+    String? imageUrl,
+    double? lng,
+    double? lat,
+
+    // fiche complète
+    String address = '',
+    String openingHours = '',
+    String phone = '',
+    String website = '',
+    String instagram = '',
+    String facebook = '',
+    String whatsapp = '',
+    String email = '',
+    String mapsUrl = '',
+    Map<String, dynamic> meta = const <String, dynamic>{},
+  }) {
+    showGeneralDialog(
+      context: context,
+      barrierLabel: 'POI',
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        return Center(
+          child: _PolaroidCardDialog(
+            title: title,
+            description: description,
+            category: category,
+            imageUrl: imageUrl,
+            lng: lng,
+            lat: lat,
+            address: address,
+            openingHours: openingHours,
+            phone: phone,
+            website: website,
+            instagram: instagram,
+            facebook: facebook,
+            whatsapp: whatsapp,
+            email: email,
+            mapsUrl: mapsUrl,
+            meta: meta,
+            onClose: () => Navigator.of(context).pop(),
+          ),
+        );
+      },
+      transitionBuilder: (
+        dialogContext,
+        anim,
+        secondaryAnimation,
+        child,
+      ) {
+        final curved = Curves.easeOutBack.transform(anim.value);
+        return Transform.scale(
+          scale: 0.85 + 0.15 * curved,
+          child: Opacity(opacity: anim.value, child: child),
+        );
+      },
+    );
   }
 
   /// Démarre ou arrête le tracking GPS de la position utilisateur.
@@ -926,6 +1374,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                               bearing: 0.0,
                             ),
                             onMapCreated: _onMapCreated,
+                            onTapListener: (gestureContext) {
+                              _onMapTap(gestureContext.touchPosition);
+                            },
                           )
                         : const SizedBox.expand(),
                   ),
@@ -1390,4 +1841,518 @@ class _TrackingPill extends StatelessWidget {
       ),
     );
   }
+}
+
+class _PolaroidCardDialog extends StatelessWidget {
+  final String title;
+  final String description;
+  final String category;
+  final String? imageUrl;
+  final double? lng;
+  final double? lat;
+
+  final String address;
+  final String openingHours;
+  final String phone;
+  final String website;
+  final String instagram;
+  final String facebook;
+  final String whatsapp;
+  final String email;
+  final String mapsUrl;
+  final Map<String, dynamic> meta;
+  final VoidCallback onClose;
+
+  const _PolaroidCardDialog({
+    required this.title,
+    required this.description,
+    required this.category,
+    required this.onClose,
+    this.imageUrl,
+    this.lng,
+    this.lat,
+    this.address = '',
+    this.openingHours = '',
+    this.phone = '',
+    this.website = '',
+    this.instagram = '',
+    this.facebook = '',
+    this.whatsapp = '',
+    this.email = '',
+    this.mapsUrl = '',
+    this.meta = const <String, dynamic>{},
+  });
+
+  Future<void> _openUrl(String raw) async {
+    final s = raw.trim();
+    if (s.isEmpty) return;
+
+    // Normalise si user met "www..."
+    final uri = Uri.tryParse(s.startsWith('http') ? s : 'https://$s');
+    if (uri == null) return;
+
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _callPhone(String raw) async {
+    final s = raw.trim();
+    if (s.isEmpty) return;
+    final uri = Uri(scheme: 'tel', path: s);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _openEmail(String raw) async {
+    final s = raw.trim();
+    if (s.isEmpty) return;
+    final uri = Uri(scheme: 'mailto', path: s);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _openWhatsApp(String raw) async {
+    final s = raw.trim();
+    if (s.isEmpty) return;
+
+    // accepte numéro ou lien direct
+    final uri = Uri.tryParse(
+      s.startsWith('http')
+          ? s
+          : 'https://wa.me/${s.replaceAll(RegExp(r"[^0-9]"), "")}',
+    );
+    if (uri == null) return;
+
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _openMaps() async {
+    // priorité mapsUrl, sinon construit si coords
+    if (mapsUrl.trim().isNotEmpty) return _openUrl(mapsUrl);
+
+    if (lat != null && lng != null) {
+      final uri = Uri.parse(
+        'https://www.google.com/maps?q=${lat!.toStringAsFixed(6)},${lng!.toStringAsFixed(6)}',
+      );
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    Widget infoRow(
+      IconData icon,
+      String label,
+      String value, {
+      VoidCallback? onTap,
+    }) {
+      if (value.trim().isEmpty) return const SizedBox.shrink();
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 18, color: const Color(0xFF3A3A3A)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF2B2B2B),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      value,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF1F1F1F),
+                        height: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (onTap != null) ...[
+                const SizedBox(width: 10),
+                const Icon(
+                  Icons.open_in_new,
+                  size: 16,
+                  color: Color(0xFF6A6A6A),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget actionChip(String text, IconData icon, VoidCallback onTap) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF2F2F2),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: const Color(0xFFE0E0E0)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: const Color(0xFF2E2E2E)),
+              const SizedBox(width: 8),
+              Text(text, style: const TextStyle(fontWeight: FontWeight.w800)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: Transform.rotate(
+        angle: -0.03,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // Carte Polaroid papier
+            Container(
+              width: 340,
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 18),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9F6EF), // papier chaud
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    blurRadius: 26,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 14),
+                    color: Colors.black.withValues(alpha: 0.30),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  // Texture papier + vignette légère
+                  Positioned.fill(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: CustomPaint(
+                        painter: _PaperGrainPainter(seed: title.hashCode),
+                      ),
+                    ),
+                  ),
+
+                  // Contenu
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Photo
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: AspectRatio(
+                          aspectRatio: 1.0,
+                          child: _PhotoOrPlaceholder(imageUrl: imageUrl),
+                        ),
+                      ),
+
+                      // Bande “signature” (effet polaroid)
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color: const Color(0xFF1C1C1C),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            if (category.trim().isNotEmpty)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFFFFFFFF,
+                                  ).withValues(alpha: 0.7),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: const Color(0xFFE3DDCF),
+                                  ),
+                                ),
+                                child: Text(
+                                  category,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w900,
+                                    color: const Color(0xFF444444),
+                                  ),
+                                ),
+                              ),
+                            if (lat != null && lng != null)
+                              actionChip(
+                                'Maps',
+                                Icons.map_outlined,
+                                () => _openMaps(),
+                              ),
+                            if (phone.trim().isNotEmpty)
+                              actionChip(
+                                'Appeler',
+                                Icons.call,
+                                () => _callPhone(phone),
+                              ),
+                            if (website.trim().isNotEmpty)
+                              actionChip(
+                                'Site',
+                                Icons.public,
+                                () => _openUrl(website),
+                              ),
+                          ],
+                        ),
+                      ),
+
+                      if (description.trim().isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            description,
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: const Color(0xFF303030),
+                              height: 1.2,
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 12),
+                      const Divider(height: 1, color: Color(0xFFE3DDCF)),
+                      const SizedBox(height: 8),
+
+                      // Fiche complète
+                      infoRow(
+                        Icons.location_on_outlined,
+                        'Adresse',
+                        address,
+                        onTap: () => _openMaps(),
+                      ),
+                      infoRow(
+                        Icons.schedule_outlined,
+                        'Horaires',
+                        openingHours,
+                      ),
+                      infoRow(
+                        Icons.call_outlined,
+                        'Téléphone',
+                        phone,
+                        onTap: () => _callPhone(phone),
+                      ),
+                      infoRow(
+                        Icons.mail_outline,
+                        'Email',
+                        email,
+                        onTap: () => _openEmail(email),
+                      ),
+                      infoRow(
+                        Icons.public,
+                        'Site web',
+                        website,
+                        onTap: () => _openUrl(website),
+                      ),
+                      infoRow(
+                        Icons.camera_alt_outlined,
+                        'Instagram',
+                        instagram,
+                        onTap: () => _openUrl(instagram),
+                      ),
+                      infoRow(
+                        Icons.facebook_outlined,
+                        'Facebook',
+                        facebook,
+                        onTap: () => _openUrl(facebook),
+                      ),
+                      infoRow(
+                        Icons.chat_outlined,
+                        'WhatsApp',
+                        whatsapp,
+                        onTap: () => _openWhatsApp(whatsapp),
+                      ),
+
+                      // Bonus: afficher 1–2 infos meta utiles
+                      if (meta.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Infos',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              color: const Color(0xFF2B2B2B),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _prettyMeta(meta),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.grey.shade800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Bouton X en haut à droite
+            Positioned(
+              top: -10,
+              right: -10,
+              child: Material(
+                color: const Color(0xFFF9F6EF),
+                shape: const CircleBorder(),
+                elevation: 6,
+                child: IconButton(
+                  onPressed: onClose,
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Fermer',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _prettyMeta(Map<String, dynamic> meta) {
+    // On évite d’afficher des gros blobs : seulement des paires simples
+    final keys = meta.keys.take(6).toList();
+    final parts = <String>[];
+    for (final k in keys) {
+      final v = meta[k];
+      if (v == null) continue;
+      final s = v.toString();
+      if (s.length > 60) continue;
+      parts.add('$k: $s');
+    }
+    return parts.join(' • ');
+  }
+}
+
+class _PhotoOrPlaceholder extends StatelessWidget {
+  final String? imageUrl;
+  const _PhotoOrPlaceholder({this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrl != null && imageUrl!.trim().isNotEmpty) {
+      return Image.network(
+        imageUrl!,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _placeholder(),
+        loadingBuilder: (ctx, child, loading) {
+          if (loading == null) return child;
+          return Container(
+            color: const Color(0xFFEFE9DD),
+            alignment: Alignment.center,
+            child: const SizedBox(
+              width: 26,
+              height: 26,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        },
+      );
+    }
+    return _placeholder();
+  }
+
+  Widget _placeholder() {
+    return Container(
+      color: const Color(0xFFEFE9DD),
+      alignment: Alignment.center,
+      child: const Icon(Icons.photo, size: 54, color: Color(0xFF9E9E9E)),
+    );
+  }
+}
+
+/// Texture papier + vignette légère + grains
+class _PaperGrainPainter extends CustomPainter {
+  final int seed;
+  _PaperGrainPainter({required this.seed});
+
+  @override
+  void paint(ui.Canvas canvas, ui.Size size) {
+    // Vignette très légère
+    final vignette = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          Colors.transparent,
+          Colors.black.withValues(alpha: 0.06),
+        ],
+        stops: const [0.70, 1.0],
+      ).createShader(ui.Rect.fromLTWH(0, 0, size.width, size.height));
+    canvas.drawRect(ui.Offset.zero & size, vignette);
+
+    // Grain papier (petits points)
+    final rnd = Random(seed);
+    final p = Paint()..color = Colors.black.withValues(alpha: 0.035);
+    final count = (size.width * size.height / 220).clamp(350, 900).toInt();
+
+    for (int i = 0; i < count; i++) {
+      final x = rnd.nextDouble() * size.width;
+      final y = rnd.nextDouble() * size.height;
+      final r = (rnd.nextDouble() * 0.9) + 0.2;
+      canvas.drawCircle(ui.Offset(x, y), r, p);
+    }
+
+    // Fibres (traits très fins)
+    final f = Paint()
+      ..color = Colors.black.withValues(alpha: 0.025)
+      ..strokeWidth = 0.6;
+
+    for (int i = 0; i < 110; i++) {
+      final x1 = rnd.nextDouble() * size.width;
+      final y1 = rnd.nextDouble() * size.height;
+      final dx = (rnd.nextDouble() - 0.5) * 34;
+      final dy = (rnd.nextDouble() - 0.5) * 10;
+      canvas.drawLine(
+        ui.Offset(x1, y1),
+        ui.Offset(x1 + dx, y1 + dy),
+        f,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PaperGrainPainter oldDelegate) =>
+      oldDelegate.seed != seed;
 }
