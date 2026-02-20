@@ -632,10 +632,14 @@ class _StorexCategory extends StatelessWidget {
           final products = docs.map(GroupProduct.fromFirestore).toList();
 
           final counts = <String, int>{};
+          final catImage = <String, String>{}; // premier imageUrl par catégorie
           for (final p in products) {
             final c = p.category.trim();
             if (c.isEmpty) continue;
             counts[c] = (counts[c] ?? 0) + 1;
+            if (!catImage.containsKey(c) && p.imageUrl.isNotEmpty) {
+              catImage[c] = p.imageUrl;
+            }
           }
           final cats = counts.keys.toList()..sort();
 
@@ -655,29 +659,61 @@ class _StorexCategory extends StatelessWidget {
             itemBuilder: (_, i) {
               final c = cats[i];
               final count = counts[c] ?? 0;
+              final imgUrl = catImage[c];
               return InkWell(
                 borderRadius: BorderRadius.circular(10),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _ListPage(shopId: shopId, groupId: groupId, categoryId: c, title: c))),
-                child: Container(
-                  decoration: BoxDecoration(color: const Color(0xFFE3E5EA), borderRadius: BorderRadius.circular(10)),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
                   child: Stack(
+                    fit: StackFit.expand,
                     children: [
-                      Positioned.fill(
-                        child: Container(
-                          decoration: BoxDecoration(color: Colors.black.withAlpha((0.18 * 255).round()), borderRadius: BorderRadius.circular(10)),
+                      // Fond : image produit ou couleur fallback
+                      if (imgUrl != null && imgUrl.isNotEmpty)
+                        Image.network(
+                          imgUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(color: const Color(0xFFE3E5EA)),
+                        )
+                      else
+                        Container(color: const Color(0xFFE3E5EA)),
+                      // Dégradé sombre pour lisibilité du texte
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withAlpha(40),
+                              Colors.black.withAlpha(170),
+                            ],
+                          ),
                         ),
                       ),
+                      // Texte centré
                       Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(c.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
-                            const SizedBox(height: 6),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                c.toUpperCase(),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.8,
+                                  shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+                                ),
+                              ),
+                              const SizedBox(height: 6),
                               Text(
                                 "$count ${l10n.AppLocalizations.of(context)!.itemsLabel}",
                                 style: const TextStyle(color: Colors.white70),
                               ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ],
