@@ -87,6 +87,9 @@ dependencies:
 
   # Empêche les clics de traverser les overlays (Flutter web + HtmlElementView)
   pointer_interceptor: ^0.10.1
+
+  # State management (ChangeNotifier)
+  provider: ^6.1.2
   
   # Charts & exports
   fl_chart: ^0.70.1
