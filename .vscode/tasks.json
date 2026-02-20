@@ -944,7 +944,7 @@
     {
       "label": "MASLIVE: Apply iPad imports",
       "type": "shell",
-      "command": "set -euo pipefail\ncp \"/workspaces/MASLIVE/import ipad/pro_circuit_wizard_page.dart\" /workspaces/MASLIVE/app/lib/ui/wizard/pro_circuit_wizard_page.dart && echo '✅ wizard copié'\nrm -f /workspaces/MASLIVE/circuit_repository.dart && echo '✅ circuit_repository.dart racine supprimé'\nrm -rf \"/workspaces/MASLIVE/import ipad\" && echo '✅ dossier import ipad supprimé'",
+      "command": "set -euo pipefail\nrm -f /workspaces/MASLIVE/circuit_repository.dart && echo '✅ circuit_repository.dart supprimé'\nrm -f /workspaces/MASLIVE/wizard_circuit_provider.dart && echo '✅ wizard_circuit_provider.dart supprimé'\nrm -f /workspaces/MASLIVE/wizard_circuit_provider.dart && true\necho 'Nettoyage terminé'",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
