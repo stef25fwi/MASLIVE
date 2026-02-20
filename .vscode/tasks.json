@@ -929,6 +929,28 @@
         "panel": "dedicated",
         "clear": true
       }
+    },
+    {
+      "label": "MASLIVE: Create wizard ZIP",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/_make_wizard_zip.sh",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Apply iPad imports",
+      "type": "shell",
+      "command": "set -euo pipefail\ncp \"/workspaces/MASLIVE/import ipad/pro_circuit_wizard_page.dart\" /workspaces/MASLIVE/app/lib/ui/wizard/pro_circuit_wizard_page.dart && echo '✅ wizard copié'\nrm -f /workspaces/MASLIVE/circuit_repository.dart && echo '✅ circuit_repository.dart racine supprimé'\nrm -rf \"/workspaces/MASLIVE/import ipad\" && echo '✅ dossier import ipad supprimé'",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
     }
   ]
 }

@@ -673,7 +673,7 @@ class _StorexCategory extends StatelessWidget {
                         Image.network(
                           imgUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(color: const Color(0xFFE3E5EA)),
+                          errorBuilder: (context, e, st) => Container(color: const Color(0xFFE3E5EA)),
                         )
                       else
                         Container(color: const Color(0xFFE3E5EA)),

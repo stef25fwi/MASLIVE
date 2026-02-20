@@ -1,0 +1,25 @@
+=== /workspaces/MASLIVE/import ipad/pro_circuit_wizard_page.dart -> /workspaces/MASLIVE/app/lib/ui/wizard/pro_circuit_wizard_page.dart ===
+DIFF (différents)
+7ff5351d7a4f2057bc69627a85f52b1b444fb3b8d5a6d7c5a2e05a912d6b41eb  /workspaces/MASLIVE/import ipad/pro_circuit_wizard_page.dart
+ba88839525a609730f8aa37ad6b211ca0a769402f910953359048ff5300507f6  /workspaces/MASLIVE/app/lib/ui/wizard/pro_circuit_wizard_page.dart
+ 1173 /workspaces/MASLIVE/import ipad/pro_circuit_wizard_page.dart
+ 1171 /workspaces/MASLIVE/app/lib/ui/wizard/pro_circuit_wizard_page.dart
+ 2344 total
+
+=== /workspaces/MASLIVE/import ipad/wizard_circuit_provider.dart -> /workspaces/MASLIVE/app/lib/providers/wizard_circuit_provider.dart ===
+OK (identiques)
+c2a1c6133df63fe576207748bd4d40b1fed25685f08891473b9a3c3185dc5310  /workspaces/MASLIVE/import ipad/wizard_circuit_provider.dart
+c2a1c6133df63fe576207748bd4d40b1fed25685f08891473b9a3c3185dc5310  /workspaces/MASLIVE/app/lib/providers/wizard_circuit_provider.dart
+  77 /workspaces/MASLIVE/import ipad/wizard_circuit_provider.dart
+  77 /workspaces/MASLIVE/app/lib/providers/wizard_circuit_provider.dart
+ 154 total
+
+=== /workspaces/MASLIVE/import ipad/circuit_repository.dart -> /workspaces/MASLIVE/app/lib/services/circuit_repository.dart ===
+OK (identiques)
+b0002b42f444c80c0f71d7e433977a6459824c7ed4ec6c1a9324a22dad587f35  /workspaces/MASLIVE/import ipad/circuit_repository.dart
+b0002b42f444c80c0f71d7e433977a6459824c7ed4ec6c1a9324a22dad587f35  /workspaces/MASLIVE/app/lib/services/circuit_repository.dart
+  802 /workspaces/MASLIVE/import ipad/circuit_repository.dart
+  802 /workspaces/MASLIVE/app/lib/services/circuit_repository.dart
+ 1604 total
+
+✅ Vérification terminée

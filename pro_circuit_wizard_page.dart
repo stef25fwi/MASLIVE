@@ -17,6 +17,8 @@ enum _PerimeterUiMode { polygon, circle }
 
 enum _RouteUiMode { points, stylePro }
 
+
+
 class _PoiDraft {
   _PoiDraft({
     required this.id,
@@ -93,12 +95,6 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
   bool _didInitFromFirestore = false;
 
   @override
-  void initState() {
-    super.initState();
-    unawaited(_loadExistingPois());
-  }
-
-  @override
   void dispose() {
     _mapController.dispose();
     super.dispose();
@@ -107,6 +103,7 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
   DocumentReference<Map<String, dynamic>> get _projectRef =>
       _firestore.collection('map_projects').doc(widget.projectId);
 
+  
   Future<void> _loadExistingPois() async {
     try {
       final snap = await _projectRef.collection('pois').get();
@@ -130,6 +127,7 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
       final batch = _firestore.batch();
       final col = _projectRef.collection('pois');
 
+      // Full sync: delete missing, upsert existing
       final existing = await col.get();
       final keepIds = _pois.map((p) => p.id).toSet();
 
@@ -192,7 +190,7 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
     await _renderStep();
   }
 
-  Future<void> _loadExistingPerimeter(Map<String, dynamic> data) async {
+Future<void> _loadExistingPerimeter(Map<String, dynamic> data) async {
     final rawMode = (data['perimeterMode'] as String?)?.trim();
 
     final perimeter = data['perimeter'];
@@ -286,6 +284,7 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
   Future<void> _renderStep() async {
     await _mapController.clearAll();
 
+    // Always render perimeter (edit in step2, preview afterwards)
     if (_mode == _PerimeterUiMode.polygon) {
       if (_step == 2) {
         await _renderPolygonEditing();
@@ -496,7 +495,10 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
     return pts;
   }
 
-  Future<void> _saveStep2Perimeter() async {
+  
+    await _loadExistingPois();
+
+Future<void> _saveStep2Perimeter() async {
     setState(() => _isSaving = true);
     try {
       final perimeterPoints = _currentPerimeterSavePoints();
@@ -574,6 +576,7 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
     await _fitToPerimeter();
   }
 
+  
   Future<void> _goToStep4() async {
     await _saveStep3RouteFromProvider();
     if (!mounted) return;
@@ -589,7 +592,7 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
     await _fitToPerimeter();
   }
 
-  Future<void> _backToStep2() async {
+Future<void> _backToStep2() async {
     if (!mounted) return;
     setState(() => _step = 2);
     await _renderStep();
@@ -599,6 +602,7 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
     // Always persist latest route + pois before closing
     await _saveStep3RouteFromProvider();
     await _savePois();
+
     if (!mounted) return;
     Navigator.of(context).pop();
   }
@@ -628,6 +632,7 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
       return;
     }
 
+    // Step 2: perimeter
     if (_mode == _PerimeterUiMode.polygon) {
       setState(() {
         _polygonPoints.add(p);
@@ -1066,7 +1071,7 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
                           ),
                         ],
                       ),
-
+                    
                     ] else ...[
 
                       Text(
@@ -1089,7 +1094,7 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
                             },
                           ),
                           const Spacer(),
-                          Text('Total: \${_pois.length}', style: Theme.of(context).textTheme.bodySmall),
+                          Text('Total: ${_pois.length}', style: Theme.of(context).textTheme.bodySmall),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -1100,14 +1105,14 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           itemCount: _pois.length,
-                          separatorBuilder: (ctx, i) => const Divider(height: 8),
+                          separatorBuilder: (_, __) => const Divider(height: 8),
                           itemBuilder: (context, i) {
                             final poi = _pois[i];
                             return ListTile(
                               dense: true,
                               contentPadding: EdgeInsets.zero,
-                              title: Text(poi.title.isEmpty ? 'POI \${i + 1}' : poi.title),
-                              subtitle: Text('\${poi.lat.toStringAsFixed(5)}, \${poi.lng.toStringAsFixed(5)}'),
+                              title: Text(poi.title.isEmpty ? 'POI ${i + 1}' : poi.title),
+                              subtitle: Text('${poi.lat.toStringAsFixed(5)}, ${poi.lng.toStringAsFixed(5)}'),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -1152,7 +1157,7 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
                       ),
 
                     ],
-                    ],
+,
                   ],
                 ),
               ),
