@@ -3,11 +3,19 @@ import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mbx;
+import 'package:provider/provider.dart';
 
+import '../../models/draft_circuit.dart';
+import '../../providers/wizard_circuit_provider.dart';
+import '../../services/mapbox_directions_service.dart';
+import '../../services/mapbox_token_service.dart';
 import '../map/maslive_map.dart';
 import '../map/maslive_map_controller.dart';
 
 enum _PerimeterUiMode { polygon, circle }
+
+enum _RouteUiMode { points, stylePro }
 
 typedef _Bounds = ({double west, double south, double east, double north});
 
@@ -23,28 +31,23 @@ class ProCircuitWizardPage extends StatefulWidget {
 class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
   final _firestore = FirebaseFirestore.instance;
   final MasLiveMapController _mapController = MasLiveMapController();
+  late final WizardCircuitProvider _wizard = WizardCircuitProvider();
 
   int _step = 2; // Step1 déjà fait via dialog côté entry page
 
   _PerimeterUiMode _mode = _PerimeterUiMode.polygon;
+  _RouteUiMode _routeUiMode = _RouteUiMode.points;
 
   final List<MapPoint> _polygonPoints = <MapPoint>[];
 
   MapPoint? _circleCenter;
   double _circleRadiusMeters = 250.0;
 
-  // Step3 lock
-  static const double _lockRadiusMeters = 100.0;
-  MapPoint? _lockCenter;
-  Timer? _lockEnforcer;
-  bool _lockEnforcing = false;
-
   bool _isSaving = false;
   bool _didInitFromFirestore = false;
 
   @override
   void dispose() {
-    _lockEnforcer?.cancel();
     _mapController.dispose();
     super.dispose();
   }
@@ -107,15 +110,23 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
       }
     }
 
-    final lock = data['lock'];
-    if (lock is Map) {
-      final c = lock['center'];
-      if (c is Map) {
-        final lng = c['lng'];
-        final lat = c['lat'];
-        if (lng is num && lat is num) {
-          _lockCenter = MapPoint(lng.toDouble(), lat.toDouble());
+    // Init route depuis Firestore (si présent)
+    final rawRoute = data['route'];
+    if (rawRoute is List) {
+      final pts = <mbx.Point>[];
+      for (final p in rawRoute) {
+        if (p is Map) {
+          final lng = p['lng'];
+          final lat = p['lat'];
+          if (lng is num && lat is num) {
+            pts.add(mbx.Point(coordinates: mbx.Position(lng.toDouble(), lat.toDouble())));
+          }
         }
+      }
+      if (pts.isNotEmpty) {
+        _wizard.setRoutePoints(pts);
+        _wizard.setRouteConnected(pts.length >= 2);
+        _wizard.setRouteGeometry(pts);
       }
     }
 
@@ -128,7 +139,6 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
   }
 
   MapPoint? _initialFocusPoint() {
-    if (_step == 3 && _lockCenter != null) return _lockCenter;
     if (_mode == _PerimeterUiMode.circle && _circleCenter != null) {
       return _circleCenter;
     }
@@ -140,11 +150,50 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
     await _mapController.clearAll();
 
     if (_mode == _PerimeterUiMode.polygon) {
-      await _renderPolygonEditing();
-      return;
+      if (_step == 2) {
+        await _renderPolygonEditing();
+      } else {
+        await _renderPolygonPerimeterOnly();
+      }
+    } else {
+      if (_step == 2) {
+        await _renderCircleEditing();
+      } else {
+        await _renderCirclePerimeterOnly();
+      }
     }
 
-    await _renderCircleEditing();
+    if (_step == 3) {
+      await _renderRouteFromProvider();
+    }
+  }
+
+  Future<void> _renderPolygonPerimeterOnly() async {
+    if (_polygonPoints.length >= 3) {
+      await _mapController.setPolygon(
+        points: [..._polygonPoints, _polygonPoints.first],
+        fillColor: const Color(0x330A84FF),
+        strokeColor: const Color(0xFF0A84FF),
+        strokeWidth: 2,
+        show: true,
+      );
+    }
+  }
+
+  Future<void> _renderCirclePerimeterOnly() async {
+    if (_circleCenter == null) return;
+    final circlePoints = _approxCirclePoints(
+      center: _circleCenter!,
+      radiusMeters: _circleRadiusMeters,
+      samples: 48,
+    );
+    await _mapController.setPolygon(
+      points: circlePoints,
+      fillColor: const Color(0x330A84FF),
+      strokeColor: const Color(0xFF0A84FF),
+      strokeWidth: 2,
+      show: true,
+    );
   }
 
   Future<void> _renderPolygonEditing() async {
@@ -162,25 +211,13 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
     ]);
 
     if (_polygonPoints.length >= 3) {
-      // Step 3: on garde le périmètre visible, mais sans monopoliser la couche polygon
-      // (le lock 100m est rendu en polygon). Donc on rend le périmètre en polyline.
-      if (_step == 3) {
-        await _mapController.setPolyline(
-          points: [..._polygonPoints, _polygonPoints.first],
-          color: const Color(0xFF0A84FF),
-          width: 4,
-          show: true,
-          roadLike: false,
-        );
-      } else {
-        await _mapController.setPolygon(
-          points: [..._polygonPoints, _polygonPoints.first],
-          fillColor: const Color(0x330A84FF),
-          strokeColor: const Color(0xFF0A84FF),
-          strokeWidth: 2,
-          show: true,
-        );
-      }
+      await _mapController.setPolygon(
+        points: [..._polygonPoints, _polygonPoints.first],
+        fillColor: const Color(0x330A84FF),
+        strokeColor: const Color(0xFF0A84FF),
+        strokeWidth: 2,
+        show: true,
+      );
     } else if (_polygonPoints.length >= 2) {
       await _mapController.setPolyline(
         points: _polygonPoints,
@@ -189,10 +226,6 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
         show: true,
         roadLike: false,
       );
-    }
-
-    if (_step == 3) {
-      await _renderLockOverlay();
     }
   }
 
@@ -215,95 +248,14 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
         samples: 48,
       );
 
-      if (_step == 3) {
-        await _mapController.setPolyline(
-          points: circlePoints,
-          color: const Color(0xFF0A84FF),
-          width: 4,
-          show: true,
-          roadLike: false,
-        );
-      } else {
-        await _mapController.setPolygon(
-          points: circlePoints,
-          fillColor: const Color(0x330A84FF),
-          strokeColor: const Color(0xFF0A84FF),
-          strokeWidth: 2,
-          show: true,
-        );
-      }
-
-      if (_step == 3) {
-        await _renderLockOverlay();
-      }
+      await _mapController.setPolygon(
+        points: circlePoints,
+        fillColor: const Color(0x330A84FF),
+        strokeColor: const Color(0xFF0A84FF),
+        strokeWidth: 2,
+        show: true,
+      );
     }
-  }
-
-  Future<void> _renderLockOverlay() async {
-    final center = _lockCenter ?? _computePerimeterCenter();
-    if (center == null) return;
-    _lockCenter = center;
-
-    final lockCircle = _approxCirclePoints(
-      center: center,
-      radiusMeters: _lockRadiusMeters,
-      samples: 48,
-    );
-
-    // On dessine le lock comme polygone (semi-transparent)
-    await _mapController.setPolygon(
-      points: lockCircle,
-      fillColor: const Color(0x1AFF3B30),
-      strokeColor: const Color(0xFFFF3B30),
-      strokeWidth: 2,
-      show: true,
-    );
-
-    await _mapController.setMarkers([
-      // Re-render markers: perimeter markers + lock center
-      if (_mode == _PerimeterUiMode.polygon)
-        for (int i = 0; i < _polygonPoints.length; i++)
-          MapMarker(
-            id: 'p$i',
-            lng: _polygonPoints[i].lng,
-            lat: _polygonPoints[i].lat,
-            label: '${i + 1}',
-            size: 1.1,
-            color: const Color(0xFF0A84FF),
-          ),
-      if (_mode == _PerimeterUiMode.circle && _circleCenter != null)
-        MapMarker(
-          id: 'c',
-          lng: _circleCenter!.lng,
-          lat: _circleCenter!.lat,
-          label: 'C',
-          size: 1.2,
-          color: const Color(0xFF0A84FF),
-        ),
-      MapMarker(
-        id: 'lock',
-        lng: center.lng,
-        lat: center.lat,
-        label: '🔒',
-        size: 1.2,
-        color: const Color(0xFFFF3B30),
-      ),
-    ]);
-  }
-
-  MapPoint? _computePerimeterCenter() {
-    if (_mode == _PerimeterUiMode.circle && _circleCenter != null) {
-      return _circleCenter;
-    }
-    if (_polygonPoints.isEmpty) return null;
-
-    double lng = 0;
-    double lat = 0;
-    for (final p in _polygonPoints) {
-      lng += p.lng;
-      lat += p.lat;
-    }
-    return MapPoint(lng / _polygonPoints.length, lat / _polygonPoints.length);
   }
 
   _Bounds? _boundsFromPoints(List<MapPoint> points) {
@@ -368,72 +320,6 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
     return [..._polygonPoints];
   }
 
-  Future<void> _applyLockConstraints() async {
-    final center = _lockCenter;
-    if (center == null) return;
-
-    final bounds = _boundsForRadius(center: center, radiusMeters: _lockRadiusMeters);
-    await _mapController.setMaxBounds(
-      west: bounds.west,
-      south: bounds.south,
-      east: bounds.east,
-      north: bounds.north,
-    );
-
-    _startLockEnforcer();
-  }
-
-  void _startLockEnforcer() {
-    if (_lockEnforcing) return;
-    _lockEnforcing = true;
-    _lockEnforcer?.cancel();
-    _lockEnforcer = Timer.periodic(const Duration(milliseconds: 350), (_) async {
-      if (!mounted) return;
-      if (_step != 3) return;
-      final center = _lockCenter;
-      if (center == null) return;
-
-      final cameraCenter = await _mapController.getCameraCenter();
-      if (cameraCenter == null) return;
-
-      final d = _distanceMeters(center, cameraCenter);
-      if (d > _lockRadiusMeters) {
-        await _mapController.moveTo(lng: center.lng, lat: center.lat, zoom: 17.0, animate: true);
-      }
-    });
-  }
-
-  static _Bounds _boundsForRadius({required MapPoint center, required double radiusMeters}) {
-    // Approximation locale (suffisante pour <= quelques km)
-    final latRad = center.lat * math.pi / 180.0;
-    final metersPerDegLat = 111320.0;
-    final metersPerDegLng = 111320.0 * math.cos(latRad).abs().clamp(0.2, 1.0);
-
-    final dLat = radiusMeters / metersPerDegLat;
-    final dLng = radiusMeters / metersPerDegLng;
-
-    return (
-      west: center.lng - dLng,
-      south: center.lat - dLat,
-      east: center.lng + dLng,
-      north: center.lat + dLat,
-    );
-  }
-
-  static double _distanceMeters(MapPoint a, MapPoint b) {
-    const R = 6371000.0;
-    final dLat = (b.lat - a.lat) * math.pi / 180.0;
-    final dLng = (b.lng - a.lng) * math.pi / 180.0;
-    final lat1 = a.lat * math.pi / 180.0;
-    final lat2 = b.lat * math.pi / 180.0;
-
-    final sinDLat = math.sin(dLat / 2);
-    final sinDLng = math.sin(dLng / 2);
-
-    final h = sinDLat * sinDLat + math.cos(lat1) * math.cos(lat2) * sinDLng * sinDLng;
-    return 2 * R * math.asin(math.sqrt(h));
-  }
-
   static List<MapPoint> _approxCirclePoints({
     required MapPoint center,
     required double radiusMeters,
@@ -488,17 +374,24 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
     }
   }
 
-  Future<void> _saveStep3Lock() async {
-    final center = _lockCenter ?? _computePerimeterCenter();
-    if (center == null) return;
+  Future<void> _saveStep3RouteFromProvider() async {
+    final r = _wizard.draft.route;
+    final geometry = r.routeGeometry.isNotEmpty ? r.routeGeometry : r.routePoints;
 
     setState(() => _isSaving = true);
     try {
+      final routeJson = [
+        for (final p in geometry)
+          <String, double>{
+            'lng': p.coordinates.lng.toDouble(),
+            'lat': p.coordinates.lat.toDouble(),
+          },
+      ];
+
       await _projectRef.set({
-        'lock': {
-          'center': {'lng': center.lng, 'lat': center.lat},
-          'radiusMeters': _lockRadiusMeters,
-        },
+        'route': routeJson,
+        'routeConnected': r.connected,
+        'routeMode': r.mode.name,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } finally {
@@ -527,28 +420,27 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
 
     await _renderStep();
     await _fitToPerimeter();
-    await _applyLockConstraints();
   }
 
   Future<void> _backToStep2() async {
-    _lockEnforcer?.cancel();
-    _lockEnforcing = false;
-    await _mapController.setMaxBounds();
-
     if (!mounted) return;
     setState(() => _step = 2);
     await _renderStep();
   }
 
   Future<void> _finish() async {
-    await _saveStep3Lock();
+    await _saveStep3RouteFromProvider();
     if (!mounted) return;
     Navigator.of(context).pop();
   }
 
   Future<void> _onMapTap(MapPoint p) async {
+    // Tap handling for route points (step "Tracé & Style Pro")
     if (_step == 3) {
-      // Step3: pas de modification, uniquement lock/pan.
+      context.read<WizardCircuitProvider>().addRoutePoint(
+            mbx.Point(coordinates: mbx.Position(p.lng, p.lat)),
+          );
+      await _renderRouteFromProvider();
       return;
     }
 
@@ -567,11 +459,135 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
     await _renderStep();
   }
 
+  Future<MapboxDirectionsService?> _directions() async {
+    final sync = MapboxTokenService.getTokenSync();
+    final token = sync.isNotEmpty ? sync : await MapboxTokenService.getToken();
+    if (token.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).')),
+        );
+      }
+      return null;
+    }
+    return MapboxDirectionsService(token);
+  }
+
+  Future<void> _renderRouteFromProvider() async {
+    final draft = context.read<WizardCircuitProvider>().draft;
+    final r = draft.route;
+
+    // 1) points numérotés
+    await _mapController.setMarkers([
+      for (int i = 0; i < r.routePoints.length; i++)
+        MapMarker(
+          id: 'r$i',
+          lng: r.routePoints[i].coordinates.lng.toDouble(),
+          lat: r.routePoints[i].coordinates.lat.toDouble(),
+          label: '${i + 1}',
+          size: 1.1,
+          color: const Color(0xFF0A84FF),
+        ),
+    ]);
+
+    // 2) tracer segments si "connected" (géométrie)
+    if (r.connected && r.routeGeometry.length >= 2) {
+      final mp = r.routeGeometry
+          .map(
+            (p) => MapPoint(
+              p.coordinates.lng.toDouble(),
+              p.coordinates.lat.toDouble(),
+            ),
+          )
+          .toList();
+      await _mapController.setPolyline(
+        points: mp,
+        color: const Color(0xFF0A84FF),
+        width: 4,
+        show: true,
+        roadLike: false,
+      );
+    } else {
+      await _mapController.setPolyline(points: const [], show: false);
+    }
+  }
+
+  Future<void> _connectRoutePoints() async {
+    final p = context.read<WizardCircuitProvider>();
+    final r = p.draft.route;
+    if (r.routePoints.length < 2) return;
+    p.setRouteConnected(true);
+    p.setRouteMode(RouteMode.manual);
+    p.setRouteGeometry([...r.routePoints]);
+    await _renderRouteFromProvider();
+    await _saveStep3RouteFromProvider();
+  }
+
+  Future<void> _applyAutoRoute() async {
+    final p = context.read<WizardCircuitProvider>();
+    final r = p.draft.route;
+    if (r.routePoints.length < 2) return;
+    final svc = await _directions();
+    if (svc == null) return;
+
+    setState(() => _isSaving = true);
+    try {
+      final geom = await svc.getDrivingRouteGeometry(r.routePoints);
+      if (geom.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Directions (Auto) a échoué.')),
+          );
+        }
+        return;
+      }
+      p.setRouteConnected(true);
+      p.setRouteMode(RouteMode.autoDriving);
+      p.setRouteGeometry(geom);
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+
+    await _renderRouteFromProvider();
+    await _saveStep3RouteFromProvider();
+  }
+
+  Future<void> _applyHybridRoute() async {
+    final p = context.read<WizardCircuitProvider>();
+    final r = p.draft.route;
+    if (r.routePoints.length < 2) return;
+    final svc = await _directions();
+    if (svc == null) return;
+
+    setState(() => _isSaving = true);
+    try {
+      final geom = await svc.getHybridGeometry(r.routePoints);
+      if (geom.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Directions (Hybride) a échoué.')),
+          );
+        }
+        return;
+      }
+      p.setRouteConnected(true);
+      p.setRouteMode(RouteMode.hybrid);
+      p.setRouteGeometry(geom);
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+
+    await _renderRouteFromProvider();
+    await _saveStep3RouteFromProvider();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: _projectRef.snapshots(),
-      builder: (context, snap) {
+    return ChangeNotifierProvider.value(
+      value: _wizard,
+      child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: _projectRef.snapshots(),
+        builder: (context, snap) {
         if (snap.hasError) {
           return Scaffold(
             appBar: AppBar(title: const Text('Wizard Pro')),
@@ -614,10 +630,7 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
                   onTap: _onMapTap,
                   onMapReady: (_) async {
                     await _renderStep();
-                    if (_step == 3) {
-                      await _fitToPerimeter();
-                      await _applyLockConstraints();
-                    }
+                    if (_step == 3) await _fitToPerimeter();
                   },
                 ),
               ),
@@ -631,7 +644,7 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
                   padding: const EdgeInsets.all(16),
                   children: [
                     Text(
-                      _step == 2 ? 'Étape 2/3 • Périmètre' : 'Étape 3/3 • Verrouillage 100 m',
+                      _step == 2 ? 'Étape 2/3 • Périmètre' : 'Étape 3/3 • Tracé & Style Pro',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 12),
@@ -752,16 +765,102 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
                         ],
                       ),
                     ] else ...[
-                      Text(
-                        'Rayon de verrouillage: ${_lockRadiusMeters.toStringAsFixed(0)} m',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Le déplacement de la carte est limité, et la caméra se recentre si vous sortez du rayon autorisé.',
-                        style: Theme.of(context).textTheme.bodySmall,
+                      Row(
+                        children: [
+                          ChoiceChip(
+                            label: const Text('Points'),
+                            selected: _routeUiMode == _RouteUiMode.points,
+                            onSelected: (v) {
+                              if (!v) return;
+                              setState(() => _routeUiMode = _RouteUiMode.points);
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          ChoiceChip(
+                            label: const Text('Style Pro'),
+                            selected: _routeUiMode == _RouteUiMode.stylePro,
+                            onSelected: (v) {
+                              if (!v) return;
+                              setState(() => _routeUiMode = _RouteUiMode.stylePro);
+                            },
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 12),
+                      if (_routeUiMode == _RouteUiMode.points) ...[
+                        Text(
+                          'Touchez la carte pour ajouter des points de tracé, puis cliquez “Relier les points”.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 12),
+                        Builder(
+                          builder: (context) {
+                            final route = context.watch<WizardCircuitProvider>().draft.route;
+                            final pts = route.routePoints;
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text('Points: ${pts.length}', style: Theme.of(context).textTheme.bodySmall),
+                                if (pts.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  ListView.separated(
+                                    shrinkWrap: true,
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    itemCount: pts.length,
+                                    separatorBuilder: (_, _) => const Divider(height: 8),
+                                    itemBuilder: (context, i) {
+                                      final p = pts[i].coordinates;
+                                      return Row(
+                                        children: [
+                                          SizedBox(
+                                            width: 28,
+                                            child: Text('${i + 1}.', style: Theme.of(context).textTheme.bodySmall),
+                                          ),
+                                          Expanded(
+                                            child: Text(
+                                              '${p.lat.toDouble().toStringAsFixed(5)}, ${p.lng.toDouble().toStringAsFixed(5)}',
+                                              style: Theme.of(context).textTheme.bodySmall,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 12),
+                                  ElevatedButton(
+                                    onPressed: (_isSaving || pts.length < 2) ? null : _connectRoutePoints,
+                                    child: const Text('Relier les points'),
+                                  ),
+                                ],
+                              ],
+                            );
+                          },
+                        ),
+                      ] else ...[
+                        Text(
+                          'Choisissez un mode de calcul du tracé.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: _isSaving ? null : _applyAutoRoute,
+                                child: const Text('Auto'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: _isSaving ? null : _applyHybridRoute,
+                                child: const Text('Hybride'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                       Row(
                         children: [
                           Expanded(
@@ -788,7 +887,8 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
             ],
           ),
         );
-      },
+        },
+      ),
     );
   }
 }

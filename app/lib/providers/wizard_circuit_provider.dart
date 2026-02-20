@@ -38,6 +38,12 @@ class WizardCircuitProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setRoutePoints(List<Point> points) {
+    final r = _draft.route;
+    _draft = _draft.copyWith(route: r.copyWith(routePoints: points));
+    notifyListeners();
+  }
+
   void removeRoutePointAt(int index) {
     final r = _draft.route;
     final pts = [...r.routePoints]..removeAt(index);

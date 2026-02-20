@@ -2,6 +2,28 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "MASLIVE: git rm --cached .env",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git rm --cached .env 2>/dev/null && git commit -m \"chore(security): untrack .env from git index\" && git push origin main && echo '✅ .env désindexé et poussé' || echo '⚠️  .env déjà absent de l index git (rien à faire)'",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: 🚀 Commit wizard tracé + directions + sécurité",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/ui/wizard/pro_circuit_wizard_page.dart app/lib/providers/wizard_circuit_provider.dart app/lib/services/mapbox_directions_service.dart app/lib/services/mapbox_token_service.dart app/lib/models/draft_circuit.dart app/web/index.html .gitignore .vscode/tasks.json && git commit -m \"feat(wizard): étape Tracé & Style Pro (auto/hybrid) + sécurité token mapbox\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Commit admin wizard",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add app/lib/admin/admin_main_dashboard.dart app/lib/admin/create_circuit_assistant_page.dart && git commit -m \"admin: ajout Assistant Wizard + cleanup wizard circuit\"",
