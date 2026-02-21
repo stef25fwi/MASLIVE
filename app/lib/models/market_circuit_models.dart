@@ -73,6 +73,8 @@ class MarketMapPOI {
   final double lat;
   final String? description;
   final String? imageUrl;
+  final String? instagram;
+  final String? facebook;
   final Map<String, dynamic>? metadata;
 
   MarketMapPOI({
@@ -83,11 +85,19 @@ class MarketMapPOI {
     required this.lat,
     this.description,
     this.imageUrl,
+    this.instagram,
+    this.facebook,
     this.metadata,
   });
 
   factory MarketMapPOI.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final meta = (data['metadata'] is Map)
+        ? Map<String, dynamic>.from(data['metadata'] as Map)
+        : null;
+
+    String? asString(dynamic v) => v is String ? v : null;
+
     return MarketMapPOI(
       id: doc.id,
       name: data['name'] ?? '',
@@ -96,7 +106,9 @@ class MarketMapPOI {
       lat: data['lat'] ?? 0.0,
       description: data['description'],
       imageUrl: data['imageUrl'],
-      metadata: data['metadata'],
+      instagram: asString(data['instagram'] ?? meta?['instagram'] ?? meta?['ig']),
+      facebook: asString(data['facebook'] ?? meta?['facebook'] ?? meta?['fb']),
+      metadata: meta,
     );
   }
 
@@ -108,6 +120,8 @@ class MarketMapPOI {
       'lat': lat,
       'description': description,
       'imageUrl': imageUrl,
+      'instagram': instagram,
+      'facebook': facebook,
       'metadata': metadata,
     };
   }

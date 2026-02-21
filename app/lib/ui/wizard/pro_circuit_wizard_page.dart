@@ -26,6 +26,8 @@ class _PoiDraft {
     this.title = '',
     this.description = '',
     this.photoUrl = '',
+    this.instagram = '',
+    this.facebook = '',
   });
 
   final String id;
@@ -35,6 +37,8 @@ class _PoiDraft {
   String title;
   String description;
   String photoUrl;
+  String instagram;
+  String facebook;
 
   Map<String, dynamic> toFirestore() => <String, dynamic>{
         'lng': lng,
@@ -43,6 +47,8 @@ class _PoiDraft {
         'title': title,
         'description': description,
         'photoUrl': photoUrl,
+      'instagram': instagram,
+      'facebook': facebook,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -55,6 +61,8 @@ class _PoiDraft {
       title: (data['title'] as String?) ?? '',
       description: (data['description'] as String?) ?? '',
       photoUrl: (data['photoUrl'] as String?) ?? '',
+      instagram: (data['instagram'] as String?) ?? '',
+      facebook: (data['facebook'] as String?) ?? '',
     );
   }
 }
@@ -229,24 +237,36 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
   Future<void> _editPoiDialog(_PoiDraft poi) async {
     final titleCtl = TextEditingController(text: poi.title);
     final descCtl = TextEditingController(text: poi.description);
+    final instagramCtl = TextEditingController(text: poi.instagram);
+    final facebookCtl = TextEditingController(text: poi.facebook);
 
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Modifier le POI'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleCtl,
-              decoration: const InputDecoration(labelText: 'Titre'),
-            ),
-            TextField(
-              controller: descCtl,
-              decoration: const InputDecoration(labelText: 'Description'),
-              maxLines: 3,
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleCtl,
+                decoration: const InputDecoration(labelText: 'Titre'),
+              ),
+              TextField(
+                controller: descCtl,
+                decoration: const InputDecoration(labelText: 'Description'),
+                maxLines: 3,
+              ),
+              TextField(
+                controller: instagramCtl,
+                decoration: const InputDecoration(labelText: 'Instagram'),
+              ),
+              TextField(
+                controller: facebookCtl,
+                decoration: const InputDecoration(labelText: 'Facebook'),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Annuler')),
@@ -259,6 +279,8 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
     setState(() {
       poi.title = titleCtl.text.trim();
       poi.description = descCtl.text.trim();
+      poi.instagram = instagramCtl.text.trim();
+      poi.facebook = facebookCtl.text.trim();
     });
     await _savePois();
     await _renderStep();

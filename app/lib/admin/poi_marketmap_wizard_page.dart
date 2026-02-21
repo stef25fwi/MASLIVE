@@ -939,6 +939,8 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
   Future<void> _createOrEditPoi({String? poiId, Map<String, dynamic>? existing}) async {
     final nameCtrl = TextEditingController(text: (existing?['name'] ?? '').toString());
     final descCtrl = TextEditingController(text: (existing?['description'] ?? '').toString());
+    final instagramCtrl = TextEditingController(text: (existing?['instagram'] ?? '').toString());
+    final facebookCtrl = TextEditingController(text: (existing?['facebook'] ?? '').toString());
     final latCtrl = TextEditingController(
       text: existing?['lat'] != null ? (existing!['lat'] as num).toString() : '',
     );
@@ -988,6 +990,22 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
                 maxLines: 3,
                 decoration: const InputDecoration(
                   labelText: 'Description',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: instagramCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Instagram',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: facebookCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Facebook',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -1060,6 +1078,8 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
     final data = <String, dynamic>{
       'name': name,
       'description': descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+      'instagram': instagramCtrl.text.trim().isEmpty ? null : instagramCtrl.text.trim(),
+      'facebook': facebookCtrl.text.trim().isEmpty ? null : facebookCtrl.text.trim(),
       'type': type,
       'lat': lat,
       'lng': lng,

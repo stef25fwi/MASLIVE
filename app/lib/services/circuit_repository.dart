@@ -769,6 +769,17 @@ class CircuitRepository {
           ? 'poi_${poi.layerType}_${poi.lng.toStringAsFixed(5)}_${poi.lat.toStringAsFixed(5)}'
           : poi.id.trim();
       incomingIds.add(id);
+
+      String? metaString(String key) {
+        final m = poi.metadata;
+        if (m == null) return null;
+        final v = m[key];
+        return v is String ? v : null;
+      }
+
+      final instagram = (poi.instagram ?? metaString('instagram') ?? metaString('ig'))?.trim();
+      final facebook = (poi.facebook ?? metaString('facebook') ?? metaString('fb'))?.trim();
+
       batch.set(col.doc(id), {
         'name': poi.name,
         'description': poi.description,
@@ -777,6 +788,8 @@ class CircuitRepository {
         'lat': poi.lat,
         'lng': poi.lng,
         'isVisible': true,
+        if (instagram != null && instagram.isNotEmpty) 'instagram': instagram,
+        if (facebook != null && facebook.isNotEmpty) 'facebook': facebook,
         'createdByUid': actorUid,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
