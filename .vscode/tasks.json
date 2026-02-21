@@ -2,6 +2,28 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "MASLIVE: Git commit + push (shop rainbow header tint)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/pages/storex_shop_page.dart && git commit -m \"fix(shop): rainbow header (remove appbar tint)\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Git commit + push (wizard pro continuous snap + entry)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/admin/circuit_wizard_entry_page.dart app/lib/admin/circuit_wizard_pro_page.dart app/lib/ui/wizard/pro_circuit_wizard_page.dart .vscode/tasks.json && git commit -m \"feat(wizard): pro wizard continuous snap + entry reroute\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (rainbow headers shop)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add app/lib/pages/storex_shop_page.dart app/lib/pages/checkout/storex_checkout_stripe.dart && git commit -m \"feat(shop): rainbow gradient on all shop headers\" && git push origin main && cd app && { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -z \"$TOKEN\" ]; then echo '❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).'; exit 1; fi && flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" && cd .. && firebase deploy --only hosting",

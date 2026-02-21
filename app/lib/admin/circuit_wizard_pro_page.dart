@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
@@ -86,6 +88,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   final MasLiveMapController _poiMapController = MasLiveMapController();
 
   bool _isSnappingRoute = false;
+
+  // Snap en continu (debounce + ignore résultats obsolètes)
+  Timer? _routeSnapDebounce;
+  int _routeSnapSeq = 0;
 
   // Brouillon
   Map<String, dynamic> _draftData = {};
@@ -321,6 +327,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
   @override
   void dispose() {
+    _routeSnapDebounce?.cancel();
     _pageController.dispose();
     _perimeterEditorController.dispose();
     _routeEditorController.dispose();
@@ -940,9 +947,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           : _styleUrlController.text.trim(),
       showToolbar: false,
       onPointsChanged: (points) {
+        final previousCount = _routePoints.length;
         setState(() {
           _routePoints = points;
         });
+
+        // Waze-like: après ajout de point, on aligne automatiquement sur route.
+        // Important: on ne spam pas pendant les glisser-déposer.
+        if (_currentStep == 3 && points.length >= 2 && points.length > previousCount) {
+          _scheduleContinuousRouteSnap();
+        }
       },
       onSave: _saveDraft,
       mode: 'polyline',
@@ -1088,13 +1102,61 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   }
 
   Future<void> _snapRouteToRoads() async {
+    await _snapRouteToRoadsInternal(
+      persist: true,
+      showSnackBar: true,
+      expectedSeq: null,
+    );
+  }
+
+  void _scheduleContinuousRouteSnap() {
+    if (_routePoints.length < 2) return;
+
+    _routeSnapDebounce?.cancel();
+    final seq = ++_routeSnapSeq;
+    _routeSnapDebounce = Timer(const Duration(milliseconds: 650), () {
+      _attemptContinuousRouteSnap(seq);
+    });
+  }
+
+  void _attemptContinuousRouteSnap(int seq) {
+    if (!mounted) return;
+    if (seq != _routeSnapSeq) return;
+
+    // Si un snap est en cours, on retente un peu plus tard.
+    if (_isSnappingRoute) {
+      _routeSnapDebounce?.cancel();
+      _routeSnapDebounce = Timer(const Duration(milliseconds: 350), () {
+        _attemptContinuousRouteSnap(seq);
+      });
+      return;
+    }
+
+    // Mode silencieux + sans persistance: évite de spammer Firestore.
+    _snapRouteToRoadsInternal(
+      persist: false,
+      showSnackBar: false,
+      expectedSeq: seq,
+    );
+  }
+
+  Future<void> _snapRouteToRoadsInternal({
+    required bool persist,
+    required bool showSnackBar,
+    required int? expectedSeq,
+  }) async {
     if (_routePoints.length < 2) return;
     if (_isSnappingRoute) return;
+
+    // Anti-stale: on invalide les snaps en cours si une nouvelle édition arrive.
+    final seq = expectedSeq ?? ++_routeSnapSeq;
 
     setState(() => _isSnappingRoute = true);
     try {
       final service = snap.RouteSnapService();
-      final input = <rsp.LatLng>[for (final p in _routePoints) (lat: p.lat, lng: p.lng)];
+      final input = <rsp.LatLng>[
+        for (final p in _routePoints) (lat: p.lat, lng: p.lng),
+      ];
 
       final snapped = await service.snapToRoad(
         input,
@@ -1104,26 +1166,39 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         ),
       );
 
-      final output = <LngLat>[for (final p in snapped.points) (lng: p.lng, lat: p.lat)];
       if (!mounted) return;
+      if (seq != _routeSnapSeq) return;
+
+      final output = <LngLat>[
+        for (final p in snapped.points) (lng: p.lng, lat: p.lat),
+      ];
 
       setState(() {
         _routePoints = output;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('✅ Tracé aligné sur la route (${output.length} points)')),
-      );
+      if (showSnackBar) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '✅ Tracé aligné sur la route (${output.length} points)',
+            ),
+          ),
+        );
+      }
 
-      if (_projectId != null) {
+      if (persist && _projectId != null) {
         await _saveDraft();
       }
     } catch (e) {
-      debugPrint('WizardPro _snapRouteToRoads error: $e');
+      debugPrint('WizardPro _snapRouteToRoadsInternal error: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ Snap impossible: $e')),
-      );
+      if (seq != _routeSnapSeq) return;
+      if (showSnackBar) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Snap impossible: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSnappingRoute = false);
     }

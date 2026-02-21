@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/market_circuit_models.dart';
 import '../models/market_country.dart';
 import '../services/market_map_service.dart';
-import '../ui/wizard/pro_circuit_wizard_page.dart';
+import 'circuit_wizard_pro_page.dart';
 
 String _iso2ToFlagEmoji(String iso2) {
   final code = iso2.trim().toUpperCase();
@@ -303,7 +303,7 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
       Navigator.push<void>(
         context,
         MaterialPageRoute(
-          builder: (_) => ProCircuitWizardPage(projectId: ref.id),
+          builder: (_) => CircuitWizardProPage(projectId: ref.id),
         ),
       );
     } catch (e) {
@@ -318,7 +318,7 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
     Navigator.push<void>(
       context,
       MaterialPageRoute(
-        builder: (_) => ProCircuitWizardPage(projectId: projectId),
+        builder: (_) => CircuitWizardProPage(projectId: projectId),
       ),
     );
   }

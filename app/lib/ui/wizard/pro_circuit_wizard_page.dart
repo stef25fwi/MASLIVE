@@ -75,6 +75,11 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
   final MasLiveMapController _mapController = MasLiveMapController();
   late final WizardCircuitProvider _wizard = WizardCircuitProvider();
 
+  // Recalcul Directions en continu (debounce + ignore résultats obsolètes)
+  Timer? _routeRecalcDebounce;
+  int _routeRecalcSeq = 0;
+  // bool _isRouteRecalculating = false;
+
   int _step = 2; // Step1 déjà fait via dialog côté entry page
 
   _PerimeterUiMode _mode = _PerimeterUiMode.polygon;
@@ -100,8 +105,75 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
 
   @override
   void dispose() {
+    _routeRecalcDebounce?.cancel();
     _mapController.dispose();
     super.dispose();
+  }
+
+  void _scheduleContinuousRouteRecalc(RouteMode mode) {
+    // Recalc uniquement si assez de points et mode auto/hybride.
+    final route = context.read<WizardCircuitProvider>().draft.route;
+    if (route.routePoints.length < 2) return;
+    if (mode == RouteMode.manual) return;
+
+    _routeRecalcDebounce?.cancel();
+    final seq = ++_routeRecalcSeq;
+    _routeRecalcDebounce = Timer(const Duration(milliseconds: 650), () async {
+      if (!mounted) return;
+      // Si une action plus récente est arrivée, on ignore.
+      if (seq != _routeRecalcSeq) return;
+      await _recalcRouteGeometry(mode: mode, showFailureSnackBar: false, persist: false, seq: seq);
+    });
+  }
+
+  Future<void> _recalcRouteGeometry({
+    required RouteMode mode,
+    required bool showFailureSnackBar,
+    required bool persist,
+    required int seq,
+  }) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final p = context.read<WizardCircuitProvider>();
+    final r = p.draft.route;
+    if (r.routePoints.length < 2) return;
+
+    final svc = await _directions();
+    if (svc == null) return;
+    try {
+      final geom = switch (mode) {
+        RouteMode.autoDriving => await svc.getDrivingRouteGeometry(r.routePoints),
+        RouteMode.hybrid => await svc.getHybridGeometry(r.routePoints),
+        _ => const <mbx.Point>[],
+      };
+
+      if (!mounted) return;
+      if (seq != _routeRecalcSeq) return;
+
+      if (geom.isEmpty) {
+        if (showFailureSnackBar && mounted) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(mode == RouteMode.autoDriving ? 'Directions (Auto) a échoué.' : 'Directions (Hybride) a échoué.'),
+            ),
+          );
+        }
+        return;
+      }
+
+      p.setRouteConnected(true);
+      p.setRouteMode(mode);
+      p.setRouteGeometry(geom);
+    } finally {
+      // no-op
+    }
+
+    // Re-rendu
+    await _renderRouteFromProvider();
+
+    // Persistance uniquement sur action explicite (boutons/étapes), pas en continu.
+    if (persist) {
+      await _saveStep3RouteFromProvider();
+    }
   }
 
   DocumentReference<Map<String, dynamic>> get _projectRef =>
@@ -615,16 +687,24 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
       setState(() => _pois.add(poi));
       await _savePois();
       await _renderStep();
+      if (!mounted) return;
       await _editPoiDialog(poi);
       return;
     }
 
     // Step 3: route points (Tracé & Style Pro)
     if (_step == 3) {
-      context.read<WizardCircuitProvider>().addRoutePoint(
+      final wizardProvider = context.read<WizardCircuitProvider>();
+      wizardProvider.addRoutePoint(
             mbx.Point(coordinates: mbx.Position(p.lng, p.lat)),
           );
       await _renderRouteFromProvider();
+
+      // Si l'utilisateur est en mode Directions (Auto/Hybride), on recalcule en continu.
+      final route = wizardProvider.draft.route;
+      if (route.mode == RouteMode.autoDriving || route.mode == RouteMode.hybrid) {
+        _scheduleContinuousRouteRecalc(route.mode);
+      }
       return;
     }
 
@@ -644,11 +724,12 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
   }
 
   Future<MapboxDirectionsService?> _directions() async {
+    final messenger = ScaffoldMessenger.of(context);
     final sync = MapboxTokenService.getTokenSync();
     final token = sync.isNotEmpty ? sync : await MapboxTokenService.getToken();
     if (token.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(content: Text('Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).')),
         );
       }
@@ -708,61 +789,29 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
   }
 
   Future<void> _applyAutoRoute() async {
-    final p = context.read<WizardCircuitProvider>();
-    final r = p.draft.route;
+    final r = context.read<WizardCircuitProvider>().draft.route;
     if (r.routePoints.length < 2) return;
-    final svc = await _directions();
-    if (svc == null) return;
 
     setState(() => _isSaving = true);
+    final seq = ++_routeRecalcSeq;
     try {
-      final geom = await svc.getDrivingRouteGeometry(r.routePoints);
-      if (geom.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Directions (Auto) a échoué.')),
-          );
-        }
-        return;
-      }
-      p.setRouteConnected(true);
-      p.setRouteMode(RouteMode.autoDriving);
-      p.setRouteGeometry(geom);
+      await _recalcRouteGeometry(mode: RouteMode.autoDriving, showFailureSnackBar: true, persist: true, seq: seq);
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
-
-    await _renderRouteFromProvider();
-    await _saveStep3RouteFromProvider();
   }
 
   Future<void> _applyHybridRoute() async {
-    final p = context.read<WizardCircuitProvider>();
-    final r = p.draft.route;
+    final r = context.read<WizardCircuitProvider>().draft.route;
     if (r.routePoints.length < 2) return;
-    final svc = await _directions();
-    if (svc == null) return;
 
     setState(() => _isSaving = true);
+    final seq = ++_routeRecalcSeq;
     try {
-      final geom = await svc.getHybridGeometry(r.routePoints);
-      if (geom.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Directions (Hybride) a échoué.')),
-          );
-        }
-        return;
-      }
-      p.setRouteConnected(true);
-      p.setRouteMode(RouteMode.hybrid);
-      p.setRouteGeometry(geom);
+      await _recalcRouteGeometry(mode: RouteMode.hybrid, showFailureSnackBar: true, persist: true, seq: seq);
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
-
-    await _renderRouteFromProvider();
-    await _saveStep3RouteFromProvider();
   }
 
   @override
