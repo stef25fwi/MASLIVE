@@ -35,6 +35,17 @@
       }
     },
     {
+      "label": "MASLIVE: Git commit + push (P1 start: MasLiveMap replaces MapboxWebView pages)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/pages/home_web_page.dart app/lib/pages/mapbox_web_map_page.dart .vscode/tasks.json && git commit -m \"chore(web): migrate MapboxWebView pages to MasLiveMap\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git commit + push (wizard popup nouveau circuit pays+carte+periode)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add app/lib/admin/circuit_wizard_entry_page.dart && git commit -m \"feat(wizard): popup nouveau circuit (pays+carte+periode)\" && git push origin main",
