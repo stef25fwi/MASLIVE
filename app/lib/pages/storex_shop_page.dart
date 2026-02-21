@@ -236,6 +236,10 @@ class _StorexHome extends StatelessWidget {
         },
       ),
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         flexibleSpace: Container(
           decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
         ),
@@ -602,6 +606,10 @@ class _StorexCategory extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         flexibleSpace: Container(
           decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
         ),
@@ -757,6 +765,10 @@ class _ListPageState extends State<_ListPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         flexibleSpace: Container(
           decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
         ),
@@ -951,6 +963,10 @@ class _StorexAccount extends StatelessWidget {
         },
       ),
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         flexibleSpace: Container(
           decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
         ),
@@ -1081,6 +1097,10 @@ class _WishlistPage extends StatelessWidget {
       return Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          scrolledUnderElevation: 0,
           flexibleSpace: Container(
             decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
           ),
@@ -1127,6 +1147,10 @@ class _WishlistPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         flexibleSpace: Container(
           decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
         ),
@@ -1253,6 +1277,10 @@ class _OrdersPage extends StatelessWidget {
       return Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          scrolledUnderElevation: 0,
           flexibleSpace: Container(
             decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
           ),
@@ -1299,6 +1327,10 @@ class _OrdersPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         flexibleSpace: Container(
           decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
         ),
