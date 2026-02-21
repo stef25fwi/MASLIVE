@@ -632,6 +632,11 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final screen = MediaQuery.of(context).size;
+    final availableWidth = (screen.width - 32).clamp(0.0, double.infinity);
+    final dialogWidth = availableWidth > 900 ? 900.0 : availableWidth;
+    final dialogMaxHeight = screen.height * 0.9;
+
     return Dialog(
       backgroundColor: Colors.white,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -639,13 +644,15 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: Colors.grey.shade300),
       ),
-      child: SizedBox(
-        width: 520,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: StreamBuilder<List<MarketCountry>>(
-            stream: _marketMapService.watchCountries(),
-            builder: (context, snapshot) {
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: dialogWidth, maxHeight: dialogMaxHeight),
+        child: SizedBox(
+          width: dialogWidth,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: StreamBuilder<List<MarketCountry>>(
+              stream: _marketMapService.watchCountries(),
+              builder: (context, snapshot) {
               final countries = snapshot.data ?? const <MarketCountry>[];
               final q = MarketMapService.slugify(_countryQuery);
               final filtered = countries
@@ -914,7 +921,8 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
                   ],
                 ),
               );
-            },
+              },
+            ),
           ),
         ),
       ),

@@ -712,7 +712,12 @@ class CircuitRepository {
     final incomingIds = <String>{};
 
     for (final layer in layers) {
-      final id = layer.id.trim().isEmpty ? layer.type : layer.id.trim();
+      // IMPORTANT: dans `marketMap`, le docId de layer doit matcher le `layerId`
+      // des POIs (sinon les filtres Mapbox par couche ne trouvent rien).
+      // On privilégie donc `layer.type` comme identifiant stable.
+      final normalizedType = layer.type.trim();
+      final normalizedId = layer.id.trim();
+      final id = normalizedType.isNotEmpty ? normalizedType : normalizedId;
       incomingIds.add(id);
       final data = {
         'type': layer.type,
@@ -721,6 +726,9 @@ class CircuitRepository {
         'isVisible': layer.isVisible,
         'order': layer.zIndex,
         'zIndex': layer.zIndex,
+        // Compat viewer: certains écrans lisent `color/icon` au top-level.
+        if (layer.color != null) 'color': layer.color,
+        if (layer.icon != null) 'icon': layer.icon,
         'style': {
           if (layer.color != null) 'color': layer.color,
           if (layer.icon != null) 'icon': layer.icon,

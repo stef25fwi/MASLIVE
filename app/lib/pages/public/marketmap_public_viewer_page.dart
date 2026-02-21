@@ -288,7 +288,9 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
         final label = (d['label'] ?? doc.id).toString();
         final visible = (d['isVisible'] as bool?) ?? true;
         final type = (d['type'] ?? '').toString();
-        final colorHex = d['color']?.toString();
+        final style = d['style'];
+        final styleColor = style is Map ? style['color'] : null;
+        final colorHex = (d['color'] ?? styleColor)?.toString();
         _uiLayersById[doc.id] = _UiLayer(
           id: doc.id,
           label: label,

@@ -7,6 +7,15 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // ===== Custom claims (recommandé en prod) =====
+    function roleClaim() {
+      return isSignedIn() ? request.auth.token.role : null;
+    }
+
+    function groupIdClaim() {
+      return isSignedIn() ? request.auth.token.groupId : null;
+    }
+
     function hasUserDoc() {
       return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
@@ -17,12 +26,20 @@ service cloud.firestore {
         : null;
     }
 
-    function userRole() {
+    function roleDoc() {
       return hasUserDoc() ? getUserData().role : null;
     }
 
-    function userGroupId() {
+    function groupIdDoc() {
       return hasUserDoc() ? getUserData().groupId : null;
+    }
+
+    function userRole() {
+      return roleClaim() != null ? roleClaim() : roleDoc();
+    }
+
+    function userGroupId() {
+      return groupIdClaim() != null ? groupIdClaim() : groupIdDoc();
     }
 
     // ========== VÉRIFICATIONS DE RÔLES ==========
@@ -34,7 +51,7 @@ service cloud.firestore {
     // - 'superAdmin' / 'super-admin' (super administrateur - priorité 100)
 
     function isSuperAdmin() {
-      return hasUserDoc() && (
+      return isSignedIn() && (
         userRole() == 'superAdmin'
         || userRole() == 'super-admin'
         || userRole() == 'superadmin'
@@ -42,9 +59,10 @@ service cloud.firestore {
     }
 
     function isMasterAdmin() {
-      return hasUserDoc() && (
-        getUserData().isAdmin == true 
+      return isSignedIn() && (
+        (hasUserDoc() && getUserData().isAdmin == true)
         || userRole() == 'admin'
+        || userRole() == 'admin_master'
         || userRole() == 'superAdmin'
         || userRole() == 'super-admin'
         || userRole() == 'superadmin'
@@ -52,9 +70,27 @@ service cloud.firestore {
     }
 
     function isGroupAdmin(groupId) {
-      return hasUserDoc() 
-        && (userRole() == 'group' || userRole() == 'group-admin') 
+      return isSignedIn()
+        && (
+          userRole() == 'group'
+          || userRole() == 'group-admin'
+          || userRole() == 'admin_group'
+          || userRole() == 'admin_groupe'
+        )
         && userGroupId() == groupId;
+    }
+
+    // Alias explicites (compat avec la nomenclature demandée)
+    function isAdminMaster() {
+      return isSignedIn() && isMasterAdmin();
+    }
+
+    function isAdminGroup() {
+      return isSignedIn() && (userRole() == 'admin_group' || userRole() == 'admin_groupe' || userRole() == 'group' || userRole() == 'group-admin');
+    }
+
+    function isTracker() {
+      return isSignedIn() && (userRole() == 'tracker_groupe' || userRole() == 'tracker');
     }
 
     // ========== VÉRIFICATIONS DE PERMISSIONS ==========
@@ -772,9 +808,13 @@ service cloud.firestore {
     }
 
     function canReadProject(projectId) {
-      return isMasterAdmin()
-        || isProjectCreator(projectId)
-        || isGroupAdmin(projectGroupId(projectId));
+      return exists(/databases/$(database)/documents/map_projects/$(projectId))
+        && (
+          mapProjectDoc(projectId).status == 'published'
+          || isMasterAdmin()
+          || isProjectCreator(projectId)
+          || isGroupAdmin(projectGroupId(projectId))
+        );
     }
 
     function canPublishProject() {
@@ -853,7 +893,8 @@ service cloud.firestore {
     match /map_projects/{projectId} {
       allow create: if isSignedIn() && isMasterAdmin() && validProjectPayloadCreate();
 
-      allow read: if isSignedIn() && canReadProject(projectId);
+      // Lecture publique UNIQUEMENT si published (sinon: admins/créateur/groupe)
+      allow read: if canReadProject(projectId);
 
       allow update: if isSignedIn()
         && isMasterAdmin()
@@ -862,18 +903,57 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isMasterAdmin();
 
       match /layers/{layerId} {
-        allow read: if isSignedIn() && canReadProject(projectId);
+        allow read: if canReadProject(projectId);
         allow create, update, delete: if isSignedIn() && isMasterAdmin();
       }
 
       match /pois/{poiId} {
-        allow read: if isSignedIn() && canReadProject(projectId);
+        allow read: if canReadProject(projectId);
         allow create, update, delete: if isSignedIn() && isMasterAdmin();
       }
 
       match /drafts/{draftId} {
-        allow read: if isSignedIn() && canReadProject(projectId);
+        // Historique interne: jamais public
+        allow read: if isSignedIn() && (
+          isMasterAdmin() || isProjectCreator(projectId) || isGroupAdmin(projectGroupId(projectId))
+        );
         allow create, update, delete: if isSignedIn() && isMasterAdmin();
+      }
+
+      // ===== Live locations (écriture uniquement par soi-même, lecture restreinte) =====
+      match /live_locations/{uid} {
+        // Interdit au public: positions individuelles
+        allow read: if isAdminMaster() || isGroupAdmin(projectGroupId(projectId));
+
+        allow create, update: if isSignedIn()
+          && request.auth.uid == uid
+          && (isTracker() || isAdminGroup())
+          && request.resource.data.keys().hasAll([
+              'groupId', 'roleInGroup', 'pos', 'updatedAt', 'expiresAt'
+          ])
+          && request.resource.data.keys().hasOnly([
+              'groupId', 'roleInGroup', 'pos', 'heading', 'speed', 'accuracy', 'updatedAt', 'expiresAt'
+          ])
+          && request.resource.data.groupId is string
+          && request.resource.data.groupId == projectGroupId(projectId)
+          && request.resource.data.roleInGroup in ['tracker', 'admin_group']
+            && ((isTracker() && request.resource.data.roleInGroup == 'tracker')
+              || (isAdminGroup() && request.resource.data.roleInGroup == 'admin_group'))
+            && request.resource.data.pos is latlng
+          && (!('heading' in request.resource.data) || request.resource.data.heading is number)
+          && (!('speed' in request.resource.data) || request.resource.data.speed is number)
+          && (!('accuracy' in request.resource.data) || request.resource.data.accuracy is number)
+          && request.resource.data.updatedAt is timestamp
+          && request.resource.data.expiresAt is timestamp;
+
+        allow delete: if isSignedIn() && request.auth.uid == uid;
+      }
+
+      // ===== Group presence (lecture publique si published) =====
+      match /group_presence/{groupId} {
+        allow read: if canReadProject(projectId);
+        // Écriture réservée au serveur (Admin SDK) OU admin master
+        allow create, update, delete: if isAdminMaster();
       }
     }
 
