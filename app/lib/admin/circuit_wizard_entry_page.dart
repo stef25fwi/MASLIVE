@@ -1,9 +1,16 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 import '../models/market_circuit_models.dart';
 import '../models/market_country.dart';
 import '../services/market_map_service.dart';
+import '../services/mapbox_token_service.dart';
+import '../ui/map/maslive_map.dart';
+import '../ui/map/maslive_map_controller.dart';
 import 'circuit_wizard_pro_page.dart';
 
 String _iso2ToFlagEmoji(String iso2) {
@@ -272,8 +279,8 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
             'name': eventName,
             'slug': eventId,
             'countryId': countryId,
-            'startDate': Timestamp.fromDate(input.date),
-            'endDate': Timestamp.fromDate(input.date),
+            'startDate': Timestamp.fromDate(input.startDate),
+            'endDate': Timestamp.fromDate(input.endDate),
             'createdAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
@@ -288,7 +295,9 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
         'countryIso2': input.countryIso2,
         'eventId': eventId,
         'eventName': input.eventName,
-        'eventDate': Timestamp.fromDate(input.date),
+        // Compat: eventDate reste la date de début.
+        'eventDate': Timestamp.fromDate(input.startDate),
+        'eventEndDate': Timestamp.fromDate(input.endDate),
         'description': '',
         'styleUrl': '',
         'perimeter': <dynamic>[],
@@ -368,7 +377,8 @@ class _NewCircuitInput {
   final String eventId;
   final String eventName;
   final String name;
-  final DateTime date;
+  final DateTime startDate;
+  final DateTime endDate;
 
   const _NewCircuitInput({
     required this.countryId,
@@ -377,7 +387,8 @@ class _NewCircuitInput {
     required this.eventId,
     required this.eventName,
     required this.name,
-    required this.date,
+    required this.startDate,
+    required this.endDate,
   });
 }
 
@@ -391,12 +402,18 @@ class _NewCircuitInputDialog extends StatefulWidget {
 class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
   final MarketMapService _marketMapService = MarketMapService();
 
+  final MasLiveMapController _previewMapController = MasLiveMapController();
+  bool _previewMapReady = false;
+  int _previewMapFocusSeq = 0;
+
   final _countryController = TextEditingController();
   final _eventController = TextEditingController();
   final _nameController = TextEditingController();
 
   MarketCountry? _selectedCountry;
-  DateTime _date = DateTime.now();
+  DateTime _startDate = DateTime.now();
+  DateTime _endDate = DateTime.now();
+  bool _usePeriod = false;
   String _countryQuery = '';
 
   @override
@@ -404,11 +421,12 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
     _countryController.dispose();
     _eventController.dispose();
     _nameController.dispose();
+    _previewMapController.dispose();
     super.dispose();
   }
 
   bool get _isValid {
-    return _selectedCountry != null &&
+    return _countryController.text.trim().isNotEmpty &&
         _eventController.text.trim().isNotEmpty &&
         _nameController.text.trim().isNotEmpty;
   }
@@ -418,7 +436,13 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
   String _eventId() {
     final name = _eventName();
     if (name.isEmpty) return '';
-    return MarketMapService.slugify(name);
+    final base = MarketMapService.slugify(name);
+    if (base.isEmpty) return '';
+
+    final yyyy = _startDate.year.toString().padLeft(4, '0');
+    final mm = _startDate.month.toString().padLeft(2, '0');
+    final dd = _startDate.day.toString().padLeft(2, '0');
+    return MarketMapService.slugify('$base-$yyyy$mm$dd');
   }
 
   String _countryLabel(MarketCountry c) {
@@ -452,17 +476,158 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
     return '$y-$m-$day';
   }
 
+  String _formatRange(DateTime start, DateTime end) {
+    return '${_formatDate(start)} → ${_formatDate(end)}';
+  }
+
+  ({double lng, double lat, double zoom}) _countryPreviewCamera(
+    MarketCountry? country,
+  ) {
+    if (country == null) {
+      return (lng: -61.533, lat: 16.241, zoom: 5.0);
+    }
+
+    final iso2 = _countryCodeFor(country);
+    switch (iso2) {
+      case 'GP':
+        return (lng: -61.551, lat: 16.265, zoom: 9.5);
+      case 'MQ':
+        return (lng: -61.02, lat: 14.641, zoom: 9.5);
+      case 'GF':
+        return (lng: -53.125, lat: 3.934, zoom: 7.0);
+      case 'RE':
+        return (lng: 55.536, lat: -21.115, zoom: 9.0);
+      case 'MF':
+        return (lng: -63.073, lat: 18.071, zoom: 11.0);
+      case 'FR':
+        return (lng: 2.213, lat: 46.227, zoom: 5.0);
+      default:
+        return (lng: -61.533, lat: 16.241, zoom: 5.0);
+    }
+  }
+
+  Future<({double lng, double lat})?> _geocodeCountryCenter(
+    String countryName,
+  ) async {
+    final token = await MapboxTokenService.getToken();
+    if (token.trim().isEmpty) return null;
+
+    final q = countryName.trim();
+    if (q.isEmpty) return null;
+
+    final uri = Uri.https(
+      'api.mapbox.com',
+      '/geocoding/v5/mapbox.places/${Uri.encodeComponent(q)}.json',
+      {
+        'access_token': token,
+        'types': 'country',
+        'limit': '1',
+      },
+    );
+
+    final resp = await http.get(uri);
+    if (resp.statusCode < 200 || resp.statusCode >= 300) return null;
+
+    final json = jsonDecode(resp.body);
+    if (json is! Map<String, dynamic>) return null;
+    final features = json['features'];
+    if (features is! List || features.isEmpty) return null;
+    final first = features.first;
+    if (first is! Map) return null;
+    final center = first['center'];
+    if (center is! List || center.length < 2) return null;
+    final lng = center[0];
+    final lat = center[1];
+    if (lng is! num || lat is! num) return null;
+    return (lng: lng.toDouble(), lat: lat.toDouble());
+  }
+
+  Future<void> _focusPreviewMapOnCountry(MarketCountry country) async {
+    if (!_previewMapReady) return;
+
+    final seq = ++_previewMapFocusSeq;
+    final cam = _countryPreviewCamera(country);
+    await _previewMapController.moveTo(
+      lng: cam.lng,
+      lat: cam.lat,
+      zoom: cam.zoom,
+      animate: false,
+    );
+
+    // Si on n'a pas de mapping connu (fallback), on tente un centrage via géocodage.
+    final iso2 = _countryCodeFor(country);
+    final hasKnownIso2 = iso2 == 'GP' ||
+        iso2 == 'MQ' ||
+        iso2 == 'GF' ||
+        iso2 == 'RE' ||
+        iso2 == 'MF' ||
+        iso2 == 'FR';
+
+    if (hasKnownIso2) return;
+
+    try {
+      final geocoded = await _geocodeCountryCenter(_countryLabel(country));
+      if (!mounted) return;
+      if (seq != _previewMapFocusSeq) return;
+      if (geocoded == null) return;
+
+      await _previewMapController.moveTo(
+        lng: geocoded.lng,
+        lat: geocoded.lat,
+        zoom: 5.0,
+        animate: false,
+      );
+    } catch (_) {
+      // Best-effort: si le géocodage échoue, on garde le fallback.
+    }
+  }
+
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _date,
+      initialDate: _startDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
     );
     if (picked == null || !mounted) return;
     setState(() {
-      _date = DateTime(picked.year, picked.month, picked.day);
+      _startDate = DateTime(picked.year, picked.month, picked.day);
+      _endDate = _startDate;
     });
+  }
+
+  Future<void> _pickPeriod() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _startDate = DateTime(picked.start.year, picked.start.month, picked.start.day);
+      _endDate = DateTime(picked.end.year, picked.end.month, picked.end.day);
+    });
+  }
+
+  MarketCountry? _resolveCountry(List<MarketCountry> countries) {
+    if (_selectedCountry != null) return _selectedCountry;
+
+    final raw = _countryController.text.trim();
+    if (raw.isEmpty) return null;
+
+    final needle = MarketMapService.slugify(raw);
+    if (needle.isEmpty) return null;
+
+    for (final c in countries) {
+      final label = _countryLabel(c);
+      final labelSlug = MarketMapService.slugify(label);
+      if (labelSlug == needle) return c;
+
+      final idSlug = MarketMapService.slugify(c.id);
+      if (idSlug == needle) return c;
+    }
+    return null;
   }
 
   @override
@@ -482,16 +647,24 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
             stream: _marketMapService.watchCountries(),
             builder: (context, snapshot) {
               final countries = snapshot.data ?? const <MarketCountry>[];
+              final q = MarketMapService.slugify(_countryQuery);
               final filtered = countries
-                  .where((c) => _countryLabel(c)
-                      .toLowerCase()
-                      .contains(_countryQuery.toLowerCase()))
+                  .where((c) {
+                    if (q.isEmpty) return true;
+                    final label = _countryLabel(c);
+                    final labelSlug = MarketMapService.slugify(label);
+                    return labelSlug.contains(q);
+                  })
                   .toList()
                 ..sort((a, b) => _countryLabel(a).compareTo(_countryLabel(b)));
 
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+              final resolvedCountry = _resolveCountry(countries);
+              final cam = _countryPreviewCamera(resolvedCountry);
+
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                   Row(
                     children: [
                       const Expanded(
@@ -522,9 +695,9 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
                         child: Center(
                           widthFactor: 1,
                           child: Text(
-                            _selectedCountry == null
+                            resolvedCountry == null
                                 ? '🏳️'
-                                : _iso2ToFlagEmoji(_countryCodeFor(_selectedCountry!)),
+                                : _iso2ToFlagEmoji(_countryCodeFor(resolvedCountry)),
                           ),
                         ),
                       ),
@@ -535,6 +708,38 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
                         _selectedCountry = null;
                       });
                     },
+                  ),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: SizedBox(
+                      height: 140,
+                      width: double.infinity,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        clipBehavior: Clip.hardEdge,
+                        child: MasLiveMap(
+                          controller: _previewMapController,
+                          initialLng: cam.lng,
+                          initialLat: cam.lat,
+                          initialZoom: cam.zoom,
+                          styleUrl: null,
+                          onTap: null,
+                          onMapReady: (c) async {
+                            _previewMapReady = true;
+                            // recentrer après ready pour refléter le pays sélectionné
+                            await c.moveTo(
+                              lng: cam.lng,
+                              lat: cam.lat,
+                              zoom: cam.zoom,
+                              animate: false,
+                            );
+                          },
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Container(
@@ -574,6 +779,8 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
                                     _countryController.text = _countryLabel(c);
                                     _countryQuery = _countryLabel(c);
                                   });
+
+                                  unawaited(_focusPreviewMapOnCountry(c));
                                 },
                               );
                             },
@@ -611,6 +818,40 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
                   Row(
                     children: [
                       Expanded(
+                        child: ChoiceChip(
+                          label: const Text('Date'),
+                          selected: !_usePeriod,
+                          onSelected: (v) {
+                            if (!v) return;
+                            setState(() {
+                              _usePeriod = false;
+                              _endDate = _startDate;
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ChoiceChip(
+                          label: const Text('Période'),
+                          selected: _usePeriod,
+                          onSelected: (v) {
+                            if (!v) return;
+                            setState(() {
+                              _usePeriod = true;
+                              if (_endDate.isBefore(_startDate)) {
+                                _endDate = _startDate;
+                              }
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,
@@ -621,12 +862,16 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: Colors.grey.shade300),
                           ),
-                          child: Text('Date : ${_formatDate(_date)}'),
+                          child: Text(
+                            _usePeriod
+                                ? 'Période : ${_formatRange(_startDate, _endDate)}'
+                                : 'Date : ${_formatDate(_startDate)}',
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton.icon(
-                        onPressed: _pickDate,
+                        onPressed: _usePeriod ? _pickPeriod : _pickDate,
                         icon: const Icon(Icons.calendar_month),
                         label: const Text('Choisir'),
                       ),
@@ -639,7 +884,7 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
                       onPressed: !_isValid
                           ? null
                           : () {
-                              final country = _selectedCountry;
+                              final country = resolvedCountry;
                               if (country == null) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
@@ -658,14 +903,16 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
                                   eventId: _eventId(),
                                   eventName: _eventName(),
                                   name: _nameController.text.trim(),
-                                  date: _date,
+                                  startDate: _startDate,
+                                  endDate: _endDate,
                                 ),
                               );
                             },
                       child: const Text('Continuer'),
                     ),
                   ),
-                ],
+                  ],
+                ),
               );
             },
           ),
