@@ -78,15 +78,17 @@
 
 1) **Deux moteurs web** (`MasLiveMapWeb` vs `MapboxWebView`) → bugs non reproductibles entre pages.
    - Constat (factuel): `MapboxWebView` est encore utilisé dans plusieurs écrans web, par ex.
-     - `app/lib/pages/home_web_page.dart`
      - `app/lib/pages/home_map_page_web.dart`
-     - `app/lib/pages/route_display_page.dart`
      - `app/lib/pages/tracking_live_page.dart`
      - `app/lib/pages/default_map_page.dart`
      - `app/lib/pages/add_place_page.dart`
      - `app/lib/admin/admin_circuits_page.dart`
      - `app/lib/admin/admin_pois_simple_page.dart`
      - `app/lib/admin/poi_assistant_page.dart`
+   - Déjà migrés vers `MasLiveMap` (P1 en cours):
+     - `app/lib/pages/home_web_page.dart`
+     - `app/lib/pages/mapbox_web_map_page.dart`
+     - `app/lib/pages/route_display_page.dart`
    - Impact: 2 piles d’implémentation (API/interop/capacités) ⇒ écarts de features (ex: TODO polylines sur certains écrans) et “ça marche ici mais pas là”.
    - Détection rapide: chercher `MapboxWebView` dans `app/lib/**.dart` pour lister les écrans à migrer.
 
@@ -106,8 +108,10 @@
 
 5) **Limite Firestore `whereIn` (10)**: déjà contournée côté client quand nécessaire, mais peut surprendre et coûter en bande passante si les filtres grossissent.
 
-6) **Preview web Style Pro**: web volontairement simplifié vs mobile plus riche (à assumer explicitement en UX si c’est un choix produit).
-- Fichier: app/lib/route_style_pro/ui/widgets/route_style_preview_map.dart
+6) **Preview web Style Pro**: web **partiellement** aligné (casing/glow/dash/opacité/cap/join + fitBounds), mais reste plus simple que le mobile sur certains effets (segments “rainbow/traffic/vanishing”).
+  - UI: `app/lib/route_style_pro/ui/widgets/route_style_preview_map.dart`
+  - API/options: `app/lib/ui/map/maslive_map_controller.dart` (`PolylineRenderOptions`)
+  - Bridge web: `app/web/mapbox_bridge.js` (`MasliveMapboxV2.setPolyline`)
 
 7) **Persistance Style Pro**: champs multiples / compat partielle → risque d’incohérence si migration partielle.
 
@@ -133,16 +137,17 @@
   - Étapes minimales:
     - Recenser les écrans web qui utilisent `MapboxWebView`.
       - Inventaire initial (à confirmer via grep):
-        - `app/lib/pages/home_web_page.dart`
         - `app/lib/pages/home_map_page_web.dart`
-        - `app/lib/pages/mapbox_web_map_page.dart`
         - `app/lib/pages/default_map_page.dart`
         - `app/lib/pages/add_place_page.dart`
-        - `app/lib/pages/route_display_page.dart`
         - `app/lib/pages/tracking_live_page.dart`
         - `app/lib/admin/admin_circuits_page.dart`
         - `app/lib/admin/admin_pois_simple_page.dart`
         - `app/lib/admin/poi_assistant_page.dart`
+      - Déjà migrés (P1 en cours):
+        - `app/lib/pages/home_web_page.dart`
+        - `app/lib/pages/mapbox_web_map_page.dart`
+        - `app/lib/pages/route_display_page.dart`
       - Note: ignorer les fichiers de type `*_backup.dart` dans la migration “produit”.
     - Remplacer ces usages par `MasLiveMap` quand l’API Phase 1 couvre le besoin (markers/polyline/polygon/style + callbacks).
     - Pour les besoins manquants, étendre l’API Phase 1 dans `MasLiveMapController` plutôt que réintroduire un second widget.
@@ -158,9 +163,12 @@
   - Parité minimale validée: markers + polyline + polygon + POIs GeoJSON (source/layer) + hit-testing POI.
   - Analyse/CI: pas d’augmentation du bruit lints lié au web (et suppression des ignores quand migration `package:web` sera faite).
 
-### P2 (Style Pro) — ⚠️ À CLARIFIER
-- Soit aligner la preview web sur un rendu plus proche mobile,
-- soit assumer explicitement une **“preview simplifiée”** (libellé UX + limites connues).
+### P2 (Style Pro) — ✅ Clarifié (état actuel)
+- **Déjà en place (web)**: rendu “route-like” via `MasLiveMapController.setPolyline(...)` avec options avancées (casing/glow/dash/opacité/cap/join + animation direction) utilisées par `RouteStylePreviewMap`.
+  - UI: `app/lib/route_style_pro/ui/widgets/route_style_preview_map.dart`
+  - Bridge: `app/web/mapbox_bridge.js` (layers `maslive_polyline_*`)
+- **Reste simplifié vs mobile**: les effets basés sur des *segments* (rainbow/traffic/vanishing) sont rendus côté mobile via GeoJSON multi-features, mais ne sont pas (encore) reproduits sur web.
+  - Conséquence: la preview web est fidèle sur “forme de route” (casing/glow/dash), mais pas sur les variations de couleur/opacity par segment.
 
 ---
 
