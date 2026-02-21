@@ -74,6 +74,7 @@ import 'pages/group/group_map_live_page.dart';
 import 'pages/group/group_track_history_page.dart';
 import 'pages/group/group_export_page.dart';
 import 'pages/public/marketmap_public_viewer_page.dart';
+import 'widgets/admin_route_guard.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -157,16 +158,16 @@ class MasLiveApp extends StatelessWidget {
               '/router': (_) => const RoleRouterPage(),
               '/': (_) => const DefaultMapPage(),
               // '/map-legacy': (_) => const HomeMapPageV3(), // 🔄 Moved to legacy
-              '/map-3d': (_) => const MapboxWebMapPage(), // Mapbox GL JS via HtmlElementView
+              '/map-3d': (_) =>
+                  const MapboxWebMapPage(), // Mapbox GL JS via HtmlElementView
               '/map-web': (_) =>
                   const HomeMapPageWeb(), // 🌐 Carte Web alternative (ancienne)
               // '/mapbox-google-light': (_) => const GoogleLightMapPage(), // Moved to legacy
-              '/mapbox-web': (_) => const MapboxWebMapPage(), // Mapbox GL JS via HtmlElementView
+              '/mapbox-web': (_) =>
+                  const MapboxWebMapPage(), // Mapbox GL JS via HtmlElementView
               '/account-ui': (_) => const AccountUiPage(),
-              '/shop-ui': (_) => const StorexShopPage(
-                    shopId: "global",
-                    groupId: "MASLIVE",
-                  ),
+              '/shop-ui': (_) =>
+                  const StorexShopPage(shopId: "global", groupId: "MASLIVE"),
               '/group-ui': (_) => const GroupProfilePage(groupId: 'demo'),
               '/app': (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
@@ -181,13 +182,11 @@ class MasLiveApp extends StatelessWidget {
                     ModalRoute.of(ctx)?.settings.arguments as String?;
                 return GroupShopPage(groupId: groupId ?? 'groupe_demo');
               },
-              '/admin/commerce': (_) => ProductManagementPage(
-                    shopId: 'global',
-                  ),
-              '/boutique': (_) => const StorexShopPage(
-                    shopId: "global",
-                    groupId: "MASLIVE",
-                  ),
+              '/admin/commerce': (_) => AdminRouteGuard(
+                child: ProductManagementPage(shopId: 'global'),
+              ),
+              '/boutique': (_) =>
+                  const StorexShopPage(shopId: "global", groupId: "MASLIVE"),
               StorexRoutes.paymentComplete: (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments;
                 if (args is PaymentCompleteArgs) {
@@ -196,7 +195,9 @@ class MasLiveApp extends StatelessWidget {
                     continueToRoute: args.continueToRoute,
                   );
                 }
-                return const _RouteArgsErrorPage(routeName: StorexRoutes.paymentComplete);
+                return const _RouteArgsErrorPage(
+                  routeName: StorexRoutes.paymentComplete,
+                );
               },
               StorexRoutes.reviews: (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments;
@@ -206,7 +207,9 @@ class MasLiveApp extends StatelessWidget {
                     productTitle: args.productTitle,
                   );
                 }
-                return const _RouteArgsErrorPage(routeName: StorexRoutes.reviews);
+                return const _RouteArgsErrorPage(
+                  routeName: StorexRoutes.reviews,
+                );
               },
               StorexRoutes.addReview: (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments;
@@ -216,14 +219,18 @@ class MasLiveApp extends StatelessWidget {
                     productTitle: args.productTitle,
                   );
                 }
-                return const _RouteArgsErrorPage(routeName: StorexRoutes.addReview);
+                return const _RouteArgsErrorPage(
+                  routeName: StorexRoutes.addReview,
+                );
               },
               StorexRoutes.orderTracker: (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments;
                 if (args is OrderTrackerArgs) {
                   return OrderTrackerPage(orderId: args.orderId);
                 }
-                return const _RouteArgsErrorPage(routeName: StorexRoutes.orderTracker);
+                return const _RouteArgsErrorPage(
+                  routeName: StorexRoutes.orderTracker,
+                );
               },
               '/account': (_) => const AccountAndAdminPage(),
               '/account-admin': (_) => const AccountAndAdminPage(),
@@ -237,7 +244,8 @@ class MasLiveApp extends StatelessWidget {
                 }
                 return SellerOrderDetailPage(orderId: orderId);
               },
-              '/map-admin': (_) => const MapAdminEditorPage(),
+              '/map-admin': (_) =>
+                  const AdminRouteGuard(child: MapAdminEditorPage()),
               '/group-member': (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
                 final groupId = args != null
@@ -245,33 +253,49 @@ class MasLiveApp extends StatelessWidget {
                     : null;
                 return GroupMemberPage(groupId: groupId);
               },
-              '/admin': (_) => const AdminMainDashboard(),
-              '/admin/circuits': (_) => const AdminCircuitsPage(),
-              '/admin/track-editor': (_) => const CircuitEditorWorkflowPage(),
-              '/admin/map-library': (_) => const MapProjectsLibraryPage(),
-              '/admin/mapmarket': (_) => const MapMarketProjectsPage(),
-              '/admin/mapmarket/wizard': (_) => const MapProjectWizardEntryPage(),
-              '/admin/marketmap-debug': (_) => const MarketMapDebugPage(),
-              '/admin/circuit-wizard': (_) => const CircuitWizardEntryPage(),
+              '/admin': (_) =>
+                  const AdminRouteGuard(child: AdminMainDashboard()),
+              '/admin/circuits': (_) =>
+                  const AdminRouteGuard(child: AdminCircuitsPage()),
+              '/admin/track-editor': (_) =>
+                  const AdminRouteGuard(child: CircuitEditorWorkflowPage()),
+              '/admin/map-library': (_) =>
+                  const AdminRouteGuard(child: MapProjectsLibraryPage()),
+              '/admin/mapmarket': (_) =>
+                  const AdminRouteGuard(child: MapMarketProjectsPage()),
+              '/admin/mapmarket/wizard': (_) =>
+                  const AdminRouteGuard(child: MapProjectWizardEntryPage()),
+              '/admin/marketmap-debug': (_) =>
+                  const AdminRouteGuard(child: MarketMapDebugPage()),
+              '/admin/circuit-wizard': (_) =>
+                  const AdminRouteGuard(child: CircuitWizardEntryPage()),
               '/admin/circuit-wizard/:projectId': (ctx) {
-                final projectId = ModalRoute.of(ctx)?.settings.arguments as String?;
-                return CircuitWizardProPage(projectId: projectId);
+                final projectId =
+                    ModalRoute.of(ctx)?.settings.arguments as String?;
+                return AdminRouteGuard(
+                  child: CircuitWizardProPage(projectId: projectId),
+                );
               },
               '/admin/route-style-pro': (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments;
                 if (args is RouteStyleProArgs) {
-                  return RouteStyleWizardProPage(
-                    projectId: args.projectId,
-                    circuitId: args.circuitId,
-                    initialRoute: args.initialRoute,
+                  return AdminRouteGuard(
+                    child: RouteStyleWizardProPage(
+                      projectId: args.projectId,
+                      circuitId: args.circuitId,
+                      initialRoute: args.initialRoute,
+                    ),
                   );
                 }
                 // Sans args: fallback local + itinéraire de démo.
-                return const RouteStyleWizardProPage();
+                return const AdminRouteGuard(child: RouteStyleWizardProPage());
               },
-              '/admin/superadmin': (_) => const SuperAdminSpace(),
-              '/admin/categories': (_) => const CategoryManagementPage(),
-              '/admin/roles': (_) => const RoleManagementPage(),
+              '/admin/superadmin': (_) =>
+                  const AdminRouteGuard(child: SuperAdminSpace()),
+              '/admin/categories': (_) =>
+                  const AdminRouteGuard(child: CategoryManagementPage()),
+              '/admin/roles': (_) =>
+                  const AdminRouteGuard(child: RoleManagementPage()),
               '/login': (_) => const LoginPage(),
               '/tracking': (_) => const TrackingLivePage(),
               '/search': (_) => const SearchPage(),
@@ -286,12 +310,15 @@ class MasLiveApp extends StatelessWidget {
               '/purchase-history': (_) => const PurchaseHistoryPage(),
               '/business': (_) => const BusinessAccountPage(),
               '/business-request': (_) => const BusinessRequestPage(),
-              '/admin/business-requests': (_) => const BusinessRequestsPage(),
+              '/admin/business-requests': (_) =>
+                  const AdminRouteGuard(child: BusinessRequestsPage()),
               '/commerce/create-product': (_) => const CreateProductPage(),
               '/commerce/create-media': (_) => const CreateMediaPage(),
               '/commerce/my-submissions': (_) => const MySubmissionsPage(),
-              '/admin/moderation': (_) => const AdminModerationPage(),
-              '/admin/commerce-analytics': (_) => const CommerceAnalyticsPage(),
+              '/admin/moderation': (_) =>
+                  const AdminRouteGuard(child: AdminModerationPage()),
+              '/admin/commerce-analytics': (_) =>
+                  const AdminRouteGuard(child: CommerceAnalyticsPage()),
 
               // Public (mobile): viewer MarketMap
               '/public/marketmap': (ctx) {
@@ -311,7 +338,9 @@ class MasLiveApp extends StatelessWidget {
                     );
                   }
                 }
-                return const _RouteArgsErrorPage(routeName: '/public/marketmap');
+                return const _RouteArgsErrorPage(
+                  routeName: '/public/marketmap',
+                );
               },
 
               // Groupe (Admin/Tracker)
@@ -319,18 +348,24 @@ class MasLiveApp extends StatelessWidget {
               '/group-tracker': (_) => const TrackerGroupProfilePage(),
               '/group-live': (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
-                final adminGroupId = (args?['adminGroupId'] as String?) ?? '000000';
+                final adminGroupId =
+                    (args?['adminGroupId'] as String?) ?? '000000';
                 return GroupMapLivePage(adminGroupId: adminGroupId);
               },
               '/group-history': (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
-                final adminGroupId = (args?['adminGroupId'] as String?) ?? '000000';
+                final adminGroupId =
+                    (args?['adminGroupId'] as String?) ?? '000000';
                 final uid = args?['uid'] as String?;
-                return GroupTrackHistoryPage(adminGroupId: adminGroupId, uid: uid);
+                return GroupTrackHistoryPage(
+                  adminGroupId: adminGroupId,
+                  uid: uid,
+                );
               },
               '/group-export': (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
-                final adminGroupId = (args?['adminGroupId'] as String?) ?? '000000';
+                final adminGroupId =
+                    (args?['adminGroupId'] as String?) ?? '000000';
                 final uid = args?['uid'] as String?;
                 return GroupExportPage(adminGroupId: adminGroupId, uid: uid);
               },

@@ -9,6 +9,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/app_user.dart';
 import '../services/auth_claims_service.dart';
+import '../widgets/admin_route_guard.dart';
 import '../theme/maslive_theme.dart';
 import 'admin_tracking_page.dart';
 import 'admin_orders_page.dart';
@@ -19,7 +20,6 @@ import 'admin_logs_page.dart';
 import 'admin_system_settings_page.dart';
 import 'user_management_page.dart';
 import 'business_requests_page.dart';
-import 'create_circuit_assistant_page.dart';
 import 'poi_marketmap_wizard_page.dart';
 import 'circuit_wizard_entry_page.dart';
 import '../pages/storex_shop_page.dart';
@@ -210,10 +210,8 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                   'Lister les pays / événements / circuits (structure marketMap)',
               icon: Icons.bug_report,
               color: Colors.grey,
-              onTap: () => Navigator.pushNamed(
-                context,
-                '/admin/marketmap-debug',
-              ),
+              onTap: () =>
+                  Navigator.pushNamed(context, '/admin/marketmap-debug'),
             ),
             const SizedBox(height: 24),
 
@@ -275,9 +273,8 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                             builder: (_) => ProductManagementPage(
-                              shopId: 'global',
-                            ),
+                            builder: (_) =>
+                                ProductManagementPage(shopId: 'global'),
                           ),
                         ),
                       );
@@ -1646,12 +1643,7 @@ class AdminAssistantStepByStepHomePage extends StatelessWidget {
             color: const Color(0xFF1A73E8),
             badge: 'New',
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const CreateCircuitAssistantPage(),
-                ),
-              );
+              Navigator.of(context).pushNamed('/admin/circuit-wizard');
             },
           ),
           const SizedBox(height: 12),
@@ -1665,7 +1657,10 @@ class AdminAssistantStepByStepHomePage extends StatelessWidget {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const POIMarketMapWizardPage()),
+                MaterialPageRoute(
+                  builder: (_) =>
+                      const AdminRouteGuard(child: POIMarketMapWizardPage()),
+                ),
               );
             },
           ),

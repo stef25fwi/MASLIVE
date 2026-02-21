@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,10 +9,9 @@ import 'login_page.dart';
 import 'media_gallery_maslive_instagram_page.dart';
 import '../widgets/rainbow_header.dart';
 import '../widgets/honeycomb_background.dart';
-import '../admin/admin_main_dashboard.dart';
+import '../widgets/admin_route_guard.dart';
 import '../admin/admin_stock_page.dart';
 import '../admin/admin_product_categories_page.dart';
-import '../admin/commerce_analytics_page.dart';
 import 'storex_shop_page.dart';
 
 const Color _adminAccent = Color(0xFF1E88E5);
@@ -49,10 +50,16 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
       stream: _userDocStream(),
       builder: (context, snap) {
         final data = snap.data?.data() ?? {};
-        final isAdmin = (data['isAdmin'] == true);
+        final isMobile =
+            !kIsWeb &&
+            (defaultTargetPlatform == TargetPlatform.android ||
+                defaultTargetPlatform == TargetPlatform.iOS);
         final role = (data['role'] ?? '').toString().trim().toLowerCase();
-        final isSuperAdmin = role == 'superadmin';
-        final isStephane = (user?.email ?? '').toLowerCase() == 's-stephane@live.fr';
+        final isSuperAdmin = role == 'superadmin' || role == 'super-admin';
+        final isAdmin =
+            (data['isAdmin'] == true) || role == 'admin' || isSuperAdmin;
+        final isStephane =
+            (user?.email ?? '').toLowerCase() == 's-stephane@live.fr';
         final showSuperAdminCommerce = isSuperAdmin || isStephane;
 
         return Scaffold(
@@ -134,7 +141,7 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
 
                       const SizedBox(height: 20),
 
-                      if (isAdmin) ...[
+                      if (isAdmin && !isMobile) ...[
                         const _SectionTitle("Espace Admin"),
                         const SizedBox(height: 10),
                         _SectionCard(
@@ -142,11 +149,7 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
                           subtitle: "Vue d'ensemble complète de la gestion",
                           icon: Icons.dashboard,
                           onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const AdminMainDashboard(),
-                              ),
-                            );
+                            Navigator.of(context).pushNamed('/admin');
                           },
                         ),
                         const SizedBox(height: 12),
@@ -157,7 +160,9 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => const MediaGalleryMasliveInstagramPage(),
+                                builder: (_) => const AdminRouteGuard(
+                                  child: MediaGalleryMasliveInstagramPage(),
+                                ),
                               ),
                             );
                           },
@@ -539,10 +544,8 @@ class _CommerceQuickLinks extends StatelessWidget {
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => const StorexShopPage(
-                  shopId: "global",
-                  groupId: "MASLIVE",
-                ),
+                builder: (_) =>
+                    const StorexShopPage(shopId: "global", groupId: "MASLIVE"),
               ),
             );
           },
@@ -553,7 +556,8 @@ class _CommerceQuickLinks extends StatelessWidget {
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => AdminStockPage(shopId: shopId),
+                builder: (_) =>
+                    AdminRouteGuard(child: AdminStockPage(shopId: shopId)),
               ),
             );
           },
@@ -562,11 +566,7 @@ class _CommerceQuickLinks extends StatelessWidget {
           label: 'Analytics commerce',
           icon: Icons.analytics,
           onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const CommerceAnalyticsPage(),
-              ),
-            );
+            Navigator.of(context).pushNamed('/admin/commerce-analytics');
           },
         ),
         _CommerceLinkChip(
@@ -575,7 +575,8 @@ class _CommerceQuickLinks extends StatelessWidget {
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => const AdminProductCategoriesPage(),
+                builder: (_) =>
+                    const AdminRouteGuard(child: AdminProductCategoriesPage()),
               ),
             );
           },
@@ -616,10 +617,7 @@ class _CommercePathsCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           for (final path in firestorePaths)
-            _CommercePathRow(
-              label: path,
-              onCopy: () => _copy(context, path),
-            ),
+            _CommercePathRow(label: path, onCopy: () => _copy(context, path)),
           const SizedBox(height: 6),
           _CommercePathRow(
             label: 'Storage: $storagePath',
@@ -632,9 +630,9 @@ class _CommercePathsCard extends StatelessWidget {
 
   void _copy(BuildContext context, String value) {
     Clipboard.setData(ClipboardData(text: value));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Copié: $value')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Copié: $value')));
   }
 }
 
@@ -738,7 +736,11 @@ class _CommerceProductTile extends StatelessWidget {
               color: _stockColor(stock).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.shopping_bag, color: _stockColor(stock), size: 18),
+            child: Icon(
+              Icons.shopping_bag,
+              color: _stockColor(stock),
+              size: 18,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(

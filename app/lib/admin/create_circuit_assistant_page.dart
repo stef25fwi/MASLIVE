@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'circuit_wizard_entry_page.dart';
-
 /// Ancien assistant de création de circuit.
 ///
 /// Conservé uniquement pour compatibilité (liens/menus legacy).
@@ -12,9 +10,7 @@ class CreateCircuitAssistantPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Outil remplacé'),
-      ),
+      appBar: AppBar(title: const Text('Outil remplacé')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -29,9 +25,9 @@ class CreateCircuitAssistantPage extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               FilledButton.icon(
-                onPressed: () => Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const CircuitWizardEntryPage()),
-                ),
+                onPressed: () => Navigator.of(
+                  context,
+                ).pushReplacementNamed('/admin/circuit-wizard'),
                 icon: const Icon(Icons.auto_fix_high),
                 label: const Text('Ouvrir Wizard Circuit Pro'),
               ),

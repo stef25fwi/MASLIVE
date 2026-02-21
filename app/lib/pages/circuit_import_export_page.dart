@@ -1,13 +1,13 @@
 // ignore_for_file: unused_field, unused_element, dead_code
 
 import 'package:flutter/material.dart';
-import '../admin/create_circuit_assistant_page.dart';
 
 class CircuitImportExportPage extends StatefulWidget {
   const CircuitImportExportPage({super.key});
 
   @override
-  State<CircuitImportExportPage> createState() => _CircuitImportExportPageState();
+  State<CircuitImportExportPage> createState() =>
+      _CircuitImportExportPageState();
 }
 
 class _CircuitImportExportPageState extends State<CircuitImportExportPage> {
@@ -19,7 +19,10 @@ class _CircuitImportExportPageState extends State<CircuitImportExportPage> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0.5,
-        title: const Text("Importer / Exporter (Legacy)", style: TextStyle(fontWeight: FontWeight.w700)),
+        title: const Text(
+          "Importer / Exporter (Legacy)",
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
       ),
       body: Center(
         child: Padding(
@@ -35,9 +38,8 @@ class _CircuitImportExportPageState extends State<CircuitImportExportPage> {
               ),
               const SizedBox(height: 12),
               FilledButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const CreateCircuitAssistantPage()),
-                ),
+                onPressed: () =>
+                    Navigator.of(context).pushNamed('/admin/circuit-wizard'),
                 child: const Text("Ouvrir le Wizard Circuit"),
               ),
             ],

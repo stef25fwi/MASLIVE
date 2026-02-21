@@ -1,7 +1,6 @@
 // ignore_for_file: unused_field, unused_element, dead_code
 
 import 'package:flutter/material.dart';
-import '../admin/create_circuit_assistant_page.dart';
 
 class CircuitSavePage extends StatefulWidget {
   const CircuitSavePage({super.key});
@@ -23,7 +22,7 @@ class _CircuitSavePageState extends State<CircuitSavePage> {
             'Assistance': false,
             'Parking': true,
             'WC': false,
-          }
+          },
         },
         'Circuit Pitons': {
           'enabled': true,
@@ -34,9 +33,9 @@ class _CircuitSavePageState extends State<CircuitSavePage> {
             'Assistance': true,
             'Parking': false,
             'WC': true,
-          }
+          },
         },
-      }
+      },
     },
     'Circuits Favoris': {
       'maps': {
@@ -49,9 +48,9 @@ class _CircuitSavePageState extends State<CircuitSavePage> {
             'Assistance': true,
             'Parking': false,
             'WC': false,
-          }
+          },
         },
-      }
+      },
     },
   };
 
@@ -59,8 +58,16 @@ class _CircuitSavePageState extends State<CircuitSavePage> {
     {'name': 'Circuit', 'icon': Icons.route, 'color': Color(0xFF1A73E8)},
     {'name': 'Visiter', 'icon': Icons.tour, 'color': Color(0xFFF59E0B)},
     {'name': 'Food', 'icon': Icons.restaurant, 'color': Color(0xFFEF4444)},
-    {'name': 'Assistance', 'icon': Icons.support_agent, 'color': Color(0xFF34A853)},
-    {'name': 'Parking', 'icon': Icons.local_parking, 'color': Color(0xFFFBBF24)},
+    {
+      'name': 'Assistance',
+      'icon': Icons.support_agent,
+      'color': Color(0xFF34A853),
+    },
+    {
+      'name': 'Parking',
+      'icon': Icons.local_parking,
+      'color': Color(0xFFFBBF24),
+    },
     {'name': 'WC', 'icon': Icons.wc, 'color': Color(0xFF9333EA)},
   ];
 
@@ -76,9 +83,9 @@ class _CircuitSavePageState extends State<CircuitSavePage> {
             _folders[name] = {'maps': {}};
           });
           Navigator.pop(ctx);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("✓ Dossier '$name' créé")),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text("✓ Dossier '$name' créé")));
         },
       ),
     );
@@ -132,7 +139,10 @@ class _CircuitSavePageState extends State<CircuitSavePage> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0.5,
-        title: const Text("Sauvegarder (Legacy)", style: TextStyle(fontWeight: FontWeight.w700)),
+        title: const Text(
+          "Sauvegarder (Legacy)",
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
       ),
       body: Center(
         child: Padding(
@@ -148,9 +158,8 @@ class _CircuitSavePageState extends State<CircuitSavePage> {
               ),
               const SizedBox(height: 12),
               FilledButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const CreateCircuitAssistantPage()),
-                ),
+                onPressed: () =>
+                    Navigator.of(context).pushNamed('/admin/circuit-wizard'),
                 child: const Text("Ouvrir le Wizard Circuit"),
               ),
             ],
@@ -212,11 +221,7 @@ class _FolderCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.folder,
-                    size: 24,
-                    color: const Color(0xFFF59E0B),
-                  ),
+                  Icon(Icons.folder, size: 24, color: const Color(0xFFF59E0B)),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -258,23 +263,23 @@ class _FolderCard extends StatelessWidget {
             ),
           ),
           if (isExpanded) ...[
-            Container(
-              height: 1,
-              color: Colors.grey.shade100,
-            ),
+            Container(height: 1, color: Colors.grey.shade100),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Column(
                 children: (folderData['maps'] as Map).entries
-                    .map((mapEntry) => _MapCard(
-                          mapName: mapEntry.key,
-                          mapData: mapEntry.value,
-                          layers: layers,
-                          isExpanded: expandedMap == mapEntry.key,
-                          onToggleExpand: () => onExpandMap(mapEntry.key),
-                          onToggleMap: () => onToggleMap(mapEntry.key),
-                          onToggleLayer: (layerName) => onToggleLayer(mapEntry.key, layerName),
-                        ))
+                    .map(
+                      (mapEntry) => _MapCard(
+                        mapName: mapEntry.key,
+                        mapData: mapEntry.value,
+                        layers: layers,
+                        isExpanded: expandedMap == mapEntry.key,
+                        onToggleExpand: () => onExpandMap(mapEntry.key),
+                        onToggleMap: () => onToggleMap(mapEntry.key),
+                        onToggleLayer: (layerName) =>
+                            onToggleLayer(mapEntry.key, layerName),
+                      ),
+                    )
                     .toList(),
               ),
             ),
@@ -312,10 +317,14 @@ class _MapCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isMapEnabled ? const Color(0xFF1A73E8).withAlpha(15) : Colors.grey.shade50,
+        color: isMapEnabled
+            ? const Color(0xFF1A73E8).withAlpha(15)
+            : Colors.grey.shade50,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: isMapEnabled ? const Color(0xFF1A73E8).withAlpha(77) : Colors.grey.shade200,
+          color: isMapEnabled
+              ? const Color(0xFF1A73E8).withAlpha(77)
+              : Colors.grey.shade200,
           width: 1,
         ),
       ),
@@ -381,13 +390,15 @@ class _MapCard extends StatelessWidget {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     children: layers
-                        .map((layer) => _LayerToggle(
-                              layerName: layer['name'],
-                              icon: layer['icon'],
-                              color: layer['color'],
-                              isEnabled: mapLayers[layer['name']] ?? false,
-                              onToggle: () => onToggleLayer(layer['name']),
-                            ))
+                        .map(
+                          (layer) => _LayerToggle(
+                            layerName: layer['name'],
+                            icon: layer['icon'],
+                            color: layer['color'],
+                            isEnabled: mapLayers[layer['name']] ?? false,
+                            onToggle: () => onToggleLayer(layer['name']),
+                          ),
+                        )
                         .toList(),
                   ),
                 ],
@@ -485,9 +496,7 @@ class _CreateFolderDialogState extends State<_CreateFolderDialog> {
         controller: _controller,
         decoration: InputDecoration(
           hintText: "Nom du dossier",
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
       actions: [

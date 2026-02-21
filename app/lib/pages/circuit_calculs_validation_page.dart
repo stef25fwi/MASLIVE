@@ -1,16 +1,17 @@
 // ignore_for_file: unused_field, unused_element, dead_code
 
 import 'package:flutter/material.dart';
-import '../admin/create_circuit_assistant_page.dart';
 
 class CircuitCalculsValidationPage extends StatefulWidget {
   const CircuitCalculsValidationPage({super.key});
 
   @override
-  State<CircuitCalculsValidationPage> createState() => _CircuitCalculsValidationPageState();
+  State<CircuitCalculsValidationPage> createState() =>
+      _CircuitCalculsValidationPageState();
 }
 
-class _CircuitCalculsValidationPageState extends State<CircuitCalculsValidationPage> {
+class _CircuitCalculsValidationPageState
+    extends State<CircuitCalculsValidationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -19,7 +20,10 @@ class _CircuitCalculsValidationPageState extends State<CircuitCalculsValidationP
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0.5,
-        title: const Text("Calculs & Validation (Legacy)", style: TextStyle(fontWeight: FontWeight.w700)),
+        title: const Text(
+          "Calculs & Validation (Legacy)",
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
       ),
       body: Center(
         child: Padding(
@@ -35,9 +39,8 @@ class _CircuitCalculsValidationPageState extends State<CircuitCalculsValidationP
               ),
               const SizedBox(height: 12),
               FilledButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const CreateCircuitAssistantPage()),
-                ),
+                onPressed: () =>
+                    Navigator.of(context).pushNamed('/admin/circuit-wizard'),
                 child: const Text("Ouvrir le Wizard Circuit"),
               ),
             ],

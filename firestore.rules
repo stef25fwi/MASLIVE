@@ -57,11 +57,6 @@ service cloud.firestore {
         && userGroupId() == groupId;
     }
 
-    function isAnyGroupAdmin() {
-      return hasUserDoc()
-        && (userRole() == 'group' || userRole() == 'group-admin');
-    }
-
     // ========== VÉRIFICATIONS DE PERMISSIONS ==========
     function canManageUsers() {
       return isMasterAdmin();
@@ -455,11 +450,11 @@ service cloud.firestore {
     // Écriture: réservée aux admins master (wizard admin).
     match /marketMap/{countryId} {
       allow read: if true;
-      allow create, update, delete: if isMasterAdmin() || isAnyGroupAdmin();
+      allow create, update, delete: if isMasterAdmin();
 
       match /{document=**} {
         allow read: if true;
-        allow create, update, delete: if isMasterAdmin() || isAnyGroupAdmin();
+        allow create, update, delete: if isMasterAdmin();
       }
     }
 
@@ -782,14 +777,8 @@ service cloud.firestore {
         || isGroupAdmin(projectGroupId(projectId));
     }
 
-    function canWriteProject(projectId) {
-      return isMasterAdmin()
-        || isProjectCreator(projectId)
-        || isGroupAdmin(projectGroupId(projectId));
-    }
-
-    function canPublishProject(projectId) {
-      return isMasterAdmin() || isGroupAdmin(projectGroupId(projectId));
+    function canPublishProject() {
+      return isMasterAdmin();
     }
 
     function isAllowedStatus(status) {
@@ -832,7 +821,7 @@ service cloud.firestore {
         && validPointListShape(request.resource.data.perimeter, 1000);
     }
 
-    function validProjectPayloadUpdate(projectId) {
+    function validProjectPayloadUpdate() {
       return request.resource.data.sourceOfTruth == 'map_projects'
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.createdBy == resource.data.createdBy
@@ -845,7 +834,7 @@ service cloud.firestore {
         && (
           resource.data.status != 'draft'
           || request.resource.data.status != 'published'
-          || canPublishProject(projectId)
+          || canPublishProject()
         );
     }
 
@@ -862,29 +851,29 @@ service cloud.firestore {
     }
 
     match /map_projects/{projectId} {
-      allow create: if isSignedIn() && validProjectPayloadCreate();
+      allow create: if isSignedIn() && isMasterAdmin() && validProjectPayloadCreate();
 
       allow read: if isSignedIn() && canReadProject(projectId);
 
       allow update: if isSignedIn()
-        && canWriteProject(projectId)
-        && validProjectPayloadUpdate(projectId);
+        && isMasterAdmin()
+        && validProjectPayloadUpdate();
 
-      allow delete: if isSignedIn() && (isMasterAdmin() || isProjectCreator(projectId));
+      allow delete: if isSignedIn() && isMasterAdmin();
 
       match /layers/{layerId} {
-        allow read, create, update: if isSignedIn() && canWriteProject(projectId);
-        allow delete: if isSignedIn() && canWriteProject(projectId);
+        allow read: if isSignedIn() && canReadProject(projectId);
+        allow create, update, delete: if isSignedIn() && isMasterAdmin();
       }
 
       match /pois/{poiId} {
-        allow read, create, update: if isSignedIn() && canWriteProject(projectId);
-        allow delete: if isSignedIn() && canWriteProject(projectId);
+        allow read: if isSignedIn() && canReadProject(projectId);
+        allow create, update, delete: if isSignedIn() && isMasterAdmin();
       }
 
       match /drafts/{draftId} {
-        allow read, create, update: if isSignedIn() && canWriteProject(projectId);
-        allow delete: if isSignedIn() && isSuperAdmin();
+        allow read: if isSignedIn() && canReadProject(projectId);
+        allow create, update, delete: if isSignedIn() && isMasterAdmin();
       }
     }
 

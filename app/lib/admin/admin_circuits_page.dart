@@ -6,7 +6,6 @@ import 'dart:math' as math;
 import '../models/circuit_model.dart';
 import '../services/mapbox_token_service.dart';
 import '../ui/widgets/mapbox_web_view_platform.dart';
-import 'create_circuit_assistant_page.dart';
 
 /// Page de gestion des circuits/parcours (CRUD complet) - Mapbox
 class AdminCircuitsPage extends StatefulWidget {
@@ -28,10 +27,8 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.auto_fix_high),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CreateCircuitAssistantPage()),
-            ),
+            onPressed: () =>
+                Navigator.of(context).pushNamed('/admin/circuit-wizard'),
             tooltip: 'Créer via le Wizard (recommandé)',
           ),
         ],
@@ -95,10 +92,16 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
 
                 final circuits = snapshot.data!.docs
                     .map((doc) => Circuit.fromFirestore(doc))
-                    .where((circuit) =>
-                        _searchQuery.isEmpty ||
-                        circuit.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                        circuit.description.toLowerCase().contains(_searchQuery.toLowerCase()))
+                    .where(
+                      (circuit) =>
+                          _searchQuery.isEmpty ||
+                          circuit.title.toLowerCase().contains(
+                            _searchQuery.toLowerCase(),
+                          ) ||
+                          circuit.description.toLowerCase().contains(
+                            _searchQuery.toLowerCase(),
+                          ),
+                    )
                     .toList();
 
                 if (circuits.isEmpty) {
@@ -165,8 +168,8 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
                 ),
                 Chip(
                   label: Text(circuit.isPublished ? 'Publié' : 'Brouillon'),
-                  backgroundColor: circuit.isPublished 
-                      ? Colors.green.withValues(alpha: 0.2) 
+                  backgroundColor: circuit.isPublished
+                      ? Colors.green.withValues(alpha: 0.2)
                       : Colors.orange.withValues(alpha: 0.2),
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
@@ -208,16 +211,17 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
       ),
     );
   }
+
   String _calculateDistance(Circuit circuit) {
     if (circuit.points.isEmpty) return '0 km';
-    
+
     double totalDistance = 0;
     for (int i = 0; i < circuit.points.length - 1; i++) {
       final p1 = circuit.points[i];
       final p2 = circuit.points[i + 1];
       totalDistance += _distanceBetween(p1.lat, p1.lng, p2.lat, p2.lng);
     }
-    
+
     if (totalDistance < 1) {
       return '${(totalDistance * 1000).toStringAsFixed(0)} m';
     }
@@ -228,11 +232,14 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
     const earthRadius = 6371; // km
     final dLat = _toRadians(lat2 - lat1);
     final dLon = _toRadians(lon2 - lon1);
-    
-    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.cos(_toRadians(lat1)) * math.cos(_toRadians(lat2)) *
-        math.sin(dLon / 2) * math.sin(dLon / 2);
-    
+
+    final a =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_toRadians(lat1)) *
+            math.cos(_toRadians(lat2)) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+
     final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
     return earthRadius * c;
   }
@@ -258,7 +265,10 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
         future: MapboxTokenService.getToken(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return Container(color: Colors.grey[200], child: const Center(child: CircularProgressIndicator()));
+            return Container(
+              color: Colors.grey[200],
+              child: const Center(child: CircularProgressIndicator()),
+            );
           }
           return MapboxWebView(
             accessToken: snapshot.data!,
@@ -286,7 +296,9 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
     if (circuit.points.isEmpty) return;
 
     // Polyline bleue
-    final lineCoords = circuit.points.map((p) => Position(p.lng, p.lat)).toList();
+    final lineCoords = circuit.points
+        .map((p) => Position(p.lng, p.lat))
+        .toList();
     final polyManager = await map.annotations.createPolylineAnnotationManager();
     final polyOpts = PolylineAnnotationOptions(
       geometry: LineString(coordinates: lineCoords),
