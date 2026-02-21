@@ -19,6 +19,7 @@ import '../ui/widgets/gradient_icon_button.dart';
 import '../ui/widgets/maslive_card.dart';
 import '../ui/widgets/maslive_profile_icon.dart';
 import '../ui/widgets/mapbox_web_view_platform.dart';
+import '../ui/widgets/mapbox_token_dialog.dart';
 import '../ui/widgets/marketmap_poi_selector_sheet.dart';
 import '../ui/map/maslive_map_controller.dart' show MapMarker;
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
@@ -85,6 +86,20 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   StreamSubscription? _marketPoisSub;
   List<MarketPoi> _marketPois = const <MarketPoi>[];
   List<MapMarker> _marketPoiMarkers = const <MapMarker>[];
+
+  Future<void> _configureMapboxToken() async {
+    final current = MapboxTokenService.getTokenSync();
+    final newToken = await MapboxTokenDialog.show(
+      context,
+      initialValue: current,
+    );
+    if (!mounted) return;
+    if (newToken == null) return;
+    setState(() {
+      // Le token est déjà stocké dans SharedPreferences via MapboxTokenDialog.
+      // Un rebuild suffit pour que la page re-tente l'initialisation.
+    });
+  }
 
   @override
   void initState() {
@@ -498,12 +513,36 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     if (token.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('Carte par défaut')),
-        body: const Center(
+        body: Center(
           child: Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              'Token Mapbox manquant.\nConfigure MAPBOX_ACCESS_TOKEN.',
-              textAlign: TextAlign.center,
+            padding: const EdgeInsets.all(16),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.map_outlined, size: 56),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Token Mapbox manquant',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Configure MAPBOX_ACCESS_TOKEN au build (recommandé)\n'
+                    'ou renseigne-le via la UI (stockage local).\n\n'
+                    'Source actuelle: ${MapboxTokenService.getTokenSourceSync()}',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: _configureMapboxToken,
+                    icon: const Icon(Icons.settings),
+                    label: const Text('Configurer le token'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

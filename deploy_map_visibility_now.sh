@@ -64,8 +64,9 @@ elif [ -n "$MAPBOX_PUBLIC_TOKEN" ]; then
 elif [ -n "$MAPBOX_TOKEN" ]; then
     flutter build web --release --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_TOKEN"
 else
-    echo "⚠️  Warning: No MAPBOX_TOKEN found, building without it"
-    flutter build web --release
+    echo "❌ ERREUR: token Mapbox manquant (MAPBOX_ACCESS_TOKEN / MAPBOX_PUBLIC_TOKEN / MAPBOX_TOKEN)."
+    echo "➡️  Renseigne /workspaces/MASLIVE/.env (task: 'MASLIVE: 🗺️ Set Mapbox token (.env)') puis relance."
+    exit 1
 fi
 
 echo "✅ Build web terminé"

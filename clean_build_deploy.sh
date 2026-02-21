@@ -23,8 +23,9 @@ if [ -n "$TOKEN" ]; then
   echo "🗺️  Token detected: ${TOKEN:0:20}..."
   flutter build web --release --dart-define=MAPBOX_ACCESS_TOKEN="$TOKEN"
 else
-  echo "⚠️  No Mapbox token found"
-  flutter build web --release
+  echo "❌ ERREUR: token Mapbox manquant (MAPBOX_ACCESS_TOKEN / MAPBOX_PUBLIC_TOKEN / MAPBOX_TOKEN)."
+  echo "➡️  Renseigne /workspaces/MASLIVE/.env (task: 'MASLIVE: 🗺️ Set Mapbox token (.env)') puis relance."
+  exit 1
 fi
 
 echo ""

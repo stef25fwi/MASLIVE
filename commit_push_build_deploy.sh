@@ -108,7 +108,17 @@ echo "✅ OK"
 echo ""
 
 echo "[5/5] 🚀 Build Flutter web + Deploy Firebase..."
-(cd app && flutter pub get && flutter build web --release)
+
+# Mapbox token requis pour la home (carte) en production.
+{ [ -f "/workspaces/MASLIVE/.env" ] && source "/workspaces/MASLIVE/.env"; } 2>/dev/null || true
+TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}}
+if [[ -z "$TOKEN" ]]; then
+	echo "❌ ERREUR: token Mapbox manquant (MAPBOX_ACCESS_TOKEN / MAPBOX_PUBLIC_TOKEN / MAPBOX_TOKEN)."
+	echo "➡️  Utilise la tâche VS Code: 'MASLIVE: 🗺️ Set Mapbox token (.env)' puis relance."
+	exit 1
+fi
+echo "🗺️  Token Mapbox détecté: ${TOKEN:0:15}..."
+(cd app && flutter pub get && flutter build web --release --dart-define=MAPBOX_ACCESS_TOKEN="$TOKEN")
 
 FIREBASE_CMD="firebase"
 if ! command -v firebase >/dev/null 2>&1; then
