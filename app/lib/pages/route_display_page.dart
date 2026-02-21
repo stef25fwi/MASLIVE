@@ -1,16 +1,15 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import '../utils/latlng.dart';
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import '../services/routing_service.dart';
 import '../services/mapbox_token_service.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
-import '../ui/widgets/mapbox_web_view_platform.dart';
+import '../ui/map/maslive_map.dart';
+import '../ui/map/maslive_map_controller.dart';
 
 /// RouteDisplayPage (Mapbox-only)
 /// Affiche un itinéraire calculé entre plusieurs waypoints
-/// - Web : Mapbox GL JS via MapboxWebView
-/// - iOS/Android : mapbox_maps_flutter (MapWidget + annotations)
+/// - Web : Mapbox GL JS via MasLiveMapWeb
+/// - iOS/Android : mapbox_maps_flutter via MasLiveMapNative
 class RouteDisplayPage extends StatefulWidget {
   final List<({double lat, double lng})> waypoints;
   final String? title;
@@ -27,62 +26,33 @@ class RouteDisplayPage extends StatefulWidget {
 
 class _RouteDisplayPageState extends State<RouteDisplayPage> {
   final _routingService = RoutingService();
+  final MasLiveMapController _mapController = MasLiveMapController();
 
   RouteStep? _route;
   bool _loading = true;
 
   // Mapbox token
-  String _runtimeMapboxToken = '';
-  String get _effectiveMapboxToken =>
-      _runtimeMapboxToken.isNotEmpty
-          ? _runtimeMapboxToken
-          : MapboxTokenService.getTokenSync();
-
-  // Web: rebuild pour recentrer
-  int _webRebuildTick = 0;
-
-  // Mobile
-  MapboxMap? _mapboxMap;
-  PointAnnotationManager? _pointManager;
-  PolylineAnnotationManager? _polylineManager;
+  int _mapRebuildTick = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadRuntimeMapboxToken();
-    if (!kIsWeb && _effectiveMapboxToken.isNotEmpty) {
-      MapboxOptions.setAccessToken(_effectiveMapboxToken);
-    }
     _loadRoute();
-  }
-
-  Future<void> _loadRuntimeMapboxToken() async {
-    try {
-      final info = await MapboxTokenService.getTokenInfo();
-      if (!mounted) return;
-      setState(() {
-        _runtimeMapboxToken = info.token;
-      });
-      if (!kIsWeb && _runtimeMapboxToken.isNotEmpty) {
-        MapboxOptions.setAccessToken(_runtimeMapboxToken);
-      }
-    } catch (_) {
-      // ignore
-    }
   }
 
   Future<void> _configureMapboxToken() async {
     final newToken = await MapboxTokenDialog.show(
       context,
-      initialValue: _effectiveMapboxToken,
+      initialValue: MapboxTokenService.getTokenSync(),
     );
     if (!mounted || newToken == null) return;
     setState(() {
-      _runtimeMapboxToken = newToken.trim();
+      // Force un remount de MasLiveMap pour recharger le token.
+      _mapRebuildTick++;
     });
-    if (!kIsWeb && _runtimeMapboxToken.isNotEmpty) {
-      MapboxOptions.setAccessToken(_runtimeMapboxToken);
-    }
+
+    // Re-sync l'affichage map (polyline/markers) après le remount.
+    _scheduleMapSync();
   }
 
   Future<void> _loadRoute() async {
@@ -100,72 +70,57 @@ class _RouteDisplayPageState extends State<RouteDisplayPage> {
         _route = route;
         _loading = false;
       });
-      // Sync annotations natives
-      _scheduleNativeAnnotationsSync();
+      _scheduleMapSync();
     }
   }
 
-  void _scheduleNativeAnnotationsSync() {
-    if (kIsWeb) return;
-    if (_mapboxMap == null) return;
+  void _scheduleMapSync() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _ensureAnnotationManagers();
-      await _syncNativeAnnotations();
+      if (!mounted) return;
+      await _syncMapOverlays();
     });
   }
 
-  Future<void> _ensureAnnotationManagers() async {
-    if (_mapboxMap == null) return;
-    _pointManager ??=
-        await _mapboxMap!.annotations.createPointAnnotationManager();
-    _polylineManager ??=
-        await _mapboxMap!.annotations.createPolylineAnnotationManager();
+  Future<void> _syncMapOverlays() async {
+    final token = MapboxTokenService.getTokenSync().trim();
+    if (token.isEmpty) return;
+
+    await _mapController.clearAll();
+
+    // Waypoints
+    final markers = <MapMarker>[
+      for (int i = 0; i < widget.waypoints.length; i++)
+        MapMarker(
+          id: 'wp_$i',
+          lng: widget.waypoints[i].lng,
+          lat: widget.waypoints[i].lat,
+          size: i == 0 || i == widget.waypoints.length - 1 ? 2.0 : 1.5,
+          label: i == 0 ? 'Départ' : (i == widget.waypoints.length - 1 ? 'Arrivée' : 'Point $i'),
+        ),
+    ];
+    await _mapController.setMarkers(markers);
+
+    // Route
+    final route = _route;
+    if (route != null && route.points.isNotEmpty) {
+      await _mapController.setPolyline(
+        points: [
+          for (final p in route.points) MapPoint(p.longitude, p.latitude),
+        ],
+        color: const Color(0xFF0A84FF),
+        width: 6.0,
+        roadLike: false,
+        shadow3d: false,
+        showDirection: false,
+        animateDirection: false,
+      );
+    }
   }
 
-  Future<void> _syncNativeAnnotations() async {
-    final pm = _pointManager;
-    final plm = _polylineManager;
-    if (pm == null || plm == null) return;
-
-    try {
-      await pm.deleteAll();
-      await plm.deleteAll();
-    } catch (_) {
-      // ignore
-    }
-
-    // Route polyline
-    if (_route != null && _route!.points.isNotEmpty) {
-      final points =
-          _route!.points.map((p) => Position(p.longitude, p.latitude)).toList();
-      final opt = PolylineAnnotationOptions(
-        geometry: LineString(coordinates: points),
-        lineColor: 0xFF0A84FF,
-        lineWidth: 6.0,
-        lineOpacity: 0.8,
-      );
-      await plm.create(opt);
-    }
-
-    // Waypoint markers
-    for (int i = 0; i < widget.waypoints.length; i++) {
-      final point = widget.waypoints[i];
-      final isStart = i == 0;
-      final isEnd = i == widget.waypoints.length - 1;
-
-      final opt = PointAnnotationOptions(
-        geometry: Point(coordinates: Position(point.lng, point.lat)),
-        iconImage: 'marker-15',
-        iconSize: isStart ? 2.0 : (isEnd ? 2.0 : 1.5),
-        textField: isStart ? 'Départ' : (isEnd ? 'Arrivée' : 'Point $i'),
-        textOffset: const [0.0, 1.2],
-        textSize: 11.0,
-        textColor: 0xFF111111,
-        textHaloColor: 0xFFFFFFFF,
-        textHaloWidth: 1.0,
-      );
-      await pm.create(opt);
-    }
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
   }
 
   @override
@@ -215,93 +170,50 @@ class _RouteDisplayPageState extends State<RouteDisplayPage> {
   }
 
   Widget _buildMap(({double lat, double lng}) center) {
-    final token = _effectiveMapboxToken.trim();
+    final token = MapboxTokenService.getTokenSync().trim();
     if (token.isEmpty) {
       return _TokenMissingOverlay(onConfigure: _configureMapboxToken);
     }
 
-    if (kIsWeb) {
-      // TODO: polyline rendering (sera ajouté quand MapboxWebView supportera ce paramètre)
-      // final polyline = _route != null && _route!.points.isNotEmpty
-      //     ? _route!.points.map((p) => (lng: p.longitude, lat: p.latitude)).toList()
-      //     : const <({double lng, double lat})>[];
-
-      return MapboxWebView(
-        key: ValueKey('route-display-web-$_webRebuildTick'),
-        accessToken: token,
-        initialLat: center.lat,
-        initialLng: center.lng,
-        initialZoom: 12.0,
-        initialPitch: 0.0,
-        initialBearing: 0.0,
-        styleUrl: 'mapbox://styles/mapbox/streets-v12',
-        showUserLocation: false,
-        // TODO: polyline rendering (sera ajouté quand MapboxWebView supportera ce paramètre)
-        onMapReady: () {
-          // rien
-        },
-      );
-    }
-
-    // Mobile natif
-    final initialCamera = CameraOptions(
-      center: Point(coordinates: Position(center.lng, center.lat)),
-      zoom: 12.0,
-      pitch: 0.0,
-      bearing: 0.0,
-    );
-
-    return MapWidget(
-      key: const ValueKey('route-display-native'),
-      cameraOptions: initialCamera,
-      styleUri: 'mapbox://styles/mapbox/streets-v12',
-      onMapCreated: (map) async {
-        _mapboxMap = map;
-        await _ensureAnnotationManagers();
-        await _syncNativeAnnotations();
+    return MasLiveMap(
+      key: ValueKey('route-display-${token.hashCode}-$_mapRebuildTick'),
+      controller: _mapController,
+      initialLat: center.lat,
+      initialLng: center.lng,
+      initialZoom: 12.0,
+      initialPitch: 0.0,
+      initialBearing: 0.0,
+      styleUrl: 'mapbox://styles/mapbox/streets-v12',
+      showUserLocation: false,
+      onMapReady: (_) async {
+        await _syncMapOverlays();
       },
     );
   }
 
-  void _fitBounds() {
-    if (_route == null || _route!.points.isEmpty) return;
-    
-    double minLat = _route!.points.first.latitude;
-    double maxLat = _route!.points.first.latitude;
-    double minLng = _route!.points.first.longitude;
-    double maxLng = _route!.points.first.longitude;
+  Future<void> _fitBounds() async {
+    final route = _route;
+    if (route == null || route.points.isEmpty) return;
 
-    for (final point in _route!.points) {
+    double minLat = route.points.first.latitude;
+    double maxLat = route.points.first.latitude;
+    double minLng = route.points.first.longitude;
+    double maxLng = route.points.first.longitude;
+
+    for (final point in route.points) {
       minLat = minLat > point.latitude ? point.latitude : minLat;
       maxLat = maxLat < point.latitude ? point.latitude : maxLat;
       minLng = minLng > point.longitude ? point.longitude : minLng;
       maxLng = maxLng < point.longitude ? point.longitude : maxLng;
     }
 
-    if (kIsWeb) {
-      // TODO: améliorer pour calculer le bon zoom basé sur les bounds
-      setState(() {
-        _webRebuildTick++;
-      });
-      return;
-    }
-
-    final map = _mapboxMap;
-    if (map == null) return;
-
-    // Centrer sur le centre des bounds
-    map.setCamera(
-      CameraOptions(
-        center: Point(
-          coordinates: Position((minLng + maxLng) / 2, (minLat + maxLat) / 2),
-        ),
-        padding: MbxEdgeInsets(
-          top: 100,
-          left: 100,
-          bottom: 100,
-          right: 100,
-        ),
-      ),
+    await _mapController.fitBounds(
+      west: minLng,
+      south: minLat,
+      east: maxLng,
+      north: maxLat,
+      padding: 100,
+      animate: true,
     );
   }
 }
