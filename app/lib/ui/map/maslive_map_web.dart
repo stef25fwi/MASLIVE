@@ -2,10 +2,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:js_interop';
+// ignore: deprecated_member_use
+import 'dart:html' as html;
+// ignore: deprecated_member_use
+import 'dart:js' as js;
 import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/material.dart';
-import 'package:web/web.dart' as web;
 
 import 'maslive_map_controller.dart';
 import '../../services/mapbox_token_service.dart';
@@ -47,6 +50,9 @@ class MasLiveMapWeb extends StatefulWidget {
 }
 
 class _MasLiveMapWebState extends State<MasLiveMapWeb> {
+  static const String _poiSourceId = 'src_pois';
+  static const String _poiLayerId = 'ly_pois_circle';
+
   String _mapboxToken = '';
   bool _isLoading = true;
   late final String _containerId;
@@ -55,6 +61,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   Timer? _pendingResize;
   Size? _lastConstraintsSize;
   late final _MasliveMetricsObserver _metricsObserver;
+
+  String _poisGeoJsonString = '{"type":"FeatureCollection","features":[]}';
 
   @override
   void initState() {
@@ -76,6 +84,182 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         // ignore
       }
     });
+  }
+
+  js.JsObject? _getMapForThisContainer() {
+    try {
+      final bridge = js.context['MapboxBridge'];
+      if (bridge is! js.JsObject) return null;
+      final map = bridge['map'];
+      if (map is! js.JsObject) return null;
+      final container = map.callMethod('getContainer');
+      if (container is html.Element) {
+        if (container.id != _containerId) return null;
+      } else if (container is js.JsObject) {
+        final id = container['id'];
+        if (id != _containerId) return null;
+      }
+      return map;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _removeLayerIfExists(js.JsObject map, String layerId) async {
+    try {
+      final layer = map.callMethod('getLayer', [layerId]);
+      if (layer != null) {
+        map.callMethod('removeLayer', [layerId]);
+      }
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  Future<void> _removeSourceIfExists(js.JsObject map, String sourceId) async {
+    try {
+      final src = map.callMethod('getSource', [sourceId]);
+      if (src != null) {
+        map.callMethod('removeSource', [sourceId]);
+      }
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  Future<void> _applyPoisGeoJsonIfReady() async {
+    final map = _getMapForThisContainer();
+    if (map == null) return;
+
+    try {
+      final styleLoaded = map.callMethod('isStyleLoaded');
+      if (styleLoaded != true) {
+        // Pas d'allowInterop ici: on retente un peu plus tard.
+        unawaited(
+          Future.delayed(const Duration(milliseconds: 120), _applyPoisGeoJsonIfReady),
+        );
+        return;
+      }
+    } catch (_) {
+      // ignore
+    }
+
+    // Si FeatureCollection vide => remove
+    try {
+      final decoded = jsonDecode(_poisGeoJsonString);
+      if (decoded is Map && decoded['type'] == 'FeatureCollection') {
+        final feats = decoded['features'];
+        if (feats is List && feats.isEmpty) {
+          await _removeLayerIfExists(map, _poiLayerId);
+          await _removeSourceIfExists(map, _poiSourceId);
+          return;
+        }
+      }
+    } catch (_) {
+      // ignore
+    }
+
+    // Upsert source
+    try {
+      final data = jsonDecode(_poisGeoJsonString);
+      final src = map.callMethod('getSource', [_poiSourceId]);
+      if (src == null) {
+        map.callMethod('addSource', [
+          _poiSourceId,
+          js.JsObject.jsify({'type': 'geojson', 'data': data}),
+        ]);
+      } else {
+        (src as js.JsObject).callMethod('setData', [data]);
+      }
+    } catch (_) {
+      // ignore
+    }
+
+    // Ensure layer
+    try {
+      final existing = map.callMethod('getLayer', [_poiLayerId]);
+      if (existing == null) {
+        map.callMethod('addLayer', [
+          js.JsObject.jsify({
+            'id': _poiLayerId,
+            'type': 'circle',
+            'source': _poiSourceId,
+            'paint': {
+              'circle-radius': 7,
+              'circle-color': '#0A84FF',
+              'circle-stroke-width': 2,
+              'circle-stroke-color': '#FFFFFF',
+            },
+          })
+        ]);
+      }
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  String? _hitTestPoiId(double lng, double lat) {
+    final map = _getMapForThisContainer();
+    if (map == null) return null;
+
+    try {
+      final layer = map.callMethod('getLayer', [_poiLayerId]);
+      if (layer == null) return null;
+    } catch (_) {
+      return null;
+    }
+
+    try {
+      final point = map.callMethod('project', [
+        [lng, lat]
+      ]);
+      final feats = map.callMethod('queryRenderedFeatures', [
+        point,
+        js.JsObject.jsify({'layers': <String>[_poiLayerId]}),
+      ]);
+      if (feats is js.JsArray && feats.isNotEmpty) {
+        final f = feats[0];
+        if (f is js.JsObject) {
+          final props = f['properties'];
+          final poiId = (props is js.JsObject ? props['poiId'] : null) ?? f['id'];
+          final id = (poiId ?? '').toString();
+          return id.isEmpty ? null : id;
+        }
+      }
+    } catch (_) {
+      // ignore
+    }
+    return null;
+  }
+
+  void _handleTapFromJs(double lng, double lat) {
+    final controller = widget.controller;
+
+    // 1) POI hit-test
+    final poiId = _hitTestPoiId(lng, lat);
+    if (poiId != null) {
+      try {
+        final cb = (controller as dynamic).onPoiTap as void Function(String)?;
+        cb?.call(poiId);
+        return;
+      } catch (_) {
+        // ignore
+      }
+    }
+
+    // 2) Map tap
+    if (_onPointAddedCallback != null) {
+      _onPointAddedCallback!(lat, lng);
+    }
+
+    try {
+      final cb = (controller as dynamic).onMapTap as void Function(double, double)?;
+      cb?.call(lat, lng);
+    } catch (_) {
+      // ignore
+    }
+
+    widget.onTap?.call(MapPoint(lng, lat));
   }
 
   Future<void> _loadMapboxToken() async {
@@ -100,6 +284,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   void _onMapReady() {
     _isMapReady = true;
     _connectController();
+    unawaited(_applyPoisGeoJsonIfReady());
     // Important: après init (et après setStyle), la carte peut avoir une taille 0
     // si l'orientation vient de changer. On force un resize léger.
     _scheduleResize();
@@ -144,6 +329,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
               'lat': m.lat,
               'size': m.size,
               'color': '#${m.color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}',
+              'label': m.label,
             }
         ]);
         _mbSetMarkers(_containerId, markersJson);
@@ -239,6 +425,16 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       }
       return null;
     };
+
+    // POIs GeoJSON (Mapbox Pro)
+    try {
+      (controller as dynamic).setPoisGeoJsonImpl = (String fcJson) async {
+        _poisGeoJsonString = fcJson;
+        await _applyPoisGeoJsonIfReady();
+      };
+    } catch (_) {
+      // ignore
+    }
   }
 
   @override
@@ -295,10 +491,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           styleUrl: widget.styleUrl,
           onMapReady: _onMapReady,
           onTap: (lng, lat) {
-            if (_onPointAddedCallback != null) {
-              _onPointAddedCallback!(lat, lng);
-            }
-            widget.onTap?.call(MapPoint(lng, lat));
+            _handleTapFromJs(lng, lat);
           },
         );
       },
@@ -351,7 +544,7 @@ class _MapboxWebViewCustom extends StatefulWidget {
 
 class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
   late final String _viewType;
-  StreamSubscription<web.MessageEvent>? _messageSub;
+  StreamSubscription<html.MessageEvent>? _messageSub;
 
   @override
   void initState() {
@@ -359,7 +552,7 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
     _viewType = 'maslive-mapbox-${DateTime.now().microsecondsSinceEpoch}';
     _registerFactory();
 
-    _messageSub = web.window.onMessage.listen((evt) {
+    _messageSub = html.window.onMessage.listen((evt) {
       final raw = evt.data;
       final data = raw?.toString();
       if (data == null || data.isEmpty) return;
@@ -392,7 +585,7 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
     ui_web.platformViewRegistry.registerViewFactory(
       _viewType,
       (int viewId) {
-        final container = web.document.createElement('div') as web.HTMLDivElement;
+        final container = html.DivElement();
         container.id = widget.containerId;
         container.style.width = '100%';
         container.style.height = '100%';

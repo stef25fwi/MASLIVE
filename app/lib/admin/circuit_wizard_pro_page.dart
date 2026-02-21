@@ -10,7 +10,6 @@ import '../services/circuit_repository.dart';
 import '../services/circuit_versioning_service.dart';
 import '../services/publish_quality_service.dart';
 import '../ui/map/maslive_map.dart';
-import '../ui/map/maslive_map_controller.dart';
 import 'circuit_map_editor.dart';
 import '../route_style_pro/models/route_style_config.dart' as rsp;
 import '../route_style_pro/services/route_snap_service.dart' as snap;
@@ -85,7 +84,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   bool _hasMorePois = false;
   bool _isLoadingMorePois = false;
   MarketMapLayer? _selectedLayer;
-  final MasLiveMapController _poiMapController = MasLiveMapController();
+  final MasLiveMapControllerPoi _poiMapController = MasLiveMapControllerPoi();
 
   bool _isSnappingRoute = false;
 
@@ -195,6 +194,18 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     super.initState();
     _projectId = widget.projectId;
     _pageController = PageController();
+
+    // Step POI: hit-testing GeoJSON (tap POI => édition, tap carte => ajout)
+    _poiMapController.onPoiTap = (poiId) {
+      final idx = _pois.indexWhere((p) => p.id == poiId);
+      if (idx < 0) return;
+      unawaited(_editPoi(_pois[idx]));
+    };
+    _poiMapController.onMapTap = (lat, lng) {
+      // Note: signature controller = (lat, lng), handler = (lng, lat)
+      unawaited(_onMapTapForPoi(lng, lat));
+    };
+
     _loadDraftOrInitialize();
   }
 
@@ -558,6 +569,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       } else {
         _isLoadingMorePois = false;
       }
+    }
+
+    // Si l'utilisateur est déjà sur une couche, on rafraîchit l'affichage.
+    if (mounted && _selectedLayer != null) {
+      _refreshPoiMarkers();
     }
   }
 
@@ -1383,7 +1399,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           styleUrl: _styleUrlController.text.trim().isEmpty
               ? null
               : _styleUrlController.text.trim(),
-          onTap: (p) => _onMapTapForPoi(p.lng, p.lat),
           onMapReady: (ctrl) async {
             _refreshPoiMarkers();
           },
@@ -1643,23 +1658,38 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   // ====== Gestion POI (étape 4) ======
 
   void _refreshPoiMarkers() async {
-    if (_selectedLayer == null) return;
+    await _poiMapController.clearAll();
+
+    if (_selectedLayer == null) {
+      await _poiMapController.clearPoisGeoJson();
+      return;
+    }
 
     final layerType = _selectedLayer!.type;
     final poisForLayer = _pois.where((p) => p.layerType == layerType).toList();
+    await _poiMapController.setPoisGeoJson(_buildPoisFeatureCollection(poisForLayer));
+  }
 
-    await _poiMapController.setMarkers(
-      poisForLayer
-          .map(
-            (poi) => MapMarker(
-              id: poi.id,
-              lng: poi.lng,
-              lat: poi.lat,
-              label: poi.name,
-            ),
-          )
-          .toList(),
-    );
+  Map<String, dynamic> _buildPoisFeatureCollection(List<MarketMapPOI> pois) {
+    return <String, dynamic>{
+      'type': 'FeatureCollection',
+      'features': <Map<String, dynamic>>[
+        for (final poi in pois)
+          <String, dynamic>{
+            'type': 'Feature',
+            'id': poi.id,
+            'properties': <String, dynamic>{
+              'poiId': poi.id,
+              'layerId': poi.layerType,
+              'title': poi.name,
+            },
+            'geometry': <String, dynamic>{
+              'type': 'Point',
+              'coordinates': <double>[poi.lng, poi.lat],
+            },
+          },
+      ],
+    };
   }
 
   Future<void> _onMapTapForPoi(double lng, double lat) async {

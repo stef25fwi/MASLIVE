@@ -66,7 +66,6 @@ import 'pages/commerce/create_media_page.dart';
 import 'pages/commerce/my_submissions_page.dart';
 import 'admin/admin_moderation_page.dart';
 import 'admin/commerce_analytics_page.dart';
-import 'admin/circuit_wizard_pro_page.dart';
 import 'route_style_pro/ui/route_style_wizard_pro_page.dart';
 import 'pages/group/admin_group_dashboard_page.dart';
 import 'pages/group/tracker_group_profile_page.dart';
@@ -269,13 +268,6 @@ class MasLiveApp extends StatelessWidget {
                   const AdminRouteGuard(child: MarketMapDebugPage()),
               '/admin/circuit-wizard': (_) =>
                   const AdminRouteGuard(child: CircuitWizardEntryPage()),
-              '/admin/circuit-wizard/:projectId': (ctx) {
-                final projectId =
-                    ModalRoute.of(ctx)?.settings.arguments as String?;
-                return AdminRouteGuard(
-                  child: CircuitWizardProPage(projectId: projectId),
-                );
-              },
               '/admin/route-style-pro': (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments;
                 if (args is RouteStyleProArgs) {

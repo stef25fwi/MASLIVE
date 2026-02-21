@@ -6,12 +6,25 @@ import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mbx;
 import 'package:provider/provider.dart';
 
+import '../../models/app_user.dart';
 import '../../models/draft_circuit.dart';
 import '../../providers/wizard_circuit_provider.dart';
+import '../../services/auth_claims_service.dart';
 import '../../services/mapbox_directions_service.dart';
 import '../../services/mapbox_token_service.dart';
 import '../map/maslive_map.dart';
 import '../map/maslive_map_controller.dart';
+
+/// ARCHIVÉ (non utilisé en production)
+///
+/// Constat:
+/// - Le flux réellement accessible côté admin utilise `CircuitWizardEntryPage` ->
+///   `CircuitWizardProPage`.
+/// - Cette page (`ProCircuitWizardPage`) n'est pas branchée par la navigation
+///   actuelle et est conservée uniquement comme référence.
+///
+/// Si tu veux réactiver ce wizard UI, il faudra créer un vrai point d'entrée
+/// explicite (route ou bouton) et valider la cohérence data model/publish.
 
 enum _PerimeterUiMode { polygon, circle }
 
@@ -80,8 +93,10 @@ class ProCircuitWizardPage extends StatefulWidget {
 
 class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
   final _firestore = FirebaseFirestore.instance;
-  final MasLiveMapController _mapController = MasLiveMapController();
+  final MasLiveMapControllerPoi _mapController = MasLiveMapControllerPoi();
   late final WizardCircuitProvider _wizard = WizardCircuitProvider();
+
+  bool _isMasterAdmin = false;
 
   // Recalcul Directions en continu (debounce + ignore résultats obsolètes)
   Timer? _routeRecalcDebounce;
@@ -108,6 +123,12 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
   @override
   void initState() {
     super.initState();
+    _mapController.onPoiTap = (poiId) {
+      unawaited(_handlePoiTap(poiId));
+    };
+    _mapController.onMapTap = (lat, lng) {
+      unawaited(_handleMapTapLatLng(lat: lat, lng: lng));
+    };
     unawaited(_loadExistingPois());
   }
 
@@ -380,6 +401,11 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
   Future<void> _renderStep() async {
     await _mapController.clearAll();
 
+    // POIs GeoJSON: par défaut on masque hors step4.
+    if (_step != 4) {
+      await _mapController.clearPoisGeoJson();
+    }
+
     if (_mode == _PerimeterUiMode.polygon) {
       if (_step == 2) {
         await _renderPolygonEditing();
@@ -401,17 +427,30 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
 
     // POIs (step4)
     if (_step == 4) {
-      await _mapController.setMarkers([
-        for (int i = 0; i < _pois.length; i++)
-          MapMarker(
-            id: _pois[i].id,
-            lng: _pois[i].lng,
-            lat: _pois[i].lat,
-            label: '${i + 1}',
-            size: 1.1,
-          ),
-      ]);
+      await _mapController.setPoisGeoJson(_buildPoisFeatureCollection());
     }
+  }
+
+  Map<String, dynamic> _buildPoisFeatureCollection() {
+    return <String, dynamic>{
+      'type': 'FeatureCollection',
+      'features': <Map<String, dynamic>>[
+        for (final poi in _pois)
+          <String, dynamic>{
+            'type': 'Feature',
+            'id': poi.id,
+            'properties': <String, dynamic>{
+              'poiId': poi.id,
+              'layerId': poi.layerId,
+              'title': poi.title,
+            },
+            'geometry': <String, dynamic>{
+              'type': 'Point',
+              'coordinates': <double>[poi.lng, poi.lat],
+            },
+          },
+      ],
+    };
   }
 
   Future<void> _renderPolygonPerimeterOnly() async {
@@ -690,6 +729,12 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
   }
 
   Future<void> _finish() async {
+    if (!_isMasterAdmin) {
+      // Lecture seule: pas d'écriture.
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      return;
+    }
     // Always persist latest route + pois before closing
     await _saveStep3RouteFromProvider();
     await _savePois();
@@ -698,22 +743,13 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
   }
 
   Future<void> _onMapTap(MapPoint p) async {
-    // Step 4: POIs
-    if (_step == 4) {
-      final poi = _PoiDraft(
-        id: 'poi_${DateTime.now().millisecondsSinceEpoch}',
-        lng: p.lng,
-        lat: p.lat,
-        layerId: _selectedPoiLayerId,
-      );
-      setState(() => _pois.add(poi));
-      await _savePois();
-      await _renderStep();
-      if (!mounted) return;
-      await _editPoiDialog(poi);
-      return;
-    }
+    // Step4 est géré via callback controller.onMapTap (hit-test POI inclus).
+    if (_step == 4) return;
 
+    // Lecture seule: ne pas muter l'état ni écrire en base.
+    if (!_isMasterAdmin) return;
+
+    // Step 4: POIs
     // Step 3: route points (Tracé & Style Pro)
     if (_step == 3) {
       final wizardProvider = context.read<WizardCircuitProvider>();
@@ -743,6 +779,34 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
       _circleCenter = p;
     });
     await _renderStep();
+  }
+
+  Future<void> _handlePoiTap(String poiId) async {
+    if (!mounted) return;
+    if (_step != 4) return;
+    if (!_isMasterAdmin) return;
+
+    final idx = _pois.indexWhere((p) => p.id == poiId);
+    if (idx < 0) return;
+    await _editPoiDialog(_pois[idx]);
+  }
+
+  Future<void> _handleMapTapLatLng({required double lat, required double lng}) async {
+    if (!mounted) return;
+    if (_step != 4) return;
+    if (!_isMasterAdmin) return;
+
+    final poi = _PoiDraft(
+      id: 'poi_${DateTime.now().millisecondsSinceEpoch}',
+      lng: lng,
+      lat: lat,
+      layerId: _selectedPoiLayerId,
+    );
+    setState(() => _pois.add(poi));
+    await _savePois();
+    await _renderStep();
+    if (!mounted) return;
+    await _editPoiDialog(poi);
   }
 
   Future<MapboxDirectionsService?> _directions() async {
@@ -838,11 +902,23 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider.value(
-      value: _wizard,
-      child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: _projectRef.snapshots(),
-        builder: (context, snap) {
+    return StreamBuilder<AppUser?>(
+      stream: AuthClaimsService.instance.getCurrentAppUserStream(),
+      builder: (context, userSnap) {
+        final isMasterAdmin = userSnap.data?.isAdminRole ?? false;
+        final isReadOnly = !isMasterAdmin;
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (_isMasterAdmin == isMasterAdmin) return;
+          setState(() => _isMasterAdmin = isMasterAdmin);
+        });
+
+        return ChangeNotifierProvider.value(
+          value: _wizard,
+          child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: _projectRef.snapshots(),
+            builder: (context, snap) {
         if (snap.hasError) {
           return Scaffold(
             appBar: AppBar(title: const Text('Wizard Pro')),
@@ -903,13 +979,22 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 12),
+                    if (isReadOnly) ...[
+                      Text(
+                        'Lecture seule: droits admin requis pour modifier.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     if (_step == 2) ...[
                       Row(
                         children: [
                           ChoiceChip(
                             label: const Text('Libre'),
                             selected: _mode == _PerimeterUiMode.polygon,
-                            onSelected: (v) async {
+                            onSelected: isReadOnly
+                                ? null
+                                : (v) async {
                               if (!v) return;
                               setState(() => _mode = _PerimeterUiMode.polygon);
                               await _renderStep();
@@ -919,7 +1004,9 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
                           ChoiceChip(
                             label: const Text('Cercle'),
                             selected: _mode == _PerimeterUiMode.circle,
-                            onSelected: (v) async {
+                            onSelected: isReadOnly
+                                ? null
+                                : (v) async {
                               if (!v) return;
                               setState(() => _mode = _PerimeterUiMode.circle);
                               await _renderStep();
@@ -939,7 +1026,9 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
                         Row(
                           children: [
                             IconButton(
-                              onPressed: () async {
+                              onPressed: isReadOnly
+                                  ? null
+                                  : () async {
                                 setState(() {
                                   _circleRadiusMeters = math.max(25.0, _circleRadiusMeters - 25.0);
                                 });
@@ -949,7 +1038,9 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
                             ),
                             Text('${_circleRadiusMeters.toStringAsFixed(0)} m'),
                             IconButton(
-                              onPressed: () async {
+                              onPressed: isReadOnly
+                                  ? null
+                                  : () async {
                                 setState(() {
                                   _circleRadiusMeters = math.min(5000.0, _circleRadiusMeters + 25.0);
                                 });
@@ -1011,7 +1102,7 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: _isSaving ? null : _goToStep3,
+                              onPressed: (_isSaving || isReadOnly) ? null : _goToStep3,
                               child: _isSaving
                                   ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
                                   : const Text('Continuer'),
@@ -1086,7 +1177,7 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
                                   ),
                                   const SizedBox(height: 12),
                                   ElevatedButton(
-                                    onPressed: (_isSaving || pts.length < 2) ? null : _connectRoutePoints,
+                                    onPressed: (isReadOnly || _isSaving || pts.length < 2) ? null : _connectRoutePoints,
                                     child: const Text('Relier les points'),
                                   ),
                                 ],
@@ -1104,14 +1195,14 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
                           children: [
                             Expanded(
                               child: ElevatedButton(
-                                onPressed: _isSaving ? null : _applyAutoRoute,
+                                onPressed: (_isSaving || isReadOnly) ? null : _applyAutoRoute,
                                 child: const Text('Auto'),
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: OutlinedButton(
-                                onPressed: _isSaving ? null : _applyHybridRoute,
+                                onPressed: (_isSaving || isReadOnly) ? null : _applyHybridRoute,
                                 child: const Text('Hybride'),
                               ),
                             ),
@@ -1129,7 +1220,7 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: _isSaving ? null : _goToStep4,
+                              onPressed: (_isSaving || isReadOnly) ? null : _goToStep4,
                               child: _isSaving
                                   ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
                                   : const Text('Continuer'),
@@ -1139,7 +1230,6 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
                       ),
 
                     ] else ...[
-
                       Text(
                         'Touchez la carte pour ajouter des POIs sur la couche sélectionnée.',
                         style: Theme.of(context).textTheme.bodySmall,
@@ -1185,16 +1275,18 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
                                   IconButton(
                                     tooltip: 'Modifier',
                                     icon: const Icon(Icons.edit),
-                                    onPressed: () => _editPoiDialog(poi),
+                                    onPressed: (isReadOnly || _isSaving) ? null : () => _editPoiDialog(poi),
                                   ),
                                   IconButton(
                                     tooltip: 'Supprimer',
                                     icon: const Icon(Icons.delete_outline),
-                                    onPressed: () async {
-                                      setState(() => _pois.removeAt(i));
-                                      await _savePois();
-                                      await _renderStep();
-                                    },
+                                    onPressed: (isReadOnly || _isSaving)
+                                        ? null
+                                        : () async {
+                                            setState(() => _pois.removeAt(i));
+                                            await _savePois();
+                                            await _renderStep();
+                                          },
                                   ),
                                 ],
                               ),
@@ -1213,7 +1305,7 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: _isSaving ? null : _finish,
+                              onPressed: (_isSaving || isReadOnly) ? null : _finish,
                               child: _isSaving
                                   ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
                                   : const Text('Terminer'),
@@ -1221,7 +1313,6 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
                           ),
                         ],
                       ),
-
                     ],
                     ],
                   ],
@@ -1230,8 +1321,10 @@ class _ProCircuitWizardPageState extends State<ProCircuitWizardPage> {
             ],
           ),
         );
-        },
-      ),
+            },
+          ),
+        );
+      },
     );
   }
 }

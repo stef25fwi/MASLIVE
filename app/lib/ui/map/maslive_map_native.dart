@@ -41,13 +41,19 @@ class MasLiveMapNative extends StatefulWidget {
 }
 
 class _MasLiveMapNativeState extends State<MasLiveMapNative> {
+  static const String _poiSourceId = 'src_pois';
+  static const String _poiLayerId = 'ly_pois_circle';
+
   MapboxMap? _mapboxMap;
   PointAnnotationManager? _markersManager;
   PolylineAnnotationManager? _polylineManager;
   PolygonAnnotationManager? _polygonManager;
   PointAnnotationManager? _userLocationManager;
   bool _isMapReady = false;
+  bool _styleLoaded = false;
   void Function(double lat, double lng)? _onPointAddedCallback;
+
+  String _poisGeoJsonString = '{"type":"FeatureCollection","features":[]}';
 
   @override
   void initState() {
@@ -258,6 +264,61 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         return null;
       }
     };
+
+    // POIs GeoJSON (Mapbox Pro)
+    try {
+      (controller as dynamic).setPoisGeoJsonImpl = (String fcJson) async {
+        _poisGeoJsonString = fcJson;
+        await _applyPoisGeoJsonIfReady();
+      };
+    } catch (_) {
+      // Controller non compatible (pas de support POIs GeoJSON)
+    }
+  }
+
+  Future<void> _applyPoisGeoJsonIfReady() async {
+    final map = _mapboxMap;
+    if (map == null) return;
+    if (!_styleLoaded) return;
+
+    // Remove + add source, puis layer si besoin.
+    try {
+      await map.style.removeStyleLayer(_poiLayerId);
+    } catch (_) {
+      // ignore
+    }
+    try {
+      await map.style.removeStyleSource(_poiSourceId);
+    } catch (_) {
+      // ignore
+    }
+
+    // Si empty FeatureCollection => rien à afficher (mais on laisse la source absente)
+    if (_poisGeoJsonString.contains('"features":[]')) {
+      return;
+    }
+
+    try {
+      await map.style.addSource(GeoJsonSource(id: _poiSourceId, data: _poisGeoJsonString));
+    } catch (_) {
+      // ignore
+    }
+
+    // Layer POIs: circles (simple, scalable)
+    try {
+      await map.style.addLayer(
+        CircleLayer(
+          id: _poiLayerId,
+          sourceId: _poiSourceId,
+          circleRadius: 7.0,
+          circleColor: const Color(0xFF0A84FF).toARGB32(),
+          circleStrokeColor: const Color(0xFFFFFFFF).toARGB32(),
+          circleStrokeWidth: 2.0,
+        ),
+      );
+    } catch (_) {
+      // ignore
+    }
   }
 
   Future<void> _ensureMarkersManager() async {
@@ -313,17 +374,64 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       ),
       styleUri: styleUri,
       onMapCreated: _onMapCreated,
+      onStyleLoadedListener: (_) async {
+        _styleLoaded = true;
+        await _applyPoisGeoJsonIfReady();
+      },
       onTapListener: (gestureContext) async {
+        final controller = widget.controller;
+
         // gestureContext.point est de type Point (Mapbox) avec coordinates
         final lngLat = gestureContext.point.coordinates;
         final lng = lngLat.lng.toDouble();
         final lat = lngLat.lat.toDouble();
-        
-        // Mode édition: callback onPointAdded
+
+        // 1) Hit-testing POI (si layer présent)
+        bool didHitPoi = false;
+        final map = _mapboxMap;
+        if (map != null) {
+          try {
+            final res = await map.queryRenderedFeatures(
+              RenderedQueryGeometry.fromScreenCoordinate(gestureContext.touchPosition),
+              RenderedQueryOptions(layerIds: <String>[_poiLayerId], filter: null),
+            );
+            if (res.isNotEmpty) {
+              final feature = res.first?.queriedFeature.feature;
+              if (feature != null) {
+                final props = (feature['properties'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{};
+                final poiId = (props['poiId'] ?? feature['id'] ?? '').toString();
+                if (poiId.isNotEmpty) {
+                  didHitPoi = true;
+                  try {
+                    final cb = (controller as dynamic).onPoiTap as void Function(String)?;
+                    cb?.call(poiId);
+                  } catch (_) {
+                    // ignore
+                  }
+                }
+              }
+            }
+          } catch (_) {
+            // ignore (style pas prêt / layer absent)
+          }
+        }
+
+        if (didHitPoi) return;
+
+        // 2) Mode édition: callback onPointAdded
         if (_onPointAddedCallback != null) {
           _onPointAddedCallback!(lat, lng);
         }
-        // Callback onTap standard
+
+        // 3) Callback Mapbox Pro: onMapTap
+        try {
+          final cb = (controller as dynamic).onMapTap as void Function(double, double)?;
+          cb?.call(lat, lng);
+        } catch (_) {
+          // ignore
+        }
+
+        // 4) Callback onTap standard
         widget.onTap?.call(MapPoint(lng, lat));
       },
     );

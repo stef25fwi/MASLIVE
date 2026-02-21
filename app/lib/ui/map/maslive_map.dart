@@ -1,9 +1,53 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'dart:convert';
+
 import 'maslive_map_controller.dart';
 import 'maslive_map_native.dart';
 import 'maslive_map_web.dart';
+
+/// Extension "Mapbox Pro" pour l'édition POIs via GeoJSON source + layer
+///
+/// Objectif:
+/// - remplace l'affichage POIs en markers/annotations
+/// - active le hit-testing (queryRenderedFeatures) sur le layer POI
+///
+/// ⚠️ Implémentation volontairement isolée ici pour respecter la contrainte
+/// "patch en 4 fichiers" (sans toucher à `maslive_map_controller.dart`).
+class MasLiveMapControllerPoi extends MasLiveMapController {
+  /// Impl interne branchée par `MasLiveMapNative`/`MasLiveMapWeb`.
+  Future<void> Function(String featureCollectionJson)? _setPoisGeoJsonImpl;
+
+  /// Callback POI: tap sur un POI rendu par le layer GeoJSON.
+  void Function(String poiId)? onPoiTap;
+
+  /// Callback map: tap sur la carte hors POI.
+  void Function(double lat, double lng)? onMapTap;
+
+  /// @nodoc - usage interne seulement
+  set setPoisGeoJsonImpl(Future<void> Function(String featureCollectionJson)? impl) {
+    _setPoisGeoJsonImpl = impl;
+  }
+
+  /// Met à jour les POIs via un FeatureCollection GeoJSON.
+  ///
+  /// Contrat:
+  /// - Feature.id == poiId
+  /// - properties: { poiId, layerId, title }
+  Future<void> setPoisGeoJson(Map<String, dynamic> featureCollection) async {
+    final json = jsonEncode(featureCollection);
+    await _setPoisGeoJsonImpl?.call(json);
+  }
+
+  /// Supprime la source/layer POIs.
+  Future<void> clearPoisGeoJson() async {
+    await _setPoisGeoJsonImpl?.call(_emptyFeatureCollectionJson);
+  }
+
+  static const String _emptyFeatureCollectionJson =
+      '{"type":"FeatureCollection","features":[]}';
+}
 
 /// Widget de carte unifié pour toute l'application MASLIVE
 ///
