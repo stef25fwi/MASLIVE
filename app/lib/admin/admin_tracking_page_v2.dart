@@ -25,7 +25,7 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
   final _firestore = FirebaseFirestore.instance;
   final _mapController = MasLiveMapController();
   
-  static const String _collection = 'groupLocations';
+  static const String _collection = 'group_locations';
   
   String? _selectedGroupId;
   String _mapboxToken = '';

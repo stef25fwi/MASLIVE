@@ -167,6 +167,50 @@
       }
     },
     {
+      "label": "MASLIVE: Git status (debug)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && echo '--- git status --porcelain ---' && git status --porcelain && echo '' && echo '--- git status -sb ---' && git status -sb",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Git commit + push (wizard pro segments + rules)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && if git ls-files --error-unmatch serviceAccountKey.json >/dev/null 2>&1; then echo 'ERROR: serviceAccountKey.json tracked'; exit 1; fi && if git ls-files '*firebase-adminsdk*.json' | grep -q .; then echo 'ERROR: firebase-adminsdk key tracked'; exit 1; fi && if git ls-files 'functions/.env' 'functions/.env.*' 'functions/.runtimeconfig.json' | grep -q .; then echo 'ERROR: functions secret file tracked'; exit 1; fi && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add -A && git commit -m \"fix(wizard): segments natif + web multi-map + rules\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Git commit only (debug wizard pro)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add -A && git commit -m \"fix(wizard): segments natif + web multi-map + rules\"",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Git push only (debug)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git push -v origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Build web(no-wasm) + Firebase deploy full",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE/app && { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -z \"$TOKEN\" ]; then echo '❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).'; exit 1; fi && flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" && cd /workspaces/MASLIVE && firebase deploy --only hosting,functions,firestore:rules,firestore:indexes",

@@ -112,7 +112,27 @@ service cloud.firestore {
     // rattachée à un projet `map_projects/{projectId}` du groupe de l'admin.
     // (Le chemin marketMap ne porte pas le groupId, on contrôle via sourceProjectId)
     function canWriteMarketMapFromProject() {
-      return isMasterAdmin();
+      // Par défaut: master admins uniquement.
+      // En plus: doit référencer un projet existant (sourceProjectId) et appartenir au même groupe,
+      // sauf superadmin (qui peut opérer cross-groupe).
+      return isMasterAdmin()
+        && (request.resource.data.sourceProjectId is string)
+        && exists(/databases/$(database)/documents/map_projects/$(request.resource.data.sourceProjectId))
+        && (
+          isSuperAdmin()
+          || projectGroupId(request.resource.data.sourceProjectId) == userGroupId()
+        );
+    }
+
+    // Delete n'a pas request.resource.data: on valide via resource.
+    function canDeleteMarketMapFromProject() {
+      return isMasterAdmin()
+        && (resource.data.sourceProjectId is string)
+        && exists(/databases/$(database)/documents/map_projects/$(resource.data.sourceProjectId))
+        && (
+          isSuperAdmin()
+          || projectGroupId(resource.data.sourceProjectId) == userGroupId()
+        );
     }
 
     // ========== COLLECTION: ROLES (Définitions des rôles) ==========
@@ -517,7 +537,7 @@ service cloud.firestore {
             && request.resource.data.eventId == eventId;
 
           // Delete: pas de request.resource.data, on valide via resource.
-          allow delete: if canWriteMarketMapFromProject()
+          allow delete: if canDeleteMarketMapFromProject()
             && resource.data.countryId == countryId
             && resource.data.eventId == eventId;
 
@@ -850,8 +870,8 @@ service cloud.firestore {
     function canReadProject(projectId) {
       return exists(/databases/$(database)/documents/map_projects/$(projectId))
         && (
-          mapProjectDoc(projectId).status == 'published'
-          || isMasterAdmin()
+          // Wizard = admin-only (ou créateur). Les projets publiés sont consommés via marketMap.
+          isMasterAdmin()
           || isProjectCreator(projectId)
         );
     }
@@ -896,8 +916,10 @@ service cloud.firestore {
         && request.resource.data.current is map
         && validCurrentShape(request.resource.data.current)
         && isAllowedStatus(request.resource.data.status)
-        && validPointListShape(request.resource.data.route, 5000)
-        && validPointListShape(request.resource.data.perimeter, 1000);
+        // Canon: current.route/current.perimeter.
+        // Top-level route/perimeter tolérés (compat rétro) mais optionnels.
+        && (!('route' in request.resource.data) || validPointListShape(request.resource.data.route, 5000))
+        && (!('perimeter' in request.resource.data) || validPointListShape(request.resource.data.perimeter, 1000));
     }
 
     function validProjectPayloadUpdate() {
@@ -908,8 +930,8 @@ service cloud.firestore {
         && request.resource.data.current is map
         && validCurrentShape(request.resource.data.current)
         && isAllowedStatus(request.resource.data.status)
-        && validPointListShape(request.resource.data.route, 5000)
-        && validPointListShape(request.resource.data.perimeter, 1000)
+        && (!('route' in request.resource.data) || validPointListShape(request.resource.data.route, 5000))
+        && (!('perimeter' in request.resource.data) || validPointListShape(request.resource.data.perimeter, 1000))
         && (
           resource.data.status != 'draft'
           || request.resource.data.status != 'published'

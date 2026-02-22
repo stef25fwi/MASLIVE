@@ -11,10 +11,26 @@
   // Stockage global de la carte et des managers
   window.MapboxBridge = {
     map: null,
+    // Multi-cartes: association stable containerId -> map.
+    // (Conserve `map` pour compat legacy, mais éviter de l'utiliser côté widgets modernes.)
+    mapsByContainerId: new Map(),
     markers: new Map(),
     sources: new Map(),
     layers: new Map(),
     userMarker: null,
+  };
+
+  // Récupère une map par containerId si possible (sinon fallback legacy `map`).
+  // Retourne l'instance Mapbox GL JS (ou null).
+  window.MapboxBridge.getMap = function(containerId) {
+    try {
+      if (containerId && window.MapboxBridge.mapsByContainerId && window.MapboxBridge.mapsByContainerId.has(containerId)) {
+        return window.MapboxBridge.mapsByContainerId.get(containerId);
+      }
+    } catch (_) {
+      // ignore
+    }
+    return window.MapboxBridge.map;
   };
 
   /**
@@ -48,7 +64,13 @@
 
     try {
       const map = new mapboxgl.Map(defaultOptions);
+      // Compat legacy: conserve un pointeur global, MAIS stocke aussi par container.
       window.MapboxBridge.map = map;
+      try {
+        window.MapboxBridge.mapsByContainerId.set(containerId, map);
+      } catch (_) {
+        // ignore
+      }
 
       // Événements de chargement
       map.on('load', function() {
@@ -83,6 +105,19 @@
       map.on('error', function(e) {
         console.error('❌ Mapbox error:', e);
       });
+
+      // Nettoyage du registre multi-maps quand la map est détruite.
+      try {
+        map.on('remove', function() {
+          try {
+            if (window.MapboxBridge.mapsByContainerId && window.MapboxBridge.mapsByContainerId.get(containerId) === map) {
+              window.MapboxBridge.mapsByContainerId.delete(containerId);
+            }
+          } catch (_) {}
+        });
+      } catch (_) {
+        // ignore
+      }
 
       return map;
     } catch (error) {

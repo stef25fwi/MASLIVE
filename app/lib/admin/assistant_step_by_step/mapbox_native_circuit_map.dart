@@ -75,7 +75,31 @@ class _MapboxNativeCircuitMapState extends State<MapboxNativeCircuitMap> {
     _styleReady = true;
     await _ensureArrowImage();
     await _ensureBaseLayers();
+    await _applySegmentsDataDrivenStyle();
     await _renderAll();
+  }
+
+  Future<void> _applySegmentsDataDrivenStyle() async {
+    final map = _map;
+    if (map == null) return;
+    try {
+      await map.style.setStyleLayerProperty(
+        _layerSegments,
+        'line-color',
+        ['to-color', ['get', 'color']],
+      );
+    } catch (_) {
+      // ignore
+    }
+    try {
+      await map.style.setStyleLayerProperty(
+        _layerSegments,
+        'line-width',
+        ['coalesce', ['get', 'width'], 8.0],
+      );
+    } catch (_) {
+      // ignore
+    }
   }
 
   Future<void> _ensureArrowImage() async {
@@ -246,12 +270,21 @@ class _MapboxNativeCircuitMapState extends State<MapboxNativeCircuitMap> {
   }
 
   Future<void> _updateGeoJson(String sourceId, String fcJson) async {
-    // Update la source GeoJSON
-    // Utiliser setStyleSourceProperties pour mettre à jour les données
+    final map = _map;
+    if (map == null) return;
+    // Update la source GeoJSON (évite flicker): setStyleSourceProperty('data')
     try {
-      // Supprimer et recréer pour mettre à jour les données
-      await _map?.style.removeStyleSource(sourceId);
-    } catch (_) {}
+      await map.style.setStyleSourceProperty(sourceId, 'data', fcJson);
+      return;
+    } catch (_) {
+      // fallback: remove+add
+    }
+
+    try {
+      await map.style.removeStyleSource(sourceId);
+    } catch (_) {
+      // ignore
+    }
     await _tryAddSource(sourceId, fcJson);
   }
 

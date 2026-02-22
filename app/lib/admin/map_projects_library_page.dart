@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import 'circuit_wizard_pro_page.dart';
 import '../pages/circuit_editor_workflow_page.dart';
 
 class MapProjectsLibraryPage extends StatefulWidget {
@@ -13,6 +14,7 @@ class MapProjectsLibraryPage extends StatefulWidget {
 class _MapProjectsLibraryPageState extends State<MapProjectsLibraryPage> {
   String? _selectedMapId;
   String? _selectedMapTitle;
+  bool _selectedIsPoiMap = false;
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +24,20 @@ class _MapProjectsLibraryPageState extends State<MapProjectsLibraryPage> {
       appBar: AppBar(
         title: const Text('Bibliothèque de cartes'),
         actions: [
+          if (_selectedMapId != null && !_selectedIsPoiMap)
+            IconButton(
+              tooltip: 'Ouvrir dans le Wizard Pro',
+              icon: const Icon(Icons.auto_fix_high),
+              onPressed: () {
+                final id = _selectedMapId;
+                if (id == null) return;
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => CircuitWizardProPage(projectId: id),
+                  ),
+                );
+              },
+            ),
           if (_selectedMapId != null)
             Container(
               margin: const EdgeInsets.only(right: 8),
@@ -49,6 +65,7 @@ class _MapProjectsLibraryPageState extends State<MapProjectsLibraryPage> {
                       setState(() {
                         _selectedMapId = null;
                         _selectedMapTitle = null;
+                        _selectedIsPoiMap = false;
                       });
                     },
                     child: const Icon(
@@ -358,9 +375,11 @@ class _MapProjectsLibraryPageState extends State<MapProjectsLibraryPage> {
                                       if (_selectedMapId == d.id) {
                                         _selectedMapId = null;
                                         _selectedMapTitle = null;
+                                        _selectedIsPoiMap = false;
                                       } else {
                                         _selectedMapId = d.id;
                                         _selectedMapTitle = title;
+                                        _selectedIsPoiMap = isPOIMap;
                                       }
                                     });
                                   },

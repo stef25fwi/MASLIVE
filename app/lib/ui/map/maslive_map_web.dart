@@ -93,14 +93,32 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     try {
       final bridge = js.context['MapboxBridge'];
       if (bridge is! js.JsObject) return null;
+
+      // Multi-cartes: préférer getMap(containerId) si disponible.
+      try {
+        final hasGetMap = bridge.hasProperty('getMap');
+        if (hasGetMap == true) {
+          final m = bridge.callMethod('getMap', [_containerId]);
+          if (m is js.JsObject) return m;
+        }
+      } catch (_) {
+        // ignore
+      }
+
+      // Fallback legacy: MapboxBridge.map (global)
       final map = bridge['map'];
       if (map is! js.JsObject) return null;
-      final container = map.callMethod('getContainer');
-      if (container is html.Element) {
-        if (container.id != _containerId) return null;
-      } else if (container is js.JsObject) {
-        final id = container['id'];
-        if (id != _containerId) return null;
+      // Si on peut vérifier le container, on filtre.
+      try {
+        final container = map.callMethod('getContainer');
+        if (container is html.Element) {
+          if (container.id != _containerId) return null;
+        } else if (container is js.JsObject) {
+          final id = container['id'];
+          if (id != _containerId) return null;
+        }
+      } catch (_) {
+        // ignore
       }
       return map;
     } catch (_) {
