@@ -98,7 +98,8 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
   Future<List<LatLng>> _loadProjectRoute(String projectId) async {
     final doc = await FirebaseFirestore.instance.collection('map_projects').doc(projectId).get();
     final data = doc.data();
-    final raw = data?['route'];
+    final current = (data?['current'] is Map) ? Map<String, dynamic>.from(data?['current'] as Map) : null;
+    final raw = (current != null && current['route'] is List) ? current['route'] : data?['route'];
     if (raw is! List) return const [];
 
     final out = <LatLng>[];

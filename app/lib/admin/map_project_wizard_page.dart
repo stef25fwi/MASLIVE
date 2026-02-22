@@ -48,31 +48,46 @@ class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
       return;
     }
 
+    final data = (doc.data() is Map)
+        ? Map<String, dynamic>.from(doc.data() as Map)
+        : const <String, dynamic>{};
+
+    final currentRaw = data['current'];
+    final current = (currentRaw is Map)
+        ? Map<String, dynamic>.from(currentRaw)
+        : const <String, dynamic>{};
+
+    List<Map<String, double>> parsePoints(dynamic raw) {
+      if (raw is! List) return <Map<String, double>>[];
+      double asDouble(dynamic v) => (v is num) ? v.toDouble() : 0.0;
+      return raw
+          .whereType<Map>()
+          .map((p) {
+            final m = Map<String, dynamic>.from(p);
+            return {
+              'lng': asDouble(m['lng']),
+              'lat': asDouble(m['lat']),
+            };
+          })
+          .toList();
+    }
+
+    // Canon: prefer current.* (fallback sur top-level pour compat)
+    final name = (current['name'] ?? data['name'] ?? '').toString();
+    final countryId = (current['countryId'] ?? data['countryId'] ?? '').toString();
+    final eventId = (current['eventId'] ?? data['eventId'] ?? '').toString();
+    final styleUrl = (current['styleUrl'] ?? data['styleUrl'] ?? '').toString();
+    final perimeter = (current['perimeter'] is List) ? current['perimeter'] : data['perimeter'];
+    final route = (current['route'] is List) ? current['route'] : data['route'];
+
     setState(() {
-      _nameController.text = doc.get('name') ?? '';
-      _countryController.text = doc.get('countryId') ?? '';
-      _eventController.text = doc.get('eventId') ?? '';
-      _styleUrlController.text = doc.get('styleUrl') ?? '';
+      _nameController.text = name;
+      _countryController.text = countryId;
+      _eventController.text = eventId;
+      _styleUrlController.text = styleUrl;
 
-      final perimeter = doc.get('perimeter') as List<dynamic>?;
-      if (perimeter != null) {
-        _perimeterPoints = perimeter
-            .map((p) => {
-                  'lng': (p as Map<String, dynamic>)['lng'] as double,
-                  'lat': p['lat'] as double,
-                })
-            .toList();
-      }
-
-      final route = doc.get('route') as List<dynamic>?;
-      if (route != null) {
-        _routePoints = route
-            .map((p) => {
-                  'lng': (p as Map<String, dynamic>)['lng'] as double,
-                  'lat': p['lat'] as double,
-                })
-            .toList();
-      }
+      _perimeterPoints = parsePoints(perimeter);
+      _routePoints = parsePoints(route);
 
       _loading = false;
     });
@@ -92,6 +107,13 @@ class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
         .collection('map_projects')
         .doc(widget.projectId)
         .update({
+      // Canon
+      'current.name': _nameController.text.trim(),
+      'current.countryId': _countryController.text.trim(),
+      'current.eventId': _eventController.text.trim(),
+      'current.styleUrl': _styleUrlController.text.trim(),
+
+      // Compat legacy
       'name': _nameController.text.trim(),
       'countryId': _countryController.text.trim(),
       'eventId': _eventController.text.trim(),
@@ -111,6 +133,9 @@ class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
         .collection('map_projects')
         .doc(widget.projectId)
         .update({
+      // Canon
+      'current.perimeter': _perimeterPoints,
+      // Compat legacy
       'perimeter': _perimeterPoints,
       'updatedAt': FieldValue.serverTimestamp(),
     });
@@ -127,6 +152,9 @@ class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
         .collection('map_projects')
         .doc(widget.projectId)
         .update({
+      // Canon
+      'current.route': _routePoints,
+      // Compat legacy
       'route': _routePoints,
       'updatedAt': FieldValue.serverTimestamp(),
     });

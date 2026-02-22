@@ -90,6 +90,7 @@ class RouteStylePersistence {
       final existingSnap = await doc.get();
       final existingData = existingSnap.data();
       final existingRouteStyleRaw = existingData?['routeStyle'];
+      final existingCurrentRaw = existingData?['current'];
 
       final mergedLegacy = <String, dynamic>{};
       if (existingRouteStyleRaw is Map) {
@@ -112,12 +113,23 @@ class RouteStylePersistence {
       mergedLegacy['animationSpeed'] =
           (config.pulseSpeed / 25.0).clamp(0.5, 5.0);
 
-      await doc.set({
+      final payload = <String, dynamic>{
         'routeStylePro': config.toJson(),
         // Compat “ancienne UI”: un sous-ensemble exploitable immédiatement.
         'routeStyle': mergedLegacy,
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      };
+
+      // Canon writer: si `current` existe déjà, on maintient aussi la sync dans `current.*`.
+      // (Ne pas créer `current` ici: il a une shape stricte côté rules.)
+      if (existingCurrentRaw is Map) {
+        payload['current'] = {
+          'routeStyle': mergedLegacy,
+          'routeStylePro': config.toJson(),
+        };
+      }
+
+      await doc.set(payload, SetOptions(merge: true));
       return;
     }
 
