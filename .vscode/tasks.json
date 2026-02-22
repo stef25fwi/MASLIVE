@@ -68,6 +68,17 @@
       }
     },
     {
+      "label": "MASLIVE: Git commit + push (docs: audit web engines list)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add AUDIT_WIZARD_PRO_MAPBOX_A_TO_E.md .vscode/tasks.json && git commit -m \"docs(audit): update MapboxWebView pages list\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git commit + push (wizard popup nouveau circuit pays+carte+periode)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add app/lib/admin/circuit_wizard_entry_page.dart && git commit -m \"feat(wizard): popup nouveau circuit (pays+carte+periode)\" && git push origin main",

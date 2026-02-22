@@ -78,15 +78,18 @@
 
 1) **Deux moteurs web** (`MasLiveMapWeb` vs `MapboxWebView`) → bugs non reproductibles entre pages.
    - Constat (factuel): `MapboxWebView` est encore utilisé dans plusieurs écrans web, par ex.
-     - `app/lib/pages/home_web_page.dart`
      - `app/lib/pages/home_map_page_web.dart`
-     - `app/lib/pages/route_display_page.dart`
      - `app/lib/pages/tracking_live_page.dart`
      - `app/lib/pages/default_map_page.dart`
      - `app/lib/pages/add_place_page.dart`
      - `app/lib/admin/admin_circuits_page.dart`
      - `app/lib/admin/admin_pois_simple_page.dart`
      - `app/lib/admin/poi_assistant_page.dart`
+     - (hors périmètre “produit”): fichiers `.old` / `*_backup.dart`
+   - Déjà migrés (référence):
+     - `app/lib/pages/home_web_page.dart` → `MasLiveMap`
+     - `app/lib/pages/mapbox_web_map_page.dart` → `MasLiveMap`
+     - `app/lib/pages/route_display_page.dart` → `MasLiveMap`
    - Impact: 2 piles d’implémentation (API/interop/capacités) ⇒ écarts de features (ex: TODO polylines sur certains écrans) et “ça marche ici mais pas là”.
    - Détection rapide: chercher `MapboxWebView` dans `app/lib/**.dart` pour lister les écrans à migrer.
 
@@ -135,12 +138,9 @@
   - Étapes minimales:
     - Recenser les écrans web qui utilisent `MapboxWebView`.
       - Inventaire initial (à confirmer via grep):
-        - `app/lib/pages/home_web_page.dart`
         - `app/lib/pages/home_map_page_web.dart`
-        - `app/lib/pages/mapbox_web_map_page.dart`
         - `app/lib/pages/default_map_page.dart`
         - `app/lib/pages/add_place_page.dart`
-        - `app/lib/pages/route_display_page.dart`
         - `app/lib/pages/tracking_live_page.dart`
         - `app/lib/admin/admin_circuits_page.dart`
         - `app/lib/admin/admin_pois_simple_page.dart`
