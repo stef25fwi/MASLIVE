@@ -326,26 +326,12 @@ class CircuitRepository {
       'route': currentData['route'] ?? const <dynamic>[],
       'perimeter': currentData['perimeter'] ?? const <dynamic>[],
       'style': currentData['routeStyle'] ?? const <String, dynamic>{},
-      'layers': layers
-          .map((l) => {
-                // IMPORTANT: doit matcher le docId `marketMap/.../layers/{layerId}`
-                'id': _marketLayerId(l),
-                'label': l.label,
-                'type': l.type,
-                'isVisible': l.isVisible,
-                'zIndex': l.zIndex,
-              })
-          .toList(),
-      'pois': pois
-          .map((p) => {
-                // IMPORTANT: doit matcher le docId `marketMap/.../pois/{poiId}`
-                'id': _marketPoiId(p),
-                'name': p.name,
-                'layerType': p.layerType,
-                'lng': p.lng,
-                'lat': p.lat,
-              })
-          .toList(),
+      // C4: source-of-truth = sous-collections `layers/pois`.
+      // On supprime les arrays redondants pour éliminer le risque de divergence.
+      'layers': FieldValue.delete(),
+      'pois': FieldValue.delete(),
+      'layersSummary': {'count': layers.length},
+      'poisSummary': {'count': pois.length},
     }, SetOptions(merge: true));
 
     await _syncMarketLayersBatch(

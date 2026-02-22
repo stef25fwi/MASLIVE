@@ -168,7 +168,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
 
   Future<void> _render({int? animTick}) async {
     if (kIsWeb) {
-      await _renderWeb();
+      await _renderWeb(animTick: animTick);
       return;
     }
     if (!_styleReady || _map == null) return;
@@ -272,7 +272,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     }
   }
 
-  Future<void> _renderWeb() async {
+  Future<void> _renderWeb({int? animTick}) async {
     // Web: rendu "pro" via le bridge Mapbox GL JS (casing/glow/dash/opacity...).
     final cfg = widget.config.validated();
     if (widget.route.length < 2) {
@@ -280,6 +280,16 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       _lastWebBoundsKey = null;
       return;
     }
+
+    // Segments (rainbow/traffic/vanishing): FC GeoJSON avec propriétés color/width/opacity.
+    final useSegments = cfg.rainbowEnabled || cfg.trafficDemoEnabled || cfg.vanishingEnabled;
+    final segmentsGeoJson = useSegments
+        ? _buildSegmentsFeatureCollection(
+            widget.route,
+            cfg,
+            animTick: animTick ?? _animTick,
+          )
+        : null;
 
     // Bounds (fit seulement si la géométrie change)
     double minLat = widget.route.first.lat;
@@ -333,6 +343,8 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       dashArray: cfg.dashEnabled ? [cfg.dashLength, cfg.dashGap] : null,
       lineCap: lineCap,
       lineJoin: lineJoin,
+
+      segmentsGeoJson: segmentsGeoJson,
     );
 
     if (_lastWebBoundsKey != boundsKey) {
@@ -534,12 +546,13 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
   }
 
   String _toHexRgba(Color c, {required double opacity}) {
-    final a = ((opacity.clamp(0.0, 1.0)) * 255).round().clamp(0, 255);
-    final rr = ((c.r * 255).round()).clamp(0, 255).toRadixString(16).padLeft(2, '0');
-    final gg = ((c.g * 255).round()).clamp(0, 255).toRadixString(16).padLeft(2, '0');
-    final bb = ((c.b * 255).round()).clamp(0, 255).toRadixString(16).padLeft(2, '0');
-    final aa = a.toRadixString(16).padLeft(2, '0');
-    return '#${rr.toUpperCase()}${gg.toUpperCase()}${bb.toUpperCase()}${aa.toUpperCase()}';
+    // Mapbox GL JS & style-spec acceptent bien les couleurs CSS rgba().
+    // On évite les hex #RRGGBBAA (support variable selon environnements).
+    final a = opacity.clamp(0.0, 1.0);
+    final r = ((c.r * 255).round()).clamp(0, 255);
+    final g = ((c.g * 255).round()).clamp(0, 255);
+    final b = ((c.b * 255).round()).clamp(0, 255);
+    return 'rgba($r,$g,$b,${a.toStringAsFixed(3)})';
   }
 
   int _argbInt(Color c) {
@@ -566,7 +579,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
           initialZoom: 13.5,
           onMapReady: (_) {
             widget.onMapReady?.call();
-            _renderWeb();
+            _renderWeb(animTick: _animTick);
           },
         ),
       );

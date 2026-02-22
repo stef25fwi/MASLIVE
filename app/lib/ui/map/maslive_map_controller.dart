@@ -182,6 +182,7 @@ class MasLiveMapController {
     List<double>? dashArray,
     String? lineCap,
     String? lineJoin,
+    String? segmentsGeoJson,
   }) async {
     await _setPolylineImpl?.call(
       points,
@@ -205,6 +206,7 @@ class MasLiveMapController {
         dashArray: dashArray,
         lineCap: lineCap,
         lineJoin: lineJoin,
+        segmentsGeoJson: segmentsGeoJson,
       ),
     );
   }
@@ -298,6 +300,15 @@ class PolylineRenderOptions {
   final String? lineCap;
   final String? lineJoin;
 
+  /// Optionnel (Web): GeoJSON FeatureCollection de segments.
+  ///
+  /// Permet d'appliquer des styles par segment via expressions (ex: rainbow/traffic/vanishing).
+  /// Format attendu: FeatureCollection contenant des LineString avec properties:
+  /// - color: string (CSS color)
+  /// - width: number
+  /// - opacity: number
+  final String? segmentsGeoJson;
+
   const PolylineRenderOptions({
     this.roadLike = true,
     this.shadow3d = true,
@@ -315,6 +326,7 @@ class PolylineRenderOptions {
     this.dashArray,
     this.lineCap,
     this.lineJoin,
+    this.segmentsGeoJson,
   });
 
   Map<String, dynamic> toJson() => {
@@ -334,6 +346,7 @@ class PolylineRenderOptions {
         if (dashArray != null) 'dashArray': dashArray,
         if (lineCap != null) 'lineCap': lineCap,
         if (lineJoin != null) 'lineJoin': lineJoin,
+        if (segmentsGeoJson != null) 'segmentsGeoJson': segmentsGeoJson,
       };
 
   static String _toHexRgb(Color c) {

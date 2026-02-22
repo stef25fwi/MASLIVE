@@ -405,6 +405,7 @@
     _removeLayerIfExists(map, 'maslive_polyline_arrows');
     _removeLayerIfExists(map, 'maslive_polyline_layer');
     _removeSourceIfExists(map, 'maslive_polyline');
+    _removeSourceIfExists(map, 'maslive_polyline_segments');
   }
 
   function _stopRouteAnimation(state) {
@@ -640,6 +641,7 @@
       const map = state ? state.map : null;
       if (!map) return;
       const sourceId = 'maslive_polyline';
+      const segmentsSourceId = 'maslive_polyline_segments';
 
       try {
         if (!show) {
@@ -667,6 +669,19 @@
         const lineCap = (opts.lineCap === 'butt' || opts.lineCap === 'square' || opts.lineCap === 'round') ? opts.lineCap : 'round';
         const lineJoin = (opts.lineJoin === 'bevel' || opts.lineJoin === 'miter' || opts.lineJoin === 'round') ? opts.lineJoin : 'round';
 
+        // Optionnel: rendu par segments (FeatureCollection) pour styles avancés.
+        let segmentsFc = null;
+        try {
+          if (typeof opts.segmentsGeoJson === 'string' && opts.segmentsGeoJson.trim()) {
+            const decoded = JSON.parse(opts.segmentsGeoJson);
+            if (decoded && decoded.type === 'FeatureCollection' && Array.isArray(decoded.features)) {
+              segmentsFc = decoded;
+            }
+          }
+        } catch (_) {
+          segmentsFc = null;
+        }
+
         const points = pointsJson ? JSON.parse(pointsJson) : [];
         const coords = points.map((p) => [Number(p.lng), Number(p.lat)]);
         const geojson = {
@@ -681,6 +696,19 @@
           src.setData(geojson);
         }
 
+        // Segments source (optionnel)
+        const segSrc = map.getSource(segmentsSourceId);
+        if (segmentsFc) {
+          if (!segSrc) {
+            map.addSource(segmentsSourceId, { type: 'geojson', data: segmentsFc });
+          } else {
+            segSrc.setData(segmentsFc);
+          }
+        } else {
+          // Nettoyage si on repasse en mode “plein”
+          _removeSourceIfExists(map, segmentsSourceId);
+        }
+
         // Recréer les couches pour refléter le style
         _removeLayerIfExists(map, 'maslive_polyline_center');
         _removeLayerIfExists(map, 'maslive_polyline_core');
@@ -693,15 +721,20 @@
         const w = Number(width || 6);
         const mainColor = String(colorHex || '#1A73E8');
 
+        const mainSource = segmentsFc ? segmentsSourceId : sourceId;
+        const mainLineColor = segmentsFc ? ['get', 'color'] : mainColor;
+        const mainLineWidth = segmentsFc ? ['get', 'width'] : w;
+        const mainLineOpacity = segmentsFc ? ['get', 'opacity'] : opacity;
+
         if (!roadLike) {
           map.addLayer({
             id: 'maslive_polyline_layer',
             type: 'line',
-            source: sourceId,
+            source: mainSource,
             paint: {
-              'line-width': w,
-              'line-color': mainColor,
-              'line-opacity': opacity,
+              'line-width': mainLineWidth,
+              'line-color': mainLineColor,
+              'line-opacity': mainLineOpacity,
               'line-cap': lineCap,
               'line-join': lineJoin,
             },
@@ -757,28 +790,32 @@
           map.addLayer({
             id: 'maslive_polyline_core',
             type: 'line',
-            source: sourceId,
+            source: mainSource,
             paint: {
-              'line-width': w,
-              'line-color': mainColor,
-              'line-opacity': opacity,
+              'line-width': mainLineWidth,
+              'line-color': mainLineColor,
+              'line-opacity': mainLineOpacity,
               'line-cap': lineCap,
               'line-join': lineJoin,
             },
           });
 
-          map.addLayer({
-            id: 'maslive_polyline_center',
-            type: 'line',
-            source: sourceId,
-            paint: {
-              'line-width': Math.max(1, Math.min(w, w * 0.33)),
-              'line-color': 'rgba(255,255,255,0.85)',
-              'line-opacity': opacity,
-              'line-cap': lineCap,
-              'line-join': lineJoin,
-            },
-          });
+          // Sur un rendu segmenté (multi-couleurs), on évite la "center line" blanche
+          // pour rester proche du rendu natif (segments) et ne pas dégrader la lisibilité.
+          if (!segmentsFc) {
+            map.addLayer({
+              id: 'maslive_polyline_center',
+              type: 'line',
+              source: sourceId,
+              paint: {
+                'line-width': Math.max(1, Math.min(w, w * 0.33)),
+                'line-color': 'rgba(255,255,255,0.85)',
+                'line-opacity': opacity,
+                'line-cap': lineCap,
+                'line-join': lineJoin,
+              },
+            });
+          }
         }
 
         if (dashArray && dashArray.length >= 2) {
@@ -905,6 +942,7 @@
         _removeLayerIfExists(map, 'maslive_polyline_arrows');
         _removeLayerIfExists(map, 'maslive_polyline_layer');
         _removeSourceIfExists(map, 'maslive_polyline');
+        _removeSourceIfExists(map, 'maslive_polyline_segments');
         _removeLayerIfExists(map, 'maslive_polygon_line');
         _removeLayerIfExists(map, 'maslive_polygon_fill');
         _removeSourceIfExists(map, 'maslive_polygon');
