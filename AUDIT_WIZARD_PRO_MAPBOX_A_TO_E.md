@@ -90,8 +90,8 @@
      - `app/lib/pages/home_web_page.dart` → `MasLiveMap`
      - `app/lib/pages/mapbox_web_map_page.dart` → `MasLiveMap`
      - `app/lib/pages/route_display_page.dart` → `MasLiveMap`
-   - Impact: 2 piles d’implémentation (API/interop/capacités) ⇒ écarts de features (ex: TODO polylines sur certains écrans) et “ça marche ici mais pas là”.
-   - Détection rapide: chercher `MapboxWebView` dans `app/lib/**.dart` pour lister les écrans à migrer.
+   - Impact: 2 piles d’implémentation (API/interop/capacités) ⇒ écarts de features et “ça marche ici mais pas là”.
+   - Détection rapide (pragmatique): chercher les imports `mapbox_web_view_platform.dart` et `mapbox_web_view.dart` (ou `mapbox_web_view_*.dart`) dans `app/lib/**.dart` pour lister les écrans à migrer.
 
 2) **Couleurs/tailles POI paramétrables** (plus de hardcode obligatoire).
    - État: ✅ livré via un style POI dédié.
