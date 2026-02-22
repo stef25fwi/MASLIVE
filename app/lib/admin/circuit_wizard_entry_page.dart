@@ -262,6 +262,27 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
       final countryId = input.countryId.trim();
       final eventId = input.eventId.trim();
 
+      // Contexte utilisateur (groupId) requis par les règles map_projects.
+      String groupId = 'default';
+      try {
+        final userDoc = await _firestore.collection('users').doc(user.uid).get();
+        final data = userDoc.data() ?? const <String, dynamic>{};
+        final g = (data['groupId'] as String?)?.trim() ?? '';
+        if (g.isNotEmpty) groupId = g;
+      } catch (_) {
+        // ignore (fallback = default)
+      }
+
+      const defaultRouteStyle = <String, dynamic>{
+        'color': '#1A73E8',
+        'width': 6.0,
+        'roadLike': true,
+        'shadow3d': true,
+        'showDirection': true,
+        'animateDirection': false,
+        'animationSpeed': 1.0,
+      };
+
       // Si l'utilisateur saisit un événement (editable), on s'assure que le doc existe.
       // (Sinon le wizard pro ne pourra pas charger les streams marketMap.)
       if (countryId.isNotEmpty && eventId.isNotEmpty) {
@@ -289,6 +310,29 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
 
       final ref = _firestore.collection('map_projects').doc();
       await ref.set({
+        // Champs imposés par les règles (validProjectPayloadCreate)
+        'uid': user.uid,
+        'createdBy': user.uid,
+        'groupId': groupId,
+        'sourceOfTruth': 'map_projects',
+        'status': 'draft',
+        'version': 1,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+
+        // Source de vérité pour le wizard
+        'current': {
+          'name': input.name.trim(),
+          'countryId': countryId,
+          'eventId': eventId,
+          'description': '',
+          'styleUrl': '',
+          'perimeter': <dynamic>[],
+          'route': <dynamic>[],
+          'routeStyle': defaultRouteStyle,
+        },
+
+        // Compat legacy (facultatif mais utile pour le listing/anciens écrans)
         'name': input.name.trim(),
         'countryId': countryId,
         'countryName': input.countryName,
@@ -302,10 +346,7 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
         'styleUrl': '',
         'perimeter': <dynamic>[],
         'route': <dynamic>[],
-        'status': 'draft',
-        'uid': user.uid,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
+        'routeStyle': defaultRouteStyle,
       });
 
       if (!mounted) return;
