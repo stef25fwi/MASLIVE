@@ -42,6 +42,8 @@ class MapboxTokenService {
       );
       _cachedToken = info.token;
       _cachedSource = info.source;
+      // Web: garde aussi le token côté JS pour compat bridge/legacy.
+      writeWebMapboxToken(info.token);
       return info;
     }
 
@@ -52,6 +54,7 @@ class MapboxTokenService {
       );
       _cachedToken = info.token;
       _cachedSource = info.source;
+      writeWebMapboxToken(info.token);
       return info;
     }
 
@@ -76,6 +79,7 @@ class MapboxTokenService {
       );
       _cachedToken = info.token;
       _cachedSource = info.source;
+      writeWebMapboxToken(info.token);
       return info;
     }
 
@@ -87,12 +91,14 @@ class MapboxTokenService {
       );
       _cachedToken = info.token;
       _cachedSource = info.source;
+      writeWebMapboxToken(info.token);
       return info;
     }
 
     const info = MapboxTokenInfo(token: '', source: 'aucun');
     _cachedToken = info.token;
     _cachedSource = info.source;
+    clearWebMapboxToken();
     return info;
   }
 
@@ -143,6 +149,8 @@ class MapboxTokenService {
 
       _cachedToken = '';
       _cachedSource = 'aucun';
+
+      clearWebMapboxToken();
       return;
     }
 
@@ -150,6 +158,7 @@ class MapboxTokenService {
 
     _cachedToken = trimmed;
     _cachedSource = 'SharedPreferences $_prefsKey';
+    writeWebMapboxToken(trimmed);
   }
 
   static Future<void> clearToken() async {
@@ -159,5 +168,7 @@ class MapboxTokenService {
 
     _cachedToken = '';
     _cachedSource = 'aucun';
+
+    clearWebMapboxToken();
   }
 }

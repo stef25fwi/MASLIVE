@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:get/get.dart';
+import 'dart:async';
 import 'firebase_options.dart';
 import 'session/session_controller.dart';
 import 'session/session_scope.dart';
@@ -59,6 +60,7 @@ import 'ui/theme/maslive_theme.dart';
 import 'ui/widgets/honeycomb_background.dart';
 import 'l10n/app_localizations.dart';
 import 'pages/circuit_editor_workflow_page.dart';
+import 'pages/splash_screen.dart';
 import 'pages/seller/seller_inbox_page.dart';
 import 'pages/seller/seller_order_detail_page.dart';
 import 'pages/commerce/create_product_page.dart';
@@ -91,45 +93,117 @@ Future<void> main() async {
     ),
   );
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // ✅ Important: ne jamais bloquer avant le premier frame.
+  // Sinon l'utilisateur reste coincé sur le splash natif (Android/iOS) ou sur
+  // le loader web sans que la splash Flutter n'apparaisse.
+  runApp(const _BootstrapRoot());
+}
 
-  // ⚠️ Sur web, l'init Stripe peut bloquer le démarrage (loader infini avant runApp).
-  // On évite tout `await` Stripe côté web.
-  if (!kIsWeb) {
-    Stripe.publishableKey =
-        "pk_test_51Ssn0PCCIRtTE2nOVARmqXRG6rRTiNxeuvHiwU2zuqcKYn0l1KdzptkB4ZWlHtYcFedBiGlHqB4OLQcQzXC9A6SY00OcBNOnDr"; // <-- ton publishable key
-    try {
-      await Stripe.instance.applySettings();
-    } catch (_) {
-      // Ne bloque pas le démarrage si Stripe n'est pas prêt.
-    }
+class _BootResult {
+  final SessionController session;
+  const _BootResult({required this.session});
+}
+
+class _BootstrapRoot extends StatefulWidget {
+  const _BootstrapRoot();
+
+  @override
+  State<_BootstrapRoot> createState() => _BootstrapRootState();
+}
+
+class _BootstrapRootState extends State<_BootstrapRoot> {
+  late final Future<_BootResult> _boot;
+
+  @override
+  void initState() {
+    super.initState();
+    _boot = _bootstrap();
   }
 
-  // ✅ Initialiser le token Mapbox (charge depuis SharedPreferences si dispo)
-  await MapboxTokenService.warmUp();
+  Future<_BootResult> _bootstrap() async {
+    // 1) Firebase: requis pour auth/firestore. On timeoute pour éviter un blocage infini.
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      ).timeout(const Duration(seconds: 12));
+    } catch (e) {
+      debugPrint('❌ Bootstrap: Firebase.initializeApp failed/timeout: $e');
+      // On continue quand même pour afficher l'UI (les pages Firebase pourront
+      // afficher leurs erreurs au lieu d'un splash natif infini).
+    }
 
-  // ✅ Initialiser le service de langue
-  await Get.putAsync(() => LanguageService().init());
+    // 2) Stripe (native uniquement): ne doit jamais bloquer le démarrage.
+    if (!kIsWeb) {
+      Stripe.publishableKey =
+          "pk_test_51Ssn0PCCIRtTE2nOVARmqXRG6rRTiNxeuvHiwU2zuqcKYn0l1KdzptkB4ZWlHtYcFedBiGlHqB4OLQcQzXC9A6SY00OcBNOnDr";
+      try {
+        await Stripe.instance
+            .applySettings()
+            .timeout(const Duration(seconds: 4));
+      } catch (e) {
+        debugPrint('⚠️ Bootstrap: Stripe applySettings skipped: $e');
+      }
+    }
 
-  // ✅ RevenueCat init (mets ta clé via --dart-define=RC_API_KEY=...)
-  await PremiumService.instance.init(
-    revenueCatApiKey: const String.fromEnvironment(
-      'RC_API_KEY',
-      defaultValue: 'REVENUECAT_PUBLIC_SDK_KEY_HERE',
-    ),
-    entitlementId: 'premium',
-  );
+    // 3) Mapbox token warmup: SharedPreferences (rapide) mais on timeoute par sûreté.
+    try {
+      await MapboxTokenService.warmUp().timeout(const Duration(seconds: 2));
+    } catch (e) {
+      debugPrint('⚠️ Bootstrap: MapboxTokenService.warmUp skipped: $e');
+    }
 
-  // ✅ Initialiser la session (auth listener)
-  final session = SessionController()..start();
+    // 4) LanguageService: doit exister avant build() (Get.find). Init best-effort.
+    try {
+      await Get.putAsync(() => LanguageService().init())
+          .timeout(const Duration(seconds: 3));
+    } catch (e) {
+      debugPrint('⚠️ Bootstrap: LanguageService init fallback: $e');
+      if (!Get.isRegistered<LanguageService>()) {
+        Get.put(LanguageService());
+      }
+    }
 
-  // ✅ Initialiser le panier (sync Firestore si connecté)
-  CartService.instance.start();
+    // 5) PremiumService: jamais bloquant (plugins réseau). On lance en arrière-plan.
+    unawaited(
+      PremiumService.instance
+          .init(
+            revenueCatApiKey: const String.fromEnvironment(
+              'RC_API_KEY',
+              defaultValue: 'REVENUECAT_PUBLIC_SDK_KEY_HERE',
+            ),
+            entitlementId: 'premium',
+          )
+          .timeout(const Duration(seconds: 8))
+          .catchError((e) {
+        debugPrint('⚠️ Bootstrap: PremiumService init skipped: $e');
+      }),
+    );
 
-  // ✅ Notifications: synchronise le token FCM dans users/{uid}
-  NotificationsService.instance.start(navigatorKey: _rootNavigatorKey);
+    // 6) Session + services (non bloquants)
+    final session = SessionController()..start();
+    CartService.instance.start();
+    NotificationsService.instance.start(navigatorKey: _rootNavigatorKey);
 
-  runApp(MasLiveApp(session: session));
+    return _BootResult(session: session);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<_BootResult>(
+      future: _boot,
+      builder: (context, snapshot) {
+        final boot = snapshot.data;
+        if (boot == null) {
+          // UI ultra-minimale pendant init, pour enlever le splash natif le plus vite possible.
+          return const MaterialApp(
+            debugShowCheckedModeBanner: false,
+            home: SplashScreen(),
+          );
+        }
+        return MasLiveApp(session: boot.session);
+      },
+    );
+  }
 }
 
 class MasLiveApp extends StatelessWidget {
