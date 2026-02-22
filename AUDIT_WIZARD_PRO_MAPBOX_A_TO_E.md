@@ -136,8 +136,9 @@
 - Option A (recommandée): **standardiser sur `MasLiveMapWeb`**
   - Pourquoi: API unifiée `MasLiveMap` (web+natif), support POIs GeoJSON + hit-test déjà intégré, et un seul point d’évolution.
   - Étapes minimales:
-    - Recenser les écrans web qui utilisent `MapboxWebView`.
-      - Inventaire initial (à confirmer via grep):
+    - Recenser les écrans web qui utilisent encore le widget legacy.
+      - Méthode (grep-proof): chercher les imports `mapbox_web_view_platform.dart` et `mapbox_web_view.dart` (ou `mapbox_web_view_*.dart`) dans `app/lib/**.dart`.
+      - Inventaire initial (pages restantes, à confirmer via grep):
         - `app/lib/pages/home_map_page_web.dart`
         - `app/lib/pages/default_map_page.dart`
         - `app/lib/pages/add_place_page.dart`
@@ -145,6 +146,10 @@
         - `app/lib/admin/admin_circuits_page.dart`
         - `app/lib/admin/admin_pois_simple_page.dart`
         - `app/lib/admin/poi_assistant_page.dart`
+      - Déjà migrés (référence):
+        - `app/lib/pages/home_web_page.dart`
+        - `app/lib/pages/mapbox_web_map_page.dart`
+        - `app/lib/pages/route_display_page.dart`
       - Note: ignorer les fichiers de type `*_backup.dart` dans la migration “produit”.
     - Remplacer ces usages par `MasLiveMap` quand l’API Phase 1 couvre le besoin (markers/polyline/polygon/style + callbacks).
     - Pour les besoins manquants, étendre l’API Phase 1 dans `MasLiveMapController` plutôt que réintroduire un second widget.
