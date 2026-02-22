@@ -112,7 +112,7 @@
 5) **Limite Firestore `whereIn` (10)**: déjà contournée côté client quand nécessaire, mais peut surprendre et coûter en bande passante si les filtres grossissent.
 
 6) **Preview web Style Pro**: web volontairement simplifié vs mobile plus riche (à assumer explicitement en UX si c’est un choix produit).
-- Fichier: app/lib/route_style_pro/ui/widgets/route_style_preview_map.dart
+  - Fichier: `app/lib/route_style_pro/ui/widgets/route_style_preview_map.dart`
 
 7) **Persistance Style Pro**: champs multiples / compat partielle → risque d’incohérence si migration partielle.
 
@@ -165,9 +165,15 @@
   - Parité minimale validée: markers + polyline + polygon + POIs GeoJSON (source/layer) + hit-testing POI.
   - Analyse/CI: pas d’augmentation du bruit lints lié au web (et suppression des ignores quand migration `package:web` sera faite).
 
-### P2 (Style Pro) — ⚠️ À CLARIFIER
-- Soit aligner la preview web sur un rendu plus proche mobile,
-- soit assumer explicitement une **“preview simplifiée”** (libellé UX + limites connues).
+### P2 (Style Pro) — ⚠️ À DÉCIDER
+- Périmètre: **preview web** du rendu Style Pro.
+  - Fichier: `app/lib/route_style_pro/ui/widgets/route_style_preview_map.dart`
+- Option A: **aligner la preview web** sur un rendu plus proche mobile.
+  - Idée: reproduire le pipeline “casing/glow/overlay” en layers (web) plutôt qu’une polyline unique.
+  - DoD: rendu web visuellement comparable (mêmes couleurs/épaisseurs/effets principaux).
+- Option B: **assumer une preview simplifiée**.
+  - Idée: garder un rendu web minimal mais afficher explicitement un libellé (ex: “Preview simplifiée sur web”) + documenter les limites.
+  - DoD: aucune ambiguïté UX + pas de divergence “surprise” vs mobile.
 
 ---
 
