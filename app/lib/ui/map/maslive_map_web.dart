@@ -58,6 +58,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
   String _mapboxToken = '';
   bool _isLoading = true;
+  String? _initError;
   late final String _containerId;
   bool _isMapReady = false;
   void Function(double lat, double lng)? _onPointAddedCallback;
@@ -325,6 +326,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         setState(() {
           _mapboxToken = info.token;
           _isLoading = false;
+          _initError = null;
         });
       }
     } catch (e) {
@@ -332,6 +334,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         setState(() {
           _mapboxToken = '';
           _isLoading = false;
+          _initError = null;
         });
       }
     }
@@ -539,6 +542,44 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       );
     }
 
+    final initError = _initError;
+    if (initError != null && initError.isNotEmpty) {
+      return Container(
+        color: Colors.grey.shade100,
+        padding: const EdgeInsets.all(16),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.warning_amber_rounded, size: 56),
+                const SizedBox(height: 12),
+                const Text(
+                  'Impossible d\'afficher la carte',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  initError,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Token source: ${MapboxTokenService.getTokenSourceSync()}\n'
+                  'Si tu utilises un bloqueur (adblock) ou un réseau filtré,\n'
+                  'les scripts https://api.mapbox.com peuvent être bloqués.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final w = constraints.maxWidth;
@@ -566,6 +607,12 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           onMapReady: _onMapReady,
           onTap: (lng, lat) {
             _handleTapFromJs(lng, lat);
+          },
+          onInitError: (msg) {
+            if (!mounted) return;
+            setState(() {
+              _initError = msg;
+            });
           },
         );
       },
@@ -597,6 +644,7 @@ class _MapboxWebViewCustom extends StatefulWidget {
   final String? styleUrl;
   final VoidCallback? onMapReady;
   final void Function(double lng, double lat)? onTap;
+  final void Function(String message)? onInitError;
 
   const _MapboxWebViewCustom({
     super.key,
@@ -610,6 +658,7 @@ class _MapboxWebViewCustom extends StatefulWidget {
     this.styleUrl,
     this.onMapReady,
     this.onTap,
+    this.onInitError,
   });
 
   @override
@@ -619,6 +668,7 @@ class _MapboxWebViewCustom extends StatefulWidget {
 class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
   late final String _viewType;
   StreamSubscription<html.MessageEvent>? _messageSub;
+  bool _didInit = false;
 
   @override
   void initState() {
@@ -665,6 +715,9 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
         container.style.height = '100%';
 
         Future.delayed(const Duration(milliseconds: 100), () {
+          if (!mounted || _didInit) return;
+          _didInit = true;
+
           final optionsJson = jsonEncode({
             'style': widget.styleUrl,
             'center': [widget.initialLng, widget.initialLat],
@@ -672,7 +725,19 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
             'pitch': widget.initialPitch,
             'bearing': widget.initialBearing,
           });
-          _mbInit(widget.containerId, widget.accessToken, optionsJson);
+
+          try {
+            final ok = _mbInit(widget.containerId, widget.accessToken, optionsJson);
+            if (ok != true) {
+              widget.onInitError?.call(
+                'Initialisation Mapbox GL JS échouée (token invalide, scripts Mapbox bloqués, ou WebGL indisponible).',
+              );
+            }
+          } catch (e) {
+            widget.onInitError?.call(
+              'Erreur Mapbox GL JS: $e',
+            );
+          }
         });
 
         return container;
