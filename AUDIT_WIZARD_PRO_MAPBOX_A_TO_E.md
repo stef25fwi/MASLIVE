@@ -66,8 +66,8 @@
 - Archive: app/_archive/ui/wizard/pro_circuit_wizard_page.dart
 - Exclusion analyse: app/analysis_options.yaml (`_archive/**`)
 
-⚠️ **Dualité Mapbox web**: cohabitation de `MasLiveMapWeb` (bridge + POI hit-test + sources/layers) et `MapboxWebView` (widget séparé). Cela peut générer des comportements différents selon les pages.
-- Fichiers: app/lib/ui/map/maslive_map_web.dart + app/lib/ui/widgets/mapbox_web_view*.dart
+⚠️ **Dualité Mapbox web**: cohabitation de `MasLiveMapWeb` (moteur “standard” via `MasLiveMap`) et `MapboxWebView` (widget legacy séparé, encore utilisé par certains écrans listés en C.1). Cela peut générer des comportements différents selon les pages.
+- Fichiers: app/lib/ui/map/maslive_map_web.dart + app/lib/ui/widgets/mapbox_web_view_platform.dart + app/lib/ui/widgets/mapbox_web_view*.dart
 
 ⚠️ **Interop web**: certains imports web (`dart:html`, `dart:js`) sont désormais “deprecated” côté lints; ils sont actuellement ignorés de manière ciblée dans `MasLiveMapWeb`.
 - Fichier: app/lib/ui/map/maslive_map_web.dart
