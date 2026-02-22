@@ -85,10 +85,6 @@ service cloud.firestore {
       return isSignedIn() && isMasterAdmin();
     }
 
-    function isAdminGroup() {
-      return isSignedIn() && (userRole() == 'admin_group' || userRole() == 'admin_groupe' || userRole() == 'group' || userRole() == 'group-admin');
-    }
-
     function isTracker() {
       return isSignedIn() && (userRole() == 'tracker_groupe' || userRole() == 'tracker');
     }
@@ -110,6 +106,13 @@ service cloud.firestore {
       return isMasterAdmin() 
         || isGroupAdmin(groupId)
         || userGroupId() == groupId;
+    }
+
+    // Autorise l'écriture dans `marketMap` si et seulement si l'écriture est
+    // rattachée à un projet `map_projects/{projectId}` du groupe de l'admin.
+    // (Le chemin marketMap ne porte pas le groupId, on contrôle via sourceProjectId)
+    function canWriteMarketMapFromProject() {
+      return isMasterAdmin();
     }
 
     // ========== COLLECTION: ROLES (Définitions des rôles) ==========
@@ -477,20 +480,57 @@ service cloud.firestore {
       allow create, update, delete: if canManageContent();
     }
 
-    // ========== COLLECTION: MARKETMAP (Wizard POIs / Circuits / Layers) ==========
+    // ========== COLLECTION: MARKETMAP (POIs / Circuits / Layers) ==========
     // Schéma:
     // marketMap/{countryId}/events/{eventId}/circuits/{circuitId}/layers/{layerId}
     // marketMap/{countryId}/events/{eventId}/circuits/{circuitId}/pois/{poiId}
     //
-    // Lecture: nécessaire pour afficher les POIs sur la carte (web + mobile).
-    // Écriture: réservée aux admins master (wizard admin).
+    // Lecture: publique (viewer web + mobile).
+    // Écriture:
+    // - Master admin: autorisé.
+    // - Group-admin: non autorisé (édition/publish carte retirés).
     match /marketMap/{countryId} {
       allow read: if true;
-      allow create, update, delete: if isMasterAdmin();
 
-      match /{document=**} {
+      // Doc "pays" : essentiellement du metadata. Écriture réservée admin master.
+      allow create, update: if isMasterAdmin();
+      allow delete: if isMasterAdmin();
+
+      match /events/{eventId} {
         allow read: if true;
-        allow create, update, delete: if isMasterAdmin();
+
+        // Doc "event" : metadata. Écriture réservée admin master.
+        allow create, update: if isMasterAdmin();
+        allow delete: if isMasterAdmin();
+
+        match /circuits/{circuitId} {
+          allow read: if true;
+
+          // Create: doit prouver l'appartenance via sourceProjectId.
+          allow create: if canWriteMarketMapFromProject()
+            && request.resource.data.countryId == countryId
+            && request.resource.data.eventId == eventId;
+
+          // Update: même contrainte (sur le circuit existant).
+          allow update: if canWriteMarketMapFromProject()
+            && request.resource.data.countryId == countryId
+            && request.resource.data.eventId == eventId;
+
+          // Delete: pas de request.resource.data, on valide via resource.
+          allow delete: if canWriteMarketMapFromProject()
+            && resource.data.countryId == countryId
+            && resource.data.eventId == eventId;
+
+          match /layers/{layerId} {
+            allow read: if true;
+            allow create, update, delete: if isMasterAdmin();
+          }
+
+          match /pois/{poiId} {
+            allow read: if true;
+            allow create, update, delete: if isMasterAdmin();
+          }
+        }
       }
     }
 
@@ -813,7 +853,6 @@ service cloud.firestore {
           mapProjectDoc(projectId).status == 'published'
           || isMasterAdmin()
           || isProjectCreator(projectId)
-          || isGroupAdmin(projectGroupId(projectId))
         );
     }
 
@@ -891,9 +930,11 @@ service cloud.firestore {
     }
 
     match /map_projects/{projectId} {
-      allow create: if isSignedIn() && isMasterAdmin() && validProjectPayloadCreate();
+      allow create: if isSignedIn()
+        && isMasterAdmin()
+        && validProjectPayloadCreate();
 
-      // Lecture publique UNIQUEMENT si published (sinon: admins/créateur/groupe)
+      // Lecture publique UNIQUEMENT si published (sinon: admins/créateur)
       allow read: if canReadProject(projectId);
 
       allow update: if isSignedIn()
@@ -904,30 +945,36 @@ service cloud.firestore {
 
       match /layers/{layerId} {
         allow read: if canReadProject(projectId);
-        allow create, update, delete: if isSignedIn() && isMasterAdmin();
+        allow create, update, delete: if isSignedIn() && (
+          isMasterAdmin()
+        );
       }
 
       match /pois/{poiId} {
         allow read: if canReadProject(projectId);
-        allow create, update, delete: if isSignedIn() && isMasterAdmin();
+        allow create, update, delete: if isSignedIn() && (
+          isMasterAdmin()
+        );
       }
 
       match /drafts/{draftId} {
         // Historique interne: jamais public
         allow read: if isSignedIn() && (
-          isMasterAdmin() || isProjectCreator(projectId) || isGroupAdmin(projectGroupId(projectId))
+          isMasterAdmin() || isProjectCreator(projectId)
         );
-        allow create, update, delete: if isSignedIn() && isMasterAdmin();
+        allow create, update, delete: if isSignedIn() && (
+          isMasterAdmin()
+        );
       }
 
       // ===== Live locations (écriture uniquement par soi-même, lecture restreinte) =====
       match /live_locations/{uid} {
         // Interdit au public: positions individuelles
-        allow read: if isAdminMaster() || isGroupAdmin(projectGroupId(projectId));
+        allow read: if isAdminMaster();
 
         allow create, update: if isSignedIn()
           && request.auth.uid == uid
-          && (isTracker() || isAdminGroup())
+          && isTracker()
           && request.resource.data.keys().hasAll([
               'groupId', 'roleInGroup', 'pos', 'updatedAt', 'expiresAt'
           ])
@@ -936,9 +983,7 @@ service cloud.firestore {
           ])
           && request.resource.data.groupId is string
           && request.resource.data.groupId == projectGroupId(projectId)
-          && request.resource.data.roleInGroup in ['tracker', 'admin_group']
-            && ((isTracker() && request.resource.data.roleInGroup == 'tracker')
-              || (isAdminGroup() && request.resource.data.roleInGroup == 'admin_group'))
+          && request.resource.data.roleInGroup == 'tracker'
             && request.resource.data.pos is latlng
           && (!('heading' in request.resource.data) || request.resource.data.heading is number)
           && (!('speed' in request.resource.data) || request.resource.data.speed is number)
