@@ -261,7 +261,7 @@ class _LiveTrackingPageState extends State<LiveTrackingPage> {
     return Scaffold(
       appBar: AppBar(title: Text('Tracking Live')),
       body: StreamBuilder<QuerySnapshot>(
-        stream: _firestore.collection('groupLocations').snapshots(),
+        stream: _firestore.collection('group_locations').snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return Center(child: CircularProgressIndicator());

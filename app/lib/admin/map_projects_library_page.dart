@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import 'circuit_wizard_pro_page.dart';
+import 'poi_marketmap_wizard_page.dart';
 import '../pages/circuit_editor_workflow_page.dart';
 
 class MapProjectsLibraryPage extends StatefulWidget {
@@ -34,6 +35,20 @@ class _MapProjectsLibraryPageState extends State<MapProjectsLibraryPage> {
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => CircuitWizardProPage(projectId: id),
+                  ),
+                );
+              },
+            ),
+          if (_selectedMapId != null && _selectedIsPoiMap)
+            IconButton(
+              tooltip: 'Ouvrir le Wizard POI',
+              icon: const Icon(Icons.place_outlined),
+              onPressed: () {
+                // `poi_maps` est un flux legacy; la source de vérité POI est maintenant `marketMap`.
+                // On ouvre le wizard POI (MarketMap) pour édition.
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const POIMarketMapWizardPage(),
                   ),
                 );
               },

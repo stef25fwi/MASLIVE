@@ -765,9 +765,9 @@ for (final layerDoc in layersSnapshot.docs) {
   
   switch (layer['type']) {
     case 'tracking':
-      // Afficher markers en temps réel (source externe: groupLocations)
+      // Afficher markers en temps réel (source externe: group_locations)
       final trackingSnapshot = await firestore
-        .collection('groupLocations')
+        .collection('group_locations')
         .get();
       // ... afficher avec mapController.setMarkers()
       break;
@@ -897,7 +897,7 @@ Color _getColorForLayerType(String type) {
 - **Performance** : Pour de grandes routes (>1000 points), envisager une simplification via algorithme Douglas-Peucker
 - **Backup** : Exporter régulièrement les projets publiés en JSON
 - **Versioning** : Pour historiser les modifications, créer une sous-collection `map_projects/{id}/history`
-- **Layers dynamiques** : Pour les layers de type `tracking`, lier à une collection externe (ex: `groupLocations`) plutôt que stocker les points
+- **Layers dynamiques** : Pour les layers de type `tracking`, lier à une collection externe (ex: `group_locations`) plutôt que stocker les points
 - **Icons custom** : Si `iconKey` ne correspond pas à Material Icons, charger depuis Firebase Storage (`icons/{iconKey}.png`)
 - **zIndex management** : Dans l'éditeur, prévoir drag-and-drop pour réorganiser l'ordre des layers
 - **Filtres layers** : Permettre aux utilisateurs publics de toggler la visibilité de chaque layer
