@@ -118,6 +118,7 @@ serviceAccountKey.json
 # Firebase Functions / Node
 functions/node_modules/
 functions/.env*
+!functions/.env.example
 functions/.runtimeconfig.json
 
 # Symbols
