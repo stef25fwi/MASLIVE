@@ -170,6 +170,18 @@ class MasLiveMapController {
     bool showDirection = false,
     bool animateDirection = false,
     double animationSpeed = 1.0,
+    // Options avancées (principalement utiles sur Web via Mapbox GL JS)
+    double? opacity,
+    Color? casingColor,
+    double? casingWidth,
+    bool glowEnabled = false,
+    Color? glowColor,
+    double? glowWidth,
+    double? glowOpacity,
+    double? glowBlur,
+    List<double>? dashArray,
+    String? lineCap,
+    String? lineJoin,
   }) async {
     await _setPolylineImpl?.call(
       points,
@@ -182,6 +194,17 @@ class MasLiveMapController {
         showDirection: showDirection,
         animateDirection: animateDirection,
         animationSpeed: animationSpeed,
+        opacity: opacity,
+        casingColor: casingColor,
+        casingWidth: casingWidth,
+        glowEnabled: glowEnabled,
+        glowColor: glowColor,
+        glowWidth: glowWidth,
+        glowOpacity: glowOpacity,
+        glowBlur: glowBlur,
+        dashArray: dashArray,
+        lineCap: lineCap,
+        lineJoin: lineJoin,
       ),
     );
   }
@@ -262,12 +285,36 @@ class PolylineRenderOptions {
   final bool animateDirection;
   final double animationSpeed;
 
+  // Options visuelles additionnelles (principalement implémentées côté Web)
+  final double? opacity;
+  final Color? casingColor;
+  final double? casingWidth;
+  final bool glowEnabled;
+  final Color? glowColor;
+  final double? glowWidth;
+  final double? glowOpacity;
+  final double? glowBlur;
+  final List<double>? dashArray;
+  final String? lineCap;
+  final String? lineJoin;
+
   const PolylineRenderOptions({
     this.roadLike = true,
     this.shadow3d = true,
     this.showDirection = true,
     this.animateDirection = false,
     this.animationSpeed = 1.0,
+    this.opacity,
+    this.casingColor,
+    this.casingWidth,
+    this.glowEnabled = false,
+    this.glowColor,
+    this.glowWidth,
+    this.glowOpacity,
+    this.glowBlur,
+    this.dashArray,
+    this.lineCap,
+    this.lineJoin,
   });
 
   Map<String, dynamic> toJson() => {
@@ -276,7 +323,23 @@ class PolylineRenderOptions {
         'showDirection': showDirection,
         'animateDirection': animateDirection,
         'animationSpeed': animationSpeed,
+        if (opacity != null) 'opacity': opacity,
+        if (casingWidth != null) 'casingWidth': casingWidth,
+        if (casingColor != null) 'casingColor': _toHexRgb(casingColor!),
+        'glowEnabled': glowEnabled,
+        if (glowWidth != null) 'glowWidth': glowWidth,
+        if (glowOpacity != null) 'glowOpacity': glowOpacity,
+        if (glowBlur != null) 'glowBlur': glowBlur,
+        if (glowColor != null) 'glowColor': _toHexRgb(glowColor!),
+        if (dashArray != null) 'dashArray': dashArray,
+        if (lineCap != null) 'lineCap': lineCap,
+        if (lineJoin != null) 'lineJoin': lineJoin,
       };
+
+  static String _toHexRgb(Color c) {
+    final v = c.toARGB32().toRadixString(16).padLeft(8, '0');
+    return '#${v.substring(2, 8)}';
+  }
 }
 
 /// Modèle de données pour un point sur la carte

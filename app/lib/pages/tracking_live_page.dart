@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import '../services/mapbox_token_service.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
-import '../ui/widgets/mapbox_web_view_platform.dart';
+import '../ui/map/maslive_map.dart';
 
 /// TrackingLivePage (Mapbox-only)
 /// - Web : Mapbox GL JS via MapboxWebView
@@ -256,9 +256,8 @@ class _TrackingLivePageState extends State<TrackingLivePage>
       // TODO: polyline rendering (sera ajouté quand MapboxWebView supportera ce paramètre)
       // final trail = _followGroupId != null ? _trails[_followGroupId] : null;
 
-      return MapboxWebView(
+      return MasLiveMap(
         key: ValueKey('tracking-live-web-$_webRebuildTick'),
-        accessToken: token,
         initialLat: center.lat,
         initialLng: center.lng,
         initialZoom: _webZoom,
@@ -266,10 +265,6 @@ class _TrackingLivePageState extends State<TrackingLivePage>
         initialBearing: 0.0,
         styleUrl: 'mapbox://styles/mapbox/streets-v12',
         showUserLocation: false,
-        // TODO: polyline rendering (pas encore supporté dans MapboxWebView)
-        onMapReady: () {
-          // rien
-        },
       );
     }
 

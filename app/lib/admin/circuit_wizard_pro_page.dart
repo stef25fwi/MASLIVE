@@ -577,7 +577,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     }
   }
 
-  Future<void> _saveDraft() async {
+  Future<void> _saveDraft({bool createSnapshot = false}) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
@@ -608,6 +608,25 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       );
 
       _draftData = currentData;
+
+      // Alimente l'historique des versions uniquement sur action explicite.
+      // Important: ne pas créer de versions sur les autosaves silencieux (ex: snap route)
+      // pour éviter de spammer la sous-collection `drafts`.
+      if (createSnapshot) {
+        try {
+          await _versioning.saveDraftVersion(
+            projectId: projectId,
+            actorUid: user.uid,
+            actorRole: _currentUserRole ?? 'creator',
+            groupId: _currentGroupId ?? 'default',
+            currentData: currentData,
+            layers: _layers,
+            pois: _pois,
+          );
+        } catch (e) {
+          debugPrint('WizardPro _saveDraft snapshot error: $e');
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -641,7 +660,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       }
     }
 
-    await _saveDraft();
+    await _saveDraft(createSnapshot: true);
     _pageController.animateToPage(
       step,
       duration: const Duration(milliseconds: 300),
@@ -1954,7 +1973,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           const SizedBox(height: 12),
           OutlinedButton.icon(
             icon: const Icon(Icons.save_alt),
-            onPressed: _saveDraft,
+            onPressed: () => _saveDraft(createSnapshot: true),
             label: const Text('Rester en brouillon'),
           ),
         ],

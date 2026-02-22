@@ -31,6 +31,8 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
   // Web: réutilise MasLiveMap (interop GL JS)
   final _webController = MasLiveMapController();
 
+  String? _lastWebBoundsKey;
+
   // Mobile: MapboxMaps
   MapboxMap? _map;
   bool _styleReady = false;
@@ -271,24 +273,79 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
   }
 
   Future<void> _renderWeb() async {
-    // Web: preview simplifiée (propriétés supportées via le bridge actuel)
+    // Web: rendu "pro" via le bridge Mapbox GL JS (casing/glow/dash/opacity...).
     final cfg = widget.config.validated();
     if (widget.route.length < 2) {
       await _webController.clearAll();
+      _lastWebBoundsKey = null;
       return;
     }
+
+    // Bounds (fit seulement si la géométrie change)
+    double minLat = widget.route.first.lat;
+    double maxLat = widget.route.first.lat;
+    double minLng = widget.route.first.lng;
+    double maxLng = widget.route.first.lng;
+
+    for (final p in widget.route) {
+      minLat = math.min(minLat, p.lat);
+      maxLat = math.max(maxLat, p.lat);
+      minLng = math.min(minLng, p.lng);
+      maxLng = math.max(maxLng, p.lng);
+    }
+    final boundsKey = '${minLng.toStringAsFixed(6)},${minLat.toStringAsFixed(6)},${maxLng.toStringAsFixed(6)},${maxLat.toStringAsFixed(6)}';
+
+    final lineJoin = switch (cfg.lineJoin) {
+      RouteLineJoin.round => 'round',
+      RouteLineJoin.bevel => 'bevel',
+      RouteLineJoin.miter => 'miter',
+    };
+    final lineCap = switch (cfg.lineCap) {
+      RouteLineCap.round => 'round',
+      RouteLineCap.butt => 'butt',
+      RouteLineCap.square => 'square',
+    };
+
+    final shouldRoadLike = (cfg.casingWidth > 0) || cfg.shadowEnabled || cfg.glowEnabled;
 
     await _webController.setPolyline(
       points: [for (final p in widget.route) MapPoint(p.lng, p.lat)],
       color: cfg.mainColor,
       width: cfg.mainWidth,
-      roadLike: true,
+      show: true,
+      roadLike: shouldRoadLike,
       shadow3d: cfg.shadowEnabled,
       showDirection: false,
       animateDirection: cfg.pulseEnabled,
       animationSpeed: (cfg.pulseSpeed / 25.0).clamp(0.5, 5.0),
-      show: true,
+
+      opacity: cfg.opacity,
+
+      casingColor: cfg.casingColor,
+      casingWidth: cfg.casingWidth > 0 ? cfg.casingWidth : null,
+
+      glowEnabled: cfg.glowEnabled,
+      glowColor: cfg.mainColor,
+      glowWidth: cfg.glowWidth,
+      glowOpacity: cfg.glowOpacity,
+      glowBlur: cfg.glowBlur,
+
+      dashArray: cfg.dashEnabled ? [cfg.dashLength, cfg.dashGap] : null,
+      lineCap: lineCap,
+      lineJoin: lineJoin,
     );
+
+    if (_lastWebBoundsKey != boundsKey) {
+      _lastWebBoundsKey = boundsKey;
+      await _webController.fitBounds(
+        west: minLng,
+        south: minLat,
+        east: maxLng,
+        north: maxLat,
+        padding: 56,
+        animate: false,
+      );
+    }
   }
 
   Future<void> _applyLineCaps(RouteStyleConfig cfg) async {

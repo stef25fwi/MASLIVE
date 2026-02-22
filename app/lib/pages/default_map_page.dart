@@ -18,10 +18,10 @@ import '../ui/widgets/gradient_header.dart';
 import '../ui/widgets/gradient_icon_button.dart';
 import '../ui/widgets/maslive_card.dart';
 import '../ui/widgets/maslive_profile_icon.dart';
-import '../ui/widgets/mapbox_web_view_platform.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
 import '../ui/widgets/marketmap_poi_selector_sheet.dart';
-import '../ui/map/maslive_map_controller.dart' show MapMarker;
+import '../ui/map/maslive_map.dart';
+import '../ui/map/maslive_map_controller.dart' show MapMarker, MasLiveMapController;
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
 import '../l10n/app_localizations.dart' as l10n;
 import '../services/market_map_service.dart';
@@ -86,6 +86,28 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   StreamSubscription? _marketPoisSub;
   List<MarketPoi> _marketPois = const <MarketPoi>[];
   List<MapMarker> _marketPoiMarkers = const <MapMarker>[];
+  final MasLiveMapController _mapController = MasLiveMapController();
+
+  List<MapMarker> _composeMarkers() {
+    final markers = List<MapMarker>.from(_marketPoiMarkers);
+    final lat = _userLat;
+    final lng = _userLng;
+    if (lat != null && lng != null) {
+      markers.add(
+        MapMarker(
+          id: 'user-location',
+          lng: lng,
+          lat: lat,
+          size: 1.2,
+        ),
+      );
+    }
+    return markers;
+  }
+
+  Future<void> _syncMarkersToMap() async {
+    await _mapController.setMarkers(_composeMarkers());
+  }
 
   Future<void> _configureMapboxToken() async {
     final current = MapboxTokenService.getTokenSync();
@@ -260,6 +282,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     setState(() {
       _marketPoiMarkers = markers;
     });
+
+    unawaited(_syncMarkersToMap());
   }
 
   Future<void> _loadUserGroupId() async {
@@ -419,6 +443,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
             _userLat = pos.latitude;
             _userLng = pos.longitude;
           });
+          unawaited(_syncMarkersToMap());
         }
       } on TimeoutException catch (e) {
         debugPrint('⏱️ Timeout GPS: $e');
@@ -483,6 +508,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
               _userLat = pos.latitude;
               _userLng = pos.longitude;
             });
+            unawaited(_syncMarkersToMap());
           },
           onError: (error) {
             debugPrint('⚠️ Erreur stream position: $error');
@@ -591,11 +617,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                       height: size.height,
                       child: Container(
                         color: Colors.transparent,
-                        child: MapboxWebView(
-                          // Clé plus stable, indépendante de la taille précise (Mapbox gère le resize interne)
-                          // On garde _mapRebuildTick seulement si on VEUT forcer un reload
+                        child: MasLiveMap(
                           key: ValueKey('default-map-stable_$_mapRebuildTick'),
-                          accessToken: token,
+                          controller: _mapController,
                           initialLat: _projectCenterLat ?? _userLat ?? 16.2410,
                           initialLng: _projectCenterLng ?? _userLng ?? -61.5340,
                           initialZoom:
@@ -603,12 +627,14 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                           initialPitch: 0.0,
                           initialBearing: 0.0,
                           styleUrl: _styleUrl,
-                          userLat: _userLat,
-                          userLng: _userLng,
-                          showUserLocation:
-                              true, // Afficher le marqueur de position
-                          markers: _marketPoiMarkers,
-                          onMapReady: _notifyMapReady,
+                          showUserLocation: false,
+                          onTap: (_) {
+                            // Pas d'action sur tap pour cette page
+                          },
+                          onMapReady: (_) {
+                            _notifyMapReady();
+                            unawaited(_syncMarkersToMap());
+                          },
                         ),
                       ),
                     ),

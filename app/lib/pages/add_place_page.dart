@@ -4,7 +4,7 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/mapbox_token_service.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
-import '../ui/widgets/mapbox_web_view_platform.dart';
+import '../ui/map/maslive_map.dart';
 
 /// AddPlacePage (Mapbox-only)
 /// Page pour ajouter un POI en tapant sur la carte
@@ -365,9 +365,8 @@ class _AddPlacePageState extends State<AddPlacePage> {
     final center = _selectedPoint ?? (lat: 16.241, lng: -61.533);
 
     if (kIsWeb) {
-      return MapboxWebView(
+      return MasLiveMap(
         key: ValueKey('add-place-web-$_webRebuildTick'),
-        accessToken: token,
         initialLat: center.lat,
         initialLng: center.lng,
         initialZoom: 13.0,
@@ -375,10 +374,6 @@ class _AddPlacePageState extends State<AddPlacePage> {
         initialBearing: 0.0,
         styleUrl: 'mapbox://styles/mapbox/streets-v12',
         showUserLocation: false,
-        onMapReady: () {
-          // TODO: implémenter click handler via JS interop
-          // Pour l'instant, utiliser mobile pour sélectionner des points
-        },
       );
     }
 

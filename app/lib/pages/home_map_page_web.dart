@@ -13,7 +13,9 @@ import '../ui/widgets/gradient_header.dart';
 import '../ui/widgets/gradient_icon_button.dart';
 import '../ui/widgets/maslive_card.dart';
 import '../ui/widgets/maslive_profile_icon.dart';
-import '../ui/widgets/mapbox_web_view.dart';
+import '../ui/map/maslive_map.dart';
+import '../ui/map/maslive_map_controller.dart'
+  show MapMarker, MasLiveMapController;
 import '../models/map_preset_model.dart';
 import '../pages/map_selector_page.dart';
 import '../services/auth_service.dart';
@@ -54,6 +56,8 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
   bool _isTracking = false;
   bool _isMapReady = false;
   bool _isGpsReady = false;
+
+  final MasLiveMapController _mapController = MasLiveMapController();
 
   String _runtimeMapboxToken = '';
 
@@ -244,6 +248,8 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
               _checkIfReady();
             }
           });
+
+          unawaited(_syncUserMarker());
         });
   }
 
@@ -264,6 +270,25 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
     });
   }
 
+  Future<void> _syncUserMarker() async {
+    final p = _userPos;
+    if (p == null) {
+      await _mapController.setMarkers(const <MapMarker>[]);
+      return;
+    }
+
+    await _mapController.setMarkers(
+      <MapMarker>[
+        MapMarker(
+          id: 'user-location',
+          lng: p.longitude,
+          lat: p.latitude,
+          size: 1.2,
+        ),
+      ],
+    );
+  }
+
   Future<void> _recenterOnUser() async {
     final ok = await _ensureLocationPermission(request: true);
     if (!ok) return;
@@ -281,6 +306,8 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
     setState(() {
       _userPos = p;
     });
+
+    unawaited(_syncUserMarker());
   }
 
   Future<void> _toggleTracking() async {
@@ -670,19 +697,22 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
             // Carte Mapbox GL JS via HtmlElementView
             Positioned.fill(
               child: _useMapboxTiles
-                  ? MapboxWebView(
-                      accessToken: _effectiveMapboxToken,
-                      initialLat: center.latitude,
-                      initialLng: center.longitude,
-                      initialZoom: 15.5,
-                      initialPitch: 45.0,
-                      initialBearing: 0.0,
-                      styleUrl: 'mapbox://styles/mapbox/streets-v12',
-                      userLat: _userPos?.latitude,
-                      userLng: _userPos?.longitude,
-                      showUserLocation: _userPos != null,
-                      onMapReady: _onMapReady,
-                      interactive: !_showActionsMenu,
+                  ? AbsorbPointer(
+                      absorbing: _showActionsMenu,
+                      child: MasLiveMap(
+                        controller: _mapController,
+                        initialLat: center.latitude,
+                        initialLng: center.longitude,
+                        initialZoom: 15.5,
+                        initialPitch: 45.0,
+                        initialBearing: 0.0,
+                        styleUrl: 'mapbox://styles/mapbox/streets-v12',
+                        showUserLocation: false,
+                        onMapReady: (_) {
+                          _onMapReady();
+                          unawaited(_syncUserMarker());
+                        },
+                      ),
                     )
                   : Container(
                       color: Colors.grey.shade200,

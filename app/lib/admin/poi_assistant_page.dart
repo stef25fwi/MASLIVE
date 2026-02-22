@@ -8,7 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 import 'dart:async';
 
-import '../ui/widgets/mapbox_web_view_platform.dart';
+import '../ui/map/maslive_map.dart';
 import '../services/mapbox_token_service.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
 import 'poi_marketmap_wizard_page.dart';
@@ -839,8 +839,7 @@ class _StepLoadMap extends StatelessWidget {
               // Mapbox en plein écran
               if (mapboxToken.isNotEmpty)
                 kIsWeb
-                    ? MapboxWebView(
-                        accessToken: mapboxToken,
+                    ? const MasLiveMap(
                         initialLat: 16.241,
                         initialLng: -61.534,
                         initialZoom: 11.0,

@@ -2,10 +2,11 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import 'dart:async';
 import 'dart:math' as math;
 import '../models/circuit_model.dart';
-import '../services/mapbox_token_service.dart';
-import '../ui/widgets/mapbox_web_view_platform.dart';
+import '../ui/map/maslive_map.dart';
+import '../ui/map/maslive_map_controller.dart';
 
 /// Page de gestion des circuits/parcours (CRUD complet) - Mapbox
 class AdminCircuitsPage extends StatefulWidget {
@@ -248,7 +249,7 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
     return degree * math.pi / 180;
   }
 
-  /// Rendu mini-carte pour affichage circuit (web: MapboxWebView, mobile: Mapbox + AbsorbPointer)
+  /// Rendu mini-carte pour affichage circuit (web: MasLiveMap, mobile: Mapbox + AbsorbPointer)
   Widget _buildCircuitMap(Circuit circuit) {
     if (circuit.points.isEmpty) {
       return Container(
@@ -260,23 +261,9 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
     final center = circuit.points.first;
 
     if (kIsWeb) {
-      // Web: MapboxWebView statique (pas de polyline pour l'instant)
-      return FutureBuilder<String>(
-        future: MapboxTokenService.getToken(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return Container(
-              color: Colors.grey[200],
-              child: const Center(child: CircularProgressIndicator()),
-            );
-          }
-          return MapboxWebView(
-            accessToken: snapshot.data!,
-            initialLat: center.lat,
-            initialLng: center.lng,
-            initialZoom: 13.0,
-          );
-        },
+      // Web: MasLiveMap (moteur unifié), mini-carte read-only.
+      return AbsorbPointer(
+        child: _CircuitMiniMapMasLive(circuit: circuit),
       );
     }
 
@@ -326,5 +313,91 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
     );
 
     await pointManager.createMulti([startOpts, endOpts]);
+  }
+}
+
+/// Mini-carte web pour un circuit legacy, rendue via MasLiveMap (Mapbox unifié).
+///
+/// Important: widget isolé pour éviter de garder MapboxWebView sur cet écran.
+class _CircuitMiniMapMasLive extends StatefulWidget {
+  final Circuit? circuit;
+
+  const _CircuitMiniMapMasLive({this.circuit});
+
+  @override
+  State<_CircuitMiniMapMasLive> createState() => _CircuitMiniMapMasLiveState();
+}
+
+class _CircuitMiniMapMasLiveState extends State<_CircuitMiniMapMasLive> {
+  final MasLiveMapController _controller = MasLiveMapController();
+  bool _didRender = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _render() async {
+    if (_didRender) return;
+    final circuit = widget.circuit;
+    if (circuit == null || circuit.points.isEmpty) return;
+    _didRender = true;
+
+    await _controller.clearAll();
+
+    await _controller.setPolyline(
+      points: [for (final p in circuit.points) MapPoint(p.lng, p.lat)],
+      color: const Color(0xFF2196F3),
+      width: 4.0,
+      show: true,
+      roadLike: false,
+      shadow3d: false,
+      showDirection: false,
+    );
+
+    final start = circuit.points.first;
+    final end = circuit.points.last;
+    await _controller.setMarkers([
+      MapMarker(id: 'start', lng: start.lng, lat: start.lat),
+      MapMarker(id: 'end', lng: end.lng, lat: end.lat),
+    ]);
+
+    double minLat = circuit.points.first.lat;
+    double maxLat = circuit.points.first.lat;
+    double minLng = circuit.points.first.lng;
+    double maxLng = circuit.points.first.lng;
+    for (final p in circuit.points) {
+      minLat = math.min(minLat, p.lat);
+      maxLat = math.max(maxLat, p.lat);
+      minLng = math.min(minLng, p.lng);
+      maxLng = math.max(maxLng, p.lng);
+    }
+    await _controller.fitBounds(
+      west: minLng,
+      south: minLat,
+      east: maxLng,
+      north: maxLat,
+      padding: 28,
+      animate: false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final circuit = widget.circuit;
+    final center = (circuit != null && circuit.points.isNotEmpty)
+        ? circuit.points.first
+        : LocationPoint(lat: 16.241, lng: -61.533, label: '');
+
+    return MasLiveMap(
+      controller: _controller,
+      initialLat: center.lat,
+      initialLng: center.lng,
+      initialZoom: 13.0,
+      onMapReady: (_) {
+        unawaited(_render());
+      },
+    );
   }
 }

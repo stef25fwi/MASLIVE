@@ -400,6 +400,7 @@
     _removeLayerIfExists(map, 'maslive_polyline_center');
     _removeLayerIfExists(map, 'maslive_polyline_core');
     _removeLayerIfExists(map, 'maslive_polyline_casing');
+    _removeLayerIfExists(map, 'maslive_polyline_glow');
     _removeLayerIfExists(map, 'maslive_polyline_shadow');
     _removeLayerIfExists(map, 'maslive_polyline_arrows');
     _removeLayerIfExists(map, 'maslive_polyline_layer');
@@ -654,6 +655,18 @@
         const animateDirection = _parseBool(opts.animateDirection, false);
         const animationSpeed = _clampNumber(opts.animationSpeed, 0.1, 10.0, 1.0);
 
+        const opacity = _clampNumber(opts.opacity, 0.0, 1.0, 1.0);
+        const casingWidthOpt = Number(opts.casingWidth || 0);
+        const casingColorOpt = String(opts.casingColor || 'rgba(0,0,0,0.45)');
+        const glowEnabled = _parseBool(opts.glowEnabled, false);
+        const glowWidth = Number(opts.glowWidth || 0);
+        const glowOpacity = _clampNumber(opts.glowOpacity, 0.0, 1.0, 0.0);
+        const glowBlur = Number(opts.glowBlur || 0);
+        const glowColor = String(opts.glowColor || colorHex || '#1A73E8');
+        const dashArray = Array.isArray(opts.dashArray) ? opts.dashArray : null;
+        const lineCap = (opts.lineCap === 'butt' || opts.lineCap === 'square' || opts.lineCap === 'round') ? opts.lineCap : 'round';
+        const lineJoin = (opts.lineJoin === 'bevel' || opts.lineJoin === 'miter' || opts.lineJoin === 'round') ? opts.lineJoin : 'round';
+
         const points = pointsJson ? JSON.parse(pointsJson) : [];
         const coords = points.map((p) => [Number(p.lng), Number(p.lat)]);
         const geojson = {
@@ -672,6 +685,7 @@
         _removeLayerIfExists(map, 'maslive_polyline_center');
         _removeLayerIfExists(map, 'maslive_polyline_core');
         _removeLayerIfExists(map, 'maslive_polyline_casing');
+        _removeLayerIfExists(map, 'maslive_polyline_glow');
         _removeLayerIfExists(map, 'maslive_polyline_shadow');
         _removeLayerIfExists(map, 'maslive_polyline_arrows');
         _removeLayerIfExists(map, 'maslive_polyline_layer');
@@ -687,8 +701,9 @@
             paint: {
               'line-width': w,
               'line-color': mainColor,
-              'line-cap': 'round',
-              'line-join': 'round',
+              'line-opacity': opacity,
+              'line-cap': lineCap,
+              'line-join': lineJoin,
             },
           });
         } else {
@@ -701,21 +716,41 @@
                 'line-width': w + 8,
                 'line-color': 'rgba(0,0,0,0.25)',
                 'line-blur': 1.2,
-                'line-cap': 'round',
-                'line-join': 'round',
+                'line-opacity': opacity,
+                'line-cap': lineCap,
+                'line-join': lineJoin,
               },
             });
           }
+
+          if (glowEnabled && (glowWidth > 0 || glowBlur > 0) && glowOpacity > 0) {
+            map.addLayer({
+              id: 'maslive_polyline_glow',
+              type: 'line',
+              source: sourceId,
+              paint: {
+                'line-width': w + Math.max(0, glowWidth),
+                'line-color': glowColor,
+                'line-opacity': glowOpacity,
+                'line-blur': Math.max(0, glowBlur),
+                'line-cap': lineCap,
+                'line-join': lineJoin,
+              },
+            });
+          }
+
+          const casingWidth = (casingWidthOpt && casingWidthOpt > 0) ? casingWidthOpt : (w + 5);
 
           map.addLayer({
             id: 'maslive_polyline_casing',
             type: 'line',
             source: sourceId,
             paint: {
-              'line-width': w + 5,
-              'line-color': 'rgba(0,0,0,0.45)',
-              'line-cap': 'round',
-              'line-join': 'round',
+              'line-width': casingWidth,
+              'line-color': casingColorOpt,
+              'line-opacity': opacity,
+              'line-cap': lineCap,
+              'line-join': lineJoin,
             },
           });
 
@@ -726,8 +761,9 @@
             paint: {
               'line-width': w,
               'line-color': mainColor,
-              'line-cap': 'round',
-              'line-join': 'round',
+              'line-opacity': opacity,
+              'line-cap': lineCap,
+              'line-join': lineJoin,
             },
           });
 
@@ -738,10 +774,36 @@
             paint: {
               'line-width': Math.max(1, Math.min(w, w * 0.33)),
               'line-color': 'rgba(255,255,255,0.85)',
-              'line-cap': 'round',
-              'line-join': 'round',
+              'line-opacity': opacity,
+              'line-cap': lineCap,
+              'line-join': lineJoin,
             },
           });
+        }
+
+        if (dashArray && dashArray.length >= 2) {
+          const dash = [Number(dashArray[0]), Number(dashArray[1])];
+          try {
+            if (map.getLayer('maslive_polyline_layer')) {
+              map.setPaintProperty('maslive_polyline_layer', 'line-dasharray', dash);
+            }
+            if (map.getLayer('maslive_polyline_core')) {
+              map.setPaintProperty('maslive_polyline_core', 'line-dasharray', dash);
+            }
+          } catch (_) {
+            // ignore
+          }
+        } else {
+          try {
+            if (map.getLayer('maslive_polyline_layer')) {
+              map.setPaintProperty('maslive_polyline_layer', 'line-dasharray', null);
+            }
+            if (map.getLayer('maslive_polyline_core')) {
+              map.setPaintProperty('maslive_polyline_core', 'line-dasharray', null);
+            }
+          } catch (_) {
+            // ignore
+          }
         }
 
         if (showDirection) {
@@ -838,6 +900,7 @@
         _removeLayerIfExists(map, 'maslive_polyline_center');
         _removeLayerIfExists(map, 'maslive_polyline_core');
         _removeLayerIfExists(map, 'maslive_polyline_casing');
+        _removeLayerIfExists(map, 'maslive_polyline_glow');
         _removeLayerIfExists(map, 'maslive_polyline_shadow');
         _removeLayerIfExists(map, 'maslive_polyline_arrows');
         _removeLayerIfExists(map, 'maslive_polyline_layer');

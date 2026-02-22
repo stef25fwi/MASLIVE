@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import '../services/mapbox_token_service.dart';
-import '../ui/widgets/mapbox_web_view_platform.dart';
+import '../ui/map/maslive_map.dart';
 import 'poi_marketmap_wizard_page.dart';
 
 /// Page de gestion des POIs (Points d'Intérêt) - Version Mapbox
@@ -288,17 +288,17 @@ class _AdminPOIsSimplePageState extends State<AdminPOIsSimplePage> {
     }
 
     if (kIsWeb) {
-      return MapboxWebView(
-        key: ValueKey('poi-$lat-$lng'),
-        accessToken: token,
-        initialLat: lat,
-        initialLng: lng,
-        initialZoom: 15.0,
-        initialPitch: 0.0,
-        initialBearing: 0.0,
-        styleUrl: 'mapbox://styles/mapbox/streets-v12',
-        showUserLocation: false,
-        onMapReady: () {},
+      return AbsorbPointer(
+        child: MasLiveMap(
+          key: ValueKey('poi-$lat-$lng'),
+          initialLat: lat,
+          initialLng: lng,
+          initialZoom: 15.0,
+          initialPitch: 0.0,
+          initialBearing: 0.0,
+          styleUrl: 'mapbox://styles/mapbox/streets-v12',
+          showUserLocation: false,
+        ),
       );
     }
 
