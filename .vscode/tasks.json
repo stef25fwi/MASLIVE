@@ -24,6 +24,17 @@
       }
     },
     {
+      "label": "MASLIVE: Git commit + push (wizard guardrails + tracking web trail)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/admin/circuit_wizard_entry_page.dart app/lib/admin/circuit_wizard_pro_page.dart app/lib/pages/tracking_live_page.dart .vscode/tasks.json && git commit -m \"fix(wizard): guardrails master-admin + fix(web): tracking trail\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git commit + push (mapbox POI hit-test wizard admin)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add AUDIT_WIZARD_PRO_MAPBOX_A_TO_E.md app/_archive/ui/wizard/pro_circuit_wizard_page.dart app/analysis_options.yaml app/lib/admin/circuit_wizard_pro_page.dart app/lib/main.dart app/lib/ui/map/maslive_map.dart app/lib/ui/map/maslive_map_native.dart app/lib/ui/map/maslive_map_web.dart .vscode/tasks.json && git commit -m \"feat(mapbox): POI GeoJSON + hit-test (wizard admin)\" && git push origin main",

@@ -7,6 +7,7 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import '../services/mapbox_token_service.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
 import '../ui/map/maslive_map.dart';
+import '../ui/map/maslive_map_controller.dart';
 
 /// TrackingLivePage (Mapbox-only)
 /// - Web : Mapbox GL JS via MapboxWebView
@@ -48,6 +49,10 @@ class _TrackingLivePageState extends State<TrackingLivePage>
   double? _webCenterLng;
   final double _webZoom = 13.0;
 
+  // Web: overlays (markers + trail polyline)
+  final MasLiveMapController _webController = MasLiveMapController();
+  bool _webMapReady = false;
+
   // Mobile
   MapboxMap? _mapboxMap;
   PointAnnotationManager? _pointManager;
@@ -61,6 +66,51 @@ class _TrackingLivePageState extends State<TrackingLivePage>
     if (!kIsWeb && _effectiveMapboxToken.isNotEmpty) {
       MapboxOptions.setAccessToken(_effectiveMapboxToken);
     }
+  }
+
+  @override
+  void dispose() {
+    _webController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _renderWebOverlays(List<_GroupLive> groups) async {
+    if (!_webMapReady) return;
+
+    // Markers
+    await _webController.setMarkers([
+      for (final g in groups)
+        MapMarker(
+          id: g.id,
+          lng: g.lng,
+          lat: g.lat,
+          label: _short(g.name),
+          size: _followGroupId == g.id ? 1.8 : 1.4,
+          color: _followGroupId == g.id
+              ? const Color(0xFFFF9500)
+              : const Color(0xFF0A84FF),
+        ),
+    ]);
+
+    // Trail: uniquement le groupe suivi (sinon trop chargé)
+    final follow = _followGroupId;
+    final trail = follow != null ? _trails[follow] : null;
+    if (trail == null || trail.length < 2) {
+      // Cache la polyline sans effacer les markers.
+      await _webController.setPolyline(points: const <MapPoint>[], show: false);
+      return;
+    }
+
+    await _webController.setPolyline(
+      points: [for (final p in trail) MapPoint(p.lng, p.lat)],
+      color: const Color(0xFFFF9500),
+      width: 4.0,
+      show: true,
+      roadLike: false,
+      shadow3d: false,
+      showDirection: false,
+      opacity: 0.4,
+    );
   }
 
   Future<void> _loadRuntimeMapboxToken() async {
@@ -253,11 +303,14 @@ class _TrackingLivePageState extends State<TrackingLivePage>
       final center = _getDesiredCenter(groups) ??
           (lat: _webCenterLat ?? fallbackLat, lng: _webCenterLng ?? fallbackLng);
       
-      // TODO: polyline rendering (sera ajouté quand MapboxWebView supportera ce paramètre)
-      // final trail = _followGroupId != null ? _trails[_followGroupId] : null;
+      // Mettre à jour markers + trails via controller (post-frame).
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_renderWebOverlays(groups));
+      });
 
       return MasLiveMap(
         key: ValueKey('tracking-live-web-$_webRebuildTick'),
+        controller: _webController,
         initialLat: center.lat,
         initialLng: center.lng,
         initialZoom: _webZoom,
@@ -265,6 +318,10 @@ class _TrackingLivePageState extends State<TrackingLivePage>
         initialBearing: 0.0,
         styleUrl: 'mapbox://styles/mapbox/streets-v12',
         showUserLocation: false,
+        onMapReady: (_) {
+          _webMapReady = true;
+          unawaited(_renderWebOverlays(groups));
+        },
       );
     }
 

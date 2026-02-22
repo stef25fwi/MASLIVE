@@ -33,6 +33,46 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
 
+  bool _canWriteMapProjects = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadWriteAccess());
+  }
+
+  Future<void> _loadWriteAccess() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      if (mounted) setState(() => _canWriteMapProjects = false);
+      return;
+    }
+
+    try {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      final data = doc.data() ?? const <String, dynamic>{};
+      final role = (data['role'] as String?)?.trim() ?? '';
+      final isAdmin = (data['isAdmin'] as bool?) ?? false;
+      final can = isAdmin ||
+          role == 'admin' ||
+          role == 'admin_master' ||
+          role == 'superAdmin' ||
+          role == 'super-admin' ||
+          role == 'superadmin';
+      if (mounted) setState(() => _canWriteMapProjects = can);
+    } catch (_) {
+      if (mounted) setState(() => _canWriteMapProjects = false);
+    }
+  }
+
+  void _showWriteDenied() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('⛔ Accès en écriture réservé aux admins master.'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -57,7 +97,7 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton.icon(
-                  onPressed: _createNewProject,
+                  onPressed: _canWriteMapProjects ? _createNewProject : _showWriteDenied,
                   icon: const Icon(Icons.add_circle),
                   label: const Text('+ Nouveau Circuit'),
                   style: ElevatedButton.styleFrom(
@@ -222,7 +262,7 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
                   Text('Continuer'),
                 ],
               ),
-              onTap: () => _openProject(project.id),
+              onTap: () => _canWriteMapProjects ? _openProject(project.id) : _showWriteDenied,
             ),
             if (project.status != 'published')
               PopupMenuItem(
@@ -233,11 +273,11 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
                     Text('Supprimer', style: TextStyle(color: Colors.red)),
                   ],
                 ),
-                onTap: () => _deleteProject(project.id),
+                onTap: () => _canWriteMapProjects ? _deleteProject(project.id) : _showWriteDenied,
               ),
           ],
         ),
-        onTap: () => _openProject(project.id),
+        onTap: () => _canWriteMapProjects ? _openProject(project.id) : _showWriteDenied,
       ),
     );
   }

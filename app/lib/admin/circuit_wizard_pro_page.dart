@@ -51,6 +51,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   String? _currentUserRole;
   String? _currentGroupId;
 
+  bool _canWriteMapProjects = false;
+
   List<CircuitTemplate> _templates = [];
   CircuitTemplate? _selectedTemplate;
 
@@ -105,6 +107,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       );
 
   Future<void> _openRouteStylePro() async {
+    await _ensureActorContext();
+    if (!_canWriteMapProjects) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⛔ Accès en écriture réservé aux admins master.'),
+        ),
+      );
+      return;
+    }
     // Assure un projectId existant avant d'ouvrir le wizard Pro.
     await _saveDraft();
 
@@ -217,8 +229,26 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         .doc(user.uid)
         .get();
     final data = userDoc.data() ?? const <String, dynamic>{};
-    _currentUserRole = (data['role'] as String?) ?? 'creator';
-    _currentGroupId = (data['groupId'] as String?) ?? 'default';
+
+    final role = ((data['role'] as String?) ?? 'creator').trim();
+    final groupId = ((data['groupId'] as String?) ?? 'default').trim();
+    final isAdmin = (data['isAdmin'] as bool?) ?? false;
+
+    final canWrite = isAdmin ||
+        role == 'admin' ||
+        role == 'admin_master' ||
+        role == 'superAdmin' ||
+        role == 'super-admin' ||
+        role == 'superadmin';
+
+    _currentUserRole = role;
+    _currentGroupId = groupId;
+
+    if (mounted && canWrite != _canWriteMapProjects) {
+      setState(() => _canWriteMapProjects = canWrite);
+    } else {
+      _canWriteMapProjects = canWrite;
+    }
   }
 
   Map<String, dynamic> _buildCurrentData() {
@@ -253,6 +283,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     await _ensureActorContext();
+    if (!_canWriteMapProjects) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⛔ Accès en écriture réservé aux admins master.'),
+        ),
+      );
+      return;
+    }
     final result = await _repository.createProjectFromTemplate(
       template: template,
       groupId: _currentGroupId ?? 'default',
@@ -319,6 +358,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     );
 
     if (selected == null) return;
+
+    if (!_canWriteMapProjects) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⛔ Restauration réservée aux admins master.'),
+        ),
+      );
+      return;
+    }
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     await _ensureActorContext();
@@ -585,6 +634,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       }
 
       await _ensureActorContext();
+      if (!_canWriteMapProjects) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⛔ Sauvegarde réservée aux admins master.'),
+          ),
+        );
+        return;
+      }
 
       final isNew = _projectId == null;
       final projectId = _projectId ?? _repository.createProjectId();
@@ -660,7 +718,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       }
     }
 
-    await _saveDraft(createSnapshot: true);
+    if (_canWriteMapProjects) {
+      await _saveDraft(createSnapshot: true);
+    }
     _pageController.animateToPage(
       step,
       duration: const Duration(milliseconds: 300),
@@ -1983,14 +2043,23 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
   Future<void> _publishCircuit() async {
     try {
-      setState(() => _isLoading = true);
-
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         throw Exception('User not authenticated');
       }
 
       await _ensureActorContext();
+      if (!_canWriteMapProjects) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⛔ Publication réservée aux admins master.'),
+          ),
+        );
+        return;
+      }
+
+      setState(() => _isLoading = true);
 
       final report = _qualityReport;
       if (!report.canPublish) {
