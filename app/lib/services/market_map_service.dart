@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -130,7 +131,7 @@ class MarketMapService {
   ///
   /// - `layerIds` vide/null => toutes les couches
   /// - `layerIds` <= 10 => filtre Firestore via whereIn
-  /// - `layerIds` > 10 => fallback (filtre client-side) pour éviter la limite whereIn
+  /// - `layerIds` > 10 => requêtes chunkées (whereIn par paquets de 10) + merge
   Stream<List<MarketPoi>> watchVisiblePois({
     required String countryId,
     required String eventId,
@@ -147,11 +148,58 @@ class MarketMapService {
       query = query.where('layerId', whereIn: normalized.toList());
     }
 
+    if (normalized.isNotEmpty && normalized.length > 10) {
+      final ids = normalized.toList()..sort();
+      final chunks = <List<String>>[];
+      for (var i = 0; i < ids.length; i += 10) {
+        chunks.add(ids.sublist(i, min(i + 10, ids.length)));
+      }
+
+      late final StreamController<List<MarketPoi>> controller;
+      final subs = <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
+      final latestByChunk = <int, List<MarketPoi>>{};
+
+      void emitMerged() {
+        final byId = <String, MarketPoi>{};
+        for (final list in latestByChunk.values) {
+          for (final poi in list) {
+            byId[poi.id] = poi;
+          }
+        }
+        controller.add(byId.values.toList());
+      }
+
+      controller = StreamController<List<MarketPoi>>(
+        onListen: () {
+          for (var idx = 0; idx < chunks.length; idx++) {
+            final chunk = chunks[idx];
+            final q = col
+                .where('isVisible', isEqualTo: true)
+                .where('layerId', whereIn: chunk);
+
+            subs.add(
+              q.snapshots().listen(
+                (snap) {
+                  latestByChunk[idx] = snap.docs.map(MarketPoi.fromDoc).toList();
+                  emitMerged();
+                },
+                onError: controller.addError,
+              ),
+            );
+          }
+        },
+        onCancel: () async {
+          for (final s in subs) {
+            await s.cancel();
+          }
+        },
+      );
+
+      return controller.stream;
+    }
+
     return query.snapshots().map((snap) {
       final pois = snap.docs.map(MarketPoi.fromDoc).toList();
-      if (normalized.isNotEmpty && normalized.length > 10) {
-        return pois.where((p) => normalized.contains(p.layerId)).toList();
-      }
       return pois;
     });
   }

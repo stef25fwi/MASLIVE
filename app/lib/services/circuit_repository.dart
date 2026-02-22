@@ -328,7 +328,8 @@ class CircuitRepository {
       'style': currentData['routeStyle'] ?? const <String, dynamic>{},
       'layers': layers
           .map((l) => {
-                'id': l.id,
+                // IMPORTANT: doit matcher le docId `marketMap/.../layers/{layerId}`
+                'id': _marketLayerId(l),
                 'label': l.label,
                 'type': l.type,
                 'isVisible': l.isVisible,
@@ -337,7 +338,8 @@ class CircuitRepository {
           .toList(),
       'pois': pois
           .map((p) => {
-                'id': p.id,
+                // IMPORTANT: doit matcher le docId `marketMap/.../pois/{poiId}`
+                'id': _marketPoiId(p),
                 'name': p.name,
                 'layerType': p.layerType,
                 'lng': p.lng,
@@ -715,9 +717,7 @@ class CircuitRepository {
       // IMPORTANT: dans `marketMap`, le docId de layer doit matcher le `layerId`
       // des POIs (sinon les filtres Mapbox par couche ne trouvent rien).
       // On privilégie donc `layer.type` comme identifiant stable.
-      final normalizedType = layer.type.trim();
-      final normalizedId = layer.id.trim();
-      final id = normalizedType.isNotEmpty ? normalizedType : normalizedId;
+      final id = _marketLayerId(layer);
       incomingIds.add(id);
       final data = {
         'type': layer.type,
@@ -765,9 +765,7 @@ class CircuitRepository {
     final incomingIds = <String>{};
 
     for (final poi in pois) {
-      final id = poi.id.trim().isEmpty
-          ? 'poi_${poi.layerType}_${poi.lng.toStringAsFixed(5)}_${poi.lat.toStringAsFixed(5)}'
-          : poi.id.trim();
+      final id = _marketPoiId(poi);
       incomingIds.add(id);
 
       String? metaString(String key) {
@@ -819,5 +817,18 @@ class CircuitRepository {
         .replaceAll(RegExp(r'-+'), '-')
         .replaceAll(RegExp(r'^-|-$'), '');
     return normalized.isEmpty ? 'circuit' : normalized;
+  }
+
+  String _marketLayerId(MarketMapLayer layer) {
+    final normalizedType = layer.type.trim();
+    final normalizedId = layer.id.trim();
+    // On privilégie `type` comme identifiant stable.
+    return normalizedType.isNotEmpty ? normalizedType : normalizedId;
+  }
+
+  String _marketPoiId(MarketMapPOI poi) {
+    final trimmed = poi.id.trim();
+    if (trimmed.isNotEmpty) return trimmed;
+    return 'poi_${poi.layerType}_${poi.lng.toStringAsFixed(5)}_${poi.lat.toStringAsFixed(5)}';
   }
 }

@@ -771,7 +771,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                   const SizedBox(),
                 ElevatedButton.icon(
                   icon: const Icon(Icons.save),
-                  onPressed: _saveDraft,
+                  onPressed: () => _saveDraft(createSnapshot: true),
                   label: const Text('Sauvegarder'),
                 ),
                 if (_currentStep < 7)
