@@ -79,36 +79,43 @@ class RouteStylePersistence {
           .collection('map_projects')
           .doc(projectId);
 
-      // Préserve les valeurs existantes pour éviter toute surprise côté wizard Circuit.
-      bool preservedRoadLike = true;
-      bool preservedShowDirection = true;
-      try {
-        final existing = await doc.get();
-        final data = existing.data();
-        final routeStyle = data?['routeStyle'];
-        if (routeStyle is Map) {
-          final m = Map<String, dynamic>.from(routeStyle);
-          final rl = m['roadLike'];
-          if (rl is bool) preservedRoadLike = rl;
-          final sd = m['showDirection'];
-          if (sd is bool) preservedShowDirection = sd;
-        }
-      } catch (_) {
-        // ignore: fallback aux valeurs par défaut
+      // C7: compat partielle avec l'ancienne UI (wizard circuit).
+      // On sauvegarde `routeStylePro` complet, et on produit une projection
+      // `routeStyle` minimaliste *en préservant* les champs legacy existants.
+      //
+      // Important: selon les clients/SDK, un set(merge:true) peut quand même
+      // remplacer le map `routeStyle` au lieu de faire une fusion profonde.
+      // Pour éviter toute perte de clés legacy, on repart du `routeStyle`
+      // existant et on ne surchage que ce qui est nécessaire.
+      final existingSnap = await doc.get();
+      final existingData = existingSnap.data();
+      final existingRouteStyleRaw = existingData?['routeStyle'];
+
+      final mergedLegacy = <String, dynamic>{};
+      if (existingRouteStyleRaw is Map) {
+        mergedLegacy.addAll(Map<String, dynamic>.from(existingRouteStyleRaw));
       }
+
+      final preservedRoadLike = (mergedLegacy['roadLike'] is bool)
+          ? mergedLegacy['roadLike'] as bool
+          : true;
+      final preservedShowDirection = (mergedLegacy['showDirection'] is bool)
+          ? mergedLegacy['showDirection'] as bool
+          : true;
+
+      mergedLegacy['roadLike'] = preservedRoadLike;
+      mergedLegacy['showDirection'] = preservedShowDirection;
+      mergedLegacy['color'] = _toHexRgb(config.mainColor);
+      mergedLegacy['width'] = config.mainWidth;
+      mergedLegacy['shadow3d'] = config.shadowEnabled;
+      mergedLegacy['animateDirection'] = config.pulseEnabled;
+      mergedLegacy['animationSpeed'] =
+          (config.pulseSpeed / 25.0).clamp(0.5, 5.0);
 
       await doc.set({
         'routeStylePro': config.toJson(),
         // Compat “ancienne UI”: un sous-ensemble exploitable immédiatement.
-        'routeStyle': {
-          'color': _toHexRgb(config.mainColor),
-          'width': config.mainWidth,
-          'roadLike': preservedRoadLike,
-          'shadow3d': config.shadowEnabled,
-          'showDirection': preservedShowDirection,
-          'animateDirection': config.pulseEnabled,
-          'animationSpeed': (config.pulseSpeed / 25.0).clamp(0.5, 5.0),
-        },
+        'routeStyle': mergedLegacy,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
       return;
