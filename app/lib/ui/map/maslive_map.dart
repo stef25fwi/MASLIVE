@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 
 import 'maslive_map_controller.dart';
+import 'maslive_poi_style.dart';
 import 'maslive_map_native.dart';
 import 'maslive_map_web.dart';
 
@@ -19,6 +20,13 @@ class MasLiveMapControllerPoi extends MasLiveMapController {
   /// Impl interne branchée par `MasLiveMapNative`/`MasLiveMapWeb`.
   Future<void> Function(String featureCollectionJson)? _setPoisGeoJsonImpl;
 
+  /// Impl interne branchée par `MasLiveMapNative`/`MasLiveMapWeb`.
+  Future<void> Function(MasLivePoiStyle style)? _setPoiStyleImpl;
+
+  MasLivePoiStyle _poiStyle = const MasLivePoiStyle();
+
+  MasLivePoiStyle get poiStyle => _poiStyle;
+
   /// Callback POI: tap sur un POI rendu par le layer GeoJSON.
   void Function(String poiId)? onPoiTap;
 
@@ -28,6 +36,20 @@ class MasLiveMapControllerPoi extends MasLiveMapController {
   /// @nodoc - usage interne seulement
   set setPoisGeoJsonImpl(Future<void> Function(String featureCollectionJson)? impl) {
     _setPoisGeoJsonImpl = impl;
+  }
+
+  /// @nodoc - usage interne seulement
+  set setPoiStyleImpl(Future<void> Function(MasLivePoiStyle style)? impl) {
+    _setPoiStyleImpl = impl;
+  }
+
+  /// Met à jour le style des POIs (taille/couleurs).
+  ///
+  /// Si appelé avant que la carte ne soit prête, le style sera appliqué
+  /// lors du prochain rendu (ou dès que possible selon la plateforme).
+  Future<void> setPoiStyle(MasLivePoiStyle style) async {
+    _poiStyle = style;
+    await _setPoiStyleImpl?.call(style);
   }
 
   /// Met à jour les POIs via un FeatureCollection GeoJSON.

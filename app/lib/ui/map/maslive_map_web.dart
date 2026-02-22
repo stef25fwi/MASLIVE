@@ -11,6 +11,7 @@ import 'dart:ui_web' as ui_web;
 import 'package:flutter/material.dart';
 
 import 'maslive_map_controller.dart';
+import 'maslive_poi_style.dart';
 import '../../services/mapbox_token_service.dart';
 
 /// Implémentation Web de MasLiveMap
@@ -52,6 +53,8 @@ class MasLiveMapWeb extends StatefulWidget {
 class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   static const String _poiSourceId = 'src_pois';
   static const String _poiLayerId = 'ly_pois_circle';
+
+  MasLivePoiStyle _poiStyle = const MasLivePoiStyle();
 
   String _mapboxToken = '';
   bool _isLoading = true;
@@ -127,6 +130,39 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     }
   }
 
+  Future<void> _applyPoiStyleIfReady() async {
+    final map = _getMapForThisContainer();
+    if (map == null) return;
+
+    try {
+      final layer = map.callMethod('getLayer', [_poiLayerId]);
+      if (layer == null) return;
+    } catch (_) {
+      return;
+    }
+
+    try {
+      map.callMethod('setPaintProperty', [_poiLayerId, 'circle-radius', _poiStyle.circleRadius]);
+    } catch (_) {
+      // ignore
+    }
+    try {
+      map.callMethod('setPaintProperty', [_poiLayerId, 'circle-color', masLiveColorToCssHex(_poiStyle.circleColor)]);
+    } catch (_) {
+      // ignore
+    }
+    try {
+      map.callMethod('setPaintProperty', [_poiLayerId, 'circle-stroke-width', _poiStyle.circleStrokeWidth]);
+    } catch (_) {
+      // ignore
+    }
+    try {
+      map.callMethod('setPaintProperty', [_poiLayerId, 'circle-stroke-color', masLiveColorToCssHex(_poiStyle.circleStrokeColor)]);
+    } catch (_) {
+      // ignore
+    }
+  }
+
   Future<void> _applyPoisGeoJsonIfReady() async {
     final map = _getMapForThisContainer();
     if (map == null) return;
@@ -185,10 +221,10 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             'type': 'circle',
             'source': _poiSourceId,
             'paint': {
-              'circle-radius': 7,
-              'circle-color': '#0A84FF',
-              'circle-stroke-width': 2,
-              'circle-stroke-color': '#FFFFFF',
+              'circle-radius': _poiStyle.circleRadius,
+              'circle-color': masLiveColorToCssHex(_poiStyle.circleColor),
+              'circle-stroke-width': _poiStyle.circleStrokeWidth,
+              'circle-stroke-color': masLiveColorToCssHex(_poiStyle.circleStrokeColor),
             },
           })
         ]);
@@ -196,6 +232,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     } catch (_) {
       // ignore
     }
+
+    await _applyPoiStyleIfReady();
   }
 
   String? _hitTestPoiId(double lng, double lat) {
@@ -431,6 +469,24 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       (controller as dynamic).setPoisGeoJsonImpl = (String fcJson) async {
         _poisGeoJsonString = fcJson;
         await _applyPoisGeoJsonIfReady();
+      };
+    } catch (_) {
+      // ignore
+    }
+
+    // POI style (Mapbox Pro)
+    try {
+      final current = (controller as dynamic).poiStyle;
+      if (current is MasLivePoiStyle) {
+        _poiStyle = current;
+      }
+    } catch (_) {
+      // ignore
+    }
+    try {
+      (controller as dynamic).setPoiStyleImpl = (MasLivePoiStyle style) async {
+        _poiStyle = style;
+        await _applyPoiStyleIfReady();
       };
     } catch (_) {
       // ignore

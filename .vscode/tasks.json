@@ -57,9 +57,9 @@
       }
     },
     {
-      "label": "MASLIVE: Git commit + push (audit: clarify P1/P2 status)",
+      "label": "MASLIVE: Git commit + push (P2: POI style options)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE && git add AUDIT_WIZARD_PRO_MAPBOX_A_TO_E.md .vscode/tasks.json && git commit -m \"docs(audit): clarify Mapbox web P1/P2 status\" && git push origin main",
+      "command": "cd /workspaces/MASLIVE && git add AUDIT_WIZARD_PRO_MAPBOX_A_TO_E.md app/lib/ui/map/maslive_map.dart app/lib/ui/map/maslive_map_native.dart app/lib/ui/map/maslive_map_web.dart app/lib/ui/map/maslive_poi_style.dart .vscode/tasks.json && git commit -m \"feat(mapbox): make POI style configurable\" && git push origin main",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",

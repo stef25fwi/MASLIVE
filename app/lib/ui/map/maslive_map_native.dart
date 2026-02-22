@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import 'maslive_map_controller.dart';
+import 'maslive_poi_style.dart';
 import '../../services/mapbox_token_service.dart';
 
 /// Implémentation Native (iOS/Android) de MasLiveMap
@@ -43,6 +44,8 @@ class MasLiveMapNative extends StatefulWidget {
 class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   static const String _poiSourceId = 'src_pois';
   static const String _poiLayerId = 'ly_pois_circle';
+
+  MasLivePoiStyle _poiStyle = const MasLivePoiStyle();
 
   MapboxMap? _mapboxMap;
   PointAnnotationManager? _markersManager;
@@ -274,6 +277,63 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     } catch (_) {
       // Controller non compatible (pas de support POIs GeoJSON)
     }
+
+    // POI style (Mapbox Pro)
+    try {
+      final current = (controller as dynamic).poiStyle;
+      if (current is MasLivePoiStyle) {
+        _poiStyle = current;
+      }
+    } catch (_) {
+      // ignore
+    }
+    try {
+      (controller as dynamic).setPoiStyleImpl = (MasLivePoiStyle style) async {
+        _poiStyle = style;
+        await _applyPoiStyleIfReady();
+      };
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  Future<void> _applyPoiStyleIfReady() async {
+    final map = _mapboxMap;
+    if (map == null) return;
+    if (!_styleLoaded) return;
+
+    try {
+      await map.style.setStyleLayerProperty(_poiLayerId, 'circle-radius', _poiStyle.circleRadius);
+    } catch (_) {
+      // ignore
+    }
+    try {
+      await map.style.setStyleLayerProperty(
+        _poiLayerId,
+        'circle-color',
+        _poiStyle.circleColor.toARGB32(),
+      );
+    } catch (_) {
+      // ignore
+    }
+    try {
+      await map.style.setStyleLayerProperty(
+        _poiLayerId,
+        'circle-stroke-width',
+        _poiStyle.circleStrokeWidth,
+      );
+    } catch (_) {
+      // ignore
+    }
+    try {
+      await map.style.setStyleLayerProperty(
+        _poiLayerId,
+        'circle-stroke-color',
+        _poiStyle.circleStrokeColor.toARGB32(),
+      );
+    } catch (_) {
+      // ignore
+    }
   }
 
   Future<void> _applyPoisGeoJsonIfReady() async {
@@ -310,10 +370,10 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         CircleLayer(
           id: _poiLayerId,
           sourceId: _poiSourceId,
-          circleRadius: 7.0,
-          circleColor: const Color(0xFF0A84FF).toARGB32(),
-          circleStrokeColor: const Color(0xFFFFFFFF).toARGB32(),
-          circleStrokeWidth: 2.0,
+          circleRadius: _poiStyle.circleRadius,
+          circleColor: _poiStyle.circleColor.toARGB32(),
+          circleStrokeColor: _poiStyle.circleStrokeColor.toARGB32(),
+          circleStrokeWidth: _poiStyle.circleStrokeWidth,
         ),
       );
     } catch (_) {
@@ -377,6 +437,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       onStyleLoadedListener: (_) async {
         _styleLoaded = true;
         await _applyPoisGeoJsonIfReady();
+        await _applyPoiStyleIfReady();
       },
       onTapListener: (gestureContext) async {
         final controller = widget.controller;
