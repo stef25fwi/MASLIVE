@@ -519,8 +519,78 @@
     init: function(containerId, token, optionsJson) {
       try {
         const options = optionsJson ? JSON.parse(optionsJson) : {};
+        // Diagnostics précoces (permet à Flutter d'afficher un message utile).
+        try {
+          if (!containerId || String(containerId).trim().length === 0) {
+            _postToFlutter({
+              type: 'MASLIVE_MAP_ERROR',
+              containerId: containerId || '',
+              reason: 'CONTAINER_ID_MISSING',
+              message: 'ContainerId manquant pour la carte.',
+            });
+            return false;
+          }
+
+          const el = document.getElementById(containerId);
+          if (!el) {
+            _postToFlutter({
+              type: 'MASLIVE_MAP_ERROR',
+              containerId,
+              reason: 'CONTAINER_NOT_FOUND',
+              message: 'Conteneur HTML introuvable (DOM).',
+            });
+            return false;
+          }
+
+          if (typeof mapboxgl === 'undefined') {
+            _postToFlutter({
+              type: 'MASLIVE_MAP_ERROR',
+              containerId,
+              reason: 'MAPBOXGL_MISSING',
+              message: 'Mapbox GL JS non chargé (scripts https://api.mapbox.com potentiellement bloqués).',
+            });
+            return false;
+          }
+
+          // Vérifie WebGL (Mapbox GL JS ne fonctionne pas sans WebGL).
+          try {
+            if (mapboxgl.supported && mapboxgl.supported() !== true) {
+              _postToFlutter({
+                type: 'MASLIVE_MAP_ERROR',
+                containerId,
+                reason: 'WEBGL_UNSUPPORTED',
+                message: 'WebGL indisponible: Mapbox GL JS ne peut pas s\'initialiser sur ce navigateur/appareil.',
+              });
+              return false;
+            }
+          } catch (_) {
+            // ignore
+          }
+
+          // Token manquant (même logique que initMapboxMap).
+          const accessToken = token || options.accessToken || window.__MAPBOX_TOKEN__;
+          if (!accessToken || accessToken === 'YOUR_MAPBOX_TOKEN') {
+            _postToFlutter({
+              type: 'MASLIVE_MAP_ERROR',
+              containerId,
+              reason: 'TOKEN_MISSING',
+              message: 'Token Mapbox manquant ou invalide.',
+            });
+            return false;
+          }
+        } catch (_) {
+          // ignore
+        }
         const map = window.initMapboxMap(containerId, token, options);
-        if (!map) return false;
+        if (!map) {
+          _postToFlutter({
+            type: 'MASLIVE_MAP_ERROR',
+            containerId,
+            reason: 'INIT_FAILED',
+            message: 'Initialisation Mapbox GL JS échouée (voir console navigateur pour le détail).',
+          });
+          return false;
+        }
 
         const state = _ensureState(containerId, map);
         state.map = map;
@@ -546,6 +616,16 @@
         return true;
       } catch (e) {
         console.error('❌ MasliveMapboxV2.init error:', e);
+        try {
+          _postToFlutter({
+            type: 'MASLIVE_MAP_ERROR',
+            containerId: containerId || '',
+            reason: 'EXCEPTION',
+            message: 'Erreur JS pendant l\'initialisation Mapbox: ' + String(e),
+          });
+        } catch (_) {
+          // ignore
+        }
         return false;
       }
     },

@@ -669,6 +669,7 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
   late final String _viewType;
   StreamSubscription<html.MessageEvent>? _messageSub;
   bool _didInit = false;
+  int _initAttempts = 0;
 
   @override
   void initState() {
@@ -699,6 +700,12 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
             widget.onTap?.call(lng.toDouble(), lat.toDouble());
           }
         }
+
+        if (type == 'MASLIVE_MAP_ERROR') {
+          final msg = decoded['message']?.toString() ?? 'Erreur Mapbox inconnue.';
+          widget.onInitError?.call(msg);
+          return;
+        }
       } catch (_) {
         // ignore
       }
@@ -715,33 +722,56 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
         container.style.height = '100%';
 
         Future.delayed(const Duration(milliseconds: 100), () {
-          if (!mounted || _didInit) return;
-          _didInit = true;
-
-          final optionsJson = jsonEncode({
-            'style': widget.styleUrl,
-            'center': [widget.initialLng, widget.initialLat],
-            'zoom': widget.initialZoom,
-            'pitch': widget.initialPitch,
-            'bearing': widget.initialBearing,
-          });
-
-          try {
-            final ok = _mbInit(widget.containerId, widget.accessToken, optionsJson);
-            if (ok != true) {
-              widget.onInitError?.call(
-                'Initialisation Mapbox GL JS échouée (token invalide, scripts Mapbox bloqués, ou WebGL indisponible).',
-              );
-            }
-          } catch (e) {
-            widget.onInitError?.call(
-              'Erreur Mapbox GL JS: $e',
-            );
-          }
+          if (!mounted) return;
+          _tryInit();
         });
 
         return container;
       },
+    );
+  }
+
+  void _tryInit() {
+    if (!mounted) return;
+    if (_didInit) return;
+
+    _initAttempts++;
+    final optionsJson = jsonEncode({
+      'style': widget.styleUrl,
+      'center': [widget.initialLng, widget.initialLat],
+      'zoom': widget.initialZoom,
+      'pitch': widget.initialPitch,
+      'bearing': widget.initialBearing,
+    });
+
+    bool ok = false;
+    try {
+      ok = _mbInit(widget.containerId, widget.accessToken, optionsJson) == true;
+    } catch (_) {
+      ok = false;
+    }
+
+    if (ok) {
+      _didInit = true;
+      return;
+    }
+
+    // Si Mapbox GL JS n'est pas encore prêt (CDN lent), on retente brièvement.
+    bool hasMapboxGl = true;
+    try {
+      hasMapboxGl = js.context.hasProperty('mapboxgl') == true;
+    } catch (_) {
+      hasMapboxGl = true;
+    }
+
+    if (!hasMapboxGl && _initAttempts < 10) {
+      Future.delayed(const Duration(milliseconds: 250), _tryInit);
+      return;
+    }
+
+    // Sinon, on laisse le bridge JS poster MASLIVE_MAP_ERROR. En fallback, message générique.
+    widget.onInitError?.call(
+      'Initialisation Mapbox GL JS échouée (token invalide, scripts Mapbox bloqués, ou WebGL indisponible).',
     );
   }
 
