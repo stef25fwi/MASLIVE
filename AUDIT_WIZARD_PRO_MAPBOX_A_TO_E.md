@@ -131,10 +131,10 @@
 - **Archiver hard** le wizard UI non branché + exclure `_archive/**` de l’analyse.
 
 ### P1 (cohérence Mapbox web) — ⚠️ À FAIRE
-- Objectif: supprimer la dualité **`MasLiveMapWeb`** (bridge “v2”) vs **`MapboxWebView`** (widget web séparé), qui crée des écarts de features et des bugs difficiles à reproduire.
+- Objectif: supprimer la dualité **`MasLiveMap`** (web via `MasLiveMapWeb`) vs **`MapboxWebView`** (widget legacy séparé), qui crée des écarts de features et des bugs difficiles à reproduire.
 
-- Option A (recommandée): **standardiser sur `MasLiveMapWeb`**
-  - Pourquoi: API unifiée `MasLiveMap` (web+natif), support POIs GeoJSON + hit-test déjà intégré, et un seul point d’évolution.
+- Option A (recommandée): **standardiser sur `MasLiveMap`**
+  - Pourquoi: API unifiée `MasLiveMap` (web+natif), support POIs GeoJSON + hit-test déjà intégré, et un seul point d’évolution (côté web: `MasLiveMapWeb`).
   - Étapes minimales:
     - Recenser les écrans web qui utilisent encore le widget legacy.
       - Méthode (grep-proof): chercher les imports `mapbox_web_view_platform.dart` et `mapbox_web_view.dart` (ou `mapbox_web_view_*.dart`) dans `app/lib/**.dart`.
