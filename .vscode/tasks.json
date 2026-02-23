@@ -2,6 +2,17 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "MASLIVE: Git commit + push (wizard périmètre: header + overlay)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/admin/circuit_map_editor.dart app/lib/admin/circuit_wizard_pro_page.dart && git commit -m \"fix(wizard): perimeter header + show overlay next step\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git commit + push (shop rainbow header tint)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add app/lib/pages/storex_shop_page.dart && git commit -m \"fix(shop): rainbow header (remove appbar tint)\" && git push origin main",
