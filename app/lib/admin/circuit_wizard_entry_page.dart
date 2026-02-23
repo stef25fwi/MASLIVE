@@ -294,6 +294,24 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
       final countryId = input.countryId.trim();
       final eventId = input.eventId.trim();
 
+      // Si l'utilisateur saisit un pays (editable), on s'assure que le doc existe.
+      // (Sinon le wizard pro ne pourra pas charger les streams marketMap.)
+      if (countryId.isNotEmpty) {
+        final countryRef = _firestore.collection('marketMap').doc(countryId);
+        final snap = await countryRef.get();
+        if (!snap.exists) {
+          final countryName = input.countryName.trim().isEmpty
+              ? countryId
+              : input.countryName.trim();
+          await countryRef.set({
+            'name': countryName,
+            'slug': MarketMapService.slugify(countryName),
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+      }
+
       // Contexte utilisateur (groupId) requis par les règles map_projects.
       String groupId = 'default';
       try {
@@ -702,6 +720,25 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
     return null;
   }
 
+  ({String id, String name, String? iso2})? _resolveCountryInput(
+    List<MarketCountry> countries,
+  ) {
+    final selected = _resolveCountry(countries);
+    if (selected != null) {
+      return (
+        id: selected.id.trim(),
+        name: _countryLabel(selected),
+        iso2: _countryCodeFor(selected),
+      );
+    }
+
+    final typed = _countryController.text.trim();
+    if (typed.isEmpty) return null;
+    final id = MarketMapService.slugify(typed);
+    if (id.isEmpty) return null;
+    return (id: id, name: typed, iso2: null);
+  }
+
   @override
   Widget build(BuildContext context) {
     final screen = MediaQuery.of(context).size;
@@ -728,6 +765,7 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
               final countries = snapshot.data ?? const <MarketCountry>[];
 
               final resolvedCountry = _resolveCountry(countries);
+              final resolvedCountryInput = _resolveCountryInput(countries);
               final cam = _countryPreviewCamera(resolvedCountry);
 
               return SingleChildScrollView(
@@ -906,22 +944,15 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
                       onPressed: !_isValid
                           ? null
                           : () {
-                              final country = resolvedCountry;
-                              if (country == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Sélectionnez un pays.'),
-                                  ),
-                                );
-                                return;
-                              }
+                              final country = resolvedCountryInput;
+                              if (country == null) return;
 
                               Navigator.pop(
                                 context,
                                 _NewCircuitInput(
-                                  countryId: country.id.trim(),
-                                  countryName: _countryLabel(country),
-                                  countryIso2: _countryCodeFor(country),
+                                  countryId: country.id,
+                                  countryName: country.name,
+                                  countryIso2: country.iso2,
                                   eventId: _eventId(),
                                   eventName: _eventName(),
                                   name: _nameController.text.trim(),
