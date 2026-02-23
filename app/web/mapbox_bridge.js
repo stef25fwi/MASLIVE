@@ -960,12 +960,14 @@
             id: 'maslive_polyline_layer',
             type: 'line',
             source: mainSource,
+            layout: {
+              'line-cap': lineCap,
+              'line-join': lineJoin,
+            },
             paint: {
               'line-width': mainLineWidth,
               'line-color': mainLineColor,
               'line-opacity': mainLineOpacity,
-              'line-cap': lineCap,
-              'line-join': lineJoin,
             },
           });
         } else {
@@ -974,13 +976,15 @@
               id: 'maslive_polyline_shadow',
               type: 'line',
               source: sourceId,
+              layout: {
+                'line-cap': lineCap,
+                'line-join': lineJoin,
+              },
               paint: {
                 'line-width': w + 8,
                 'line-color': 'rgba(0,0,0,0.25)',
                 'line-blur': 1.2,
                 'line-opacity': opacity,
-                'line-cap': lineCap,
-                'line-join': lineJoin,
               },
             });
           }
@@ -990,13 +994,15 @@
               id: 'maslive_polyline_glow',
               type: 'line',
               source: sourceId,
+              layout: {
+                'line-cap': lineCap,
+                'line-join': lineJoin,
+              },
               paint: {
                 'line-width': w + Math.max(0, glowWidth),
                 'line-color': glowColor,
                 'line-opacity': glowOpacity,
                 'line-blur': Math.max(0, glowBlur),
-                'line-cap': lineCap,
-                'line-join': lineJoin,
               },
             });
           }
@@ -1007,12 +1013,14 @@
             id: 'maslive_polyline_casing',
             type: 'line',
             source: sourceId,
+            layout: {
+              'line-cap': lineCap,
+              'line-join': lineJoin,
+            },
             paint: {
               'line-width': casingWidth,
               'line-color': casingColorOpt,
               'line-opacity': opacity,
-              'line-cap': lineCap,
-              'line-join': lineJoin,
             },
           });
 
@@ -1020,12 +1028,14 @@
             id: 'maslive_polyline_core',
             type: 'line',
             source: mainSource,
+            layout: {
+              'line-cap': lineCap,
+              'line-join': lineJoin,
+            },
             paint: {
               'line-width': mainLineWidth,
               'line-color': mainLineColor,
               'line-opacity': mainLineOpacity,
-              'line-cap': lineCap,
-              'line-join': lineJoin,
             },
           });
 
@@ -1036,12 +1046,14 @@
               id: 'maslive_polyline_center',
               type: 'line',
               source: sourceId,
+              layout: {
+                'line-cap': lineCap,
+                'line-join': lineJoin,
+              },
               paint: {
                 'line-width': Math.max(1, Math.min(w, w * 0.33)),
                 'line-color': 'rgba(255,255,255,0.85)',
                 'line-opacity': opacity,
-                'line-cap': lineCap,
-                'line-join': lineJoin,
               },
             });
           }
