@@ -1215,14 +1215,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                       isSelected: [routeIsLooped, !routeIsLooped],
                       borderRadius: BorderRadius.circular(10),
                       constraints: const BoxConstraints(minHeight: 36),
-                      onPressed: (index) {
-                        if (controller.pointCount < 2) return;
-                        if (index == 0) {
-                          controller.closePath();
-                        } else {
-                          controller.openPath();
-                        }
-                      },
+                      onPressed: controller.pointCount >= 2
+                          ? (index) {
+                              if (index == 0) {
+                                controller.closePath();
+                              } else {
+                                controller.openPath();
+                              }
+                            }
+                          : null,
                       children: const [
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 10),
