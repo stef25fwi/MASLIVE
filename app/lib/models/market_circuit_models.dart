@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class MarketMapLayer {
   final String id;
   final String label;
-  final String type; // 'parking', 'wc', 'food', 'assistance', 'tour', 'route'
+  final String type; // 'parking', 'wc', 'food', 'assistance', 'visit' (legacy: 'tour'), 'route'
   final bool isVisible;
   final int zIndex;
   final String? color;
@@ -101,7 +101,7 @@ class MarketMapPOI {
     return MarketMapPOI(
       id: doc.id,
       name: data['name'] ?? '',
-      layerType: data['layerType'] ?? 'tour',
+      layerType: data['layerType'] ?? 'visit',
       lng: data['lng'] ?? 0.0,
       lat: data['lat'] ?? 0.0,
       description: data['description'],

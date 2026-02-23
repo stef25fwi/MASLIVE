@@ -587,7 +587,7 @@ class CircuitRepository {
       return MarketMapLayer(
         id: (e['id'] as String?) ?? 'tpl_${entry.key + 1}',
         label: (e['label'] as String?) ?? 'Layer ${entry.key + 1}',
-        type: (e['type'] as String?) ?? 'tour',
+        type: (e['type'] as String?) ?? 'visit',
         isVisible: (e['isVisible'] as bool?) ?? true,
         zIndex: (e['zIndex'] as num?)?.toInt() ?? entry.key,
         color: e['color'] as String?,

@@ -469,6 +469,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           // Charger layers
           _layers = await _loadLayers();
 
+          // Assure les couches POI attendues (visit/food/assistance/parking/wc)
+          // et migre les anciens types (tour/visiter -> visit).
+          await _ensureDefaultPoiLayers();
+
           // Charger POI (paginé)
           await _loadPoisFirstPage();
 
@@ -560,7 +564,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         MarketMapLayer(
           id: '6',
           label: 'Lieux à visiter',
-          type: 'tour',
+          type: 'visit',
           isVisible: true,
           zIndex: 6,
           color: '#F59E0B',
@@ -578,6 +582,170 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     return snapshot.docs
         .map((doc) => MarketMapLayer.fromFirestore(doc))
         .toList();
+  }
+
+  String _normalizePoiLayerType(String raw) {
+    final norm = raw.trim().toLowerCase();
+    if (norm == 'tour' || norm == 'visiter') return 'visit';
+    if (norm == 'toilet' || norm == 'toilets') return 'wc';
+    return norm;
+  }
+
+  bool _poiMatchesSelectedLayer(MarketMapPOI poi, MarketMapLayer layer) {
+    return _normalizePoiLayerType(poi.layerType) ==
+        _normalizePoiLayerType(layer.type);
+  }
+
+  Future<void> _migrateLegacyPoiTypesToVisit({required String projectId}) async {
+    if (!_canWriteMapProjects) return;
+
+    final db = FirebaseFirestore.instance;
+    final col = db.collection('map_projects').doc(projectId).collection('pois');
+
+    // Migration ciblée (pas de scan complet): tour/visiter -> visit
+    final snap = await col.where('layerType', whereIn: const ['tour', 'visiter']).get();
+    if (snap.docs.isEmpty) return;
+
+    WriteBatch batch = db.batch();
+    int ops = 0;
+
+    Future<void> commitIfNeeded({bool force = false}) async {
+      if (ops == 0) return;
+      if (!force && ops < 450) return;
+      await batch.commit();
+      batch = db.batch();
+      ops = 0;
+    }
+
+    for (final doc in snap.docs) {
+      batch.update(doc.reference, {
+        'layerType': 'visit',
+        'layerId': 'visit',
+        // Compat: certains écrans lisent `type`
+        'type': 'visit',
+      });
+      ops++;
+      await commitIfNeeded();
+    }
+
+    await commitIfNeeded(force: true);
+  }
+
+  Future<void> _ensureDefaultPoiLayers() async {
+    final projectId = _projectId;
+    if (projectId == null || projectId.trim().isEmpty) return;
+
+    // 1) Migration POI legacy (pour cohérence avec Home: visit)
+    try {
+      await _migrateLegacyPoiTypesToVisit(projectId: projectId);
+    } catch (e) {
+      debugPrint('WizardPro migrate POI types error: $e');
+    }
+
+    // 2) Assurer les couches attendues côté wizard/Home
+    const defaults = <({String type, String label, String color, int preferredZ})>[
+      (type: 'route', label: 'Tracé Route', color: '#1A73E8', preferredZ: 1),
+      (type: 'parking', label: 'Parkings', color: '#FBBF24', preferredZ: 2),
+      (type: 'wc', label: 'Toilettes', color: '#9333EA', preferredZ: 3),
+      (type: 'food', label: 'Food', color: '#EF4444', preferredZ: 4),
+      (type: 'assistance', label: 'Assistance', color: '#34A853', preferredZ: 5),
+      (type: 'visit', label: 'Lieux à visiter', color: '#F59E0B', preferredZ: 6),
+    ];
+
+    bool hasExactLayerType(String t) {
+      final norm = t.trim().toLowerCase();
+      return _layers.any((l) => l.type.trim().toLowerCase() == norm);
+    }
+
+    final usedZ = _layers.map((l) => l.zIndex).toSet();
+    int maxZ = 0;
+    for (final z in usedZ) {
+      if (z > maxZ) maxZ = z;
+    }
+
+    int allocZ(int preferred) {
+      if (!usedZ.contains(preferred)) {
+        usedZ.add(preferred);
+        if (preferred > maxZ) maxZ = preferred;
+        return preferred;
+      }
+      maxZ += 1;
+      usedZ.add(maxZ);
+      return maxZ;
+    }
+
+    // Si pas de couche `visit` mais une legacy `tour/visiter` existe,
+    // on la convertit en `visit` pour éviter des doublons.
+    final hasVisit = hasExactLayerType('visit');
+    if (!hasVisit) {
+      final idx = _layers.indexWhere(
+        (l) => ['tour', 'visiter'].contains(l.type.trim().toLowerCase()),
+      );
+      if (idx >= 0 && _canWriteMapProjects) {
+        final legacy = _layers[idx];
+        try {
+          await FirebaseFirestore.instance
+              .collection('map_projects')
+              .doc(projectId)
+              .collection('layers')
+              .doc(legacy.id)
+              .set({'type': 'visit'}, SetOptions(merge: true));
+          final migrated = legacy.copyWith(type: 'visit');
+          _layers[idx] = migrated;
+          if (_selectedLayer?.id == legacy.id) {
+            _selectedLayer = migrated;
+          }
+        } catch (e) {
+          debugPrint('WizardPro migrate layer tour->visit error: $e');
+        }
+      }
+    }
+
+    final db = FirebaseFirestore.instance;
+    final layersCol = db.collection('map_projects').doc(projectId).collection('layers');
+    WriteBatch? batch;
+    int writes = 0;
+
+    void queueWrite(DocumentReference ref, Map<String, dynamic> data) {
+      batch ??= db.batch();
+      batch!.set(ref, data, SetOptions(merge: true));
+      writes += 1;
+    }
+
+    for (final d in defaults) {
+      if (hasExactLayerType(d.type)) continue;
+
+      final layer = MarketMapLayer(
+        id: d.type,
+        label: d.label,
+        type: d.type,
+        isVisible: true,
+        zIndex: allocZ(d.preferredZ),
+        color: d.color,
+      );
+      _layers.add(layer);
+      if (_canWriteMapProjects) {
+        queueWrite(layersCol.doc(layer.id), layer.toFirestore());
+      }
+    }
+
+    if (batch != null && writes > 0) {
+      try {
+        await batch!.commit();
+      } catch (e) {
+        debugPrint('WizardPro ensure POI layers commit error: $e');
+      }
+    }
+
+    _layers.sort((a, b) => a.zIndex.compareTo(b.zIndex));
+
+    // Si la couche sélectionnée a disparu ou est nulle, on en choisit une valide.
+    if (_selectedLayer == null && _layers.isNotEmpty) {
+      _selectedLayer = _layers.firstWhere(
+        (l) => _normalizePoiLayerType(l.type) != 'route',
+        orElse: () => _layers.first,
+      );
+    }
   }
 
   Future<void> _loadPoisFirstPage() async {
@@ -1715,7 +1883,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                           ),
                         ),
                         subtitle: Text(
-                          '${_pois.where((p) => p.layerType == _selectedLayer!.type).length} POI',
+                          '${_pois.where((p) => _poiMatchesSelectedLayer(p, _selectedLayer!)).length} POI',
                           style: const TextStyle(fontSize: 12),
                         ),
                         children: [
@@ -1725,7 +1893,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                               shrinkWrap: true,
                               children: [
                                 for (final poi in _pois.where(
-                                  (p) => p.layerType == _selectedLayer!.type,
+                                  (p) => _poiMatchesSelectedLayer(p, _selectedLayer!),
                                 ))
                                   ListTile(
                                     dense: true,
@@ -1861,8 +2029,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       return;
     }
 
-    final layerType = _selectedLayer!.type;
-    final poisForLayer = _pois.where((p) => p.layerType == layerType).toList();
+    final layer = _selectedLayer!;
+    final poisForLayer = _pois.where((p) => _poiMatchesSelectedLayer(p, layer)).toList();
     await _poiMapController.setPoisGeoJson(_buildPoisFeatureCollection(poisForLayer));
   }
 
@@ -2252,6 +2420,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       'wc': Icons.wc,
       'food': Icons.restaurant,
       'assistance': Icons.support_agent,
+      'visit': Icons.tour,
       'tour': Icons.tour,
       'route': Icons.route,
     };
