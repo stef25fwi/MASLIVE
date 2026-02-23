@@ -45,6 +45,7 @@ class PublishQualityService {
     required List<MarketMapPOI> pois,
   }) {
     final perimeterClosed = _isPerimeterClosed(perimeter);
+    final perimeterVertexCount = _perimeterVertexCount(perimeter);
     final routeMinPoints = route.length >= 2;
     final routeDensity = _meanSegmentMeters(route) <= maxMeanSegmentMeters;
     final styleValid = routeWidth > 0 && _isValidHexColor(routeColorHex);
@@ -56,10 +57,10 @@ class PublishQualityService {
       CheckItem(
         id: 'perimeterClosed',
         label: 'Périmètre fermé (>=3 points + fermeture)',
-        ok: perimeter.length >= 3 && perimeterClosed,
+        ok: perimeterVertexCount >= 3 && perimeterClosed,
         weight: 20,
         required: true,
-        hint: 'Ajoute des points et ferme le polygone.',
+        hint: 'Ajoute au moins 3 points puis ferme le polygone.',
       ),
       CheckItem(
         id: 'routeMinPoints',
@@ -126,6 +127,18 @@ class PublishQualityService {
     final first = points.first;
     final last = points.last;
     return _distanceMeters(first, last) <= perimeterClosureToleranceMeters;
+  }
+
+  int _perimeterVertexCount(List<LngLat> points) {
+    if (points.isEmpty) return 0;
+    if (points.length == 1) return 1;
+
+    // Si le polygone est déjà fermé (dernier proche du premier), on ignore
+    // le point de fermeture pour compter les sommets réels.
+    if (_isPerimeterClosed(points)) {
+      return math.max(0, points.length - 1);
+    }
+    return points.length;
   }
 
   bool _isValidHexColor(String value) {

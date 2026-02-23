@@ -102,6 +102,15 @@ class CircuitMapEditor extends StatefulWidget {
   /// Réduire cette valeur donne plus de place à la carte.
   final double pointsListMaxHeight;
 
+  /// Si true, l'éditeur devient scrollable verticalement.
+  /// Utile dans le wizard pour garder une carte plus grande sans écraser
+  /// la liste des points sur petits écrans.
+  final bool allowVerticalScroll;
+
+  /// Hauteur fixe de la carte quand [allowVerticalScroll] est activé.
+  /// Si null, une valeur par défaut basée sur la taille d'écran est utilisée.
+  final double? mapHeight;
+
   /// Périmètre (polygon) affiché en surcouche, même en mode polyline.
   /// Typiquement: afficher le périmètre défini à l'étape précédente.
   final List<LngLat> perimeterOverlay;
@@ -130,6 +139,9 @@ class CircuitMapEditor extends StatefulWidget {
     this.showHeader = true,
     this.pointsListMaxHeight = 180,
     this.perimeterOverlay = const [],
+
+    this.allowVerticalScroll = false,
+    this.mapHeight,
 
     this.polylineColor = const Color(0xFF0A84FF),
     this.polylineWidth = 4.0,
@@ -567,10 +579,8 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        if (widget.showHeader)
-          Container(
+    final header = widget.showHeader
+        ? Container(
             color: Colors.white,
             padding: const EdgeInsets.all(12),
             child: Column(
@@ -590,18 +600,17 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                 ),
               ],
             ),
-          ),
+          )
+        : const SizedBox.shrink();
 
-        // Toolbar
-        if (_showToolbar && widget.showToolbar)
-          Container(
+    final toolbar = (_showToolbar && widget.showToolbar)
+        ? Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  // Undo/Redo
                   IconButton(
                     icon: const Icon(Icons.undo),
                     onPressed: _historyIndex > 0 ? _undo : null,
@@ -613,8 +622,6 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                     tooltip: 'Rétablir',
                   ),
                   const VerticalDivider(),
-
-                  // Tools
                   if (widget.mode == 'polygon')
                     IconButton(
                       icon: const Icon(Icons.loop_rounded),
@@ -637,8 +644,6 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                     tooltip: 'Effacer tous',
                   ),
                   const VerticalDivider(),
-
-                  // Stats
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Column(
@@ -662,13 +667,30 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                 ],
               ),
             ),
-          ),
+          )
+        : const SizedBox.shrink();
 
-        // Map
-        Expanded(
-          child: _buildMap(),
+    if (widget.allowVerticalScroll) {
+      final screenH = MediaQuery.of(context).size.height;
+      final mapH = widget.mapHeight ?? (screenH * 0.62).clamp(380.0, 820.0);
+
+      return SingleChildScrollView(
+        child: Column(
+          children: [
+            if (widget.showHeader) header,
+            if (_showToolbar && widget.showToolbar) toolbar,
+            SizedBox(height: mapH, child: _buildMap()),
+            _buildPointsSection(),
+          ],
         ),
+      );
+    }
 
+    return Column(
+      children: [
+        if (widget.showHeader) header,
+        if (_showToolbar && widget.showToolbar) toolbar,
+        Expanded(child: _buildMap()),
         _buildPointsSection(),
       ],
     );

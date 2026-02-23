@@ -823,7 +823,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           Expanded(
             child: PageView(
               controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
+              physics: const PageScrollPhysics(),
               onPageChanged: (page) {
                 setState(() => _currentStep = page);
               },
@@ -1020,7 +1020,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: SizedBox(
-              height: 220,
+              height: 440,
               child: MasLiveMap(
                 initialLng: _routePoints.isNotEmpty
                     ? _routePoints.first.lng
@@ -1070,6 +1070,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           : _styleUrlController.text.trim(),
       showToolbar: false,
       showHeader: false,
+      allowVerticalScroll: true,
+      mapHeight: 720,
       pointsListMaxHeight: 120,
       onPointsChanged: (points) {
         setState(() {
@@ -1091,6 +1093,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           ? null
           : _styleUrlController.text.trim(),
       showToolbar: false,
+      allowVerticalScroll: true,
+      mapHeight: 720,
       onPointsChanged: (points) {
         final previousCount = _routePoints.length;
         setState(() {
@@ -1128,6 +1132,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           ? null
           : _styleUrlController.text.trim(),
       showToolbar: false,
+      allowVerticalScroll: true,
+      mapHeight: 720,
       onPointsChanged: (points) {
         setState(() {
           _routePoints = points;

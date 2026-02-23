@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../models/route_style_config.dart';
@@ -53,6 +54,16 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
 
   String? get _projectId => widget.projectId;
   String? get _circuitId => widget.circuitId;
+
+  CollectionReference<Map<String, dynamic>>? _presetsColForCurrentUser() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if ((uid ?? '').trim().isEmpty) return null;
+
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('routeStyleProPresets');
+  }
 
   @override
   void initState() {
@@ -217,6 +228,141 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
     _snack('Réinitialisé');
   }
 
+  Future<void> _openPresetsDialog() async {
+    final col = _presetsColForCurrentUser();
+    if (col == null) {
+      _snack('Connectez-vous pour utiliser les presets.');
+      return;
+    }
+
+    final presetsStream = col
+        .orderBy('updatedAt', descending: true)
+        .limit(40)
+        .snapshots();
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Presets Style Pro'),
+        content: SizedBox(
+          width: 520,
+          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: presetsStream,
+            builder: (context, snap) {
+              if (snap.hasError) {
+                return const Text('❌ Erreur de chargement des presets.');
+              }
+              if (!snap.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final docs = snap.data!.docs;
+              if (docs.isEmpty) {
+                return const Text('Aucun preset enregistré.');
+              }
+
+              return ListView.separated(
+                shrinkWrap: true,
+                itemCount: docs.length,
+                separatorBuilder: (_, index) => const Divider(height: 1),
+                itemBuilder: (_, i) {
+                  final data = docs[i].data();
+                  final name = (data['name'] as String?)?.trim();
+                  final label = (name == null || name.isEmpty)
+                      ? 'Preset ${i + 1}'
+                      : name;
+
+                  return ListTile(
+                    title: Text(label),
+                    subtitle: const Text('Appuyer pour appliquer'),
+                    onTap: () {
+                      final raw = data['config'];
+                      if (raw is Map) {
+                        final cfg = RouteStyleConfig.fromJson(
+                          Map<String, dynamic>.from(raw),
+                        ).validated();
+                        _onConfigChanged(cfg);
+                        Navigator.pop(ctx);
+                      } else {
+                        _snack('Preset invalide (config manquante).');
+                      }
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Fermer'),
+          ),
+          ElevatedButton.icon(
+            onPressed: _busy ? null : () => _savePresetWithPrompt(col),
+            icon: const Icon(Icons.save),
+            label: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _savePresetWithPrompt(
+    CollectionReference<Map<String, dynamic>> presetsCol,
+  ) async {
+    if (_busy) return;
+
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Nom du preset'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Nom',
+            hintText: 'Ex: Waze sombre + glow',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => Navigator.pop(ctx, controller.text.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+
+    final presetName = (name ?? '').trim();
+    if (presetName.isEmpty) return;
+
+    setState(() => _busy = true);
+    try {
+      final cfg = _config.validated();
+      final doc = presetsCol.doc();
+      await doc.set({
+        'name': presetName,
+        'config': cfg.toJson(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      _snack('Preset enregistré');
+    } catch (e) {
+      _snack('Enregistrement preset échoué: ${e.toString()}');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   void _snack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -230,6 +376,11 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
       appBar: AppBar(
         title: const Text('Route Style Wizard Pro'),
         actions: [
+          IconButton(
+            tooltip: 'Presets',
+            onPressed: _busy ? null : _openPresetsDialog,
+            icon: const Icon(Icons.bookmarks_outlined),
+          ),
           if ((_projectId ?? '').trim().isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(right: 12),
