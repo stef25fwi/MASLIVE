@@ -991,7 +991,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           Expanded(
             child: PageView(
               controller: _pageController,
-              physics: const PageScrollPhysics(),
+              physics: const NeverScrollableScrollPhysics(),
               onPageChanged: (page) {
                 setState(() => _currentStep = page);
               },
