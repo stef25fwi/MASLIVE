@@ -80,13 +80,17 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   double? _projectZoom;
 
   // MarketMap POIs (wiring wizard)
-  final MarketMapService _marketMapService = MarketMapService();
+  MarketMapService? _marketMapService;
   MarketMapPoiSelection _marketPoiSelection =
       const MarketMapPoiSelection.disabled();
   StreamSubscription? _marketPoisSub;
   List<MarketPoi> _marketPois = const <MarketPoi>[];
   List<MapMarker> _marketPoiMarkers = const <MapMarker>[];
   final MasLiveMapController _mapController = MasLiveMapController();
+
+  MarketMapService _getMarketMapService() {
+    return _marketMapService ??= MarketMapService();
+  }
 
   List<MapMarker> _composeMarkers() {
     final markers = List<MapMarker>.from(_marketPoiMarkers);
@@ -143,8 +147,11 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           ),
         );
 
-    _bootstrapLocation();
-    _loadUserGroupId();
+    final canShowMap = kIsWeb && MapboxTokenService.getTokenSync().isNotEmpty;
+    if (canShowMap) {
+      _bootstrapLocation();
+      _loadUserGroupId();
+    }
 
     // Préchargement des icônes pour éviter les retards d'affichage
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -230,7 +237,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       _mapRebuildTick++;
     });
 
-    _marketPoisSub = _marketMapService
+    _marketPoisSub = _getMarketMapService()
         .watchVisiblePois(
           countryId: selection.country!.id,
           eventId: selection.event!.id,
@@ -375,7 +382,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   Future<void> _showMapProjectsSelector() async {
     final selection = await showMarketMapCircuitSelectorSheet(
       context,
-      service: _marketMapService,
+      service: _getMarketMapService(),
       initial: _marketPoiSelection.enabled ? _marketPoiSelection : null,
     );
     if (selection == null || !mounted) return;

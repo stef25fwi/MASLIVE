@@ -8,6 +8,7 @@ import '../models/market_event.dart';
 import '../models/market_layer.dart';
 import '../services/market_map_service.dart';
 import '../utils/country_flag.dart';
+import '../ui/widgets/country_autocomplete_field.dart';
 
 class POIMarketMapWizardPage extends StatefulWidget {
   const POIMarketMapWizardPage({
@@ -39,6 +40,8 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
   MarketEvent? _event;
   MarketCircuit? _circuit;
 
+  final TextEditingController _countryCtrl = TextEditingController();
+
   bool get _canGoNext {
     switch (_step) {
       case 0:
@@ -67,6 +70,12 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
     if (countryId != null && eventId != null && circuitId != null) {
       _preselectFromIds(countryId: countryId, eventId: eventId, circuitId: circuitId);
     }
+  }
+
+  @override
+  void dispose() {
+    _countryCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _preselectFromIds({
@@ -118,6 +127,7 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
         _event = event;
         _circuit = circuit;
         _step = 3; // on atterrit directement sur la gestion des couches/POI
+        _countryCtrl.text = country.name.trim().isNotEmpty ? country.name : country.id;
       });
     } catch (_) {
       // En cas d'erreur réseau ou autre, on laisse le wizard en mode normal.
@@ -424,37 +434,14 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
                   builder: (context, snapshot) {
                     final items = snapshot.data ?? const <MarketCountry>[];
 
-                    return DropdownButtonFormField<String>(
-                      key: ValueKey('country-${_country?.id ?? ''}'),
-                      initialValue: _country?.id,
-                      decoration: const InputDecoration(
-                        labelText: 'Pays',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: [
-                        for (final c in items)
-                          DropdownMenuItem(
-                            value: c.id,
-                            child: Text(
-                              formatCountryLabelWithFlag(
-                                name: c.name,
-                                iso2: guessIso2FromMarketMapCountry(
-                                  id: c.id,
-                                  slug: c.slug,
-                                  name: c.name,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                      onChanged: (id) {
-                        final selected = items.firstWhere(
-                          (c) => c.id == id,
-                          orElse: () => const MarketCountry(id: '', name: '', slug: ''),
-                        );
-                        if (selected.id.isEmpty) return;
+                    return MarketCountryAutocompleteField(
+                      items: items,
+                      controller: _countryCtrl,
+                      labelText: 'Pays',
+                      hintText: 'Rechercher un pays…',
+                      onSelected: (c) {
                         setState(() {
-                          _country = selected;
+                          _country = c;
                           _event = null;
                           _circuit = null;
                         });

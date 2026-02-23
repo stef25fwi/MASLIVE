@@ -957,7 +957,14 @@ service cloud.firestore {
         && validProjectPayloadCreate();
 
       // Lecture publique UNIQUEMENT si published (sinon: admins/créateur)
-      allow read: if canReadProject(projectId);
+      // IMPORTANT: pour les requêtes (liste), Firestore exige que TOUS les documents potentiellement
+      // retournés soient autorisés. On évite ici les dépendances `get()` sur le même document
+      // (source fréquente de "permission-denied" en liste) et on s'appuie sur `resource.data`.
+      allow read: if isSignedIn() && (
+        isMasterAdmin()
+        || resource.data.createdBy == request.auth.uid
+        || resource.data.uid == request.auth.uid
+      );
 
       allow update: if isSignedIn()
         && isMasterAdmin()

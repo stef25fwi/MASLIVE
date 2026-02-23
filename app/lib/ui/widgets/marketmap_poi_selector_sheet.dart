@@ -5,7 +5,7 @@ import '../../models/market_country.dart';
 import '../../models/market_event.dart';
 import '../../models/market_layer.dart';
 import '../../services/market_map_service.dart';
-import '../../utils/country_flag.dart';
+import 'country_autocomplete_field.dart';
 
 class MarketMapPoiSelection {
   const MarketMapPoiSelection._({
@@ -98,6 +98,8 @@ class _MarketMapPoiSelectorSheetState extends State<_MarketMapPoiSelectorSheet> 
   Set<String> _layerIds = <String>{};
   bool _layerSelectionInitialized = false;
 
+  final TextEditingController _countryCtrl = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -108,7 +110,18 @@ class _MarketMapPoiSelectorSheetState extends State<_MarketMapPoiSelectorSheet> 
       _circuit = initial.circuit;
       _layerIds = {...initial.layerIds};
       _layerSelectionInitialized = _layerIds.isNotEmpty;
+
+      final country = _country;
+      if (country != null) {
+        _countryCtrl.text = country.name.trim().isNotEmpty ? country.name : country.id;
+      }
     }
+  }
+
+  @override
+  void dispose() {
+    _countryCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -141,37 +154,14 @@ class _MarketMapPoiSelectorSheetState extends State<_MarketMapPoiSelectorSheet> 
             stream: widget.service.watchCountries(),
             builder: (context, snap) {
               final items = snap.data ?? const <MarketCountry>[];
-              return DropdownButtonFormField<String>(
-                initialValue: _country?.id,
-                decoration: const InputDecoration(
-                  labelText: 'Pays',
-                  border: OutlineInputBorder(),
-                ),
-                items: [
-                  for (final c in items)
-                    DropdownMenuItem(
-                      value: c.id,
-                      child: Text(
-                        formatCountryLabelWithFlag(
-                          name: c.name,
-                          iso2: guessIso2FromMarketMapCountry(
-                            id: c.id,
-                            slug: c.slug,
-                            name: c.name,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-                onChanged: (id) {
-                  if (id == null) return;
-                  final selected = items.firstWhere(
-                    (c) => c.id == id,
-                    orElse: () => const MarketCountry(id: '', name: '', slug: ''),
-                  );
-                  if (selected.id.isEmpty) return;
+              return MarketCountryAutocompleteField(
+                items: items,
+                controller: _countryCtrl,
+                labelText: 'Pays',
+                hintText: 'Rechercher un pays…',
+                onSelected: (c) {
                   setState(() {
-                    _country = selected;
+                    _country = c;
                     _event = null;
                     _circuit = null;
                     _layerIds = <String>{};

@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
-import '../utils/country_flag.dart';
+import '../ui/widgets/country_autocomplete_field.dart';
 
 class BusinessSignupPage extends StatefulWidget {
   const BusinessSignupPage({super.key});
@@ -400,14 +400,15 @@ class _BusinessSignupPageState extends State<BusinessSignupPage> {
                       validator: (v) => v == null ? 'Région requise' : null,
                     ),
                     const SizedBox(height: 12),
-                    _DropdownField(
-                      label: 'Pays *',
+                    CountryNameAutocompleteFormField(
+                      labelText: 'Pays *',
+                      hintText: 'Rechercher un pays…',
+                      options: _countries,
                       value: _country,
-                      items: _countries,
-                      icon: Icons.public,
-                      itemLabelBuilder: formatCountryNameWithFlag,
                       onChanged: (v) => setState(() => _country = v),
-                      validator: (v) => v == null ? 'Pays requis' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Pays requis'
+                          : null,
                     ),
 
                     const SizedBox(height: 24),
@@ -616,7 +617,6 @@ class _DropdownField extends StatelessWidget {
   final IconData icon;
   final ValueChanged<String?> onChanged;
   final String? Function(String?)? validator;
-  final String Function(String value)? itemLabelBuilder;
 
   const _DropdownField({
     required this.label,
@@ -625,7 +625,6 @@ class _DropdownField extends StatelessWidget {
     required this.icon,
     required this.onChanged,
     this.validator,
-    this.itemLabelBuilder,
   });
 
   @override
@@ -655,7 +654,7 @@ class _DropdownField extends StatelessWidget {
         return DropdownMenuItem<String>(
           value: item,
           child: Text(
-            itemLabelBuilder?.call(item) ?? item,
+            item,
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
         );

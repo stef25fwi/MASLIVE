@@ -375,6 +375,81 @@
     return state;
   }
 
+  function _classifyRuntimeError(raw) {
+    let msg = '';
+    let status = null;
+    try {
+      if (raw && typeof raw === 'object') {
+        if (typeof raw.status === 'number') status = raw.status;
+        if (raw.response && typeof raw.response.status === 'number') status = raw.response.status;
+      }
+    } catch (_) {
+      // ignore
+    }
+    try {
+      if (raw && raw.message) msg = String(raw.message);
+      else msg = String(raw);
+    } catch (_) {
+      msg = '';
+    }
+
+    const lower = (msg || '').toLowerCase();
+
+    // Token invalide / révoqué
+    if (
+      status === 401 ||
+      lower.includes('401') ||
+      lower.includes('unauthorized') ||
+      lower.includes('invalid token') ||
+      lower.includes('invalid access token') ||
+      lower.includes('access token is invalid')
+    ) {
+      return {
+        reason: 'TOKEN_INVALID',
+        message: 'Token Mapbox invalide ou révoqué. Vérifie le token (pk.*) et rebuild/deploy.' + (msg ? ' (' + msg + ')' : ''),
+      };
+    }
+
+    // Token valide mais non autorisé (scopes, restrictions, style privé, etc.)
+    if (
+      status === 403 ||
+      lower.includes('403') ||
+      lower.includes('forbidden') ||
+      lower.includes('not authorized')
+    ) {
+      return {
+        reason: 'TOKEN_FORBIDDEN',
+        message: 'Accès Mapbox refusé (403). Vérifie les permissions/restrictions du token et l\'accès au style.' + (msg ? ' (' + msg + ')' : ''),
+      };
+    }
+
+    // Requêtes bloquées (adblock, DNS filtré, corporate proxy)
+    if (
+      lower.includes('failed to fetch') ||
+      lower.includes('networkerror') ||
+      lower.includes('err_blocked_by_client') ||
+      lower.includes('blocked')
+    ) {
+      return {
+        reason: 'NETWORK_BLOCKED',
+        message: 'Requêtes Mapbox bloquées (réseau ou bloqueur). Autorise api.mapbox.com/unpkg.com et réessaie.' + (msg ? ' (' + msg + ')' : ''),
+      };
+    }
+
+    // WebGL (rare en runtime, mais possible si contexte perdu)
+    if (lower.includes('webgl')) {
+      return {
+        reason: 'WEBGL_UNSUPPORTED',
+        message: 'WebGL indisponible: Mapbox GL JS ne peut pas fonctionner sur cet appareil/navigateur.' + (msg ? ' (' + msg + ')' : ''),
+      };
+    }
+
+    return {
+      reason: 'MAPBOX_RUNTIME_ERROR',
+      message: 'Erreur Mapbox: ' + (msg || 'inconnue'),
+    };
+  }
+
   function _parseBool(v, fallback) {
     if (typeof v === 'boolean') return v;
     if (typeof v === 'string') {
@@ -543,11 +618,26 @@
           }
 
           if (typeof mapboxgl === 'undefined') {
+            let status = '';
+            try {
+              status = (window.__MAPBOXGL_LOAD_STATUS__ ? String(window.__MAPBOXGL_LOAD_STATUS__) : '');
+            } catch (_) {
+              status = '';
+            }
+            let hint = '';
+            const st = (status || '').toLowerCase();
+            if (st.startsWith('error')) {
+              hint = ' (échec de chargement du script Mapbox GL JS: bloqué par adblock/DNS, ou réseau)';
+            } else if (st.startsWith('loading')) {
+              hint = ' (script Mapbox GL JS encore en chargement)';
+            } else if (st.startsWith('loaded')) {
+              hint = ' (script déclaré chargé, mais mapboxgl absent: bloqueur/extension possible)';
+            }
             _postToFlutter({
               type: 'MASLIVE_MAP_ERROR',
               containerId,
               reason: 'MAPBOXGL_MISSING',
-              message: 'Mapbox GL JS non chargé (scripts https://api.mapbox.com potentiellement bloqués).',
+              message: 'Mapbox GL JS non chargé (scripts https://api.mapbox.com potentiellement bloqués). Status=' + status + hint,
             });
             return false;
           }
@@ -598,6 +688,30 @@
         map.on('load', function() {
           _postToFlutter({ type: 'MASLIVE_MAP_READY', containerId });
         });
+
+        // Remonte les erreurs runtime (ex: style/tiles/token) vers Flutter.
+        // On évite de spammer en n'envoyant qu'un message par init.
+        try {
+          let didPostRuntimeError = false;
+          map.on('error', function(e) {
+            try {
+              if (didPostRuntimeError) return;
+              didPostRuntimeError = true;
+              const raw = (e && (e.error || e)) ? (e.error || e) : e;
+              const c = _classifyRuntimeError(raw);
+              _postToFlutter({
+                type: 'MASLIVE_MAP_ERROR',
+                containerId,
+                reason: c.reason,
+                message: c.message,
+              });
+            } catch (_) {
+              // ignore
+            }
+          });
+        } catch (_) {
+          // ignore
+        }
 
         map.on('click', function(e) {
           try {

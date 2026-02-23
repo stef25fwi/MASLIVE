@@ -6,7 +6,7 @@ import 'dart:convert';
 import 'maslive_map_controller.dart';
 import 'maslive_poi_style.dart';
 import 'maslive_map_native.dart';
-import 'maslive_map_web.dart';
+import 'maslive_map_web_stub.dart' if (dart.library.html) 'maslive_map_web.dart';
 
 /// Extension "Mapbox Pro" pour l'édition POIs via GeoJSON source + layer
 ///

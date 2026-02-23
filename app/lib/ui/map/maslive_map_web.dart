@@ -68,6 +68,35 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
   String _poisGeoJsonString = '{"type":"FeatureCollection","features":[]}';
 
+  (String? reason, String message) _splitInitError(String raw) {
+    final trimmed = raw.trim();
+    final re = RegExp(r'^\[([A-Z0-9_]+)\]\s*(.*)$');
+    final m = re.firstMatch(trimmed);
+    if (m == null) return (null, trimmed);
+    return (m.group(1), (m.group(2) ?? '').trim());
+  }
+
+  String? _friendlyHintForReason(String? reason) {
+    switch (reason) {
+      case 'TOKEN_MISSING':
+        return 'Renseigne un token Mapbox public (pk.*) via `--dart-define=MAPBOX_ACCESS_TOKEN=...` au build, ou via l\'UI admin.';
+      case 'TOKEN_INVALID':
+        return 'Le token semble invalide/révoqué. Génére un nouveau token (pk.*) puis rebuild + redeploy.';
+      case 'TOKEN_FORBIDDEN':
+        return 'Le token est refusé (403). Vérifie restrictions du token, scopes et accès au style utilisé.';
+      case 'MAPBOXGL_MISSING':
+        return 'Les scripts Mapbox GL JS ne sont pas chargés. Désactive adblock/anti-tracker, ou autorise `api.mapbox.com` / `unpkg.com`.';
+      case 'NETWORK_BLOCKED':
+        return 'Le réseau/bloqueur empêche les requêtes Mapbox (styles/tiles). Essaie un autre réseau ou whitelist Mapbox.';
+      case 'WEBGL_UNSUPPORTED':
+        return 'WebGL est indisponible. Active l\'accélération matérielle ou teste un autre navigateur/appareil.';
+      case 'CONTAINER_NOT_FOUND':
+        return 'Problème DOM/transitoire. Un refresh suffit généralement.';
+      default:
+        return null;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -544,6 +573,18 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
     final initError = _initError;
     if (initError != null && initError.isNotEmpty) {
+      final (reason, cleanMsg) = _splitInitError(initError);
+      final hint = _friendlyHintForReason(reason);
+      final tokenLen = _mapboxToken.trim().length;
+      final isPk = _mapboxToken.trim().startsWith('pk.') || _mapboxToken.trim().startsWith('pk_');
+      final resolvedSource = MapboxTokenService.cachedSource;
+      String mapboxGlLoadStatus = 'unknown';
+      try {
+        final s = js.context['__MAPBOXGL_LOAD_STATUS__'];
+        if (s != null) mapboxGlLoadStatus = s.toString();
+      } catch (_) {
+        // ignore
+      }
       return Container(
         color: Colors.grey.shade100,
         padding: const EdgeInsets.all(16),
@@ -562,12 +603,23 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  initError,
+                  cleanMsg,
                   textAlign: TextAlign.center,
                 ),
+                if (hint != null && hint.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    hint,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey.shade800, fontWeight: FontWeight.w600),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 Text(
-                  'Token source: ${MapboxTokenService.getTokenSourceSync()}\n'
+                  'Raison: ${reason ?? 'inconnue'}\n'
+                  'Token détecté: ${tokenLen > 0 ? 'oui' : 'non'} (len=$tokenLen, pk=${isPk ? 'oui' : 'non'})\n'
+                  'Token source: $resolvedSource\n'
+                  'Mapbox GL JS script: $mapboxGlLoadStatus\n'
                   'Si tu utilises un bloqueur (adblock) ou un réseau filtré,\n'
                   'les scripts https://api.mapbox.com peuvent être bloqués.',
                   textAlign: TextAlign.center,
@@ -669,7 +721,9 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
   late final String _viewType;
   StreamSubscription<html.MessageEvent>? _messageSub;
   bool _didInit = false;
+  bool _didReceiveErrorFromJs = false;
   int _initAttempts = 0;
+  String? _lastTransientError;
 
   @override
   void initState() {
@@ -702,8 +756,23 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
         }
 
         if (type == 'MASLIVE_MAP_ERROR') {
+          final reason = decoded['reason']?.toString();
           final msg = decoded['message']?.toString() ?? 'Erreur Mapbox inconnue.';
-          widget.onInitError?.call(msg);
+          final fullMsg = (reason != null && reason.isNotEmpty) ? '[$reason] $msg' : msg;
+
+          _didReceiveErrorFromJs = true;
+
+          // Erreurs transitoires: on laisse l'init retenter tant qu'on n'a pas épuisé
+          // quelques tentatives (races DOM / scripts lents).
+          if (!_didInit && _initAttempts < 20) {
+            if (reason == 'CONTAINER_NOT_FOUND' || reason == 'MAPBOXGL_MISSING') {
+              _lastTransientError = fullMsg;
+              Future.delayed(const Duration(milliseconds: 120), _tryInit);
+              return;
+            }
+          }
+
+          widget.onInitError?.call(fullMsg);
           return;
         }
       } catch (_) {
@@ -721,7 +790,7 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
         container.style.width = '100%';
         container.style.height = '100%';
 
-        Future.delayed(const Duration(milliseconds: 100), () {
+        Future.delayed(const Duration(milliseconds: 0), () {
           if (!mounted) return;
           _tryInit();
         });
@@ -736,6 +805,34 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
     if (_didInit) return;
 
     _initAttempts++;
+
+    // IMPORTANT: le DivElement est créé dans le factory, mais peut ne pas être
+    // encore attaché au DOM (HtmlElementView pas encore monté), surtout sur mobile.
+    // Dans ce cas, l'init JS échoue avec CONTAINER_NOT_FOUND.
+    try {
+      final el = html.document.getElementById(widget.containerId);
+      if (el == null) {
+        if (_initAttempts < 20) {
+          Future.delayed(const Duration(milliseconds: 80), _tryInit);
+          return;
+        }
+      } else {
+        // Sur certains devices, l'élément est dans le DOM mais n'a pas encore
+        // de taille => Mapbox peut échouer / rester noir.
+        try {
+          final rect = el.getBoundingClientRect();
+          if ((rect.width <= 0 || rect.height <= 0) && _initAttempts < 20) {
+            Future.delayed(const Duration(milliseconds: 80), _tryInit);
+            return;
+          }
+        } catch (_) {
+          // ignore
+        }
+      }
+    } catch (_) {
+      // ignore
+    }
+
     final optionsJson = jsonEncode({
       'style': widget.styleUrl,
       'center': [widget.initialLng, widget.initialLat],
@@ -764,15 +861,24 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
       hasMapboxGl = true;
     }
 
-    if (!hasMapboxGl && _initAttempts < 10) {
+    if (!hasMapboxGl && _initAttempts < 20) {
       Future.delayed(const Duration(milliseconds: 250), _tryInit);
       return;
     }
 
-    // Sinon, on laisse le bridge JS poster MASLIVE_MAP_ERROR. En fallback, message générique.
-    widget.onInitError?.call(
-      'Initialisation Mapbox GL JS échouée (token invalide, scripts Mapbox bloqués, ou WebGL indisponible).',
-    );
+    // Sinon, on laisse le bridge JS poster MASLIVE_MAP_ERROR.
+    // En fallback (si aucun message JS n'arrive), message générique après un court délai
+    // pour éviter d'écraser la vraie cause (TOKEN_MISSING / WEBGL_UNSUPPORTED / ...).
+    if (_didReceiveErrorFromJs) return;
+
+    final transientHint = _lastTransientError;
+    Future.delayed(const Duration(milliseconds: 120), () {
+      if (!mounted) return;
+      if (_didInit) return;
+      if (_didReceiveErrorFromJs) return;
+      widget.onInitError?.call(transientHint ??
+          'Initialisation Mapbox GL JS échouée (token invalide, scripts Mapbox bloqués, ou WebGL indisponible).');
+    });
   }
 
   @override

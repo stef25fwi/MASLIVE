@@ -2,12 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
-import '../../utils/country_flag.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
 import '../../models/cart_item.dart';
 import '../../services/cart_service.dart';
+import '../../ui/widgets/country_autocomplete_field.dart';
 import '../shop/storex_reviews_and_success_pages.dart';
 
 enum ShippingMethod { free, flatRate, localPickup }
@@ -75,12 +74,46 @@ class _StorexDeliveryPageState extends State<StorexDeliveryPage> {
   final _email = TextEditingController();
   final _phone = TextEditingController();
   late final TextEditingController _regionCtrl;
+  late final TextEditingController _countryCtrl;
 
   String country = 'France';
   String state = '';
   String region = '';
 
   bool _loadingProfile = false;
+
+  static const List<String> _countryOptions = [
+    'France',
+    'Guadeloupe',
+    'Martinique',
+    'United States',
+    'Other',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _regionCtrl = TextEditingController(text: region);
+    _countryCtrl = TextEditingController(text: country);
+    _sync();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadProfile();
+    });
+  }
+
+  @override
+  void dispose() {
+    _fn.dispose();
+    _ln.dispose();
+    _addr1.dispose();
+    _addr2.dispose();
+    _zip.dispose();
+    _email.dispose();
+    _phone.dispose();
+    _regionCtrl.dispose();
+    _countryCtrl.dispose();
+    super.dispose();
+  }
 
   CollectionReference<Map<String, dynamic>> _shopProfileCol(String uid) {
     return FirebaseFirestore.instance.collection('users').doc(uid).collection('shop_profile');
@@ -117,6 +150,7 @@ class _StorexDeliveryPageState extends State<StorexDeliveryPage> {
       final st = s('state').trim();
       final rg = s('region').trim();
       if (c.isNotEmpty) country = c;
+      if (c.isNotEmpty) _countryCtrl.text = c;
       if (st.isNotEmpty) state = st;
       if (rg.isNotEmpty) {
         region = rg;
@@ -141,16 +175,6 @@ class _StorexDeliveryPageState extends State<StorexDeliveryPage> {
       },
       SetOptions(merge: true),
     );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _regionCtrl = TextEditingController(text: region);
-    _sync();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadProfile();
-    });
   }
 
   int get shippingCents {
@@ -187,19 +211,6 @@ class _StorexDeliveryPageState extends State<StorexDeliveryPage> {
       ..zip = _zip.text
       ..email = _email.text
       ..phone = _phone.text;
-  }
-
-  @override
-  void dispose() {
-    _fn.dispose();
-    _ln.dispose();
-    _addr1.dispose();
-    _addr2.dispose();
-    _zip.dispose();
-    _email.dispose();
-    _phone.dispose();
-    _regionCtrl.dispose();
-    super.dispose();
   }
 
   @override
@@ -285,14 +296,20 @@ class _StorexDeliveryPageState extends State<StorexDeliveryPage> {
           Row(
             children: [
               Expanded(
-                child: _Dropdown(
+                child: CountryNameAutocompleteField(
+                  options: _countryOptions,
                   value: country,
-                  items: const ['France', 'Guadeloupe', 'Martinique', 'United States', 'Other'],
-                  labelBuilder: formatCountryNameWithFlag,
-                  onChanged: (v) => setState(() {
-                    country = v;
-                    _sync();
-                  }),
+                  labelText: 'Pays',
+                  enabled: true,
+                  onChanged: (v) {
+                    final next = (v ?? '').trim();
+                    if (next.isEmpty) return;
+                    setState(() {
+                      country = next;
+                      _countryCtrl.text = next;
+                      _sync();
+                    });
+                  },
                 ),
               ),
               const SizedBox(width: 12),
@@ -699,12 +716,10 @@ class _Dropdown extends StatelessWidget {
     required this.value,
     required this.items,
     required this.onChanged,
-    this.labelBuilder,
   });
   final String value;
   final List<String> items;
   final ValueChanged<String> onChanged;
-  final String Function(String value)? labelBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -722,7 +737,7 @@ class _Dropdown extends StatelessWidget {
             .map(
               (e) => DropdownMenuItem(
                 value: e,
-                child: Text(labelBuilder?.call(e) ?? e),
+                child: Text(e),
               ),
             )
             .toList(),

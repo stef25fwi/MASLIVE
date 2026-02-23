@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../../models/market_country.dart';
 import '../../models/market_event.dart';
 import '../../services/market_map_service.dart';
-import '../../utils/country_flag.dart';
+import '../widgets/country_autocomplete_field.dart';
 
 class CreateCircuitStep1Dialog extends StatefulWidget {
   const CreateCircuitStep1Dialog({super.key, this.service});
@@ -17,6 +17,7 @@ class CreateCircuitStep1Dialog extends StatefulWidget {
 
 class _CreateCircuitStep1DialogState extends State<CreateCircuitStep1Dialog> {
   final _circuitCtrl = TextEditingController();
+  final _countryCtrl = TextEditingController();
 
   String? _selectedCountryId;
   String? _selectedCountryName;
@@ -34,6 +35,7 @@ class _CreateCircuitStep1DialogState extends State<CreateCircuitStep1Dialog> {
   @override
   void dispose() {
     _circuitCtrl.dispose();
+    _countryCtrl.dispose();
     super.dispose();
   }
 
@@ -223,69 +225,54 @@ class _CreateCircuitStep1DialogState extends State<CreateCircuitStep1Dialog> {
               StreamBuilder<List<MarketCountry>>(
                 stream: _service.watchCountries(),
                 builder: (context, snapshot) {
-                  final items = <DropdownMenuItem<String>>[
-                    const DropdownMenuItem(
-                      value: '__new__',
-                      child: Text('➕ Créer nouveau pays'),
-                    ),
-                  ];
-
-                  final idToName = <String, String>{};
                   final countries = snapshot.data ?? const <MarketCountry>[];
-                  for (final c in countries) {
-                    idToName[c.id] = c.name;
-                    items.add(
-                      DropdownMenuItem(
-                        value: c.id,
-                        child: Text(
-                          formatCountryLabelWithFlag(
-                            name: c.name,
-                            iso2: guessIso2FromMarketMapCountry(
-                              id: c.id,
-                              slug: c.slug,
-                              name: c.name,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-
-                  final value = _selectedCountryId;
 
                   return Row(
                     children: [
                       Expanded(
-                        child: DropdownButtonFormField<String>(
-                          key: ValueKey<String>('country:${value ?? '__none__'}'),
-                          isExpanded: true,
-                          initialValue: value,
-                          decoration: InputDecoration(
-                            labelText: 'Pays *',
-                            helperText: _selectedCountryName != null &&
-                                    _selectedCountryId == null
-                                ? 'Nouveau pays: ${_selectedCountryName!}'
-                                : null,
-                            border: const OutlineInputBorder(),
-                          ),
-                          items: items,
-                          onChanged: _loading
-                              ? null
-                              : (v) {
-                                  if (v == '__new__') {
-                                    _addNewCountry();
-                                    return;
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            MarketCountryAutocompleteField(
+                              items: countries,
+                              controller: _countryCtrl,
+                              labelText: 'Pays *',
+                              hintText: 'Rechercher un pays…',
+                              enabled: !_loading,
+                              onSelected: (c) {
+                                setState(() {
+                                  if (c == null) {
+                                    final typed = _countryCtrl.text
+                                        .trim()
+                                        .replaceAll(RegExp(r'\s+'), ' ');
+                                    _selectedCountryId = null;
+                                    _selectedCountryName = typed.isEmpty ? null : typed;
+                                  } else {
+                                    _selectedCountryId = c.id;
+                                    _selectedCountryName =
+                                        (c.name.trim().isNotEmpty ? c.name : c.id)
+                                            .trim();
                                   }
-                                  if (v == null) return;
-                                  setState(() {
-                                    _selectedCountryId = v;
-                                    _selectedCountryName = idToName[v];
-                                    _selectedEventId = null;
-                                    _selectedEventName = null;
-                                    _startDate = null;
-                                    _endDate = null;
-                                  });
-                                },
+                                  _selectedEventId = null;
+                                  _selectedEventName = null;
+                                  _startDate = null;
+                                  _endDate = null;
+                                });
+                              },
+                            ),
+                            if (_selectedCountryName != null &&
+                                _selectedCountryId == null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Text(
+                                  'Nouveau pays: ${_selectedCountryName!}',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade700,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                       const SizedBox(width: 8),

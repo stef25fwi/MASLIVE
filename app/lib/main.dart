@@ -12,7 +12,6 @@ import 'services/localization_service.dart' show LocalizationService;
 import 'services/language_service.dart';
 import 'widgets/localized_app.dart';
 import 'pages/splash_wrapper_page.dart';
-import 'pages/home_map_page_web.dart';
 import 'pages/group_profile_page.dart';
 import 'pages/group_shop_page.dart';
 import 'pages/role_router_page.dart';
@@ -231,13 +230,15 @@ class MasLiveApp extends StatelessWidget {
               '/router': (_) => const RoleRouterPage(),
               '/': (_) => const DefaultMapPage(),
               // '/map-legacy': (_) => const HomeMapPageV3(), // 🔄 Moved to legacy
-              '/map-3d': (_) =>
-                  const MapboxWebMapPage(), // Mapbox GL JS via HtmlElementView
-              '/map-web': (_) =>
-                  const HomeMapPageWeb(), // 🌐 Carte Web alternative (ancienne)
+              // Alias legacy: conserve l'URL mais évite 2 "Home carte" différents.
+              '/map-web': (_) => const DefaultMapPage(),
+
+              // Debug Web Mapbox (GL JS). Gardé pour l'admin.
+              '/mapbox-web': (_) => const MapboxWebMapPage(),
+
+              // Alias historique (nom trompeur): redirige vers la page debug Mapbox web.
+              '/map-3d': (_) => const MapboxWebMapPage(),
               // '/mapbox-google-light': (_) => const GoogleLightMapPage(), // Moved to legacy
-              '/mapbox-web': (_) =>
-                  const MapboxWebMapPage(), // Mapbox GL JS via HtmlElementView
               '/account-ui': (_) => const AccountUiPage(),
               '/shop-ui': (_) =>
                   const StorexShopPage(shopId: "global", groupId: "MASLIVE"),

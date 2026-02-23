@@ -5,7 +5,7 @@ import '../models/market_circuit.dart';
 import '../models/market_country.dart';
 import '../models/market_event.dart';
 import '../services/market_map_service.dart';
-import '../utils/country_flag.dart';
+import '../ui/widgets/country_autocomplete_field.dart';
 
 class MapMarketProjectsPage extends StatefulWidget {
   const MapMarketProjectsPage({super.key});
@@ -93,67 +93,18 @@ class _MapMarketProjectsPageState extends State<MapMarketProjectsPage> {
           });
         }
 
-        return Autocomplete<MarketCountry>(
-          initialValue: TextEditingValue(text: _countryCtrl.text),
-          displayStringForOption: _countryDisplay,
-          optionsBuilder: (TextEditingValue value) {
-            final q = value.text.trim().toLowerCase();
-            if (q.isEmpty) return items;
-            return items.where((c) {
-              final text = _countryDisplay(c).toLowerCase();
-              return text.contains(q);
-            });
-          },
-          fieldViewBuilder: (context, textCtrl, focusNode, onFieldSubmitted) {
-            // Synchronise notre controller (pour garder la saisie si rebuild)
-            textCtrl.value = _countryCtrl.value;
-            textCtrl.addListener(() {
-              _countryCtrl.value = textCtrl.value;
-            });
-
-            return TextField(
-              controller: textCtrl,
-              focusNode: focusNode,
-              decoration: const InputDecoration(
-                labelText: 'Pays',
-                border: OutlineInputBorder(),
-              ),
-            );
-          },
-          optionsViewBuilder: (context, onSelected, options) {
-            return Align(
-              alignment: Alignment.topLeft,
-              child: Material(
-                elevation: 4,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 460, maxHeight: 300),
-                  child: ListView.builder(
-                    padding: EdgeInsets.zero,
-                    itemCount: options.length,
-                    itemBuilder: (context, i) {
-                      final c = options.elementAt(i);
-                      return ListTile(
-                        dense: true,
-                        title: Text(
-                          formatCountryLabelWithFlag(
-                            name: _countryNameWithCode(c),
-                            iso2: _countryCodeFor(c),
-                          ),
-                        ),
-                        onTap: () => onSelected(c),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            );
-          },
+        return MarketCountryAutocompleteField(
+          items: items,
+          controller: _countryCtrl,
+          hintText: 'Rechercher un pays…',
           onSelected: (c) {
             setState(() {
               _country = c;
               _event = null;
               _defaultEventApplied = false;
-              _countryCtrl.text = _countryDisplay(c);
+              if (c != null) {
+                _countryCtrl.text = _countryDisplay(c);
+              }
             });
           },
         );
@@ -296,13 +247,6 @@ class _MapMarketProjectsPageState extends State<MapMarketProjectsPage> {
     final name = c.name.trim().isEmpty ? c.id : c.name.trim();
     final upperName = name.toUpperCase();
     return code.isEmpty ? '$flag $upperName' : '$flag $upperName $code';
-  }
-
-  String _countryNameWithCode(MarketCountry c) {
-    final code = _countryCodeFor(c);
-    final name = c.name.trim().isEmpty ? c.id : c.name.trim();
-    final upperName = name.toUpperCase();
-    return code.isEmpty ? upperName : '$upperName $code';
   }
 
   String _countryCodeFor(MarketCountry c) {

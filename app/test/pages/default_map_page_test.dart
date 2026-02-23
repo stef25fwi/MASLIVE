@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:masslive/pages/default_map_page.dart';
 import 'package:masslive/services/language_service.dart';
@@ -47,37 +45,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
-    // Mock Firebase Core manually to avoid transitive dependency import issues
-    const MethodChannel channel = MethodChannel('plugins.flutter.io/firebase_core');
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-       if (methodCall.method == 'Firebase#initializeCore') {
-        return [
-          {
-            'name': '[DEFAULT]',
-            'options': {
-              'apiKey': '123',
-              'appId': '123',
-              'messagingSenderId': '123',
-              'projectId': '123',
-            },
-            'pluginConstants': {},
-          }
-        ];
-      }
-      if (methodCall.method == 'Firebase#initializeApp') {
-        return {
-          'name': methodCall.arguments['appName'],
-          'options': methodCall.arguments['options'],
-          'pluginConstants': {},
-        };
-      }
-      return null;
-    });
-
-    await Firebase.initializeApp();
-
     // Mock SharedPreferences for MapboxTokenService
-
     SharedPreferences.setMockInitialValues({});
     await MapboxTokenService.warmUp();
   });

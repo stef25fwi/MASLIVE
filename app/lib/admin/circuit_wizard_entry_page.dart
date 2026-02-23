@@ -11,16 +11,8 @@ import '../services/market_map_service.dart';
 import '../services/mapbox_token_service.dart';
 import '../ui/map/maslive_map.dart';
 import '../ui/map/maslive_map_controller.dart';
+import '../ui/widgets/country_autocomplete_field.dart';
 import 'circuit_wizard_pro_page.dart';
-
-String _iso2ToFlagEmoji(String iso2) {
-  final code = iso2.trim().toUpperCase();
-  if (code.length != 2) return '🏳️';
-  const base = 0x1F1E6;
-  final first = base + (code.codeUnitAt(0) - 65);
-  final second = base + (code.codeUnitAt(1) - 65);
-  return String.fromCharCode(first) + String.fromCharCode(second);
-}
 
 class CircuitWizardEntryPage extends StatefulWidget {
   const CircuitWizardEntryPage({super.key});
@@ -495,7 +487,6 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
   DateTime _startDate = DateTime.now();
   DateTime _endDate = DateTime.now();
   bool _usePeriod = false;
-  String _countryQuery = '';
 
   @override
   void dispose() {
@@ -735,16 +726,6 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
               stream: _marketMapService.watchCountries(),
               builder: (context, snapshot) {
               final countries = snapshot.data ?? const <MarketCountry>[];
-              final q = MarketMapService.slugify(_countryQuery);
-              final filtered = countries
-                  .where((c) {
-                    if (q.isEmpty) return true;
-                    final label = _countryLabel(c);
-                    final labelSlug = MarketMapService.slugify(label);
-                    return labelSlug.contains(q);
-                  })
-                  .toList()
-                ..sort((a, b) => _countryLabel(a).compareTo(_countryLabel(b)));
 
               final resolvedCountry = _resolveCountry(countries);
               final cam = _countryPreviewCamera(resolvedCountry);
@@ -768,34 +749,31 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  TextField(
-                    controller: _countryController,
-                    decoration: InputDecoration(
+                  Theme(
+                    data: Theme.of(context).copyWith(
+                      inputDecorationTheme: Theme.of(context)
+                          .inputDecorationTheme
+                          .copyWith(
+                            filled: true,
+                            fillColor: Colors.grey.shade100,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                    ),
+                    child: MarketCountryAutocompleteField(
+                      items: countries,
+                      controller: _countryController,
                       labelText: 'Pays',
                       hintText: 'Rechercher un pays…',
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      prefixIcon: Padding(
-                        padding: const EdgeInsets.only(left: 12, right: 8),
-                        child: Center(
-                          widthFactor: 1,
-                          child: Text(
-                            resolvedCountry == null
-                                ? '🏳️'
-                                : _iso2ToFlagEmoji(_countryCodeFor(resolvedCountry)),
-                          ),
-                        ),
-                      ),
+                      enabled: true,
+                      onSelected: (c) {
+                        setState(() => _selectedCountry = c);
+                        if (c == null) return;
+                        _countryController.text = _countryLabel(c);
+                        unawaited(_focusPreviewMapOnCountry(c));
+                      },
                     ),
-                    onChanged: (value) {
-                      setState(() {
-                        _countryQuery = value;
-                        _selectedCountry = null;
-                      });
-                    },
                   ),
                   const SizedBox(height: 8),
                   ClipRRect(
@@ -830,50 +808,6 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Container(
-                    height: 180,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: filtered.isEmpty
-                        ? Center(
-                            child: Text(
-                              'Aucun pays trouvé',
-                              style: TextStyle(color: Colors.grey.shade600),
-                            ),
-                          )
-                        : ListView.separated(
-                            itemCount: filtered.length,
-                            separatorBuilder: (context, index) => Divider(
-                              height: 1,
-                              color: Colors.grey.shade200,
-                            ),
-                            itemBuilder: (_, i) {
-                              final c = filtered[i];
-                              final iso2 = _countryCodeFor(c);
-                              return ListTile(
-                                dense: true,
-                                leading: Text(
-                                  _iso2ToFlagEmoji(iso2),
-                                  style: const TextStyle(fontSize: 18),
-                                ),
-                                title: Text(_countryLabel(c)),
-                                subtitle: iso2.isEmpty ? null : Text(iso2),
-                                onTap: () {
-                                  setState(() {
-                                    _selectedCountry = c;
-                                    _countryController.text = _countryLabel(c);
-                                    _countryQuery = _countryLabel(c);
-                                  });
-
-                                  unawaited(_focusPreviewMapOnCountry(c));
-                                },
-                              );
-                            },
-                          ),
-                  ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _eventController,

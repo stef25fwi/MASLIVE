@@ -8,8 +8,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/market_circuit_models.dart';
 import '../services/circuit_repository.dart';
 import '../services/circuit_versioning_service.dart';
+import '../services/market_map_service.dart';
 import '../services/publish_quality_service.dart';
 import '../ui/map/maslive_map.dart';
+import '../ui/widgets/country_autocomplete_field.dart';
+import '../models/market_country.dart';
 import 'circuit_map_editor.dart';
 import '../route_style_pro/models/route_style_config.dart' as rsp;
 import '../route_style_pro/services/route_snap_service.dart' as snap;
@@ -42,6 +45,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   final CircuitRepository _repository = CircuitRepository();
   final CircuitVersioningService _versioning = CircuitVersioningService();
   final PublishQualityService _qualityService = PublishQualityService();
+  final MarketMapService _marketMapService = MarketMapService();
 
   String? _projectId;
   late PageController _pageController;
@@ -936,12 +940,32 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
             ),
           ),
           const SizedBox(height: 16),
-          TextField(
-            controller: _countryController,
-            decoration: const InputDecoration(
-              labelText: 'Pays *',
-              border: OutlineInputBorder(),
-            ),
+          StreamBuilder<List<MarketCountry>>(
+            stream: _marketMapService.watchCountries(),
+            builder: (context, snap) {
+              final items = snap.data ?? const <MarketCountry>[];
+
+              // Fallback: champ texte si la liste n'est pas dispo.
+              if (snap.hasError || items.isEmpty) {
+                return TextField(
+                  controller: _countryController,
+                  decoration: const InputDecoration(
+                    labelText: 'Pays *',
+                    hintText: 'Ex: guadeloupe',
+                    border: OutlineInputBorder(),
+                  ),
+                );
+              }
+
+              return MarketCountryAutocompleteField(
+                items: items,
+                controller: _countryController,
+                labelText: 'Pays *',
+                hintText: 'Rechercher un pays…',
+                valueForOption: (c) => c.id,
+                onSelected: (_) {},
+              );
+            },
           ),
           const SizedBox(height: 16),
           TextField(
