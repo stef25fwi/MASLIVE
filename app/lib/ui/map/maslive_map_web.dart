@@ -718,6 +718,8 @@ class _MapboxWebViewCustom extends StatefulWidget {
 }
 
 class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
+  static const int _maxInitAttempts = 120;
+
   late final String _viewType;
   StreamSubscription<html.MessageEvent>? _messageSub;
   bool _didInit = false;
@@ -764,7 +766,7 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
 
           // Erreurs transitoires: on laisse l'init retenter tant qu'on n'a pas épuisé
           // quelques tentatives (races DOM / scripts lents).
-          if (!_didInit && _initAttempts < 20) {
+          if (!_didInit && _initAttempts < _maxInitAttempts) {
             if (reason == 'CONTAINER_NOT_FOUND' || reason == 'MAPBOXGL_MISSING') {
               _lastTransientError = fullMsg;
               Future.delayed(const Duration(milliseconds: 120), _tryInit);
@@ -790,7 +792,9 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
         container.style.width = '100%';
         container.style.height = '100%';
 
-        Future.delayed(const Duration(milliseconds: 0), () {
+        // L'élément doit être réellement monté dans le DOM avant init Mapbox.
+        // requestAnimationFrame donne une chance au layout/attach de se faire.
+        html.window.requestAnimationFrame((_) {
           if (!mounted) return;
           _tryInit();
         });
@@ -812,17 +816,26 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
     try {
       final el = html.document.getElementById(widget.containerId);
       if (el == null) {
-        if (_initAttempts < 20) {
+        if (_initAttempts < _maxInitAttempts) {
           Future.delayed(const Duration(milliseconds: 80), _tryInit);
           return;
         }
+
+        widget.onInitError?.call('[CONTAINER_NOT_FOUND] Conteneur HTML introuvable (DOM).');
+        return;
       } else {
         // Sur certains devices, l'élément est dans le DOM mais n'a pas encore
         // de taille => Mapbox peut échouer / rester noir.
         try {
           final rect = el.getBoundingClientRect();
-          if ((rect.width <= 0 || rect.height <= 0) && _initAttempts < 20) {
+          if ((rect.width <= 0 || rect.height <= 0) && _initAttempts < _maxInitAttempts) {
             Future.delayed(const Duration(milliseconds: 80), _tryInit);
+            return;
+          }
+          if (rect.width <= 0 || rect.height <= 0) {
+            widget.onInitError?.call(
+              '[CONTAINER_NOT_FOUND] Conteneur HTML présent mais sans taille (layout non prêt).',
+            );
             return;
           }
         } catch (_) {
@@ -861,7 +874,7 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
       hasMapboxGl = true;
     }
 
-    if (!hasMapboxGl && _initAttempts < 20) {
+    if (!hasMapboxGl && _initAttempts < _maxInitAttempts) {
       Future.delayed(const Duration(milliseconds: 250), _tryInit);
       return;
     }
