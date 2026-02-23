@@ -13,6 +13,7 @@ class CircuitMapEditorController extends ChangeNotifier {
   VoidCallback? _redo;
   VoidCallback? _reversePath;
   VoidCallback? _closePath;
+  VoidCallback? _openPath;
   VoidCallback? _simplifyTrack;
   VoidCallback? _clearAll;
 
@@ -30,6 +31,7 @@ class CircuitMapEditorController extends ChangeNotifier {
   void redo() => _redo?.call();
   void reversePath() => _reversePath?.call();
   void closePath() => _closePath?.call();
+  void openPath() => _openPath?.call();
   void simplifyTrack() => _simplifyTrack?.call();
   void clearAll() => _clearAll?.call();
 
@@ -38,6 +40,7 @@ class CircuitMapEditorController extends ChangeNotifier {
     required VoidCallback redo,
     required VoidCallback reversePath,
     required VoidCallback closePath,
+    required VoidCallback openPath,
     required VoidCallback simplifyTrack,
     required VoidCallback clearAll,
   }) {
@@ -45,6 +48,7 @@ class CircuitMapEditorController extends ChangeNotifier {
     _redo = redo;
     _reversePath = reversePath;
     _closePath = closePath;
+    _openPath = openPath;
     _simplifyTrack = simplifyTrack;
     _clearAll = clearAll;
   }
@@ -54,6 +58,7 @@ class CircuitMapEditorController extends ChangeNotifier {
     _redo = null;
     _reversePath = null;
     _closePath = null;
+    _openPath = null;
     _simplifyTrack = null;
     _clearAll = null;
   }
@@ -162,6 +167,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
       redo: _redo,
       reversePath: _reversePath,
       closePath: _closePath,
+      openPath: _openPath,
       simplifyTrack: _simplifyTrack,
       clearAll: _clearAll,
     );
@@ -179,6 +185,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
         redo: _redo,
         reversePath: _reversePath,
         closePath: _closePath,
+        openPath: _openPath,
         simplifyTrack: _simplifyTrack,
         clearAll: _clearAll,
       );
@@ -428,6 +435,20 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     if (_points.length < 2) return;
     if (_points.first != _points.last) {
       setState(() => _points.add(_points.first));
+      _saveToHistory();
+      widget.onPointsChanged(_points);
+      _syncController();
+      _renderOnMap();
+    }
+  }
+
+  void _openPath() {
+    if (_points.length < 2) return;
+    if (_points.first == _points.last) {
+      setState(() {
+        _points.removeLast();
+        _selectedPointIndex = _points.isNotEmpty ? _points.length - 1 : null;
+      });
       _saveToHistory();
       widget.onPointsChanged(_points);
       _syncController();

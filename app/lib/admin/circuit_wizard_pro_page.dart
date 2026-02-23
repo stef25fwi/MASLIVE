@@ -1158,6 +1158,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         child: AnimatedBuilder(
           animation: controller,
           builder: (context, _) {
+            final routeIsLooped = !isPerimeter &&
+                _routePoints.length >= 2 &&
+                _routePoints.first == _routePoints.last;
+
             return SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -1204,6 +1208,43 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                           ? _snapRouteToRoads
                           : null,
                       tooltip: 'Snap sur route (Waze)',
+                    ),
+
+                    const SizedBox(width: 4),
+                    ToggleButtons(
+                      isSelected: [routeIsLooped, !routeIsLooped],
+                      borderRadius: BorderRadius.circular(10),
+                      constraints: const BoxConstraints(minHeight: 36),
+                      onPressed: (index) {
+                        if (controller.pointCount < 2) return;
+                        if (index == 0) {
+                          controller.closePath();
+                        } else {
+                          controller.openPath();
+                        }
+                      },
+                      children: const [
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 10),
+                          child: Row(
+                            children: [
+                              Icon(Icons.loop_rounded, size: 18),
+                              SizedBox(width: 6),
+                              Text('Boucler', style: TextStyle(fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 10),
+                          child: Row(
+                            children: [
+                              Icon(Icons.flag_rounded, size: 18),
+                              SizedBox(width: 6),
+                              Text('Arrivée', style: TextStyle(fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                   IconButton(
