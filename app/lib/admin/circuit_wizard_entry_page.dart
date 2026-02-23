@@ -517,11 +517,23 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
 
   bool get _isValid {
     return _countryController.text.trim().isNotEmpty &&
-        _eventController.text.trim().isNotEmpty &&
         _nameController.text.trim().isNotEmpty;
   }
 
   String _eventName() => _eventController.text.trim();
+
+  ({String id, String name}) _resolvedEvent() {
+    final name = _eventName();
+    if (name.isNotEmpty) {
+      return (id: _eventId(), name: name);
+    }
+
+    final yyyy = _startDate.year.toString().padLeft(4, '0');
+    final mm = _startDate.month.toString().padLeft(2, '0');
+    final dd = _startDate.day.toString().padLeft(2, '0');
+    final id = MarketMapService.slugify('event-$yyyy$mm$dd');
+    return (id: id, name: 'Événement $yyyy-$mm-$dd');
+  }
 
   String _eventId() {
     final name = _eventName();
@@ -953,8 +965,8 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
                                   countryId: country.id,
                                   countryName: country.name,
                                   countryIso2: country.iso2,
-                                  eventId: _eventId(),
-                                  eventName: _eventName(),
+                                  eventId: _resolvedEvent().id,
+                                  eventName: _resolvedEvent().name,
                                   name: _nameController.text.trim(),
                                   startDate: _startDate,
                                   endDate: _endDate,
