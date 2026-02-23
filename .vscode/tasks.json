@@ -189,6 +189,18 @@
       }
     },
     {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (wizard POI layers)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add app/lib/admin/circuit_wizard_pro_page.dart app/lib/models/market_circuit_models.dart app/lib/services/circuit_repository.dart && git commit -m \"fix(wizard): ensure default POI layers (visit/food/assistance/parking/wc)\" && git push origin main && cd app && flutter pub get && { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -z \"$TOKEN\" ]; then echo '❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).'; exit 1; fi && flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" && cd .. && firebase deploy --only hosting",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git commit + push (fix home map init)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add app/lib/ui/map/maslive_map_web.dart .vscode/tasks.json && git commit -m \"fix(web): wait DOM before map init\" && git push origin main",
@@ -861,7 +873,7 @@
     {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (prompt)",
       "type": "shell",
-      "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh",
+      "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"fix(wizard): ensure default POI layers (visit/food/assistance/parking/wc)\"",
       "problemMatcher": [],
       "isBackground": false,
       "presentation": {
