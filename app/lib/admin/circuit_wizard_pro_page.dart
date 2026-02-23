@@ -764,7 +764,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Création de Circuit (Wizard Pro)'),
+        title: const Text('Création de circuit'),
         elevation: 0,
       ),
       body: Column(
@@ -792,6 +792,29 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
             ),
           ),
           const Divider(height: 1),
+
+          // Étape 3 (côté UI): Définir le périmètre.
+          // On affiche le titre juste sous le header principal pour une meilleure lisibilité.
+          if (_currentStep == 2)
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+              width: double.infinity,
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Définir le périmètre',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Tracez la zone de couverture (polygone fermé)',
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
+                ],
+              ),
+            ),
 
           if (_currentStep == 2 || _currentStep == 3 || _currentStep == 4)
             _buildCentralMapToolsBar(),
@@ -1046,6 +1069,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           ? null
           : _styleUrlController.text.trim(),
       showToolbar: false,
+      showHeader: false,
+      pointsListMaxHeight: 120,
       onPointsChanged: (points) {
         setState(() {
           _perimeterPoints = points;
@@ -1061,6 +1086,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       subtitle: 'Tracez l\'itinéraire du circuit (polyline)',
       points: _routePoints,
       controller: _routeEditorController,
+      perimeterOverlay: _perimeterPoints,
       styleUrl: _styleUrlController.text.trim().isEmpty
           ? null
           : _styleUrlController.text.trim(),
@@ -1097,6 +1123,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       subtitle: 'Réglez l\'apparence de l\'itinéraire',
       points: _routePoints,
       controller: _routeEditorController,
+      perimeterOverlay: _perimeterPoints,
       styleUrl: _styleUrlController.text.trim().isEmpty
           ? null
           : _styleUrlController.text.trim(),

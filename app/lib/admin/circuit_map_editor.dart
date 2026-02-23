@@ -89,6 +89,18 @@ class CircuitMapEditor extends StatefulWidget {
   final CircuitMapEditorController? controller;
   final String? styleUrl;
 
+  /// Afficher (ou non) le header interne (titre + sous-titre).
+  /// Utile quand la page parente affiche déjà le titre sous l'AppBar.
+  final bool showHeader;
+
+  /// Hauteur max de la liste des points en bas.
+  /// Réduire cette valeur donne plus de place à la carte.
+  final double pointsListMaxHeight;
+
+  /// Périmètre (polygon) affiché en surcouche, même en mode polyline.
+  /// Typiquement: afficher le périmètre défini à l'étape précédente.
+  final List<LngLat> perimeterOverlay;
+
   // Style polyline (mode == 'polyline')
   final Color polylineColor;
   final double polylineWidth;
@@ -109,6 +121,10 @@ class CircuitMapEditor extends StatefulWidget {
     this.showToolbar = true,
     this.controller,
     this.styleUrl,
+
+    this.showHeader = true,
+    this.pointsListMaxHeight = 180,
+    this.perimeterOverlay = const [],
 
     this.polylineColor = const Color(0xFF0A84FF),
     this.polylineWidth = 4.0,
@@ -178,6 +194,10 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
       _renderOnMap();
     }
 
+    if (!listEquals(oldWidget.perimeterOverlay, widget.perimeterOverlay)) {
+      _renderOnMap();
+    }
+
     final polyStyleChanged =
         oldWidget.polylineColor != widget.polylineColor ||
         oldWidget.polylineWidth != widget.polylineWidth ||
@@ -203,21 +223,44 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
 
     final mapPoints = _points.map((p) => MapPoint(p.lng, p.lat)).toList();
 
+    List<MapPoint> closedOverlayPerimeterPoints() {
+      final overlay = widget.perimeterOverlay;
+      if (overlay.length < 3) return const [];
+      final first = overlay.first;
+      final last = overlay.last;
+      final isClosed = first.lng == last.lng && first.lat == last.lat;
+      final closed = isClosed ? overlay : [...overlay, first];
+      return closed.map((p) => MapPoint(p.lng, p.lat)).toList();
+    }
+
+    final overlayPerimeter = closedOverlayPerimeterPoints();
+
     try {
       await _mapController.clearAll();
 
-      if (mapPoints.isEmpty) return;
+      final hasAny = mapPoints.isNotEmpty || overlayPerimeter.isNotEmpty;
+      if (!hasAny) return;
 
-      await _mapController.setMarkers([
-        for (int i = 0; i < mapPoints.length; i++)
-          MapMarker(
-            id: 'p${i + 1}',
-            lng: mapPoints[i].lng,
-            lat: mapPoints[i].lat,
-            size: 1.0,
-            label: '${i + 1}',
-          ),
-      ]);
+      // En mode polyline (tracé), on peut afficher le périmètre (polygon) en fond.
+      if (widget.mode == 'polyline' && overlayPerimeter.length >= 4) {
+        await _mapController.setPolygon(
+          points: overlayPerimeter,
+          show: true,
+        );
+      }
+
+      if (mapPoints.isNotEmpty) {
+        await _mapController.setMarkers([
+          for (int i = 0; i < mapPoints.length; i++)
+            MapMarker(
+              id: 'p${i + 1}',
+              lng: mapPoints[i].lng,
+              lat: mapPoints[i].lat,
+              size: 1.0,
+              label: '${i + 1}',
+            ),
+        ]);
+      }
 
       if (widget.mode == 'polygon') {
         await _mapController.setPolygon(
@@ -225,17 +268,19 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
           show: mapPoints.length >= 3,
         );
       } else {
-        await _mapController.setPolyline(
-          points: mapPoints,
-          show: mapPoints.length >= 2,
-          color: widget.polylineColor,
-          width: widget.polylineWidth,
-          roadLike: widget.polylineRoadLike,
-          shadow3d: widget.polylineShadow3d,
-          showDirection: widget.polylineShowDirection,
-          animateDirection: widget.polylineAnimateDirection,
-          animationSpeed: widget.polylineAnimationSpeed,
-        );
+        if (mapPoints.isNotEmpty) {
+          await _mapController.setPolyline(
+            points: mapPoints,
+            show: mapPoints.length >= 2,
+            color: widget.polylineColor,
+            width: widget.polylineWidth,
+            roadLike: widget.polylineRoadLike,
+            shadow3d: widget.polylineShadow3d,
+            showDirection: widget.polylineShowDirection,
+            animateDirection: widget.polylineAnimateDirection,
+            animationSpeed: widget.polylineAnimationSpeed,
+          );
+        }
       }
     } catch (_) {
       // Garder le wizard stable même si la carte n'est pas prête/interop KO.
@@ -503,25 +548,28 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Header
-        Container(
-          color: Colors.white,
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.title,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                widget.subtitle,
-                style: const TextStyle(fontSize: 13, color: Colors.grey),
-              ),
-            ],
+        if (widget.showHeader)
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.subtitle,
+                  style: const TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+              ],
+            ),
           ),
-        ),
 
         // Toolbar
         if (_showToolbar && widget.showToolbar)
@@ -644,7 +692,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
             ),
             const Divider(height: 1),
             ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 180),
+              constraints: BoxConstraints(maxHeight: widget.pointsListMaxHeight),
               child: ListView.builder(
                 shrinkWrap: true,
                 itemCount: _points.length,
@@ -744,9 +792,19 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
       children: [
         MasLiveMap(
           controller: _mapController,
-          initialLng: _points.isNotEmpty ? _points.first.lng : -61.533,
-          initialLat: _points.isNotEmpty ? _points.first.lat : 16.241,
-          initialZoom: _points.isNotEmpty ? 15.0 : 12.0,
+          initialLng: _points.isNotEmpty
+            ? _points.first.lng
+            : (widget.perimeterOverlay.isNotEmpty
+              ? widget.perimeterOverlay.first.lng
+              : -61.533),
+          initialLat: _points.isNotEmpty
+            ? _points.first.lat
+            : (widget.perimeterOverlay.isNotEmpty
+              ? widget.perimeterOverlay.first.lat
+              : 16.241),
+          initialZoom: (_points.isNotEmpty || widget.perimeterOverlay.isNotEmpty)
+            ? 15.0
+            : 12.0,
           styleUrl: (widget.styleUrl != null && widget.styleUrl!.trim().isNotEmpty)
               ? widget.styleUrl!.trim()
               : null,
