@@ -1399,6 +1399,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   }
 
   Widget _buildRouteStyleControls() {
+    final colorScheme = Theme.of(context).colorScheme;
     final colors = <String, String>{
       '#1A73E8': 'Bleu',
       '#34A853': 'Vert',
@@ -1437,9 +1438,24 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           ],
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Icon(
-              Icons.color_lens,
-              color: _parseHexColor(_routeColorHex, fallback: Colors.blue),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.color_lens,
+                  color: colorScheme.onSurface,
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: _parseHexColor(_routeColorHex, fallback: colorScheme.primary),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: colorScheme.outline, width: 1),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -1491,7 +1507,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           onPressed: () => setState(() => _routeShowDirection = !_routeShowDirection),
           icon: Icon(
             Icons.navigation,
-            color: _routeShowDirection ? Colors.blueGrey : Colors.grey,
+            color: _routeShowDirection
+                ? colorScheme.primary
+                : colorScheme.onSurfaceVariant,
           ),
         ),
         IconButton(
