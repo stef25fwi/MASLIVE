@@ -44,6 +44,8 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
 
   final CircuitSearchService _circuitSearch = CircuitSearchService();
   String? _selectedCircuitPickKey;
+  final TextEditingController _circuitSearchCtrl = TextEditingController();
+  String _circuitQuery = '';
 
   final TextEditingController _countryCtrl = TextEditingController();
 
@@ -66,6 +68,12 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
   void initState() {
     super.initState();
 
+    _circuitSearchCtrl.addListener(() {
+      final next = _circuitSearchCtrl.text;
+      if (next == _circuitQuery) return;
+      setState(() => _circuitQuery = next);
+    });
+
     // Si on vient avec un circuit pré-sélectionné, on tente de
     // positionner directement le wizard sur le bon pays / event / circuit.
     final countryId = widget.initialCountryId;
@@ -80,6 +88,7 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
   @override
   void dispose() {
     _countryCtrl.dispose();
+    _circuitSearchCtrl.dispose();
     super.dispose();
   }
 
@@ -632,6 +641,16 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 12),
+          TextField(
+            controller: _circuitSearchCtrl,
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.search),
+              labelText: 'Rechercher un circuit',
+              hintText: 'Brouillon ou publié',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -639,6 +658,7 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
                   stream: _circuitSearch.watchAllCircuitsForPoiTile(
                     countryId: country.id,
                     eventId: event.id,
+                    queryText: _circuitQuery,
                     keepBothIfDuplicate: false,
                   ),
                   builder: (context, snapshot) {
