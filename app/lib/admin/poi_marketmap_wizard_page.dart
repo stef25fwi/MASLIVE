@@ -660,7 +660,7 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
                     eventId: event.id,
                     actorUid: FirebaseAuth.instance.currentUser?.uid,
                     queryText: _circuitQuery,
-                    keepBothIfDuplicate: false,
+                    keepBothIfDuplicate: true,
                   ),
                   builder: (context, snapshot) {
                     final items = snapshot.data ?? const <CircuitPick>[];

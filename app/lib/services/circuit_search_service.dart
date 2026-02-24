@@ -155,7 +155,7 @@ class CircuitSearchService {
     String? queryText,
     bool keepBothIfDuplicate = true,
   }) {
-    final draft$ = watchDraftCircuits(
+    final draft$ = _watchDraftCircuitsPreferAllThenFallbackToUid(
       countryId: countryId,
       eventId: eventId,
       actorUid: actorUid,
@@ -208,6 +208,64 @@ class CircuitSearchService {
         return merged;
       },
     );
+  }
+
+  Stream<List<CircuitPick>> _watchDraftCircuitsPreferAllThenFallbackToUid({
+    required String countryId,
+    required String eventId,
+    String? actorUid,
+    String? queryText,
+  }) {
+    final uid = (actorUid ?? '').trim();
+    if (uid.isEmpty) {
+      return watchDraftCircuits(
+        countryId: countryId,
+        eventId: eventId,
+        queryText: queryText,
+      );
+    }
+
+    final primary = watchDraftCircuits(
+      countryId: countryId,
+      eventId: eventId,
+      queryText: queryText,
+    );
+    final fallback = watchDraftCircuits(
+      countryId: countryId,
+      eventId: eventId,
+      actorUid: uid,
+      queryText: queryText,
+    );
+
+    late final StreamController<List<CircuitPick>> controller;
+    StreamSubscription<List<CircuitPick>>? sub;
+    var usedFallback = false;
+
+    void listenTo(Stream<List<CircuitPick>> s) {
+      sub = s.listen(
+        controller.add,
+        onError: (error, stackTrace) {
+          if (!usedFallback && error is FirebaseException && error.code == 'permission-denied') {
+            usedFallback = true;
+            unawaited(sub?.cancel());
+            listenTo(fallback);
+            return;
+          }
+          controller.addError(error, stackTrace);
+        },
+      );
+    }
+
+    controller = StreamController<List<CircuitPick>>(
+      onListen: () {
+        listenTo(primary);
+      },
+      onCancel: () async {
+        await sub?.cancel();
+      },
+    );
+
+    return controller.stream;
   }
 }
 
