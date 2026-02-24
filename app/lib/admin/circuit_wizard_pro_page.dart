@@ -902,6 +902,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
   @override
   Widget build(BuildContext context) {
+    const proBlue = Color(0xFF1A73E8);
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Chargement...')),
@@ -1014,26 +1015,58 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                if (_currentStep > 0)
-                  ElevatedButton(
-                    onPressed: () => _pageController.previousPage(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                    ),
-                    child: const Text('← Précédent'),
-                  )
-                else
-                  const SizedBox(),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.save),
-                  onPressed: () => _saveDraft(createSnapshot: true),
-                  label: const Text('Sauvegarder'),
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: _currentStep > 0
+                        ? OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: proBlue,
+                              side: BorderSide(color: proBlue.withValues(alpha: 0.45)),
+                              textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            onPressed: () => _pageController.previousPage(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            ),
+                            child: const Text('← Précédent'),
+                          )
+                        : const SizedBox(),
+                  ),
                 ),
-                if (_currentStep < 7)
-                  ElevatedButton(
-                    onPressed: () => _continueToStep(_currentStep + 1),
-                    child: const Text('Suivant →'),
-                  )
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF1D2330),
+                        foregroundColor: Colors.white,
+                        textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      icon: const Icon(Icons.save, size: 18),
+                      onPressed: () => _saveDraft(createSnapshot: true),
+                      label: const Text('Sauvegarder'),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: _currentStep < 7
+                        ? FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: proBlue,
+                              foregroundColor: Colors.white,
+                              textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                            onPressed: () => _continueToStep(_currentStep + 1),
+                            child: const Text('Suivant →'),
+                          )
+                        : const SizedBox(),
+                  ),
+                ),
               ],
             ),
           ),
@@ -1573,8 +1606,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       '#34A853': 'Vert',
       '#EF4444': 'Rouge',
       '#F59E0B': 'Orange',
-      '#9333EA': 'Violet',
     };
+    const proBlue = Color(0xFF1A73E8);
 
     return Row(
       children: [
@@ -1655,7 +1688,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           onPressed: () => setState(() => _routeRoadLike = !_routeRoadLike),
           icon: Icon(
             Icons.route,
-            color: _routeRoadLike ? Colors.blue : Colors.grey,
+            color: _routeRoadLike ? proBlue : colorScheme.onSurfaceVariant,
           ),
         ),
         IconButton(
@@ -1666,28 +1699,48 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           icon: Icon(
             Icons.layers,
             color: (_routeRoadLike && _routeShadow3d)
-                ? Colors.blueGrey
-                : Colors.grey,
+                ? colorScheme.onSurface
+                : colorScheme.onSurfaceVariant,
           ),
         ),
-        IconButton(
-          tooltip: 'Sens (flèches)',
-          onPressed: () => setState(() => _routeShowDirection = !_routeShowDirection),
-          icon: Icon(
-            Icons.navigation,
-            color: _routeShowDirection
-                ? colorScheme.primary
-                : colorScheme.onSurfaceVariant,
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          decoration: BoxDecoration(
+            color: _routeShowDirection ? proBlue.withValues(alpha: 0.10) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: _routeShowDirection
+                  ? proBlue.withValues(alpha: 0.35)
+                  : colorScheme.outline.withValues(alpha: 0.50),
+            ),
+          ),
+          child: IconButton(
+            tooltip: 'Sens (flèches)',
+            onPressed: () {
+              setState(() {
+                _routeShowDirection = !_routeShowDirection;
+                // Si on coupe l'affichage des flèches, on coupe aussi l'animation.
+                if (!_routeShowDirection) {
+                  _routeAnimateDirection = false;
+                }
+              });
+            },
+            icon: Icon(
+              Icons.navigation,
+              color: _routeShowDirection ? proBlue : colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
         IconButton(
           tooltip: 'Animation sens de marche',
-          onPressed: () => setState(() => _routeAnimateDirection = !_routeAnimateDirection),
+          onPressed: _routeShowDirection
+              ? () => setState(() => _routeAnimateDirection = !_routeAnimateDirection)
+              : null,
           icon: Icon(
             _routeAnimateDirection
                 ? Icons.pause_circle_filled
                 : Icons.play_circle_filled,
-            color: _routeAnimateDirection ? Colors.green : Colors.grey,
+            color: _routeAnimateDirection ? proBlue : colorScheme.onSurfaceVariant,
           ),
         ),
 
