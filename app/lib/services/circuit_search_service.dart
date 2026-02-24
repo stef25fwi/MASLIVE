@@ -47,12 +47,18 @@ class CircuitSearchService {
   Stream<List<CircuitPick>> watchDraftCircuits({
     required String countryId,
     required String eventId,
+    String? actorUid,
     String? queryText,
   }) {
     Query<Map<String, dynamic>> q = _db
         .collection('map_projects')
         .where('countryId', isEqualTo: countryId)
         .where('eventId', isEqualTo: eventId);
+
+    final uid = (actorUid ?? '').trim();
+    if (uid.isNotEmpty) {
+      q = q.where('uid', isEqualTo: uid);
+    }
 
     return q.snapshots().map((snap) {
       final text = (queryText ?? '').trim().toLowerCase();
@@ -145,12 +151,14 @@ class CircuitSearchService {
   Stream<List<CircuitPick>> watchAllCircuitsForPoiTile({
     required String countryId,
     required String eventId,
+    String? actorUid,
     String? queryText,
     bool keepBothIfDuplicate = true,
   }) {
     final draft$ = watchDraftCircuits(
       countryId: countryId,
       eventId: eventId,
+      actorUid: actorUid,
       queryText: queryText,
     );
     final pub$ = watchPublishedCircuits(

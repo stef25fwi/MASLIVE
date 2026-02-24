@@ -658,6 +658,7 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
                   stream: _circuitSearch.watchAllCircuitsForPoiTile(
                     countryId: country.id,
                     eventId: event.id,
+                    actorUid: FirebaseAuth.instance.currentUser?.uid,
                     queryText: _circuitQuery,
                     keepBothIfDuplicate: false,
                   ),
