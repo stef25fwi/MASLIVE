@@ -1369,6 +1369,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                 _routePoints.length >= 2 &&
                 _routePoints.first == _routePoints.last;
 
+            final perimeterIsLooped = isPerimeter &&
+                _perimeterPoints.length >= 2 &&
+                _perimeterPoints.first == _perimeterPoints.last;
+
             return SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -1391,6 +1395,22 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                       onPressed: controller.pointCount >= 2 ? controller.closePath : null,
                       tooltip: 'Fermer le polygone',
                     ),
+                  if (isPerimeter) ...[
+                    const SizedBox(width: 4),
+                    FilterChip(
+                      label: const Text('Boucle fermée'),
+                      selected: perimeterIsLooped,
+                      onSelected: controller.pointCount >= 2
+                          ? (v) {
+                              if (v) {
+                                controller.closePath();
+                              } else {
+                                controller.openPath();
+                              }
+                            }
+                          : null,
+                    ),
+                  ],
                   IconButton(
                     icon: const Icon(Icons.flip_to_back),
                     onPressed: controller.pointCount >= 2 ? controller.reversePath : null,

@@ -55,12 +55,20 @@ class PublishQualityService {
 
     final items = <CheckItem>[
       CheckItem(
-        id: 'perimeterClosed',
-        label: 'Périmètre fermé (>=3 points + fermeture)',
-        ok: perimeterVertexCount >= 3 && perimeterClosed,
+        id: 'perimeterDefined',
+        label: 'Périmètre défini (>=3 points)',
+        ok: perimeterVertexCount >= 3,
         weight: 20,
         required: true,
-        hint: 'Ajoute au moins 3 points puis ferme le polygone.',
+        hint: 'Ajoute au moins 3 points au périmètre.',
+      ),
+      CheckItem(
+        id: 'perimeterClosed',
+        label: 'Périmètre fermé (boucle: 1er ≈ dernier)',
+        ok: perimeterVertexCount >= 3 && perimeterClosed,
+        weight: 5,
+        required: false,
+        hint: 'Active “Boucle fermée” pour relier le dernier point au premier.',
       ),
       CheckItem(
         id: 'routeMinPoints',
