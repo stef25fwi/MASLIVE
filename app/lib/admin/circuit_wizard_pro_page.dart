@@ -291,7 +291,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   void initState() {
     super.initState();
     _projectId = widget.projectId;
-    _currentStep = (widget.initialStep ?? 0).clamp(0, 7);
+    _currentStep = (widget.initialStep ?? 0).clamp(0, 8);
     _pageController = PageController(initialPage: _currentStep);
 
     // Step POI: hit-testing GeoJSON (tap POI => édition, tap carte => ajout)
@@ -1069,7 +1069,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           SizedBox(
             height: 60,
             child: Row(
-              children: List.generate(8, (index) {
+              children: List.generate(9, (index) {
                 return Expanded(
                   child: GestureDetector(
                     onTap: index <= _currentStep
@@ -1130,8 +1130,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                 _buildStep3Route(),
                 _buildStep4Style(),
                 _buildStep5POI(),
-                _buildStep6Validation(),
-                _buildStep7Publish(),
+                _buildStep6StylePro(),
+                _buildStep7Validation(),
+                _buildStep8Publish(),
               ],
             ),
           ),
@@ -1181,7 +1182,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                 Expanded(
                   child: SizedBox(
                     height: 48,
-                    child: _currentStep < 7
+                    child: _currentStep < 8
                         ? FilledButton(
                             style: FilledButton.styleFrom(
                               backgroundColor: proBlue,
@@ -1210,6 +1211,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       'Tracé',
       'Style',
       'POI',
+      'Style Pro',
       'Pré-pub',
       'Publication'
     ];
@@ -1982,13 +1984,53 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
             ),
           ),
 
-        const SizedBox(width: 8),
-        OutlinedButton.icon(
-          onPressed: _openRouteStylePro,
-          icon: const Icon(Icons.tune, size: 18),
-          label: const Text('Style Pro'),
-        ),
       ],
+    );
+  }
+
+  Widget _buildStep6StylePro() {
+    final routePoints = _routePoints.length;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Style Pro',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Réglages avancés du style du tracé (et options pro).',
+            style: TextStyle(fontSize: 13, color: Colors.black54),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Tracé: $routePoints points'),
+                  const SizedBox(height: 6),
+                  Text('Couleur: $_routeColorHex'),
+                  const SizedBox(height: 6),
+                  Text('Largeur: ${_routeWidth.toStringAsFixed(0)}'),
+                  const SizedBox(height: 6),
+                  Text('Flèches: ${_routeShowDirection ? 'ON' : 'OFF'}'),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: _openRouteStylePro,
+            icon: const Icon(Icons.tune),
+            label: const Text('Ouvrir Style Pro'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -2461,7 +2503,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     await _onMapTapForPoi(lng, lat);
   }
 
-  Widget _buildStep6Validation() {
+  Widget _buildStep7Validation() {
     final report = _qualityReport;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -2508,7 +2550,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     );
   }
 
-  Widget _buildStep7Publish() {
+  Widget _buildStep8Publish() {
     final report = _qualityReport;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
