@@ -115,6 +115,25 @@ class CircuitMapEditor extends StatefulWidget {
   /// Typiquement: afficher le périmètre défini à l'étape précédente.
   final List<LngLat> perimeterOverlay;
 
+  /// Activer l'édition par clic sur carte (ajout de points).
+  /// Utile pour des modes alternatifs (ex: périmètre cercle) où le tap sert
+  /// à poser un repère plutôt qu'à ajouter des sommets.
+  final bool editingEnabled;
+
+  /// Override du comportement quand l'utilisateur clique sur la carte.
+  /// Reçoit un point (lng/lat). Si fourni, l'éditeur ne rajoute pas de point
+  /// automatiquement dans la liste.
+  final ValueChanged<LngLat>? onPointAddedOverride;
+
+  /// Affiche un repère (marker) optionnel sur la carte (ex: centre de cercle).
+  final LngLat? centerMarker;
+
+  /// Affiche (ou non) les markers des points de [points].
+  final bool showPointMarkers;
+
+  /// Affiche (ou non) la section liste des points.
+  final bool showPointsList;
+
   // Style polyline (mode == 'polyline')
   final Color polylineColor;
   final double polylineWidth;
@@ -139,6 +158,12 @@ class CircuitMapEditor extends StatefulWidget {
     this.showHeader = true,
     this.pointsListMaxHeight = 180,
     this.perimeterOverlay = const [],
+
+    this.editingEnabled = true,
+    this.onPointAddedOverride,
+    this.centerMarker,
+    this.showPointMarkers = true,
+    this.showPointsList = true,
 
     this.allowVerticalScroll = false,
     this.mapHeight,
@@ -268,8 +293,20 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
         );
       }
 
-      if (mapPoints.isNotEmpty) {
-        await _mapController.setMarkers([
+      final markers = <MapMarker>[];
+      if (widget.centerMarker != null) {
+        markers.add(
+          MapMarker(
+            id: 'center',
+            lng: widget.centerMarker!.lng,
+            lat: widget.centerMarker!.lat,
+            size: 1.2,
+            label: 'C',
+          ),
+        );
+      }
+      if (widget.showPointMarkers && mapPoints.isNotEmpty) {
+        markers.addAll([
           for (int i = 0; i < mapPoints.length; i++)
             MapMarker(
               id: 'p${i + 1}',
@@ -280,12 +317,33 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
             ),
         ]);
       }
+      if (markers.isNotEmpty) {
+        await _mapController.setMarkers(markers);
+      }
 
       if (widget.mode == 'polygon') {
-        await _mapController.setPolygon(
-          points: mapPoints,
-          show: mapPoints.length >= 3,
-        );
+        final isClosed = _points.length >= 3 && (_distanceBetween(_points.first, _points.last) * 1000) <= 30.0;
+        if (isClosed) {
+          await _mapController.setPolygon(
+            points: mapPoints,
+            show: mapPoints.length >= 3,
+          );
+        } else {
+          // Important: éviter l'effet "polygone rempli" alors que le périmètre n'est pas bouclé.
+          if (mapPoints.length >= 2) {
+            await _mapController.setPolyline(
+              points: mapPoints,
+              show: true,
+              color: const Color(0xFF0A84FF),
+              width: 3.0,
+              roadLike: false,
+              shadow3d: false,
+              showDirection: false,
+              animateDirection: false,
+              animationSpeed: 1.0,
+            );
+          }
+        }
       } else {
         if (mapPoints.isNotEmpty) {
           await _mapController.setPolyline(
@@ -697,6 +755,10 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   }
 
   Widget _buildPointsSection() {
+    if (!widget.showPointsList) {
+      return const SizedBox.shrink();
+    }
+
     if (_points.isEmpty) {
       return Container(
         color: Colors.white,
@@ -854,9 +916,14 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
           onMapReady: (ctrl) async {
             _isMapReady = true;
             await ctrl.setEditingEnabled(
-              enabled: _isEditingEnabled,
+              enabled: _isEditingEnabled && widget.editingEnabled,
               onPointAdded: (lat, lng) {
-                if (!_isEditingEnabled) return;
+                if (!_isEditingEnabled || !widget.editingEnabled) return;
+                final override = widget.onPointAddedOverride;
+                if (override != null) {
+                  override((lng: lng, lat: lat));
+                  return;
+                }
                 _addPoint((lng: lng, lat: lat));
               },
             );

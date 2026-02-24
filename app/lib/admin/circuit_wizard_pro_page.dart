@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -74,6 +75,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   List<LngLat> _perimeterPoints = [];
   List<LngLat> _routePoints = [];
 
+  // Step 2: Option périmètre cercle (centre + diamètre)
+  bool _perimeterCircleMode = false;
+  LngLat? _perimeterCircleCenter;
+  double _perimeterCircleDiameterMeters = 1200.0;
+
   // Style du tracé (Step 3 + Step 4)
   String _routeColorHex = '#1A73E8';
   double _routeWidth = 6.0;
@@ -109,6 +115,80 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         layers: _layers,
         pois: _pois,
       );
+
+  String _formatMeters(double meters) {
+    if (meters >= 1000) {
+      final km = meters / 1000.0;
+      return '${km.toStringAsFixed(km >= 10 ? 0 : 1)} km';
+    }
+    return '${meters.round()} m';
+  }
+
+  List<LngLat> _circlePerimeter({
+    required LngLat center,
+    required double diameterMeters,
+    int steps = 36,
+  }) {
+    final radiusMeters = (diameterMeters / 2).clamp(50.0, 50000.0);
+    final lat1 = _toRad(center.lat);
+    final lng1 = _toRad(center.lng);
+    const earthRadius = 6371000.0;
+    final d = radiusMeters / earthRadius;
+
+    double wrapLngDeg(double lngDeg) {
+      var x = lngDeg;
+      while (x > 180) {
+        x -= 360;
+      }
+      while (x < -180) {
+        x += 360;
+      }
+      return x;
+    }
+
+    final pts = <LngLat>[];
+    for (var i = 0; i < steps; i++) {
+      final bearing = 2 * 3.141592653589793 * (i / steps);
+      final lat2 = math.asin(
+        math.sin(lat1) * math.cos(d) +
+            math.cos(lat1) * math.sin(d) * math.cos(bearing),
+      );
+      final lng2 = lng1 +
+          math.atan2(
+            math.sin(bearing) * math.sin(d) * math.cos(lat1),
+            math.cos(d) - math.sin(lat1) * math.sin(lat2),
+          );
+
+      pts.add((
+        lng: wrapLngDeg(_toDeg(lng2)),
+        lat: _toDeg(lat2),
+      ));
+    }
+
+    if (pts.isNotEmpty) pts.add(pts.first);
+    return pts;
+  }
+
+  double _toRad(double deg) => deg * (3.141592653589793 / 180.0);
+  double _toDeg(double rad) => rad * (180.0 / 3.141592653589793);
+
+  void _applyPerimeterCircle({LngLat? center, double? diameterMeters}) {
+    final nextCenter = center ?? _perimeterCircleCenter;
+    if (nextCenter == null) return;
+
+    final nextDiameter = (diameterMeters ?? _perimeterCircleDiameterMeters)
+        .clamp(200.0, 20000.0);
+
+    setState(() {
+      _perimeterCircleMode = true;
+      _perimeterCircleCenter = nextCenter;
+      _perimeterCircleDiameterMeters = nextDiameter;
+      _perimeterPoints = _circlePerimeter(
+        center: nextCenter,
+        diameterMeters: nextDiameter,
+      );
+    });
+  }
 
   Future<void> _openRouteStylePro() async {
     await _ensureActorContext();
@@ -264,6 +344,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       'styleUrl': _styleUrlController.text.trim(),
       'perimeter':
           _perimeterPoints.map((p) => {'lng': p.lng, 'lat': p.lat}).toList(),
+      'perimeterCircle': {
+        'enabled': _perimeterCircleMode,
+        'center': _perimeterCircleCenter == null
+            ? null
+            : {
+                'lng': _perimeterCircleCenter!.lng,
+                'lat': _perimeterCircleCenter!.lat,
+              },
+        'diameterMeters': _perimeterCircleDiameterMeters,
+      },
       'route': _routePoints.map((p) => {'lng': p.lng, 'lat': p.lat}).toList(),
       'routeStyle': {
         'color': _routeColorHex,
@@ -456,6 +546,39 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
               final m = p as Map<String, dynamic>;
               return (lng: m['lng'] as double, lat: m['lat'] as double);
             }).toList();
+          }
+
+          // Optionnel: restauration du mode cercle (centre + diamètre)
+          final circleData = _draftData['perimeterCircle'];
+          if (circleData is Map) {
+            final m = Map<String, dynamic>.from(circleData);
+            final enabled = (m['enabled'] as bool?) ?? false;
+            if (enabled) {
+              _perimeterCircleMode = true;
+
+              final center = m['center'];
+              if (center is Map) {
+                final cm = Map<String, dynamic>.from(center);
+                final lng = cm['lng'];
+                final lat = cm['lat'];
+                if (lng is num && lat is num) {
+                  _perimeterCircleCenter = (lng: lng.toDouble(), lat: lat.toDouble());
+                }
+              }
+
+              final diam = m['diameterMeters'];
+              if (diam is num) {
+                _perimeterCircleDiameterMeters = diam.toDouble();
+              }
+
+              // Si on a le centre mais pas (ou peu) de points, régénère.
+              if (_perimeterCircleCenter != null && _perimeterPoints.length < 3) {
+                _perimeterPoints = _circlePerimeter(
+                  center: _perimeterCircleCenter!,
+                  diameterMeters: _perimeterCircleDiameterMeters,
+                );
+              }
+            }
           }
 
           final routeData = _draftData['route'] as List<dynamic>?;
@@ -1269,6 +1392,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       styleUrl: _styleUrlController.text.trim().isEmpty
           ? null
           : _styleUrlController.text.trim(),
+      editingEnabled: true,
+      onPointAddedOverride: _perimeterCircleMode
+          ? (p) {
+              _applyPerimeterCircle(center: p);
+            }
+          : null,
+      centerMarker: _perimeterCircleMode ? _perimeterCircleCenter : null,
+      showPointMarkers: !_perimeterCircleMode,
+      showPointsList: !_perimeterCircleMode,
       showToolbar: false,
       showHeader: false,
       allowVerticalScroll: true,
@@ -1389,7 +1521,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                   ),
                   const VerticalDivider(),
 
-                  if (isPerimeter)
+                  if (isPerimeter && !_perimeterCircleMode)
                     IconButton(
                       icon: const Icon(Icons.loop_rounded),
                       onPressed: controller.pointCount >= 2 ? controller.closePath : null,
@@ -1400,16 +1532,74 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                     FilterChip(
                       label: const Text('Boucle fermée'),
                       selected: perimeterIsLooped,
-                      onSelected: controller.pointCount >= 2
-                          ? (v) {
+                      onSelected: (_perimeterCircleMode || controller.pointCount < 2)
+                          ? null
+                          : (v) {
                               if (v) {
                                 controller.closePath();
                               } else {
                                 controller.openPath();
                               }
-                            }
-                          : null,
+                            },
                     ),
+                    const SizedBox(width: 8),
+                    FilterChip(
+                      label: const Text('Cercle'),
+                      selected: _perimeterCircleMode,
+                      onSelected: (v) {
+                        if (v) {
+                          if (_perimeterCircleCenter != null) {
+                            _applyPerimeterCircle();
+                            return;
+                          }
+                          if (_perimeterPoints.isNotEmpty) {
+                            _applyPerimeterCircle(center: _perimeterPoints.first);
+                            return;
+                          }
+                          setState(() {
+                            _perimeterCircleMode = true;
+                            _perimeterPoints = [];
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('🧭 Tape sur la carte pour poser le centre du cercle.'),
+                            ),
+                          );
+                        } else {
+                          setState(() {
+                            _perimeterCircleMode = false;
+                          });
+                        }
+                      },
+                    ),
+                    if (_perimeterCircleMode) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        tooltip: 'Réduire diamètre',
+                        icon: const Icon(Icons.remove_circle_outline),
+                        onPressed: () {
+                          final next = (_perimeterCircleDiameterMeters - 200.0).clamp(200.0, 20000.0);
+                          if (_perimeterCircleCenter != null) {
+                            _applyPerimeterCircle(diameterMeters: next);
+                          } else {
+                            setState(() => _perimeterCircleDiameterMeters = next);
+                          }
+                        },
+                      ),
+                      Text('Ø ${_formatMeters(_perimeterCircleDiameterMeters)}', style: const TextStyle(fontSize: 12)),
+                      IconButton(
+                        tooltip: 'Augmenter diamètre',
+                        icon: const Icon(Icons.add_circle_outline),
+                        onPressed: () {
+                          final next = (_perimeterCircleDiameterMeters + 200.0).clamp(200.0, 20000.0);
+                          if (_perimeterCircleCenter != null) {
+                            _applyPerimeterCircle(diameterMeters: next);
+                          } else {
+                            setState(() => _perimeterCircleDiameterMeters = next);
+                          }
+                        },
+                      ),
+                    ],
                   ],
                   IconButton(
                     icon: const Icon(Icons.flip_to_back),
