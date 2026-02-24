@@ -175,6 +175,20 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
               onTap: () => Navigator.pushNamed(context, '/admin/mapmarket'),
             ),
             const SizedBox(height: 12),
+            _buildDashboardCard(
+              title: 'POIs',
+              subtitle: 'Couches & points d\'intérêt (MarketMap)',
+              icon: Icons.place_rounded,
+              color: const Color(0xFFFF7A00),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      const AdminRouteGuard(child: POIMarketMapWizardPage()),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
