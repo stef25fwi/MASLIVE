@@ -7,8 +7,10 @@ import '../models/market_country.dart';
 import '../models/market_event.dart';
 import '../models/market_layer.dart';
 import '../services/market_map_service.dart';
+import '../services/circuit_search_service.dart';
 import '../utils/country_flag.dart';
 import '../ui/widgets/country_autocomplete_field.dart';
+import 'circuit_wizard_pro_page.dart';
 
 class POIMarketMapWizardPage extends StatefulWidget {
   const POIMarketMapWizardPage({
@@ -39,6 +41,9 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
   MarketCountry? _country;
   MarketEvent? _event;
   MarketCircuit? _circuit;
+
+  final CircuitSearchService _circuitSearch = CircuitSearchService();
+  String? _selectedCircuitPickKey;
 
   final TextEditingController _countryCtrl = TextEditingController();
 
@@ -128,9 +133,73 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
         _circuit = circuit;
         _step = 3; // on atterrit directement sur la gestion des couches/POI
         _countryCtrl.text = country.name.trim().isNotEmpty ? country.name : country.id;
+        _selectedCircuitPickKey = '${country.id}::${event.id}::${circuit.id}::${CircuitSource.mapMarket.name}';
       });
     } catch (_) {
       // En cas d'erreur réseau ou autre, on laisse le wizard en mode normal.
+    }
+  }
+
+  Future<void> _openDraftInCircuitWizard(CircuitPick pick) async {
+    final projectId = pick.projectId;
+    if (projectId == null || projectId.trim().isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('❌ Brouillon invalide (projectId manquant).')),
+      );
+      return;
+    }
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CircuitWizardProPage(
+          projectId: projectId,
+          countryId: pick.countryId,
+          eventId: pick.eventId,
+          circuitId: pick.circuitId,
+          initialStep: 5, // POIs (index 5)
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _selectedCircuitPickKey = null;
+      _circuit = null;
+    });
+  }
+
+  Future<void> _selectPublishedCircuit(CircuitPick pick) async {
+    try {
+      final db = FirebaseFirestore.instance;
+      final snap = await db
+          .collection('marketMap')
+          .doc(pick.countryId)
+          .collection('events')
+          .doc(pick.eventId)
+          .collection('circuits')
+          .doc(pick.circuitId)
+          .get();
+
+      if (!mounted) return;
+      if (!snap.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('❌ Circuit introuvable (marketMap).')),
+        );
+        return;
+      }
+
+      final circuit = MarketCircuit.fromDoc(snap);
+      setState(() {
+        _circuit = circuit;
+        _selectedCircuitPickKey = pick.key;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('❌ Erreur lors du chargement du circuit.')),
+      );
     }
   }
 
@@ -566,17 +635,18 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
           Row(
             children: [
               Expanded(
-                child: StreamBuilder<List<MarketCircuit>>(
-                  stream: _service.watchCircuits(
+                child: StreamBuilder<List<CircuitPick>>(
+                  stream: _circuitSearch.watchAllCircuitsForPoiTile(
                     countryId: country.id,
                     eventId: event.id,
+                    keepBothIfDuplicate: false,
                   ),
                   builder: (context, snapshot) {
-                    final items = snapshot.data ?? const <MarketCircuit>[];
+                    final items = snapshot.data ?? const <CircuitPick>[];
 
                     return DropdownButtonFormField<String>(
-                      key: ValueKey('circuit-${_circuit?.id ?? ''}'),
-                      initialValue: _circuit?.id,
+                      key: ValueKey('circuit-pick-${_selectedCircuitPickKey ?? ''}'),
+                      initialValue: _selectedCircuitPickKey,
                       decoration: const InputDecoration(
                         labelText: 'Circuit',
                         border: OutlineInputBorder(),
@@ -584,33 +654,25 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
                       items: [
                         for (final c in items)
                           DropdownMenuItem(
-                            value: c.id,
-                            child: Text('${c.name} (${c.status})'),
+                            value: c.key,
+                            child: Text('${c.name} (${c.badge})'),
                           ),
                       ],
-                      onChanged: (id) {
-                        final selected = items.firstWhere(
-                          (c) => c.id == id,
-                          orElse: () => MarketCircuit(
-                            id: '',
-                            countryId: country.id,
-                            eventId: event.id,
-                            name: '',
-                            slug: '',
-                            status: 'draft',
-                            createdByUid: '',
-                            perimeterLocked: false,
-                            zoomLocked: false,
-                            center: const {'lat': 0.0, 'lng': 0.0},
-                            initialZoom: 14,
-                            isVisible: false,
-                            wizardState: const <String, dynamic>{},
-                          ),
-                        );
-                        if (selected.id.isEmpty) return;
+                      onChanged: (key) async {
+                        final selected = items.where((c) => c.key == key).toList();
+                        if (selected.isEmpty) return;
+                        final pick = selected.first;
+
                         setState(() {
-                          _circuit = selected;
+                          _selectedCircuitPickKey = pick.key;
                         });
+
+                        if (pick.source == CircuitSource.draft) {
+                          await _openDraftInCircuitWizard(pick);
+                          return;
+                        }
+
+                        await _selectPublishedCircuit(pick);
                       },
                     );
                   },

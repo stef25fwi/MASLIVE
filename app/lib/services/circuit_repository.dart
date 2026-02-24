@@ -121,6 +121,7 @@ class CircuitRepository {
     if (!marketSnap.exists) return null;
     final market = marketSnap.data() ?? <String, dynamic>{};
     return {
+      'circuitId': fallbackCircuitId,
       'name': market['name'] ?? fallbackCircuitId,
       'countryId': fallbackCountryId,
       'eventId': fallbackEventId,
@@ -188,6 +189,10 @@ class CircuitRepository {
       'version': nextVersion == 0 ? 1 : nextVersion,
       'updatedAt': now,
       'current': currentData,
+
+      // Index logique (POIs tile): circuits draft recherchables
+      'circuitId': (currentData['circuitId'] ?? existing['circuitId'] ?? projectId).toString(),
+      'circuitName': (currentData['name'] ?? existing['circuitName'] ?? existing['name'] ?? '').toString(),
 
       // Compat legacy
       'name': currentData['name'],

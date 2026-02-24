@@ -26,6 +26,7 @@ class CircuitWizardProPage extends StatefulWidget {
   final String? countryId;
   final String? eventId;
   final String? circuitId;
+  final int? initialStep;
 
   const CircuitWizardProPage({
     super.key,
@@ -33,6 +34,7 @@ class CircuitWizardProPage extends StatefulWidget {
     this.countryId,
     this.eventId,
     this.circuitId,
+    this.initialStep,
   });
 
   @override
@@ -289,7 +291,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   void initState() {
     super.initState();
     _projectId = widget.projectId;
-    _pageController = PageController();
+    _currentStep = (widget.initialStep ?? 0).clamp(0, 7);
+    _pageController = PageController(initialPage: _currentStep);
 
     // Step POI: hit-testing GeoJSON (tap POI => édition, tap carte => ajout)
     _poiMapController.onPoiTap = (poiId) {
@@ -337,6 +340,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
   Map<String, dynamic> _buildCurrentData() {
     return {
+      'circuitId': (widget.circuitId ?? _projectId ?? '').trim(),
       'name': _nameController.text.trim(),
       'countryId': _countryController.text.trim(),
       'eventId': _eventController.text.trim(),
