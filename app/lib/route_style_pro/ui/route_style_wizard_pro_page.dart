@@ -372,6 +372,8 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Route Style Wizard Pro'),
@@ -447,6 +449,55 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
                 );
               },
             ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: OutlinedButton(
+                    onPressed: (_busy || _loading)
+                        ? null
+                        : () => Navigator.of(context).pop('previous'),
+                    child: const Text('← Précédent'),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: FilledButton.icon(
+                    onPressed: (_busy || _loading) ? null : _save,
+                    icon: const Icon(Icons.save, size: 18),
+                    label: const Text('Sauvegarder'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: scheme.surface,
+                      foregroundColor: scheme.onSurface,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: (_busy || _loading)
+                        ? null
+                        : () => Navigator.of(context).pop('next'),
+                    child: const Text('Suivant →'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

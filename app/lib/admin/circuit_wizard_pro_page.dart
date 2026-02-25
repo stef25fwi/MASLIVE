@@ -51,10 +51,11 @@ class CircuitWizardProPage extends StatefulWidget {
   State<CircuitWizardProPage> createState() => _CircuitWizardProPageState();
 }
 
-class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
+class _CircuitWizardProPageState extends State<CircuitWizardProPage>
+    with SingleTickerProviderStateMixin {
   static const int _poiPageSize = 100;
   static const int _poiLimit = 2000;
-  static const int _poiStepIndex = 6;
+  static const int _poiStepIndex = 5;
 
   final CircuitRepository _repository = CircuitRepository();
   final CircuitVersioningService _versioning = CircuitVersioningService();
@@ -63,6 +64,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
   String? _projectId;
   late PageController _pageController;
+  late final TabController _routeAndStyleTabController;
   int _currentStep = 0;
   bool _didAutoOpenStyleProForCurrentVisit = false;
   bool _isLoading = false;
@@ -162,6 +164,32 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   // Brouillon
   Map<String, dynamic> _draftData = {};
 
+  void _showTopSnackBar(
+    String message, {
+    bool isError = false,
+    Duration duration = const Duration(seconds: 3),
+  }) {
+    if (!mounted) return;
+
+    final scheme = Theme.of(context).colorScheme;
+    final top = MediaQuery.of(context).padding.top + kToolbarHeight + 8;
+    final bg = isError ? scheme.error : scheme.inverseSurface;
+    final fg = isError ? scheme.onError : scheme.onInverseSurface;
+
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message, style: TextStyle(color: fg)),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.fromLTRB(16, top, 16, 0),
+          backgroundColor: bg,
+          duration: duration,
+          dismissDirection: DismissDirection.up,
+        ),
+      );
+  }
+
   Future<void> _ensureAllPoisLoadedForPublish() async {
     if (_isEnsuringAllPoisLoaded) return;
     if (_projectId == null) return;
@@ -199,8 +227,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       await _ensureActorContext();
       if (!_canWriteMapProjects) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('⛔ Import réservé aux admins master.')),
+        _showTopSnackBar(
+          '⛔ Import réservé aux admins master.',
+          isError: true,
         );
         return;
       }
@@ -268,22 +297,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       await _loadDraftOrInitialize();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Import MarketMap terminé')),
-        );
+        _showTopSnackBar('✅ Import MarketMap terminé');
       }
     } catch (e) {
       debugPrint('WizardPro _refreshImportFromMarketMap error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              e is FirebaseException
-                  ? '❌ Import Firestore (${e.code}): ${e.message ?? e.toString()}'
-                  : '❌ Erreur import: $e',
-            ),
-          ),
-        );
+        final msg = e is FirebaseException
+            ? '❌ Import Firestore (${e.code}): ${e.message ?? e.toString()}'
+            : '❌ Erreur import: $e';
+        _showTopSnackBar(msg, isError: true, duration: const Duration(seconds: 6));
       }
     } finally {
       if (mounted) {
@@ -379,11 +401,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     await _ensureActorContext();
     if (!_canWriteMapProjects) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('⛔ Accès en écriture réservé aux admins master.'),
-        ),
+      _showTopSnackBar(
+        '⛔ Accès en écriture réservé aux admins master.',
+        isError: true,
       );
+      if (!widget.poiOnly) {
+        unawaited(_continueToStep(3));
+      }
       return;
     }
     // Assure un projectId existant avant d'ouvrir le wizard Pro.
@@ -392,13 +416,17 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     final projectId = _projectId;
     if (!mounted) return;
     if (projectId == null || projectId.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('❌ Impossible: projet non sauvegardé')),
+      _showTopSnackBar(
+        '❌ Impossible: projet non sauvegardé',
+        isError: true,
       );
+      if (!widget.poiOnly) {
+        unawaited(_continueToStep(3));
+      }
       return;
     }
 
-    await Navigator.of(context).pushNamed(
+    final result = await Navigator.of(context).pushNamed(
       '/admin/route-style-pro',
       arguments: RouteStyleProArgs(
         projectId: projectId,
@@ -417,6 +445,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     // la version “Style Pro” du tracé sur la carte.
     unawaited(_refreshPoiRouteOverlay());
     _syncPoiRouteStyleProTimer();
+
+    // UX: pas d'écran intermédiaire "Style Pro".
+    // Au retour, on navigue immédiatement vers l'étape demandée.
+    if (!mounted) return;
+    if (widget.poiOnly) return;
+    if (result is String && result == 'previous') {
+      unawaited(_continueToStep(3));
+    } else {
+      unawaited(_continueToStep(_poiStepIndex));
+    }
   }
 
   Future<void> _reloadRouteAndStyleFromFirestore(String projectId) async {
@@ -488,9 +526,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     } catch (e) {
       debugPrint('WizardPro _reloadRouteAndStyleFromFirestore error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('❌ Erreur recharge style: $e')));
+        _showTopSnackBar(
+          '❌ Erreur recharge style: $e',
+          isError: true,
+          duration: const Duration(seconds: 6),
+        );
       }
     }
   }
@@ -501,14 +541,21 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     _projectId = widget.projectId;
     _currentStep = widget.poiOnly
         ? _poiStepIndex
-        : (widget.initialStep ?? 0).clamp(0, 8);
+        : (widget.initialStep ?? 0).clamp(0, 7);
     _pageController = PageController(initialPage: _currentStep);
+
+    _routeAndStyleTabController = TabController(length: 2, vsync: this);
+    _routeAndStyleTabController.addListener(() {
+      if (!mounted) return;
+      // Rafraîchit la barre d'outils centrale (snap / toggle) en fonction de l'onglet.
+      if (_currentStep == 3) setState(() {});
+    });
 
     // Si on arrive directement sur l'étape Style Pro, on ouvre le wizard pro
     // immédiatement (pas besoin d'appuyer sur le bouton).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (_currentStep == 5 && !_didAutoOpenStyleProForCurrentVisit) {
+      if (_currentStep == 4 && !_didAutoOpenStyleProForCurrentVisit) {
         _didAutoOpenStyleProForCurrentVisit = true;
         unawaited(_openRouteStylePro());
       }
@@ -628,10 +675,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     await _ensureActorContext();
     if (!_canWriteMapProjects) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('⛔ Accès en écriture réservé aux admins master.'),
-        ),
+      _showTopSnackBar(
+        '⛔ Accès en écriture réservé aux admins master.',
+        isError: true,
       );
       return;
     }
@@ -651,17 +697,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     _selectedTemplate = template;
     await _loadDraftOrInitialize();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('✅ Modèle appliqué: ${template.name}')),
-    );
+    _showTopSnackBar('✅ Modèle appliqué: ${template.name}');
   }
 
   Future<void> _showDraftHistory() async {
     if (_projectId == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ℹ️ Sauvegarde d’abord le projet.')),
-      );
+      _showTopSnackBar('ℹ️ Sauvegarde d’abord le projet.');
       return;
     }
 
@@ -707,10 +749,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
     if (!_canWriteMapProjects) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('⛔ Restauration réservée aux admins master.'),
-        ),
+      _showTopSnackBar(
+        '⛔ Restauration réservée aux admins master.',
+        isError: true,
       );
       return;
     }
@@ -726,9 +767,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     );
     await _loadDraftOrInitialize();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('✅ Version ${selected.version} restaurée')),
-    );
+    _showTopSnackBar('✅ Version ${selected.version} restaurée');
   }
 
   @override
@@ -737,6 +776,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     _poiRouteStyleProTimer = null;
     _routeSnapDebounce?.cancel();
     _pageController.dispose();
+    _routeAndStyleTabController.dispose();
     _perimeterEditorController.dispose();
     _routeEditorController.dispose();
     _poiMapController.dispose();
@@ -1260,10 +1300,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       await _ensureActorContext();
       if (!_canWriteMapProjects) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('⛔ Sauvegarde réservée aux admins master.'),
-          ),
+        _showTopSnackBar(
+          '⛔ Sauvegarde réservée aux admins master.',
+          isError: true,
         );
         return;
       }
@@ -1311,22 +1350,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('✅ Brouillon sauvegardé')));
+        _showTopSnackBar('✅ Brouillon sauvegardé');
       }
     } catch (e) {
       debugPrint('WizardPro _saveDraft error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              e is FirebaseException
-                  ? '❌ Firestore (${e.code}): ${e.message ?? e.toString()}'
-                  : '❌ Erreur: $e',
-            ),
-          ),
-        );
+        final msg = e is FirebaseException
+            ? '❌ Firestore (${e.code}): ${e.message ?? e.toString()}'
+            : '❌ Erreur: $e';
+        _showTopSnackBar(msg, isError: true, duration: const Duration(seconds: 6));
       }
     }
   }
@@ -1336,9 +1368,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     // Valider l'étape courante
     if (_currentStep == 1) {
       if (_nameController.text.trim().isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('❌ Nom requis')));
+        _showTopSnackBar('❌ Nom requis', isError: true);
         return;
       }
     }
@@ -1420,14 +1450,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                     Expanded(
                       child: Row(
                         children: [
-                          for (final i in [0, 1, 2, 3, 4]) buildStep(i),
+                          for (final i in [0, 1, 2, 3]) buildStep(i),
                         ],
                       ),
                     ),
                     Expanded(
                       child: Row(
                         children: [
-                          for (final i in [5, 6, 7, 8]) buildStep(i),
+                          for (final i in [4, 5, 6, 7]) buildStep(i),
                         ],
                       ),
                     ),
@@ -1461,7 +1491,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
               ),
             ),
 
-          if (_currentStep == 2 || _currentStep == 3 || _currentStep == 4)
+          if (_currentStep == 2 || _currentStep == 3)
             _buildCentralMapToolsBar(),
 
           // Pages
@@ -1472,9 +1502,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
               onPageChanged: (page) {
                 setState(() => _currentStep = page);
 
-                // Auto-ouvrir Style Pro quand on arrive sur l'étape 6 (index 5)
+                // Auto-ouvrir Style Pro quand on arrive sur l'étape Style Pro (index 4)
                 // pour éviter le clic sur "Ouvrir Style Pro".
-                if (_currentStep != 5) {
+                if (_currentStep != 4) {
                   _didAutoOpenStyleProForCurrentVisit = false;
                 }
 
@@ -1486,7 +1516,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                     unawaited(_refreshPoiRouteOverlay());
                   }
 
-                  if (_currentStep == 5 && !_didAutoOpenStyleProForCurrentVisit) {
+                  if (_currentStep == 4 && !_didAutoOpenStyleProForCurrentVisit) {
                     _didAutoOpenStyleProForCurrentVisit = true;
                     unawaited(_openRouteStylePro());
                   }
@@ -1498,8 +1528,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                 _buildStep0Template(),
                 _buildStep1Infos(),
                 _buildStep2Perimeter(),
-                _buildStep3Route(),
-                _buildStep4Style(),
+                _buildStep3RouteAndStyleTabbed(),
                 _buildStep6StylePro(),
                 _buildStep5POI(),
                 _buildStep7Validation(),
@@ -1557,7 +1586,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                 Expanded(
                   child: SizedBox(
                     height: 48,
-                    child: (!widget.poiOnly && _currentStep < 8)
+                    child: (!widget.poiOnly && _currentStep < 7)
                         ? FilledButton(
                             style: FilledButton.styleFrom(
                               backgroundColor: proBlue,
@@ -1585,14 +1614,40 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       'Template',
       'Infos',
       'Périmètre',
-      'Tracé',
-      'Style',
+      'Tracé + Style',
       'Style Pro',
       'POI',
       'Pré-pub',
       'Publication',
     ];
     return labels[step];
+  }
+
+  Widget _buildStep3RouteAndStyleTabbed() {
+    return Column(
+      children: [
+        Material(
+          color: Colors.white,
+          child: TabBar(
+            controller: _routeAndStyleTabController,
+            tabs: const [
+              Tab(text: 'Tracé'),
+              Tab(text: 'Style'),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: TabBarView(
+            controller: _routeAndStyleTabController,
+            children: [
+              _buildStep3Route(),
+              _buildStep4Style(),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildStep0Template() {
@@ -1877,6 +1932,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         ? _perimeterEditorController
         : _routeEditorController;
 
+    final isRouteAndStyleStep = !isPerimeter && _currentStep == 3;
+    final isRouteTabActive =
+      isRouteAndStyleStep && _routeAndStyleTabController.index == 0;
+
     return Material(
       color: Colors.white,
       child: Container(
@@ -1954,12 +2013,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                             _perimeterCircleMode = true;
                             _perimeterPoints = [];
                           });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                '🧭 Tape sur la carte pour poser le centre du cercle.',
-                              ),
-                            ),
+                          _showTopSnackBar(
+                            '🧭 Tape sur la carte pour poser le centre du cercle.',
                           );
                         } else {
                           setState(() {
@@ -2021,7 +2076,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                     tooltip: 'Simplifier tracé',
                   ),
 
-                  if (!isPerimeter && _currentStep == 3) ...[
+                  if (isRouteTabActive) ...[
                     IconButton(
                       icon: _isSnappingRoute
                           ? const SizedBox(
@@ -2109,7 +2164,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                   ),
 
                   if (!isPerimeter &&
-                      (_currentStep == 3 || _currentStep == 4)) ...[
+                      _currentStep == 3) ...[
                     const VerticalDivider(),
                     _buildRouteStyleControls(),
                   ],
@@ -2199,13 +2254,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       });
 
       if (showSnackBar) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '✅ Tracé aligné sur la route (${output.length} points)',
-            ),
-          ),
-        );
+        _showTopSnackBar('✅ Tracé aligné sur la route (${output.length} points)');
       }
 
       if (persist && _projectId != null) {
@@ -2216,9 +2265,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       if (!mounted) return;
       if (seq != _routeSnapSeq) return;
       if (showSnackBar) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('❌ Snap impossible: $e')));
+        _showTopSnackBar(
+          '❌ Snap impossible: $e',
+          isError: true,
+          duration: const Duration(seconds: 6),
+        );
       }
     } finally {
       if (mounted) setState(() => _isSnappingRoute = false);
@@ -2409,45 +2460,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   }
 
   Widget _buildStep6StylePro() {
-    final routePoints = _routePoints.length;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+    return const Center(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            'Style Pro',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Réglages avancés du style du tracé (et options pro).',
+          CircularProgressIndicator(),
+          SizedBox(height: 12),
+          Text(
+            'Ouverture du Style Pro…',
             style: TextStyle(fontSize: 13, color: Colors.black54),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Tracé: $routePoints points'),
-                  const SizedBox(height: 6),
-                  Text('Couleur: $_routeColorHex'),
-                  const SizedBox(height: 6),
-                  Text('Largeur: ${_routeWidth.toStringAsFixed(0)}'),
-                  const SizedBox(height: 6),
-                  Text('Flèches: ${_routeShowDirection ? 'ON' : 'OFF'}'),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: _openRouteStylePro,
-            icon: const Icon(Icons.tune),
-            label: const Text('Ouvrir Style Pro'),
           ),
         ],
       ),
@@ -2997,10 +3018,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     if (_selectedLayer == null) return;
     if (_pois.length >= _poiLimit) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('❌ Limite atteinte: 2000 POI maximum par projet'),
-          ),
+        _showTopSnackBar(
+          '❌ Limite atteinte: 2000 POI maximum par projet',
+          isError: true,
         );
       }
       return;
@@ -3540,8 +3560,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       }, SetOptions(merge: true));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('⚠️ POI sauvegardé localement mais Firestore a refusé: $e')),
+      _showTopSnackBar(
+        '⚠️ POI sauvegardé localement mais Firestore a refusé: $e',
+        isError: true,
+        duration: const Duration(seconds: 6),
       );
     }
   }
@@ -4193,10 +4215,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       await _ensureActorContext();
       if (!_canWriteMapProjects) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('⛔ Publication réservée aux admins master.'),
-          ),
+        _showTopSnackBar(
+          '⛔ Publication réservée aux admins master.',
+          isError: true,
         );
         return;
       }
@@ -4247,10 +4268,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         if (_hasMorePois) {
           // Toujours incomplet: on bloque la publication.
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('❌ Impossible de charger tous les POIs.'),
-            ),
+          _showTopSnackBar(
+            '❌ Impossible de charger tous les POIs.',
+            isError: true,
           );
           return;
         }
@@ -4303,23 +4323,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Circuit publié avec succès !')),
-        );
+        _showTopSnackBar('✅ Circuit publié avec succès !');
         Navigator.pop(context);
       }
     } catch (e) {
       debugPrint('WizardPro _publishCircuit error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              e is FirebaseException
-                  ? '❌ Publication Firestore (${e.code}): ${e.message ?? e.toString()}'
-                  : '❌ Erreur publication: $e',
-            ),
-          ),
-        );
+        final msg = e is FirebaseException
+            ? '❌ Publication Firestore (${e.code}): ${e.message ?? e.toString()}'
+            : '❌ Erreur publication: $e';
+        _showTopSnackBar(msg, isError: true, duration: const Duration(seconds: 7));
       }
     } finally {
       if (mounted) {
