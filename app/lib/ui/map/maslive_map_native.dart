@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import 'maslive_map_controller.dart';
@@ -45,6 +46,15 @@ class MasLiveMapNative extends StatefulWidget {
 class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   static const String _poiSourceId = 'src_pois';
   static const String _poiLayerId = 'ly_pois_circle';
+  static const String _poiFillLayerId = 'ly_pois_fill';
+  static const String _poiPatternLayerId = 'ly_pois_pattern';
+  static const String _poiLineLayerId = 'ly_pois_line_solid';
+  static const String _poiLineLayerDashedId = 'ly_pois_line_dashed';
+  static const String _poiLineLayerDottedId = 'ly_pois_line_dotted';
+
+  static const String _patDiag = 'maslive_pat_diag';
+  static const String _patCross = 'maslive_pat_cross';
+  static const String _patDots = 'maslive_pat_dots';
 
   // Route (style layers) pour support segments (Style Pro)
   static const String _routeSourceId = 'maslive_polyline';
@@ -74,6 +84,8 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   bool _isMapReady = false;
   bool _styleLoaded = false;
   void Function(double lat, double lng)? _onPointAddedCallback;
+
+  bool _patternImagesReady = false;
 
   String _poisGeoJsonString = '{"type":"FeatureCollection","features":[]}';
 
@@ -358,6 +370,29 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     if (map == null) return;
     if (!_styleLoaded) return;
 
+    String cssHex(Color c) {
+      final r = (c.r * 255).round().clamp(0, 255).toRadixString(16).padLeft(2, '0');
+      final g = (c.g * 255).round().clamp(0, 255).toRadixString(16).padLeft(2, '0');
+      final b = (c.b * 255).round().clamp(0, 255).toRadixString(16).padLeft(2, '0');
+      return '#${(r + g + b).toUpperCase()}';
+    }
+
+    final defaultFillHex = cssHex(_poiStyle.circleColor);
+    final defaultStrokeHex = cssHex(_poiStyle.circleStrokeColor);
+
+    final fillColorExpr = <dynamic>[
+      'coalesce',
+      ['to-color', ['get', 'fillColor']],
+      ['to-color', defaultFillHex],
+    ];
+    final fillOpacityExpr = <dynamic>['coalesce', ['get', 'fillOpacity'], 0.20];
+    final lineColorExpr = <dynamic>[
+      'coalesce',
+      ['to-color', ['get', 'strokeColor']],
+      ['to-color', defaultStrokeHex],
+    ];
+    final lineWidthExpr = <dynamic>['coalesce', ['get', 'strokeWidth'], 2.0];
+
     try {
       await map.style.setStyleLayerProperty(
         _poiLayerId,
@@ -394,6 +429,40 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     } catch (_) {
       // ignore
     }
+
+    // Zones (Polygon)
+    try {
+      await map.style.setStyleLayerProperty(_poiFillLayerId, 'fill-color', fillColorExpr);
+      await map.style.setStyleLayerProperty(
+        _poiFillLayerId,
+        'fill-opacity',
+        fillOpacityExpr,
+      );
+    } catch (_) {
+      // ignore
+    }
+
+    Future<void> applyLineStyle(String layerId) async {
+      try {
+        await map.style.setStyleLayerProperty(layerId, 'line-color', lineColorExpr);
+      } catch (_) {
+        // ignore
+      }
+      try {
+        await map.style.setStyleLayerProperty(layerId, 'line-width', lineWidthExpr);
+      } catch (_) {
+        // ignore
+      }
+      try {
+        await map.style.setStyleLayerProperty(layerId, 'line-opacity', 0.85);
+      } catch (_) {
+        // ignore
+      }
+    }
+
+    await applyLineStyle(_poiLineLayerId);
+    await applyLineStyle(_poiLineLayerDashedId);
+    await applyLineStyle(_poiLineLayerDottedId);
   }
 
   Future<void> _applyPoisGeoJsonIfReady() async {
@@ -401,9 +470,41 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     if (map == null) return;
     if (!_styleLoaded) return;
 
+    await _ensurePoiPatternImages();
+
     // Remove + add source, puis layer si besoin.
     try {
       await map.style.removeStyleLayer(_poiLayerId);
+    } catch (_) {
+      // ignore
+    }
+    try {
+      await map.style.removeStyleLayer('ly_pois_line');
+    } catch (_) {
+      // ignore (legacy)
+    }
+    try {
+      await map.style.removeStyleLayer(_poiPatternLayerId);
+    } catch (_) {
+      // ignore
+    }
+    try {
+      await map.style.removeStyleLayer(_poiLineLayerId);
+    } catch (_) {
+      // ignore
+    }
+    try {
+      await map.style.removeStyleLayer(_poiLineLayerDashedId);
+    } catch (_) {
+      // ignore
+    }
+    try {
+      await map.style.removeStyleLayer(_poiLineLayerDottedId);
+    } catch (_) {
+      // ignore
+    }
+    try {
+      await map.style.removeStyleLayer(_poiFillLayerId);
     } catch (_) {
       // ignore
     }
@@ -426,6 +527,115 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       // ignore
     }
 
+    // Zones (Polygon): fill + outline
+    try {
+      await map.style.addLayer(
+        FillLayer(
+          id: _poiFillLayerId,
+          sourceId: _poiSourceId,
+          fillColor: _poiStyle.circleColor.toARGB32(),
+          fillOpacity: 0.20,
+        ),
+      );
+      await map.style.setStyleLayerProperty(_poiFillLayerId, 'filter', [
+        '==',
+        ['geometry-type'],
+        'Polygon',
+      ]);
+    } catch (_) {
+      // ignore
+    }
+
+    // Pattern overlay (Polygon) : fill-pattern avec alpha, au-dessus du fond
+    try {
+      await map.style.addLayer(
+        FillLayer(
+          id: _poiPatternLayerId,
+          sourceId: _poiSourceId,
+          fillOpacity: 0.55,
+        ),
+      );
+      await map.style.setStyleLayerProperty(_poiPatternLayerId, 'filter', [
+        'all',
+        ['==', ['geometry-type'], 'Polygon'],
+        ['has', 'fillPattern'],
+      ]);
+      await map.style.setStyleLayerProperty(
+        _poiPatternLayerId,
+        'fill-pattern',
+        ['get', 'fillPattern'],
+      );
+      await map.style.setStyleLayerProperty(
+        _poiPatternLayerId,
+        'fill-opacity',
+        ['coalesce', ['get', 'patternOpacity'], 0.55],
+      );
+    } catch (_) {
+      // ignore
+    }
+    try {
+      await map.style.addLayer(
+        LineLayer(
+          id: _poiLineLayerId,
+          sourceId: _poiSourceId,
+          lineColor: _poiStyle.circleStrokeColor.toARGB32(),
+          lineWidth: 2.0,
+          lineOpacity: 0.85,
+        ),
+      );
+      await map.style.setStyleLayerProperty(_poiLineLayerId, 'filter', [
+        'all',
+        ['==', ['geometry-type'], 'Polygon'],
+        [
+          'any',
+          ['!', ['has', 'strokeDash']],
+          ['==', ['get', 'strokeDash'], 'solid'],
+        ],
+      ]);
+    } catch (_) {
+      // ignore
+    }
+
+    try {
+      await map.style.addLayer(
+        LineLayer(
+          id: _poiLineLayerDashedId,
+          sourceId: _poiSourceId,
+          lineColor: _poiStyle.circleStrokeColor.toARGB32(),
+          lineWidth: 2.0,
+          lineOpacity: 0.85,
+        ),
+      );
+      await map.style.setStyleLayerProperty(_poiLineLayerDashedId, 'filter', [
+        'all',
+        ['==', ['geometry-type'], 'Polygon'],
+        ['==', ['get', 'strokeDash'], 'dashed'],
+      ]);
+      await map.style.setStyleLayerProperty(_poiLineLayerDashedId, 'line-dasharray', [4, 2]);
+    } catch (_) {
+      // ignore
+    }
+
+    try {
+      await map.style.addLayer(
+        LineLayer(
+          id: _poiLineLayerDottedId,
+          sourceId: _poiSourceId,
+          lineColor: _poiStyle.circleStrokeColor.toARGB32(),
+          lineWidth: 2.0,
+          lineOpacity: 0.85,
+        ),
+      );
+      await map.style.setStyleLayerProperty(_poiLineLayerDottedId, 'filter', [
+        'all',
+        ['==', ['geometry-type'], 'Polygon'],
+        ['==', ['get', 'strokeDash'], 'dotted'],
+      ]);
+      await map.style.setStyleLayerProperty(_poiLineLayerDottedId, 'line-dasharray', [1, 2]);
+    } catch (_) {
+      // ignore
+    }
+
     // Layer POIs: circles (simple, scalable)
     try {
       await map.style.addLayer(
@@ -438,6 +648,11 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
           circleStrokeWidth: _poiStyle.circleStrokeWidth,
         ),
       );
+      await map.style.setStyleLayerProperty(_poiLayerId, 'filter', [
+        '==',
+        ['geometry-type'],
+        'Point',
+      ]);
     } catch (_) {
       // ignore
     }
@@ -502,6 +717,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       onMapCreated: _onMapCreated,
       onStyleLoadedListener: (_) async {
         _styleLoaded = true;
+        _patternImagesReady = false;
         await _applyPoisGeoJsonIfReady();
         await _applyPoiStyleIfReady();
 
@@ -538,7 +754,14 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
                 gestureContext.touchPosition,
               ),
               RenderedQueryOptions(
-                layerIds: <String>[_poiLayerId],
+                layerIds: <String>[
+                  _poiFillLayerId,
+                  _poiPatternLayerId,
+                  _poiLineLayerDottedId,
+                  _poiLineLayerDashedId,
+                  _poiLineLayerId,
+                  _poiLayerId,
+                ],
                 filter: null,
               ),
             );
@@ -589,6 +812,117 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         widget.onTap?.call(MapPoint(lng, lat));
       },
     );
+  }
+
+  Future<void> _ensurePoiPatternImages() async {
+    if (_patternImagesReady) return;
+    final map = _mapboxMap;
+    if (map == null) return;
+    if (!_styleLoaded) return;
+
+    Future<void> add(String id, MbxImage img) async {
+      try {
+        await map.style.addStyleImage(
+          id,
+          1.0,
+          img,
+          false,
+          const [],
+          const [],
+          null,
+        );
+      } catch (_) {
+        // ignore (déjà présent / style)
+      }
+    }
+
+    try {
+      await add(_patDiag, _buildPatternDiagImage());
+      await add(_patCross, _buildPatternCrossImage());
+      await add(_patDots, _buildPatternDotsImage());
+      _patternImagesReady = true;
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  MbxImage _buildPatternDiagImage() {
+    const w = 32;
+    const h = 32;
+    final data = Uint8List(w * h * 4);
+    void setPx(int x, int y, int r, int g, int b, int a) {
+      final idx = (y * w + x) * 4;
+      data[idx] = r;
+      data[idx + 1] = g;
+      data[idx + 2] = b;
+      data[idx + 3] = a;
+    }
+
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        final onLine = ((x - y) % 8 == 0) || ((x - y - 1) % 8 == 0);
+        if (onLine) {
+          setPx(x, y, 0, 0, 0, 96);
+        } else {
+          setPx(x, y, 0, 0, 0, 0);
+        }
+      }
+    }
+
+    return MbxImage(width: w, height: h, data: data);
+  }
+
+  MbxImage _buildPatternCrossImage() {
+    const w = 32;
+    const h = 32;
+    final data = Uint8List(w * h * 4);
+    void setPx(int x, int y, int r, int g, int b, int a) {
+      final idx = (y * w + x) * 4;
+      data[idx] = r;
+      data[idx + 1] = g;
+      data[idx + 2] = b;
+      data[idx + 3] = a;
+    }
+
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        final d1 = ((x - y) % 10 == 0) || ((x - y - 1) % 10 == 0);
+        final d2 = (((x + y) % 10) == 0) || (((x + y + 1) % 10) == 0);
+        if (d1 || d2) {
+          setPx(x, y, 0, 0, 0, 86);
+        } else {
+          setPx(x, y, 0, 0, 0, 0);
+        }
+      }
+    }
+    return MbxImage(width: w, height: h, data: data);
+  }
+
+  MbxImage _buildPatternDotsImage() {
+    const w = 32;
+    const h = 32;
+    final data = Uint8List(w * h * 4);
+    void setPx(int x, int y, int r, int g, int b, int a) {
+      final idx = (y * w + x) * 4;
+      data[idx] = r;
+      data[idx + 1] = g;
+      data[idx + 2] = b;
+      data[idx + 3] = a;
+    }
+
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        final dx = (x - 3) % 8;
+        final dy = (y - 3) % 8;
+        final dot = dx >= 0 && dy >= 0 && dx < 2 && dy < 2;
+        if (dot) {
+          setPx(x, y, 0, 0, 0, 96);
+        } else {
+          setPx(x, y, 0, 0, 0, 0);
+        }
+      }
+    }
+    return MbxImage(width: w, height: h, data: data);
   }
 
   // -------------------------

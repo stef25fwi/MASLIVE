@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -13,6 +14,7 @@ import '../services/circuit_versioning_service.dart';
 import '../services/market_map_service.dart';
 import '../services/publish_quality_service.dart';
 import '../ui/map/maslive_map.dart';
+import '../ui/map/maslive_map_controller.dart';
 import '../ui/widgets/country_autocomplete_field.dart';
 import '../models/market_country.dart';
 import 'circuit_map_editor.dart';
@@ -23,6 +25,8 @@ import '../pages/home_vertical_nav.dart';
 import 'poi_bottom_popup.dart';
 
 typedef LngLat = ({double lng, double lat});
+
+enum _PoiInlineEditorMode { none, createPoint, createZone, edit }
 
 class CircuitWizardProPage extends StatefulWidget {
   final String? projectId;
@@ -49,7 +53,7 @@ class CircuitWizardProPage extends StatefulWidget {
 class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   static const int _poiPageSize = 100;
   static const int _poiLimit = 2000;
-  static const int _poiStepIndex = 5;
+  static const int _poiStepIndex = 6;
 
   final CircuitRepository _repository = CircuitRepository();
   final CircuitVersioningService _versioning = CircuitVersioningService();
@@ -97,6 +101,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   bool _routeAnimateDirection = false;
   double _routeAnimationSpeed = 1.0;
 
+  // Style Pro (RouteStyleConfig) chargé depuis Firestore (map_projects.routeStylePro)
+  rsp.RouteStyleConfig? _routeStyleProConfig;
+
+  // Animation (rainbow) sur la carte POI
+  Timer? _poiRouteStyleProTimer;
+  int _poiRouteStyleProAnimTick = 0;
+  bool _isRenderingPoiRoute = false;
+
   // Step 4: Layers/POI
   List<MarketMapLayer> _layers = [];
   List<MarketMapPOI> _pois = [];
@@ -107,6 +119,30 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   final MasLiveMapControllerPoi _poiMapController = MasLiveMapControllerPoi();
   final PoiSelectionController _poiSelection = PoiSelectionController();
   final ScrollController _poiStepScrollController = ScrollController();
+
+  _PoiInlineEditorMode _poiInlineEditorMode = _PoiInlineEditorMode.none;
+  MarketMapPOI? _poiEditingPoi;
+
+  final TextEditingController _poiInlineNameController = TextEditingController();
+  final TextEditingController _poiInlineLatController = TextEditingController();
+  final TextEditingController _poiInlineLngController = TextEditingController();
+  String? _poiInlineError;
+
+  // Parking: création de zone (polygone)
+  bool _isDrawingParkingZone = false;
+  List<LngLat> _parkingZonePoints = <LngLat>[];
+
+  // Parking: style de zone (fond/couleur/texture)
+  static const String _parkingZoneStyleKey = 'perimeterStyle';
+  static const double _parkingZoneDefaultFillOpacity = 0.20;
+  static const double _parkingZoneDefaultStrokeWidth = 2.0;
+  static const double _parkingZoneDefaultPatternOpacity = 0.55;
+  String _parkingZoneFillColorHex = '#FBBF24';
+  double _parkingZoneFillOpacity = _parkingZoneDefaultFillOpacity;
+  String _parkingZoneStrokeDash = 'solid'; // solid|dashed|dotted
+  String _parkingZonePattern = 'none'; // none|diag|cross|dots
+  final TextEditingController _parkingZoneColorController =
+      TextEditingController(text: '#FBBF24');
 
   double? _poiInitialLng;
   double? _poiInitialLat;
@@ -374,6 +410,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     );
 
     await _reloadRouteAndStyleFromFirestore(projectId);
+
+    // Si l'utilisateur revient sur l'étape POI, on veut voir immédiatement
+    // la version “Style Pro” du tracé sur la carte.
+    unawaited(_refreshPoiRouteOverlay());
+    _syncPoiRouteStyleProTimer();
   }
 
   Future<void> _reloadRouteAndStyleFromFirestore(String projectId) async {
@@ -410,6 +451,20 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         applyRouteStyle(Map<String, dynamic>.from(routeStyle));
       }
 
+      // Charger la config Style Pro (si elle existe)
+      final routeStylePro = data['routeStylePro'];
+      if (routeStylePro is Map) {
+        try {
+          _routeStyleProConfig = rsp.RouteStyleConfig.fromJson(
+            Map<String, dynamic>.from(routeStylePro),
+          ).validated();
+        } catch (_) {
+          _routeStyleProConfig = null;
+        }
+      } else {
+        _routeStyleProConfig = null;
+      }
+
       final routeData = data['route'] as List<dynamic>?;
       if (routeData != null) {
         double asDouble(dynamic v) => v is num ? v.toDouble() : 0.0;
@@ -424,6 +479,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       if (mounted) {
         setState(() {});
       }
+
+      // Applique le rendu sur la carte POI si besoin.
+      unawaited(_refreshPoiRouteOverlay());
+      _syncPoiRouteStyleProTimer();
     } catch (e) {
       debugPrint('WizardPro _reloadRouteAndStyleFromFirestore error: $e');
       if (mounted) {
@@ -451,6 +510,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     };
     _poiMapController.onMapTap = (lat, lng) {
       // Note: signature controller = (lat, lng), handler = (lng, lat)
+      if (_isDrawingParkingZone) {
+        unawaited(_onMapTapForPoi(lng, lat));
+        return;
+      }
       if (_poiSelection.hasSelection) {
         _poiSelection.clear();
         return;
@@ -658,6 +721,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
   @override
   void dispose() {
+    _poiRouteStyleProTimer?.cancel();
+    _poiRouteStyleProTimer = null;
     _routeSnapDebounce?.cancel();
     _pageController.dispose();
     _perimeterEditorController.dispose();
@@ -666,6 +731,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     _poiSelection.removeListener(_onPoiSelectionChanged);
     _poiSelection.dispose();
     _poiStepScrollController.dispose();
+    _poiInlineNameController.dispose();
+    _poiInlineLatController.dispose();
+    _poiInlineLngController.dispose();
+    _parkingZoneColorController.dispose();
     _nameController.dispose();
     _countryController.dispose();
     _eventController.dispose();
@@ -739,6 +808,20 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
             if (ad is bool) _routeAnimateDirection = ad;
             final sp = m['animationSpeed'];
             if (sp is num) _routeAnimationSpeed = sp.toDouble();
+          }
+
+          // Style Pro (si présent) : utilisé ensuite pour le rendu des étapes suivantes
+          final routeStylePro = _draftData['routeStylePro'];
+          if (routeStylePro is Map) {
+            try {
+              _routeStyleProConfig = rsp.RouteStyleConfig.fromJson(
+                Map<String, dynamic>.from(routeStylePro),
+              ).validated();
+            } catch (_) {
+              _routeStyleProConfig = null;
+            }
+          } else {
+            _routeStyleProConfig = null;
           }
 
           // Charger points
@@ -817,6 +900,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         // Nouveau brouillon
         _countryController.text = widget.countryId ?? '';
         _eventController.text = widget.eventId ?? '';
+
+        // Pas de Style Pro au démarrage d'un nouveau projet
+        _routeStyleProConfig = null;
 
         // Initialiser les couches standard en local
         _layers = await _loadLayers();
@@ -1352,6 +1438,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
               physics: const NeverScrollableScrollPhysics(),
               onPageChanged: (page) {
                 setState(() => _currentStep = page);
+
+                // Quand on arrive sur l'étape POI, on veut afficher le circuit
+                // (Style Pro si présent) sur la carte immédiatement.
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted) return;
+                  if (_currentStep == _poiStepIndex) {
+                    unawaited(_refreshPoiRouteOverlay());
+                  }
+                  _syncPoiRouteStyleProTimer();
+                });
               },
               children: [
                 _buildStep0Template(),
@@ -1359,8 +1455,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                 _buildStep2Perimeter(),
                 _buildStep3Route(),
                 _buildStep4Style(),
-                _buildStep5POI(),
                 _buildStep6StylePro(),
+                _buildStep5POI(),
                 _buildStep7Validation(),
                 _buildStep8Publish(),
               ],
@@ -1446,8 +1542,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       'Périmètre',
       'Tracé',
       'Style',
-      'POI',
       'Style Pro',
+      'POI',
       'Pré-pub',
       'Publication',
     ];
@@ -2354,7 +2450,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                         ? null
                         : _styleUrlController.text.trim(),
                     onMapReady: (ctrl) async {
-                      _refreshPoiMarkers();
+                      await _refreshPoiMarkers();
+                      await _refreshPoiRouteOverlay();
+                      _syncPoiRouteStyleProTimer();
                     },
                   ),
 
@@ -2430,6 +2528,26 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                                         ? null
                                         : _addPoiAtCurrentCenter,
                                   ),
+                                  if (_selectedLayer?.type == 'parking')
+                                    IconButton(
+                                      icon: Icon(
+                                        _isDrawingParkingZone
+                                            ? Icons.crop_square
+                                            : Icons.crop_square_rounded,
+                                      ),
+                                      tooltip: _isDrawingParkingZone
+                                          ? 'Mode zone parking (en cours)'
+                                          : 'Créer une zone parking (périmètre)',
+                                      onPressed: (_pois.length >= _poiLimit)
+                                          ? null
+                                          : () {
+                                              if (_isDrawingParkingZone) {
+                                                _cancelParkingZoneDrawing();
+                                              } else {
+                                                _startParkingZoneDrawing();
+                                              }
+                                            },
+                                    ),
                                   IconButton(
                                     icon: const Icon(Icons.save_alt),
                                     tooltip: 'Enregistrer les POI',
@@ -2448,6 +2566,36 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                                 ],
                               ),
                               const SizedBox(height: 6),
+                              if (_selectedLayer?.type == 'parking' &&
+                                  _isDrawingParkingZone)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          'Zone parking: ${_parkingZonePoints.length} points (tap sur la carte)',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                      ),
+                                      TextButton(
+                                        onPressed: _cancelParkingZoneDrawing,
+                                        child: const Text('Annuler'),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      FilledButton.tonal(
+                                        onPressed: _parkingZonePoints.length < 3
+                                            ? null
+                                            : _finishParkingZoneDrawing,
+                                        child: const Text('Créer la zone'),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               Row(
                                 children: [
                                   Text(
@@ -2652,6 +2800,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                                 onTap: () {
                                   _poiSelection.clear();
                                   setState(() {
+                                    _isDrawingParkingZone = false;
+                                    _parkingZonePoints = <LngLat>[];
+                                    _poiInlineEditorMode =
+                                        _PoiInlineEditorMode.none;
+                                    _poiEditingPoi = null;
+                                    _poiInlineError = null;
                                     _selectedLayer = layer;
                                   });
                                   _refreshPoiMarkers();
@@ -2670,17 +2824,19 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
             Consumer<PoiSelectionController>(
               builder: (context, selection, _) {
                 final selected = selection.selectedPoi;
+                if (_poiInlineEditorMode != _PoiInlineEditorMode.none) {
+                  return _buildPoiInlineEditorSection();
+                }
+
                 return PoiInlinePopup(
                   selectedPoi: selected,
                   onClose: selection.clear,
                   onEdit: selected == null ? () {} : () => _editPoi(selected),
-                  onDelete: selected == null
-                      ? () {}
-                      : () => _deletePoi(selected),
+                  onDelete:
+                      selected == null ? () {} : () => _deletePoi(selected),
                   categoryLabel: (poi) {
-                    final match = _layers
-                        .where((l) => l.type == poi.layerType)
-                        .toList();
+                    final match =
+                        _layers.where((l) => l.type == poi.layerType).toList();
                     return match.isNotEmpty ? match.first.label : poi.layerType;
                   },
                 );
@@ -2694,133 +2850,111 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
   // ====== Gestion POI (étape 4) ======
 
-  Widget _wrapDialogForWeb(Widget dialog) {
-    if (!kIsWeb) return dialog;
-    return PointerInterceptor(child: dialog);
-  }
-
   double? _tryParseCoord(String raw) {
     final norm = raw.trim().replaceAll(',', '.');
     return double.tryParse(norm);
   }
 
-  Future<({String name, double lng, double lat})?> _showCreatePoiDialog({
+  void _scrollPoiBottomSectionIntoView() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!_poiStepScrollController.hasClients) return;
+      _poiStepScrollController.animateTo(
+        _poiStepScrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  void _openPoiCreatePointSection({
     required double initialLng,
     required double initialLat,
-  }) async {
-    final nameController = TextEditingController();
-    final latController = TextEditingController(
-      text: initialLat.toStringAsFixed(6),
-    );
-    final lngController = TextEditingController(
-      text: initialLng.toStringAsFixed(6),
-    );
+  }) {
+    _poiSelection.clear();
+    setState(() {
+      _poiInlineEditorMode = _PoiInlineEditorMode.createPoint;
+      _poiEditingPoi = null;
+      _poiInlineError = null;
+      _poiInlineNameController.text = '';
+      _poiInlineLatController.text = initialLat.toStringAsFixed(6);
+      _poiInlineLngController.text = initialLng.toStringAsFixed(6);
+    });
+    _scrollPoiBottomSectionIntoView();
+  }
 
-    String? error;
+  void _openPoiCreateZoneSection({required List<LngLat> perimeterPoints}) {
+    _poiSelection.clear();
 
-    final result = await showDialog<({String name, double lng, double lat})>(
-      context: context,
-      builder: (ctx) {
-        return _wrapDialogForWeb(
-          StatefulBuilder(
-            builder: (ctx, setLocalState) {
-              return AlertDialog(
-                title: const Text('Nouveau point d\'intérêt'),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nom du POI',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: latController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                        signed: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Latitude (GPS)',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: lngController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                        signed: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Longitude (GPS)',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    if (error != null) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        error!,
-                        style: const TextStyle(
-                          color: Colors.redAccent,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Annuler'),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      final lat = _tryParseCoord(latController.text);
-                      final lng = _tryParseCoord(lngController.text);
+    final defaultHex = _normalizeColorHex(_selectedLayer?.color) ??
+        _defaultLayerColorHex('parking') ??
+        _parkingZoneFillColorHex;
 
-                      if (lat == null || lng == null) {
-                        setLocalState(() {
-                          error = 'Coordonnées invalides (lat/lng).';
-                        });
-                        return;
-                      }
-                      if (lat < -90 || lat > 90) {
-                        setLocalState(() {
-                          error =
-                              'Latitude invalide (doit être entre -90 et 90).';
-                        });
-                        return;
-                      }
-                      if (lng < -180 || lng > 180) {
-                        setLocalState(() {
-                          error =
-                              'Longitude invalide (doit être entre -180 et 180).';
-                        });
-                        return;
-                      }
+    setState(() {
+      _poiInlineEditorMode = _PoiInlineEditorMode.createZone;
+      _poiEditingPoi = null;
+      _poiInlineError = null;
+      _poiInlineNameController.text = '';
 
-                      final name = nameController.text.trim().isEmpty
-                          ? '${_selectedLayer?.label ?? 'POI'} (${lng.toStringAsFixed(4)}, ${lat.toStringAsFixed(4)})'
-                          : nameController.text.trim();
+      _parkingZoneFillColorHex = defaultHex;
+      _parkingZoneFillOpacity = _parkingZoneDefaultFillOpacity;
+      _parkingZoneStrokeDash = 'solid';
+      _parkingZonePattern = 'none';
+      _parkingZoneColorController.text = defaultHex;
 
-                      Navigator.pop(ctx, (name: name, lng: lng, lat: lat));
-                    },
-                    child: const Text('Ajouter'),
-                  ),
-                ],
-              );
-            },
-          ),
-        );
-      },
-    );
+      // Pour une zone, lat/lng servent de centre (centroid approx.)
+      final centroid = _centroidOf(perimeterPoints);
+      _poiInlineLatController.text = centroid.lat.toStringAsFixed(6);
+      _poiInlineLngController.text = centroid.lng.toStringAsFixed(6);
+    });
+    _scrollPoiBottomSectionIntoView();
+  }
 
-    return result;
+  void _openPoiEditSection(MarketMapPOI poi) {
+    _poiSelection.select(poi);
+
+    final perimeter = _poiPerimeterFromMetadata(poi);
+    final isZone = perimeter != null;
+    final style = isZone ? _parkingZoneStyleFromMetadata(poi) : null;
+
+    setState(() {
+      _poiInlineEditorMode = _PoiInlineEditorMode.edit;
+      _poiEditingPoi = poi;
+      _poiInlineError = null;
+      _poiInlineNameController.text = poi.name;
+      _poiInlineLatController.text = poi.lat.toStringAsFixed(6);
+      _poiInlineLngController.text = poi.lng.toStringAsFixed(6);
+
+      if (style != null) {
+        _parkingZoneFillColorHex = style['fillColor'] as String? ??
+            _normalizeColorHex(_selectedLayer?.color) ??
+            _defaultLayerColorHex(poi.layerType) ??
+            _parkingZoneFillColorHex;
+        _parkingZoneFillOpacity =
+            (style['fillOpacity'] as num?)?.toDouble() ?? _parkingZoneFillOpacity;
+        _parkingZoneStrokeDash =
+            (style['strokeDash'] as String?)?.trim().isNotEmpty == true
+                ? (style['strokeDash'] as String).trim()
+                : _parkingZoneStrokeDash;
+        _parkingZonePattern =
+            (style['pattern'] as String?)?.trim().isNotEmpty == true
+                ? (style['pattern'] as String).trim()
+                : _parkingZonePattern;
+        _parkingZoneColorController.text = _parkingZoneFillColorHex;
+      }
+    });
+    _scrollPoiBottomSectionIntoView();
+  }
+
+  void _closePoiInlineEditor({bool keepSelection = true}) {
+    setState(() {
+      _poiInlineEditorMode = _PoiInlineEditorMode.none;
+      _poiEditingPoi = null;
+      _poiInlineError = null;
+    });
+    if (!keepSelection) {
+      _poiSelection.clear();
+    }
   }
 
   Future<void> _createPoiAt({required double lng, required double lat}) async {
@@ -2836,33 +2970,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       return;
     }
 
-    final created = await _showCreatePoiDialog(
-      initialLng: lng,
-      initialLat: lat,
-    );
-    if (created == null) return;
-
-    final poi = MarketMapPOI(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: created.name,
-      layerType: _selectedLayer!.type,
-      lng: created.lng,
-      lat: created.lat,
-      description: null,
-      imageUrl: null,
-      metadata: null,
-    );
-
-    setState(() {
-      _pois.add(poi);
-    });
-    _refreshPoiMarkers();
-    _poiSelection.select(poi);
+    _openPoiCreatePointSection(initialLng: lng, initialLat: lat);
   }
 
-  void _refreshPoiMarkers() async {
-    await _poiMapController.clearAll();
-
+  Future<void> _refreshPoiMarkers() async {
     if (_selectedLayer == null) {
       await _poiMapController.clearPoisGeoJson();
       return;
@@ -2872,88 +2983,926 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     final poisForLayer = _pois
         .where((p) => _poiMatchesSelectedLayer(p, layer))
         .toList();
+
+    final previewZone = (_isDrawingParkingZone &&
+            layer.type == 'parking' &&
+            _parkingZonePoints.length >= 3)
+        ? _parkingZonePoints
+        : null;
+
     await _poiMapController.setPoisGeoJson(
-      _buildPoisFeatureCollection(poisForLayer),
+      _buildPoisFeatureCollection(poisForLayer, previewParkingZone: previewZone),
     );
   }
 
-  Map<String, dynamic> _buildPoisFeatureCollection(List<MarketMapPOI> pois) {
+  void _syncPoiRouteStyleProTimer() {
+    final cfg = _routeStyleProConfig;
+    final needsAnim = mounted &&
+        _currentStep == _poiStepIndex &&
+        cfg != null &&
+        cfg.rainbowEnabled;
+
+    if (!needsAnim) {
+      _poiRouteStyleProTimer?.cancel();
+      _poiRouteStyleProTimer = null;
+      return;
+    }
+
+    // Période similaire à la preview map (throttlée)
+    final periodMs = (110 - (cfg.rainbowSpeed * 0.8)).clamp(25, 110).round();
+
+    _poiRouteStyleProTimer?.cancel();
+    _poiRouteStyleProTimer = Timer.periodic(
+      Duration(milliseconds: periodMs),
+      (_) {
+        if (!mounted) return;
+        if (_currentStep != _poiStepIndex) {
+          _syncPoiRouteStyleProTimer();
+          return;
+        }
+        _poiRouteStyleProAnimTick++;
+        unawaited(
+          _refreshPoiRouteOverlay(animTick: _poiRouteStyleProAnimTick),
+        );
+      },
+    );
+  }
+
+  Future<void> _refreshPoiRouteOverlay({int? animTick}) async {
+    if (!mounted) return;
+    if (_currentStep != _poiStepIndex) return;
+    if (_isRenderingPoiRoute) return;
+    _isRenderingPoiRoute = true;
+
+    try {
+      final route = _routePoints;
+      if (route.length < 2) {
+        await _poiMapController.setPolyline(points: const [], show: false);
+        return;
+      }
+
+      final mapPoints = <MapPoint>[for (final p in route) MapPoint(p.lng, p.lat)];
+
+      final pro = _routeStyleProConfig;
+      if (pro != null) {
+        final cfg = pro.validated();
+
+        final useSegments =
+            cfg.rainbowEnabled || cfg.trafficDemoEnabled || cfg.vanishingEnabled;
+        final segmentsGeoJson = useSegments
+            ? _buildRouteStyleProSegmentsGeoJson(
+                route,
+                cfg,
+                animTick: animTick ?? _poiRouteStyleProAnimTick,
+              )
+            : null;
+
+        final shouldRoadLike =
+            (cfg.casingWidth > 0) || cfg.shadowEnabled || cfg.glowEnabled;
+
+        await _poiMapController.setPolyline(
+          points: mapPoints,
+          color: cfg.mainColor,
+          width: cfg.mainWidth,
+          show: true,
+          roadLike: shouldRoadLike,
+          shadow3d: cfg.shadowEnabled,
+          showDirection: false,
+          animateDirection: cfg.pulseEnabled,
+          animationSpeed: (cfg.pulseSpeed / 25.0).clamp(0.5, 5.0),
+
+          opacity: cfg.opacity,
+          casingColor: cfg.casingColor,
+          casingWidth: cfg.casingWidth > 0 ? cfg.casingWidth : null,
+
+          glowEnabled: cfg.glowEnabled,
+          glowColor: cfg.mainColor,
+          glowWidth: cfg.glowWidth,
+          glowOpacity: cfg.glowOpacity,
+          glowBlur: cfg.glowBlur,
+
+          dashArray: cfg.dashEnabled ? <double>[cfg.dashLength, cfg.dashGap] : null,
+          lineCap: cfg.lineCap.name,
+          lineJoin: cfg.lineJoin.name,
+          segmentsGeoJson: segmentsGeoJson,
+        );
+        return;
+      }
+
+      // Fallback: style legacy (Waze-like)
+      await _poiMapController.setPolyline(
+        points: mapPoints,
+        color: _parseHexColor(_routeColorHex, fallback: Colors.blue),
+        width: _routeWidth,
+        show: true,
+        roadLike: _routeRoadLike,
+        shadow3d: _routeShadow3d,
+        showDirection: _routeShowDirection,
+        animateDirection: _routeAnimateDirection,
+        animationSpeed: _routeAnimationSpeed,
+      );
+    } catch (_) {
+      // Garder l'étape POI stable même si interop map KO.
+    } finally {
+      _isRenderingPoiRoute = false;
+    }
+  }
+
+  String _emptyFeatureCollection() =>
+      jsonEncode({'type': 'FeatureCollection', 'features': []});
+
+  String _featureCollection(List<Map<String, dynamic>> features) =>
+      jsonEncode({'type': 'FeatureCollection', 'features': features});
+
+  String _buildRouteStyleProSegmentsGeoJson(
+    List<LngLat> pts,
+    rsp.RouteStyleConfig cfg, {
+    required int animTick,
+  }) {
+    if (pts.length < 2) return _emptyFeatureCollection();
+
+    // Limite le nombre de segments (perf)
+    const maxSeg = 60;
+    final step = math.max(1, ((pts.length - 1) / maxSeg).ceil());
+
+    final features = <Map<String, dynamic>>[];
+    int segIndex = 0;
+
+    for (int i = 0; i < pts.length - 1; i += step) {
+      final a = pts[i];
+      final b = pts[math.min(i + step, pts.length - 1)];
+
+      final t = segIndex / math.max(1, ((pts.length - 1) / step).floor());
+
+      final baseOpacity = cfg.opacity;
+      final opacity = cfg.vanishingEnabled
+          ? (t <= cfg.vanishingProgress ? 0.25 : baseOpacity)
+          : baseOpacity;
+
+      final color = _routeStyleProSegmentColor(cfg, segIndex, animTick);
+
+      features.add({
+        'type': 'Feature',
+        'properties': {
+          'color': _toHexRgba(color, opacity: opacity),
+          'width': cfg.mainWidth,
+          'opacity': opacity,
+        },
+        'geometry': {
+          'type': 'LineString',
+          'coordinates': [
+            [a.lng, a.lat],
+            [b.lng, b.lat],
+          ],
+        },
+      });
+      segIndex++;
+    }
+
+    return _featureCollection(features);
+  }
+
+  Color _routeStyleProSegmentColor(rsp.RouteStyleConfig cfg, int index, int animTick) {
+    if (cfg.trafficDemoEnabled) {
+      const traffic = [
+        Color(0xFF22C55E),
+        Color(0xFFF59E0B),
+        Color(0xFFEF4444),
+      ];
+      return traffic[index % traffic.length];
+    }
+
+    if (cfg.rainbowEnabled) {
+      final shift = (animTick % 360);
+      final dir = cfg.rainbowReverse ? -1 : 1;
+      final hue = (shift + dir * index * 14) % 360;
+      return _hsvToColor(
+        hue.toDouble(),
+        cfg.rainbowSaturation,
+        1.0,
+      );
+    }
+
+    return cfg.mainColor;
+  }
+
+  Color _hsvToColor(double h, double s, double v) {
+    final hh = (h % 360) / 60.0;
+    final c = v * s;
+    final x = c * (1 - ((hh % 2) - 1).abs());
+    final m = v - c;
+
+    double r1 = 0, g1 = 0, b1 = 0;
+    if (hh >= 0 && hh < 1) {
+      r1 = c;
+      g1 = x;
+    } else if (hh < 2) {
+      r1 = x;
+      g1 = c;
+    } else if (hh < 3) {
+      g1 = c;
+      b1 = x;
+    } else if (hh < 4) {
+      g1 = x;
+      b1 = c;
+    } else if (hh < 5) {
+      r1 = x;
+      b1 = c;
+    } else {
+      r1 = c;
+      b1 = x;
+    }
+
+    final r = ((r1 + m) * 255).round().clamp(0, 255);
+    final g = ((g1 + m) * 255).round().clamp(0, 255);
+    final b = ((b1 + m) * 255).round().clamp(0, 255);
+    return Color.fromARGB(255, r, g, b);
+  }
+
+  String _toHexRgba(Color c, {required double opacity}) {
+    // Mapbox accepte bien rgba() (plus robuste que #RRGGBBAA selon environnements).
+    final a = opacity.clamp(0.0, 1.0);
+    final r = ((c.r * 255).round()).clamp(0, 255);
+    final g = ((c.g * 255).round()).clamp(0, 255);
+    final b = ((c.b * 255).round()).clamp(0, 255);
+    return 'rgba($r,$g,$b,${a.toStringAsFixed(3)})';
+  }
+
+  List<LngLat>? _poiPerimeterFromMetadata(MarketMapPOI poi) {
+    final meta = poi.metadata;
+    if (meta == null) return null;
+    final raw = meta['perimeter'];
+    if (raw is! List) return null;
+    final pts = <LngLat>[];
+    for (final item in raw) {
+      if (item is Map) {
+        final lng = (item['lng'] as num?)?.toDouble();
+        final lat = (item['lat'] as num?)?.toDouble();
+        if (lng != null && lat != null) {
+          pts.add((lng: lng, lat: lat));
+        }
+      }
+    }
+    return pts.length >= 3 ? pts : null;
+  }
+
+  String? _defaultLayerColorHex(String layerType) {
+    for (final l in _layers) {
+      if (l.type == layerType) {
+        final hex = _normalizeColorHex(l.color);
+        if (hex != null) return hex;
+      }
+    }
+    return null;
+  }
+
+  String? _normalizeColorHex(String? raw) {
+    final v = raw?.trim();
+    if (v == null || v.isEmpty) return null;
+    final hex6 = RegExp(r'^#?[0-9a-fA-F]{6}$');
+    if (hex6.hasMatch(v)) {
+      final s = v.startsWith('#') ? v : '#$v';
+      return s.toUpperCase();
+    }
+    final hex8 = RegExp(r'^0x[0-9a-fA-F]{8}$');
+    if (hex8.hasMatch(v)) {
+      // 0xAARRGGBB -> #RRGGBB
+      final rgb = v.substring(v.length - 6);
+      return '#${rgb.toUpperCase()}';
+    }
+    return null;
+  }
+
+  Map<String, dynamic> _parkingZoneStyleFromMetadata(MarketMapPOI poi) {
+    final meta = poi.metadata;
+    final styleRaw = meta?[_parkingZoneStyleKey];
+    final style = (styleRaw is Map) ? styleRaw.cast<String, dynamic>() : null;
+
+    final layerHex = _defaultLayerColorHex(poi.layerType) ?? '#FBBF24';
+    final fillColor =
+        _normalizeColorHex(style?['fillColor']?.toString()) ?? layerHex;
+    final strokeColor =
+        _normalizeColorHex(style?['strokeColor']?.toString()) ?? fillColor;
+    final fillOpacity =
+        (style?['fillOpacity'] as num?)?.toDouble() ?? _parkingZoneDefaultFillOpacity;
+    final strokeWidth =
+        (style?['strokeWidth'] as num?)?.toDouble() ?? _parkingZoneDefaultStrokeWidth;
+    final dashRaw = style?['strokeDash'];
+    final dash = (dashRaw is String && dashRaw.trim().isNotEmpty)
+      ? dashRaw.trim()
+      : 'solid';
+
+    final pattern =
+        (style?['pattern'] is String && (style?['pattern'] as String).trim().isNotEmpty)
+            ? (style?['pattern'] as String).trim()
+            : 'none';
+    final patternOpacity =
+        (style?['patternOpacity'] as num?)?.toDouble() ?? _parkingZoneDefaultPatternOpacity;
+
+    return <String, dynamic>{
+      'fillColor': fillColor,
+      'fillOpacity': fillOpacity.clamp(0.0, 1.0),
+      'strokeColor': strokeColor,
+      'strokeWidth': strokeWidth,
+      'strokeDash': dash,
+      'pattern': pattern,
+      'patternOpacity': patternOpacity.clamp(0.0, 1.0),
+    };
+  }
+
+  String? _mapboxFillPatternIdFromStylePattern(String? pattern) {
+    switch ((pattern ?? '').trim()) {
+      case 'diag':
+        return 'maslive_pat_diag';
+      case 'cross':
+        return 'maslive_pat_cross';
+      case 'dots':
+        return 'maslive_pat_dots';
+      default:
+        return null;
+    }
+  }
+
+  LngLat _centroidOf(List<LngLat> points) {
+    if (points.isEmpty) return (lng: -61.533, lat: 16.241);
+    var sumLng = 0.0;
+    var sumLat = 0.0;
+    for (final p in points) {
+      sumLng += p.lng;
+      sumLat += p.lat;
+    }
+    return (lng: sumLng / points.length, lat: sumLat / points.length);
+  }
+
+  Map<String, dynamic> _buildPoisFeatureCollection(
+    List<MarketMapPOI> pois, {
+    List<LngLat>? previewParkingZone,
+  }) {
+    final features = <Map<String, dynamic>>[];
+
+    for (final poi in pois) {
+      final perimeter = _poiPerimeterFromMetadata(poi);
+
+      if (perimeter != null) {
+        final style = _parkingZoneStyleFromMetadata(poi);
+        final fillPattern = _mapboxFillPatternIdFromStylePattern(
+          style['pattern'] as String?,
+        );
+        final ring = <List<double>>[
+          for (final p in perimeter) <double>[p.lng, p.lat],
+          <double>[perimeter.first.lng, perimeter.first.lat],
+        ];
+        features.add(<String, dynamic>{
+          'type': 'Feature',
+          'id': poi.id,
+          'properties': <String, dynamic>{
+            'poiId': poi.id,
+            'layerId': poi.layerType,
+            'title': poi.name,
+            'isZone': true,
+            'fillColor': style['fillColor'],
+            'fillOpacity': style['fillOpacity'],
+            'strokeColor': style['strokeColor'],
+            'strokeWidth': style['strokeWidth'],
+            'strokeDash': style['strokeDash'],
+            if (fillPattern != null) 'fillPattern': fillPattern,
+            'patternOpacity': style['patternOpacity'],
+          },
+          'geometry': <String, dynamic>{
+            'type': 'Polygon',
+            'coordinates': <List<List<double>>>[ring],
+          },
+        });
+      } else {
+        features.add(<String, dynamic>{
+          'type': 'Feature',
+          'id': poi.id,
+          'properties': <String, dynamic>{
+            'poiId': poi.id,
+            'layerId': poi.layerType,
+            'title': poi.name,
+          },
+          'geometry': <String, dynamic>{
+            'type': 'Point',
+            'coordinates': <double>[poi.lng, poi.lat],
+          },
+        });
+      }
+    }
+
+    if (previewParkingZone != null && previewParkingZone.length >= 3) {
+      final ring = <List<double>>[
+        for (final p in previewParkingZone) <double>[p.lng, p.lat],
+        <double>[previewParkingZone.first.lng, previewParkingZone.first.lat],
+      ];
+
+      final previewFill = _normalizeColorHex(_parkingZoneFillColorHex) ??
+          _normalizeColorHex(_selectedLayer?.color) ??
+          _defaultLayerColorHex('parking') ??
+          '#FBBF24';
+
+      final previewPattern = _mapboxFillPatternIdFromStylePattern(
+        _parkingZonePattern,
+      );
+
+      features.add(<String, dynamic>{
+        'type': 'Feature',
+        'id': '__preview_parking_zone__',
+        'properties': <String, dynamic>{
+          'poiId': '__preview_parking_zone__',
+          'layerId': 'parking',
+          'title': 'Zone parking (aperçu)',
+          'isPreview': true,
+          'isZone': true,
+          'fillColor': previewFill,
+          'fillOpacity': _parkingZoneFillOpacity.clamp(0.0, 1.0),
+          'strokeColor': previewFill,
+          'strokeWidth': _parkingZoneDefaultStrokeWidth,
+          'strokeDash': _parkingZoneStrokeDash,
+          if (previewPattern != null) 'fillPattern': previewPattern,
+          'patternOpacity': _parkingZoneDefaultPatternOpacity,
+        },
+        'geometry': <String, dynamic>{
+          'type': 'Polygon',
+          'coordinates': <List<List<double>>>[ring],
+        },
+      });
+    }
+
     return <String, dynamic>{
       'type': 'FeatureCollection',
-      'features': <Map<String, dynamic>>[
-        for (final poi in pois)
-          <String, dynamic>{
-            'type': 'Feature',
-            'id': poi.id,
-            'properties': <String, dynamic>{
-              'poiId': poi.id,
-              'layerId': poi.layerType,
-              'title': poi.name,
-            },
-            'geometry': <String, dynamic>{
-              'type': 'Point',
-              'coordinates': <double>[poi.lng, poi.lat],
-            },
-          },
-      ],
+      'features': features,
     };
   }
 
   Future<void> _onMapTapForPoi(double lng, double lat) async {
+    if (_isDrawingParkingZone && _selectedLayer?.type == 'parking') {
+      setState(() {
+        _parkingZonePoints = <LngLat>[
+          ..._parkingZonePoints,
+          (lng: lng, lat: lat),
+        ];
+      });
+      _refreshPoiMarkers();
+      return;
+    }
+
     await _createPoiAt(lng: lng, lat: lat);
   }
 
   Future<void> _editPoi(MarketMapPOI poi) async {
-    final nameController = TextEditingController(text: poi.name);
+    _openPoiEditSection(poi);
+  }
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => _wrapDialogForWeb(
-        AlertDialog(
-          title: const Text('Modifier le POI'),
-          content: TextField(
-            controller: nameController,
-            decoration: const InputDecoration(
-              labelText: 'Nom du POI',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Enregistrer'),
-            ),
+  void _startParkingZoneDrawing() {
+    if (_selectedLayer?.type != 'parking') return;
+    _poiSelection.clear();
+    _closePoiInlineEditor(keepSelection: false);
+    setState(() {
+      _isDrawingParkingZone = true;
+      _parkingZonePoints = <LngLat>[];
+    });
+    _refreshPoiMarkers();
+  }
+
+  void _cancelParkingZoneDrawing() {
+    setState(() {
+      _isDrawingParkingZone = false;
+      _parkingZonePoints = <LngLat>[];
+    });
+    _refreshPoiMarkers();
+  }
+
+  void _finishParkingZoneDrawing() {
+    if (_selectedLayer?.type != 'parking') return;
+    if (_parkingZonePoints.length < 3) return;
+    _openPoiCreateZoneSection(perimeterPoints: _parkingZonePoints);
+  }
+
+  void _commitPoiInlineEditor() {
+    if (_selectedLayer == null) return;
+
+    if (_poiInlineEditorMode == _PoiInlineEditorMode.createPoint) {
+      final lat = _tryParseCoord(_poiInlineLatController.text);
+      final lng = _tryParseCoord(_poiInlineLngController.text);
+      if (lat == null || lng == null) {
+        setState(() => _poiInlineError = 'Coordonnées invalides (lat/lng).');
+        return;
+      }
+      if (lat < -90 || lat > 90) {
+        setState(
+          () =>
+              _poiInlineError = 'Latitude invalide (doit être entre -90 et 90).',
+        );
+        return;
+      }
+      if (lng < -180 || lng > 180) {
+        setState(
+          () => _poiInlineError =
+              'Longitude invalide (doit être entre -180 et 180).',
+        );
+        return;
+      }
+
+      final name = _poiInlineNameController.text.trim().isEmpty
+          ? '${_selectedLayer?.label ?? 'POI'} (${lng.toStringAsFixed(4)}, ${lat.toStringAsFixed(4)})'
+          : _poiInlineNameController.text.trim();
+
+      final poi = MarketMapPOI(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: name,
+        layerType: _selectedLayer!.type,
+        lng: lng,
+        lat: lat,
+        description: null,
+        imageUrl: null,
+        metadata: null,
+      );
+
+      setState(() {
+        _pois.add(poi);
+        _poiInlineEditorMode = _PoiInlineEditorMode.none;
+        _poiInlineError = null;
+      });
+      _refreshPoiMarkers();
+      _poiSelection.select(poi);
+      return;
+    }
+
+    if (_poiInlineEditorMode == _PoiInlineEditorMode.createZone) {
+      if (_selectedLayer?.type != 'parking') {
+        setState(() => _poiInlineError = 'Zone disponible uniquement en parking.');
+        return;
+      }
+      if (_parkingZonePoints.length < 3) {
+        setState(() => _poiInlineError = 'Périmètre incomplet (min. 3 points).');
+        return;
+      }
+
+      final name = _poiInlineNameController.text.trim().isEmpty
+          ? 'Zone parking'
+          : _poiInlineNameController.text.trim();
+
+      final fillHex = _normalizeColorHex(_parkingZoneColorController.text) ??
+          _normalizeColorHex(_parkingZoneFillColorHex);
+      if (fillHex == null) {
+        setState(
+          () => _poiInlineError =
+              'Couleur invalide (attendu: #RRGGBB, ex: #FBBF24).',
+        );
+        return;
+      }
+
+      final centroid = _centroidOf(_parkingZonePoints);
+      final poi = MarketMapPOI(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: name,
+        layerType: 'parking',
+        lng: centroid.lng,
+        lat: centroid.lat,
+        description: null,
+        imageUrl: null,
+        metadata: <String, dynamic>{
+          'perimeter': [
+            for (final p in _parkingZonePoints) {'lng': p.lng, 'lat': p.lat},
           ],
+          _parkingZoneStyleKey: <String, dynamic>{
+            'fillColor': fillHex,
+            'fillOpacity': _parkingZoneFillOpacity.clamp(0.0, 1.0),
+            'strokeColor': fillHex,
+            'strokeWidth': _parkingZoneDefaultStrokeWidth,
+            'strokeDash': _parkingZoneStrokeDash,
+            'pattern': _parkingZonePattern,
+            'patternOpacity': _parkingZoneDefaultPatternOpacity,
+          },
+        },
+      );
+
+      setState(() {
+        _pois.add(poi);
+        _poiInlineEditorMode = _PoiInlineEditorMode.none;
+        _poiInlineError = null;
+        _isDrawingParkingZone = false;
+        _parkingZonePoints = <LngLat>[];
+      });
+      _refreshPoiMarkers();
+      _poiSelection.select(poi);
+      return;
+    }
+
+    if (_poiInlineEditorMode == _PoiInlineEditorMode.edit) {
+      final poi = _poiEditingPoi;
+      if (poi == null) return;
+      final nextName = _poiInlineNameController.text.trim();
+      if (nextName.isEmpty) {
+        setState(() => _poiInlineError = 'Le nom ne peut pas être vide.');
+        return;
+      }
+
+      final perimeter = _poiPerimeterFromMetadata(poi);
+      final isZone = perimeter != null;
+
+      Map<String, dynamic>? nextMetadata = poi.metadata;
+      if (isZone) {
+        final fillHex = _normalizeColorHex(_parkingZoneColorController.text) ??
+            _normalizeColorHex(_parkingZoneFillColorHex);
+        if (fillHex == null) {
+          setState(
+            () => _poiInlineError =
+                'Couleur invalide (attendu: #RRGGBB, ex: #FBBF24).',
+          );
+          return;
+        }
+        nextMetadata = <String, dynamic>{
+          ...(poi.metadata ?? const <String, dynamic>{}),
+          _parkingZoneStyleKey: <String, dynamic>{
+            'fillColor': fillHex,
+            'fillOpacity': _parkingZoneFillOpacity.clamp(0.0, 1.0),
+            'strokeColor': fillHex,
+            'strokeWidth': _parkingZoneDefaultStrokeWidth,
+            'strokeDash': _parkingZoneStrokeDash,
+            'pattern': _parkingZonePattern,
+            'patternOpacity': _parkingZoneDefaultPatternOpacity,
+          },
+        };
+      }
+
+      setState(() {
+        final idx = _pois.indexWhere((p) => p.id == poi.id);
+        if (idx >= 0) {
+          final updated = MarketMapPOI(
+            id: poi.id,
+            name: nextName,
+            layerType: poi.layerType,
+            lng: poi.lng,
+            lat: poi.lat,
+            description: poi.description,
+            imageUrl: poi.imageUrl,
+            metadata: nextMetadata,
+          );
+          _pois[idx] = updated;
+          _poiSelection.select(updated);
+        }
+        _poiInlineEditorMode = _PoiInlineEditorMode.none;
+        _poiEditingPoi = null;
+        _poiInlineError = null;
+      });
+      _refreshPoiMarkers();
+    }
+  }
+
+  Widget _buildPoiInlineEditorSection() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final bg = colorScheme.surface;
+
+    final isCreatePoint =
+      _poiInlineEditorMode == _PoiInlineEditorMode.createPoint;
+    final isCreateZone = _poiInlineEditorMode == _PoiInlineEditorMode.createZone;
+    final isEdit = _poiInlineEditorMode == _PoiInlineEditorMode.edit;
+
+    final editingPoi = _poiEditingPoi;
+    final isEditZone =
+      isEdit && editingPoi != null && _poiPerimeterFromMetadata(editingPoi) != null;
+
+    final title = isEdit
+        ? 'Modifier le POI'
+        : (isCreateZone ? 'Nouvelle zone parking' : 'Nouveau point d\'intérêt');
+
+    final primaryLabel = isEdit
+        ? 'Enregistrer'
+        : (isCreateZone ? 'Ajouter la zone' : 'Ajouter');
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
+      child: Material(
+        color: bg,
+        elevation: 0,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(24),
+          bottom: Radius.circular(24),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Fermer',
+                    onPressed: () {
+                      if (isCreateZone) {
+                        _cancelParkingZoneDrawing();
+                      }
+                      _closePoiInlineEditor();
+                    },
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _poiInlineNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nom',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              if (isCreatePoint) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _poiInlineLatController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Latitude (GPS)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _poiInlineLngController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Longitude (GPS)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+              if (isCreateZone) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Périmètre: ${_parkingZonePoints.length} points',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ],
+
+              if (isCreateZone || isEditZone) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _parkingZoneColorController,
+                  onChanged: (v) {
+                    setState(() {
+                      _parkingZoneFillColorHex = v;
+                      _poiInlineError = null;
+                    });
+                    _refreshPoiMarkers();
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Couleur (hex, ex: #FBBF24)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Fond (opacité): ${(100 * _parkingZoneFillOpacity).round()}%',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                Slider(
+                  value: _parkingZoneFillOpacity.clamp(0.0, 1.0),
+                  min: 0.0,
+                  max: 1.0,
+                  divisions: 20,
+                  onChanged: (v) {
+                    setState(() {
+                      _parkingZoneFillOpacity = v;
+                      _poiInlineError = null;
+                    });
+                    _refreshPoiMarkers();
+                  },
+                ),
+                const SizedBox(height: 4),
+                InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Texture (contour)',
+                    border: OutlineInputBorder(),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _parkingZoneStrokeDash,
+                      isExpanded: true,
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'solid',
+                          child: Text('Plein'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'dashed',
+                          child: Text('Pointillé'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'dotted',
+                          child: Text('Pointillé fin'),
+                        ),
+                      ],
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setState(() {
+                          _parkingZoneStrokeDash = v;
+                          _poiInlineError = null;
+                        });
+                        _refreshPoiMarkers();
+                      },
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+                InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Texture intérieure (pattern)',
+                    border: OutlineInputBorder(),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _parkingZonePattern,
+                      isExpanded: true,
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'none',
+                          child: Text('Aucune'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'diag',
+                          child: Text('Diagonale'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'cross',
+                          child: Text('Croisillons'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'dots',
+                          child: Text('Points'),
+                        ),
+                      ],
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setState(() {
+                          _parkingZonePattern = v;
+                          _poiInlineError = null;
+                        });
+                        _refreshPoiMarkers();
+                      },
+                    ),
+                  ),
+                ),
+              ],
+              if (_poiInlineError != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  _poiInlineError!,
+                  style: const TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () {
+                        if (isCreateZone) {
+                          _cancelParkingZoneDrawing();
+                        }
+                        _closePoiInlineEditor();
+                      },
+                      child: const Text('Annuler'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton.tonal(
+                      onPressed: _commitPoiInlineEditor,
+                      child: Text(primaryLabel),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
-
-    if (confirmed != true) return;
-    final nextName = nameController.text.trim();
-    if (nextName.isEmpty) return;
-
-    setState(() {
-      final idx = _pois.indexWhere((p) => p.id == poi.id);
-      if (idx >= 0) {
-        final updated = MarketMapPOI(
-          id: poi.id,
-          name: nextName,
-          layerType: poi.layerType,
-          lng: poi.lng,
-          lat: poi.lat,
-          description: poi.description,
-          imageUrl: poi.imageUrl,
-          metadata: poi.metadata,
-        );
-        _pois[idx] = updated;
-        _poiSelection.select(updated);
-      }
-    });
-    _refreshPoiMarkers();
   }
 
   void _deletePoi(MarketMapPOI poi) {

@@ -53,6 +53,16 @@ class MasLiveMapWeb extends StatefulWidget {
 class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   static const String _poiSourceId = 'src_pois';
   static const String _poiLayerId = 'ly_pois_circle';
+  static const String _poiFillLayerId = 'ly_pois_fill';
+  static const String _poiPatternLayerId = 'ly_pois_pattern';
+  static const String _poiLineLayerId = 'ly_pois_line_solid';
+  static const String _poiLineLayerDashedId = 'ly_pois_line_dashed';
+  static const String _poiLineLayerDottedId = 'ly_pois_line_dotted';
+  static const String _poiLineLayerLegacyId = 'ly_pois_line';
+
+  static const String _patDiag = 'maslive_pat_diag';
+  static const String _patCross = 'maslive_pat_cross';
+  static const String _patDots = 'maslive_pat_dots';
 
   MasLivePoiStyle _poiStyle = const MasLivePoiStyle();
 
@@ -182,12 +192,13 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     final map = _getMapForThisContainer();
     if (map == null) return;
 
-    try {
-      final layer = map.callMethod('getLayer', [_poiLayerId]);
-      if (layer == null) return;
-    } catch (_) {
-      return;
-    }
+    final defaultFillColor = masLiveColorToCssHex(_poiStyle.circleColor);
+    final defaultStrokeColor = masLiveColorToCssHex(_poiStyle.circleStrokeColor);
+
+    final fillColorExpr = <dynamic>['coalesce', ['get', 'fillColor'], defaultFillColor];
+    final fillOpacityExpr = <dynamic>['coalesce', ['get', 'fillOpacity'], 0.20];
+    final lineColorExpr = <dynamic>['coalesce', ['get', 'strokeColor'], defaultStrokeColor];
+    final lineWidthExpr = <dynamic>['coalesce', ['get', 'strokeWidth'], 2.0];
 
     try {
       map.callMethod('setPaintProperty', [_poiLayerId, 'circle-radius', _poiStyle.circleRadius]);
@@ -209,6 +220,48 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     } catch (_) {
       // ignore
     }
+
+    // Zones (Polygon): fill + outline
+    try {
+      final fillLayer = map.callMethod('getLayer', [_poiFillLayerId]);
+      if (fillLayer != null) {
+        map.callMethod(
+          'setPaintProperty',
+          [_poiFillLayerId, 'fill-color', fillColorExpr],
+        );
+        map.callMethod('setPaintProperty', [_poiFillLayerId, 'fill-opacity', fillOpacityExpr]);
+      }
+    } catch (_) {
+      // ignore
+    }
+
+    Future<void> applyLineStyle(String layerId) async {
+      try {
+        final lineLayer = map.callMethod('getLayer', [layerId]);
+        if (lineLayer == null) return;
+      } catch (_) {
+        return;
+      }
+      try {
+        map.callMethod('setPaintProperty', [layerId, 'line-color', lineColorExpr]);
+      } catch (_) {
+        // ignore
+      }
+      try {
+        map.callMethod('setPaintProperty', [layerId, 'line-width', lineWidthExpr]);
+      } catch (_) {
+        // ignore
+      }
+      try {
+        map.callMethod('setPaintProperty', [layerId, 'line-opacity', 0.85]);
+      } catch (_) {
+        // ignore
+      }
+    }
+
+    await applyLineStyle(_poiLineLayerId);
+    await applyLineStyle(_poiLineLayerDashedId);
+    await applyLineStyle(_poiLineLayerDottedId);
   }
 
   Future<void> _applyPoisGeoJsonIfReady() async {
@@ -234,6 +287,12 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       if (decoded is Map && decoded['type'] == 'FeatureCollection') {
         final feats = decoded['features'];
         if (feats is List && feats.isEmpty) {
+          await _removeLayerIfExists(map, _poiLineLayerLegacyId);
+          await _removeLayerIfExists(map, _poiLineLayerDottedId);
+          await _removeLayerIfExists(map, _poiLineLayerDashedId);
+          await _removeLayerIfExists(map, _poiLineLayerId);
+          await _removeLayerIfExists(map, _poiPatternLayerId);
+          await _removeLayerIfExists(map, _poiFillLayerId);
           await _removeLayerIfExists(map, _poiLayerId);
           await _removeSourceIfExists(map, _poiSourceId);
           return;
@@ -263,8 +322,124 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       // ignore
     }
 
-    // Ensure layer
+    // Ensure pattern images (style)
     try {
+      await _ensurePoiPatternImages(map);
+    } catch (_) {
+      // ignore
+    }
+
+    // Ensure layers (Polygon zones + Point POIs)
+    try {
+      await _removeLayerIfExists(map, _poiLineLayerLegacyId);
+
+      final fillExisting = map.callMethod('getLayer', [_poiFillLayerId]);
+      if (fillExisting == null) {
+        map.callMethod('addLayer', [
+          js.JsObject.jsify({
+            'id': _poiFillLayerId,
+            'type': 'fill',
+            'source': _poiSourceId,
+            'filter': [
+              '==',
+              ['geometry-type'],
+              'Polygon',
+            ],
+            'paint': {
+              'fill-color': ['coalesce', ['get', 'fillColor'], masLiveColorToCssHex(_poiStyle.circleColor)],
+              'fill-opacity': ['coalesce', ['get', 'fillOpacity'], 0.20],
+            },
+          })
+        ]);
+      }
+
+      final patExisting = map.callMethod('getLayer', [_poiPatternLayerId]);
+      if (patExisting == null) {
+        map.callMethod('addLayer', [
+          js.JsObject.jsify({
+            'id': _poiPatternLayerId,
+            'type': 'fill',
+            'source': _poiSourceId,
+            'filter': [
+              'all',
+              ['==', ['geometry-type'], 'Polygon'],
+              ['has', 'fillPattern'],
+            ],
+            'paint': {
+              'fill-pattern': ['get', 'fillPattern'],
+              'fill-opacity': ['coalesce', ['get', 'patternOpacity'], 0.55],
+            },
+          })
+        ]);
+      }
+
+      final commonLinePaint = <String, dynamic>{
+        'line-color': ['coalesce', ['get', 'strokeColor'], masLiveColorToCssHex(_poiStyle.circleStrokeColor)],
+        'line-width': ['coalesce', ['get', 'strokeWidth'], 2.0],
+        'line-opacity': 0.85,
+      };
+
+      final lineExisting = map.callMethod('getLayer', [_poiLineLayerId]);
+      if (lineExisting == null) {
+        map.callMethod('addLayer', [
+          js.JsObject.jsify({
+            'id': _poiLineLayerId,
+            'type': 'line',
+            'source': _poiSourceId,
+            'filter': [
+              'all',
+              ['==', ['geometry-type'], 'Polygon'],
+              [
+                'any',
+                ['!', ['has', 'strokeDash']],
+                ['==', ['get', 'strokeDash'], 'solid'],
+              ],
+            ],
+            'paint': commonLinePaint,
+          })
+        ]);
+      }
+
+      final dashedExisting = map.callMethod('getLayer', [_poiLineLayerDashedId]);
+      if (dashedExisting == null) {
+        map.callMethod('addLayer', [
+          js.JsObject.jsify({
+            'id': _poiLineLayerDashedId,
+            'type': 'line',
+            'source': _poiSourceId,
+            'filter': [
+              'all',
+              ['==', ['geometry-type'], 'Polygon'],
+              ['==', ['get', 'strokeDash'], 'dashed'],
+            ],
+            'paint': {
+              ...commonLinePaint,
+              'line-dasharray': [4, 2],
+            },
+          })
+        ]);
+      }
+
+      final dottedExisting = map.callMethod('getLayer', [_poiLineLayerDottedId]);
+      if (dottedExisting == null) {
+        map.callMethod('addLayer', [
+          js.JsObject.jsify({
+            'id': _poiLineLayerDottedId,
+            'type': 'line',
+            'source': _poiSourceId,
+            'filter': [
+              'all',
+              ['==', ['geometry-type'], 'Polygon'],
+              ['==', ['get', 'strokeDash'], 'dotted'],
+            ],
+            'paint': {
+              ...commonLinePaint,
+              'line-dasharray': [1, 2],
+            },
+          })
+        ]);
+      }
+
       final existing = map.callMethod('getLayer', [_poiLayerId]);
       if (existing == null) {
         map.callMethod('addLayer', [
@@ -272,6 +447,11 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             'id': _poiLayerId,
             'type': 'circle',
             'source': _poiSourceId,
+            'filter': [
+              '==',
+              ['geometry-type'],
+              'Point',
+            ],
             'paint': {
               'circle-radius': _poiStyle.circleRadius,
               'circle-color': masLiveColorToCssHex(_poiStyle.circleColor),
@@ -293,8 +473,20 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     if (map == null) return null;
 
     try {
-      final layer = map.callMethod('getLayer', [_poiLayerId]);
-      if (layer == null) return null;
+      final layerPoint = map.callMethod('getLayer', [_poiLayerId]);
+      final layerFill = map.callMethod('getLayer', [_poiFillLayerId]);
+      final layerPattern = map.callMethod('getLayer', [_poiPatternLayerId]);
+      final layerLine = map.callMethod('getLayer', [_poiLineLayerId]);
+      final layerDashed = map.callMethod('getLayer', [_poiLineLayerDashedId]);
+      final layerDotted = map.callMethod('getLayer', [_poiLineLayerDottedId]);
+      if (layerPoint == null &&
+          layerFill == null &&
+          layerPattern == null &&
+          layerLine == null &&
+          layerDashed == null &&
+          layerDotted == null) {
+        return null;
+      }
     } catch (_) {
       return null;
     }
@@ -305,7 +497,16 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       ]);
       final feats = map.callMethod('queryRenderedFeatures', [
         point,
-        js.JsObject.jsify({'layers': <String>[_poiLayerId]}),
+        js.JsObject.jsify({
+          'layers': <String>[
+            _poiFillLayerId,
+            _poiPatternLayerId,
+            _poiLineLayerDottedId,
+            _poiLineLayerDashedId,
+            _poiLineLayerId,
+            _poiLayerId,
+          ],
+        }),
       ]);
       if (feats is js.JsArray && feats.isNotEmpty) {
         final f = feats[0];
@@ -320,6 +521,85 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       // ignore
     }
     return null;
+  }
+
+  Future<void> _ensurePoiPatternImages(js.JsObject map) async {
+    bool has(String id) {
+      try {
+        final ok = map.callMethod('hasImage', [id]);
+        return ok == true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    void add(String id, html.CanvasElement canvas) {
+      try {
+        map.callMethod('addImage', [id, canvas]);
+      } catch (_) {
+        // ignore
+      }
+    }
+
+    if (!has(_patDiag)) {
+      add(_patDiag, _buildDiagPatternCanvas());
+    }
+    if (!has(_patCross)) {
+      add(_patCross, _buildCrossPatternCanvas());
+    }
+    if (!has(_patDots)) {
+      add(_patDots, _buildDotsPatternCanvas());
+    }
+  }
+
+  html.CanvasElement _buildDiagPatternCanvas() {
+    final c = html.CanvasElement(width: 32, height: 32);
+    final ctx = c.context2D;
+    ctx.clearRect(0, 0, 32, 32);
+    ctx.strokeStyle = 'rgba(0,0,0,0.38)';
+    ctx.lineWidth = 2;
+    for (var i = -32; i <= 32; i += 8) {
+      ctx
+        ..beginPath()
+        ..moveTo(i.toDouble(), 0)
+        ..lineTo((i + 32).toDouble(), 32)
+        ..stroke();
+    }
+    return c;
+  }
+
+  html.CanvasElement _buildCrossPatternCanvas() {
+    final c = html.CanvasElement(width: 32, height: 32);
+    final ctx = c.context2D;
+    ctx.clearRect(0, 0, 32, 32);
+    ctx.strokeStyle = 'rgba(0,0,0,0.34)';
+    ctx.lineWidth = 2;
+    for (var i = -32; i <= 32; i += 10) {
+      ctx
+        ..beginPath()
+        ..moveTo(i.toDouble(), 0)
+        ..lineTo((i + 32).toDouble(), 32)
+        ..stroke();
+      ctx
+        ..beginPath()
+        ..moveTo(i.toDouble(), 32)
+        ..lineTo((i + 32).toDouble(), 0)
+        ..stroke();
+    }
+    return c;
+  }
+
+  html.CanvasElement _buildDotsPatternCanvas() {
+    final c = html.CanvasElement(width: 32, height: 32);
+    final ctx = c.context2D;
+    ctx.clearRect(0, 0, 32, 32);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    for (var y = 3; y < 32; y += 8) {
+      for (var x = 3; x < 32; x += 8) {
+        ctx.fillRect(x.toDouble(), y.toDouble(), 2, 2);
+      }
+    }
+    return c;
   }
 
   void _handleTapFromJs(double lng, double lat) {
