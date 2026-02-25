@@ -2390,6 +2390,37 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                                     ),
                                   ),
                                   IconButton(
+                                    icon: const Icon(
+                                      Icons.edit_location_alt_rounded,
+                                    ),
+                                    tooltip:
+                                        'Ajouter un POI (coordonnées manuelles)',
+                                    onPressed:
+                                        (_selectedLayer == null ||
+                                            _pois.length >= _poiLimit)
+                                        ? null
+                                        : () {
+                                            // Pré-remplissage simple (l'utilisateur peut ajuster).
+                                            double lng;
+                                            double lat;
+                                            if (_routePoints.isNotEmpty) {
+                                              lng = _routePoints.first.lng;
+                                              lat = _routePoints.first.lat;
+                                            } else if (_perimeterPoints
+                                                .isNotEmpty) {
+                                              lng = _perimeterPoints.first.lng;
+                                              lat = _perimeterPoints.first.lat;
+                                            } else {
+                                              lng = -61.533;
+                                              lat = 16.241;
+                                            }
+
+                                            unawaited(
+                                              _createPoiAt(lng: lng, lat: lat),
+                                            );
+                                          },
+                                  ),
+                                  IconButton(
                                     icon: const Icon(Icons.my_location),
                                     tooltip:
                                         'Ajouter un POI à la position actuelle',
@@ -2663,6 +2694,165 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
   // ====== Gestion POI (étape 4) ======
 
+  double? _tryParseCoord(String raw) {
+    final norm = raw.trim().replaceAll(',', '.');
+    return double.tryParse(norm);
+  }
+
+  Future<({String name, double lng, double lat})?> _showCreatePoiDialog({
+    required double initialLng,
+    required double initialLat,
+  }) async {
+    final nameController = TextEditingController();
+    final latController = TextEditingController(
+      text: initialLat.toStringAsFixed(6),
+    );
+    final lngController = TextEditingController(
+      text: initialLng.toStringAsFixed(6),
+    );
+
+    String? error;
+
+    final result = await showDialog<({String name, double lng, double lat})>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setLocalState) {
+            return AlertDialog(
+              title: const Text('Nouveau point d\'intérêt'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nom du POI',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: latController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                      signed: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Latitude (GPS)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: lngController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                      signed: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Longitude (GPS)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  if (error != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      error!,
+                      style: const TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Annuler'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    final lat = _tryParseCoord(latController.text);
+                    final lng = _tryParseCoord(lngController.text);
+
+                    if (lat == null || lng == null) {
+                      setLocalState(() {
+                        error = 'Coordonnées invalides (lat/lng).';
+                      });
+                      return;
+                    }
+                    if (lat < -90 || lat > 90) {
+                      setLocalState(() {
+                        error =
+                            'Latitude invalide (doit être entre -90 et 90).';
+                      });
+                      return;
+                    }
+                    if (lng < -180 || lng > 180) {
+                      setLocalState(() {
+                        error =
+                            'Longitude invalide (doit être entre -180 et 180).';
+                      });
+                      return;
+                    }
+
+                    final name = nameController.text.trim().isEmpty
+                        ? '${_selectedLayer?.label ?? 'POI'} (${lng.toStringAsFixed(4)}, ${lat.toStringAsFixed(4)})'
+                        : nameController.text.trim();
+
+                    Navigator.pop(ctx, (name: name, lng: lng, lat: lat));
+                  },
+                  child: const Text('Ajouter'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    return result;
+  }
+
+  Future<void> _createPoiAt({required double lng, required double lat}) async {
+    if (_selectedLayer == null) return;
+    if (_pois.length >= _poiLimit) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Limite atteinte: 2000 POI maximum par projet'),
+          ),
+        );
+      }
+      return;
+    }
+
+    final created = await _showCreatePoiDialog(
+      initialLng: lng,
+      initialLat: lat,
+    );
+    if (created == null) return;
+
+    final poi = MarketMapPOI(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      name: created.name,
+      layerType: _selectedLayer!.type,
+      lng: created.lng,
+      lat: created.lat,
+      description: null,
+      imageUrl: null,
+      metadata: null,
+    );
+
+    setState(() {
+      _pois.add(poi);
+    });
+    _refreshPoiMarkers();
+    _poiSelection.select(poi);
+  }
+
   void _refreshPoiMarkers() async {
     await _poiMapController.clearAll();
 
@@ -2703,66 +2893,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   }
 
   Future<void> _onMapTapForPoi(double lng, double lat) async {
-    if (_selectedLayer == null) return;
-    if (_pois.length >= _poiLimit) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('❌ Limite atteinte: 2000 POI maximum par projet'),
-          ),
-        );
-      }
-      return;
-    }
-
-    final nameController = TextEditingController();
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Nouveau point d\'intérêt'),
-        content: TextField(
-          controller: nameController,
-          decoration: const InputDecoration(
-            labelText: 'Nom du POI',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Ajouter'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    final name = nameController.text.trim().isEmpty
-        ? '${_selectedLayer!.label} (${lng.toStringAsFixed(4)}, ${lat.toStringAsFixed(4)})'
-        : nameController.text.trim();
-
-    final poi = MarketMapPOI(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: name,
-      layerType: _selectedLayer!.type,
-      lng: lng,
-      lat: lat,
-      description: null,
-      imageUrl: null,
-      metadata: null,
-    );
-
-    setState(() {
-      _pois.add(poi);
-    });
-    _refreshPoiMarkers();
-    _poiSelection.select(poi);
+    await _createPoiAt(lng: lng, lat: lat);
   }
 
   Future<void> _editPoi(MarketMapPOI poi) async {
@@ -2843,7 +2974,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       lat = 16.241;
     }
 
-    await _onMapTapForPoi(lng, lat);
+    await _createPoiAt(lng: lng, lat: lat);
   }
 
   Widget _buildStep7Validation() {
