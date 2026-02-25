@@ -2694,6 +2694,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
   // ====== Gestion POI (étape 4) ======
 
+  Widget _wrapDialogForWeb(Widget dialog) {
+    if (!kIsWeb) return dialog;
+    return PointerInterceptor(child: dialog);
+  }
+
   double? _tryParseCoord(String raw) {
     final norm = raw.trim().replaceAll(',', '.');
     return double.tryParse(norm);
@@ -2716,99 +2721,101 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     final result = await showDialog<({String name, double lng, double lat})>(
       context: context,
       builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setLocalState) {
-            return AlertDialog(
-              title: const Text('Nouveau point d\'intérêt'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nom du POI',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: latController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                      signed: true,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'Latitude (GPS)',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: lngController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                      signed: true,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'Longitude (GPS)',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  if (error != null) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      error!,
-                      style: const TextStyle(
-                        color: Colors.redAccent,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+        return _wrapDialogForWeb(
+          StatefulBuilder(
+            builder: (ctx, setLocalState) {
+              return AlertDialog(
+                title: const Text('Nouveau point d\'intérêt'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nom du POI',
+                        border: OutlineInputBorder(),
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: latController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                        signed: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Latitude (GPS)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: lngController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                        signed: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Longitude (GPS)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    if (error != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        error!,
+                        style: const TextStyle(
+                          color: Colors.redAccent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Annuler'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      final lat = _tryParseCoord(latController.text);
+                      final lng = _tryParseCoord(lngController.text);
+
+                      if (lat == null || lng == null) {
+                        setLocalState(() {
+                          error = 'Coordonnées invalides (lat/lng).';
+                        });
+                        return;
+                      }
+                      if (lat < -90 || lat > 90) {
+                        setLocalState(() {
+                          error =
+                              'Latitude invalide (doit être entre -90 et 90).';
+                        });
+                        return;
+                      }
+                      if (lng < -180 || lng > 180) {
+                        setLocalState(() {
+                          error =
+                              'Longitude invalide (doit être entre -180 et 180).';
+                        });
+                        return;
+                      }
+
+                      final name = nameController.text.trim().isEmpty
+                          ? '${_selectedLayer?.label ?? 'POI'} (${lng.toStringAsFixed(4)}, ${lat.toStringAsFixed(4)})'
+                          : nameController.text.trim();
+
+                      Navigator.pop(ctx, (name: name, lng: lng, lat: lat));
+                    },
+                    child: const Text('Ajouter'),
+                  ),
                 ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Annuler'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    final lat = _tryParseCoord(latController.text);
-                    final lng = _tryParseCoord(lngController.text);
-
-                    if (lat == null || lng == null) {
-                      setLocalState(() {
-                        error = 'Coordonnées invalides (lat/lng).';
-                      });
-                      return;
-                    }
-                    if (lat < -90 || lat > 90) {
-                      setLocalState(() {
-                        error =
-                            'Latitude invalide (doit être entre -90 et 90).';
-                      });
-                      return;
-                    }
-                    if (lng < -180 || lng > 180) {
-                      setLocalState(() {
-                        error =
-                            'Longitude invalide (doit être entre -180 et 180).';
-                      });
-                      return;
-                    }
-
-                    final name = nameController.text.trim().isEmpty
-                        ? '${_selectedLayer?.label ?? 'POI'} (${lng.toStringAsFixed(4)}, ${lat.toStringAsFixed(4)})'
-                        : nameController.text.trim();
-
-                    Navigator.pop(ctx, (name: name, lng: lng, lat: lat));
-                  },
-                  child: const Text('Ajouter'),
-                ),
-              ],
-            );
-          },
+              );
+            },
+          ),
         );
       },
     );
@@ -2901,25 +2908,27 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Modifier le POI'),
-        content: TextField(
-          controller: nameController,
-          decoration: const InputDecoration(
-            labelText: 'Nom du POI',
-            border: OutlineInputBorder(),
+      builder: (ctx) => _wrapDialogForWeb(
+        AlertDialog(
+          title: const Text('Modifier le POI'),
+          content: TextField(
+            controller: nameController,
+            decoration: const InputDecoration(
+              labelText: 'Nom du POI',
+              border: OutlineInputBorder(),
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Enregistrer'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Enregistrer'),
-          ),
-        ],
       ),
     );
 
