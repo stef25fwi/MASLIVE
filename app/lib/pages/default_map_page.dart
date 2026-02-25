@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'dart:ui' as ui;
 
@@ -21,13 +20,15 @@ import '../ui/widgets/maslive_profile_icon.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
 import '../ui/widgets/marketmap_poi_selector_sheet.dart';
 import '../ui/map/maslive_map.dart';
-import '../ui/map/maslive_map_controller.dart' show MapMarker, MasLiveMapController;
+import '../ui/map/maslive_map_controller.dart'
+    show MapMarker, MasLiveMapController;
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
 import '../l10n/app_localizations.dart' as l10n;
 import '../services/market_map_service.dart';
 import '../models/market_poi.dart';
 import '../utils/web_viewport_resize.dart';
 import 'storex_shop_page.dart';
+import 'home_vertical_nav.dart';
 
 // Menu vertical: modes/actions (pour refléter la sélection UI)
 // Note: seul le tracking et les projets sont pleinement câblés ici.
@@ -98,12 +99,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     final lng = _userLng;
     if (lat != null && lng != null) {
       markers.add(
-        MapMarker(
-          id: 'user-location',
-          lng: lng,
-          lat: lat,
-          size: 1.2,
-        ),
+        MapMarker(id: 'user-location', lng: lng, lat: lat, size: 1.2),
       );
     }
     return markers;
@@ -665,160 +661,122 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                         alignment: Alignment.topRight,
                         child: SlideTransition(
                           position: _menuSlideAnimation,
-                          child: Container(
+                          child: HomeVerticalNavMenu(
                             margin: EdgeInsets.only(
                               right: 0,
                               top: menuTopOffset,
                             ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.40),
-                              boxShadow: MasliveTheme.cardShadow,
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(24),
-                                bottom: Radius.circular(24),
+                            horizontalPadding: 6,
+                            verticalPadding: 10,
+                            items: [
+                              HomeVerticalNavItem(
+                                label: 'Carte',
+                                icon: Icons.layers_rounded,
+                                selected: _marketPoiSelection.enabled,
+                                onTap: () {
+                                  _showMapProjectsSelector();
+                                  _closeNavWithDelay();
+                                },
                               ),
-                            ),
-                            child: SingleChildScrollView(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  _ActionItem(
-                                    label: 'Carte',
-                                    icon: Icons.layers_rounded,
-                                    selected: _marketPoiSelection.enabled,
-                                    onTap: () {
-                                      // Reprend la fonctionnalité de l'ancienne icône "Projets"
-                                      _showMapProjectsSelector();
-                                      _closeNavWithDelay();
-                                    },
-                                  ),
-
-                                  const SizedBox(height: 8),
-                                  _ActionItem(
-                                    label: 'Centrer',
-                                    icon: Icons.my_location_rounded,
-                                    selected: false,
-                                    onTap: () {
-                                      _recenterOnUser();
-                                      _closeNavWithDelay();
-                                    },
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _ActionItem(
-                                    label: l10n.AppLocalizations.of(
-                                      context,
-                                    )!.tracking,
-                                    icon: Icons.track_changes_rounded,
-                                    selected: _isTracking,
-                                    onTap: () {
-                                      _toggleTracking();
-                                      _closeNavWithDelay();
-                                    },
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _ActionItem(
-                                    label: l10n.AppLocalizations.of(
-                                      context,
-                                    )!.visit,
-                                    icon: Icons.map_outlined,
-                                    selected:
-                                        _selectedAction == _MapAction.visiter,
-                                    onTap: () {
-                                      _selectAction(
-                                        _MapAction.visiter,
-                                        'Visiter',
-                                      );
-                                      _closeNavWithDelay();
-                                    },
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _ActionItem(
-                                    label: l10n.AppLocalizations.of(
-                                      context,
-                                    )!.food,
-                                    icon: Icons.fastfood_rounded,
-                                    selected:
-                                        _selectedAction == _MapAction.food,
-                                    onTap: () {
-                                      _selectAction(_MapAction.food, 'Food');
-                                      _closeNavWithDelay();
-                                    },
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _ActionItem(
-                                    label: l10n.AppLocalizations.of(
-                                      context,
-                                    )!.assistance,
-                                    icon: Icons.shield_outlined,
-                                    selected:
-                                        _selectedAction ==
-                                        _MapAction.assistance,
-                                    onTap: () {
-                                      _selectAction(
-                                        _MapAction.assistance,
-                                        'Assistance',
-                                      );
-                                      _closeNavWithDelay();
-                                    },
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _ActionItem(
-                                    label: '',
-                                    iconWidget: Image.asset(
-                                      'assets/images/icon wc parking.png',
-                                      fit: BoxFit.cover,
-                                      filterQuality: FilterQuality.high,
+                              HomeVerticalNavItem(
+                                label: 'Centrer',
+                                icon: Icons.my_location_rounded,
+                                selected: false,
+                                onTap: () {
+                                  _recenterOnUser();
+                                  _closeNavWithDelay();
+                                },
+                              ),
+                              HomeVerticalNavItem(
+                                label: l10n.AppLocalizations.of(
+                                  context,
+                                )!.tracking,
+                                icon: Icons.track_changes_rounded,
+                                selected: _isTracking,
+                                onTap: () {
+                                  _toggleTracking();
+                                  _closeNavWithDelay();
+                                },
+                              ),
+                              HomeVerticalNavItem(
+                                label: l10n.AppLocalizations.of(context)!.visit,
+                                icon: Icons.map_outlined,
+                                selected: _selectedAction == _MapAction.visiter,
+                                onTap: () {
+                                  _selectAction(_MapAction.visiter, 'Visiter');
+                                  _closeNavWithDelay();
+                                },
+                              ),
+                              HomeVerticalNavItem(
+                                label: l10n.AppLocalizations.of(context)!.food,
+                                icon: Icons.fastfood_rounded,
+                                selected: _selectedAction == _MapAction.food,
+                                onTap: () {
+                                  _selectAction(_MapAction.food, 'Food');
+                                  _closeNavWithDelay();
+                                },
+                              ),
+                              HomeVerticalNavItem(
+                                label: l10n.AppLocalizations.of(
+                                  context,
+                                )!.assistance,
+                                icon: Icons.shield_outlined,
+                                selected:
+                                    _selectedAction == _MapAction.assistance,
+                                onTap: () {
+                                  _selectAction(
+                                    _MapAction.assistance,
+                                    'Assistance',
+                                  );
+                                  _closeNavWithDelay();
+                                },
+                              ),
+                              HomeVerticalNavItem(
+                                label: '',
+                                iconWidget: Image.asset(
+                                  'assets/images/icon wc parking.png',
+                                  fit: BoxFit.cover,
+                                  filterQuality: FilterQuality.high,
+                                ),
+                                fullBleed: true,
+                                showBorder: false,
+                                selected: _selectedAction == _MapAction.parking,
+                                onTap: () {
+                                  _selectAction(_MapAction.parking, 'Parking');
+                                  _closeNavWithDelay();
+                                },
+                              ),
+                              HomeVerticalNavItem(
+                                label: '',
+                                iconWidget: Obx(() {
+                                  final lang = Get.find<LanguageService>();
+                                  final flag = lang.getLanguageFlag(
+                                    lang.currentLanguageCode,
+                                  );
+                                  return Container(
+                                    color: Colors.white,
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      flag,
+                                      style: const TextStyle(
+                                        fontSize: 34,
+                                        height: 1,
+                                      ),
                                     ),
-                                    fullBleed: true,
-                                    showBorder: false,
-                                    selected:
-                                        _selectedAction == _MapAction.parking,
-                                    onTap: () {
-                                      _selectAction(
-                                        _MapAction.parking,
-                                        'Parking',
-                                      );
-                                      _closeNavWithDelay();
-                                    },
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _ActionItem(
-                                    label: '',
-                                    iconWidget: Obx(() {
-                                      final lang = Get.find<LanguageService>();
-                                      final flag = lang.getLanguageFlag(
-                                        lang.currentLanguageCode,
-                                      );
-                                      return Container(
-                                        color: Colors.white,
-                                        alignment: Alignment.center,
-                                        child: Text(
-                                          flag,
-                                          style: const TextStyle(
-                                            fontSize: 34,
-                                            height: 1,
-                                          ),
-                                        ),
-                                      );
-                                    }),
-                                    fullBleed: true,
-                                    tintOnSelected: false,
-                                    highlightBackgroundOnSelected: false,
-                                    showBorder: false,
-                                    selected: _selectedAction == _MapAction.wc,
-                                    onTap: () {
-                                      _selectAction(_MapAction.wc, 'Langue');
-                                      _cycleLanguage();
-                                      _closeNavWithDelay();
-                                    },
-                                  ),
-                                ],
+                                  );
+                                }),
+                                fullBleed: true,
+                                tintOnSelected: false,
+                                highlightBackgroundOnSelected: false,
+                                showBorder: false,
+                                selected: _selectedAction == _MapAction.wc,
+                                onTap: () {
+                                  _selectAction(_MapAction.wc, 'Langue');
+                                  _cycleLanguage();
+                                  _closeNavWithDelay();
+                                },
                               ),
-                            ),
+                            ],
                           ),
                         ),
                       ),
@@ -916,130 +874,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
             );
           },
         ),
-      ),
-    );
-  }
-}
-
-class _ActionItem extends StatelessWidget {
-  final String label;
-  final IconData? icon;
-  final Widget? iconWidget;
-  final bool selected;
-  final VoidCallback onTap;
-  final bool fullBleed;
-  final bool tintOnSelected;
-  final bool highlightBackgroundOnSelected;
-  final bool showBorder;
-
-  const _ActionItem({
-    required this.label,
-    this.icon,
-    this.iconWidget,
-    required this.selected,
-    required this.onTap,
-    this.fullBleed = false,
-    this.tintOnSelected = true,
-    this.highlightBackgroundOnSelected = true,
-    this.showBorder = true,
-  }) : assert(icon != null || iconWidget != null);
-
-  @override
-  Widget build(BuildContext context) {
-    final showSelectedBackground = highlightBackgroundOnSelected && selected;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 60,
-        height: 60,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: showSelectedBackground ? MasliveTheme.actionGradient : null,
-          color: showSelectedBackground
-              ? null
-              : Colors.white.withValues(alpha: 0.92),
-          border: showBorder
-              ? Border.all(
-                  color: selected ? MasliveTheme.pink : MasliveTheme.divider,
-                  width: selected ? 2.0 : 1.0,
-                )
-              : null,
-          boxShadow: selected ? MasliveTheme.cardShadow : const [],
-        ),
-        child: fullBleed
-            ? ClipOval(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    if (iconWidget != null)
-                      selected && tintOnSelected
-                          ? ColorFiltered(
-                              colorFilter: const ColorFilter.mode(
-                                Colors.white,
-                                BlendMode.srcIn,
-                              ),
-                              child: iconWidget!,
-                            )
-                          : iconWidget!,
-                    if (icon != null)
-                      Center(
-                        child: Icon(
-                          icon,
-                          size: 28,
-                          color: selected && tintOnSelected
-                              ? Colors.white
-                              : MasliveTheme.textPrimary,
-                        ),
-                      ),
-                  ],
-                ),
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (iconWidget != null)
-                    SizedBox(
-                      width: label.isEmpty ? 32 : 28,
-                      height: label.isEmpty ? 32 : 28,
-                      child: selected && tintOnSelected
-                          ? ColorFiltered(
-                              colorFilter: const ColorFilter.mode(
-                                Colors.white,
-                                BlendMode.srcIn,
-                              ),
-                              child: iconWidget!,
-                            )
-                          : iconWidget!,
-                    )
-                  else
-                    Icon(
-                      icon,
-                      size: label.isEmpty ? 32 : 28,
-                      color: selected && tintOnSelected
-                          ? Colors.white
-                          : MasliveTheme.textPrimary,
-                    ),
-                  if (label.isNotEmpty) const SizedBox(height: 4),
-                  if (label.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Text(
-                        label,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: selected && tintOnSelected
-                              ? Colors.white
-                              : MasliveTheme.textSecondary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 8,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
       ),
     );
   }

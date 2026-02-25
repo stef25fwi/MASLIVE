@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
+import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/market_circuit_models.dart';
@@ -18,6 +19,8 @@ import 'circuit_map_editor.dart';
 import '../route_style_pro/models/route_style_config.dart' as rsp;
 import '../route_style_pro/services/route_snap_service.dart' as snap;
 import '../route_style_pro/ui/route_style_wizard_pro_page.dart';
+import '../pages/home_vertical_nav.dart';
+import 'poi_bottom_popup.dart';
 
 typedef LngLat = ({double lng, double lat});
 
@@ -102,6 +105,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   bool _isLoadingMorePois = false;
   MarketMapLayer? _selectedLayer;
   final MasLiveMapControllerPoi _poiMapController = MasLiveMapControllerPoi();
+  final PoiSelectionController _poiSelection = PoiSelectionController();
+
+  double? _poiInitialLng;
+  double? _poiInitialLat;
+  double? _poiInitialZoom;
 
   bool _isSnappingRoute = false;
 
@@ -153,9 +161,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       if (!_canWriteMapProjects) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('⛔ Import réservé aux admins master.'),
-          ),
+          const SnackBar(content: Text('⛔ Import réservé aux admins master.')),
         );
         return;
       }
@@ -250,13 +256,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   }
 
   PublishQualityReport get _qualityReport => _qualityService.evaluate(
-        perimeter: _perimeterPoints,
-        route: _routePoints,
-        routeColorHex: _routeColorHex,
-        routeWidth: _routeWidth,
-        layers: _layers,
-        pois: _pois,
-      );
+    perimeter: _perimeterPoints,
+    route: _routePoints,
+    routeColorHex: _routeColorHex,
+    routeWidth: _routeWidth,
+    layers: _layers,
+    pois: _pois,
+  );
 
   String _formatMeters(double meters) {
     if (meters >= 1000) {
@@ -295,16 +301,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         math.sin(lat1) * math.cos(d) +
             math.cos(lat1) * math.sin(d) * math.cos(bearing),
       );
-      final lng2 = lng1 +
+      final lng2 =
+          lng1 +
           math.atan2(
             math.sin(bearing) * math.sin(d) * math.cos(lat1),
             math.cos(d) - math.sin(lat1) * math.sin(lat2),
           );
 
-      pts.add((
-        lng: wrapLngDeg(_toDeg(lng2)),
-        lat: _toDeg(lat2),
-      ));
+      pts.add((lng: wrapLngDeg(_toDeg(lng2)), lat: _toDeg(lat2)));
     }
 
     if (pts.isNotEmpty) pts.add(pts.first);
@@ -361,7 +365,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         projectId: projectId,
         circuitId: widget.circuitId,
         initialRoute: _routePoints.isNotEmpty
-            ? <rsp.LatLng>[for (final p in _routePoints) (lat: p.lat, lng: p.lng)]
+            ? <rsp.LatLng>[
+                for (final p in _routePoints) (lat: p.lat, lng: p.lng),
+              ]
             : null,
       ),
     );
@@ -420,9 +426,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     } catch (e) {
       debugPrint('WizardPro _reloadRouteAndStyleFromFirestore error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Erreur recharge style: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('❌ Erreur recharge style: $e')));
       }
     }
   }
@@ -440,10 +446,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     _poiMapController.onPoiTap = (poiId) {
       final idx = _pois.indexWhere((p) => p.id == poiId);
       if (idx < 0) return;
-      unawaited(_editPoi(_pois[idx]));
+      _poiSelection.select(_pois[idx]);
     };
     _poiMapController.onMapTap = (lat, lng) {
       // Note: signature controller = (lat, lng), handler = (lng, lat)
+      if (_poiSelection.hasSelection) {
+        _poiSelection.clear();
+        return;
+      }
       unawaited(_onMapTapForPoi(lng, lat));
     };
 
@@ -463,7 +473,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     final groupId = ((data['groupId'] as String?) ?? 'default').trim();
     final isAdmin = (data['isAdmin'] as bool?) ?? false;
 
-    final canWrite = isAdmin ||
+    final canWrite =
+        isAdmin ||
         role == 'admin' ||
         role == 'admin_master' ||
         role == 'superAdmin' ||
@@ -488,8 +499,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       'eventId': _eventController.text.trim(),
       'description': _descriptionController.text.trim(),
       'styleUrl': _styleUrlController.text.trim(),
-      'perimeter':
-          _perimeterPoints.map((p) => {'lng': p.lng, 'lat': p.lat}).toList(),
+      'perimeter': _perimeterPoints
+          .map((p) => {'lng': p.lng, 'lat': p.lat})
+          .toList(),
       'perimeterCircle': {
         'enabled': _perimeterCircleMode,
         'center': _perimeterCircleCenter == null
@@ -562,7 +574,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       return;
     }
 
-    final drafts = await _versioning.listDrafts(projectId: _projectId!, pageSize: 30);
+    final drafts = await _versioning.listDrafts(
+      projectId: _projectId!,
+      pageSize: 30,
+    );
     if (!mounted) return;
 
     final selected = await showDialog<CircuitDraftVersion>(
@@ -632,12 +647,35 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     _perimeterEditorController.dispose();
     _routeEditorController.dispose();
     _poiMapController.dispose();
+    _poiSelection.dispose();
     _nameController.dispose();
     _countryController.dispose();
     _eventController.dispose();
     _descriptionController.dispose();
     _styleUrlController.dispose();
     super.dispose();
+  }
+
+  void _ensurePoiInitialCamera() {
+    if (_poiInitialLng != null &&
+        _poiInitialLat != null &&
+        _poiInitialZoom != null) {
+      return;
+    }
+
+    final lng = _routePoints.isNotEmpty
+        ? _routePoints.first.lng
+        : (_perimeterPoints.isNotEmpty ? _perimeterPoints.first.lng : -61.533);
+    final lat = _routePoints.isNotEmpty
+        ? _routePoints.first.lat
+        : (_perimeterPoints.isNotEmpty ? _perimeterPoints.first.lat : 16.241);
+    final zoom = (_routePoints.isNotEmpty || _perimeterPoints.isNotEmpty)
+        ? 14.0
+        : 12.0;
+
+    _poiInitialLng = lng;
+    _poiInitialLat = lat;
+    _poiInitialZoom = zoom;
   }
 
   Future<void> _loadDraftOrInitialize() async {
@@ -708,7 +746,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                 final lng = cm['lng'];
                 final lat = cm['lat'];
                 if (lng is num && lat is num) {
-                  _perimeterCircleCenter = (lng: lng.toDouble(), lat: lat.toDouble());
+                  _perimeterCircleCenter = (
+                    lng: lng.toDouble(),
+                    lat: lat.toDouble(),
+                  );
                 }
               }
 
@@ -718,7 +759,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
               }
 
               // Si on a le centre mais pas (ou peu) de points, régénère.
-              if (_perimeterCircleCenter != null && _perimeterPoints.length < 3) {
+              if (_perimeterCircleCenter != null &&
+                  _perimeterPoints.length < 3) {
                 _perimeterPoints = _circlePerimeter(
                   center: _perimeterCircleCenter!,
                   diameterMeters: _perimeterCircleDiameterMeters,
@@ -843,7 +885,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
     final snapshot = await FirebaseFirestore.instance
         .collection('map_projects')
-    .doc(_projectId)
+        .doc(_projectId)
         .collection('layers')
         .orderBy('zIndex')
         .get();
@@ -865,14 +907,18 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         _normalizePoiLayerType(layer.type);
   }
 
-  Future<void> _migrateLegacyPoiTypesToVisit({required String projectId}) async {
+  Future<void> _migrateLegacyPoiTypesToVisit({
+    required String projectId,
+  }) async {
     if (!_canWriteMapProjects) return;
 
     final db = FirebaseFirestore.instance;
     final col = db.collection('map_projects').doc(projectId).collection('pois');
 
     // Migration ciblée (pas de scan complet): tour/visiter -> visit
-    final snap = await col.where('layerType', whereIn: const ['tour', 'visiter']).get();
+    final snap = await col
+        .where('layerType', whereIn: const ['tour', 'visiter'])
+        .get();
     if (snap.docs.isEmpty) return;
 
     WriteBatch batch = db.batch();
@@ -912,14 +958,30 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     }
 
     // 2) Assurer les couches attendues côté wizard/Home
-    const defaults = <({String type, String label, String color, int preferredZ})>[
-      (type: 'route', label: 'Tracé Route', color: '#1A73E8', preferredZ: 1),
-      (type: 'parking', label: 'Parkings', color: '#FBBF24', preferredZ: 2),
-      (type: 'wc', label: 'Toilettes', color: '#9333EA', preferredZ: 3),
-      (type: 'food', label: 'Food', color: '#EF4444', preferredZ: 4),
-      (type: 'assistance', label: 'Assistance', color: '#34A853', preferredZ: 5),
-      (type: 'visit', label: 'Lieux à visiter', color: '#F59E0B', preferredZ: 6),
-    ];
+    const defaults =
+        <({String type, String label, String color, int preferredZ})>[
+          (
+            type: 'route',
+            label: 'Tracé Route',
+            color: '#1A73E8',
+            preferredZ: 1,
+          ),
+          (type: 'parking', label: 'Parkings', color: '#FBBF24', preferredZ: 2),
+          (type: 'wc', label: 'Toilettes', color: '#9333EA', preferredZ: 3),
+          (type: 'food', label: 'Food', color: '#EF4444', preferredZ: 4),
+          (
+            type: 'assistance',
+            label: 'Assistance',
+            color: '#34A853',
+            preferredZ: 5,
+          ),
+          (
+            type: 'visit',
+            label: 'Lieux à visiter',
+            color: '#F59E0B',
+            preferredZ: 6,
+          ),
+        ];
 
     bool hasExactLayerType(String t) {
       final norm = t.trim().toLowerCase();
@@ -971,7 +1033,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     }
 
     final db = FirebaseFirestore.instance;
-    final layersCol = db.collection('map_projects').doc(projectId).collection('layers');
+    final layersCol = db
+        .collection('map_projects')
+        .doc(projectId)
+        .collection('layers');
     WriteBatch? batch;
     int writes = 0;
 
@@ -1047,7 +1112,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         startAfter: _poisLastDoc,
       );
 
-      final incoming = page.docs.map((doc) => MarketMapPOI.fromFirestore(doc)).toList();
+      final incoming = page.docs
+          .map((doc) => MarketMapPOI.fromFirestore(doc))
+          .toList();
       final existingIds = _pois.map((p) => p.id).toSet();
       _pois.addAll(incoming.where((p) => !existingIds.contains(p.id)));
 
@@ -1128,9 +1195,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Brouillon sauvegardé')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('✅ Brouillon sauvegardé')));
       }
     } catch (e) {
       debugPrint('WizardPro _saveDraft error: $e');
@@ -1153,9 +1220,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     // Valider l'étape courante
     if (_currentStep == 1) {
       if (_nameController.text.trim().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('❌ Nom requis')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('❌ Nom requis')));
         return;
       }
     }
@@ -1202,10 +1269,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Création de circuit'),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('Création de circuit'), elevation: 0),
       body: Column(
         children: [
           // Progress indicator
@@ -1214,11 +1278,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
             child: Row(
               children: List.generate(9, (index) {
                 final isPoiOnly = widget.poiOnly;
-                final isEnabled = isPoiOnly ? index == _poiStepIndex : index <= _currentStep;
+                final isEnabled = isPoiOnly
+                    ? index == _poiStepIndex
+                    : index <= _currentStep;
                 final isCompleted = isPoiOnly ? false : index < _currentStep;
                 return Expanded(
                   child: GestureDetector(
-                    onTap: isEnabled ? () => _pageController.jumpToPage(index) : null,
+                    onTap: isEnabled
+                        ? () => _pageController.jumpToPage(index)
+                        : null,
                     child: _StepIndicator(
                       step: index,
                       label: _getStepLabel(index),
@@ -1294,8 +1362,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                         ? OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               foregroundColor: proBlue,
-                              side: BorderSide(color: proBlue.withValues(alpha: 0.45)),
-                              textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                              side: BorderSide(
+                                color: proBlue.withValues(alpha: 0.45),
+                              ),
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                             onPressed: () => _pageController.previousPage(
                               duration: const Duration(milliseconds: 300),
@@ -1331,7 +1403,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                             style: FilledButton.styleFrom(
                               backgroundColor: proBlue,
                               foregroundColor: Colors.white,
-                              textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                             onPressed: () => _continueToStep(_currentStep + 1),
                             child: const Text('Suivant →'),
@@ -1357,7 +1431,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       'POI',
       'Style Pro',
       'Pré-pub',
-      'Publication'
+      'Publication',
     ];
     return labels[step];
   }
@@ -1499,17 +1573,17 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                 initialLng: _routePoints.isNotEmpty
                     ? _routePoints.first.lng
                     : (_perimeterPoints.isNotEmpty
-                        ? _perimeterPoints.first.lng
-                        : -61.533),
+                          ? _perimeterPoints.first.lng
+                          : -61.533),
                 initialLat: _routePoints.isNotEmpty
                     ? _routePoints.first.lat
                     : (_perimeterPoints.isNotEmpty
-                        ? _perimeterPoints.first.lat
-                        : 16.241),
+                          ? _perimeterPoints.first.lat
+                          : 16.241),
                 initialZoom:
                     (_routePoints.isNotEmpty || _perimeterPoints.isNotEmpty)
-                        ? 13.5
-                        : 12.0,
+                    ? 13.5
+                    : 12.0,
                 styleUrl: _styleUrlController.text.trim().isEmpty
                     ? null
                     : _styleUrlController.text.trim(),
@@ -1586,7 +1660,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
         // Waze-like: après ajout de point, on aligne automatiquement sur route.
         // Important: on ne spam pas pendant les glisser-déposer.
-        if (_currentStep == 3 && points.length >= 2 && points.length > previousCount) {
+        if (_currentStep == 3 &&
+            points.length >= 2 &&
+            points.length > previousCount) {
           _scheduleContinuousRouteSnap();
         }
       },
@@ -1638,7 +1714,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
   Widget _buildCentralMapToolsBar() {
     final isPerimeter = _currentStep == 2;
-    final controller = isPerimeter ? _perimeterEditorController : _routeEditorController;
+    final controller = isPerimeter
+        ? _perimeterEditorController
+        : _routeEditorController;
 
     return Material(
       color: Colors.white,
@@ -1647,11 +1725,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         child: AnimatedBuilder(
           animation: controller,
           builder: (context, _) {
-            final routeIsLooped = !isPerimeter &&
+            final routeIsLooped =
+                !isPerimeter &&
                 _routePoints.length >= 2 &&
                 _routePoints.first == _routePoints.last;
 
-            final perimeterIsLooped = isPerimeter &&
+            final perimeterIsLooped =
+                isPerimeter &&
                 _perimeterPoints.length >= 2 &&
                 _perimeterPoints.first == _perimeterPoints.last;
 
@@ -1674,7 +1754,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                   if (isPerimeter && !_perimeterCircleMode)
                     IconButton(
                       icon: const Icon(Icons.loop_rounded),
-                      onPressed: controller.pointCount >= 2 ? controller.closePath : null,
+                      onPressed: controller.pointCount >= 2
+                          ? controller.closePath
+                          : null,
                       tooltip: 'Fermer le polygone',
                     ),
                   if (isPerimeter) ...[
@@ -1682,7 +1764,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                     FilterChip(
                       label: const Text('Boucle fermée'),
                       selected: perimeterIsLooped,
-                      onSelected: (_perimeterCircleMode || controller.pointCount < 2)
+                      onSelected:
+                          (_perimeterCircleMode || controller.pointCount < 2)
                           ? null
                           : (v) {
                               if (v) {
@@ -1703,7 +1786,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                             return;
                           }
                           if (_perimeterPoints.isNotEmpty) {
-                            _applyPerimeterCircle(center: _perimeterPoints.first);
+                            _applyPerimeterCircle(
+                              center: _perimeterPoints.first,
+                            );
                             return;
                           }
                           setState(() {
@@ -1712,7 +1797,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                           });
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('🧭 Tape sur la carte pour poser le centre du cercle.'),
+                              content: Text(
+                                '🧭 Tape sur la carte pour poser le centre du cercle.',
+                              ),
                             ),
                           );
                         } else {
@@ -1728,24 +1815,33 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                         tooltip: 'Réduire diamètre',
                         icon: const Icon(Icons.remove_circle_outline),
                         onPressed: () {
-                          final next = (_perimeterCircleDiameterMeters - 200.0).clamp(200.0, 20000.0);
+                          final next = (_perimeterCircleDiameterMeters - 200.0)
+                              .clamp(200.0, 20000.0);
                           if (_perimeterCircleCenter != null) {
                             _applyPerimeterCircle(diameterMeters: next);
                           } else {
-                            setState(() => _perimeterCircleDiameterMeters = next);
+                            setState(
+                              () => _perimeterCircleDiameterMeters = next,
+                            );
                           }
                         },
                       ),
-                      Text('Ø ${_formatMeters(_perimeterCircleDiameterMeters)}', style: const TextStyle(fontSize: 12)),
+                      Text(
+                        'Ø ${_formatMeters(_perimeterCircleDiameterMeters)}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
                       IconButton(
                         tooltip: 'Augmenter diamètre',
                         icon: const Icon(Icons.add_circle_outline),
                         onPressed: () {
-                          final next = (_perimeterCircleDiameterMeters + 200.0).clamp(200.0, 20000.0);
+                          final next = (_perimeterCircleDiameterMeters + 200.0)
+                              .clamp(200.0, 20000.0);
                           if (_perimeterCircleCenter != null) {
                             _applyPerimeterCircle(diameterMeters: next);
                           } else {
-                            setState(() => _perimeterCircleDiameterMeters = next);
+                            setState(
+                              () => _perimeterCircleDiameterMeters = next,
+                            );
                           }
                         },
                       ),
@@ -1753,12 +1849,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                   ],
                   IconButton(
                     icon: const Icon(Icons.flip_to_back),
-                    onPressed: controller.pointCount >= 2 ? controller.reversePath : null,
+                    onPressed: controller.pointCount >= 2
+                        ? controller.reversePath
+                        : null,
                     tooltip: 'Inverser sens',
                   ),
                   IconButton(
                     icon: const Icon(Icons.compress_rounded),
-                    onPressed: controller.pointCount >= 3 ? controller.simplifyTrack : null,
+                    onPressed: controller.pointCount >= 3
+                        ? controller.simplifyTrack
+                        : null,
                     tooltip: 'Simplifier tracé',
                   ),
 
@@ -1771,7 +1871,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.alt_route_rounded),
-                      onPressed: (!_isSnappingRoute && controller.pointCount >= 2)
+                      onPressed:
+                          (!_isSnappingRoute && controller.pointCount >= 2)
                           ? _snapRouteToRoads
                           : null,
                       tooltip: 'Snap sur route (Waze)',
@@ -1817,7 +1918,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                   ],
                   IconButton(
                     icon: const Icon(Icons.delete_sweep),
-                    onPressed: controller.pointCount > 0 ? controller.clearAll : null,
+                    onPressed: controller.pointCount > 0
+                        ? controller.clearAll
+                        : null,
                     tooltip: 'Effacer tous',
                   ),
                   const VerticalDivider(),
@@ -1837,13 +1940,17 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                         ),
                         Text(
                           '${controller.distanceKm.toStringAsFixed(2)} km',
-                          style: const TextStyle(fontSize: 11, color: Colors.grey),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey,
+                          ),
                         ),
                       ],
                     ),
                   ),
 
-                  if (!isPerimeter && (_currentStep == 3 || _currentStep == 4)) ...[
+                  if (!isPerimeter &&
+                      (_currentStep == 3 || _currentStep == 4)) ...[
                     const VerticalDivider(),
                     _buildRouteStyleControls(),
                   ],
@@ -1950,9 +2057,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       if (!mounted) return;
       if (seq != _routeSnapSeq) return;
       if (showSnackBar) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Snap impossible: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('❌ Snap impossible: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSnappingRoute = false);
@@ -2002,16 +2109,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.color_lens,
-                  color: colorScheme.onSurface,
-                ),
+                Icon(Icons.color_lens, color: colorScheme.onSurface),
                 const SizedBox(width: 6),
                 Container(
                   width: 12,
                   height: 12,
                   decoration: BoxDecoration(
-                    color: _parseHexColor(_routeColorHex, fallback: colorScheme.primary),
+                    color: _parseHexColor(
+                      _routeColorHex,
+                      fallback: colorScheme.primary,
+                    ),
                     shape: BoxShape.circle,
                     border: Border.all(color: colorScheme.outline, width: 1),
                   ),
@@ -2025,8 +2132,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           width: 140,
           child: Row(
             children: [
-              const Text('L',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              const Text(
+                'L',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
               Expanded(
                 child: Slider(
                   value: _routeWidth.clamp(2.0, 18.0),
@@ -2066,7 +2175,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
-            color: _routeShowDirection ? proBlue.withValues(alpha: 0.10) : Colors.transparent,
+            color: _routeShowDirection
+                ? proBlue.withValues(alpha: 0.10)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: _routeShowDirection
@@ -2087,20 +2198,26 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
             },
             icon: Icon(
               Icons.navigation,
-              color: _routeShowDirection ? proBlue : colorScheme.onSurfaceVariant,
+              color: _routeShowDirection
+                  ? proBlue
+                  : colorScheme.onSurfaceVariant,
             ),
           ),
         ),
         IconButton(
           tooltip: 'Animation sens de marche',
           onPressed: _routeShowDirection
-              ? () => setState(() => _routeAnimateDirection = !_routeAnimateDirection)
+              ? () => setState(
+                  () => _routeAnimateDirection = !_routeAnimateDirection,
+                )
               : null,
           icon: Icon(
             _routeAnimateDirection
                 ? Icons.pause_circle_filled
                 : Icons.play_circle_filled,
-            color: _routeAnimateDirection ? proBlue : colorScheme.onSurfaceVariant,
+            color: _routeAnimateDirection
+                ? proBlue
+                : colorScheme.onSurfaceVariant,
           ),
         ),
 
@@ -2109,9 +2226,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
             width: 160,
             child: Row(
               children: [
-                const Text('V',
-                    style:
-                        TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                const Text(
+                  'V',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
                 Expanded(
                   child: Slider(
                     value: _routeAnimationSpeed.clamp(0.5, 5.0),
@@ -2127,7 +2245,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
               ],
             ),
           ),
-
       ],
     );
   }
@@ -2187,6 +2304,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   }
 
   Widget _buildStep5POI() {
+    _ensurePoiInitialCamera();
+
     Widget interceptPointersIfNeeded(Widget child) {
       // Sur Flutter web + HtmlElementView (Mapbox), des clics peuvent traverser
       // certains overlays et déclencher le onTap de la carte en arrière-plan.
@@ -2196,277 +2315,245 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
     final poiLayers = _layers.where((l) => l.type != 'route').toList();
 
-    return Stack(
-      children: [
-        MasLiveMap(
-          controller: _poiMapController,
-          initialLng: _routePoints.isNotEmpty
-              ? _routePoints.first.lng
-              : (_perimeterPoints.isNotEmpty
-                  ? _perimeterPoints.first.lng
-                  : -61.533),
-          initialLat: _routePoints.isNotEmpty
-              ? _routePoints.first.lat
-              : (_perimeterPoints.isNotEmpty
-                  ? _perimeterPoints.first.lat
-                  : 16.241),
-          initialZoom: _routePoints.isNotEmpty || _perimeterPoints.isNotEmpty
-              ? 14.0
-              : 12.0,
-          styleUrl: _styleUrlController.text.trim().isEmpty
-              ? null
-              : _styleUrlController.text.trim(),
-          onMapReady: (ctrl) async {
-            _refreshPoiMarkers();
-          },
-        ),
-
-        Positioned(
-          left: 12,
-          right: 78,
-          top: 12,
-          child: interceptPointersIfNeeded(
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.92),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.place_outlined, color: Colors.blueGrey),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text(
-                            'Points d\'intérêt (POI)',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.my_location),
-                          tooltip: 'Ajouter un POI à la position actuelle',
-                          onPressed: (_selectedLayer == null || _pois.length >= _poiLimit)
-                              ? null
-                              : _addPoiAtCurrentCenter,
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.save_alt),
-                          tooltip: 'Enregistrer les POI',
-                          onPressed: _isLoading ? null : _saveDraft,
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.sync),
-                          tooltip: 'Réimporter POI/couches depuis MarketMap',
-                          onPressed: (_isLoading || _isRefreshingMarketImport)
-                              ? null
-                              : _refreshImportFromMarketMap,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Text(
-                          'POI: ${_pois.length}/$_poiLimit',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: _pois.length >= _poiLimit
-                                ? Colors.redAccent
-                                : (_pois.length >= (_poiLimit * 0.9)
-                                    ? Colors.orange
-                                    : Colors.black87),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        if (_hasMorePois || _isLoadingMorePois)
-                          TextButton.icon(
-                            onPressed: _isLoadingMorePois ? null : _loadMorePoisPage,
-                            icon: _isLoadingMorePois
-                                ? const SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : const Icon(Icons.expand_more, size: 16),
-                            label: const Text('Charger +100'),
-                          ),
-                      ],
-                    ),
-                    if (_pois.length >= _poiLimit)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 4),
-                        child: Text(
-                          'Limite atteinte: supprime des POI pour continuer.',
-                          style: TextStyle(fontSize: 12, color: Colors.redAccent),
-                        ),
-                      ),
-                    const SizedBox(height: 8),
-                    if (poiLayers.isNotEmpty)
-                      Row(
-                        children: [
-                          const Text(
-                            'Catégorie: ',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                          ),
-                          Expanded(
-                            child: Text(
-                              _selectedLayer?.label ?? 'Choisissez une catégorie',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      )
-                    else
-                      const Text(
-                        'Aucune couche trouvée. Vérifiez la configuration du projet.',
-                        style: TextStyle(fontSize: 12, color: Colors.redAccent),
-                      ),
-
-                    if (_selectedLayer != null) ...[
-                      const SizedBox(height: 10),
-                      ExpansionTile(
-                        tilePadding: EdgeInsets.zero,
-                        initiallyExpanded: true,
-                        title: Text(
-                          'POI de la couche: ${_selectedLayer!.label}',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        subtitle: Text(
-                          '${_pois.where((p) => _poiMatchesSelectedLayer(p, _selectedLayer!)).length} POI',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        children: [
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxHeight: 220),
-                            child: ListView(
-                              shrinkWrap: true,
-                              children: [
-                                for (final poi in _pois.where(
-                                  (p) => _poiMatchesSelectedLayer(p, _selectedLayer!),
-                                ))
-                                  ListTile(
-                                    dense: true,
-                                    contentPadding: EdgeInsets.zero,
-                                    leading: const Icon(
-                                      Icons.place_outlined,
-                                      size: 18,
-                                    ),
-                                    title: Text(
-                                      poi.name,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      '${poi.lng.toStringAsFixed(5)}, ${poi.lat.toStringAsFixed(5)}',
-                                      style: const TextStyle(fontSize: 11),
-                                    ),
-                                    trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          tooltip: 'Modifier',
-                                          icon: const Icon(Icons.edit, size: 18),
-                                          onPressed: () => _editPoi(poi),
-                                        ),
-                                        IconButton(
-                                          tooltip: 'Supprimer',
-                                          icon: const Icon(
-                                            Icons.delete_outline,
-                                            size: 18,
-                                          ),
-                                          onPressed: () => _deletePoi(poi),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          if (_hasMorePois || _isLoadingMorePois)
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton.icon(
-                                onPressed: _isLoadingMorePois ? null : _loadMorePoisPage,
-                                icon: _isLoadingMorePois
-                                    ? const SizedBox(
-                                        width: 14,
-                                        height: 14,
-                                        child: CircularProgressIndicator(strokeWidth: 2),
-                                      )
-                                    : const Icon(Icons.more_horiz),
-                                label: const Text('Voir plus'),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
+    return ChangeNotifierProvider<PoiSelectionController>.value(
+      value: _poiSelection,
+      child: Stack(
+        children: [
+          MasLiveMap(
+            controller: _poiMapController,
+            initialLng: _poiInitialLng ?? -61.533,
+            initialLat: _poiInitialLat ?? 16.241,
+            initialZoom: _poiInitialZoom ?? 12.0,
+            styleUrl: _styleUrlController.text.trim().isEmpty
+                ? null
+                : _styleUrlController.text.trim(),
+            onMapReady: (ctrl) async {
+              _refreshPoiMarkers();
+            },
           ),
-        ),
 
-        if (poiLayers.isNotEmpty)
           Positioned(
-            right: 12,
+            left: 12,
+            right: 78,
             top: 12,
             child: interceptPointersIfNeeded(
               DecoratedBox(
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.92),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  padding: const EdgeInsets.all(12),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      for (final layer in poiLayers) ...[
-                        Tooltip(
-                          message: layer.label,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(12),
-                            onTap: () {
-                              setState(() {
-                                _selectedLayer = layer;
-                              });
-                              _refreshPoiMarkers();
-                            },
-                            child: Container(
-                              width: 52,
-                              height: 44,
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: (_selectedLayer?.type == layer.type)
-                                    ? Colors.blue.withValues(alpha: 0.12)
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(
-                                _getLayerIcon(layer.type),
-                                color: (_selectedLayer?.type == layer.type)
-                                    ? Colors.blueGrey
-                                    : Colors.grey,
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.place_outlined,
+                            color: Colors.blueGrey,
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Points d\'intérêt (POI)',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
+                          IconButton(
+                            icon: const Icon(Icons.my_location),
+                            tooltip: 'Ajouter un POI à la position actuelle',
+                            onPressed:
+                                (_selectedLayer == null ||
+                                    _pois.length >= _poiLimit)
+                                ? null
+                                : _addPoiAtCurrentCenter,
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.save_alt),
+                            tooltip: 'Enregistrer les POI',
+                            onPressed: _isLoading ? null : _saveDraft,
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.sync),
+                            tooltip: 'Réimporter POI/couches depuis MarketMap',
+                            onPressed: (_isLoading || _isRefreshingMarketImport)
+                                ? null
+                                : _refreshImportFromMarketMap,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Text(
+                            'POI: ${_pois.length}/$_poiLimit',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _pois.length >= _poiLimit
+                                  ? Colors.redAccent
+                                  : (_pois.length >= (_poiLimit * 0.9)
+                                        ? Colors.orange
+                                        : Colors.black87),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          if (_hasMorePois || _isLoadingMorePois)
+                            TextButton.icon(
+                              onPressed: _isLoadingMorePois
+                                  ? null
+                                  : _loadMorePoisPage,
+                              icon: _isLoadingMorePois
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.expand_more, size: 16),
+                              label: const Text('Charger +100'),
+                            ),
+                        ],
+                      ),
+                      if (_pois.length >= _poiLimit)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 4),
+                          child: Text(
+                            'Limite atteinte: supprime des POI pour continuer.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.redAccent,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 8),
+                      if (poiLayers.isNotEmpty)
+                        Row(
+                          children: [
+                            const Text(
+                              'Catégorie: ',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                _selectedLayer?.label ??
+                                    'Choisissez une catégorie',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        const Text(
+                          'Aucune couche trouvée. Vérifiez la configuration du projet.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.redAccent,
+                          ),
+                        ),
+
+                      if (_selectedLayer != null) ...[
+                        const SizedBox(height: 10),
+                        ExpansionTile(
+                          tilePadding: EdgeInsets.zero,
+                          initiallyExpanded: true,
+                          title: Text(
+                            'POI de la couche: ${_selectedLayer!.label}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          subtitle: Text(
+                            '${_pois.where((p) => _poiMatchesSelectedLayer(p, _selectedLayer!)).length} POI',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          children: [
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxHeight: 220),
+                              child: ListView(
+                                shrinkWrap: true,
+                                children: [
+                                  for (final poi in _pois.where(
+                                    (p) => _poiMatchesSelectedLayer(
+                                      p,
+                                      _selectedLayer!,
+                                    ),
+                                  ))
+                                    ListTile(
+                                      dense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                      leading: const Icon(
+                                        Icons.place_outlined,
+                                        size: 18,
+                                      ),
+                                      onTap: () => _poiSelection.select(poi),
+                                      title: Text(
+                                        poi.name,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        '${poi.lng.toStringAsFixed(5)}, ${poi.lat.toStringAsFixed(5)}',
+                                        style: const TextStyle(fontSize: 11),
+                                      ),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            tooltip: 'Modifier',
+                                            icon: const Icon(
+                                              Icons.edit,
+                                              size: 18,
+                                            ),
+                                            onPressed: () => _editPoi(poi),
+                                          ),
+                                          IconButton(
+                                            tooltip: 'Supprimer',
+                                            icon: const Icon(
+                                              Icons.delete_outline,
+                                              size: 18,
+                                            ),
+                                            onPressed: () => _deletePoi(poi),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            if (_hasMorePois || _isLoadingMorePois)
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton.icon(
+                                  onPressed: _isLoadingMorePois
+                                      ? null
+                                      : _loadMorePoisPage,
+                                  icon: _isLoadingMorePois
+                                      ? const SizedBox(
+                                          width: 14,
+                                          height: 14,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(Icons.more_horiz),
+                                  label: const Text('Voir plus'),
+                                ),
+                              ),
+                          ],
                         ),
                       ],
                     ],
@@ -2475,7 +2562,51 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
               ),
             ),
           ),
-      ],
+
+          if (poiLayers.isNotEmpty)
+            Positioned(
+              right: 12,
+              top: 12,
+              child: interceptPointersIfNeeded(
+                HomeVerticalNavMenu(
+                  items: [
+                    for (final layer in poiLayers)
+                      HomeVerticalNavItem(
+                        label: '',
+                        icon: _getLayerIcon(layer.type),
+                        selected: _selectedLayer?.type == layer.type,
+                        onTap: () {
+                          _poiSelection.clear();
+                          setState(() {
+                            _selectedLayer = layer;
+                          });
+                          _refreshPoiMarkers();
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+          Consumer<PoiSelectionController>(
+            builder: (context, selection, _) {
+              final selected = selection.selectedPoi;
+              return PoiBottomPopup(
+                selectedPoi: selected,
+                onClose: selection.clear,
+                onEdit: selected == null ? () {} : () => _editPoi(selected),
+                onDelete: selected == null ? () {} : () => _deletePoi(selected),
+                categoryLabel: (poi) {
+                  final match = _layers
+                      .where((l) => l.type == poi.layerType)
+                      .toList();
+                  return match.isNotEmpty ? match.first.label : poi.layerType;
+                },
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -2490,8 +2621,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     }
 
     final layer = _selectedLayer!;
-    final poisForLayer = _pois.where((p) => _poiMatchesSelectedLayer(p, layer)).toList();
-    await _poiMapController.setPoisGeoJson(_buildPoisFeatureCollection(poisForLayer));
+    final poisForLayer = _pois
+        .where((p) => _poiMatchesSelectedLayer(p, layer))
+        .toList();
+    await _poiMapController.setPoisGeoJson(
+      _buildPoisFeatureCollection(poisForLayer),
+    );
   }
 
   Map<String, dynamic> _buildPoisFeatureCollection(List<MarketMapPOI> pois) {
@@ -2576,6 +2711,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       _pois.add(poi);
     });
     _refreshPoiMarkers();
+    _poiSelection.select(poi);
   }
 
   Future<void> _editPoi(MarketMapPOI poi) async {
@@ -2612,7 +2748,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     setState(() {
       final idx = _pois.indexWhere((p) => p.id == poi.id);
       if (idx >= 0) {
-        _pois[idx] = MarketMapPOI(
+        final updated = MarketMapPOI(
           id: poi.id,
           name: nextName,
           layerType: poi.layerType,
@@ -2622,6 +2758,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           imageUrl: poi.imageUrl,
           metadata: poi.metadata,
         );
+        _pois[idx] = updated;
+        _poiSelection.select(updated);
       }
     });
     _refreshPoiMarkers();
@@ -2631,6 +2769,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     setState(() {
       _pois.removeWhere((p) => p.id == poi.id);
     });
+    if (_poiSelection.selectedPoi?.id == poi.id) {
+      _poiSelection.clear();
+    }
     _refreshPoiMarkers();
   }
 
@@ -2774,7 +2915,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
             ),
             label: const Text(
               'PUBLIER LE CIRCUIT',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           if (_isEnsuringAllPoisLoaded) ...[
@@ -2872,7 +3016,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           // Toujours incomplet: on bloque la publication.
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('❌ Impossible de charger tous les POIs.')),
+            const SnackBar(
+              content: Text('❌ Impossible de charger tous les POIs.'),
+            ),
           );
           return;
         }
@@ -2882,7 +3028,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
       final report = _qualityReport;
       if (!report.canPublish) {
-        throw StateError('Pré-publication non conforme: corrige les points bloquants.');
+        throw StateError(
+          'Pré-publication non conforme: corrige les points bloquants.',
+        );
       }
 
       if (_projectId == null) {
@@ -2982,16 +3130,16 @@ class _StepIndicator extends StatelessWidget {
     final circleColor = isCompleted
         ? Colors.green
         : isActive
-            ? Colors.blue
-            : isEnabled
-                ? Colors.grey.shade300
-                : Colors.grey.shade200;
+        ? Colors.blue
+        : isEnabled
+        ? Colors.grey.shade300
+        : Colors.grey.shade200;
 
     final circleTextColor = (isActive || isCompleted)
         ? Colors.white
         : isEnabled
-            ? Colors.black
-            : Colors.black38;
+        ? Colors.black
+        : Colors.black38;
 
     final labelColor = isEnabled || isActive ? null : Colors.black38;
 
@@ -3001,10 +3149,7 @@ class _StepIndicator extends StatelessWidget {
         Container(
           width: 32,
           height: 32,
-          decoration: BoxDecoration(
-            color: circleColor,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: circleColor, shape: BoxShape.circle),
           child: Center(
             child: isCompleted
                 ? const Icon(Icons.check, color: Colors.white, size: 16)
