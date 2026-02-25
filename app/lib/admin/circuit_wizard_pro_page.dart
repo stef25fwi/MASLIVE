@@ -2420,6 +2420,312 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   Widget _buildStep5POI() {
     _ensurePoiInitialCamera();
 
+    Widget buildPoiToolsPanel({required List<MarketMapLayer> poiLayers}) {
+      IconButton toolButton({
+        required Widget icon,
+        required String tooltip,
+        required VoidCallback? onPressed,
+      }) {
+        return IconButton.filledTonal(
+          onPressed: onPressed,
+          tooltip: tooltip,
+          icon: icon,
+        );
+      }
+
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.place_outlined,
+                    color: Colors.blueGrey,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Points d\'intérêt (POI)',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  toolButton(
+                    icon: const Icon(Icons.edit_location_alt_rounded),
+                    tooltip: 'Ajouter un POI (coordonnées manuelles)',
+                    onPressed: (_selectedLayer == null || _pois.length >= _poiLimit)
+                        ? null
+                        : () {
+                            // Pré-remplissage simple (l'utilisateur peut ajuster).
+                            double lng;
+                            double lat;
+                            if (_routePoints.isNotEmpty) {
+                              lng = _routePoints.first.lng;
+                              lat = _routePoints.first.lat;
+                            } else if (_perimeterPoints.isNotEmpty) {
+                              lng = _perimeterPoints.first.lng;
+                              lat = _perimeterPoints.first.lat;
+                            } else {
+                              lng = -61.533;
+                              lat = 16.241;
+                            }
+
+                            unawaited(_createPoiAt(lng: lng, lat: lat));
+                          },
+                  ),
+                  toolButton(
+                    icon: const Icon(Icons.my_location),
+                    tooltip: 'Ajouter un POI à la position actuelle',
+                    onPressed: (_selectedLayer == null || _pois.length >= _poiLimit)
+                        ? null
+                        : _addPoiAtCurrentCenter,
+                  ),
+                  if (_selectedLayer?.type == 'parking')
+                    toolButton(
+                      icon: Icon(
+                        _isDrawingParkingZone
+                            ? Icons.crop_square
+                            : Icons.crop_square_rounded,
+                      ),
+                      tooltip: _isDrawingParkingZone
+                          ? 'Mode zone parking (en cours)'
+                          : 'Créer une zone parking (périmètre)',
+                      onPressed: (_pois.length >= _poiLimit)
+                          ? null
+                          : () {
+                              if (_isDrawingParkingZone) {
+                                _cancelParkingZoneDrawing();
+                              } else {
+                                _startParkingZoneDrawing();
+                              }
+                            },
+                    ),
+                  toolButton(
+                    icon: const Icon(Icons.save_alt),
+                    tooltip: 'Enregistrer les POI',
+                    onPressed: _isLoading ? null : _saveDraft,
+                  ),
+                  toolButton(
+                    icon: const Icon(Icons.sync),
+                    tooltip: 'Réimporter POI/couches depuis MarketMap',
+                    onPressed: (_isLoading || _isRefreshingMarketImport)
+                        ? null
+                        : _refreshImportFromMarketMap,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              if (_selectedLayer?.type == 'parking' && _isDrawingParkingZone)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Zone parking: ${_parkingZonePoints.length} points (tap sur la carte)',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _cancelParkingZoneDrawing,
+                        child: const Text('Annuler'),
+                      ),
+                      const SizedBox(width: 6),
+                      FilledButton.tonal(
+                        onPressed: _parkingZonePoints.length < 3
+                            ? null
+                            : _finishParkingZoneDrawing,
+                        child: const Text('Créer la zone'),
+                      ),
+                    ],
+                  ),
+                ),
+              Row(
+                children: [
+                  Text(
+                    'POI: ${_pois.length}/$_poiLimit',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: _pois.length >= _poiLimit
+                          ? Colors.redAccent
+                          : (_pois.length >= (_poiLimit * 0.9)
+                              ? Colors.orange
+                              : Colors.black87),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (_hasMorePois || _isLoadingMorePois)
+                    TextButton.icon(
+                      onPressed:
+                          _isLoadingMorePois ? null : _loadMorePoisPage,
+                      icon: _isLoadingMorePois
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.expand_more,
+                              size: 16,
+                            ),
+                      label: const Text('Charger +100'),
+                    ),
+                ],
+              ),
+              if (_pois.length >= _poiLimit)
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: Text(
+                    'Limite atteinte: supprime des POI pour continuer.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.redAccent,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 8),
+              if (poiLayers.isNotEmpty)
+                Row(
+                  children: [
+                    const Text(
+                      'Catégorie: ',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        _selectedLayer?.label ?? 'Choisissez une catégorie',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                const Text(
+                  'Aucune couche trouvée. Vérifiez la configuration du projet.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.redAccent,
+                  ),
+                ),
+
+              if (_selectedLayer != null) ...[
+                const SizedBox(height: 10),
+                ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  initiallyExpanded: true,
+                  title: Text(
+                    'POI de la couche: ${_selectedLayer!.label}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${_pois.where((p) => _poiMatchesSelectedLayer(p, _selectedLayer!)).length} POI',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  children: [
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 220),
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: [
+                          for (final poi in _pois.where(
+                            (p) =>
+                                _poiMatchesSelectedLayer(p, _selectedLayer!),
+                          ))
+                            ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              leading: const Icon(
+                                Icons.place_outlined,
+                                size: 18,
+                              ),
+                              onTap: () => _poiSelection.select(poi),
+                              title: Text(
+                                poi.name,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Text(
+                                '${poi.lng.toStringAsFixed(5)}, ${poi.lat.toStringAsFixed(5)}',
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    tooltip: 'Modifier',
+                                    icon: const Icon(
+                                      Icons.edit,
+                                      size: 18,
+                                    ),
+                                    onPressed: () => _editPoi(poi),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Supprimer',
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      size: 18,
+                                    ),
+                                    onPressed: () => _deletePoi(poi),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (_hasMorePois || _isLoadingMorePois)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed:
+                              _isLoadingMorePois ? null : _loadMorePoisPage,
+                          icon: _isLoadingMorePois
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.more_horiz),
+                          label: const Text('Voir plus'),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
     Widget interceptPointersIfNeeded(Widget child) {
       // Sur Flutter web + HtmlElementView (Mapbox), des clics peuvent traverser
       // certains overlays et déclencher le onTap de la carte en arrière-plan.
@@ -2454,333 +2760,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                       await _refreshPoiRouteOverlay();
                       _syncPoiRouteStyleProTimer();
                     },
-                  ),
-
-                  Positioned(
-                    left: 12,
-                    right: 78,
-                    top: 12,
-                    child: interceptPointersIfNeeded(
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.place_outlined,
-                                    color: Colors.blueGrey,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Expanded(
-                                    child: Text(
-                                      'Points d\'intérêt (POI)',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.edit_location_alt_rounded,
-                                    ),
-                                    tooltip:
-                                        'Ajouter un POI (coordonnées manuelles)',
-                                    onPressed:
-                                        (_selectedLayer == null ||
-                                            _pois.length >= _poiLimit)
-                                        ? null
-                                        : () {
-                                            // Pré-remplissage simple (l'utilisateur peut ajuster).
-                                            double lng;
-                                            double lat;
-                                            if (_routePoints.isNotEmpty) {
-                                              lng = _routePoints.first.lng;
-                                              lat = _routePoints.first.lat;
-                                            } else if (_perimeterPoints
-                                                .isNotEmpty) {
-                                              lng = _perimeterPoints.first.lng;
-                                              lat = _perimeterPoints.first.lat;
-                                            } else {
-                                              lng = -61.533;
-                                              lat = 16.241;
-                                            }
-
-                                            unawaited(
-                                              _createPoiAt(lng: lng, lat: lat),
-                                            );
-                                          },
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.my_location),
-                                    tooltip:
-                                        'Ajouter un POI à la position actuelle',
-                                    onPressed:
-                                        (_selectedLayer == null ||
-                                            _pois.length >= _poiLimit)
-                                        ? null
-                                        : _addPoiAtCurrentCenter,
-                                  ),
-                                  if (_selectedLayer?.type == 'parking')
-                                    IconButton(
-                                      icon: Icon(
-                                        _isDrawingParkingZone
-                                            ? Icons.crop_square
-                                            : Icons.crop_square_rounded,
-                                      ),
-                                      tooltip: _isDrawingParkingZone
-                                          ? 'Mode zone parking (en cours)'
-                                          : 'Créer une zone parking (périmètre)',
-                                      onPressed: (_pois.length >= _poiLimit)
-                                          ? null
-                                          : () {
-                                              if (_isDrawingParkingZone) {
-                                                _cancelParkingZoneDrawing();
-                                              } else {
-                                                _startParkingZoneDrawing();
-                                              }
-                                            },
-                                    ),
-                                  IconButton(
-                                    icon: const Icon(Icons.save_alt),
-                                    tooltip: 'Enregistrer les POI',
-                                    onPressed: _isLoading ? null : _saveDraft,
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.sync),
-                                    tooltip:
-                                        'Réimporter POI/couches depuis MarketMap',
-                                    onPressed:
-                                        (_isLoading ||
-                                            _isRefreshingMarketImport)
-                                        ? null
-                                        : _refreshImportFromMarketMap,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              if (_selectedLayer?.type == 'parking' &&
-                                  _isDrawingParkingZone)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          'Zone parking: ${_parkingZonePoints.length} points (tap sur la carte)',
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.black87,
-                                          ),
-                                        ),
-                                      ),
-                                      TextButton(
-                                        onPressed: _cancelParkingZoneDrawing,
-                                        child: const Text('Annuler'),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      FilledButton.tonal(
-                                        onPressed: _parkingZonePoints.length < 3
-                                            ? null
-                                            : _finishParkingZoneDrawing,
-                                        child: const Text('Créer la zone'),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              Row(
-                                children: [
-                                  Text(
-                                    'POI: ${_pois.length}/$_poiLimit',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: _pois.length >= _poiLimit
-                                          ? Colors.redAccent
-                                          : (_pois.length >= (_poiLimit * 0.9)
-                                                ? Colors.orange
-                                                : Colors.black87),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  if (_hasMorePois || _isLoadingMorePois)
-                                    TextButton.icon(
-                                      onPressed: _isLoadingMorePois
-                                          ? null
-                                          : _loadMorePoisPage,
-                                      icon: _isLoadingMorePois
-                                          ? const SizedBox(
-                                              width: 14,
-                                              height: 14,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                              ),
-                                            )
-                                          : const Icon(
-                                              Icons.expand_more,
-                                              size: 16,
-                                            ),
-                                      label: const Text('Charger +100'),
-                                    ),
-                                ],
-                              ),
-                              if (_pois.length >= _poiLimit)
-                                const Padding(
-                                  padding: EdgeInsets.only(top: 4),
-                                  child: Text(
-                                    'Limite atteinte: supprime des POI pour continuer.',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.redAccent,
-                                    ),
-                                  ),
-                                ),
-                              const SizedBox(height: 8),
-                              if (poiLayers.isNotEmpty)
-                                Row(
-                                  children: [
-                                    const Text(
-                                      'Catégorie: ',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Text(
-                                        _selectedLayer?.label ??
-                                            'Choisissez une catégorie',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              else
-                                const Text(
-                                  'Aucune couche trouvée. Vérifiez la configuration du projet.',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.redAccent,
-                                  ),
-                                ),
-
-                              if (_selectedLayer != null) ...[
-                                const SizedBox(height: 10),
-                                ExpansionTile(
-                                  tilePadding: EdgeInsets.zero,
-                                  initiallyExpanded: true,
-                                  title: Text(
-                                    'POI de la couche: ${_selectedLayer!.label}',
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    '${_pois.where((p) => _poiMatchesSelectedLayer(p, _selectedLayer!)).length} POI',
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                  children: [
-                                    ConstrainedBox(
-                                      constraints: const BoxConstraints(
-                                        maxHeight: 220,
-                                      ),
-                                      child: ListView(
-                                        shrinkWrap: true,
-                                        children: [
-                                          for (final poi in _pois.where(
-                                            (p) => _poiMatchesSelectedLayer(
-                                              p,
-                                              _selectedLayer!,
-                                            ),
-                                          ))
-                                            ListTile(
-                                              dense: true,
-                                              contentPadding: EdgeInsets.zero,
-                                              leading: const Icon(
-                                                Icons.place_outlined,
-                                                size: 18,
-                                              ),
-                                              onTap: () =>
-                                                  _poiSelection.select(poi),
-                                              title: Text(
-                                                poi.name,
-                                                style: const TextStyle(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                              subtitle: Text(
-                                                '${poi.lng.toStringAsFixed(5)}, ${poi.lat.toStringAsFixed(5)}',
-                                                style: const TextStyle(
-                                                  fontSize: 11,
-                                                ),
-                                              ),
-                                              trailing: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  IconButton(
-                                                    tooltip: 'Modifier',
-                                                    icon: const Icon(
-                                                      Icons.edit,
-                                                      size: 18,
-                                                    ),
-                                                    onPressed: () =>
-                                                        _editPoi(poi),
-                                                  ),
-                                                  IconButton(
-                                                    tooltip: 'Supprimer',
-                                                    icon: const Icon(
-                                                      Icons.delete_outline,
-                                                      size: 18,
-                                                    ),
-                                                    onPressed: () =>
-                                                        _deletePoi(poi),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                    if (_hasMorePois || _isLoadingMorePois)
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: TextButton.icon(
-                                          onPressed: _isLoadingMorePois
-                                              ? null
-                                              : _loadMorePoisPage,
-                                          icon: _isLoadingMorePois
-                                              ? const SizedBox(
-                                                  width: 14,
-                                                  height: 14,
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                      ),
-                                                )
-                                              : const Icon(Icons.more_horiz),
-                                          label: const Text('Voir plus'),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
                   ),
 
                   if (poiLayers.isNotEmpty)
@@ -2819,6 +2798,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                   // Fin Stack carte
                 ],
               ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+              child: buildPoiToolsPanel(poiLayers: poiLayers),
             ),
 
             Consumer<PoiSelectionController>(
