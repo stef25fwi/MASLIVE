@@ -102,12 +102,149 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
   bool _isSnappingRoute = false;
 
+  bool _isRefreshingMarketImport = false;
+  bool _isEnsuringAllPoisLoaded = false;
+
   // Snap en continu (debounce + ignore résultats obsolètes)
   Timer? _routeSnapDebounce;
   int _routeSnapSeq = 0;
 
   // Brouillon
   Map<String, dynamic> _draftData = {};
+
+  Future<void> _ensureAllPoisLoadedForPublish() async {
+    if (_isEnsuringAllPoisLoaded) return;
+    if (_projectId == null) return;
+    if (!_hasMorePois) return;
+
+    setState(() => _isEnsuringAllPoisLoaded = true);
+    try {
+      // Sécurité: évite une boucle infinie si l'état Firestore est instable.
+      int pageGuard = 0;
+      while (mounted && _hasMorePois) {
+        pageGuard += 1;
+        if (pageGuard > 60) {
+          throw StateError('Trop de pages POI à charger (guard).');
+        }
+        await _loadMorePoisPage();
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isEnsuringAllPoisLoaded = false);
+      } else {
+        _isEnsuringAllPoisLoaded = false;
+      }
+    }
+  }
+
+  Future<void> _refreshImportFromMarketMap() async {
+    if (_isRefreshingMarketImport) return;
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      await _ensureActorContext();
+      if (!_canWriteMapProjects) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⛔ Import réservé aux admins master.'),
+          ),
+        );
+        return;
+      }
+
+      // Assure un projectId existant (on importe dans un brouillon).
+      if (_projectId == null) {
+        await _saveDraft();
+      }
+
+      final projectId = _projectId;
+      if (projectId == null || projectId.trim().isEmpty) {
+        throw StateError('Projet non initialisé');
+      }
+
+      final countryId = _countryController.text.trim();
+      final eventId = _eventController.text.trim();
+      final circuitId = (widget.circuitId?.trim().isNotEmpty ?? false)
+          ? widget.circuitId!.trim()
+          : (_draftData['circuitId']?.toString().trim() ?? '');
+
+      if (countryId.isEmpty || eventId.isEmpty || circuitId.isEmpty) {
+        throw StateError('Pays / événement / circuit requis pour importer.');
+      }
+
+      if (!mounted) return;
+
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) {
+          return AlertDialog(
+            title: const Text('Réimporter depuis MarketMap ?'),
+            content: const Text(
+              'Cette action remplace les couches et POI du brouillon par la version publiée (MarketMap).\n'
+              'Les modifications locales non publiées sur les POI/couches seront perdues.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Annuler'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Importer'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (!mounted) return;
+      if (ok != true) return;
+
+      setState(() => _isRefreshingMarketImport = true);
+      await _repository.refreshDraftFromMarketMap(
+        projectId: projectId,
+        actorUid: user.uid,
+        actorRole: _currentUserRole ?? 'creator',
+        groupId: _currentGroupId ?? 'default',
+        countryId: countryId,
+        eventId: eventId,
+        circuitId: circuitId,
+      );
+
+      // Recharge l'état (doc courant + sous-collections layers/pois).
+      await _loadDraftOrInitialize();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Import MarketMap terminé')),
+        );
+      }
+    } catch (e) {
+      debugPrint('WizardPro _refreshImportFromMarketMap error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e is FirebaseException
+                  ? '❌ Import Firestore (${e.code}): ${e.message ?? e.toString()}'
+                  : '❌ Erreur import: $e',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isRefreshingMarketImport = false);
+      } else {
+        _isRefreshingMarketImport = false;
+      }
+    }
+  }
 
   PublishQualityReport get _qualityReport => _qualityService.evaluate(
         perimeter: _perimeterPoints,
@@ -2115,6 +2252,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                           tooltip: 'Enregistrer les POI',
                           onPressed: _isLoading ? null : _saveDraft,
                         ),
+                        IconButton(
+                          icon: const Icon(Icons.sync),
+                          tooltip: 'Réimporter POI/couches depuis MarketMap',
+                          onPressed: (_isLoading || _isRefreshingMarketImport)
+                              ? null
+                              : _refreshImportFromMarketMap,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 6),
@@ -2614,7 +2758,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           const SizedBox(height: 16),
           ElevatedButton.icon(
             icon: const Icon(Icons.cloud_upload),
-            onPressed: report.canPublish ? _publishCircuit : null,
+            onPressed: (report.canPublish && !_isEnsuringAllPoisLoaded)
+                ? _publishCircuit
+                : null,
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               backgroundColor: Colors.green,
@@ -2624,6 +2770,25 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
               style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
           ),
+          if (_isEnsuringAllPoisLoaded) ...[
+            const SizedBox(height: 12),
+            const Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Chargement de tous les POIs avant publication…',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 12),
           OutlinedButton.icon(
             icon: const Icon(Icons.save_alt),
@@ -2651,6 +2816,59 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           ),
         );
         return;
+      }
+
+      // Garde-fou: si on n'a pas chargé tous les POIs (pagination), publier
+      // supprimerait les POIs non chargés côté MarketMap (sync par différence).
+      if (_hasMorePois || _isLoadingMorePois) {
+        if (!mounted) return;
+        final action = await showDialog<String>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('POIs non chargés'),
+            content: const Text(
+              'Tous les POIs du brouillon ne sont pas chargés (pagination).\n'
+              'Publier maintenant risquerait de supprimer des POIs existants dans MarketMap.\n\n'
+              'Charge tous les POIs avant de publier.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop('cancel'),
+                child: const Text('Annuler'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop('load'),
+                child: const Text('Charger tout'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop('goto'),
+                child: const Text('Aller aux POIs'),
+              ),
+            ],
+          ),
+        );
+
+        if (!mounted) return;
+        if (action == 'goto') {
+          _pageController.animateToPage(
+            5,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+          return;
+        }
+        if (action != 'load') return;
+
+        await _ensureAllPoisLoadedForPublish();
+
+        if (_hasMorePois) {
+          // Toujours incomplet: on bloque la publication.
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('❌ Impossible de charger tous les POIs.')),
+          );
+          return;
+        }
       }
 
       setState(() => _isLoading = true);

@@ -136,6 +136,288 @@ class CircuitRepository {
     };
   }
 
+  Future<String> ensureDraftProjectForMarketCircuit({
+    required String actorUid,
+    required String actorRole,
+    required String groupId,
+    required String countryId,
+    required String eventId,
+    required String circuitId,
+  }) async {
+    // 1) Réutilise un brouillon existant si trouvé (synchro POI Wizard <-> Circuit Wizard).
+    try {
+      final existing = await _projects
+          .where('circuitId', isEqualTo: circuitId)
+          .where('countryId', isEqualTo: countryId)
+          .where('eventId', isEqualTo: eventId)
+          .limit(1)
+          .get();
+      if (existing.docs.isNotEmpty) return existing.docs.first.id;
+    } catch (_) {
+      // Si un index composite manque, on fallback sur une requête plus large.
+    }
+
+    try {
+      final existing = await _projects.where('circuitId', isEqualTo: circuitId).limit(10).get();
+      if (existing.docs.isNotEmpty) {
+        final exact = existing.docs.firstWhere(
+          (d) =>
+              (d.data()['countryId']?.toString() ?? '') == countryId &&
+              (d.data()['eventId']?.toString() ?? '') == eventId,
+          orElse: () => existing.docs.first,
+        );
+        return exact.id;
+      }
+    } catch (_) {
+      // ignore
+    }
+
+    // 2) Crée un brouillon en important depuis `marketMap`.
+    final marketCircuitRef = _firestore
+        .collection('marketMap')
+        .doc(countryId)
+        .collection('events')
+        .doc(eventId)
+        .collection('circuits')
+        .doc(circuitId);
+
+    final marketSnap = await marketCircuitRef.get();
+    if (!marketSnap.exists) {
+      throw StateError('Circuit introuvable: marketMap/$countryId/events/$eventId/circuits/$circuitId');
+    }
+    final market = marketSnap.data() ?? <String, dynamic>{};
+
+    final importedLayers = await _loadMarketLayers(marketCircuitRef);
+    final importedPois = await _loadMarketPois(marketCircuitRef);
+
+    // Fallback: si le circuit publié n'a pas encore de sous-collections,
+    // on initialise les couches par défaut (elles seront de toute façon assurées côté UI).
+    final layers = importedLayers.isNotEmpty ? importedLayers : _defaultLayers();
+
+    final currentData = <String, dynamic>{
+      'circuitId': circuitId,
+      'name': (market['name'] ?? circuitId).toString(),
+      'countryId': countryId,
+      'eventId': eventId,
+      'description': (market['description'] ?? '').toString(),
+      'styleUrl': market['styleUrl'],
+      'route': List<dynamic>.from((market['route'] as List?) ?? const <dynamic>[]),
+      'perimeter': List<dynamic>.from((market['perimeter'] as List?) ?? const <dynamic>[]),
+      'routeStyle': Map<String, dynamic>.from((market['style'] as Map?) ?? const <String, dynamic>{}),
+    };
+
+    final projectId = createProjectId();
+    await saveDraft(
+      projectId: projectId,
+      actorUid: actorUid,
+      actorRole: actorRole,
+      groupId: groupId,
+      currentData: currentData,
+      layers: layers,
+      pois: importedPois,
+      previousRouteCount: 0,
+      previousPoiCount: 0,
+      isNew: true,
+    );
+    return projectId;
+  }
+
+  Future<void> refreshDraftFromMarketMap({
+    required String projectId,
+    required String actorUid,
+    required String actorRole,
+    required String groupId,
+    required String countryId,
+    required String eventId,
+    required String circuitId,
+  }) async {
+    final projectRef = _projects.doc(projectId);
+    final projectSnap = await projectRef.get();
+    if (!projectSnap.exists) {
+      throw StateError('Projet introuvable: map_projects/$projectId');
+    }
+
+    final project = projectSnap.data() ?? const <String, dynamic>{};
+    final existingCurrent = Map<String, dynamic>.from(
+      (project['current'] as Map?) ?? const <String, dynamic>{},
+    );
+
+    final marketCircuitRef = _firestore
+        .collection('marketMap')
+        .doc(countryId)
+        .collection('events')
+        .doc(eventId)
+        .collection('circuits')
+        .doc(circuitId);
+
+    final marketSnap = await marketCircuitRef.get();
+    if (!marketSnap.exists) {
+      throw StateError(
+        'Circuit introuvable: marketMap/$countryId/events/$eventId/circuits/$circuitId',
+      );
+    }
+    final market = marketSnap.data() ?? const <String, dynamic>{};
+
+    final importedLayers = await _loadMarketLayers(marketCircuitRef);
+    final importedPois = await _loadMarketPois(marketCircuitRef);
+    final layers = importedLayers.isNotEmpty ? importedLayers : _defaultLayers();
+
+    final nextCurrent = <String, dynamic>{
+      ...existingCurrent,
+      'circuitId': circuitId,
+      'countryId': countryId,
+      'eventId': eventId,
+    };
+
+    final styleUrl = market['styleUrl']?.toString();
+    if (styleUrl != null && styleUrl.trim().isNotEmpty) {
+      nextCurrent['styleUrl'] = styleUrl.trim();
+    }
+    if ((nextCurrent['name'] ?? '').toString().trim().isEmpty) {
+      nextCurrent['name'] = (market['name'] ?? circuitId).toString();
+    }
+    if ((nextCurrent['description'] ?? '').toString().trim().isEmpty) {
+      nextCurrent['description'] = (market['description'] ?? '').toString();
+    }
+
+    final previousRouteCount = (existingCurrent['route'] as List?)?.length ?? 0;
+    final previousPoiCount =
+        (await projectRef.collection('pois').get()).docs.length;
+
+    await saveDraft(
+      projectId: projectId,
+      actorUid: actorUid,
+      actorRole: actorRole,
+      groupId: groupId,
+      currentData: nextCurrent,
+      layers: layers,
+      pois: importedPois,
+      previousRouteCount: previousRouteCount,
+      previousPoiCount: previousPoiCount,
+      isNew: false,
+    );
+  }
+
+  List<MarketMapLayer> _defaultLayers() {
+    return <MarketMapLayer>[
+      MarketMapLayer(
+        id: 'route',
+        label: 'Tracé Route',
+        type: 'route',
+        isVisible: true,
+        zIndex: 1,
+        color: '#1A73E8',
+      ),
+      MarketMapLayer(
+        id: 'parking',
+        label: 'Parkings',
+        type: 'parking',
+        isVisible: true,
+        zIndex: 2,
+        color: '#FBBF24',
+      ),
+      MarketMapLayer(
+        id: 'wc',
+        label: 'Toilettes',
+        type: 'wc',
+        isVisible: true,
+        zIndex: 3,
+        color: '#9333EA',
+      ),
+      MarketMapLayer(
+        id: 'food',
+        label: 'Food',
+        type: 'food',
+        isVisible: true,
+        zIndex: 4,
+        color: '#EF4444',
+      ),
+      MarketMapLayer(
+        id: 'assistance',
+        label: 'Assistance',
+        type: 'assistance',
+        isVisible: true,
+        zIndex: 5,
+        color: '#34A853',
+      ),
+      MarketMapLayer(
+        id: 'visit',
+        label: 'Lieux à visiter',
+        type: 'visit',
+        isVisible: true,
+        zIndex: 6,
+        color: '#F59E0B',
+      ),
+    ];
+  }
+
+  Future<List<MarketMapLayer>> _loadMarketLayers(
+    DocumentReference<Map<String, dynamic>> marketCircuitRef,
+  ) async {
+    try {
+      final snap = await marketCircuitRef.collection('layers').orderBy('zIndex').get();
+      return snap.docs.map((d) {
+        final data = d.data();
+        final style = (data['style'] is Map)
+            ? Map<String, dynamic>.from(data['style'] as Map)
+            : const <String, dynamic>{};
+        final type = (data['type'] ?? d.id).toString();
+        final label = (data['label'] ?? type).toString();
+        final isVisible = (data['isVisible'] as bool?) ?? (data['isEnabled'] as bool?) ?? true;
+        final zIndex = (data['zIndex'] as num?)?.toInt() ?? (data['order'] as num?)?.toInt() ?? 0;
+        final color = (data['color'] ?? style['color'])?.toString();
+        final icon = (data['icon'] ?? style['icon'])?.toString();
+        return MarketMapLayer(
+          id: d.id,
+          label: label,
+          type: type,
+          isVisible: isVisible,
+          zIndex: zIndex,
+          color: color,
+          icon: icon,
+        );
+      }).toList();
+    } catch (_) {
+      return const <MarketMapLayer>[];
+    }
+  }
+
+  Future<List<MarketMapPOI>> _loadMarketPois(
+    DocumentReference<Map<String, dynamic>> marketCircuitRef,
+  ) async {
+    try {
+      final snap = await marketCircuitRef
+          .collection('pois')
+          .orderBy('name')
+          .limit(maxPoisPerProject)
+          .get();
+
+      return snap.docs.map((d) {
+        final data = d.data();
+        String layerType = (data['layerType'] ?? data['type'] ?? data['layerId'] ?? 'visit').toString();
+        final lng = (data['lng'] as num?)?.toDouble() ?? 0.0;
+        final lat = (data['lat'] as num?)?.toDouble() ?? 0.0;
+        final meta = (data['metadata'] is Map)
+            ? Map<String, dynamic>.from(data['metadata'] as Map)
+            : null;
+        return MarketMapPOI(
+          id: d.id,
+          name: (data['name'] ?? '').toString(),
+          layerType: layerType,
+          lng: lng,
+          lat: lat,
+          description: data['description']?.toString(),
+          imageUrl: data['imageUrl']?.toString(),
+          instagram: data['instagram']?.toString(),
+          facebook: data['facebook']?.toString(),
+          metadata: meta,
+        );
+      }).toList();
+    } catch (_) {
+      return const <MarketMapPOI>[];
+    }
+  }
+
   Future<void> saveDraft({
     required String projectId,
     required String actorUid,

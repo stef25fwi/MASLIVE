@@ -245,7 +245,11 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
     // Upsert source
     try {
-      final data = jsonDecode(_poisGeoJsonString);
+      final decoded = jsonDecode(_poisGeoJsonString);
+      if (decoded is! Map) {
+        return;
+      }
+      final data = js.JsObject.jsify(decoded);
       final src = map.callMethod('getSource', [_poiSourceId]);
       if (src == null) {
         map.callMethod('addSource', [
