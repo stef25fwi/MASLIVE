@@ -2564,15 +2564,17 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
           ),
 
           if (poiLayers.isNotEmpty)
-            Positioned(
-              right: 12,
-              top: 12,
+            Align(
+              alignment: Alignment.topRight,
               child: interceptPointersIfNeeded(
                 HomeVerticalNavMenu(
+                  margin: const EdgeInsets.only(right: 0, top: 12),
+                  horizontalPadding: 6,
+                  verticalPadding: 10,
                   items: [
                     for (final layer in poiLayers)
                       HomeVerticalNavItem(
-                        label: '',
+                        label: layer.label,
                         icon: _getLayerIcon(layer.type),
                         selected: _selectedLayer?.type == layer.type,
                         onTap: () {
