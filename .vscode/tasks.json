@@ -873,6 +873,18 @@
       }
     },
     {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (webp + poi popup)",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat(admin): POI edit popup + WebP converter\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (admin POIs tile)",
       "type": "shell",
       "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"admin: tuile POIs (carte & navigation)\"",
@@ -965,7 +977,7 @@
     {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (prompt)",
       "type": "shell",
-      "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"fix(wizard): ensure default POI layers (visit/food/assistance/parking/wc)\"",
+      "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh",
       "problemMatcher": [],
       "isBackground": false,
       "presentation": {

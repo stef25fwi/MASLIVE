@@ -23,6 +23,7 @@ import '../route_style_pro/services/route_snap_service.dart' as snap;
 import '../route_style_pro/ui/route_style_wizard_pro_page.dart';
 import '../pages/home_vertical_nav.dart';
 import 'poi_bottom_popup.dart';
+import 'poi_edit_popup.dart';
 
 typedef LngLat = ({double lng, double lat});
 
@@ -63,6 +64,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   String? _projectId;
   late PageController _pageController;
   int _currentStep = 0;
+  bool _didAutoOpenStyleProForCurrentVisit = false;
   bool _isLoading = false;
   String? _errorMessage;
   String? _currentUserRole;
@@ -501,6 +503,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         ? _poiStepIndex
         : (widget.initialStep ?? 0).clamp(0, 8);
     _pageController = PageController(initialPage: _currentStep);
+
+    // Si on arrive directement sur l'étape Style Pro, on ouvre le wizard pro
+    // immédiatement (pas besoin d'appuyer sur le bouton).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_currentStep == 5 && !_didAutoOpenStyleProForCurrentVisit) {
+        _didAutoOpenStyleProForCurrentVisit = true;
+        unawaited(_openRouteStylePro());
+      }
+    });
 
     // Step POI: hit-testing GeoJSON (tap POI => édition, tap carte => ajout)
     _poiMapController.onPoiTap = (poiId) {
@@ -1378,29 +1390,50 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
         children: [
           // Progress indicator
           SizedBox(
-            height: 60,
-            child: Row(
-              children: List.generate(9, (index) {
-                final isPoiOnly = widget.poiOnly;
-                final isEnabled = isPoiOnly
-                    ? index == _poiStepIndex
-                    : index <= _currentStep;
-                final isCompleted = isPoiOnly ? false : index < _currentStep;
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: isEnabled
-                        ? () => _pageController.jumpToPage(index)
-                        : null,
-                    child: _StepIndicator(
-                      step: index,
-                      label: _getStepLabel(index),
-                      isActive: index == _currentStep,
-                      isCompleted: isCompleted,
-                      isEnabled: isEnabled,
+            height: 112,
+            child: Builder(
+              builder: (context) {
+                Widget buildStep(int index) {
+                  final isPoiOnly = widget.poiOnly;
+                  final isEnabled = isPoiOnly
+                      ? index == _poiStepIndex
+                      : index <= _currentStep;
+                  final isCompleted = isPoiOnly ? false : index < _currentStep;
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: isEnabled
+                          ? () => _pageController.jumpToPage(index)
+                          : null,
+                      child: _StepIndicator(
+                        step: index,
+                        label: _getStepLabel(index),
+                        isActive: index == _currentStep,
+                        isCompleted: isCompleted,
+                        isEnabled: isEnabled,
+                      ),
                     ),
-                  ),
+                  );
+                }
+
+                return Column(
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          for (final i in [0, 1, 2, 3, 4]) buildStep(i),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          for (final i in [5, 6, 7, 8]) buildStep(i),
+                        ],
+                      ),
+                    ),
+                  ],
                 );
-              }),
+              },
             ),
           ),
           const Divider(height: 1),
@@ -1439,6 +1472,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
               onPageChanged: (page) {
                 setState(() => _currentStep = page);
 
+                // Auto-ouvrir Style Pro quand on arrive sur l'étape 6 (index 5)
+                // pour éviter le clic sur "Ouvrir Style Pro".
+                if (_currentStep != 5) {
+                  _didAutoOpenStyleProForCurrentVisit = false;
+                }
+
                 // Quand on arrive sur l'étape POI, on veut afficher le circuit
                 // (Style Pro si présent) sur la carte immédiatement.
                 WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1446,6 +1485,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                   if (_currentStep == _poiStepIndex) {
                     unawaited(_refreshPoiRouteOverlay());
                   }
+
+                  if (_currentStep == 5 && !_didAutoOpenStyleProForCurrentVisit) {
+                    _didAutoOpenStyleProForCurrentVisit = true;
+                    unawaited(_openRouteStylePro());
+                  }
+
                   _syncPoiRouteStyleProTimer();
                 });
               },
@@ -3442,7 +3487,63 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   }
 
   Future<void> _editPoi(MarketMapPOI poi) async {
-    _openPoiEditSection(poi);
+    final perimeter = _poiPerimeterFromMetadata(poi);
+    if (perimeter != null) {
+      // Garder l'éditeur inline pour les zones parking (style, etc.).
+      _openPoiEditSection(poi);
+      return;
+    }
+
+    final updated = await showModalBottomSheet<MarketMapPOI>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => PoiEditPopup(poi: poi, projectId: _projectId),
+    );
+
+    if (updated == null) return;
+
+    setState(() {
+      final idx = _pois.indexWhere((p) => p.id == poi.id);
+      if (idx >= 0) {
+        _pois[idx] = updated;
+      }
+    });
+    _poiSelection.select(updated);
+    _refreshPoiMarkers();
+
+    await _persistPoiDraftUpdate(updated);
+  }
+
+  String _draftPoiDocId(MarketMapPOI poi) {
+    final trimmed = poi.id.trim();
+    if (trimmed.isNotEmpty) return trimmed;
+    return 'poi_${poi.layerType}_${poi.lng.toStringAsFixed(5)}_${poi.lat.toStringAsFixed(5)}';
+  }
+
+  Future<void> _persistPoiDraftUpdate(MarketMapPOI poi) async {
+    final projectId = _projectId;
+    if (projectId == null || projectId.trim().isEmpty) return;
+
+    try {
+      final docId = _draftPoiDocId(poi);
+      await FirebaseFirestore.instance
+          .collection('map_projects')
+          .doc(projectId)
+          .collection('pois')
+          .doc(docId)
+          .set({
+        ...poi.toFirestore(),
+        'layerId': poi.layerType,
+        'isVisible': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('⚠️ POI sauvegardé localement mais Firestore a refusé: $e')),
+      );
+    }
   }
 
   void _startParkingZoneDrawing() {

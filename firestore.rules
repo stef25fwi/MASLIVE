@@ -1050,6 +1050,13 @@ service cloud.firestore {
       allow create, update, delete: if isSignedIn() && isMasterAdmin();
     }
 
+    // ========== COLLECTION: IMAGE ASSETS (métadonnées upload images) ==========
+    // Écrit par ImageManagementService lors d'un upload (variants + metadata).
+    match /image_assets/{imageId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSignedIn() && isMasterAdmin();
+    }
+
     // ========== REFUS PAR DÉFAUT ==========
     match /{document=**} {
       allow read, write: if false;

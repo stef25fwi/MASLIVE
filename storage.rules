@@ -66,7 +66,8 @@ service firebase.storage {
     }
     
     // ✅ Images de places (admin seulement)
-    match /places/{placeId}/{imageId} {
+    // Utilisé par ImageManagementService: places/{placeId}/images/{imageId}/...
+    match /places/{placeId}/{allPaths=**} {
       allow read: if true;
       allow write: if isMasterAdmin() && 
                       isValidImageType() && 

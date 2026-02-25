@@ -6,6 +6,16 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
+# Ensure git identity exists (useful in devcontainers)
+NAME="$(git config --get user.name || true)"
+EMAIL="$(git config --get user.email || true)"
+if [[ -z "$NAME" ]]; then
+	git config user.name "MASLIVE Devcontainer"
+fi
+if [[ -z "$EMAIL" ]]; then
+	git config user.email "devcontainer@maslive.local"
+fi
+
 commit_msg="${1:-}"
 push_branch_arg="${2:-}"
 

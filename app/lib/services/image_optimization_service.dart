@@ -191,6 +191,8 @@ class ImageOptimizationService {
       case ImageFormat.png:
         return Uint8List.fromList(img.encodePng(image, level: 6));
       case ImageFormat.webp:
+        // Le package `image` (version actuelle du projet) ne supporte pas
+        // l'encodage WebP côté Dart pur. Fallback en JPEG.
         return Uint8List.fromList(img.encodeJpg(image, quality: quality));
     }
   }

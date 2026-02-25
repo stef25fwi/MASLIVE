@@ -20,6 +20,14 @@ class ImageManagementService {
 
   static const String _collectionName = 'image_assets';
 
+  String _inferMimeTypeFromFilename(String filename) {
+    final lower = filename.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    // jpg/jpeg et fallback
+    return 'image/jpeg';
+  }
+
   /// Upload image complète (optimisation + Storage + Firestore)
   Future<ImageAsset> uploadImage({
     required XFile file,
@@ -55,7 +63,7 @@ class ImageManagementService {
       uploadedAt: DateTime.now(),
       originalFilename: file.name,
       sizeBytes: bytes.length,
-      mimeType: 'image/jpeg',
+      mimeType: _inferMimeTypeFromFilename(file.name),
       altText: altText,
     );
 

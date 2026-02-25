@@ -1050,6 +1050,8 @@ class CircuitRepository {
 
       final instagram = (poi.instagram ?? metaString('instagram') ?? metaString('ig'))?.trim();
       final facebook = (poi.facebook ?? metaString('facebook') ?? metaString('fb'))?.trim();
+      final imageUrl = poi.imageUrl?.trim();
+      final metadata = poi.metadata;
 
       batch.set(col.doc(id), {
         'name': poi.name,
@@ -1059,6 +1061,8 @@ class CircuitRepository {
         'lat': poi.lat,
         'lng': poi.lng,
         'isVisible': true,
+        if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
+        if (metadata != null) 'metadata': metadata,
         if (instagram != null && instagram.isNotEmpty) 'instagram': instagram,
         if (facebook != null && facebook.isNotEmpty) 'facebook': facebook,
         'createdByUid': actorUid,
