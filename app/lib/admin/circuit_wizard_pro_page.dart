@@ -2772,24 +2772,31 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                           verticalPadding: 10,
                           items: [
                             for (final layer in poiLayers)
-                              HomeVerticalNavItem(
-                                label: layer.label,
-                                icon: _getLayerIcon(layer.type),
-                                selected: _selectedLayer?.type == layer.type,
-                                onTap: () {
-                                  _poiSelection.clear();
-                                  setState(() {
-                                    _isDrawingParkingZone = false;
-                                    _parkingZonePoints = <LngLat>[];
-                                    _poiInlineEditorMode =
-                                        _PoiInlineEditorMode.none;
-                                    _poiEditingPoi = null;
-                                    _poiInlineError = null;
-                                    _selectedLayer = layer;
-                                  });
-                                  _refreshPoiMarkers();
-                                },
-                              ),
+                              (() {
+                                final v = _poiNavVisualForLayerType(layer.type);
+                                return HomeVerticalNavItem(
+                                  label: layer.label,
+                                  icon: v.icon,
+                                  iconWidget: v.iconWidget,
+                                  fullBleed: v.fullBleed,
+                                  tintOnSelected: v.tintOnSelected,
+                                  showBorder: v.showBorder,
+                                  selected: _selectedLayer?.type == layer.type,
+                                  onTap: () {
+                                    _poiSelection.clear();
+                                    setState(() {
+                                      _isDrawingParkingZone = false;
+                                      _parkingZonePoints = <LngLat>[];
+                                      _poiInlineEditorMode =
+                                          _PoiInlineEditorMode.none;
+                                      _poiEditingPoi = null;
+                                      _poiInlineError = null;
+                                      _selectedLayer = layer;
+                                    });
+                                    _refreshPoiMarkers();
+                                  },
+                                );
+                              })(),
                           ],
                         ),
                       ),
@@ -4220,17 +4227,76 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     }
   }
 
-  IconData _getLayerIcon(String type) {
-    const icons = {
-      'parking': Icons.local_parking,
-      'wc': Icons.wc,
-      'food': Icons.restaurant,
-      'assistance': Icons.support_agent,
-      'visit': Icons.tour,
-      'tour': Icons.tour,
-      'route': Icons.route,
-    };
-    return icons[type] ?? Icons.place_outlined;
+  ({
+    IconData? icon,
+    Widget? iconWidget,
+    bool fullBleed,
+    bool tintOnSelected,
+    bool showBorder,
+  }) _poiNavVisualForLayerType(String type) {
+    final norm = type.trim().toLowerCase();
+
+    // Aligné avec les icônes utilisées sur la Home (barre nav verticale).
+    // - visit: map_outlined
+    // - food: fastfood_rounded
+    // - assistance: shield_outlined
+    // - parking: asset icon wc/parking
+    switch (norm) {
+      case 'visit':
+      case 'tour':
+        return (
+          icon: Icons.map_outlined,
+          iconWidget: null,
+          fullBleed: false,
+          tintOnSelected: true,
+          showBorder: true,
+        );
+      case 'food':
+        return (
+          icon: Icons.fastfood_rounded,
+          iconWidget: null,
+          fullBleed: false,
+          tintOnSelected: true,
+          showBorder: true,
+        );
+      case 'assistance':
+        return (
+          icon: Icons.shield_outlined,
+          iconWidget: null,
+          fullBleed: false,
+          tintOnSelected: true,
+          showBorder: true,
+        );
+      case 'parking':
+        return (
+          icon: null,
+          iconWidget: Image.asset(
+            'assets/images/icon wc parking.png',
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.high,
+          ),
+          fullBleed: false,
+          tintOnSelected: false,
+          showBorder: true,
+        );
+      case 'wc':
+        // La Home utilise ce slot pour la langue, donc on garde une icône WC.
+        return (
+          icon: Icons.wc_rounded,
+          iconWidget: null,
+          fullBleed: false,
+          tintOnSelected: true,
+          showBorder: true,
+        );
+      default:
+        return (
+          icon: Icons.place_outlined,
+          iconWidget: null,
+          fullBleed: false,
+          tintOnSelected: true,
+          showBorder: true,
+        );
+    }
   }
 }
 
