@@ -192,6 +192,15 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     final map = _getMapForThisContainer();
     if (map == null) return;
 
+    dynamic _jsValue(dynamic v) {
+      try {
+        if (v is Map || v is List) return js.JsObject.jsify(v);
+      } catch (_) {
+        // ignore
+      }
+      return v;
+    }
+
     final defaultFillColor = masLiveColorToCssHex(_poiStyle.circleColor);
     final defaultStrokeColor = masLiveColorToCssHex(_poiStyle.circleStrokeColor);
 
@@ -227,9 +236,12 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       if (fillLayer != null) {
         map.callMethod(
           'setPaintProperty',
-          [_poiFillLayerId, 'fill-color', fillColorExpr],
+          [_poiFillLayerId, 'fill-color', _jsValue(fillColorExpr)],
         );
-        map.callMethod('setPaintProperty', [_poiFillLayerId, 'fill-opacity', fillOpacityExpr]);
+        map.callMethod(
+          'setPaintProperty',
+          [_poiFillLayerId, 'fill-opacity', _jsValue(fillOpacityExpr)],
+        );
       }
     } catch (_) {
       // ignore
@@ -243,12 +255,18 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         return;
       }
       try {
-        map.callMethod('setPaintProperty', [layerId, 'line-color', lineColorExpr]);
+        map.callMethod(
+          'setPaintProperty',
+          [layerId, 'line-color', _jsValue(lineColorExpr)],
+        );
       } catch (_) {
         // ignore
       }
       try {
-        map.callMethod('setPaintProperty', [layerId, 'line-width', lineWidthExpr]);
+        map.callMethod(
+          'setPaintProperty',
+          [layerId, 'line-width', _jsValue(lineWidthExpr)],
+        );
       } catch (_) {
         // ignore
       }
