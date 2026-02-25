@@ -200,6 +200,17 @@
       }
     },
     {
+      "label": "MASLIVE: Git commit + push (wizard POI inline popup under map)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add app/lib/admin/circuit_wizard_pro_page.dart app/lib/admin/poi_bottom_popup.dart .vscode/tasks.json && git commit -m \"feat(wizard): POI panel under map (scroll)\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (wizard POI layers)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add app/lib/admin/circuit_wizard_pro_page.dart app/lib/models/market_circuit_models.dart app/lib/services/circuit_repository.dart && git commit -m \"fix(wizard): ensure default POI layers (visit/food/assistance/parking/wc)\" && git push origin main && cd app && flutter pub get && { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -z \"$TOKEN\" ]; then echo '❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).'; exit 1; fi && flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" && cd .. && firebase deploy --only hosting",

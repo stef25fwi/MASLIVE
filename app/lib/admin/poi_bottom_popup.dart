@@ -298,3 +298,124 @@ class _Pill extends StatelessWidget {
     );
   }
 }
+
+class PoiInlinePopup extends StatelessWidget {
+  final MarketMapPOI? selectedPoi;
+  final VoidCallback onClose;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final String Function(MarketMapPOI poi)? categoryLabel;
+
+  const PoiInlinePopup({
+    super.key,
+    required this.selectedPoi,
+    required this.onClose,
+    required this.onEdit,
+    required this.onDelete,
+    this.categoryLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final poi = selectedPoi;
+    if (poi == null) return const SizedBox.shrink();
+
+    final colorScheme = Theme.of(context).colorScheme;
+    final bg = colorScheme.surface;
+    final category = (categoryLabel?.call(poi) ?? poi.layerType).trim();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
+      child: Material(
+        color: bg,
+        elevation: 0,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(24),
+          bottom: Radius.circular(24),
+        ),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+            ],
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(24),
+              bottom: Radius.circular(24),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            poi.name,
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w900),
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: [
+                              if (category.isNotEmpty)
+                                _Pill(
+                                  icon: Icons.category_rounded,
+                                  label: category,
+                                ),
+                              _Pill(
+                                icon: Icons.my_location_rounded,
+                                label:
+                                    '${poi.lng.toStringAsFixed(5)}, ${poi.lat.toStringAsFixed(5)}',
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Fermer',
+                      onPressed: onClose,
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.tonalIcon(
+                        onPressed: onEdit,
+                        icon: const Icon(Icons.edit_rounded),
+                        label: const Text('Éditer'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.tonalIcon(
+                        onPressed: onDelete,
+                        icon: const Icon(Icons.delete_rounded),
+                        label: const Text('Supprimer'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

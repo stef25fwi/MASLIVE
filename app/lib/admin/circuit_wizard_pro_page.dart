@@ -106,6 +106,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   MarketMapLayer? _selectedLayer;
   final MasLiveMapControllerPoi _poiMapController = MasLiveMapControllerPoi();
   final PoiSelectionController _poiSelection = PoiSelectionController();
+  final ScrollController _poiStepScrollController = ScrollController();
 
   double? _poiInitialLng;
   double? _poiInitialLat;
@@ -457,7 +458,22 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
       unawaited(_onMapTapForPoi(lng, lat));
     };
 
+    _poiSelection.addListener(_onPoiSelectionChanged);
+
     _loadDraftOrInitialize();
+  }
+
+  void _onPoiSelectionChanged() {
+    if (!_poiSelection.hasSelection) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!_poiStepScrollController.hasClients) return;
+      _poiStepScrollController.animateTo(
+        _poiStepScrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   Future<void> _ensureActorContext() async {
@@ -647,7 +663,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
     _perimeterEditorController.dispose();
     _routeEditorController.dispose();
     _poiMapController.dispose();
+    _poiSelection.removeListener(_onPoiSelectionChanged);
     _poiSelection.dispose();
+    _poiStepScrollController.dispose();
     _nameController.dispose();
     _countryController.dispose();
     _eventController.dispose();
@@ -2315,299 +2333,330 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
 
     final poiLayers = _layers.where((l) => l.type != 'route').toList();
 
+    final viewportHeight = MediaQuery.sizeOf(context).height;
+
     return ChangeNotifierProvider<PoiSelectionController>.value(
       value: _poiSelection,
-      child: Stack(
-        children: [
-          MasLiveMap(
-            controller: _poiMapController,
-            initialLng: _poiInitialLng ?? -61.533,
-            initialLat: _poiInitialLat ?? 16.241,
-            initialZoom: _poiInitialZoom ?? 12.0,
-            styleUrl: _styleUrlController.text.trim().isEmpty
-                ? null
-                : _styleUrlController.text.trim(),
-            onMapReady: (ctrl) async {
-              _refreshPoiMarkers();
-            },
-          ),
+      child: SingleChildScrollView(
+        controller: _poiStepScrollController,
+        child: Column(
+          children: [
+            SizedBox(
+              height: viewportHeight,
+              child: Stack(
+                children: [
+                  MasLiveMap(
+                    controller: _poiMapController,
+                    initialLng: _poiInitialLng ?? -61.533,
+                    initialLat: _poiInitialLat ?? 16.241,
+                    initialZoom: _poiInitialZoom ?? 12.0,
+                    styleUrl: _styleUrlController.text.trim().isEmpty
+                        ? null
+                        : _styleUrlController.text.trim(),
+                    onMapReady: (ctrl) async {
+                      _refreshPoiMarkers();
+                    },
+                  ),
 
-          Positioned(
-            left: 12,
-            right: 78,
-            top: 12,
-            child: interceptPointersIfNeeded(
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.92),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.place_outlined,
-                            color: Colors.blueGrey,
-                          ),
-                          const SizedBox(width: 8),
-                          const Expanded(
-                            child: Text(
-                              'Points d\'intérêt (POI)',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.my_location),
-                            tooltip: 'Ajouter un POI à la position actuelle',
-                            onPressed:
-                                (_selectedLayer == null ||
-                                    _pois.length >= _poiLimit)
-                                ? null
-                                : _addPoiAtCurrentCenter,
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.save_alt),
-                            tooltip: 'Enregistrer les POI',
-                            onPressed: _isLoading ? null : _saveDraft,
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.sync),
-                            tooltip: 'Réimporter POI/couches depuis MarketMap',
-                            onPressed: (_isLoading || _isRefreshingMarketImport)
-                                ? null
-                                : _refreshImportFromMarketMap,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Text(
-                            'POI: ${_pois.length}/$_poiLimit',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: _pois.length >= _poiLimit
-                                  ? Colors.redAccent
-                                  : (_pois.length >= (_poiLimit * 0.9)
-                                        ? Colors.orange
-                                        : Colors.black87),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          if (_hasMorePois || _isLoadingMorePois)
-                            TextButton.icon(
-                              onPressed: _isLoadingMorePois
-                                  ? null
-                                  : _loadMorePoisPage,
-                              icon: _isLoadingMorePois
-                                  ? const SizedBox(
-                                      width: 14,
-                                      height: 14,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Icon(Icons.expand_more, size: 16),
-                              label: const Text('Charger +100'),
-                            ),
-                        ],
-                      ),
-                      if (_pois.length >= _poiLimit)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 4),
-                          child: Text(
-                            'Limite atteinte: supprime des POI pour continuer.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.redAccent,
-                            ),
-                          ),
+                  Positioned(
+                    left: 12,
+                    right: 78,
+                    top: 12,
+                    child: interceptPointersIfNeeded(
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      const SizedBox(height: 8),
-                      if (poiLayers.isNotEmpty)
-                        Row(
-                          children: [
-                            const Text(
-                              'Catégorie: ',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                _selectedLayer?.label ??
-                                    'Choisissez une catégorie',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ),
-                          ],
-                        )
-                      else
-                        const Text(
-                          'Aucune couche trouvée. Vérifiez la configuration du projet.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.redAccent,
-                          ),
-                        ),
-
-                      if (_selectedLayer != null) ...[
-                        const SizedBox(height: 10),
-                        ExpansionTile(
-                          tilePadding: EdgeInsets.zero,
-                          initiallyExpanded: true,
-                          title: Text(
-                            'POI de la couche: ${_selectedLayer!.label}',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          subtitle: Text(
-                            '${_pois.where((p) => _poiMatchesSelectedLayer(p, _selectedLayer!)).length} POI',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          children: [
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxHeight: 220),
-                              child: ListView(
-                                shrinkWrap: true,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Row(
                                 children: [
-                                  for (final poi in _pois.where(
-                                    (p) => _poiMatchesSelectedLayer(
-                                      p,
-                                      _selectedLayer!,
+                                  const Icon(
+                                    Icons.place_outlined,
+                                    color: Colors.blueGrey,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Expanded(
+                                    child: Text(
+                                      'Points d\'intérêt (POI)',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                  ))
-                                    ListTile(
-                                      dense: true,
-                                      contentPadding: EdgeInsets.zero,
-                                      leading: const Icon(
-                                        Icons.place_outlined,
-                                        size: 18,
-                                      ),
-                                      onTap: () => _poiSelection.select(poi),
-                                      title: Text(
-                                        poi.name,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      subtitle: Text(
-                                        '${poi.lng.toStringAsFixed(5)}, ${poi.lat.toStringAsFixed(5)}',
-                                        style: const TextStyle(fontSize: 11),
-                                      ),
-                                      trailing: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                            tooltip: 'Modifier',
-                                            icon: const Icon(
-                                              Icons.edit,
-                                              size: 18,
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.my_location),
+                                    tooltip:
+                                        'Ajouter un POI à la position actuelle',
+                                    onPressed:
+                                        (_selectedLayer == null ||
+                                            _pois.length >= _poiLimit)
+                                        ? null
+                                        : _addPoiAtCurrentCenter,
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.save_alt),
+                                    tooltip: 'Enregistrer les POI',
+                                    onPressed: _isLoading ? null : _saveDraft,
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.sync),
+                                    tooltip:
+                                        'Réimporter POI/couches depuis MarketMap',
+                                    onPressed:
+                                        (_isLoading ||
+                                            _isRefreshingMarketImport)
+                                        ? null
+                                        : _refreshImportFromMarketMap,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  Text(
+                                    'POI: ${_pois.length}/$_poiLimit',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: _pois.length >= _poiLimit
+                                          ? Colors.redAccent
+                                          : (_pois.length >= (_poiLimit * 0.9)
+                                                ? Colors.orange
+                                                : Colors.black87),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  if (_hasMorePois || _isLoadingMorePois)
+                                    TextButton.icon(
+                                      onPressed: _isLoadingMorePois
+                                          ? null
+                                          : _loadMorePoisPage,
+                                      icon: _isLoadingMorePois
+                                          ? const SizedBox(
+                                              width: 14,
+                                              height: 14,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                              ),
+                                            )
+                                          : const Icon(
+                                              Icons.expand_more,
+                                              size: 16,
                                             ),
-                                            onPressed: () => _editPoi(poi),
-                                          ),
-                                          IconButton(
-                                            tooltip: 'Supprimer',
-                                            icon: const Icon(
-                                              Icons.delete_outline,
-                                              size: 18,
-                                            ),
-                                            onPressed: () => _deletePoi(poi),
-                                          ),
-                                        ],
-                                      ),
+                                      label: const Text('Charger +100'),
                                     ),
                                 ],
                               ),
-                            ),
-                            if (_hasMorePois || _isLoadingMorePois)
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton.icon(
-                                  onPressed: _isLoadingMorePois
-                                      ? null
-                                      : _loadMorePoisPage,
-                                  icon: _isLoadingMorePois
-                                      ? const SizedBox(
-                                          width: 14,
-                                          height: 14,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : const Icon(Icons.more_horiz),
-                                  label: const Text('Voir plus'),
+                              if (_pois.length >= _poiLimit)
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    'Limite atteinte: supprime des POI pour continuer.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.redAccent,
+                                    ),
+                                  ),
                                 ),
+                              const SizedBox(height: 8),
+                              if (poiLayers.isNotEmpty)
+                                Row(
+                                  children: [
+                                    const Text(
+                                      'Catégorie: ',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        _selectedLayer?.label ??
+                                            'Choisissez une catégorie',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              else
+                                const Text(
+                                  'Aucune couche trouvée. Vérifiez la configuration du projet.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.redAccent,
+                                  ),
+                                ),
+
+                              if (_selectedLayer != null) ...[
+                                const SizedBox(height: 10),
+                                ExpansionTile(
+                                  tilePadding: EdgeInsets.zero,
+                                  initiallyExpanded: true,
+                                  title: Text(
+                                    'POI de la couche: ${_selectedLayer!.label}',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    '${_pois.where((p) => _poiMatchesSelectedLayer(p, _selectedLayer!)).length} POI',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                  children: [
+                                    ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                        maxHeight: 220,
+                                      ),
+                                      child: ListView(
+                                        shrinkWrap: true,
+                                        children: [
+                                          for (final poi in _pois.where(
+                                            (p) => _poiMatchesSelectedLayer(
+                                              p,
+                                              _selectedLayer!,
+                                            ),
+                                          ))
+                                            ListTile(
+                                              dense: true,
+                                              contentPadding: EdgeInsets.zero,
+                                              leading: const Icon(
+                                                Icons.place_outlined,
+                                                size: 18,
+                                              ),
+                                              onTap: () =>
+                                                  _poiSelection.select(poi),
+                                              title: Text(
+                                                poi.name,
+                                                style: const TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              subtitle: Text(
+                                                '${poi.lng.toStringAsFixed(5)}, ${poi.lat.toStringAsFixed(5)}',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                              trailing: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  IconButton(
+                                                    tooltip: 'Modifier',
+                                                    icon: const Icon(
+                                                      Icons.edit,
+                                                      size: 18,
+                                                    ),
+                                                    onPressed: () =>
+                                                        _editPoi(poi),
+                                                  ),
+                                                  IconButton(
+                                                    tooltip: 'Supprimer',
+                                                    icon: const Icon(
+                                                      Icons.delete_outline,
+                                                      size: 18,
+                                                    ),
+                                                    onPressed: () =>
+                                                        _deletePoi(poi),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (_hasMorePois || _isLoadingMorePois)
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: TextButton.icon(
+                                          onPressed: _isLoadingMorePois
+                                              ? null
+                                              : _loadMorePoisPage,
+                                          icon: _isLoadingMorePois
+                                              ? const SizedBox(
+                                                  width: 14,
+                                                  height: 14,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                      ),
+                                                )
+                                              : const Icon(Icons.more_horiz),
+                                          label: const Text('Voir plus'),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  if (poiLayers.isNotEmpty)
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: interceptPointersIfNeeded(
+                        HomeVerticalNavMenu(
+                          margin: const EdgeInsets.only(right: 0, top: 12),
+                          horizontalPadding: 6,
+                          verticalPadding: 10,
+                          items: [
+                            for (final layer in poiLayers)
+                              HomeVerticalNavItem(
+                                label: layer.label,
+                                icon: _getLayerIcon(layer.type),
+                                selected: _selectedLayer?.type == layer.type,
+                                onTap: () {
+                                  _poiSelection.clear();
+                                  setState(() {
+                                    _selectedLayer = layer;
+                                  });
+                                  _refreshPoiMarkers();
+                                },
                               ),
                           ],
                         ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          if (poiLayers.isNotEmpty)
-            Align(
-              alignment: Alignment.topRight,
-              child: interceptPointersIfNeeded(
-                HomeVerticalNavMenu(
-                  margin: const EdgeInsets.only(right: 0, top: 12),
-                  horizontalPadding: 6,
-                  verticalPadding: 10,
-                  items: [
-                    for (final layer in poiLayers)
-                      HomeVerticalNavItem(
-                        label: layer.label,
-                        icon: _getLayerIcon(layer.type),
-                        selected: _selectedLayer?.type == layer.type,
-                        onTap: () {
-                          _poiSelection.clear();
-                          setState(() {
-                            _selectedLayer = layer;
-                          });
-                          _refreshPoiMarkers();
-                        },
                       ),
-                  ],
-                ),
+                    ),
+
+                  // Fin Stack carte
+                ],
               ),
             ),
 
-          Consumer<PoiSelectionController>(
-            builder: (context, selection, _) {
-              final selected = selection.selectedPoi;
-              return PoiBottomPopup(
-                selectedPoi: selected,
-                onClose: selection.clear,
-                onEdit: selected == null ? () {} : () => _editPoi(selected),
-                onDelete: selected == null ? () {} : () => _deletePoi(selected),
-                categoryLabel: (poi) {
-                  final match = _layers
-                      .where((l) => l.type == poi.layerType)
-                      .toList();
-                  return match.isNotEmpty ? match.first.label : poi.layerType;
-                },
-              );
-            },
-          ),
-        ],
+            Consumer<PoiSelectionController>(
+              builder: (context, selection, _) {
+                final selected = selection.selectedPoi;
+                return PoiInlinePopup(
+                  selectedPoi: selected,
+                  onClose: selection.clear,
+                  onEdit: selected == null ? () {} : () => _editPoi(selected),
+                  onDelete: selected == null
+                      ? () {}
+                      : () => _deletePoi(selected),
+                  categoryLabel: (poi) {
+                    final match = _layers
+                        .where((l) => l.type == poi.layerType)
+                        .toList();
+                    return match.isNotEmpty ? match.first.label : poi.layerType;
+                  },
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
