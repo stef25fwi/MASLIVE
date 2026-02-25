@@ -27,6 +27,7 @@ class CircuitWizardProPage extends StatefulWidget {
   final String? eventId;
   final String? circuitId;
   final int? initialStep;
+  final bool poiOnly;
 
   const CircuitWizardProPage({
     super.key,
@@ -35,6 +36,7 @@ class CircuitWizardProPage extends StatefulWidget {
     this.eventId,
     this.circuitId,
     this.initialStep,
+    this.poiOnly = false,
   });
 
   @override
@@ -44,6 +46,7 @@ class CircuitWizardProPage extends StatefulWidget {
 class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   static const int _poiPageSize = 100;
   static const int _poiLimit = 2000;
+  static const int _poiStepIndex = 5;
 
   final CircuitRepository _repository = CircuitRepository();
   final CircuitVersioningService _versioning = CircuitVersioningService();
@@ -428,7 +431,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   void initState() {
     super.initState();
     _projectId = widget.projectId;
-    _currentStep = (widget.initialStep ?? 0).clamp(0, 8);
+    _currentStep = widget.poiOnly
+        ? _poiStepIndex
+        : (widget.initialStep ?? 0).clamp(0, 8);
     _pageController = PageController(initialPage: _currentStep);
 
     // Step POI: hit-testing GeoJSON (tap POI => édition, tap carte => ajout)
@@ -1144,6 +1149,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
   }
 
   Future<void> _continueToStep(int step) async {
+    if (widget.poiOnly && step != _poiStepIndex) return;
     // Valider l'étape courante
     if (_currentStep == 1) {
       if (_nameController.text.trim().isEmpty) {
@@ -1207,17 +1213,18 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
             height: 60,
             child: Row(
               children: List.generate(9, (index) {
+                final isPoiOnly = widget.poiOnly;
+                final isEnabled = isPoiOnly ? index == _poiStepIndex : index <= _currentStep;
+                final isCompleted = isPoiOnly ? false : index < _currentStep;
                 return Expanded(
                   child: GestureDetector(
-                    onTap: index <= _currentStep
-                        ? () => _pageController.jumpToPage(index)
-                        : null,
+                    onTap: isEnabled ? () => _pageController.jumpToPage(index) : null,
                     child: _StepIndicator(
                       step: index,
                       label: _getStepLabel(index),
                       isActive: index == _currentStep,
-                      isCompleted: index < _currentStep,
-                      isEnabled: index <= _currentStep,
+                      isCompleted: isCompleted,
+                      isEnabled: isEnabled,
                     ),
                   ),
                 );
@@ -1283,7 +1290,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                 Expanded(
                   child: SizedBox(
                     height: 48,
-                    child: _currentStep > 0
+                    child: (!widget.poiOnly && _currentStep > 0)
                         ? OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               foregroundColor: proBlue,
@@ -1319,7 +1326,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage> {
                 Expanded(
                   child: SizedBox(
                     height: 48,
-                    child: _currentStep < 8
+                    child: (!widget.poiOnly && _currentStep < 8)
                         ? FilledButton(
                             style: FilledButton.styleFrom(
                               backgroundColor: proBlue,
@@ -2972,6 +2979,22 @@ class _StepIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final circleColor = isCompleted
+        ? Colors.green
+        : isActive
+            ? Colors.blue
+            : isEnabled
+                ? Colors.grey.shade300
+                : Colors.grey.shade200;
+
+    final circleTextColor = (isActive || isCompleted)
+        ? Colors.white
+        : isEnabled
+            ? Colors.black
+            : Colors.black38;
+
+    final labelColor = isEnabled || isActive ? null : Colors.black38;
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -2979,11 +3002,7 @@ class _StepIndicator extends StatelessWidget {
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: isCompleted
-                ? Colors.green
-                : isActive
-                    ? Colors.blue
-                    : Colors.grey.shade300,
+            color: circleColor,
             shape: BoxShape.circle,
           ),
           child: Center(
@@ -2992,7 +3011,7 @@ class _StepIndicator extends StatelessWidget {
                 : Text(
                     '${step + 1}',
                     style: TextStyle(
-                      color: isActive || isCompleted ? Colors.white : Colors.black,
+                      color: circleTextColor,
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
                     ),
@@ -3007,6 +3026,7 @@ class _StepIndicator extends StatelessWidget {
             style: TextStyle(
               fontSize: 10,
               fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+              color: labelColor,
             ),
           ),
         ),

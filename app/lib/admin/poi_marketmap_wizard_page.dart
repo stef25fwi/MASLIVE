@@ -168,6 +168,7 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
           eventId: pick.eventId,
           circuitId: pick.circuitId,
           initialStep: 5, // POIs (index 5)
+          poiOnly: true,
         ),
       ),
     );

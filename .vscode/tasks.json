@@ -567,7 +567,7 @@
     {
       "label": "MASLIVE: Git add commit push",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE && git add app/lib/widgets/web_mapbox_gl_map.dart app/pubspec.yaml .vscode/tasks.json && git commit -m \"fix(web): mapbox ready callback interop\" && git push origin main",
+      "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add -A && git commit -m \"feat(wizard): lock POI tile to step 6\" && git push origin main",
       "problemMatcher": []
     },
     {
