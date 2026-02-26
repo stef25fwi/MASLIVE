@@ -121,7 +121,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
   String _withWebpExtension(String filename) {
     final lower = filename.toLowerCase();
     final dot = lower.lastIndexOf('.');
-    if (dot <= 0) return '${filename}.webp';
+    if (dot <= 0) return '$filename.webp';
     return '${filename.substring(0, dot)}.webp';
   }
 
@@ -490,7 +490,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       image = Image.network(
         url,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => const ColoredBox(
+        errorBuilder: (context, error, stackTrace) => const ColoredBox(
           color: Colors.black12,
           child: Center(child: Icon(Icons.broken_image_rounded, size: 42)),
         ),

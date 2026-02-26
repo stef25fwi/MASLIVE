@@ -8,7 +8,7 @@ import '../ui/map/maslive_map.dart';
 
 /// AddPlacePage (Mapbox-only)
 /// Page pour ajouter un POI en tapant sur la carte
-/// - Web : Mapbox GL JS (tap via JS interop - TODO)
+/// - Web : Mapbox GL JS (tap via JS interop - à finaliser)
 /// - Mobile : MapWidget avec tap gesture
 class AddPlacePage extends StatefulWidget {
   const AddPlacePage({super.key});
