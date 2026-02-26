@@ -30,6 +30,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'ui/snack/top_snack_bar.dart';
+
 // ------------------------------------------------------------------------------
 // 1) DOMAIN MODELS
 // ------------------------------------------------------------------------------
@@ -1462,7 +1464,8 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                             if (created != null) {
                               await c.createOrUpdate(created, isNew: true);
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
+                                TopSnackBar.show(
+                                  context,
                                   const SnackBar(content: Text('Produit ajouté')),
                                 );
                               }
@@ -1543,7 +1546,8 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                                     if (updated != null) {
                                       await c.createOrUpdate(updated, isNew: false);
                                       if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        TopSnackBar.show(
+                                          context,
                                           const SnackBar(content: Text('Produit enregistré')),
                                         );
                                       }
@@ -2236,7 +2240,8 @@ class _ProductImagesEditorDialogState extends State<ProductImagesEditorDialog> {
     await widget.controller.addImagesToProduct(product, files);
     // Note: stream refresh fait le reste; ici on ferme juste un snack
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         SnackBar(content: Text('${files.length} photo(s) ajoutée(s)')),
       );
     }
@@ -2478,7 +2483,8 @@ class _StockQuickEditorDialogState extends State<StockQuickEditorDialog> {
                           if (context.mounted) Navigator.pop(context);
                         } catch (e) {
                           if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          TopSnackBar.show(
+                            context,
                             SnackBar(content: Text('Erreur: $e')),
                           );
                         }
@@ -2497,7 +2503,8 @@ class _StockQuickEditorDialogState extends State<StockQuickEditorDialog> {
                           if (context.mounted) Navigator.pop(context);
                         } catch (e) {
                           if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          TopSnackBar.show(
+                            context,
                             SnackBar(content: Text('Erreur: $e')),
                           );
                         }
@@ -2863,12 +2870,14 @@ class _BoutiquePageState extends State<BoutiquePage> {
                               if (!context.mounted) return;
                               setState(() => cart.clear());
                               Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              TopSnackBar.show(
+                                context,
                                 SnackBar(content: Text('Commande créée: $orderId')),
                               );
                             } catch (e) {
                               if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              TopSnackBar.show(
+                                context,
                                 SnackBar(content: Text('Checkout impossible: $e')),
                               );
                             }

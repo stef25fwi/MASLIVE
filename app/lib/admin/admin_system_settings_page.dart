@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/app_user.dart';
 import '../services/auth_claims_service.dart';
+import '../ui/snack/top_snack_bar.dart';
 
 /// Page de gestion des paramètres système (Super Admin uniquement)
 class AdminSystemSettingsPage extends StatefulWidget {
@@ -48,7 +49,8 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           SnackBar(content: Text('Erreur: $e')),
         );
       }
@@ -65,13 +67,15 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
           );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           const SnackBar(content: Text('Configuration sauvegardée')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           SnackBar(content: Text('Erreur: $e')),
         );
       }
@@ -112,7 +116,8 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
     if (confirmed == true) {
       // Logique de vidage du cache
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           const SnackBar(content: Text('Cache vidé')),
         );
       }
@@ -127,13 +132,15 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
       await Future.delayed(const Duration(seconds: 2));
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           const SnackBar(content: Text('Backup généré avec succès')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           SnackBar(content: Text('Erreur: $e')),
         );
       }
@@ -460,7 +467,8 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
     if (confirmed == true) {
       // Logique de purge
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           const SnackBar(content: Text('Purge effectuée')),
         );
       }

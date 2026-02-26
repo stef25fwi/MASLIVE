@@ -9,6 +9,7 @@ import 'create_product_dialog.dart';
 import '../pages/storex_shop_page.dart';
 import '../services/commerce/product_repository.dart';
 import '../services/storage_service.dart';
+import '../ui/snack/top_snack_bar.dart';
 
 /// Page de gestion des produits
 class AdminProductsPage extends StatefulWidget {
@@ -183,14 +184,13 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
   }
 
   Future<void> _seedShopAssetsProducts() async {
-    final messenger = ScaffoldMessenger.of(context);
-
     late final List<String> assetPaths;
     try {
       assetPaths = await _loadAllShopImageAssets();
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(
+      TopSnackBar.show(
+        context,
         SnackBar(content: Text('Impossible de lire AssetManifest.json: $e')),
       );
       return;
@@ -279,7 +279,8 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
       }
     }
     if (!mounted) return;
-    messenger.showSnackBar(
+    TopSnackBar.show(
+      context,
       SnackBar(
         content: Text('Produits seedés depuis assets/shop ✅ ($totalUpserted)'),
       ),
@@ -749,9 +750,10 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
       if (xfile == null) return;
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      TopSnackBar.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Upload en cours...')));
+        const SnackBar(content: Text('Upload en cours...')),
+      );
 
       // Upload via StorageService avec structure organisée
       final shopId = (data['shopId'] as String?) ?? widget.shopId;
@@ -780,15 +782,17 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
           });
 
       if (mounted) {
-        ScaffoldMessenger.of(
+        TopSnackBar.show(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Photo mise à jour ✅')));
+          const SnackBar(content: Text('Photo mise à jour ✅')),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        TopSnackBar.show(
           context,
-        ).showSnackBar(SnackBar(content: Text('Erreur upload: $e')));
+          SnackBar(content: Text('Erreur upload: $e')),
+        );
       }
     }
   }
@@ -1020,7 +1024,6 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                 FilledButton(
                   onPressed: () async {
                     final navigator = Navigator.of(dialogContext);
-                    final messenger = ScaffoldMessenger.of(context);
 
                     try {
                       final price =
@@ -1086,14 +1089,16 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
 
                       if (!mounted) return;
                       navigator.pop();
-                      messenger.showSnackBar(
+                      TopSnackBar.show(
+                        context,
                         const SnackBar(
                           content: Text('Produit modifié avec succès'),
                         ),
                       );
                     } catch (e) {
                       if (!mounted) return;
-                      messenger.showSnackBar(
+                      TopSnackBar.show(
+                        context,
                         SnackBar(content: Text('Erreur: $e')),
                       );
                     }
@@ -1158,15 +1163,17 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
             .delete();
 
         if (mounted) {
-          ScaffoldMessenger.of(
+          TopSnackBar.show(
             context,
-          ).showSnackBar(const SnackBar(content: Text('Produit supprimé')));
+            const SnackBar(content: Text('Produit supprimé')),
+          );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
+          TopSnackBar.show(
             context,
-          ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+            SnackBar(content: Text('Erreur: $e')),
+          );
         }
       }
     }

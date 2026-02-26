@@ -3,6 +3,7 @@ import '../services/cart_service.dart';
 import '../session/require_signin.dart';
 import '../session/session_scope.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../ui/snack/top_snack_bar.dart';
 import 'checkout/storex_checkout_stripe.dart';
 
 class CartPage extends StatelessWidget {
@@ -225,7 +226,8 @@ class CartPage extends StatelessWidget {
                                     final userId = FirebaseAuth
                                         .instance.currentUser?.uid;
                                     if (userId == null) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      TopSnackBar.show(
+                                        context,
                                         const SnackBar(
                                           content: Text('Utilisateur introuvable'),
                                         ),

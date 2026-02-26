@@ -6,6 +6,7 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 
 import '../../models/cart_item.dart';
 import '../../services/cart_service.dart';
+import '../../ui/snack/top_snack_bar.dart';
 import '../../ui/widgets/country_autocomplete_field.dart';
 import '../shop/storex_reviews_and_success_pages.dart';
 
@@ -391,8 +392,13 @@ class _StorexDeliveryPageState extends State<StorexDeliveryPage> {
                 onPressed: () {
                   _sync();
                   if (!addr.isValid) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Merci de compléter vos coordonnées (nom, adresse, email, téléphone).')),
+                    TopSnackBar.show(
+                      context,
+                      const SnackBar(
+                        content: Text(
+                          'Merci de compléter vos coordonnées (nom, adresse, email, téléphone).',
+                        ),
+                      ),
                     );
                     return;
                   }
@@ -515,12 +521,14 @@ class _StorexPaymentPageState extends State<StorexPaymentPage> {
     } on StripeException catch (e) {
       final msg = e.error.localizedMessage ?? e.error.message ?? 'Stripe error';
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        TopSnackBar.show(context, SnackBar(content: Text(msg)));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Payment error: $e')));
+        TopSnackBar.show(
+          context,
+          SnackBar(content: Text('Payment error: $e')),
+        );
       }
     } finally {
       if (mounted) setState(() => loading = false);

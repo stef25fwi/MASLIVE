@@ -9,6 +9,7 @@ import 'package:pointer_interceptor/pointer_interceptor.dart';
 import '../models/market_circuit_models.dart';
 import '../services/circuit_repository.dart';
 import '../ui/map/maslive_map.dart';
+import '../ui/snack/top_snack_bar.dart';
 
 typedef LngLat = ({double lng, double lat});
 
@@ -483,7 +484,9 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
       await _ensureActorContext();
       if (!_canWriteMapProjects) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
+
           const SnackBar(content: Text('⛔ Sauvegarde réservée aux admins.')),
         );
         return;
@@ -514,12 +517,16 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
       _draftData = {..._draftData, ...currentData};
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
+
         const SnackBar(content: Text('✅ POIs enregistrés.')),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
+
         SnackBar(content: Text('❌ Erreur sauvegarde: $e')),
       );
     } finally {
@@ -572,7 +579,9 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
     if (_selectedLayer == null) return;
     if (_pois.length >= _poiLimit) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
+
           const SnackBar(content: Text('❌ Limite atteinte: 2000 POI maximum par projet')),
         );
       }

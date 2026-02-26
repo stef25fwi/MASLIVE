@@ -8,6 +8,7 @@ import 'storex_shop_page.dart';
 import 'product_detail_page.dart';
 import '../models/group_product.dart';
 import '../services/cart_service.dart';
+import '../ui/snack/top_snack_bar.dart';
 import '../widgets/language_switcher.dart';
 import '../l10n/app_localizations.dart';
 
@@ -256,7 +257,8 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
       quantity: 1,
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    TopSnackBar.show(
+      context,
       SnackBar(
         content: Text('${product.title} ajouté au panier'),
         action: SnackBarAction(

@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../ui/snack/top_snack_bar.dart';
+
 class BusinessAccountPage extends StatefulWidget {
   const BusinessAccountPage({super.key});
 
@@ -59,9 +61,10 @@ class _BusinessAccountPageState extends State<BusinessAccountPage> {
       await callable.call(<String, dynamic>{});
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      TopSnackBar.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Statut Stripe mis à jour')));
+        const SnackBar(content: Text('Statut Stripe mis à jour')),
+      );
     } catch (e) {
       setState(() => _stripeError = e.toString());
     } finally {

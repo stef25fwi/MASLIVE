@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_role_model.dart';
 import '../models/user_profile_model.dart';
 import '../services/permission_service.dart';
+import '../ui/snack/top_snack_bar.dart';
 import '../widgets/permission_widgets.dart';
 
 /// Page de gestion des rôles et permissions (accessible uniquement aux admins)
@@ -50,7 +51,7 @@ class _RoleManagementPageState extends State<RoleManagementPage> {
       await PermissionService.instance.initializeDefaultRoles();
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(context,
         const SnackBar(
           content: Text('Rôles initialisés avec succès'),
           backgroundColor: Colors.green,
@@ -59,7 +60,7 @@ class _RoleManagementPageState extends State<RoleManagementPage> {
       await _loadRoles();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(context,
         SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
       );
     }
@@ -354,7 +355,7 @@ class _UserCard extends StatelessWidget {
     if (!context.mounted) return;
 
     if (!canManage) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(context,
         const SnackBar(
           content: Text(
             'Vous n\'avez pas la permission de modifier cet utilisateur',
@@ -391,7 +392,7 @@ class _UserCard extends StatelessWidget {
 
         if (!context.mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(context,
           const SnackBar(
             content: Text('Rôle modifié avec succès'),
             backgroundColor: Colors.green,
@@ -401,7 +402,7 @@ class _UserCard extends StatelessWidget {
         onRoleChanged();
       } catch (e) {
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(context,
           SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
         );
       }
@@ -416,7 +417,7 @@ class _UserCard extends StatelessWidget {
     if (!context.mounted) return null;
 
     if (groupsSnapshot.docs.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(context,
         const SnackBar(
           content: Text('Aucun groupe disponible'),
           backgroundColor: Colors.orange,

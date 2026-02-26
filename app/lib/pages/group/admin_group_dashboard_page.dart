@@ -7,6 +7,7 @@ import '../../models/group_admin.dart';
 import '../../models/group_tracker.dart';
 import '../../services/group/group_link_service.dart';
 import '../../services/group/group_tracking_service.dart';
+import '../../ui/snack/top_snack_bar.dart';
 import '../../widgets/group_map_visibility_widget.dart';
 import 'group_map_live_page.dart';
 import 'group_track_history_page.dart';
@@ -82,7 +83,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
         setState(() => _admin = admin);
         
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          TopSnackBar.show(context,
             SnackBar(
               content: Text('Profil créé ! Code: ${admin.adminGroupId}'),
               backgroundColor: Colors.green,
@@ -91,7 +92,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          TopSnackBar.show(context,
             SnackBar(content: Text('Erreur: $e')),
           );
         }
@@ -110,7 +111,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
         await _trackingService.stopTracking();
         setState(() => _isTracking = false);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          TopSnackBar.show(context,
             const SnackBar(content: Text('Tracking arrêté')),
           );
         }
@@ -121,14 +122,14 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
         );
         setState(() => _isTracking = true);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          TopSnackBar.show(context,
             const SnackBar(content: Text('Tracking démarré')),
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(context,
           SnackBar(content: Text('Erreur: $e')),
         );
       }
@@ -151,7 +152,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
       setState(() => _admin = _admin!.copyWith(isVisible: newVisibility));
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(context,
           SnackBar(
             content: Text(newVisibility ? 'Groupe visible' : 'Groupe masqué'),
           ),
@@ -159,7 +160,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(context,
           SnackBar(content: Text('Erreur: $e')),
         );
       }
@@ -171,7 +172,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
   void _copyCodeToClipboard() {
     if (_admin != null) {
       Clipboard.setData(ClipboardData(text: _admin!.adminGroupId));
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(context,
         const SnackBar(content: Text('Code copié dans le presse-papier')),
       );
     }
@@ -417,7 +418,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
           label: 'Statistiques',
           color: Colors.teal,
           onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
+            TopSnackBar.show(context,
               const SnackBar(content: Text('Page Stats à venir')),
             );
           },
@@ -427,7 +428,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
           label: 'Boutique',
           color: Colors.pink,
           onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
+            TopSnackBar.show(context,
               const SnackBar(content: Text('Page Boutique à venir')),
             );
           },
@@ -437,7 +438,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
           label: 'Médias',
           color: Colors.indigo,
           onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
+            TopSnackBar.show(context,
               const SnackBar(content: Text('Page Médias à venir')),
             );
           },

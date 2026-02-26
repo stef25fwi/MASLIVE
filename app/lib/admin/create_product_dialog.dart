@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../ui/snack/top_snack_bar.dart';
+
 /// Popup 10/10 "Créer un produit" : UI premium + validation + photos (galerie/caméra)
 Future<void> showCreateProductDialog({
   required BuildContext context,
@@ -16,9 +18,10 @@ Future<void> showCreateProductDialog({
   );
 
   if (result == true && context.mounted) {
-    ScaffoldMessenger.of(
+    TopSnackBar.show(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Produit créé ✅')));
+      const SnackBar(content: Text('Produit créé ✅')),
+    );
   }
 }
 
@@ -101,7 +104,10 @@ class _CreateProductDialogState extends State<_CreateProductDialog> {
 
   void _toast(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    TopSnackBar.show(
+      context,
+      SnackBar(content: Text(msg)),
+    );
   }
 
   // ---------- Photos ----------
@@ -258,9 +264,10 @@ class _CreateProductDialogState extends State<_CreateProductDialog> {
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      TopSnackBar.show(
         context,
-      ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+        SnackBar(content: Text('Erreur: $e')),
+      );
       setState(() => _isSaving = false);
     }
   }

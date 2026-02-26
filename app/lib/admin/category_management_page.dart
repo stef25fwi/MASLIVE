@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/user_category_model.dart';
 import '../services/user_category_service.dart';
+import '../ui/snack/top_snack_bar.dart';
 import 'admin_gate.dart';
 
 /// Page de gestion des catégories d'utilisateurs
@@ -340,7 +341,8 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
 
       Navigator.pop(context);
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         const SnackBar(
           content: Text('✅ Catégories initialisées avec succès'),
           backgroundColor: Colors.green,
@@ -349,7 +351,8 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         SnackBar(
           content: Text('❌ Erreur: $e'),
           backgroundColor: Colors.red,
@@ -359,7 +362,8 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
   }
 
   void _showAddCategoryDialog() {
-    ScaffoldMessenger.of(context).showSnackBar(
+    TopSnackBar.show(
+      context,
       const SnackBar(
         content: Text('Fonctionnalité en développement'),
       ),
@@ -367,7 +371,8 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
   }
 
   void _editCategory(UserCategoryDefinition category) {
-    ScaffoldMessenger.of(context).showSnackBar(
+    TopSnackBar.show(
+      context,
       SnackBar(
         content: Text('Édition de ${category.name}'),
       ),
@@ -375,7 +380,8 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
   }
 
   void _toggleCategoryStatus(UserCategoryDefinition category) {
-    ScaffoldMessenger.of(context).showSnackBar(
+    TopSnackBar.show(
+      context,
       SnackBar(
         content: Text(
           category.isActive

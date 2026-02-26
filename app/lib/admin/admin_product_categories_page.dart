@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import 'admin_gate.dart';
+import '../ui/snack/top_snack_bar.dart';
 
 class AdminProductCategoriesPage extends StatefulWidget {
   const AdminProductCategoriesPage({super.key});
@@ -230,14 +231,16 @@ class _AdminProductCategoriesPageState
     try {
       await _upsertCategory(name);
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      TopSnackBar.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text('✅ Catégorie créée')));
+        const SnackBar(content: Text('✅ Catégorie créée')),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      TopSnackBar.show(
         context,
-      ).showSnackBar(SnackBar(content: Text('❌ Erreur: $e')));
+        SnackBar(content: Text('❌ Erreur: $e')),
+      );
     }
   }
 
@@ -294,14 +297,16 @@ class _AdminProductCategoriesPageState
         await _migrateProductsCategory(from: oldName, to: newName);
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      TopSnackBar.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text('✅ Catégorie renommée')));
+        const SnackBar(content: Text('✅ Catégorie renommée')),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      TopSnackBar.show(
         context,
-      ).showSnackBar(SnackBar(content: Text('❌ Erreur: $e')));
+        SnackBar(content: Text('❌ Erreur: $e')),
+      );
     }
   }
 
@@ -361,14 +366,16 @@ class _AdminProductCategoriesPageState
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      TopSnackBar.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text('✅ Catégorie supprimée')));
+        const SnackBar(content: Text('✅ Catégorie supprimée')),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      TopSnackBar.show(
         context,
-      ).showSnackBar(SnackBar(content: Text('❌ Erreur: $e')));
+        SnackBar(content: Text('❌ Erreur: $e')),
+      );
     }
   }
 

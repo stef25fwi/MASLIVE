@@ -7,6 +7,7 @@ import '../../models/track_session.dart';
 import '../../services/group/group_download.dart';
 import '../../services/group/group_tracking_service.dart';
 import '../../services/group/group_export_service.dart';
+import '../../ui/snack/top_snack_bar.dart';
 
 class GroupExportPage extends StatefulWidget {
   final String adminGroupId;
@@ -58,13 +59,15 @@ class _GroupExportPageState extends State<GroupExportPage> {
       await Share.share(content, subject: 'Export session $format');
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           SnackBar(content: Text('Export $format réussi')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           SnackBar(content: Text('Erreur: $e')),
         );
       }
@@ -104,13 +107,15 @@ class _GroupExportPageState extends State<GroupExportPage> {
       await Share.share(content, subject: 'Export toutes sessions $format');
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           SnackBar(content: Text('Export global $format réussi')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           SnackBar(content: Text('Erreur: $e')),
         );
       }

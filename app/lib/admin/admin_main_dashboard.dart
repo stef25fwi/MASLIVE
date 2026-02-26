@@ -9,6 +9,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/app_user.dart';
 import '../services/auth_claims_service.dart';
+import '../ui/snack/top_snack_bar.dart';
 import '../widgets/admin_route_guard.dart';
 import '../theme/maslive_theme.dart';
 import 'admin_tracking_page.dart';
@@ -256,7 +257,8 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                     icon: Icons.group,
                     color: Colors.purple,
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      TopSnackBar.show(
+                        context,
                         const SnackBar(content: Text('Page groupes à venir')),
                       );
                     },
@@ -789,7 +791,8 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
       Navigator.pop(context);
 
       if (pushResult.exitCode == 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           SnackBar(
             content: Row(
               children: [
@@ -809,7 +812,8 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
       if (!mounted) return;
       Navigator.pop(context);
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         SnackBar(
           content: Row(
             children: [
@@ -923,7 +927,8 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
       Navigator.pop(context);
 
       if (result.exitCode == 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           const SnackBar(
             content: Row(
               children: [
@@ -943,7 +948,8 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
       if (!mounted) return;
       Navigator.pop(context);
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         SnackBar(
           content: Text('Erreur de build: ${e.toString()}'),
           backgroundColor: Colors.red,
@@ -1051,7 +1057,8 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
       Navigator.pop(context);
 
       if (result.exitCode == 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           const SnackBar(
             content: Row(
               children: [
@@ -1071,7 +1078,8 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
       if (!mounted) return;
       Navigator.pop(context);
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         SnackBar(
           content: Text('Erreur de déploiement: ${e.toString()}'),
           backgroundColor: Colors.red,
@@ -1278,7 +1286,8 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
       Navigator.pop(context); // Fermer loading dialog
 
       // Afficher succès
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         SnackBar(
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1306,7 +1315,8 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
       if (!mounted) return;
       Navigator.pop(context);
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         SnackBar(
           content: Text('Erreur pipeline: ${e.toString()}'),
           backgroundColor: Colors.red,

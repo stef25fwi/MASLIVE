@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../models/order_model.dart';
 import '../services/order_service.dart';
+import '../ui/snack/top_snack_bar.dart';
 import 'admin_gate.dart';
 
 class AdminOrdersPage extends StatefulWidget {
@@ -316,7 +317,8 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                                 if (ctx.mounted) Navigator.of(ctx).pop();
                               } catch (e) {
                                 if (!ctx.mounted) return;
-                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                TopSnackBar.show(
+                                  ctx,
                                   SnackBar(content: Text('❌ Erreur: $e')),
                                 );
                               } finally {
@@ -351,7 +353,8 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                                   );
                                 }
                                 if (ctx.mounted) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                  TopSnackBar.show(
+                                    ctx,
                                     const SnackBar(
                                       content: Text('✅ Commande mise à jour'),
                                     ),
@@ -360,7 +363,8 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                                 }
                               } catch (e) {
                                 if (!ctx.mounted) return;
-                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                TopSnackBar.show(
+                                  ctx,
                                   SnackBar(content: Text('❌ Erreur: $e')),
                                 );
                               } finally {

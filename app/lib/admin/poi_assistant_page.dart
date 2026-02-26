@@ -11,6 +11,7 @@ import 'dart:async';
 import '../ui/map/maslive_map.dart';
 import '../services/mapbox_token_service.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
+import '../ui/snack/top_snack_bar.dart';
 import 'poi_marketmap_wizard_page.dart';
 
 // Import conditionnel: mapbox_native_simple_map est pour mobile/desktop uniquement
@@ -202,7 +203,8 @@ class _POIAssistantPageState extends State<POIAssistantPage> {
               }
             });
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
+              TopSnackBar.show(
+                context,
                 const SnackBar(
                   content: Text('✅ Brouillon restauré avec succès'),
                   backgroundColor: Colors.green,
@@ -230,7 +232,8 @@ class _POIAssistantPageState extends State<POIAssistantPage> {
     setState(() {
       _isFocusMode = !_isFocusMode;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
+    TopSnackBar.show(
+      context,
       SnackBar(
         content: Text(
           _isFocusMode
@@ -407,7 +410,8 @@ class _POIAssistantPageState extends State<POIAssistantPage> {
 
   void _publishPOIs() async {
     if (_selectedMapId == null || _mapName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         const SnackBar(
           content: Text('❌ Veuillez sélectionner une carte'),
           backgroundColor: Colors.red,
@@ -469,7 +473,8 @@ class _POIAssistantPageState extends State<POIAssistantPage> {
       if (!mounted) return;
       Navigator.of(context).pop(); // Fermer le loader
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         SnackBar(
           content: const Text('✅ Carte sauvegardée dans la bibliothèque !'),
           backgroundColor: Colors.green,
@@ -490,7 +495,8 @@ class _POIAssistantPageState extends State<POIAssistantPage> {
       if (!mounted) return;
       Navigator.of(context).pop(); // Fermer le loader
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         SnackBar(content: Text('❌ Erreur: $e'), backgroundColor: Colors.red),
       );
     }
@@ -568,7 +574,8 @@ class _POIAssistantPageState extends State<POIAssistantPage> {
       }
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    TopSnackBar.show(
+      context,
       const SnackBar(
         content: Text('✓ Carte supprimée'),
         backgroundColor: Colors.red,
@@ -1495,7 +1502,8 @@ class _StepStylePOIsState extends State<_StepStylePOIs> {
               const Spacer(),
               ElevatedButton.icon(
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  TopSnackBar.show(
+                    context,
                     const SnackBar(
                       content: Text('✅ POIs publiés avec succès !'),
                       backgroundColor: Colors.green,

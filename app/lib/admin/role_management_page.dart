@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import '../ui/snack/top_snack_bar.dart';
 import 'admin_gate.dart';
 
 /// Page de gestion des rôles système
@@ -369,7 +370,8 @@ class _RoleManagementPageState extends State<RoleManagementPage> {
       final stats = result.data['stats'] as Map<String, dynamic>;
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           SnackBar(
             content: Text(
               '✅ Rôles initialisés: ${stats['created']} créés, ${stats['updated']} mis à jour',
@@ -381,7 +383,8 @@ class _RoleManagementPageState extends State<RoleManagementPage> {
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           SnackBar(
             content: Text('❌ Erreur: $e'),
             backgroundColor: Colors.red,

@@ -12,6 +12,7 @@ import '../services/mapbox_token_service.dart';
 import '../ui/map/maslive_map.dart';
 import '../ui/map/maslive_map_controller.dart';
 import '../ui/widgets/country_autocomplete_field.dart';
+import '../ui/snack/top_snack_bar.dart';
 import 'circuit_wizard_pro_page.dart';
 
 class CircuitWizardEntryPage extends StatefulWidget {
@@ -58,10 +59,10 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
   }
 
   void _showWriteDenied() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('⛔ Accès en écriture réservé aux admins master.'),
-      ),
+    TopSnackBar.showMessage(
+      context,
+      '⛔ Accès en écriture réservé aux admins master.',
+      isError: true,
     );
   }
 
@@ -284,8 +285,10 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
 
     final user = _auth.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vous devez être connecté.')),
+      TopSnackBar.showMessage(
+        context,
+        'Vous devez être connecté.',
+        isError: true,
       );
       return;
     }
@@ -408,9 +411,10 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      TopSnackBar.show(
         context,
-      ).showSnackBar(SnackBar(content: Text('❌ Erreur: $e')));
+        SnackBar(content: Text('❌ Erreur: $e')),
+      );
     }
   }
 
@@ -446,15 +450,17 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
       try {
         await _firestore.collection('map_projects').doc(projectId).delete();
         if (mounted) {
-          ScaffoldMessenger.of(
+          TopSnackBar.show(
             context,
-          ).showSnackBar(const SnackBar(content: Text('✅ Circuit supprimé')));
+            const SnackBar(content: Text('✅ Circuit supprimé')),
+          );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
+          TopSnackBar.show(
             context,
-          ).showSnackBar(SnackBar(content: Text('❌ Erreur: $e')));
+            SnackBar(content: Text('❌ Erreur: $e')),
+          );
         }
       }
     }

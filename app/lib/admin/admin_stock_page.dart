@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import 'admin_gate.dart';
+import '../ui/snack/top_snack_bar.dart';
 
 class AdminStockPage extends StatefulWidget {
   const AdminStockPage({super.key, this.shopId});
@@ -134,7 +135,8 @@ class _AdminStockPageState extends State<AdminStockPage> {
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         SnackBar(
           content: Text(
             'Synchro terminée ✅ (products: +${missingInRoot.length}, shops: +${missingInShop.length})',
@@ -145,7 +147,8 @@ class _AdminStockPageState extends State<AdminStockPage> {
       await _refreshSyncStatus();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         SnackBar(content: Text('Erreur synchro: $e')),
       );
     }
@@ -586,12 +589,14 @@ class _AdminStockPageState extends State<AdminStockPage> {
 
                         if (!ctx.mounted) return;
                         Navigator.pop(ctx);
-                        ScaffoldMessenger.of(ctx).showSnackBar(
+                        TopSnackBar.show(
+                          ctx,
                           const SnackBar(content: Text('✅ Stock mis à jour')),
                         );
                       } catch (e) {
                         if (!ctx.mounted) return;
-                        ScaffoldMessenger.of(ctx).showSnackBar(
+                        TopSnackBar.show(
+                          ctx,
                           SnackBar(content: Text('❌ Erreur: $e')),
                         );
                       } finally {

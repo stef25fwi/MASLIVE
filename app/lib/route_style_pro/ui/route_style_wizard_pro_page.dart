@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../models/route_style_config.dart';
 import '../services/route_snap_service.dart';
 import '../services/route_style_persistence.dart';
+import '../../ui/snack/top_snack_bar.dart';
 import 'widgets/route_style_controls_panel.dart';
 import 'widgets/route_style_preview_map.dart';
 
@@ -365,7 +366,8 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
 
   void _snack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    TopSnackBar.show(
+      context,
       SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
     );
   }

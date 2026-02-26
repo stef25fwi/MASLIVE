@@ -5,6 +5,7 @@ import '../models/market_circuit.dart';
 import '../models/market_country.dart';
 import '../models/market_event.dart';
 import '../services/market_map_service.dart';
+import '../ui/snack/top_snack_bar.dart';
 import '../ui/widgets/country_autocomplete_field.dart';
 
 class MapMarketProjectsPage extends StatefulWidget {
@@ -227,8 +228,10 @@ class _MapMarketProjectsPageState extends State<MapMarketProjectsPage> {
                           .update({'isVisible': v});
                     } catch (e) {
                       if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('❌ Erreur visibilité: $e')),
+                      TopSnackBar.showMessage(
+                        context,
+                        '❌ Erreur visibilité: $e',
+                        isError: true,
                       );
                     }
                   },

@@ -9,6 +9,7 @@ import '../models/market_layer.dart';
 import '../services/market_map_service.dart';
 import '../services/circuit_search_service.dart';
 import '../utils/country_flag.dart';
+import '../ui/snack/top_snack_bar.dart';
 import '../ui/widgets/country_autocomplete_field.dart';
 import 'circuit_wizard_pro_page.dart';
 
@@ -153,7 +154,8 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
     final projectId = pick.projectId;
     if (projectId == null || projectId.trim().isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         const SnackBar(content: Text('❌ Brouillon invalide (projectId manquant).')),
       );
       return;
@@ -194,7 +196,8 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
 
       if (!mounted) return;
       if (!snap.exists) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           const SnackBar(content: Text('❌ Circuit introuvable (marketMap).')),
         );
         return;
@@ -207,7 +210,8 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
       });
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         const SnackBar(content: Text('❌ Erreur lors du chargement du circuit.')),
       );
     }
@@ -327,7 +331,8 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
   Future<void> _createCircuit() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         const SnackBar(content: Text('Vous devez être connecté.')),
       );
       return;
@@ -363,7 +368,8 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         SnackBar(content: Text('Erreur: $e')),
       );
     }
@@ -1137,7 +1143,8 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
 
     if (name.isEmpty || lat == null || lng == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         const SnackBar(content: Text('Nom/Lat/Lng requis.')),
       );
       return;

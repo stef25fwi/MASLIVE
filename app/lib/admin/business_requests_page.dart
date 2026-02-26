@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../services/auth_claims_service.dart';
+import '../ui/snack/top_snack_bar.dart';
 
 class BusinessRequestsPage extends StatefulWidget {
   const BusinessRequestsPage({super.key});
@@ -62,7 +63,8 @@ class _BusinessRequestsPageState extends State<BusinessRequestsPage> with Single
     });
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    TopSnackBar.show(
+      context,
       const SnackBar(content: Text('Compte professionnel activé ✓'), backgroundColor: Colors.green),
     );
   }
@@ -111,7 +113,8 @@ class _BusinessRequestsPageState extends State<BusinessRequestsPage> with Single
       });
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         const SnackBar(content: Text('Demande refusée')),
       );
     } finally {

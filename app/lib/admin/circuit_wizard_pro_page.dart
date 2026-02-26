@@ -16,6 +16,7 @@ import '../services/publish_quality_service.dart';
 import '../ui/map/maslive_map.dart';
 import '../ui/map/maslive_map_controller.dart';
 import '../ui/widgets/country_autocomplete_field.dart';
+import '../ui/snack/top_snack_bar.dart';
 import '../models/market_country.dart';
 import 'circuit_map_editor.dart';
 import '../route_style_pro/models/route_style_config.dart' as rsp;
@@ -171,23 +172,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }) {
     if (!mounted) return;
 
-    final scheme = Theme.of(context).colorScheme;
-    final top = MediaQuery.of(context).padding.top + kToolbarHeight + 8;
-    final bg = isError ? scheme.error : scheme.inverseSurface;
-    final fg = isError ? scheme.onError : scheme.onInverseSurface;
-
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message, style: TextStyle(color: fg)),
-          behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.fromLTRB(16, top, 16, 0),
-          backgroundColor: bg,
-          duration: duration,
-          dismissDirection: DismissDirection.up,
-        ),
-      );
+    TopSnackBar.showMessage(
+      context,
+      message,
+      isError: isError,
+      duration: duration,
+    );
   }
 
   Future<void> _ensureAllPoisLoadedForPublish() async {

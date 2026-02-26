@@ -188,6 +188,17 @@
         "clear": true
       }
     },
+    /* {
+      "label": "MASLIVE: PATCH (temp) circuit_poi_editor SnackBars top",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && python3 -c 'from pathlib import Path; import re; p=Path(\"app/lib/admin/circuit_poi_editor_page.dart\"); t=p.read_text(encoding=\"utf-8\"); nl=\"\\r\\n\" if \"\\r\\n\" in t else \"\\n\"; t=t if \"top_snack_bar.dart\" in t else t.replace(\"import \'../ui/map/maslive_map.dart\';\"+nl, \"import \'../ui/map/maslive_map.dart\';\"+nl+\"import \'../ui/snack/top_snack_bar.dart\';\"+nl, 1); pat=re.compile(r\"(^[ \\t]*)ScaffoldMessenger\\.of\\(context\\)\\.showSnackBar\\(\", re.M); t,n=pat.subn(r\"\\1TopSnackBar.show(\"+nl+r\"\\1  context,\"+nl, t); p.write_text(t, encoding=\"utf-8\", newline=nl); print(\"replaced\", n)'",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    }, */
     {
       "label": "MASLIVE: Git commit + push (wizard POI nav like Home)",
       "type": "shell",

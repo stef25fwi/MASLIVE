@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
 import '../services/premium_service.dart';
+import '../ui/snack/top_snack_bar.dart';
 
 class PaywallPage extends StatefulWidget {
   const PaywallPage({super.key});
@@ -135,7 +136,6 @@ class _PaywallPageState extends State<PaywallPage> {
                       subtitle: desc,
                       price: 'Stripe',
                       onTap: () async {
-                        final messenger = ScaffoldMessenger.of(context);
                         try {
                           final origin = Uri.base.origin;
                           final successUrl = Uri.parse('$origin/#/paywall?stripe=success');
@@ -148,7 +148,8 @@ class _PaywallPageState extends State<PaywallPage> {
                           );
                         } catch (e) {
                           if (!mounted) return;
-                          messenger.showSnackBar(
+                          TopSnackBar.show(
+                            context,
                             SnackBar(content: Text('Checkout échoué: $e')),
                           );
                         }
@@ -212,13 +213,13 @@ class _PaywallPageState extends State<PaywallPage> {
                   price: price,
                   onTap: () async {
                     final nav = Navigator.of(context);
-                    final messenger = ScaffoldMessenger.of(context);
                     try {
                       await PremiumService.instance.purchasePackage(p);
                       if (mounted) nav.pop();
                     } catch (e) {
                       if (!mounted) return;
-                      messenger.showSnackBar(
+                      TopSnackBar.show(
+                        context,
                         SnackBar(content: Text('Achat annulé/échoué: $e')),
                       );
                     }

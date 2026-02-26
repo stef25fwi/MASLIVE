@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/commerce_submission.dart';
 import '../services/commerce/commerce_service.dart';
+import '../ui/snack/top_snack_bar.dart';
 import '../widgets/commerce/moderation_tile.dart';
 
 /// Page de modération des soumissions commerce
@@ -100,13 +101,15 @@ class _AdminModerationPageState extends State<AdminModerationPage> {
       try {
         await _service.approve(submission.id);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          TopSnackBar.show(
+            context,
             const SnackBar(content: Text('✅ Soumission validée et publiée')),
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          TopSnackBar.show(
+            context,
             SnackBar(content: Text('❌ Erreur: $e')),
           );
         }
@@ -144,13 +147,15 @@ class _AdminModerationPageState extends State<AdminModerationPage> {
       try {
         await _service.reject(submission.id, note);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          TopSnackBar.show(
+            context,
             const SnackBar(content: Text('✅ Soumission refusée')),
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          TopSnackBar.show(
+            context,
             SnackBar(content: Text('❌ Erreur: $e')),
           );
         }

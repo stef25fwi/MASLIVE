@@ -2,6 +2,8 @@
 
 import 'package:flutter/material.dart';
 
+import '../ui/snack/top_snack_bar.dart';
+
 class CircuitSavePage extends StatefulWidget {
   const CircuitSavePage({super.key});
 
@@ -83,9 +85,10 @@ class _CircuitSavePageState extends State<CircuitSavePage> {
             _folders[name] = {'maps': {}};
           });
           Navigator.pop(ctx);
-          ScaffoldMessenger.of(
+          TopSnackBar.show(
             context,
-          ).showSnackBar(SnackBar(content: Text("✓ Dossier '$name' créé")));
+            SnackBar(content: Text("✓ Dossier '$name' créé")),
+          );
         },
       ),
     );
@@ -106,7 +109,8 @@ class _CircuitSavePageState extends State<CircuitSavePage> {
             onPressed: () {
               setState(() => _folders.remove(folderName));
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
+              TopSnackBar.show(
+                context,
                 SnackBar(content: Text("✓ Dossier '$folderName' supprimé")),
               );
             },

@@ -8,6 +8,7 @@ import 'storex_shop_page.dart';
 import 'product_detail_page.dart';
 import '../services/cart_service.dart';
 import 'cart_page.dart';
+import '../ui/snack/top_snack_bar.dart';
 
 class ShopBodyUnderHeader extends StatefulWidget {
   const ShopBodyUnderHeader({
@@ -192,7 +193,8 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
       quantity: 1,
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    TopSnackBar.show(
+      context,
       SnackBar(
         content: Text('${product.title} ajouté au panier'),
         action: SnackBarAction(
@@ -544,7 +546,8 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
                         color: color,
                         quantity: 1,
                       );
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      TopSnackBar.show(
+                        context,
                         SnackBar(
                           content: Text('${product.title} ajouté au panier'),
                           action: SnackBarAction(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/map_preset_model.dart';
 import '../services/map_presets_service.dart';
+import '../ui/snack/top_snack_bar.dart';
 import '../ui/theme/maslive_theme.dart';
 
 /// Page pour sélectionner une carte pré-enregistrée et ses couches
@@ -60,7 +61,8 @@ class _MapSelectorPageState extends State<MapSelectorPage> {
     }
     
     if (_selectedPreset == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         const SnackBar(content: Text('Veuillez sélectionner une carte')),
       );
       return;

@@ -11,6 +11,7 @@ import '../services/cart_service.dart';
 import '../shop/widgets/shop_drawer.dart';
 import '../widgets/language_switcher.dart';
 import '../l10n/app_localizations.dart' as l10n;
+import '../ui/snack/top_snack_bar.dart';
 
 /// ===============================================================
 /// Storex-style Shop for MassLive (Firestore: products + categories)
@@ -1022,10 +1023,10 @@ class _StorexAccount extends StatelessWidget {
               icon: Icons.logout,
               label: l10n.AppLocalizations.of(context)!.logout,
               onTap: () async {
-                final messenger = ScaffoldMessenger.of(context);
                 final logoutLabel = l10n.AppLocalizations.of(context)!.logout;
                 await FirebaseAuth.instance.signOut();
-                messenger.showSnackBar(
+                TopSnackBar.show(
+                  context,
                   SnackBar(
                     content: Text(logoutLabel),
                   ),
@@ -1217,12 +1218,12 @@ class _WishlistPage extends StatelessWidget {
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                                 ),
                                 onPressed: () async {
-                                  final messenger = ScaffoldMessenger.of(context);
                                   try {
                                     debugPrint('[SHOP] Add wishlist item to cart: $productId');
                                     final p = await _fetchProductById(productId);
                                     if (p == null) {
-                                      messenger.showSnackBar(
+                                      TopSnackBar.show(
+                                        context,
                                         const SnackBar(content: Text('Produit introuvable.')),
                                       );
                                       return;
@@ -1239,11 +1240,13 @@ class _WishlistPage extends StatelessWidget {
                                       quantity: 1,
                                     );
 
-                                    messenger.showSnackBar(
+                                    TopSnackBar.show(
+                                      context,
                                       const SnackBar(content: Text('Ajouté au panier ✅')),
                                     );
                                   } catch (e) {
-                                    messenger.showSnackBar(
+                                    TopSnackBar.show(
+                                      context,
                                       SnackBar(content: Text('Erreur ajout panier: $e')),
                                     );
                                   }

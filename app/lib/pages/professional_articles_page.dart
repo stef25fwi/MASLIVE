@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'professional_article_form_page.dart';
+import '../ui/snack/top_snack_bar.dart';
 
 class ProfessionalArticlesPage extends StatefulWidget {
   const ProfessionalArticlesPage({super.key});
@@ -547,12 +548,12 @@ class _ProfessionalArticlesPageState extends State<ProfessionalArticlesPage> {
           .delete();
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(context,
         const SnackBar(content: Text('Article supprimé ✓')),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(context,
         SnackBar(content: Text('Erreur: $e')),
       );
     }

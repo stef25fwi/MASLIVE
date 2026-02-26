@@ -8,6 +8,7 @@ import '../services/storage_service.dart';
 import '../widgets/rainbow_header.dart';
 import '../ui/widgets/honeycomb_background.dart';
 import '../ui/widgets/rainbow_loading_indicator.dart';
+import '../ui/snack/top_snack_bar.dart';
 
 class SuperadminArticlesPage extends StatefulWidget {
   const SuperadminArticlesPage({super.key});
@@ -321,7 +322,6 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
       context: context,
       builder: (context) => _ArticleEditDialog(
         onSave: (article) async {
-          final messenger = ScaffoldMessenger.of(context);
           try {
             await _articleService.createArticle(
               name: article['name'],
@@ -334,12 +334,16 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
             );
 
             if (!mounted) return;
-            messenger.showSnackBar(
+            TopSnackBar.show(
+              context,
               const SnackBar(content: Text('✅ Article créé avec succès')),
             );
           } catch (e) {
             if (!mounted) return;
-            messenger.showSnackBar(SnackBar(content: Text('❌ Erreur: $e')));
+            TopSnackBar.show(
+              context,
+              SnackBar(content: Text('❌ Erreur: $e')),
+            );
           }
         },
       ),
@@ -352,7 +356,6 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
       builder: (context) => _ArticleEditDialog(
         article: article,
         onSave: (updatedData) async {
-          final messenger = ScaffoldMessenger.of(context);
           try {
             final updated = article.copyWith(
               name: updatedData['name'],
@@ -367,12 +370,16 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
             await _articleService.updateArticle(article.id, updated);
 
             if (!mounted) return;
-            messenger.showSnackBar(
+            TopSnackBar.show(
+              context,
               const SnackBar(content: Text('✅ Article mis à jour')),
             );
           } catch (e) {
             if (!mounted) return;
-            messenger.showSnackBar(SnackBar(content: Text('❌ Erreur: $e')));
+            TopSnackBar.show(
+              context,
+              SnackBar(content: Text('❌ Erreur: $e')),
+            );
           }
         },
       ),
@@ -403,14 +410,16 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
                 await _articleService.updateStock(article.id, newStock);
                 if (!context.mounted) return;
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
+                TopSnackBar.show(
+                  context,
                   const SnackBar(content: Text('✅ Stock mis à jour')),
                 );
               } catch (e) {
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(
+                TopSnackBar.show(
                   context,
-                ).showSnackBar(SnackBar(content: Text('❌ Erreur: $e')));
+                  SnackBar(content: Text('❌ Erreur: $e')),
+                );
               }
             },
             child: const Text('Mettre à jour'),
@@ -437,14 +446,16 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
                 await _articleService.deleteArticle(article.id);
                 if (!context.mounted) return;
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
+                TopSnackBar.show(
+                  context,
                   const SnackBar(content: Text('✅ Article supprimé')),
                 );
               } catch (e) {
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(
+                TopSnackBar.show(
                   context,
-                ).showSnackBar(SnackBar(content: Text('❌ Erreur: $e')));
+                  SnackBar(content: Text('❌ Erreur: $e')),
+                );
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -537,7 +548,8 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
       final hasPermission = await _checkGalleryPermission();
       if (!hasPermission) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          TopSnackBar.show(
+            context,
             const SnackBar(
               content: Text('❌ Permission galerie refusée'),
               duration: Duration(seconds: 3),
@@ -563,7 +575,8 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           const SnackBar(
             content: Text('✅ Image sélectionnée'),
             duration: Duration(seconds: 2),
@@ -573,9 +586,10 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
     } catch (e) {
       debugPrint('❌ Erreur sélection image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
+        TopSnackBar.show(
           context,
-        ).showSnackBar(SnackBar(content: Text('❌ Erreur: $e')));
+          SnackBar(content: Text('❌ Erreur: $e')),
+        );
       }
     }
   }
@@ -614,7 +628,8 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
     });
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         SnackBar(
           content: Text('✅ Asset sélectionné: ${selected.split('/').last}'),
           duration: const Duration(seconds: 2),
@@ -700,9 +715,10 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
     } catch (e) {
       debugPrint('❌ Erreur upload image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
+        TopSnackBar.show(
           context,
-        ).showSnackBar(SnackBar(content: Text('❌ Erreur upload: $e')));
+          SnackBar(content: Text('❌ Erreur upload: $e')),
+        );
       }
       return null;
     } finally {
@@ -873,12 +889,12 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
           onPressed: _isUploading
               ? null
               : () async {
-                  final messenger = ScaffoldMessenger.of(context);
                   final navigator = Navigator.of(context);
 
                   final name = _nameController.text.trim();
                   if (name.isEmpty) {
-                    messenger.showSnackBar(
+                    TopSnackBar.show(
+                      context,
                       const SnackBar(content: Text('❌ Le nom est requis')),
                     );
                     return;
@@ -900,7 +916,8 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
                     finalImageUrl = await _uploadImageIfNeeded(articleId);
                     if (finalImageUrl == null) {
                       if (!mounted) return;
-                      messenger.showSnackBar(
+                      TopSnackBar.show(
+                        context,
                         const SnackBar(content: Text('❌ Échec upload image')),
                       );
                       return;

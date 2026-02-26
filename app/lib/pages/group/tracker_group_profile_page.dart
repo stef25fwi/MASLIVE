@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../models/group_tracker.dart';
 import '../../services/group/group_link_service.dart';
 import '../../services/group/group_tracking_service.dart';
+import '../../ui/snack/top_snack_bar.dart';
 import 'group_track_history_page.dart';
 import 'group_export_page.dart';
 
@@ -45,7 +46,8 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
 
   Future<void> _linkToAdmin() async {
     if (_codeController.text.length != 6 || _nameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         const SnackBar(content: Text('Code 6 chiffres et nom requis')),
       );
       return;
@@ -60,7 +62,8 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
       setState(() => _tracker = tracker);
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           const SnackBar(
             content: Text('Rattachement réussi !'),
             backgroundColor: Colors.green,
@@ -69,7 +72,8 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           SnackBar(content: Text('Erreur: $e')),
         );
       }
@@ -95,7 +99,8 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        TopSnackBar.show(
+          context,
           SnackBar(content: Text('Erreur: $e')),
         );
       }

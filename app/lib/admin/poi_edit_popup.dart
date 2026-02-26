@@ -9,6 +9,7 @@ import '../models/image_asset.dart' as img;
 import '../models/market_circuit_models.dart';
 import '../services/image_management_service.dart';
 import '../services/webp_converter.dart';
+import '../ui/snack/top_snack_bar.dart';
 
 class PoiEditPopup extends StatefulWidget {
   final MarketMapPOI poi;
@@ -109,8 +110,10 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       await _setSelectedFile(file);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ Erreur sélection image: $e')),
+      TopSnackBar.showMessage(
+        context,
+        '❌ Erreur sélection image: $e',
+        isError: true,
       );
     }
   }
@@ -167,8 +170,10 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
         _selectedFile = file;
         _selectedPreviewBytes = null;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('⚠️ Lecture image impossible: $e')),
+      TopSnackBar.showMessage(
+        context,
+        '⚠️ Lecture image impossible: $e',
+        isError: true,
       );
     } finally {
       if (mounted) {
@@ -194,12 +199,10 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
         if (!supportsWebpConversion) {
           if (!_webpUnsupportedNotified && mounted) {
             _webpUnsupportedNotified = true;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'ℹ️ Conversion WebP disponible sur Web uniquement (pour l’instant).',
-                ),
-              ),
+            TopSnackBar.showMessage(
+              context,
+              'ℹ️ Conversion WebP disponible sur Web uniquement (pour l’instant).',
+              isError: false,
             );
           }
 
@@ -241,8 +244,10 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
         _selectedFile = originalFile;
         _selectedPreviewBytes = originalBytes;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('⚠️ Conversion WebP impossible, upload en original: $e')),
+      TopSnackBar.showMessage(
+        context,
+        '⚠️ Conversion WebP impossible, upload en original: $e',
+        isError: true,
       );
     }
   }
@@ -313,8 +318,10 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Photo uploadée')),
+        TopSnackBar.showMessage(
+          context,
+          '✅ Photo uploadée',
+          isError: false,
         );
       }
     } finally {
@@ -381,8 +388,10 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       Navigator.of(context).pop(_buildUpdatedPoi());
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ Impossible d\'enregistrer: $e')),
+      TopSnackBar.showMessage(
+        context,
+        '❌ Impossible d\'enregistrer: $e',
+        isError: true,
       );
     } finally {
       if (mounted) setState(() => _isSaving = false);

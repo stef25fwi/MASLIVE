@@ -4,6 +4,7 @@ import '../models/app_user.dart';
 import '../models/user_category_model.dart';
 import '../services/auth_claims_service.dart';
 import '../services/user_category_service.dart';
+import '../ui/snack/top_snack_bar.dart';
 import 'admin_gate.dart';
 
 /// Espace SuperAdmin - Fonctionnalités avancées réservées aux superadmins
@@ -628,7 +629,8 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
       
       Navigator.pop(context);
       
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         const SnackBar(
           content: Text('✅ Rôles initialisés avec succès'),
           backgroundColor: Colors.green,
@@ -639,7 +641,8 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         SnackBar(
           content: Text('❌ Erreur: $e'),
           backgroundColor: Colors.red,
@@ -661,7 +664,8 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
       
       Navigator.pop(context);
       
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         const SnackBar(
           content: Text('✅ Catégories initialisées avec succès'),
           backgroundColor: Colors.green,
@@ -672,7 +676,8 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
+      TopSnackBar.show(
+        context,
         SnackBar(
           content: Text('❌ Erreur: $e'),
           backgroundColor: Colors.red,

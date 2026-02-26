@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'ui/snack/top_snack_bar.dart';
+
 /// ==========================
 /// 1) BACKGROUND HANDLER
 /// ==========================
@@ -33,7 +35,6 @@ class PushService {
     _initialized = true;
 
     final nav = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
 
     // Handler arrière-plan
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
@@ -55,7 +56,8 @@ class PushService {
       final data = message.data;
       if (data['type'] == 'order') {
         final orderId = data['orderId'];
-        messenger.showSnackBar(
+        TopSnackBar.show(
+          context,
           SnackBar(
             content: const Text('Nouvelle commande à valider'),
             action: SnackBarAction(
@@ -384,7 +386,6 @@ class _OrderActions extends StatelessWidget {
                     final uid = FirebaseAuth.instance.currentUser?.uid;
                     if (uid == null) return;
 
-                    final messenger = ScaffoldMessenger.of(context);
                     await FirebaseFirestore.instance
                         .collection('orders')
                         .doc(orderId)
@@ -393,7 +394,8 @@ class _OrderActions extends StatelessWidget {
                       'validatedAt': FieldValue.serverTimestamp(),
                       'validatedBy': uid,
                     });
-                    messenger.showSnackBar(
+                    TopSnackBar.show(
+                      context,
                       const SnackBar(content: Text('Commande validée')),
                     );
                   },
@@ -410,7 +412,6 @@ class _OrderActions extends StatelessWidget {
                     final uid = FirebaseAuth.instance.currentUser?.uid;
                     if (uid == null) return;
 
-                    final messenger = ScaffoldMessenger.of(context);
                     await FirebaseFirestore.instance
                         .collection('orders')
                         .doc(orderId)
@@ -419,7 +420,8 @@ class _OrderActions extends StatelessWidget {
                       'rejectedAt': FieldValue.serverTimestamp(),
                       'rejectedBy': uid,
                     });
-                    messenger.showSnackBar(
+                    TopSnackBar.show(
+                      context,
                       const SnackBar(content: Text('Commande refusée')),
                     );
                   },
