@@ -172,25 +172,29 @@ class _MarketMapPoiSelectorSheetState extends State<_MarketMapPoiSelectorSheet> 
             },
           ),
           const SizedBox(height: 12),
-          _event == null && _country == null
-              ? const SizedBox.shrink()
-              : StreamBuilder<List<MarketEvent>>(
-                  stream: _country == null
-                      ? const Stream.empty()
-                      : widget.service.watchEvents(countryId: _country!.id),
-                  builder: (context, snap) {
-                    final items = snap.data ?? const <MarketEvent>[];
-                    return DropdownButtonFormField<String>(
-                      initialValue: _event?.id,
-                      decoration: const InputDecoration(
-                        labelText: 'Événement',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: [
-                        for (final e in items)
-                          DropdownMenuItem(value: e.id, child: Text(e.name)),
-                      ],
-                      onChanged: (id) {
+          StreamBuilder<List<MarketEvent>>(
+            stream: _country == null
+                ? const Stream.empty()
+                : widget.service.watchEvents(countryId: _country!.id),
+            builder: (context, snap) {
+              final items = snap.data ?? const <MarketEvent>[];
+
+              final selectedId = _event?.id;
+              final value = items.any((e) => e.id == selectedId) ? selectedId : null;
+
+              return DropdownButtonFormField<String>(
+                initialValue: value,
+                decoration: const InputDecoration(
+                  labelText: 'Événement',
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  for (final e in items)
+                    DropdownMenuItem(value: e.id, child: Text(e.name)),
+                ],
+                onChanged: (_country == null)
+                    ? null
+                    : (id) {
                         if (id == null) return;
                         final selected = items.firstWhere(
                           (e) => e.id == id,
@@ -209,9 +213,9 @@ class _MarketMapPoiSelectorSheetState extends State<_MarketMapPoiSelectorSheet> 
                           _layerSelectionInitialized = false;
                         });
                       },
-                    );
-                  },
-                ),
+              );
+            },
+          ),
           const SizedBox(height: 12),
           StreamBuilder<List<MarketCircuit>>(
             stream: (_country == null || _event == null)
@@ -224,8 +228,8 @@ class _MarketMapPoiSelectorSheetState extends State<_MarketMapPoiSelectorSheet> 
                   allCircuits.where((c) => c.isVisible == true).toList(growable: false);
 
               final selectedId = _circuit?.id;
-              final currentValue =
-                  items.any((c) => c.id == selectedId) ? selectedId : null;
+              final currentValue = items.any((c) => c.id == selectedId) ? selectedId : null;
+
               return DropdownButtonFormField<String>(
                 initialValue: currentValue,
                 decoration: const InputDecoration(
@@ -236,33 +240,35 @@ class _MarketMapPoiSelectorSheetState extends State<_MarketMapPoiSelectorSheet> 
                   for (final c in items)
                     DropdownMenuItem(value: c.id, child: Text('${c.name} (${c.status})')),
                 ],
-                onChanged: (id) {
-                  if (id == null) return;
-                  final selected = items.firstWhere(
-                    (c) => c.id == id,
-                    orElse: () => MarketCircuit(
-                      id: '',
-                      countryId: _country?.id ?? '',
-                      eventId: _event?.id ?? '',
-                      name: '',
-                      slug: '',
-                      status: 'draft',
-                      createdByUid: '',
-                      perimeterLocked: false,
-                      zoomLocked: false,
-                      center: const {'lat': 0.0, 'lng': 0.0},
-                      initialZoom: 14,
-                      isVisible: false,
-                      wizardState: const <String, dynamic>{},
-                    ),
-                  );
-                  if (selected.id.isEmpty) return;
-                  setState(() {
-                    _circuit = selected;
-                    _layerIds = <String>{};
-                    _layerSelectionInitialized = false;
-                  });
-                },
+                onChanged: (_country == null || _event == null)
+                    ? null
+                    : (id) {
+                        if (id == null) return;
+                        final selected = items.firstWhere(
+                          (c) => c.id == id,
+                          orElse: () => MarketCircuit(
+                            id: '',
+                            countryId: _country?.id ?? '',
+                            eventId: _event?.id ?? '',
+                            name: '',
+                            slug: '',
+                            status: 'draft',
+                            createdByUid: '',
+                            perimeterLocked: false,
+                            zoomLocked: false,
+                            center: const {'lat': 0.0, 'lng': 0.0},
+                            initialZoom: 14,
+                            isVisible: false,
+                            wizardState: const <String, dynamic>{},
+                          ),
+                        );
+                        if (selected.id.isEmpty) return;
+                        setState(() {
+                          _circuit = selected;
+                          _layerIds = <String>{};
+                          _layerSelectionInitialized = false;
+                        });
+                      },
               );
             },
           ),

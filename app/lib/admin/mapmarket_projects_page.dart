@@ -97,6 +97,7 @@ class _MapMarketProjectsPageState extends State<MapMarketProjectsPage> {
         return MarketCountryAutocompleteField(
           items: items,
           controller: _countryCtrl,
+          labelText: 'Pays',
           hintText: 'Rechercher un pays…',
           onSelected: (c) {
             setState(() {
