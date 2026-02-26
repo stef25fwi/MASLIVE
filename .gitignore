@@ -7,6 +7,10 @@
 .buildlog/
 .history
 
+# Python virtual environments (local)
+.venv/
+venv/
+
 
 
 # Flutter repo-specific
