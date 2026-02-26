@@ -21,6 +21,7 @@ class _MapMarketProjectsPageState extends State<MapMarketProjectsPage> {
 
   MarketCountry? _country;
   MarketEvent? _event;
+  MarketCircuit? _circuit;
 
   final TextEditingController _countryCtrl = TextEditingController();
 
@@ -55,6 +56,7 @@ class _MapMarketProjectsPageState extends State<MapMarketProjectsPage> {
         children: [
           SizedBox(width: 320, child: _buildCountryAutocomplete()),
           SizedBox(width: 320, child: _buildEventDropdown()),
+          SizedBox(width: 320, child: _buildCircuitDropdown()),
         ],
       ),
     );
@@ -103,6 +105,7 @@ class _MapMarketProjectsPageState extends State<MapMarketProjectsPage> {
             setState(() {
               _country = c;
               _event = null;
+              _circuit = null;
               _defaultEventApplied = false;
               if (c != null) {
                 _countryCtrl.text = _countryDisplay(c);
@@ -166,7 +169,56 @@ class _MapMarketProjectsPageState extends State<MapMarketProjectsPage> {
               ),
             );
             if (selected.id.isEmpty) return;
-            setState(() => _event = selected);
+            setState(() {
+              _event = selected;
+              _circuit = null;
+            });
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildCircuitDropdown() {
+    if (_country == null || _event == null) {
+      return DropdownButtonFormField<String>(
+        items: <DropdownMenuItem<String>>[],
+        onChanged: null,
+        decoration: const InputDecoration(
+          labelText: 'Circuit',
+          border: OutlineInputBorder(),
+        ),
+      );
+    }
+
+    return StreamBuilder<List<MarketCircuit>>(
+      stream: _service.watchCircuits(countryId: _country!.id, eventId: _event!.id),
+      builder: (context, snap) {
+        final items = snap.data ?? const <MarketCircuit>[];
+        const allValue = '__all__';
+
+        final selectedId = _circuit?.id;
+        final value = (selectedId != null && items.any((c) => c.id == selectedId)) ? selectedId : allValue;
+
+        return DropdownButtonFormField<String>(
+          initialValue: value,
+          decoration: const InputDecoration(
+            labelText: 'Circuit',
+            border: OutlineInputBorder(),
+          ),
+          items: [
+            const DropdownMenuItem(value: allValue, child: Text('Tous les circuits')),
+            for (final c in items) DropdownMenuItem(value: c.id, child: Text(c.name)),
+          ],
+          onChanged: (id) {
+            if (id == null) return;
+            if (id == allValue) {
+              setState(() => _circuit = null);
+              return;
+            }
+            final matches = items.where((c) => c.id == id);
+            if (matches.isEmpty) return;
+            setState(() => _circuit = matches.first);
           },
         );
       },
@@ -176,6 +228,7 @@ class _MapMarketProjectsPageState extends State<MapMarketProjectsPage> {
   Widget _buildCircuitsList() {
     final country = _country;
     final event = _event;
+    final circuitFilterId = _circuit?.id;
 
     if (country == null || event == null) {
       return const Center(
@@ -193,7 +246,11 @@ class _MapMarketProjectsPageState extends State<MapMarketProjectsPage> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final circuits = snap.data!;
+        var circuits = snap.data!;
+        if (circuitFilterId != null) {
+          circuits = circuits.where((c) => c.id == circuitFilterId).toList();
+        }
+
         if (circuits.isEmpty) {
           return const Center(child: Text('Aucun circuit pour cet événement.'));
         }

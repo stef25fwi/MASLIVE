@@ -124,7 +124,10 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/map_projects/$(request.resource.data.sourceProjectId))
         && (
           isSuperAdmin()
+          // Cas nominal: admin du même groupe.
           || projectGroupId(request.resource.data.sourceProjectId) == userGroupId()
+          // Cas toléré: l'admin master publie SON projet (évite un blocage si son groupId n'est pas renseigné).
+          || isProjectCreator(request.resource.data.sourceProjectId)
         );
     }
 
@@ -135,7 +138,10 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/map_projects/$(resource.data.sourceProjectId))
         && (
           isSuperAdmin()
+          // Cas nominal: admin du même groupe.
           || projectGroupId(resource.data.sourceProjectId) == userGroupId()
+          // Cas toléré: l'admin master supprime SON circuit publié.
+          || isProjectCreator(resource.data.sourceProjectId)
         );
     }
 

@@ -21,7 +21,7 @@ import '../ui/widgets/mapbox_token_dialog.dart';
 import '../ui/widgets/marketmap_poi_selector_sheet.dart';
 import '../ui/map/maslive_map.dart';
 import '../ui/map/maslive_map_controller.dart'
-    show MapMarker, MasLiveMapController;
+  show MapMarker, MapPoint, MasLiveMapController;
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
 import '../l10n/app_localizations.dart' as l10n;
 import '../services/market_map_service.dart';
@@ -88,6 +88,11 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   List<MarketPoi> _marketPois = const <MarketPoi>[];
   List<MapMarker> _marketPoiMarkers = const <MapMarker>[];
   final MasLiveMapController _mapController = MasLiveMapController();
+
+  bool _isMasLiveMapReady = false;
+  List<MapPoint> _marketRoutePoints = const <MapPoint>[];
+  Map<String, dynamic> _marketRouteStyle = const <String, dynamic>{};
+  ({double west, double south, double east, double north})? _marketRouteBounds;
 
   MarketMapService _getMarketMapService() {
     return _marketMapService ??= MarketMapService();
@@ -215,7 +220,20 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       setState(() {
         _marketPois = const <MarketPoi>[];
         _marketPoiMarkers = const <MapMarker>[];
+        _marketRoutePoints = const <MapPoint>[];
+        _marketRouteStyle = const <String, dynamic>{};
+        _marketRouteBounds = null;
       });
+
+      // Masquer le tracé sans effacer les marqueurs.
+      if (_isMasLiveMapReady) {
+        unawaited(
+          _mapController.setPolyline(
+            points: const <MapPoint>[],
+            show: false,
+          ),
+        );
+      }
       return;
     }
 
@@ -230,8 +248,17 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       if (circuit.styleUrl != null && circuit.styleUrl!.trim().isNotEmpty) {
         _styleUrl = circuit.styleUrl!.trim();
       }
+
+      // Nouveau widget Map -> on attend son onMapReady pour appliquer le tracé.
+      _isMasLiveMapReady = false;
+      _marketRoutePoints = const <MapPoint>[];
+      _marketRouteStyle = const <String, dynamic>{};
+      _marketRouteBounds = null;
       _mapRebuildTick++;
     });
+
+    // Charger le tracé publié (marketMap/.../circuits/.../route) + style.
+    unawaited(_loadAndCacheMarketRoute(selection));
 
     _marketPoisSub = _getMarketMapService()
         .watchVisiblePois(
@@ -245,6 +272,182 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           setState(() => _marketPois = pois);
           _refreshMarketPoiMarkers();
         });
+  }
+
+  Future<void> _loadAndCacheMarketRoute(MarketMapPoiSelection selection) async {
+    if (!selection.enabled ||
+        selection.country == null ||
+        selection.event == null ||
+        selection.circuit == null) {
+      return;
+    }
+
+    final expectedCircuitId = selection.circuit!.id;
+
+    try {
+      final ref = _getMarketMapService().circuitRef(
+            countryId: selection.country!.id,
+            eventId: selection.event!.id,
+            circuitId: expectedCircuitId,
+          );
+      final snap = await ref.get();
+      final data = snap.data();
+      if (data == null || !mounted) return;
+
+      // Eviter d'appliquer un résultat obsolète si l'utilisateur a changé de circuit.
+      if (!_marketPoiSelection.enabled || _marketPoiSelection.circuit?.id != expectedCircuitId) {
+        return;
+      }
+
+      final rawRoute =
+          data['route'] ?? data['routePoints'] ?? data['routeGeometry'] ?? data['waypoints'];
+      final points = _parseRoutePoints(rawRoute);
+      final styleAny = data['style'] ?? data['routeStyle'];
+      final style = styleAny is Map
+          ? Map<String, dynamic>.from(styleAny)
+          : const <String, dynamic>{};
+      final bounds = _boundsFromPoints(points);
+
+      setState(() {
+        _marketRoutePoints = points;
+        _marketRouteStyle = style;
+        _marketRouteBounds = bounds;
+      });
+
+      await _applyCachedMarketRouteToMap();
+    } catch (e) {
+      debugPrint('⚠️ Erreur chargement tracé MarketMap: $e');
+    }
+  }
+
+  Future<void> _applyCachedMarketRouteToMap() async {
+    if (!mounted) return;
+    if (!_isMasLiveMapReady) return;
+    if (!_marketPoiSelection.enabled || _marketPoiSelection.circuit == null) return;
+
+    final pts = _marketRoutePoints;
+    if (pts.length < 2) {
+      // Fallback: bounds du circuit si disponibles.
+      final b = _marketPoiSelection.circuit!.bounds;
+      if (b != null) {
+        final sw = b['sw'];
+        final ne = b['ne'];
+        if (sw is Map && ne is Map) {
+          final swMap = sw;
+          final neMap = ne;
+          final west = (swMap['lng'] as num?)?.toDouble();
+          final south = (swMap['lat'] as num?)?.toDouble();
+          final east = (neMap['lng'] as num?)?.toDouble();
+          final north = (neMap['lat'] as num?)?.toDouble();
+          if (west != null && south != null && east != null && north != null) {
+            await _mapController.fitBounds(
+              west: west,
+              south: south,
+              east: east,
+              north: north,
+              padding: 56,
+              animate: true,
+            );
+          }
+        }
+      }
+      return;
+    }
+
+    final style = _marketRouteStyle;
+    final color =
+        _parseHexColor(style['color']?.toString()) ?? const Color(0xFF0A84FF);
+    final width = (style['width'] as num?)?.toDouble() ?? 6.0;
+    final roadLike = (style['roadLike'] as bool?) ?? true;
+    final shadow3d = (style['shadow3d'] as bool?) ?? true;
+    final showDirection = (style['showDirection'] as bool?) ?? false;
+    final animateDirection = (style['animateDirection'] as bool?) ?? false;
+    final animationSpeed =
+        (style['animationSpeed'] as num?)?.toDouble() ?? 1.0;
+
+    await _mapController.setPolyline(
+      points: pts,
+      color: color,
+      width: width,
+      show: true,
+      roadLike: roadLike,
+      shadow3d: shadow3d,
+      showDirection: showDirection,
+      animateDirection: animateDirection,
+      animationSpeed: animationSpeed,
+    );
+
+    final bounds = _marketRouteBounds ?? _boundsFromPoints(pts);
+    if (bounds != null) {
+      await _mapController.fitBounds(
+        west: bounds.west,
+        south: bounds.south,
+        east: bounds.east,
+        north: bounds.north,
+        padding: 72,
+        animate: true,
+      );
+    }
+  }
+
+  static List<MapPoint> _parseRoutePoints(dynamic raw) {
+    if (raw is! List) return const <MapPoint>[];
+    final pts = <MapPoint>[];
+    for (final it in raw) {
+      final p = _parseRoutePoint(it);
+      if (p != null) pts.add(p);
+    }
+    return pts;
+  }
+
+  static MapPoint? _parseRoutePoint(dynamic it) {
+    if (it is GeoPoint) return MapPoint(it.longitude, it.latitude);
+
+    if (it is Map) {
+      final lat = it['lat'];
+      final lng = it['lng'] ?? it['lon'];
+      if (lat is num && lng is num) {
+        return MapPoint(lng.toDouble(), lat.toDouble());
+      }
+    }
+
+    if (it is List && it.length >= 2) {
+      final lng = it[0];
+      final lat = it[1];
+      if (lng is num && lat is num) {
+        return MapPoint(lng.toDouble(), lat.toDouble());
+      }
+    }
+
+    return null;
+  }
+
+  static ({double west, double south, double east, double north})?
+      _boundsFromPoints(List<MapPoint> pts) {
+    if (pts.length < 2) return null;
+    double west = pts.first.lng;
+    double east = pts.first.lng;
+    double south = pts.first.lat;
+    double north = pts.first.lat;
+    for (final p in pts) {
+      if (p.lng < west) west = p.lng;
+      if (p.lng > east) east = p.lng;
+      if (p.lat < south) south = p.lat;
+      if (p.lat > north) north = p.lat;
+    }
+    return (west: west, south: south, east: east, north: north);
+  }
+
+  static Color? _parseHexColor(String? hex) {
+    if (hex == null) return null;
+    var s = hex.trim();
+    if (s.isEmpty) return null;
+    if (s.startsWith('#')) s = s.substring(1);
+    if (s.length == 6) s = 'FF$s';
+    if (s.length != 8) return null;
+    final v = int.tryParse(s, radix: 16);
+    if (v == null) return null;
+    return Color(v);
   }
 
   String? _actionToPoiType(_MapAction? action) {
@@ -635,8 +838,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                             // Pas d'action sur tap pour cette page
                           },
                           onMapReady: (_) {
+                            _isMasLiveMapReady = true;
                             _notifyMapReady();
                             unawaited(_syncMarkersToMap());
+                            unawaited(_applyCachedMarketRouteToMap());
                           },
                         ),
                       ),

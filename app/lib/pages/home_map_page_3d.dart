@@ -251,6 +251,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         _marketPois = const <MarketPoi>[];
       });
       await _renderMarketPoiMarkers();
+      await _clearMarketCircuitRoute();
       return;
     }
 
@@ -265,10 +266,15 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     }
     // IMPORTANT: un changement de style supprime les sources/layers runtime
     await _ensureMarketPoiGeoJsonRuntime(forceRebuild: true);
-    final center = circuit.center;
-    final lng = (center['lng'] ?? _fallbackCenter.lng).toDouble();
-    final lat = (center['lat'] ?? _fallbackCenter.lat).toDouble();
-    await _moveCameraTo(lng: lng, lat: lat, zoom: circuit.initialZoom);
+
+    // Tracé (route) + fitBounds sur le parcours.
+    final didFit = await _renderMarketCircuitRoute(selection);
+    if (!didFit) {
+      final center = circuit.center;
+      final lng = (center['lng'] ?? _fallbackCenter.lng).toDouble();
+      final lat = (center['lat'] ?? _fallbackCenter.lat).toDouble();
+      await _moveCameraTo(lng: lng, lat: lat, zoom: circuit.initialZoom);
+    }
 
     _marketPoisSub = _marketMapService
         .watchVisiblePois(
@@ -282,6 +288,184 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           setState(() => _marketPois = pois);
           await _renderMarketPoiMarkers(); // GeoJSON update + visibility
         });
+  }
+
+  Future<void> _ensureCircuitRouteManager() async {
+    final map = _mapboxMap;
+    if (map == null) return;
+    if (_circuitsAnnotationManager != null) return;
+    try {
+      _circuitsAnnotationManager =
+          await map.annotations.createPolylineAnnotationManager();
+    } catch (e) {
+      debugPrint('⚠️ Erreur createPolylineAnnotationManager: $e');
+    }
+  }
+
+  Future<void> _clearMarketCircuitRoute() async {
+    try {
+      await _circuitsAnnotationManager?.deleteAll();
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  Future<bool> _renderMarketCircuitRoute(MarketMapPoiSelection selection) async {
+    final map = _mapboxMap;
+    if (map == null) return false;
+
+    if (!selection.enabled ||
+        selection.country == null ||
+        selection.event == null ||
+        selection.circuit == null) {
+      return false;
+    }
+
+    await _ensureCircuitRouteManager();
+    final manager = _circuitsAnnotationManager;
+    if (manager == null) return false;
+
+    try {
+      final ref = _marketMapService.circuitRef(
+        countryId: selection.country!.id,
+        eventId: selection.event!.id,
+        circuitId: selection.circuit!.id,
+      );
+      final snap = await ref.get();
+      final data = snap.data();
+      if (data == null) return false;
+
+      final rawRoute =
+          data['route'] ?? data['routePoints'] ?? data['routeGeometry'] ?? data['waypoints'];
+      final pts = _parseRoutePoints(rawRoute);
+      if (pts.length < 2) {
+        await _clearMarketCircuitRoute();
+        return false;
+      }
+
+      // Style simple publié par le wizard
+      final styleAny = data['style'] ?? data['routeStyle'];
+      final style = styleAny is Map
+          ? Map<String, dynamic>.from(styleAny)
+          : const <String, dynamic>{};
+      final color =
+          _parseHexColor(style['color']?.toString()) ?? const Color(0xFF0A84FF);
+      final width = (style['width'] as num?)?.toDouble() ?? 6.0;
+      final roadLike = (style['roadLike'] as bool?) ?? true;
+      final shadow3d = (style['shadow3d'] as bool?) ?? true;
+
+      await manager.deleteAll();
+
+      Future<void> addLine({
+        required Color c,
+        required double w,
+        int? alpha,
+      }) async {
+        int to255(double v) => (v * 255.0).round().clamp(0, 255);
+        final cc = alpha == null
+            ? c
+            : Color.fromARGB(alpha, to255(c.r), to255(c.g), to255(c.b));
+        final options = PolylineAnnotationOptions(
+          geometry: LineString(coordinates: pts),
+          lineColor: cc.toARGB32(),
+          lineWidth: w,
+        );
+        await manager.create(options);
+      }
+
+      if (!roadLike) {
+        await addLine(c: color, w: width);
+      } else {
+        if (shadow3d) {
+          await addLine(c: const Color(0xFF000000), w: width + 8.0, alpha: 90);
+        }
+        await addLine(c: const Color(0xFF000000), w: width + 5.0, alpha: 140);
+        await addLine(c: color, w: width);
+        final centerWidth = (width * 0.33).clamp(1.0, width);
+        await addLine(c: const Color(0xFFFFFFFF), w: centerWidth, alpha: 190);
+      }
+
+      final bounds = _boundsFromPositions(pts);
+      if (bounds == null) return false;
+
+      final camera = await map.cameraForCoordinateBounds(
+        bounds,
+        MbxEdgeInsets(top: 72, left: 72, bottom: 72, right: 72),
+        0.0,
+        0.0,
+        null,
+        null,
+      );
+      await map.flyTo(
+        camera,
+        MapAnimationOptions(duration: _cameraAnimationDuration.inMilliseconds),
+      );
+      return true;
+    } catch (e) {
+      debugPrint('⚠️ Erreur rendu tracé MarketMap: $e');
+      return false;
+    }
+  }
+
+  static List<Position> _parseRoutePoints(dynamic raw) {
+    if (raw is! List) return const <Position>[];
+    final pts = <Position>[];
+    for (final it in raw) {
+      final p = _parseRoutePoint(it);
+      if (p != null) pts.add(p);
+    }
+    return pts;
+  }
+
+  static Position? _parseRoutePoint(dynamic it) {
+    if (it is GeoPoint) return Position(it.longitude, it.latitude);
+
+    if (it is Map) {
+      final lat = it['lat'];
+      final lng = it['lng'] ?? it['lon'];
+      if (lat is num && lng is num) return Position(lng.toDouble(), lat.toDouble());
+    }
+
+    if (it is List && it.length >= 2) {
+      final lng = it[0];
+      final lat = it[1];
+      if (lng is num && lat is num) return Position(lng.toDouble(), lat.toDouble());
+    }
+
+    return null;
+  }
+
+  static CoordinateBounds? _boundsFromPositions(List<Position> pts) {
+    if (pts.length < 2) return null;
+    double west = pts.first.lng.toDouble();
+    double east = pts.first.lng.toDouble();
+    double south = pts.first.lat.toDouble();
+    double north = pts.first.lat.toDouble();
+    for (final p in pts) {
+      final lng = p.lng.toDouble();
+      final lat = p.lat.toDouble();
+      if (lng < west) west = lng;
+      if (lng > east) east = lng;
+      if (lat < south) south = lat;
+      if (lat > north) north = lat;
+    }
+    return CoordinateBounds(
+      southwest: Point(coordinates: Position(west, south)),
+      northeast: Point(coordinates: Position(east, north)),
+      infiniteBounds: false,
+    );
+  }
+
+  static Color? _parseHexColor(String? hex) {
+    if (hex == null) return null;
+    var s = hex.trim();
+    if (s.isEmpty) return null;
+    if (s.startsWith('#')) s = s.substring(1);
+    if (s.length == 6) s = 'FF$s';
+    if (s.length != 8) return null;
+    final v = int.tryParse(s, radix: 16);
+    if (v == null) return null;
+    return Color(v);
   }
 
   Future<void> _moveCameraTo({
