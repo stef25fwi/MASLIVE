@@ -39,7 +39,11 @@ service cloud.firestore {
     }
 
     function userGroupId() {
-      return groupIdClaim() != null ? groupIdClaim() : groupIdDoc();
+      // Compat app: si le userDoc n'a pas de groupId, l'app fallback sur 'default'.
+      // Sans ça, les règles de publish MarketMap peuvent refuser (groupId null != 'default').
+      return groupIdClaim() != null
+        ? groupIdClaim()
+        : (groupIdDoc() != null ? groupIdDoc() : 'default');
     }
 
     // ========== VÉRIFICATIONS DE RÔLES ==========
