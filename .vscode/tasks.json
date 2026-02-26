@@ -626,6 +626,17 @@
       "problemMatcher": []
     },
     {
+      "label": "MASLIVE: Git commit + push (wizard step indicator click nav)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add app/lib/admin/circuit_wizard_pro_page.dart .vscode/tasks.json && if git diff --cached --quiet; then echo '⚠️ Rien à committer (wizard click nav)'; exit 0; fi && git commit -m \"feat(wizard): allow direct step indicator navigation\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git commit + push (mapmarket filtres ordre)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add app/lib/admin/mapmarket_projects_page.dart app/lib/ui/widgets/marketmap_poi_selector_sheet.dart && if git diff --cached --quiet; then echo '⚠️ Rien à committer (filtres MapMarket)'; exit 0; fi && git commit -m \"fix(mapmarket): ordre filtres pays/événement/circuit\" && git push origin main",

@@ -1406,14 +1406,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               builder: (context) {
                 Widget buildStep(int index) {
                   final isPoiOnly = widget.poiOnly;
-                  final isEnabled = isPoiOnly
-                      ? index == _poiStepIndex
-                      : index <= _currentStep;
+                  // UX: accès direct par clic sur une étape.
+                  // En mode POI-only, on verrouille sur l'étape POI.
+                  final isEnabled = isPoiOnly ? index == _poiStepIndex : true;
                   final isCompleted = isPoiOnly ? false : index < _currentStep;
                   return Expanded(
                     child: GestureDetector(
                       onTap: isEnabled
-                          ? () => _pageController.jumpToPage(index)
+                          ? () => unawaited(_continueToStep(index))
                           : null,
                       child: _StepIndicator(
                         step: index,
