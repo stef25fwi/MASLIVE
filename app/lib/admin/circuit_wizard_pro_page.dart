@@ -65,7 +65,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   String? _projectId;
   late PageController _pageController;
-  late final TabController _routeAndStyleTabController;
   int _currentStep = 0;
   bool _didAutoOpenStyleProForCurrentVisit = false;
   bool _isLoading = false;
@@ -534,13 +533,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         : (widget.initialStep ?? 0).clamp(0, 7);
     _pageController = PageController(initialPage: _currentStep);
 
-    _routeAndStyleTabController = TabController(length: 2, vsync: this);
-    _routeAndStyleTabController.addListener(() {
-      if (!mounted) return;
-      // Rafraîchit la barre d'outils centrale (snap / toggle) en fonction de l'onglet.
-      if (_currentStep == 3) setState(() {});
-    });
-
     // Si on arrive directement sur l'étape Style Pro, on ouvre le wizard pro
     // immédiatement (pas besoin d'appuyer sur le bouton).
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -766,7 +758,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     _poiRouteStyleProTimer = null;
     _routeSnapDebounce?.cancel();
     _pageController.dispose();
-    _routeAndStyleTabController.dispose();
     _perimeterEditorController.dispose();
     _routeEditorController.dispose();
     _poiMapController.dispose();
@@ -1614,29 +1605,49 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   Widget _buildStep3RouteAndStyleTabbed() {
-    return Column(
-      children: [
-        Material(
-          color: Colors.white,
-          child: TabBar(
-            controller: _routeAndStyleTabController,
-            tabs: const [
-              Tab(text: 'Tracé'),
-              Tab(text: 'Style'),
-            ],
-          ),
-        ),
-        const Divider(height: 1),
-        Expanded(
-          child: TabBarView(
-            controller: _routeAndStyleTabController,
-            children: [
-              _buildStep3Route(),
-              _buildStep4Style(),
-            ],
-          ),
-        ),
-      ],
+    // UX: fusion Tracé + Style (un seul affichage).
+    // Tous les outils sont réunis dans la barre centrale.
+    return _buildStep3RouteAndStyleUnified();
+  }
+
+  Widget _buildStep3RouteAndStyleUnified() {
+    return CircuitMapEditor(
+      title: 'Tracé + Style',
+      subtitle: 'Tracez l\'itinéraire et réglez son apparence',
+      points: _routePoints,
+      controller: _routeEditorController,
+      perimeterOverlay: _perimeterPoints,
+      styleUrl: _styleUrlController.text.trim().isEmpty
+          ? null
+          : _styleUrlController.text.trim(),
+      showToolbar: false,
+      allowVerticalScroll: true,
+      mapHeight: 720,
+      onPointsChanged: (points) {
+        final previousCount = _routePoints.length;
+        setState(() {
+          _routePoints = points;
+        });
+
+        // Waze-like: après ajout de point, on aligne automatiquement sur route.
+        // Important: on ne spam pas pendant les glisser-déposer.
+        if (_currentStep == 3 &&
+            points.length >= 2 &&
+            points.length > previousCount) {
+          _scheduleContinuousRouteSnap();
+        }
+      },
+      onSave: _saveDraft,
+      mode: 'polyline',
+
+      // Style itinéraire routier
+      polylineColor: _parseHexColor(_routeColorHex, fallback: Colors.blue),
+      polylineWidth: _routeWidth,
+      polylineRoadLike: _routeRoadLike,
+      polylineShadow3d: _routeShadow3d,
+      polylineShowDirection: _routeShowDirection,
+      polylineAnimateDirection: _routeAnimateDirection,
+      polylineAnimationSpeed: _routeAnimationSpeed,
     );
   }
 
@@ -1843,79 +1854,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     );
   }
 
-  Widget _buildStep3Route() {
-    return CircuitMapEditor(
-      title: 'Définir le tracé',
-      subtitle: 'Tracez l\'itinéraire du circuit (polyline)',
-      points: _routePoints,
-      controller: _routeEditorController,
-      perimeterOverlay: _perimeterPoints,
-      styleUrl: _styleUrlController.text.trim().isEmpty
-          ? null
-          : _styleUrlController.text.trim(),
-      showToolbar: false,
-      allowVerticalScroll: true,
-      mapHeight: 720,
-      onPointsChanged: (points) {
-        final previousCount = _routePoints.length;
-        setState(() {
-          _routePoints = points;
-        });
-
-        // Waze-like: après ajout de point, on aligne automatiquement sur route.
-        // Important: on ne spam pas pendant les glisser-déposer.
-        if (_currentStep == 3 &&
-            points.length >= 2 &&
-            points.length > previousCount) {
-          _scheduleContinuousRouteSnap();
-        }
-      },
-      onSave: _saveDraft,
-      mode: 'polyline',
-
-      // Style itinéraire routier
-      polylineColor: _parseHexColor(_routeColorHex, fallback: Colors.blue),
-      polylineWidth: _routeWidth,
-      polylineRoadLike: _routeRoadLike,
-      polylineShadow3d: _routeShadow3d,
-      polylineShowDirection: _routeShowDirection,
-      polylineAnimateDirection: _routeAnimateDirection,
-      polylineAnimationSpeed: _routeAnimationSpeed,
-    );
-  }
-
-  Widget _buildStep4Style() {
-    return CircuitMapEditor(
-      title: 'Style du tracé (Waze)',
-      subtitle: 'Réglez l\'apparence de l\'itinéraire',
-      points: _routePoints,
-      controller: _routeEditorController,
-      perimeterOverlay: _perimeterPoints,
-      styleUrl: _styleUrlController.text.trim().isEmpty
-          ? null
-          : _styleUrlController.text.trim(),
-      showToolbar: false,
-      allowVerticalScroll: true,
-      mapHeight: 720,
-      onPointsChanged: (points) {
-        setState(() {
-          _routePoints = points;
-        });
-      },
-      onSave: _saveDraft,
-      mode: 'polyline',
-
-      // Style itinéraire routier
-      polylineColor: _parseHexColor(_routeColorHex, fallback: Colors.blue),
-      polylineWidth: _routeWidth,
-      polylineRoadLike: _routeRoadLike,
-      polylineShadow3d: _routeShadow3d,
-      polylineShowDirection: _routeShowDirection,
-      polylineAnimateDirection: _routeAnimateDirection,
-      polylineAnimationSpeed: _routeAnimationSpeed,
-    );
-  }
-
   Widget _buildCentralMapToolsBar() {
     final isPerimeter = _currentStep == 2;
     final controller = isPerimeter
@@ -1923,8 +1861,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         : _routeEditorController;
 
     final isRouteAndStyleStep = !isPerimeter && _currentStep == 3;
-    final isRouteTabActive =
-      isRouteAndStyleStep && _routeAndStyleTabController.index == 0;
 
     return Material(
       color: Colors.white,
@@ -2066,7 +2002,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     tooltip: 'Simplifier tracé',
                   ),
 
-                  if (isRouteTabActive) ...[
+                  if (isRouteAndStyleStep) ...[
                     IconButton(
                       icon: _isSnappingRoute
                           ? const SizedBox(
