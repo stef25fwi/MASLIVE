@@ -210,32 +210,39 @@ class _MapMarketProjectsPageState extends State<MapMarketProjectsPage> {
             return Card(
               child: ListTile(
                 leading: Icon(
-                  isVisible ? Icons.visibility : Icons.visibility_off,
+                  isVisible ? Icons.wifi : Icons.wifi_off,
                   color: isVisible ? Colors.green : Colors.grey,
                 ),
                 title: Text(c.name),
                 subtitle: Text('status: $status\nmarketMap/${country.id}/events/${event.id}/circuits/${c.id}'),
-                trailing: Switch(
-                  value: isVisible,
-                  onChanged: (v) async {
-                    try {
-                      await _db
-                          .collection('marketMap')
-                          .doc(country.id)
-                          .collection('events')
-                          .doc(event.id)
-                          .collection('circuits')
-                          .doc(c.id)
-                          .update({'isVisible': v});
-                    } catch (e) {
-                      if (!context.mounted) return;
-                      TopSnackBar.showMessage(
-                        context,
-                        '❌ Erreur visibilité: $e',
-                        isError: true,
-                      );
-                    }
-                  },
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('On line'),
+                    const SizedBox(width: 8),
+                    Switch(
+                      value: isVisible,
+                      onChanged: (v) async {
+                        try {
+                          await _db
+                              .collection('marketMap')
+                              .doc(country.id)
+                              .collection('events')
+                              .doc(event.id)
+                              .collection('circuits')
+                              .doc(c.id)
+                              .update({'isVisible': v});
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          TopSnackBar.showMessage(
+                            context,
+                            '❌ Erreur visibilité: $e',
+                            isError: true,
+                          );
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ),
             );

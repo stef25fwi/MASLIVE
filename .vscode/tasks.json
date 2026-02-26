@@ -626,6 +626,17 @@
       "problemMatcher": []
     },
     {
+      "label": "MASLIVE: Git commit + push (mapmarket filtres ordre)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add app/lib/admin/mapmarket_projects_page.dart app/lib/ui/widgets/marketmap_poi_selector_sheet.dart && if git diff --cached --quiet; then echo '⚠️ Rien à committer (filtres MapMarket)'; exit 0; fi && git commit -m \"fix(mapmarket): ordre filtres pays/événement/circuit\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git commit + push (mapbox token prod harden)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add app/lib/pages/default_map_page.dart .vscode/tasks.json build_and_deploy_hosting.sh build_deploy_now.sh clean_build_deploy.sh commit_push_build_deploy.sh deploy_firebase.sh deploy_map_visibility_now.sh deploy_production.sh git_commit_push_build_deploy.sh quick_deploy.sh && git commit -m \"fix(mapbox): require token for prod deploy + token setup UI\" && git push origin main",

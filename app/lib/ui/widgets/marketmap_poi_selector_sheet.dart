@@ -223,9 +223,10 @@ class _MarketMapPoiSelectorSheetState extends State<_MarketMapPoiSelectorSheet> 
                 : widget.service.watchCircuits(countryId: _country!.id, eventId: _event!.id),
             builder: (context, snap) {
               final allCircuits = snap.data ?? const <MarketCircuit>[];
-              // Ne proposer dans le menu que les circuits marqués visibles.
-              final items =
-                  allCircuits.where((c) => c.isVisible == true).toList(growable: false);
+                // Ne proposer dans le menu "Carte" que les circuits "On line".
+                final items = allCircuits
+                  .where((c) => c.isVisible == true)
+                  .toList(growable: false);
 
               final selectedId = _circuit?.id;
               final currentValue = items.any((c) => c.id == selectedId) ? selectedId : null;
