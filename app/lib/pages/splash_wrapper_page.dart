@@ -44,10 +44,13 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
     });
 
     // Timeout de secours : si la carte ne notifie pas dans les 5 secondes, on affiche quand même
-    Future.delayed(const Duration(seconds: 5), () {
+    final timeout = kIsWeb
+        ? const Duration(seconds: 12)
+        : const Duration(seconds: 10);
+    Future.delayed(timeout, () {
       if (mounted && !_didHideSplash) {
         debugPrint(
-          '⚠️ SplashWrapperPage: Timeout - forçage du masquage du splash après 5 secondes',
+          '⚠️ SplashWrapperPage: Timeout - forçage du masquage du splash après ${timeout.inSeconds} secondes',
         );
         _hideSplash(force: true);
       }

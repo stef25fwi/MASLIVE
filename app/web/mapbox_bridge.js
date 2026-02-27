@@ -75,7 +75,7 @@
       // Événements de chargement
       map.on('load', function() {
         console.log('✅ Mapbox GL JS map loaded');
-        
+
         // Ajouter les contrôles de navigation 3D
         map.addControl(new mapboxgl.NavigationControl({
           visualizePitch: true
@@ -96,9 +96,41 @@
           add3DBuildings(map);
         }
 
-        // Callback vers Flutter si disponible
-        if (window.onMapboxReady) {
-          window.onMapboxReady();
+        // Callback vers Flutter si disponible.
+        // NOTE: `load` = style prêt, mais les tuiles peuvent encore se charger.
+        // On attend un état stable (idle/tiles) pour éviter que l'utilisateur
+        // voie le chargement après le splash.
+        let didNotify = false;
+        const notify = () => {
+          if (didNotify) return;
+          didNotify = true;
+          try {
+            if (window.onMapboxReady) {
+              window.onMapboxReady();
+            }
+          } catch (_) {}
+        };
+        const isStable = () => {
+          try {
+            const styleOk = (map.isStyleLoaded && map.isStyleLoaded() === true);
+            const tilesOk = (typeof map.areTilesLoaded === 'function') ? (map.areTilesLoaded() === true) : true;
+            return styleOk && tilesOk;
+          } catch (_) {
+            return false;
+          }
+        };
+        if (isStable()) {
+          notify();
+        } else {
+          const onIdle = () => {
+            if (isStable()) {
+              try { map.off('idle', onIdle); } catch (_) {}
+              notify();
+            }
+          };
+          try { map.on('idle', onIdle); } catch (_) {}
+          // Fallback: ne jamais bloquer indéfiniment le callback legacy.
+          setTimeout(() => { notify(); }, 8000);
         }
       });
 
@@ -685,8 +717,40 @@
         const state = _ensureState(containerId, map);
         state.map = map;
 
-        map.on('load', function() {
+        // Signal "READY" uniquement quand la carte est vraiment stable
+        // (style + tuiles visibles), pour que le splash masque le chargement.
+        let didPostReady = false;
+        const postReady = () => {
+          if (didPostReady) return;
+          didPostReady = true;
           _postToFlutter({ type: 'MASLIVE_MAP_READY', containerId });
+        };
+        const isStable = () => {
+          try {
+            const styleOk = (map.isStyleLoaded && map.isStyleLoaded() === true);
+            const tilesOk = (typeof map.areTilesLoaded === 'function') ? (map.areTilesLoaded() === true) : true;
+            return styleOk && tilesOk;
+          } catch (_) {
+            return false;
+          }
+        };
+
+        map.on('load', function() {
+          if (isStable()) {
+            postReady();
+            return;
+          }
+
+          const onIdle = function() {
+            if (!isStable()) return;
+            try { map.off('idle', onIdle); } catch (_) {}
+            postReady();
+          };
+          try { map.on('idle', onIdle); } catch (_) {}
+
+          // Fallback: si l'événement idle ne survient pas (sources dynamiques),
+          // on signale quand même après un délai.
+          setTimeout(() => { postReady(); }, 8000);
         });
 
         // Remonte les erreurs runtime (ex: style/tiles/token) vers Flutter.

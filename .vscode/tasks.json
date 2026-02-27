@@ -951,6 +951,18 @@
       }
     },
     {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (splash preload)",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"fix(splash): mask mapbox load behind splash\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (webp + poi popup)",
       "type": "shell",
       "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat(admin): POI edit popup + WebP converter\"",

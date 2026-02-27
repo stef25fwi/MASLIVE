@@ -84,6 +84,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   PointAnnotationManager? _userLocationManager;
   bool _isMapReady = false;
   bool _styleLoaded = false;
+  bool _didNotifyHostMapReady = false;
   void Function(double lat, double lng)? _onPointAddedCallback;
 
   bool _patternImagesReady = false;
@@ -110,6 +111,16 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   _lastPolyline;
 
   String? _pendingStyleUrlToApply;
+
+  void _notifyHostMapReadyIfNeeded() {
+    if (_didNotifyHostMapReady) return;
+    _didNotifyHostMapReady = true;
+
+    final controller = widget.controller;
+    if (controller != null) {
+      widget.onMapReady?.call(controller);
+    }
+  }
 
   @override
   void initState() {
@@ -756,6 +767,13 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   void _onMapCreated(MapboxMap mapboxMap) async {
     _mapboxMap = mapboxMap;
 
+    // Le controller peut être branché dès que l'instance MapboxMap existe,
+    // même si le style/tiles ne sont pas encore complètement prêts.
+    if (!_isMapReady) {
+      _isMapReady = true;
+      _connectController();
+    }
+
     final pending = _pendingStyleUrlToApply;
     if (pending != null) {
       _pendingStyleUrlToApply = null;
@@ -763,13 +781,8 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       unawaited(mapboxMap.loadStyleURI(pending));
     }
 
-    if (!_isMapReady) {
-      _isMapReady = true;
-      final controller = widget.controller;
-      if (controller != null) {
-        widget.onMapReady?.call(controller);
-      }
-    }
+    // IMPORTANT: on NE notifie plus l'hôte ici.
+    // SplashWrapperPage attend désormais un signal plus strict (Map fully loaded).
   }
 
   Future<void> _reapplyCachedOverlaysAfterStyleLoad() async {
@@ -898,6 +911,11 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       ),
       styleUri: styleUri,
       onMapCreated: _onMapCreated,
+      // Mapbox: style chargé + toutes les tuiles visibles rendues.
+      // On s'en sert pour masquer le splash au bon moment.
+      onMapLoadedListener: (_) {
+        _notifyHostMapReadyIfNeeded();
+      },
       onStyleLoadedListener: (_) async {
         _styleLoaded = true;
         _patternImagesReady = false;
