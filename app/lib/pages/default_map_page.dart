@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -20,6 +22,7 @@ import '../ui/widgets/maslive_profile_icon.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
 import '../ui/widgets/marketmap_poi_selector_sheet.dart';
 import '../route_style_pro/services/route_style_pro_projection.dart';
+import '../route_style_pro/models/route_style_config.dart' as rsp;
 import '../ui/map/maslive_map.dart';
 import '../ui/map/maslive_map_controller.dart'
     show MapMarker, MapPoint, MasLiveMapController;
@@ -93,7 +96,12 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   bool _isMasLiveMapReady = false;
   List<MapPoint> _marketRoutePoints = const <MapPoint>[];
   Map<String, dynamic> _marketRouteStyle = const <String, dynamic>{};
+  rsp.RouteStyleConfig? _marketRouteStylePro;
   ({double west, double south, double east, double north})? _marketRouteBounds;
+
+  Timer? _marketRouteStyleProTimer;
+  int _marketRouteStyleProAnimTick = 0;
+  bool _isApplyingMarketRoute = false;
 
   MarketMapService _getMarketMapService() {
     return _marketMapService ??= MarketMapService();
@@ -184,6 +192,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   @override
   void dispose() {
     _marketPoisSub?.cancel();
+    _marketRouteStyleProTimer?.cancel();
     _resizeDebounce?.cancel();
     _positionSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
@@ -217,12 +226,15 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         selection.country == null ||
         selection.event == null ||
         selection.circuit == null) {
+      _marketRouteStyleProTimer?.cancel();
+      _marketRouteStyleProTimer = null;
       if (!mounted) return;
       setState(() {
         _marketPois = const <MarketPoi>[];
         _marketPoiMarkers = const <MapMarker>[];
         _marketRoutePoints = const <MapPoint>[];
         _marketRouteStyle = const <String, dynamic>{};
+        _marketRouteStylePro = null;
         _marketRouteBounds = null;
       });
 
@@ -251,9 +263,13 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       _isMasLiveMapReady = false;
       _marketRoutePoints = const <MapPoint>[];
       _marketRouteStyle = const <String, dynamic>{};
+      _marketRouteStylePro = null;
       _marketRouteBounds = null;
       _mapRebuildTick++;
     });
+
+    _marketRouteStyleProTimer?.cancel();
+    _marketRouteStyleProTimer = null;
 
     // Charger le tracé publié (marketMap/.../circuits/.../route) + style.
     unawaited(_loadAndCacheMarketRoute(selection));
@@ -318,8 +334,11 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       setState(() {
         _marketRoutePoints = points;
         _marketRouteStyle = style;
+        _marketRouteStylePro = proCfg;
         _marketRouteBounds = bounds;
       });
+
+      _syncMarketRouteStyleProTimer();
 
       await _applyCachedMarketRouteToMap();
     } catch (e) {
@@ -327,74 +346,281 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     }
   }
 
-  Future<void> _applyCachedMarketRouteToMap() async {
+  void _syncMarketRouteStyleProTimer() {
+    final cfg = _marketRouteStylePro;
+    final needsAnim =
+        cfg != null &&
+        _marketPoiSelection.enabled &&
+        _marketPoiSelection.circuit != null &&
+        cfg.rainbowEnabled;
+
+    if (!needsAnim) {
+      _marketRouteStyleProTimer?.cancel();
+      _marketRouteStyleProTimer = null;
+      return;
+    }
+
+    final validated = cfg.validated();
+    final periodMs =
+        (110 - (validated.rainbowSpeed * 0.8)).clamp(25, 110).round();
+
+    _marketRouteStyleProTimer?.cancel();
+    _marketRouteStyleProTimer = Timer.periodic(
+      Duration(milliseconds: periodMs),
+      (_) {
+        if (!mounted) return;
+        if (!_marketPoiSelection.enabled || _marketPoiSelection.circuit == null) {
+          _syncMarketRouteStyleProTimer();
+          return;
+        }
+        _marketRouteStyleProAnimTick++;
+        unawaited(_applyCachedMarketRouteToMap(fitToBounds: false));
+      },
+    );
+  }
+
+  Future<void> _applyCachedMarketRouteToMap({bool fitToBounds = true}) async {
     if (!mounted) return;
     if (!_isMasLiveMapReady) return;
-    if (!_marketPoiSelection.enabled || _marketPoiSelection.circuit == null)
+    if (!_marketPoiSelection.enabled || _marketPoiSelection.circuit == null) {
       return;
+    }
 
-    final pts = _marketRoutePoints;
-    if (pts.length < 2) {
-      // Fallback: bounds du circuit si disponibles.
-      final b = _marketPoiSelection.circuit!.bounds;
-      if (b != null) {
-        final sw = b['sw'];
-        final ne = b['ne'];
-        if (sw is Map && ne is Map) {
-          final swMap = sw;
-          final neMap = ne;
-          final west = (swMap['lng'] as num?)?.toDouble();
-          final south = (swMap['lat'] as num?)?.toDouble();
-          final east = (neMap['lng'] as num?)?.toDouble();
-          final north = (neMap['lat'] as num?)?.toDouble();
-          if (west != null && south != null && east != null && north != null) {
-            await _mapController.fitBounds(
-              west: west,
-              south: south,
-              east: east,
-              north: north,
-              padding: 56,
-              animate: true,
-            );
+    if (_isApplyingMarketRoute) return;
+    _isApplyingMarketRoute = true;
+
+    try {
+      final pts = _marketRoutePoints;
+      if (pts.length < 2) {
+        // Fallback: bounds du circuit si disponibles.
+        final b = _marketPoiSelection.circuit!.bounds;
+        if (b != null) {
+          final sw = b['sw'];
+          final ne = b['ne'];
+          if (sw is Map && ne is Map) {
+            final swMap = sw;
+            final neMap = ne;
+            final west = (swMap['lng'] as num?)?.toDouble();
+            final south = (swMap['lat'] as num?)?.toDouble();
+            final east = (neMap['lng'] as num?)?.toDouble();
+            final north = (neMap['lat'] as num?)?.toDouble();
+            if (west != null &&
+                south != null &&
+                east != null &&
+                north != null) {
+              await _mapController.fitBounds(
+                west: west,
+                south: south,
+                east: east,
+                north: north,
+                padding: 56,
+                animate: true,
+              );
+            }
           }
         }
+        return;
       }
-      return;
+
+      final pro = _marketRouteStylePro;
+      if (pro != null) {
+        final cfg = pro.validated();
+
+        final useSegments =
+            cfg.rainbowEnabled || cfg.trafficDemoEnabled || cfg.vanishingEnabled;
+        final segmentsGeoJson = useSegments
+            ? _buildRouteStyleProSegmentsGeoJson(
+                pts,
+                cfg,
+                animTick: _marketRouteStyleProAnimTick,
+              )
+            : null;
+
+        final shouldRoadLike =
+            (cfg.casingWidth > 0) || cfg.shadowEnabled || cfg.glowEnabled;
+
+        await _mapController.setPolyline(
+          points: pts,
+          color: cfg.mainColor,
+          width: cfg.mainWidth,
+          show: true,
+          roadLike: shouldRoadLike,
+          shadow3d: cfg.shadowEnabled,
+          showDirection: false,
+          animateDirection: cfg.pulseEnabled,
+          animationSpeed: (cfg.pulseSpeed / 25.0).clamp(0.5, 5.0),
+
+          opacity: cfg.opacity,
+          casingColor: cfg.casingColor,
+          casingWidth: cfg.casingWidth > 0 ? cfg.casingWidth : null,
+
+          glowEnabled: cfg.glowEnabled,
+          glowColor: cfg.mainColor,
+          glowWidth: cfg.glowWidth,
+          glowOpacity: cfg.glowOpacity,
+          glowBlur: cfg.glowBlur,
+
+          dashArray: cfg.dashEnabled
+              ? <double>[cfg.dashLength, cfg.dashGap]
+              : null,
+          lineCap: cfg.lineCap.name,
+          lineJoin: cfg.lineJoin.name,
+          segmentsGeoJson: segmentsGeoJson,
+        );
+      } else {
+        final style = _marketRouteStyle;
+        final color = _parseHexColor(style['color']?.toString()) ??
+            const Color(0xFF0A84FF);
+        final width = (style['width'] as num?)?.toDouble() ?? 6.0;
+        final roadLike = (style['roadLike'] as bool?) ?? true;
+        final shadow3d = (style['shadow3d'] as bool?) ?? true;
+        final showDirection = (style['showDirection'] as bool?) ?? false;
+        final animateDirection = (style['animateDirection'] as bool?) ?? false;
+        final animationSpeed =
+            (style['animationSpeed'] as num?)?.toDouble() ?? 1.0;
+
+        await _mapController.setPolyline(
+          points: pts,
+          color: color,
+          width: width,
+          show: true,
+          roadLike: roadLike,
+          shadow3d: shadow3d,
+          showDirection: showDirection,
+          animateDirection: animateDirection,
+          animationSpeed: animationSpeed,
+        );
+      }
+
+      if (fitToBounds) {
+        final bounds = _marketRouteBounds ?? _boundsFromPoints(pts);
+        if (bounds != null) {
+          await _mapController.fitBounds(
+            west: bounds.west,
+            south: bounds.south,
+            east: bounds.east,
+            north: bounds.north,
+            padding: 72,
+            animate: true,
+          );
+        }
+      }
+    } finally {
+      _isApplyingMarketRoute = false;
+    }
+  }
+
+  String _buildRouteStyleProSegmentsGeoJson(
+    List<MapPoint> pts,
+    rsp.RouteStyleConfig cfg, {
+    required int animTick,
+  }) {
+    if (pts.length < 2) {
+      return jsonEncode({'type': 'FeatureCollection', 'features': []});
     }
 
-    final style = _marketRouteStyle;
-    final color =
-        _parseHexColor(style['color']?.toString()) ?? const Color(0xFF0A84FF);
-    final width = (style['width'] as num?)?.toDouble() ?? 6.0;
-    final roadLike = (style['roadLike'] as bool?) ?? true;
-    final shadow3d = (style['shadow3d'] as bool?) ?? true;
-    final showDirection = (style['showDirection'] as bool?) ?? false;
-    final animateDirection = (style['animateDirection'] as bool?) ?? false;
-    final animationSpeed = (style['animationSpeed'] as num?)?.toDouble() ?? 1.0;
+    // Limite le nombre de segments (perf)
+    const maxSeg = 60;
+    final step = math.max(1, ((pts.length - 1) / maxSeg).ceil());
 
-    await _mapController.setPolyline(
-      points: pts,
-      color: color,
-      width: width,
-      show: true,
-      roadLike: roadLike,
-      shadow3d: shadow3d,
-      showDirection: showDirection,
-      animateDirection: animateDirection,
-      animationSpeed: animationSpeed,
-    );
+    final features = <Map<String, dynamic>>[];
+    int segIndex = 0;
 
-    final bounds = _marketRouteBounds ?? _boundsFromPoints(pts);
-    if (bounds != null) {
-      await _mapController.fitBounds(
-        west: bounds.west,
-        south: bounds.south,
-        east: bounds.east,
-        north: bounds.north,
-        padding: 72,
-        animate: true,
-      );
+    for (int i = 0; i < pts.length - 1; i += step) {
+      final a = pts[i];
+      final b = pts[math.min(i + step, pts.length - 1)];
+
+      final denom = math.max(1, ((pts.length - 1) / step).floor());
+      final t = segIndex / denom;
+
+      final baseOpacity = cfg.opacity;
+      final opacity = cfg.vanishingEnabled
+          ? (t <= cfg.vanishingProgress ? 0.25 : baseOpacity)
+          : baseOpacity;
+
+      final color = _routeStyleProSegmentColor(cfg, segIndex, animTick);
+
+      features.add({
+        'type': 'Feature',
+        'properties': {
+          'color': _toRgba(color, opacity: opacity),
+          'width': cfg.mainWidth,
+          'opacity': opacity,
+        },
+        'geometry': {
+          'type': 'LineString',
+          'coordinates': [
+            [a.lng, a.lat],
+            [b.lng, b.lat],
+          ],
+        },
+      });
+      segIndex++;
     }
+
+    return jsonEncode({'type': 'FeatureCollection', 'features': features});
+  }
+
+  Color _routeStyleProSegmentColor(
+    rsp.RouteStyleConfig cfg,
+    int index,
+    int animTick,
+  ) {
+    if (cfg.trafficDemoEnabled) {
+      const traffic = [Color(0xFF22C55E), Color(0xFFF59E0B), Color(0xFFEF4444)];
+      return traffic[index % traffic.length];
+    }
+
+    if (cfg.rainbowEnabled) {
+      final shift = (animTick % 360);
+      final dir = cfg.rainbowReverse ? -1 : 1;
+      final hue = (shift + dir * index * 14) % 360;
+      return _hsvToColor(hue.toDouble(), cfg.rainbowSaturation, 1.0);
+    }
+
+    return cfg.mainColor;
+  }
+
+  Color _hsvToColor(double h, double s, double v) {
+    final hh = (h % 360) / 60.0;
+    final c = v * s;
+    final x = c * (1 - ((hh % 2) - 1).abs());
+    final m = v - c;
+
+    double r1 = 0, g1 = 0, b1 = 0;
+    if (hh >= 0 && hh < 1) {
+      r1 = c;
+      g1 = x;
+    } else if (hh < 2) {
+      r1 = x;
+      g1 = c;
+    } else if (hh < 3) {
+      g1 = c;
+      b1 = x;
+    } else if (hh < 4) {
+      g1 = x;
+      b1 = c;
+    } else if (hh < 5) {
+      r1 = x;
+      b1 = c;
+    } else {
+      r1 = c;
+      b1 = x;
+    }
+
+    final r = ((r1 + m) * 255).round().clamp(0, 255);
+    final g = ((g1 + m) * 255).round().clamp(0, 255);
+    final b = ((b1 + m) * 255).round().clamp(0, 255);
+    return Color.fromARGB(255, r, g, b);
+  }
+
+  String _toRgba(Color c, {required double opacity}) {
+    // Mapbox GL JS accepte bien rgba() (plus robuste que #RRGGBBAA selon environnements).
+    final a = opacity.clamp(0.0, 1.0);
+    final r = ((c.r * 255).round()).clamp(0, 255);
+    final g = ((c.g * 255).round()).clamp(0, 255);
+    final b = ((c.b * 255).round()).clamp(0, 255);
+    return 'rgba($r,$g,$b,${a.toStringAsFixed(3)})';
   }
 
   static List<MapPoint> _parseRoutePoints(dynamic raw) {

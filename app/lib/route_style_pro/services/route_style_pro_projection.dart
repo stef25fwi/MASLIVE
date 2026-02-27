@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:ui' show Color;
 
 import '../models/route_style_config.dart';
@@ -8,6 +9,20 @@ RouteStyleConfig? tryParseRouteStylePro(dynamic raw) {
       return RouteStyleConfig.fromJson(
         Map<String, dynamic>.from(raw),
       ).validated();
+    } catch (_) {
+      return null;
+    }
+  }
+  if (raw is String) {
+    final s = raw.trim();
+    if (s.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(s);
+      if (decoded is Map) {
+        return RouteStyleConfig.fromJson(
+          Map<String, dynamic>.from(decoded),
+        ).validated();
+      }
     } catch (_) {
       return null;
     }
