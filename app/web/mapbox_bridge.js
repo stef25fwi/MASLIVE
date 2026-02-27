@@ -427,6 +427,24 @@
 
     const lower = (msg || '').toLowerCase();
 
+    // Style URL invalide: HTML (doctype) renvoyé au lieu du JSON de style.
+    // Typiquement causé par un lien Mapbox Studio (page /edit) collé à la place de
+    // `mapbox://styles/<user>/<styleId>` ou d'une URL API styles/v1.
+    if (
+      lower.includes('unexpected token <') ||
+      lower.includes('<!doctype') ||
+      lower.includes('doctype') ||
+      (lower.includes('not valid json') && (lower.includes('json') || lower.includes('style')))
+    ) {
+      return {
+        reason: 'STYLE_NOT_JSON',
+        message:
+          'URL de style invalide: la réponse ressemble à du HTML (pas du JSON). ' +
+          'Si tu as collé un lien Mapbox Studio, utilise `mapbox://styles/<user>/<styleId>`.' +
+          (msg ? ' (' + msg + ')' : ''),
+      };
+    }
+
     // Token invalide / révoqué
     if (
       status === 401 ||

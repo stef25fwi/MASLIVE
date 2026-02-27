@@ -110,6 +110,43 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     return (m.group(1), (m.group(2) ?? '').trim());
   }
 
+  String _normalizeMapboxStyleUrl(String raw) {
+    final value = raw.trim();
+    if (value.isEmpty) return value;
+
+    Uri uri;
+    try {
+      uri = Uri.parse(value);
+    } catch (_) {
+      return value;
+    }
+
+    final host = uri.host.toLowerCase();
+
+    // Cas fréquent: URL Mapbox Studio (page HTML) copiée depuis l'UI.
+    // Ex: https://studio.mapbox.com/styles/{user}/{styleId}/edit
+    // => mapbox://styles/{user}/{styleId}
+    if (host == 'studio.mapbox.com') {
+      final seg = uri.pathSegments;
+      final stylesIndex = seg.indexOf('styles');
+      if (stylesIndex != -1 && seg.length >= stylesIndex + 3) {
+        final user = seg[stylesIndex + 1];
+        final styleId = seg[stylesIndex + 2];
+        if (user.isNotEmpty && styleId.isNotEmpty) {
+          return 'mapbox://styles/$user/$styleId';
+        }
+      }
+    }
+
+    // Certains liens finissent par ".html" (HTML, non JSON). On tente d'enlever le suffixe.
+    if (value.toLowerCase().endsWith('.html')) {
+      final withoutHtml = value.substring(0, value.length - 5);
+      return withoutHtml;
+    }
+
+    return value;
+  }
+
   String? _friendlyHintForReason(String? reason) {
     switch (reason) {
       case 'TOKEN_MISSING':
@@ -126,6 +163,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         return 'WebGL est indisponible. Active l\'accélération matérielle ou teste un autre navigateur/appareil.';
       case 'CONTAINER_NOT_FOUND':
         return 'Problème DOM/transitoire. Un refresh suffit généralement.';
+      case 'STYLE_NOT_JSON':
+        return 'L\'URL de style pointe vers une page HTML (souvent un lien Mapbox Studio). Utilise `mapbox://styles/<user>/<styleId>` ou une URL API styles/v1.';
       default:
         return null;
     }
@@ -148,8 +187,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       _connectController();
     }
 
-    final oldStyle = (oldWidget.styleUrl ?? '').trim();
-    final newStyle = (widget.styleUrl ?? '').trim();
+    final oldStyle = _normalizeMapboxStyleUrl(oldWidget.styleUrl ?? '');
+    final newStyle = _normalizeMapboxStyleUrl(widget.styleUrl ?? '');
     if (oldStyle == newStyle) return;
 
     final styleToApply = newStyle.isEmpty ? _fallbackStyleUrl : newStyle;
@@ -1150,7 +1189,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           initialZoom: widget.initialZoom,
           initialPitch: widget.initialPitch,
           initialBearing: widget.initialBearing,
-          styleUrl: widget.styleUrl,
+          styleUrl: _normalizeMapboxStyleUrl(widget.styleUrl ?? ''),
           onMapReady: _onMapReady,
           onTap: (lng, lat) {
             _handleTapFromJs(lng, lat);
