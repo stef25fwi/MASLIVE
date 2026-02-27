@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
@@ -89,11 +90,54 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
 
   String _poisGeoJsonString = '{"type":"FeatureCollection","features":[]}';
 
+  List<MapMarker>? _lastMarkers;
+  ({
+    List<MapPoint> points,
+    Color fillColor,
+    Color strokeColor,
+    double strokeWidth,
+    bool show,
+  })?
+  _lastPolygon;
+
+  ({
+    List<MapPoint> points,
+    Color color,
+    double width,
+    bool show,
+    PolylineRenderOptions options,
+  })?
+  _lastPolyline;
+
+  String? _pendingStyleUrlToApply;
+
   @override
   void initState() {
     super.initState();
     _initMapboxToken();
     _connectController();
+  }
+
+  @override
+  void didUpdateWidget(covariant MasLiveMapNative oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.controller != oldWidget.controller) {
+      _connectController();
+    }
+
+    final oldStyle = (oldWidget.styleUrl ?? '').trim();
+    final newStyle = (widget.styleUrl ?? '').trim();
+    if (oldStyle == newStyle) return;
+
+    final styleToApply = newStyle.isEmpty ? MapboxStyles.STANDARD : newStyle;
+    if (_mapboxMap == null) {
+      _pendingStyleUrlToApply = styleToApply;
+      return;
+    }
+
+    _styleLoaded = false;
+    unawaited(_mapboxMap!.loadStyleURI(styleToApply));
   }
 
   Future<void> _initMapboxToken() async {
@@ -145,6 +189,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     };
 
     controller.setMarkersImpl = (markers) async {
+      _lastMarkers = List<MapMarker>.from(markers);
       await _ensureMarkersManager();
       await _markersManager?.deleteAll();
       for (final m in markers) {
@@ -165,6 +210,17 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     };
 
     controller.setPolylineImpl = (points, color, width, show, options) async {
+      if (!show) {
+        _lastPolyline = null;
+      } else {
+        _lastPolyline = (
+          points: List<MapPoint>.from(points),
+          color: color,
+          width: width,
+          show: show,
+          options: options,
+        );
+      }
       if (!show) {
         _pendingPolyline = null;
         await _removeRouteLayersAndSourcesIfAny();
@@ -248,6 +304,17 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     controller.setPolygonImpl =
         (points, fillColor, strokeColor, strokeWidth, show) async {
           if (!show) {
+            _lastPolygon = null;
+          } else {
+            _lastPolygon = (
+              points: List<MapPoint>.from(points),
+              fillColor: fillColor,
+              strokeColor: strokeColor,
+              strokeWidth: strokeWidth,
+              show: show,
+            );
+          }
+          if (!show) {
             await _polygonManager?.deleteAll();
             return;
           }
@@ -267,6 +334,10 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     };
 
     controller.clearAllImpl = () async {
+      _lastMarkers = null;
+      _lastPolyline = null;
+      _pendingPolyline = null;
+      _lastPolygon = null;
       await _markersManager?.deleteAll();
       await _polylineManager?.deleteAll();
       await _polygonManager?.deleteAll();
@@ -685,11 +756,123 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   void _onMapCreated(MapboxMap mapboxMap) async {
     _mapboxMap = mapboxMap;
 
+    final pending = _pendingStyleUrlToApply;
+    if (pending != null) {
+      _pendingStyleUrlToApply = null;
+      _styleLoaded = false;
+      unawaited(mapboxMap.loadStyleURI(pending));
+    }
+
     if (!_isMapReady) {
       _isMapReady = true;
       final controller = widget.controller;
       if (controller != null) {
         widget.onMapReady?.call(controller);
+      }
+    }
+  }
+
+  Future<void> _reapplyCachedOverlaysAfterStyleLoad() async {
+    // Markers
+    final markers = _lastMarkers;
+    if (markers != null) {
+      await _ensureMarkersManager();
+      await _markersManager?.deleteAll();
+      for (final m in markers) {
+        final opt = PointAnnotationOptions(
+          geometry: Point(coordinates: Position(m.lng, m.lat)),
+          iconImage: 'marker-15',
+          iconSize: m.size,
+          iconColor: m.color.toARGB32(),
+          textField: m.label,
+          textSize: 12.0,
+          textOffset: const [0.0, 1.2],
+          textColor: Colors.black.toARGB32(),
+          textHaloColor: Colors.white.toARGB32(),
+          textHaloWidth: 1.0,
+        );
+        await _markersManager?.create(opt);
+      }
+    }
+
+    // Polygon
+    final polygon = _lastPolygon;
+    if (polygon != null && polygon.show) {
+      await _ensurePolygonManager();
+      await _polygonManager?.deleteAll();
+      final coords = polygon.points.map((p) => Position(p.lng, p.lat)).toList();
+      final opt = PolygonAnnotationOptions(
+        geometry: Polygon(coordinates: [coords]),
+        fillColor: polygon.fillColor.toARGB32(),
+        fillOutlineColor: polygon.strokeColor.toARGB32(),
+      );
+      await _polygonManager?.create(opt);
+    }
+
+    // Polyline
+    final poly = _lastPolyline;
+    if (poly != null && poly.show) {
+      final segJson = poly.options.segmentsGeoJson;
+      final useSegments = segJson != null && segJson.trim().isNotEmpty;
+      if (useSegments) {
+        _pendingPolyline = (
+          points: poly.points,
+          color: poly.color,
+          width: poly.width,
+          show: poly.show,
+          options: poly.options,
+        );
+        await _polylineManager?.deleteAll();
+        if (_styleLoaded && _mapboxMap != null) {
+          await _renderSegmentedPolylineNative(
+            points: poly.points,
+            color: poly.color,
+            width: poly.width,
+            options: poly.options,
+          );
+        }
+      } else {
+        _pendingPolyline = null;
+        await _removeRouteLayersAndSourcesIfAny();
+
+        await _ensurePolylineManager();
+        await _polylineManager?.deleteAll();
+        final coords = poly.points.map((p) => Position(p.lng, p.lat)).toList();
+
+        final baseWidth = poly.width;
+        final shadowEnabled = poly.options.shadow3d;
+        final roadLike = poly.options.roadLike;
+
+        int to255(double v) => (v * 255.0).round().clamp(0, 255);
+        int argbWithAlpha(Color c, int a) =>
+            Color.fromARGB(a, to255(c.r), to255(c.g), to255(c.b)).toARGB32();
+        final shadowColor = argbWithAlpha(const Color(0xFF000000), 90);
+        final casingColor = argbWithAlpha(const Color(0xFF000000), 140);
+        final centerColor = argbWithAlpha(const Color(0xFFFFFFFF), 190);
+
+        Future<void> addLine({
+          required int lineColor,
+          required double lineWidth,
+        }) async {
+          final opt = PolylineAnnotationOptions(
+            geometry: LineString(coordinates: coords),
+            lineColor: lineColor,
+            lineWidth: lineWidth,
+          );
+          await _polylineManager?.create(opt);
+        }
+
+        if (!roadLike) {
+          await addLine(lineColor: poly.color.toARGB32(), lineWidth: baseWidth);
+        } else {
+          if (shadowEnabled) {
+            await addLine(lineColor: shadowColor, lineWidth: baseWidth + 8.0);
+          }
+          await addLine(lineColor: casingColor, lineWidth: baseWidth + 5.0);
+          await addLine(lineColor: poly.color.toARGB32(), lineWidth: baseWidth);
+          final centerWidth = (baseWidth * 0.33).clamp(1.0, baseWidth);
+          await addLine(lineColor: centerColor, lineWidth: centerWidth);
+        }
       }
     }
   }
@@ -735,6 +918,10 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
             );
           }
         }
+
+        // Après un reload de style (ou un changement de styleUrl), il faut restaurer
+        // les overlays applicatifs (annotations + éventuels segments).
+        await _reapplyCachedOverlaysAfterStyleLoad();
       },
       onTapListener: (gestureContext) async {
         final controller = widget.controller;

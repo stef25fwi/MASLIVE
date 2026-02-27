@@ -78,6 +78,30 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
   String _poisGeoJsonString = '{"type":"FeatureCollection","features":[]}';
 
+  static const String _fallbackStyleUrl = 'mapbox://styles/mapbox/streets-v12';
+
+  List<MapMarker>? _lastMarkers;
+  ({
+    List<MapPoint> points,
+    Color color,
+    double width,
+    bool show,
+    PolylineRenderOptions options,
+  })?
+  _lastPolyline;
+
+  ({
+    List<MapPoint> points,
+    Color fillColor,
+    Color strokeColor,
+    double strokeWidth,
+    bool show,
+  })?
+  _lastPolygon;
+
+  String? _pendingStyleUrlToApply;
+  int _styleChangeNonce = 0;
+
   (String? reason, String message) _splitInitError(String raw) {
     final trimmed = raw.trim();
     final re = RegExp(r'^\[([A-Z0-9_]+)\]\s*(.*)$');
@@ -114,6 +138,124 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     _metricsObserver = _MasliveMetricsObserver(onMetrics: _scheduleResize);
     WidgetsBinding.instance.addObserver(_metricsObserver);
     _loadMapboxToken();
+  }
+
+  @override
+  void didUpdateWidget(covariant MasLiveMapWeb oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.controller != oldWidget.controller) {
+      _connectController();
+    }
+
+    final oldStyle = (oldWidget.styleUrl ?? '').trim();
+    final newStyle = (widget.styleUrl ?? '').trim();
+    if (oldStyle == newStyle) return;
+
+    if (!_isMapReady) {
+      _pendingStyleUrlToApply = newStyle;
+      return;
+    }
+
+    final styleToApply = newStyle.isEmpty ? _fallbackStyleUrl : newStyle;
+    try {
+      _mbSetStyle(_containerId, styleToApply);
+    } catch (e) {
+      debugPrint('⚠️ setStyle (didUpdateWidget) error: $e');
+    }
+
+    _scheduleResize();
+    _scheduleReapplyOverlaysAfterStyleChange();
+  }
+
+  void _scheduleReapplyOverlaysAfterStyleChange() {
+    final nonce = ++_styleChangeNonce;
+    unawaited(_retryReapplyOverlaysWhenStyleReady(nonce));
+  }
+
+  Future<void> _retryReapplyOverlaysWhenStyleReady(int nonce) async {
+    for (var attempt = 0; attempt < 35; attempt++) {
+      if (!mounted || nonce != _styleChangeNonce) return;
+      final map = _getMapForThisContainer();
+      if (map != null) {
+        try {
+          final styleLoaded = map.callMethod('isStyleLoaded');
+          if (styleLoaded == true) {
+            await _reapplyCachedOverlays();
+            return;
+          }
+        } catch (_) {
+          // ignore
+        }
+      }
+      await Future.delayed(const Duration(milliseconds: 120));
+    }
+  }
+
+  Future<void> _reapplyCachedOverlays() async {
+    if (!_isMapReady) return;
+
+    // POIs (GeoJSON + layers)
+    unawaited(_applyPoisGeoJsonIfReady());
+
+    // Markers
+    final markers = _lastMarkers;
+    if (markers != null) {
+      try {
+        final markersJson = jsonEncode([
+          for (final m in markers)
+            {
+              'id': m.id,
+              'lng': m.lng,
+              'lat': m.lat,
+              'size': m.size,
+              'color': '#${m.color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}',
+              'label': m.label,
+            }
+        ]);
+        _mbSetMarkers(_containerId, markersJson);
+      } catch (e) {
+        debugPrint('⚠️ reapply markers error: $e');
+      }
+    }
+
+    // Polyline
+    final poly = _lastPolyline;
+    if (poly != null && poly.show) {
+      try {
+        final pointsJson = jsonEncode([
+          for (final p in poly.points) {'lng': p.lng, 'lat': p.lat}
+        ]);
+        final colorHex = '#${poly.color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2, 8)}';
+        final optionsJson = jsonEncode(poly.options.toJson());
+        _mbSetPolyline(_containerId, pointsJson, colorHex, poly.width, true, optionsJson);
+      } catch (e) {
+        debugPrint('⚠️ reapply polyline error: $e');
+      }
+    }
+
+    // Polygon
+    final polyGon = _lastPolygon;
+    if (polyGon != null && polyGon.show) {
+      try {
+        final pointsJson = jsonEncode([
+          for (final p in polyGon.points) {'lng': p.lng, 'lat': p.lat}
+        ]);
+        final fillHex = '#${polyGon.fillColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2, 8)}';
+        final strokeHex = '#${polyGon.strokeColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2, 8)}';
+        _mbSetPolygon(
+          _containerId,
+          pointsJson,
+          fillHex,
+          polyGon.fillColor.a,
+          strokeHex,
+          polyGon.strokeWidth,
+          true,
+        );
+      } catch (e) {
+        debugPrint('⚠️ reapply polygon error: $e');
+      }
+    }
   }
 
   void _scheduleResize() {
@@ -682,6 +824,19 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     if (controller != null) {
       widget.onMapReady?.call(controller);
     }
+
+    final pending = _pendingStyleUrlToApply;
+    if (pending != null) {
+      _pendingStyleUrlToApply = null;
+      final styleToApply = pending.trim().isEmpty ? _fallbackStyleUrl : pending.trim();
+      try {
+        _mbSetStyle(_containerId, styleToApply);
+      } catch (e) {
+        debugPrint('⚠️ setStyle (pending) error: $e');
+      }
+      _scheduleResize();
+      _scheduleReapplyOverlaysAfterStyleChange();
+    }
   }
 
   void _connectController() {
@@ -710,6 +865,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     };
 
     controller.setMarkersImpl = (markers) async {
+      _lastMarkers = List<MapMarker>.from(markers);
       try {
         final markersJson = jsonEncode([
           for (final m in markers)
@@ -729,6 +885,17 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     };
 
     controller.setPolylineImpl = (points, color, width, show, options) async {
+      if (!show) {
+        _lastPolyline = null;
+      } else {
+        _lastPolyline = (
+          points: List<MapPoint>.from(points),
+          color: color,
+          width: width,
+          show: show,
+          options: options,
+        );
+      }
       try {
         final pointsJson = jsonEncode([
           for (final p in points) {'lng': p.lng, 'lat': p.lat}
@@ -743,6 +910,17 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     };
 
     controller.setPolygonImpl = (points, fillColor, strokeColor, strokeWidth, show) async {
+      if (!show) {
+        _lastPolygon = null;
+      } else {
+        _lastPolygon = (
+          points: List<MapPoint>.from(points),
+          fillColor: fillColor,
+          strokeColor: strokeColor,
+          strokeWidth: strokeWidth,
+          show: show,
+        );
+      }
       try {
         final pointsJson = jsonEncode([
           for (final p in points) {'lng': p.lng, 'lat': p.lat}
@@ -768,6 +946,9 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     };
 
     controller.clearAllImpl = () async {
+      _lastMarkers = null;
+      _lastPolyline = null;
+      _lastPolygon = null;
       try {
         _mbClearAll(_containerId);
       } catch (e) {

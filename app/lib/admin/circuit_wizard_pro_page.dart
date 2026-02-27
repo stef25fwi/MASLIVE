@@ -87,6 +87,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   final _descriptionController = TextEditingController();
   final _styleUrlController = TextEditingController();
 
+  Timer? _styleUrlDebounce;
+
   // Données Steps 2-4: Cartes
   List<LngLat> _perimeterPoints = [];
   List<LngLat> _routePoints = [];
@@ -790,7 +792,20 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     _eventController.dispose();
     _descriptionController.dispose();
     _styleUrlController.dispose();
+    _styleUrlDebounce?.cancel();
     super.dispose();
+  }
+
+  void _onStyleUrlChanged(String _) {
+    // Évite de recharger le style à chaque frappe.
+    _styleUrlDebounce?.cancel();
+    _styleUrlDebounce = Timer(const Duration(milliseconds: 450), () {
+      if (!mounted) return;
+      setState(() {
+        // La valeur source-of-truth reste _styleUrlController.text.
+        // Le rebuild suffit pour propager le nouveau styleUrl aux MasLiveMap.
+      });
+    });
   }
 
   void _ensurePoiInitialCamera() {
@@ -1795,6 +1810,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           const SizedBox(height: 16),
           TextField(
             controller: _styleUrlController,
+            onChanged: _onStyleUrlChanged,
             decoration: const InputDecoration(
               labelText: 'Style URL Mapbox (optionnel)',
               hintText: 'mapbox://styles/username/style-id',

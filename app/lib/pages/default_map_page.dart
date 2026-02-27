@@ -218,9 +218,18 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     }
   }
 
-  Future<void> _applyMarketPoiSelection(MarketMapPoiSelection selection) async {
+  Future<void> _applyMarketPoiSelection(
+    MarketMapPoiSelection selection, {
+    bool resetPoiFilter = false,
+  }) async {
     await _marketPoisSub?.cancel();
     _marketPoisSub = null;
+
+    // Changement de carte/circuit => ne pas afficher de POIs par défaut.
+    // Les POIs apparaissent uniquement après clic sur une icône de la barre verticale.
+    if (resetPoiFilter && mounted) {
+      setState(() => _selectedAction = null);
+    }
 
     if (!selection.enabled ||
         selection.country == null ||
@@ -258,6 +267,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       if (circuit.styleUrl != null && circuit.styleUrl!.trim().isNotEmpty) {
         _styleUrl = circuit.styleUrl!.trim();
       }
+
+      // Nouveau circuit => reset affichage POIs.
+      _marketPoiMarkers = const <MapMarker>[];
 
       // Nouveau widget Map -> on attend son onMapReady pour appliquer le tracé.
       _isMasLiveMapReady = false;
@@ -703,9 +715,19 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   void _refreshMarketPoiMarkers() {
     if (!mounted) return;
     final filterType = _actionToPoiType(_selectedAction);
+
+    // Par défaut (aucune action sélectionnée), on n'affiche aucun POI.
+    // Les POIs apparaissent uniquement après clic sur une icône de la barre verticale.
+    if (filterType == null) {
+      setState(() {
+        _marketPoiMarkers = const <MapMarker>[];
+      });
+      unawaited(_syncMarkersToMap());
+      return;
+    }
     final markers = _marketPois
         .where((p) => p.lat != 0.0 && p.lng != 0.0)
-        .where((p) => filterType == null || p.type == filterType)
+        .where((p) => p.type == filterType)
         .map(
           (p) => MapMarker(
             id: 'marketpoi:${p.id}',
@@ -823,7 +845,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       _marketPoiSelection = selection;
     });
 
-    await _applyMarketPoiSelection(selection);
+    await _applyMarketPoiSelection(selection, resetPoiFilter: true);
   }
 
   @override

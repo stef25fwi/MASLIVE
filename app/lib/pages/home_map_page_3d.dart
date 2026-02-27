@@ -255,9 +255,18 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     await _applyMarketPoiSelection(selection);
   }
 
-  Future<void> _applyMarketPoiSelection(MarketMapPoiSelection selection) async {
+  Future<void> _applyMarketPoiSelection(
+    MarketMapPoiSelection selection, {
+    bool resetPoiFilter = false,
+  }) async {
     await _marketPoisSub?.cancel();
     _marketPoisSub = null;
+
+    // Quand l'utilisateur change de carte/circuit, on ne doit pas afficher de POIs
+    // tant qu'il n'a pas explicitement choisi un type via le menu vertical.
+    if (resetPoiFilter && mounted) {
+      setState(() => _selectedAction = null);
+    }
 
     if (!selection.enabled ||
         selection.country == null ||
@@ -1351,7 +1360,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     final wanted = _actionToPoiType(_selectedAction); // visit/food/...
     for (final type in _mmTypes) {
       final layerId = _mmLayerIdForType(type);
-      final visible = (wanted == null) ? true : (type == wanted);
+      // Par défaut (aucun filtre sélectionné), on n'affiche AUCUN POI.
+      // Les POIs apparaissent uniquement après clic sur une icône du menu vertical.
+      final visible = (wanted != null) && (type == wanted);
       try {
         await map.style.setStyleLayerProperty(
           layerId,
@@ -2027,7 +2038,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       _marketPoiSelection = selection;
     });
 
-    await _applyMarketPoiSelection(selection);
+    await _applyMarketPoiSelection(selection, resetPoiFilter: true);
   }
 
   /// Ferme automatiquement le menu de navigation après un délai.
