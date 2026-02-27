@@ -465,6 +465,39 @@
       }
     },
     {
+      "label": "MASLIVE: Functions - npm audit fix",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/functions && npm audit fix",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Deploy Functions (maslive)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && firebase deploy --only functions --project maslive",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Git commit + push (align Node for Functions)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add functions/package.json functions/package-lock.json .devcontainer/devcontainer.json .vscode/tasks.json app/lib/pages/home_map_page_3d.dart && git commit -m \"chore(functions): align node versions + audit fix\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Deploy Firestore Rules",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && firebase deploy --only firestore:rules",
