@@ -576,19 +576,29 @@
       "label": "MASLIVE: Setup and deploy",
       "type": "shell",
       "command": "bash /workspaces/MASLIVE/scripts/setup_deploy.sh",
-      "problemMatcher": []
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
     },
     {
       "label": "MASLIVE: Build Web & Deploy Hosting",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE/app && flutter pub get && { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -z \"$TOKEN\" ]; then echo '❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).'; exit 1; fi && flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" && cd .. && firebase deploy --only hosting",
+      "command": "cd /workspaces/MASLIVE/app && source /workspaces/MASLIVE/flutter_env.sh && flutter pub get && { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -z \"$TOKEN\" ]; then echo '❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).'; exit 1; fi && flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" && cd .. && firebase deploy --only hosting",
       "problemMatcher": [],
-      "isBackground": false
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
     },
     {
       "label": "MASLIVE: Build Web & Deploy Hosting (diagnostic tail)",
       "type": "shell",
-      "command": "set -euo pipefail; cd /workspaces/MASLIVE/app; flutter pub get; { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true; TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}}; if [ -z \"$TOKEN\" ]; then echo '❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).'; exit 1; fi; echo \"🗺️  Token Mapbox détecté: ${TOKEN:0:15}...\"; echo '--- flutter build (tail) ---'; flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" 2>&1 | tail -n 200; cd /workspaces/MASLIVE; echo '--- firebase deploy (tail) ---'; firebase deploy --only hosting 2>&1 | tail -n 200",
+      "command": "set -euo pipefail; cd /workspaces/MASLIVE/app; source /workspaces/MASLIVE/flutter_env.sh; flutter pub get; { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true; TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}}; if [ -z \"$TOKEN\" ]; then echo '❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).'; exit 1; fi; echo \"🗺️  Token Mapbox détecté: ${TOKEN:0:15}...\"; echo '--- flutter build (tail) ---'; flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" 2>&1 | tail -n 200; cd /workspaces/MASLIVE; echo '--- firebase deploy (tail) ---'; firebase deploy --only hosting 2>&1 | tail -n 200",
       "problemMatcher": [],
       "isBackground": false,
       "presentation": {
