@@ -87,6 +87,7 @@ echo ""
 echo "🔨 Building web with Mapbox token..."
 cd "$repo_root/app"
 source "$repo_root/.env" 2>/dev/null || true
+source "$repo_root/flutter_env.sh"
 export MAPBOX_ACCESS_TOKEN="${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-}}"
 
 if [ -n "$MAPBOX_ACCESS_TOKEN" ]; then

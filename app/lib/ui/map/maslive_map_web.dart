@@ -152,12 +152,24 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     final newStyle = (widget.styleUrl ?? '').trim();
     if (oldStyle == newStyle) return;
 
+    final styleToApply = newStyle.isEmpty ? _fallbackStyleUrl : newStyle;
+
     if (!_isMapReady) {
       _pendingStyleUrlToApply = newStyle;
+      // Depuis le "ready" strict (idle), la map peut exister bien avant le signal READY.
+      // On tente donc un setStyle dès que possible pour que les previews (wizard) réagissent.
+      try {
+        _mbSetStyle(_containerId, styleToApply);
+      } catch (e) {
+        debugPrint('⚠️ setStyle (didUpdateWidget, map not ready yet) error: $e');
+        return;
+      }
+
+      _scheduleResize();
+      _scheduleReapplyOverlaysAfterStyleChange();
       return;
     }
 
-    final styleToApply = newStyle.isEmpty ? _fallbackStyleUrl : newStyle;
     try {
       _mbSetStyle(_containerId, styleToApply);
     } catch (e) {
@@ -334,7 +346,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     final map = _getMapForThisContainer();
     if (map == null) return;
 
-    dynamic _jsValue(dynamic v) {
+    dynamic jsValue(dynamic v) {
       try {
         if (v is Map || v is List) return js.JsObject.jsify(v);
       } catch (_) {
@@ -378,11 +390,11 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       if (fillLayer != null) {
         map.callMethod(
           'setPaintProperty',
-          [_poiFillLayerId, 'fill-color', _jsValue(fillColorExpr)],
+          [_poiFillLayerId, 'fill-color', jsValue(fillColorExpr)],
         );
         map.callMethod(
           'setPaintProperty',
-          [_poiFillLayerId, 'fill-opacity', _jsValue(fillOpacityExpr)],
+          [_poiFillLayerId, 'fill-opacity', jsValue(fillOpacityExpr)],
         );
       }
     } catch (_) {
@@ -399,7 +411,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       try {
         map.callMethod(
           'setPaintProperty',
-          [layerId, 'line-color', _jsValue(lineColorExpr)],
+          [layerId, 'line-color', jsValue(lineColorExpr)],
         );
       } catch (_) {
         // ignore
@@ -407,7 +419,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       try {
         map.callMethod(
           'setPaintProperty',
-          [layerId, 'line-width', _jsValue(lineWidthExpr)],
+          [layerId, 'line-width', jsValue(lineWidthExpr)],
         );
       } catch (_) {
         // ignore

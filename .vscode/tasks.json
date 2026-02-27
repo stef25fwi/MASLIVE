@@ -600,7 +600,7 @@
     {
       "label": "MASLIVE: Déployer Hosting (1 clic)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE/app && flutter pub get && { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -z \"$TOKEN\" ]; then echo '❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).'; exit 1; fi && flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" && cd .. && firebase deploy --only hosting",
+      "command": "cd /workspaces/MASLIVE/app && source /workspaces/MASLIVE/flutter_env.sh && flutter pub get && { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -z \"$TOKEN\" ]; then echo '❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).'; exit 1; fi && flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" && cd .. && firebase deploy --only hosting",
       "problemMatcher": [],
       "isBackground": false,
       "group": {
@@ -611,19 +611,19 @@
     {
       "label": "MASLIVE: Regenerate Splash & Deploy (Deprecated)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE/app && { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -z \"$TOKEN\" ]; then echo '❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).'; exit 1; fi && flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" && cd .. && firebase deploy --only hosting",
+      "command": "cd /workspaces/MASLIVE/app && source /workspaces/MASLIVE/flutter_env.sh && { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -z \"$TOKEN\" ]; then echo '❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).'; exit 1; fi && flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" && cd .. && firebase deploy --only hosting",
       "problemMatcher": []
     },
     {
       "label": "MASLIVE: Flutter analyze",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE/app && flutter analyze --no-fatal-infos --no-fatal-warnings",
+      "command": "cd /workspaces/MASLIVE/app && source /workspaces/MASLIVE/flutter_env.sh && flutter analyze --no-fatal-infos --no-fatal-warnings",
       "problemMatcher": []
     },
     {
       "label": "MASLIVE: Dart analyze (dump machine)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE/app && dart analyze --format=machine > /workspaces/MASLIVE/dart_analyze_machine.txt || true && echo 'WROTE: /workspaces/MASLIVE/dart_analyze_machine.txt' && wc -l /workspaces/MASLIVE/dart_analyze_machine.txt",
+      "command": "cd /workspaces/MASLIVE/app && source /workspaces/MASLIVE/flutter_env.sh && dart analyze --format=machine > /workspaces/MASLIVE/dart_analyze_machine.txt || true && echo 'WROTE: /workspaces/MASLIVE/dart_analyze_machine.txt' && wc -l /workspaces/MASLIVE/dart_analyze_machine.txt",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -634,7 +634,7 @@
     {
       "label": "MASLIVE: Flutter test (route_style_pro)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE/app && flutter test test/route_style_pro/route_style_config_test.dart",
+      "command": "cd /workspaces/MASLIVE/app && source /workspaces/MASLIVE/flutter_env.sh && flutter test test/route_style_pro/route_style_config_test.dart",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -645,7 +645,7 @@
     {
       "label": "MASLIVE: Flutter test (all)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE/app && flutter test",
+      "command": "cd /workspaces/MASLIVE/app && source /workspaces/MASLIVE/flutter_env.sh && flutter test",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -656,7 +656,18 @@
     {
       "label": "MASLIVE: Flutter test (expanded dump)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE/app && flutter test -r expanded > /workspaces/MASLIVE/flutter_test_expanded.txt 2>&1 || true && echo 'WROTE: /workspaces/MASLIVE/flutter_test_expanded.txt' && tail -n 180 /workspaces/MASLIVE/flutter_test_expanded.txt",
+      "command": "cd /workspaces/MASLIVE/app && source /workspaces/MASLIVE/flutter_env.sh && flutter test -r expanded > /workspaces/MASLIVE/flutter_test_expanded.txt 2>&1 || true && echo 'WROTE: /workspaces/MASLIVE/flutter_test_expanded.txt' && tail -n 180 /workspaces/MASLIVE/flutter_test_expanded.txt",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Git commit + push (web: styleUrl preview apply before READY)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add app/lib/ui/map/maslive_map_web.dart flutter_env.sh check_errors.sh commit_push_build_deploy.sh git_commit_push_build_deploy.sh .vscode/tasks.json && if git diff --cached --quiet; then echo '⚠️ Rien à committer (styleUrl preview web)'; exit 0; fi && git commit -m \"fix(web): apply styleUrl preview before READY\" && git push origin main",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -717,7 +728,7 @@
     {
       "label": "MASLIVE: 🖼️ Test Image System (fallback all)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE/app && if [ -f test/test_image_system.dart ]; then flutter test test/test_image_system.dart; else echo 'WARN: test/test_image_system.dart absent; exécution de flutter test (all)'; flutter test; fi",
+      "command": "cd /workspaces/MASLIVE/app && source /workspaces/MASLIVE/flutter_env.sh && if [ -f test/test_image_system.dart ]; then flutter test test/test_image_system.dart; else echo 'WARN: test/test_image_system.dart absent; exécution de flutter test (all)'; flutter test; fi",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",

@@ -125,6 +125,7 @@ ensure_flutter() {
 		return 0
 	fi
 
+	# Prefer repo-local Flutter if present.
 	local flutter_dir="$repo_root/.flutter_sdk"
 	if [[ ! -d "$flutter_dir" ]]; then
 		echo "⬇️  Flutter manquant. Installation locale dans $flutter_dir ..."
