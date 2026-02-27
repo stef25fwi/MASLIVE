@@ -11,7 +11,8 @@
 .venv/
 venv/
 
-
+# Local Flutter SDK (installed by scripts)
+.flutter_sdk/
 
 # Flutter repo-specific
 /bin/cache/

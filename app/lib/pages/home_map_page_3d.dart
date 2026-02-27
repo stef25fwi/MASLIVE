@@ -28,6 +28,8 @@ import '../services/mapbox_token_service.dart';
 import '../services/market_map_service.dart';
 import '../models/market_poi.dart';
 import '../ui/widgets/marketmap_poi_selector_sheet.dart';
+import '../route_style_pro/services/route_style_pro_projection.dart';
+import '../route_style_pro/models/route_style_config.dart';
 import '../l10n/app_localizations.dart' as l10n;
 import 'storex_shop_page.dart';
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
@@ -112,6 +114,20 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   static const String _mmPoiLayerPrefix = 'mm_pois_layer__'; // + type
   GeoJsonSource? _mmPoiSource;
   final Set<String> _mmPoiLayerIds = <String>{};
+
+  // === MarketMap Route (Style Pro via GeoJSON Layers) ===
+  static const String _mmRouteSourceId = 'mm_route_src';
+  static const String _mmRouteSegmentsSourceId = 'mm_route_segments_src';
+  static const String _mmRouteLayerShadowId = 'mm_route_shadow';
+  static const String _mmRouteLayerGlowId = 'mm_route_glow';
+  static const String _mmRouteLayerCasingId = 'mm_route_casing';
+  static const String _mmRouteLayerMainId = 'mm_route_main';
+
+  bool _mmRouteRuntimeReady = false;
+  Timer? _routeAnimTimer;
+  int _routeAnimTick = 0;
+  List<Position> _lastMarketRoutePts = const <Position>[];
+  RouteStyleConfig? _lastMarketRouteProCfg;
 
   // Types supportés pour filtrage rapide par action
   static const List<String> _mmTypes = <String>[
@@ -200,6 +216,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     WidgetsBinding.instance.removeObserver(this);
     _positionSub?.cancel();
     _marketPoisSub?.cancel();
+    _routeAnimTimer?.cancel();
     _menuAnimController.dispose();
     super.dispose();
   }
@@ -295,14 +312,44 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     if (map == null) return;
     if (_circuitsAnnotationManager != null) return;
     try {
-      _circuitsAnnotationManager =
-          await map.annotations.createPolylineAnnotationManager();
+      _circuitsAnnotationManager = await map.annotations
+          .createPolylineAnnotationManager();
     } catch (e) {
       debugPrint('⚠️ Erreur createPolylineAnnotationManager: $e');
     }
   }
 
   Future<void> _clearMarketCircuitRoute() async {
+    _routeAnimTimer?.cancel();
+    _routeAnimTimer = null;
+    _routeAnimTick = 0;
+    _lastMarketRoutePts = const <Position>[];
+    _lastMarketRouteProCfg = null;
+
+    // Clear Style Pro route layers (si présents)
+    final map = _mapboxMap;
+    if (map != null) {
+      final empty = _emptyRouteFeatureCollection();
+      try {
+        await map.style.setStyleSourceProperty(
+          _mmRouteSourceId,
+          'data',
+          empty,
+        );
+      } catch (_) {
+        // ignore
+      }
+      try {
+        await map.style.setStyleSourceProperty(
+          _mmRouteSegmentsSourceId,
+          'data',
+          empty,
+        );
+      } catch (_) {
+        // ignore
+      }
+    }
+
     try {
       await _circuitsAnnotationManager?.deleteAll();
     } catch (_) {
@@ -310,7 +357,446 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     }
   }
 
-  Future<bool> _renderMarketCircuitRoute(MarketMapPoiSelection selection) async {
+  static String _emptyRouteFeatureCollection() =>
+      jsonEncode({'type': 'FeatureCollection', 'features': []});
+
+  static String _routeFeatureCollection(List<Map<String, dynamic>> features) =>
+      jsonEncode({'type': 'FeatureCollection', 'features': features});
+
+  static String _toHexRgba(Color c, {required double opacity}) {
+    // Compatible Mapbox style-spec (couleur CSS rgba)
+    final a = opacity.clamp(0.0, 1.0);
+    final r = ((c.r * 255).round()).clamp(0, 255);
+    final g = ((c.g * 255).round()).clamp(0, 255);
+    final b = ((c.b * 255).round()).clamp(0, 255);
+    return 'rgba($r,$g,$b,${a.toStringAsFixed(3)})';
+  }
+
+  static Color _hsvToColor(double h, double s, double v) {
+    final hh = (h % 360) / 60.0;
+    final c = v * s;
+    final x = c * (1 - ((hh % 2) - 1).abs());
+    final m = v - c;
+
+    double r1 = 0, g1 = 0, b1 = 0;
+    if (hh >= 0 && hh < 1) {
+      r1 = c;
+      g1 = x;
+    } else if (hh < 2) {
+      r1 = x;
+      g1 = c;
+    } else if (hh < 3) {
+      g1 = c;
+      b1 = x;
+    } else if (hh < 4) {
+      g1 = x;
+      b1 = c;
+    } else if (hh < 5) {
+      r1 = x;
+      b1 = c;
+    } else {
+      r1 = c;
+      b1 = x;
+    }
+
+    final r = ((r1 + m) * 255).round().clamp(0, 255);
+    final g = ((g1 + m) * 255).round().clamp(0, 255);
+    final b = ((b1 + m) * 255).round().clamp(0, 255);
+    return Color.fromARGB(255, r, g, b);
+  }
+
+  static Color _segmentColor(RouteStyleConfig cfg, int index, int animTick) {
+    if (cfg.trafficDemoEnabled) {
+      const traffic = [
+        Color(0xFF22C55E), // vert
+        Color(0xFFF59E0B), // orange
+        Color(0xFFEF4444), // rouge
+      ];
+      return traffic[index % traffic.length];
+    }
+
+    if (cfg.rainbowEnabled) {
+      final shift = (animTick % 360);
+      final dir = cfg.rainbowReverse ? -1 : 1;
+      final hue = (shift + dir * index * 14) % 360;
+      return _hsvToColor(hue.toDouble(), cfg.rainbowSaturation, 1.0);
+    }
+
+    return cfg.mainColor;
+  }
+
+  static String _buildSegmentsFeatureCollection(
+    List<Position> pts,
+    RouteStyleConfig cfg, {
+    required int animTick,
+  }) {
+    if (pts.length < 2) return _emptyRouteFeatureCollection();
+
+    // Limite segments (perf)
+    const maxSeg = 60;
+    final step = max(1, ((pts.length - 1) / maxSeg).ceil());
+
+    final features = <Map<String, dynamic>>[];
+    int segIndex = 0;
+
+    for (int i = 0; i < pts.length - 1; i += step) {
+      final a = pts[i];
+      final b = pts[min(i + step, pts.length - 1)];
+
+      final t = segIndex / max(1, ((pts.length - 1) / step).floor());
+
+      final baseOpacity = cfg.opacity;
+      final opacity = cfg.vanishingEnabled
+          ? (t <= cfg.vanishingProgress ? 0.25 : baseOpacity)
+          : baseOpacity;
+
+      final color = _segmentColor(cfg, segIndex, animTick);
+
+      features.add({
+        'type': 'Feature',
+        'properties': {
+          'color': _toHexRgba(color, opacity: opacity),
+          'width': cfg.mainWidth,
+          'opacity': opacity,
+        },
+        'geometry': {
+          'type': 'LineString',
+          'coordinates': [
+            [a.lng.toDouble(), a.lat.toDouble()],
+            [b.lng.toDouble(), b.lat.toDouble()],
+          ],
+        },
+      });
+      segIndex++;
+    }
+
+    return _routeFeatureCollection(features);
+  }
+
+  static String _buildSolidFeatureCollection(
+    List<Position> pts,
+    RouteStyleConfig cfg,
+  ) {
+    if (pts.length < 2) return _emptyRouteFeatureCollection();
+    return _routeFeatureCollection([
+      {
+        'type': 'Feature',
+        'properties': {
+          'color': _toHexRgba(cfg.mainColor, opacity: cfg.opacity),
+          'width': cfg.mainWidth,
+          'opacity': cfg.opacity,
+        },
+        'geometry': {
+          'type': 'LineString',
+          'coordinates': [
+            for (final p in pts) [p.lng.toDouble(), p.lat.toDouble()],
+          ],
+        },
+      }
+    ]);
+  }
+
+  void _syncMarketRouteAnimTimer(RouteStyleConfig cfg) {
+    final needsAnim = cfg.pulseEnabled || cfg.rainbowEnabled;
+    if (!needsAnim) {
+      _routeAnimTimer?.cancel();
+      _routeAnimTimer = null;
+      return;
+    }
+
+    final periodMs = (cfg.rainbowEnabled
+            ? (110 - (cfg.rainbowSpeed * 0.8)).clamp(25, 110)
+            : (160 - (cfg.pulseSpeed * 1.0)).clamp(40, 160))
+        .round();
+
+    _routeAnimTimer?.cancel();
+    _routeAnimTimer = Timer.periodic(Duration(milliseconds: periodMs), (_) {
+      _routeAnimTick++;
+      _renderMarketRoutePro(
+        pts: _lastMarketRoutePts,
+        cfg: _lastMarketRouteProCfg,
+        fitCamera: false,
+        animTick: _routeAnimTick,
+      );
+    });
+  }
+
+  Future<void> _ensureMarketRouteGeoJsonRuntime({
+    bool forceRebuild = false,
+  }) async {
+    final map = _mapboxMap;
+    if (map == null) return;
+
+    // Petit retry car setStyleURI peut rendre le style indisponible quelques ms
+    for (int attempt = 0; attempt < 6; attempt++) {
+      try {
+        final style = map.style;
+
+        if (forceRebuild) {
+          for (final layerId in <String>[
+            _mmRouteLayerMainId,
+            _mmRouteLayerCasingId,
+            _mmRouteLayerGlowId,
+            _mmRouteLayerShadowId,
+          ]) {
+            try {
+              await style.removeStyleLayer(layerId);
+            } catch (_) {
+              // ignore
+            }
+          }
+          try {
+            await style.removeStyleSource(_mmRouteSegmentsSourceId);
+          } catch (_) {
+            // ignore
+          }
+          try {
+            await style.removeStyleSource(_mmRouteSourceId);
+          } catch (_) {
+            // ignore
+          }
+          _mmRouteRuntimeReady = false;
+        }
+
+        if (_mmRouteRuntimeReady) return;
+
+        // Sources
+        try {
+          await style.addSource(
+            GeoJsonSource(id: _mmRouteSourceId, data: _emptyRouteFeatureCollection()),
+          );
+        } catch (_) {
+          // ignore
+        }
+        try {
+          await style.addSource(
+            GeoJsonSource(
+              id: _mmRouteSegmentsSourceId,
+              data: _emptyRouteFeatureCollection(),
+            ),
+          );
+        } catch (_) {
+          // ignore
+        }
+
+        // Layers order: shadow -> glow -> casing -> main
+        try {
+          await style.addLayer(
+            LineLayer(
+              id: _mmRouteLayerShadowId,
+              sourceId: _mmRouteSourceId,
+              lineColor: const Color(0xFF000000).toARGB32(),
+              lineOpacity: 0.0,
+              lineWidth: 1.0,
+              lineBlur: 0.0,
+              lineJoin: LineJoin.ROUND,
+              lineCap: LineCap.ROUND,
+            ),
+          );
+        } catch (_) {
+          // ignore
+        }
+
+        try {
+          await style.addLayer(
+            LineLayer(
+              id: _mmRouteLayerGlowId,
+              sourceId: _mmRouteSourceId,
+              lineColor: const Color(0xFF1A73E8).toARGB32(),
+              lineOpacity: 0.0,
+              lineWidth: 1.0,
+              lineBlur: 0.0,
+              lineJoin: LineJoin.ROUND,
+              lineCap: LineCap.ROUND,
+            ),
+          );
+        } catch (_) {
+          // ignore
+        }
+
+        try {
+          await style.addLayer(
+            LineLayer(
+              id: _mmRouteLayerCasingId,
+              sourceId: _mmRouteSourceId,
+              lineColor: const Color(0xFF0B1B2B).toARGB32(),
+              lineOpacity: 1.0,
+              lineWidth: 11.0,
+              lineJoin: LineJoin.ROUND,
+              lineCap: LineCap.ROUND,
+            ),
+          );
+        } catch (_) {
+          // ignore
+        }
+
+        try {
+          await style.addLayer(
+            LineLayer(
+              id: _mmRouteLayerMainId,
+              sourceId: _mmRouteSegmentsSourceId,
+              lineColor: const Color(0xFF1A73E8).toARGB32(),
+              lineOpacity: 1.0,
+              lineWidth: 7.0,
+              lineJoin: LineJoin.ROUND,
+              lineCap: LineCap.ROUND,
+            ),
+          );
+        } catch (_) {
+          // ignore
+        }
+
+        _mmRouteRuntimeReady = true;
+        return;
+      } catch (_) {
+        await Future.delayed(const Duration(milliseconds: 120));
+      }
+    }
+  }
+
+  Future<void> _renderMarketRoutePro({
+    required List<Position> pts,
+    required RouteStyleConfig? cfg,
+    required bool fitCamera,
+    int? animTick,
+  }) async {
+    final map = _mapboxMap;
+    if (map == null) return;
+    if (cfg == null) return;
+    if (pts.length < 2) return;
+
+    final c = cfg.validated();
+
+    await _ensureMarketRouteGeoJsonRuntime();
+
+    final routeFc = _routeFeatureCollection([
+      {
+        'type': 'Feature',
+        'properties': <String, dynamic>{},
+        'geometry': {
+          'type': 'LineString',
+          'coordinates': [
+            for (final p in pts) [p.lng.toDouble(), p.lat.toDouble()],
+          ],
+        },
+      }
+    ]);
+
+    final useSegments =
+        c.rainbowEnabled || c.trafficDemoEnabled || c.vanishingEnabled;
+    final segmentsFc = useSegments
+        ? _buildSegmentsFeatureCollection(pts, c, animTick: animTick ?? _routeAnimTick)
+        : _buildSolidFeatureCollection(pts, c);
+
+    Future<void> safeSetSourceData(String sourceId, String data) async {
+      try {
+        await map.style.setStyleSourceProperty(sourceId, 'data', data);
+      } catch (_) {
+        try {
+          await map.style.removeStyleSource(sourceId);
+        } catch (_) {
+          // ignore
+        }
+        try {
+          await map.style.addSource(GeoJsonSource(id: sourceId, data: data));
+        } catch (_) {
+          // ignore
+        }
+      }
+    }
+
+    await safeSetSourceData(_mmRouteSourceId, routeFc);
+    await safeSetSourceData(_mmRouteSegmentsSourceId, segmentsFc);
+
+    Future<void> safeSet(String layerId, String key, dynamic value) async {
+      try {
+        await map.style.setStyleLayerProperty(layerId, key, value);
+      } catch (_) {
+        // ignore
+      }
+    }
+
+    final join = c.lineJoin.name;
+    final cap = c.lineCap.name;
+    for (final layerId in <String>[
+      _mmRouteLayerShadowId,
+      _mmRouteLayerGlowId,
+      _mmRouteLayerCasingId,
+      _mmRouteLayerMainId,
+    ]) {
+      await safeSet(layerId, 'line-join', join);
+      await safeSet(layerId, 'line-cap', cap);
+    }
+
+    // Shadow
+    final shadowOpacity = c.shadowEnabled ? c.shadowOpacity : 0.0;
+    await safeSet(_mmRouteLayerShadowId, 'line-opacity', shadowOpacity);
+    await safeSet(_mmRouteLayerShadowId, 'line-width', max(1.0, c.casingWidth));
+    await safeSet(_mmRouteLayerShadowId, 'line-blur', c.shadowBlur);
+
+    // Glow (+ pulse)
+    double glowOpacity = c.glowEnabled ? c.glowOpacity : 0.0;
+    if (c.glowEnabled && c.pulseEnabled) {
+      final phase = ((animTick ?? _routeAnimTick) % 60) / 60.0;
+      final wave = 0.5 + 0.5 * sin(2 * pi * phase);
+      glowOpacity = (0.20 + wave * (c.glowOpacity - 0.20)).clamp(0.0, 1.0);
+    }
+    await safeSet(_mmRouteLayerGlowId, 'line-opacity', glowOpacity);
+    await safeSet(
+      _mmRouteLayerGlowId,
+      'line-width',
+      max(1.0, c.casingWidth + c.glowWidth),
+    );
+    await safeSet(_mmRouteLayerGlowId, 'line-blur', c.glowBlur);
+    await safeSet(_mmRouteLayerGlowId, 'line-color', c.mainColor.toARGB32());
+
+    // Casing
+    final casingOpacity = (c.casingWidth <= 0) ? 0.0 : c.opacity;
+    await safeSet(_mmRouteLayerCasingId, 'line-opacity', casingOpacity);
+    await safeSet(_mmRouteLayerCasingId, 'line-width', max(0.0, c.casingWidth));
+    await safeSet(
+      _mmRouteLayerCasingId,
+      'line-color',
+      c.casingColor.toARGB32(),
+    );
+
+    // Main layer from feature props
+    await safeSet(_mmRouteLayerMainId, 'line-color', ['get', 'color']);
+    await safeSet(_mmRouteLayerMainId, 'line-width', ['get', 'width']);
+    await safeSet(_mmRouteLayerMainId, 'line-opacity', ['get', 'opacity']);
+
+    if (c.dashEnabled) {
+      await safeSet(_mmRouteLayerMainId, 'line-dasharray', [c.dashLength, c.dashGap]);
+    } else {
+      await safeSet(_mmRouteLayerMainId, 'line-dasharray', null);
+    }
+
+    // Évite tout mouvement caméra en mode animation
+    if (!fitCamera) return;
+
+    final bounds = _boundsFromPositions(pts);
+    if (bounds == null) return;
+    try {
+      final camera = await map.cameraForCoordinateBounds(
+        bounds,
+        MbxEdgeInsets(top: 72, left: 72, bottom: 72, right: 72),
+        0.0,
+        0.0,
+        null,
+        null,
+      );
+      await map.flyTo(
+        camera,
+        MapAnimationOptions(duration: _cameraAnimationDuration.inMilliseconds),
+      );
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  Future<bool> _renderMarketCircuitRoute(
+    MarketMapPoiSelection selection,
+  ) async {
     final map = _mapboxMap;
     if (map == null) return false;
 
@@ -320,10 +806,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         selection.circuit == null) {
       return false;
     }
-
-    await _ensureCircuitRouteManager();
-    final manager = _circuitsAnnotationManager;
-    if (manager == null) return false;
 
     try {
       final ref = _marketMapService.circuitRef(
@@ -336,23 +818,83 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       if (data == null) return false;
 
       final rawRoute =
-          data['route'] ?? data['routePoints'] ?? data['routeGeometry'] ?? data['waypoints'];
+          data['route'] ??
+          data['routePoints'] ??
+          data['routeGeometry'] ??
+          data['waypoints'];
       final pts = _parseRoutePoints(rawRoute);
       if (pts.length < 2) {
         await _clearMarketCircuitRoute();
         return false;
       }
 
+      _lastMarketRoutePts = pts;
+
       // Style simple publié par le wizard
-      final styleAny = data['style'] ?? data['routeStyle'];
-      final style = styleAny is Map
-          ? Map<String, dynamic>.from(styleAny)
+      final legacyAny = data['style'] ?? data['routeStyle'];
+      final legacy = legacyAny is Map
+          ? Map<String, dynamic>.from(legacyAny)
           : const <String, dynamic>{};
-      final color =
-          _parseHexColor(style['color']?.toString()) ?? const Color(0xFF0A84FF);
-      final width = (style['width'] as num?)?.toDouble() ?? 6.0;
-      final roadLike = (style['roadLike'] as bool?) ?? true;
-      final shadow3d = (style['shadow3d'] as bool?) ?? true;
+
+      final proCfg = tryParseRouteStylePro(data['routeStylePro']);
+
+      // RouteStylePro: rendu EXACT via sources/layers (shadow/glow/casing/main/segments)
+      if (proCfg != null) {
+        _lastMarketRouteProCfg = proCfg;
+
+        // Supprime toute ancienne polyline annotations (fallback legacy)
+        try {
+          await _circuitsAnnotationManager?.deleteAll();
+        } catch (_) {
+          // ignore
+        }
+
+        await _ensureMarketRouteGeoJsonRuntime();
+        await _renderMarketRoutePro(
+          pts: pts,
+          cfg: proCfg,
+          fitCamera: true,
+          animTick: _routeAnimTick,
+        );
+
+        _syncMarketRouteAnimTimer(proCfg);
+        return true;
+      }
+
+      // Pas de StylePro: s'assurer qu'on stoppe l'animation et vide les layers runtime
+      _routeAnimTimer?.cancel();
+      _routeAnimTimer = null;
+      _lastMarketRouteProCfg = null;
+      try {
+        await map.style.setStyleSourceProperty(
+          _mmRouteSourceId,
+          'data',
+          _emptyRouteFeatureCollection(),
+        );
+      } catch (_) {
+        // ignore
+      }
+      try {
+        await map.style.setStyleSourceProperty(
+          _mmRouteSegmentsSourceId,
+          'data',
+          _emptyRouteFeatureCollection(),
+        );
+      } catch (_) {
+        // ignore
+      }
+
+      await _ensureCircuitRouteManager();
+      final manager = _circuitsAnnotationManager;
+      if (manager == null) return false;
+
+        // Rendu legacy (roadLike) si pas de StylePro
+        final color = _parseHexColor(legacy['color']?.toString()) ??
+          const Color(0xFF0A84FF);
+        final width = (legacy['width'] as num?)?.toDouble() ?? 6.0;
+
+        final roadLike = (legacy['roadLike'] as bool?) ?? true;
+        final shadow3d = (legacy['shadow3d'] as bool?) ?? true;
 
       await manager.deleteAll();
 
@@ -373,7 +915,23 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         await manager.create(options);
       }
 
-      if (!roadLike) {
+      if (proCfg != null) {
+        int alphaFromOpacity(double v) => (v.clamp(0.0, 1.0) * 255).round();
+
+        if (shadow3d) {
+          final a = alphaFromOpacity(proCfg.shadowOpacity);
+          await addLine(c: const Color(0xFF000000), w: width + 6.0, alpha: a);
+        }
+
+        final casingW = proCfg.casingWidth;
+        if (casingW > width + 0.5) {
+          final a = alphaFromOpacity(proCfg.opacity);
+          await addLine(c: proCfg.casingColor, w: casingW, alpha: a);
+        }
+
+        final a = alphaFromOpacity(proCfg.opacity);
+        await addLine(c: proCfg.mainColor, w: width, alpha: a);
+      } else if (!roadLike) {
         await addLine(c: color, w: width);
       } else {
         if (shadow3d) {
@@ -423,13 +981,15 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     if (it is Map) {
       final lat = it['lat'];
       final lng = it['lng'] ?? it['lon'];
-      if (lat is num && lng is num) return Position(lng.toDouble(), lat.toDouble());
+      if (lat is num && lng is num)
+        return Position(lng.toDouble(), lat.toDouble());
     }
 
     if (it is List && it.length >= 2) {
       final lng = it[0];
       final lat = it[1];
-      if (lng is num && lat is num) return Position(lng.toDouble(), lat.toDouble());
+      if (lng is num && lat is num)
+        return Position(lng.toDouble(), lat.toDouble());
     }
 
     return null;
@@ -526,7 +1086,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       return s.isEmpty ? null : s;
     }
 
-    final t = pick(dynamicAny.type) ??
+    final t =
+        pick(dynamicAny.type) ??
         pick(dynamicAny.layerId) ??
         pick(dynamicAny.layerType) ??
         '';
@@ -576,7 +1137,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   static String _emptyPoiFeatureCollection() =>
       jsonEncode({'type': 'FeatureCollection', 'features': []});
 
-  Future<void> _ensureMarketPoiGeoJsonRuntime({bool forceRebuild = false}) async {
+  Future<void> _ensureMarketPoiGeoJsonRuntime({
+    bool forceRebuild = false,
+  }) async {
     final map = _mapboxMap;
     if (map == null) return;
 
@@ -607,7 +1170,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         if (_mmPoiSource == null) {
           try {
             await style.addSource(
-              GeoJsonSource(id: _mmPoiSourceId, data: _emptyPoiFeatureCollection()),
+              GeoJsonSource(
+                id: _mmPoiSourceId,
+                data: _emptyPoiFeatureCollection(),
+              ),
             );
           } catch (_) {
             // ignore (déjà présent)
@@ -689,10 +1255,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       final d = (poi as dynamic);
 
       // Champs “fiche”
-      final imageUrl =
-          (d.imageUrl ?? d.photoUrl ?? d.image ?? '').toString().trim();
-      final address =
-          (d.address ?? d.adresse ?? d.locationLabel ?? '').toString().trim();
+      final imageUrl = (d.imageUrl ?? d.photoUrl ?? d.image ?? '')
+          .toString()
+          .trim();
+      final address = (d.address ?? d.adresse ?? d.locationLabel ?? '')
+          .toString()
+          .trim();
 
       // Horaires (supporte string OU map/list)
       final openingHoursRaw = d.openingHours ?? d.hours ?? d.horaires;
@@ -701,17 +1269,15 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           : (openingHoursRaw != null ? jsonEncode(openingHoursRaw) : '');
 
       // Contacts / liens
-      final phone =
-          (d.phone ?? d.tel ?? d.telephone ?? '').toString().trim();
+      final phone = (d.phone ?? d.tel ?? d.telephone ?? '').toString().trim();
       final website = (d.website ?? d.site ?? '').toString().trim();
-      final instagram =
-          (d.instagram ?? d.ig ?? '').toString().trim();
-      final facebook =
-          (d.facebook ?? d.fb ?? '').toString().trim();
+      final instagram = (d.instagram ?? d.ig ?? '').toString().trim();
+      final facebook = (d.facebook ?? d.fb ?? '').toString().trim();
       final whatsapp = (d.whatsapp ?? '').toString().trim();
       final email = (d.email ?? '').toString().trim();
-      final mapsUrl =
-          (d.mapsUrl ?? d.googleMapsUrl ?? d.mapUrl ?? '').toString().trim();
+      final mapsUrl = (d.mapsUrl ?? d.googleMapsUrl ?? d.mapUrl ?? '')
+          .toString()
+          .trim();
 
       // Si tu as un champ metadata Map, on le merge aussi (optionnel)
       Map<String, dynamic> meta = <String, dynamic>{};
@@ -750,7 +1316,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
           // meta brute (si utile côté UI)
           'meta': meta,
-        }
+        },
       });
     }
 
@@ -1129,6 +1695,30 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     }
   }
 
+  Future<void> _onStyleLoaded(StyleLoadedEventData data) async {
+    // Style reload => runtime layers/sources sont perdus
+    _mmRouteRuntimeReady = false;
+
+    // Re-ajoute ce qui dépend du style
+    await _add3dBuildings();
+
+    // Rebuild POIs si sélection active
+    await _ensureMarketPoiGeoJsonRuntime(forceRebuild: true);
+    await _updateMarketPoiGeoJson();
+    await _applyPoiTypeVisibility();
+
+    // Rebuild route Pro si active
+    if (_lastMarketRouteProCfg != null && _lastMarketRoutePts.length >= 2) {
+      await _ensureMarketRouteGeoJsonRuntime(forceRebuild: true);
+      await _renderMarketRoutePro(
+        pts: _lastMarketRoutePts,
+        cfg: _lastMarketRouteProCfg,
+        fitCamera: false,
+        animTick: _routeAnimTick,
+      );
+    }
+  }
+
   Future<void> _onMapTap(ScreenCoordinate sc) async {
     final map = _mapboxMap;
     if (map == null) return;
@@ -1155,12 +1745,13 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       final feature = res.first?.queriedFeature.feature;
       if (feature == null) return;
 
-      final props = (feature['properties'] as Map?)
-              ?.cast<String, dynamic>() ??
+      final props =
+          (feature['properties'] as Map?)?.cast<String, dynamic>() ??
           const <String, dynamic>{};
 
       // --- Cluster handling (si cluster:true sur la source) ---
-      final isCluster = (props['cluster'] == true) ||
+      final isCluster =
+          (props['cluster'] == true) ||
           (props['cluster']?.toString() == 'true');
 
       if (isCluster) {
@@ -1296,12 +1887,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           ),
         );
       },
-      transitionBuilder: (
-        dialogContext,
-        anim,
-        secondaryAnimation,
-        child,
-      ) {
+      transitionBuilder: (dialogContext, anim, secondaryAnimation, child) {
         final curved = Curves.easeOutBack.transform(anim.value);
         return Transform.scale(
           scale: 0.85 + 0.15 * curved,
@@ -1558,6 +2144,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                               bearing: 0.0,
                             ),
                             onMapCreated: _onMapCreated,
+                            onStyleLoadedListener: _onStyleLoaded,
                             onTapListener: (gestureContext) {
                               _onMapTap(gestureContext.touchPosition);
                             },
@@ -2498,10 +3085,7 @@ class _PaperGrainPainter extends CustomPainter {
     // Vignette très légère
     final vignette = Paint()
       ..shader = RadialGradient(
-        colors: [
-          Colors.transparent,
-          Colors.black.withValues(alpha: 0.06),
-        ],
+        colors: [Colors.transparent, Colors.black.withValues(alpha: 0.06)],
         stops: const [0.70, 1.0],
       ).createShader(ui.Rect.fromLTWH(0, 0, size.width, size.height));
     canvas.drawRect(ui.Offset.zero & size, vignette);
@@ -2528,11 +3112,7 @@ class _PaperGrainPainter extends CustomPainter {
       final y1 = rnd.nextDouble() * size.height;
       final dx = (rnd.nextDouble() - 0.5) * 34;
       final dy = (rnd.nextDouble() - 0.5) * 10;
-      canvas.drawLine(
-        ui.Offset(x1, y1),
-        ui.Offset(x1 + dx, y1 + dy),
-        f,
-      );
+      canvas.drawLine(ui.Offset(x1, y1), ui.Offset(x1 + dx, y1 + dy), f);
     }
   }
 

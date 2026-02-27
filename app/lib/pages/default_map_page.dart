@@ -19,9 +19,10 @@ import '../ui/widgets/maslive_card.dart';
 import '../ui/widgets/maslive_profile_icon.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
 import '../ui/widgets/marketmap_poi_selector_sheet.dart';
+import '../route_style_pro/services/route_style_pro_projection.dart';
 import '../ui/map/maslive_map.dart';
 import '../ui/map/maslive_map_controller.dart'
-  show MapMarker, MapPoint, MasLiveMapController;
+    show MapMarker, MapPoint, MasLiveMapController;
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
 import '../l10n/app_localizations.dart' as l10n;
 import '../services/market_map_service.dart';
@@ -228,10 +229,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       // Masquer le tracé sans effacer les marqueurs.
       if (_isMasLiveMapReady) {
         unawaited(
-          _mapController.setPolyline(
-            points: const <MapPoint>[],
-            show: false,
-          ),
+          _mapController.setPolyline(points: const <MapPoint>[], show: false),
         );
       }
       return;
@@ -286,26 +284,35 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
     try {
       final ref = _getMarketMapService().circuitRef(
-            countryId: selection.country!.id,
-            eventId: selection.event!.id,
-            circuitId: expectedCircuitId,
-          );
+        countryId: selection.country!.id,
+        eventId: selection.event!.id,
+        circuitId: expectedCircuitId,
+      );
       final snap = await ref.get();
       final data = snap.data();
       if (data == null || !mounted) return;
 
       // Eviter d'appliquer un résultat obsolète si l'utilisateur a changé de circuit.
-      if (!_marketPoiSelection.enabled || _marketPoiSelection.circuit?.id != expectedCircuitId) {
+      if (!_marketPoiSelection.enabled ||
+          _marketPoiSelection.circuit?.id != expectedCircuitId) {
         return;
       }
 
       final rawRoute =
-          data['route'] ?? data['routePoints'] ?? data['routeGeometry'] ?? data['waypoints'];
+          data['route'] ??
+          data['routePoints'] ??
+          data['routeGeometry'] ??
+          data['waypoints'];
       final points = _parseRoutePoints(rawRoute);
-      final styleAny = data['style'] ?? data['routeStyle'];
-      final style = styleAny is Map
-          ? Map<String, dynamic>.from(styleAny)
+      final legacyAny = data['style'] ?? data['routeStyle'];
+      final legacy = legacyAny is Map
+          ? Map<String, dynamic>.from(legacyAny)
           : const <String, dynamic>{};
+
+      final proCfg = tryParseRouteStylePro(data['routeStylePro']);
+      final style = proCfg != null
+          ? projectProToLegacyStyle(proCfg, base: legacy)
+          : legacy;
       final bounds = _boundsFromPoints(points);
 
       setState(() {
@@ -323,7 +330,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   Future<void> _applyCachedMarketRouteToMap() async {
     if (!mounted) return;
     if (!_isMasLiveMapReady) return;
-    if (!_marketPoiSelection.enabled || _marketPoiSelection.circuit == null) return;
+    if (!_marketPoiSelection.enabled || _marketPoiSelection.circuit == null)
+      return;
 
     final pts = _marketRoutePoints;
     if (pts.length < 2) {
@@ -362,8 +370,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     final shadow3d = (style['shadow3d'] as bool?) ?? true;
     final showDirection = (style['showDirection'] as bool?) ?? false;
     final animateDirection = (style['animateDirection'] as bool?) ?? false;
-    final animationSpeed =
-        (style['animationSpeed'] as num?)?.toDouble() ?? 1.0;
+    final animationSpeed = (style['animationSpeed'] as num?)?.toDouble() ?? 1.0;
 
     await _mapController.setPolyline(
       points: pts,
@@ -423,7 +430,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   }
 
   static ({double west, double south, double east, double north})?
-      _boundsFromPoints(List<MapPoint> pts) {
+  _boundsFromPoints(List<MapPoint> pts) {
     if (pts.length < 2) return null;
     double west = pts.first.lng;
     double east = pts.first.lng;

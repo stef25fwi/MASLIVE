@@ -119,6 +119,29 @@ echo ""
 
 echo "[5/5] 🚀 Build Flutter web + Deploy Firebase..."
 
+ensure_flutter() {
+	if command -v flutter >/dev/null 2>&1; then
+		echo "🧩 Flutter détecté: $(command -v flutter)"
+		return 0
+	fi
+
+	local flutter_dir="$repo_root/.flutter_sdk"
+	if [[ ! -d "$flutter_dir" ]]; then
+		echo "⬇️  Flutter manquant. Installation locale dans $flutter_dir ..."
+		git clone --depth 1 --branch stable https://github.com/flutter/flutter.git "$flutter_dir"
+	fi
+
+	export PATH="$flutter_dir/bin:$PATH"
+	echo "🧩 Flutter (local) activé: $(command -v flutter)"
+
+	# Evite prompts (analytics) + assure le support web.
+	flutter config --no-analytics >/dev/null 2>&1 || true
+	flutter config --enable-web >/dev/null 2>&1 || true
+	flutter --version >/dev/null
+}
+
+ensure_flutter
+
 # Mapbox token requis pour la home (carte) en production.
 { [ -f "/workspaces/MASLIVE/.env" ] && source "/workspaces/MASLIVE/.env"; } 2>/dev/null || true
 TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}}

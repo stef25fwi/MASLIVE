@@ -50,7 +50,11 @@ class CircuitTemplate {
         (data['defaultStyle'] as Map?) ?? const <String, dynamic>{},
       ),
       defaultLayers: ((data['defaultLayers'] as List?) ?? const <dynamic>[])
-          .map((e) => Map<String, dynamic>.from((e as Map?) ?? const <String, dynamic>{}))
+          .map(
+            (e) => Map<String, dynamic>.from(
+              (e as Map?) ?? const <String, dynamic>{},
+            ),
+          )
           .toList(),
       defaultChecklist: List<dynamic>.from(
         (data['defaultChecklist'] as List?) ?? const <dynamic>[],
@@ -64,11 +68,9 @@ class CircuitTemplate {
 class CircuitRepository {
   static const int maxPoisPerProject = 2000;
 
-  CircuitRepository({
-    FirebaseFirestore? firestore,
-    AuditLogger? auditLogger,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _audit = auditLogger ?? AuditLogger(firestore: firestore);
+  CircuitRepository({FirebaseFirestore? firestore, AuditLogger? auditLogger})
+    : _firestore = firestore ?? FirebaseFirestore.instance,
+      _audit = auditLogger ?? AuditLogger(firestore: firestore);
 
   final FirebaseFirestore _firestore;
   final AuditLogger _audit;
@@ -105,7 +107,9 @@ class CircuitRepository {
       return data;
     }
 
-    if (fallbackCountryId == null || fallbackEventId == null || fallbackCircuitId == null) {
+    if (fallbackCountryId == null ||
+        fallbackEventId == null ||
+        fallbackCircuitId == null) {
       return null;
     }
 
@@ -125,9 +129,12 @@ class CircuitRepository {
       'name': market['name'] ?? fallbackCircuitId,
       'countryId': fallbackCountryId,
       'eventId': fallbackEventId,
-      'route': List<dynamic>.from((market['route'] as List?) ?? const <dynamic>[]),
-      'perimeter':
-          List<dynamic>.from((market['perimeter'] as List?) ?? const <dynamic>[]),
+      'route': List<dynamic>.from(
+        (market['route'] as List?) ?? const <dynamic>[],
+      ),
+      'perimeter': List<dynamic>.from(
+        (market['perimeter'] as List?) ?? const <dynamic>[],
+      ),
       'routeStyle': Map<String, dynamic>.from(
         (market['style'] as Map?) ?? const <String, dynamic>{},
       ),
@@ -158,7 +165,10 @@ class CircuitRepository {
     }
 
     try {
-      final existing = await _projects.where('circuitId', isEqualTo: circuitId).limit(10).get();
+      final existing = await _projects
+          .where('circuitId', isEqualTo: circuitId)
+          .limit(10)
+          .get();
       if (existing.docs.isNotEmpty) {
         final exact = existing.docs.firstWhere(
           (d) =>
@@ -183,7 +193,9 @@ class CircuitRepository {
 
     final marketSnap = await marketCircuitRef.get();
     if (!marketSnap.exists) {
-      throw StateError('Circuit introuvable: marketMap/$countryId/events/$eventId/circuits/$circuitId');
+      throw StateError(
+        'Circuit introuvable: marketMap/$countryId/events/$eventId/circuits/$circuitId',
+      );
     }
     final market = marketSnap.data() ?? <String, dynamic>{};
 
@@ -192,7 +204,9 @@ class CircuitRepository {
 
     // Fallback: si le circuit publié n'a pas encore de sous-collections,
     // on initialise les couches par défaut (elles seront de toute façon assurées côté UI).
-    final layers = importedLayers.isNotEmpty ? importedLayers : _defaultLayers();
+    final layers = importedLayers.isNotEmpty
+        ? importedLayers
+        : _defaultLayers();
 
     final currentData = <String, dynamic>{
       'circuitId': circuitId,
@@ -201,9 +215,15 @@ class CircuitRepository {
       'eventId': eventId,
       'description': (market['description'] ?? '').toString(),
       'styleUrl': market['styleUrl'],
-      'route': List<dynamic>.from((market['route'] as List?) ?? const <dynamic>[]),
-      'perimeter': List<dynamic>.from((market['perimeter'] as List?) ?? const <dynamic>[]),
-      'routeStyle': Map<String, dynamic>.from((market['style'] as Map?) ?? const <String, dynamic>{}),
+      'route': List<dynamic>.from(
+        (market['route'] as List?) ?? const <dynamic>[],
+      ),
+      'perimeter': List<dynamic>.from(
+        (market['perimeter'] as List?) ?? const <dynamic>[],
+      ),
+      'routeStyle': Map<String, dynamic>.from(
+        (market['style'] as Map?) ?? const <String, dynamic>{},
+      ),
     };
 
     final projectId = createProjectId();
@@ -260,7 +280,9 @@ class CircuitRepository {
 
     final importedLayers = await _loadMarketLayers(marketCircuitRef);
     final importedPois = await _loadMarketPois(marketCircuitRef);
-    final layers = importedLayers.isNotEmpty ? importedLayers : _defaultLayers();
+    final layers = importedLayers.isNotEmpty
+        ? importedLayers
+        : _defaultLayers();
 
     final nextCurrent = <String, dynamic>{
       ...existingCurrent,
@@ -355,7 +377,10 @@ class CircuitRepository {
     DocumentReference<Map<String, dynamic>> marketCircuitRef,
   ) async {
     try {
-      final snap = await marketCircuitRef.collection('layers').orderBy('zIndex').get();
+      final snap = await marketCircuitRef
+          .collection('layers')
+          .orderBy('zIndex')
+          .get();
       return snap.docs.map((d) {
         final data = d.data();
         final style = (data['style'] is Map)
@@ -363,8 +388,14 @@ class CircuitRepository {
             : const <String, dynamic>{};
         final type = (data['type'] ?? d.id).toString();
         final label = (data['label'] ?? type).toString();
-        final isVisible = (data['isVisible'] as bool?) ?? (data['isEnabled'] as bool?) ?? true;
-        final zIndex = (data['zIndex'] as num?)?.toInt() ?? (data['order'] as num?)?.toInt() ?? 0;
+        final isVisible =
+            (data['isVisible'] as bool?) ??
+            (data['isEnabled'] as bool?) ??
+            true;
+        final zIndex =
+            (data['zIndex'] as num?)?.toInt() ??
+            (data['order'] as num?)?.toInt() ??
+            0;
         final color = (data['color'] ?? style['color'])?.toString();
         final icon = (data['icon'] ?? style['icon'])?.toString();
         return MarketMapLayer(
@@ -394,7 +425,9 @@ class CircuitRepository {
 
       return snap.docs.map((d) {
         final data = d.data();
-        String layerType = (data['layerType'] ?? data['type'] ?? data['layerId'] ?? 'visit').toString();
+        String layerType =
+            (data['layerType'] ?? data['type'] ?? data['layerId'] ?? 'visit')
+                .toString();
         final lng = (data['lng'] as num?)?.toDouble() ?? 0.0;
         final lat = (data['lat'] as num?)?.toDouble() ?? 0.0;
         final meta = (data['metadata'] is Map)
@@ -431,7 +464,9 @@ class CircuitRepository {
     bool isNew = false,
   }) async {
     if (pois.length > maxPoisPerProject) {
-      throw StateError('Limite POI dépassée: $maxPoisPerProject maximum par projet');
+      throw StateError(
+        'Limite POI dépassée: $maxPoisPerProject maximum par projet',
+      );
     }
 
     final projectRef = _projects.doc(projectId);
@@ -443,7 +478,10 @@ class CircuitRepository {
     final existingCurrent = Map<String, dynamic>.from(
       (existing['current'] as Map?) ?? const <String, dynamic>{},
     );
-    final nextVersion = ((existing['version'] as num?)?.toInt() ?? 0).clamp(0, 1 << 30);
+    final nextVersion = ((existing['version'] as num?)?.toInt() ?? 0).clamp(
+      0,
+      1 << 30,
+    );
     final isCreate = isNew || !existingSnap.exists;
 
     final routeDelta =
@@ -451,17 +489,18 @@ class CircuitRepository {
     final poiDelta = pois.length - previousPoiCount;
     final perimeterChanged =
         ((existingCurrent['perimeter'] as List?)?.toString() ?? '[]') !=
-            ((currentData['perimeter'] as List?)?.toString() ?? '[]');
+        ((currentData['perimeter'] as List?)?.toString() ?? '[]');
     final oldStyle = Map<String, dynamic>.from(
       (existingCurrent['routeStyle'] as Map?) ?? const <String, dynamic>{},
     );
     final newStyle = Map<String, dynamic>.from(
       (currentData['routeStyle'] as Map?) ?? const <String, dynamic>{},
     );
-    final styleChangedKeys = <String>{...oldStyle.keys, ...newStyle.keys}
-        .where((k) => oldStyle[k].toString() != newStyle[k].toString())
-        .toList()
-      ..sort();
+    final styleChangedKeys =
+        <String>{...oldStyle.keys, ...newStyle.keys}
+            .where((k) => oldStyle[k].toString() != newStyle[k].toString())
+            .toList()
+          ..sort();
 
     final payload = <String, dynamic>{
       'groupId': groupId,
@@ -473,8 +512,15 @@ class CircuitRepository {
       'current': currentData,
 
       // Index logique (POIs tile): circuits draft recherchables
-      'circuitId': (currentData['circuitId'] ?? existing['circuitId'] ?? projectId).toString(),
-      'circuitName': (currentData['name'] ?? existing['circuitName'] ?? existing['name'] ?? '').toString(),
+      'circuitId':
+          (currentData['circuitId'] ?? existing['circuitId'] ?? projectId)
+              .toString(),
+      'circuitName':
+          (currentData['name'] ??
+                  existing['circuitName'] ??
+                  existing['name'] ??
+                  '')
+              .toString(),
 
       // Compat legacy
       'name': currentData['name'],
@@ -613,6 +659,8 @@ class CircuitRepository {
       'route': currentData['route'] ?? const <dynamic>[],
       'perimeter': currentData['perimeter'] ?? const <dynamic>[],
       'style': currentData['routeStyle'] ?? const <String, dynamic>{},
+      if (currentData['routeStylePro'] is Map)
+        'routeStylePro': currentData['routeStylePro'],
       // C4: source-of-truth = sous-collections `layers/pois`.
       // On supprime les arrays redondants pour éliminer le risque de divergence.
       'layers': FieldValue.delete(),
@@ -686,7 +734,9 @@ class CircuitRepository {
     if (lock is Map) {
       final expires = lock['expiresAt'];
       if (expires is Timestamp && expires.toDate().isAfter(DateTime.now())) {
-        throw StateError('Projet verrouillé: restauration/publication en cours');
+        throw StateError(
+          'Projet verrouillé: restauration/publication en cours',
+        );
       }
     }
 
@@ -723,7 +773,11 @@ class CircuitRepository {
       actorUid: actorUid,
       actorRole: actorRole,
       action: 'save_draft',
-      target: AuditTarget(projectId: projectId, groupId: groupId, draftId: draftRef.id),
+      target: AuditTarget(
+        projectId: projectId,
+        groupId: groupId,
+        draftId: draftRef.id,
+      ),
     );
 
     await batch.commit();
@@ -783,14 +837,18 @@ class CircuitRepository {
       throw StateError('Draft introuvable');
     }
     final draftData = draftSnap.data() ?? <String, dynamic>{};
-    final dataSnapshot =
-        Map<String, dynamic>.from((draftData['dataSnapshot'] as Map?) ?? const <String, dynamic>{});
+    final dataSnapshot = Map<String, dynamic>.from(
+      (draftData['dataSnapshot'] as Map?) ?? const <String, dynamic>{},
+    );
 
     final batch = _firestore.batch();
     batch.set(projectRef, {
       'current': dataSnapshot,
       'activeDraftId': draftId,
-      'version': (draftData['version'] as num?)?.toInt() ?? projectData['version'] ?? 1,
+      'version':
+          (draftData['version'] as num?)?.toInt() ??
+          projectData['version'] ??
+          1,
       'updatedAt': now,
       'name': dataSnapshot['name'],
       'description': dataSnapshot['description'],
@@ -806,12 +864,18 @@ class CircuitRepository {
       actorUid: actorUid,
       actorRole: actorRole,
       action: 'restore_draft',
-      target: AuditTarget(projectId: projectId, groupId: groupId, draftId: draftId),
+      target: AuditTarget(
+        projectId: projectId,
+        groupId: groupId,
+        draftId: draftId,
+      ),
     );
     await batch.commit();
   }
 
-  Future<List<CircuitTemplate>> listTemplates({required String actorUid}) async {
+  Future<List<CircuitTemplate>> listTemplates({
+    required String actorUid,
+  }) async {
     final snap = await _firestore
         .collection('circuit_templates')
         .where('isGlobal', isEqualTo: true)
@@ -916,7 +980,9 @@ class CircuitRepository {
     final incomingIds = <String>{};
 
     for (final layer in layers) {
-      final id = layer.id.trim().isEmpty ? 'layer_${layer.zIndex}' : layer.id.trim();
+      final id = layer.id.trim().isEmpty
+          ? 'layer_${layer.zIndex}'
+          : layer.id.trim();
       incomingIds.add(id);
       final data = layer.toFirestore();
       final ref = col.doc(id);
@@ -1048,8 +1114,11 @@ class CircuitRepository {
         return v is String ? v : null;
       }
 
-      final instagram = (poi.instagram ?? metaString('instagram') ?? metaString('ig'))?.trim();
-      final facebook = (poi.facebook ?? metaString('facebook') ?? metaString('fb'))?.trim();
+      final instagram =
+          (poi.instagram ?? metaString('instagram') ?? metaString('ig'))
+              ?.trim();
+      final facebook =
+          (poi.facebook ?? metaString('facebook') ?? metaString('fb'))?.trim();
       final imageUrl = poi.imageUrl?.trim();
       final metadata = poi.metadata;
 

@@ -127,7 +127,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   _PoiInlineEditorMode _poiInlineEditorMode = _PoiInlineEditorMode.none;
   MarketMapPOI? _poiEditingPoi;
 
-  final TextEditingController _poiInlineNameController = TextEditingController();
+  final TextEditingController _poiInlineNameController =
+      TextEditingController();
   final TextEditingController _poiInlineLatController = TextEditingController();
   final TextEditingController _poiInlineLngController = TextEditingController();
   String? _poiInlineError;
@@ -216,10 +217,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       await _ensureActorContext();
       if (!_canWriteMapProjects) {
         if (!mounted) return;
-        _showTopSnackBar(
-          '⛔ Import réservé aux admins master.',
-          isError: true,
-        );
+        _showTopSnackBar('⛔ Import réservé aux admins master.', isError: true);
         return;
       }
 
@@ -294,7 +292,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         final msg = e is FirebaseException
             ? '❌ Import Firestore (${e.code}): ${e.message ?? e.toString()}'
             : '❌ Erreur import: $e';
-        _showTopSnackBar(msg, isError: true, duration: const Duration(seconds: 6));
+        _showTopSnackBar(
+          msg,
+          isError: true,
+          duration: const Duration(seconds: 6),
+        );
       }
     } finally {
       if (mounted) {
@@ -405,10 +407,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final projectId = _projectId;
     if (!mounted) return;
     if (projectId == null || projectId.trim().isEmpty) {
-      _showTopSnackBar(
-        '❌ Impossible: projet non sauvegardé',
-        isError: true,
-      );
+      _showTopSnackBar('❌ Impossible: projet non sauvegardé', isError: true);
       if (!widget.poiOnly) {
         unawaited(_continueToStep(3));
       }
@@ -612,6 +611,31 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   Map<String, dynamic> _buildCurrentData() {
+    final proCfg = _routeStyleProConfig?.validated();
+
+    final routeStyle = <String, dynamic>{
+      'color': _routeColorHex,
+      'width': _routeWidth,
+      'roadLike': _routeRoadLike,
+      'shadow3d': _routeShadow3d,
+      'showDirection': _routeShowDirection,
+      'animateDirection': _routeAnimateDirection,
+      'animationSpeed': _routeAnimationSpeed,
+    };
+
+    // Si un Style Pro existe, il devient la source de vérité du design publié.
+    // On publie:
+    // - `routeStylePro` complet (future-proof)
+    // - une projection `routeStyle` compatible avec les consommateurs legacy
+    //   (ex: Home/Default map qui lit `style.color/width/...`).
+    if (proCfg != null) {
+      routeStyle['color'] = _toHexRgb(proCfg.mainColor);
+      routeStyle['width'] = proCfg.mainWidth;
+      routeStyle['shadow3d'] = proCfg.shadowEnabled;
+      routeStyle['animateDirection'] = proCfg.pulseEnabled;
+      routeStyle['animationSpeed'] = (proCfg.pulseSpeed / 25.0).clamp(0.5, 5.0);
+    }
+
     return {
       'circuitId': (widget.circuitId ?? _projectId ?? '').trim(),
       'name': _nameController.text.trim(),
@@ -633,15 +657,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         'diameterMeters': _perimeterCircleDiameterMeters,
       },
       'route': _routePoints.map((p) => {'lng': p.lng, 'lat': p.lat}).toList(),
-      'routeStyle': {
-        'color': _routeColorHex,
-        'width': _routeWidth,
-        'roadLike': _routeRoadLike,
-        'shadow3d': _routeShadow3d,
-        'showDirection': _routeShowDirection,
-        'animateDirection': _routeAnimateDirection,
-        'animationSpeed': _routeAnimationSpeed,
-      },
+      'routeStyle': routeStyle,
+      if (proCfg != null) 'routeStylePro': proCfg.toJson(),
     };
   }
 
@@ -1339,7 +1356,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         final msg = e is FirebaseException
             ? '❌ Firestore (${e.code}): ${e.message ?? e.toString()}'
             : '❌ Erreur: $e';
-        _showTopSnackBar(msg, isError: true, duration: const Duration(seconds: 6));
+        _showTopSnackBar(
+          msg,
+          isError: true,
+          duration: const Duration(seconds: 6),
+        );
       }
     }
   }
@@ -1497,7 +1518,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     unawaited(_refreshPoiRouteOverlay());
                   }
 
-                  if (_currentStep == 4 && !_didAutoOpenStyleProForCurrentVisit) {
+                  if (_currentStep == 4 &&
+                      !_didAutoOpenStyleProForCurrentVisit) {
                     _didAutoOpenStyleProForCurrentVisit = true;
                     unawaited(_openRouteStylePro());
                   }
@@ -2089,8 +2111,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     ),
                   ),
 
-                  if (!isPerimeter &&
-                      _currentStep == 3) ...[
+                  if (!isPerimeter && _currentStep == 3) ...[
                     const VerticalDivider(),
                     _buildRouteStyleControls(),
                   ],
@@ -2180,7 +2201,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       });
 
       if (showSnackBar) {
-        _showTopSnackBar('✅ Tracé aligné sur la route (${output.length} points)');
+        _showTopSnackBar(
+          '✅ Tracé aligné sur la route (${output.length} points)',
+        );
       }
 
       if (persist && _projectId != null) {
@@ -2437,10 +2460,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             children: [
               Row(
                 children: [
-                  const Icon(
-                    Icons.place_outlined,
-                    color: Colors.blueGrey,
-                  ),
+                  const Icon(Icons.place_outlined, color: Colors.blueGrey),
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
@@ -2454,7 +2474,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   toolButton(
                     icon: const Icon(Icons.edit_location_alt_rounded),
                     tooltip: 'Ajouter un POI (coordonnées manuelles)',
-                    onPressed: (_selectedLayer == null || _pois.length >= _poiLimit)
+                    onPressed:
+                        (_selectedLayer == null || _pois.length >= _poiLimit)
                         ? null
                         : () {
                             // Pré-remplissage simple (l'utilisateur peut ajuster).
@@ -2477,7 +2498,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   toolButton(
                     icon: const Icon(Icons.my_location),
                     tooltip: 'Ajouter un POI à la position actuelle',
-                    onPressed: (_selectedLayer == null || _pois.length >= _poiLimit)
+                    onPressed:
+                        (_selectedLayer == null || _pois.length >= _poiLimit)
                         ? null
                         : _addPoiAtCurrentCenter,
                   ),
@@ -2555,27 +2577,21 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       color: _pois.length >= _poiLimit
                           ? Colors.redAccent
                           : (_pois.length >= (_poiLimit * 0.9)
-                              ? Colors.orange
-                              : Colors.black87),
+                                ? Colors.orange
+                                : Colors.black87),
                     ),
                   ),
                   const SizedBox(width: 8),
                   if (_hasMorePois || _isLoadingMorePois)
                     TextButton.icon(
-                      onPressed:
-                          _isLoadingMorePois ? null : _loadMorePoisPage,
+                      onPressed: _isLoadingMorePois ? null : _loadMorePoisPage,
                       icon: _isLoadingMorePois
                           ? const SizedBox(
                               width: 14,
                               height: 14,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(
-                              Icons.expand_more,
-                              size: 16,
-                            ),
+                          : const Icon(Icons.expand_more, size: 16),
                       label: const Text('Charger +100'),
                     ),
                 ],
@@ -2585,10 +2601,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   padding: EdgeInsets.only(top: 4),
                   child: Text(
                     'Limite atteinte: supprime des POI pour continuer.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.redAccent,
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.redAccent),
                   ),
                 ),
               const SizedBox(height: 8),
@@ -2615,10 +2628,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               else
                 const Text(
                   'Aucune couche trouvée. Vérifiez la configuration du projet.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.redAccent,
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.redAccent),
                 ),
 
               if (_selectedLayer != null) ...[
@@ -2644,8 +2654,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                         shrinkWrap: true,
                         children: [
                           for (final poi in _pois.where(
-                            (p) =>
-                                _poiMatchesSelectedLayer(p, _selectedLayer!),
+                            (p) => _poiMatchesSelectedLayer(p, _selectedLayer!),
                           ))
                             ListTile(
                               dense: true,
@@ -2671,10 +2680,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                                 children: [
                                   IconButton(
                                     tooltip: 'Modifier',
-                                    icon: const Icon(
-                                      Icons.edit,
-                                      size: 18,
-                                    ),
+                                    icon: const Icon(Icons.edit, size: 18),
                                     onPressed: () => _editPoi(poi),
                                   ),
                                   IconButton(
@@ -2695,8 +2701,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton.icon(
-                          onPressed:
-                              _isLoadingMorePois ? null : _loadMorePoisPage,
+                          onPressed: _isLoadingMorePois
+                              ? null
+                              : _loadMorePoisPage,
                           icon: _isLoadingMorePois
                               ? const SizedBox(
                                   width: 14,
@@ -2815,11 +2822,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   selectedPoi: selected,
                   onClose: selection.clear,
                   onEdit: selected == null ? () {} : () => _editPoi(selected),
-                  onDelete:
-                      selected == null ? () {} : () => _deletePoi(selected),
+                  onDelete: selected == null
+                      ? () {}
+                      : () => _deletePoi(selected),
                   categoryLabel: (poi) {
-                    final match =
-                        _layers.where((l) => l.type == poi.layerType).toList();
+                    final match = _layers
+                        .where((l) => l.type == poi.layerType)
+                        .toList();
                     return match.isNotEmpty ? match.first.label : poi.layerType;
                   },
                 );
@@ -2869,7 +2878,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   void _openPoiCreateZoneSection({required List<LngLat> perimeterPoints}) {
     _poiSelection.clear();
 
-    final defaultHex = _normalizeColorHex(_selectedLayer?.color) ??
+    final defaultHex =
+        _normalizeColorHex(_selectedLayer?.color) ??
         _defaultLayerColorHex('parking') ??
         _parkingZoneFillColorHex;
 
@@ -2909,20 +2919,22 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       _poiInlineLngController.text = poi.lng.toStringAsFixed(6);
 
       if (style != null) {
-        _parkingZoneFillColorHex = style['fillColor'] as String? ??
+        _parkingZoneFillColorHex =
+            style['fillColor'] as String? ??
             _normalizeColorHex(_selectedLayer?.color) ??
             _defaultLayerColorHex(poi.layerType) ??
             _parkingZoneFillColorHex;
         _parkingZoneFillOpacity =
-            (style['fillOpacity'] as num?)?.toDouble() ?? _parkingZoneFillOpacity;
+            (style['fillOpacity'] as num?)?.toDouble() ??
+            _parkingZoneFillOpacity;
         _parkingZoneStrokeDash =
             (style['strokeDash'] as String?)?.trim().isNotEmpty == true
-                ? (style['strokeDash'] as String).trim()
-                : _parkingZoneStrokeDash;
+            ? (style['strokeDash'] as String).trim()
+            : _parkingZoneStrokeDash;
         _parkingZonePattern =
             (style['pattern'] as String?)?.trim().isNotEmpty == true
-                ? (style['pattern'] as String).trim()
-                : _parkingZonePattern;
+            ? (style['pattern'] as String).trim()
+            : _parkingZonePattern;
         _parkingZoneColorController.text = _parkingZoneFillColorHex;
       }
     });
@@ -2966,20 +2978,25 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         .where((p) => _poiMatchesSelectedLayer(p, layer))
         .toList();
 
-    final previewZone = (_isDrawingParkingZone &&
+    final previewZone =
+        (_isDrawingParkingZone &&
             layer.type == 'parking' &&
             _parkingZonePoints.length >= 3)
         ? _parkingZonePoints
         : null;
 
     await _poiMapController.setPoisGeoJson(
-      _buildPoisFeatureCollection(poisForLayer, previewParkingZone: previewZone),
+      _buildPoisFeatureCollection(
+        poisForLayer,
+        previewParkingZone: previewZone,
+      ),
     );
   }
 
   void _syncPoiRouteStyleProTimer() {
     final cfg = _routeStyleProConfig;
-    final needsAnim = mounted &&
+    final needsAnim =
+        mounted &&
         _currentStep == _poiStepIndex &&
         cfg != null &&
         cfg.rainbowEnabled;
@@ -2994,20 +3011,17 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final periodMs = (110 - (cfg.rainbowSpeed * 0.8)).clamp(25, 110).round();
 
     _poiRouteStyleProTimer?.cancel();
-    _poiRouteStyleProTimer = Timer.periodic(
-      Duration(milliseconds: periodMs),
-      (_) {
-        if (!mounted) return;
-        if (_currentStep != _poiStepIndex) {
-          _syncPoiRouteStyleProTimer();
-          return;
-        }
-        _poiRouteStyleProAnimTick++;
-        unawaited(
-          _refreshPoiRouteOverlay(animTick: _poiRouteStyleProAnimTick),
-        );
-      },
-    );
+    _poiRouteStyleProTimer = Timer.periodic(Duration(milliseconds: periodMs), (
+      _,
+    ) {
+      if (!mounted) return;
+      if (_currentStep != _poiStepIndex) {
+        _syncPoiRouteStyleProTimer();
+        return;
+      }
+      _poiRouteStyleProAnimTick++;
+      unawaited(_refreshPoiRouteOverlay(animTick: _poiRouteStyleProAnimTick));
+    });
   }
 
   Future<void> _refreshPoiRouteOverlay({int? animTick}) async {
@@ -3023,14 +3037,18 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         return;
       }
 
-      final mapPoints = <MapPoint>[for (final p in route) MapPoint(p.lng, p.lat)];
+      final mapPoints = <MapPoint>[
+        for (final p in route) MapPoint(p.lng, p.lat),
+      ];
 
       final pro = _routeStyleProConfig;
       if (pro != null) {
         final cfg = pro.validated();
 
         final useSegments =
-            cfg.rainbowEnabled || cfg.trafficDemoEnabled || cfg.vanishingEnabled;
+            cfg.rainbowEnabled ||
+            cfg.trafficDemoEnabled ||
+            cfg.vanishingEnabled;
         final segmentsGeoJson = useSegments
             ? _buildRouteStyleProSegmentsGeoJson(
                 route,
@@ -3063,7 +3081,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           glowOpacity: cfg.glowOpacity,
           glowBlur: cfg.glowBlur,
 
-          dashArray: cfg.dashEnabled ? <double>[cfg.dashLength, cfg.dashGap] : null,
+          dashArray: cfg.dashEnabled
+              ? <double>[cfg.dashLength, cfg.dashGap]
+              : null,
           lineCap: cfg.lineCap.name,
           lineJoin: cfg.lineJoin.name,
           segmentsGeoJson: segmentsGeoJson,
@@ -3144,13 +3164,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     return _featureCollection(features);
   }
 
-  Color _routeStyleProSegmentColor(rsp.RouteStyleConfig cfg, int index, int animTick) {
+  Color _routeStyleProSegmentColor(
+    rsp.RouteStyleConfig cfg,
+    int index,
+    int animTick,
+  ) {
     if (cfg.trafficDemoEnabled) {
-      const traffic = [
-        Color(0xFF22C55E),
-        Color(0xFFF59E0B),
-        Color(0xFFEF4444),
-      ];
+      const traffic = [Color(0xFF22C55E), Color(0xFFF59E0B), Color(0xFFEF4444)];
       return traffic[index % traffic.length];
     }
 
@@ -3158,11 +3178,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       final shift = (animTick % 360);
       final dir = cfg.rainbowReverse ? -1 : 1;
       final hue = (shift + dir * index * 14) % 360;
-      return _hsvToColor(
-        hue.toDouble(),
-        cfg.rainbowSaturation,
-        1.0,
-      );
+      return _hsvToColor(hue.toDouble(), cfg.rainbowSaturation, 1.0);
     }
 
     return cfg.mainColor;
@@ -3208,6 +3224,22 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final g = ((c.g * 255).round()).clamp(0, 255);
     final b = ((c.b * 255).round()).clamp(0, 255);
     return 'rgba($r,$g,$b,${a.toStringAsFixed(3)})';
+  }
+
+  String _toHexRgb(Color c) {
+    final r = ((c.r * 255).round())
+        .clamp(0, 255)
+        .toRadixString(16)
+        .padLeft(2, '0');
+    final g = ((c.g * 255).round())
+        .clamp(0, 255)
+        .toRadixString(16)
+        .padLeft(2, '0');
+    final b = ((c.b * 255).round())
+        .clamp(0, 255)
+        .toRadixString(16)
+        .padLeft(2, '0');
+    return '#${r.toUpperCase()}${g.toUpperCase()}${b.toUpperCase()}';
   }
 
   List<LngLat>? _poiPerimeterFromMetadata(MarketMapPOI poi) {
@@ -3266,20 +3298,24 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final strokeColor =
         _normalizeColorHex(style?['strokeColor']?.toString()) ?? fillColor;
     final fillOpacity =
-        (style?['fillOpacity'] as num?)?.toDouble() ?? _parkingZoneDefaultFillOpacity;
+        (style?['fillOpacity'] as num?)?.toDouble() ??
+        _parkingZoneDefaultFillOpacity;
     final strokeWidth =
-        (style?['strokeWidth'] as num?)?.toDouble() ?? _parkingZoneDefaultStrokeWidth;
+        (style?['strokeWidth'] as num?)?.toDouble() ??
+        _parkingZoneDefaultStrokeWidth;
     final dashRaw = style?['strokeDash'];
     final dash = (dashRaw is String && dashRaw.trim().isNotEmpty)
-      ? dashRaw.trim()
-      : 'solid';
+        ? dashRaw.trim()
+        : 'solid';
 
     final pattern =
-        (style?['pattern'] is String && (style?['pattern'] as String).trim().isNotEmpty)
-            ? (style?['pattern'] as String).trim()
-            : 'none';
+        (style?['pattern'] is String &&
+            (style?['pattern'] as String).trim().isNotEmpty)
+        ? (style?['pattern'] as String).trim()
+        : 'none';
     final patternOpacity =
-        (style?['patternOpacity'] as num?)?.toDouble() ?? _parkingZoneDefaultPatternOpacity;
+        (style?['patternOpacity'] as num?)?.toDouble() ??
+        _parkingZoneDefaultPatternOpacity;
 
     return <String, dynamic>{
       'fillColor': fillColor,
@@ -3378,7 +3414,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         <double>[previewParkingZone.first.lng, previewParkingZone.first.lat],
       ];
 
-      final previewFill = _normalizeColorHex(_parkingZoneFillColorHex) ??
+      final previewFill =
+          _normalizeColorHex(_parkingZoneFillColorHex) ??
           _normalizeColorHex(_selectedLayer?.color) ??
           _defaultLayerColorHex('parking') ??
           '#FBBF24';
@@ -3411,10 +3448,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       });
     }
 
-    return <String, dynamic>{
-      'type': 'FeatureCollection',
-      'features': features,
-    };
+    return <String, dynamic>{'type': 'FeatureCollection', 'features': features};
   }
 
   Future<void> _onMapTapForPoi(double lng, double lat) async {
@@ -3479,11 +3513,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           .collection('pois')
           .doc(docId)
           .set({
-        ...poi.toFirestore(),
-        'layerId': poi.layerType,
-        'isVisible': true,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+            ...poi.toFirestore(),
+            'layerId': poi.layerType,
+            'isVisible': true,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
     } catch (e) {
       if (!mounted) return;
       _showTopSnackBar(
@@ -3531,8 +3565,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       }
       if (lat < -90 || lat > 90) {
         setState(
-          () =>
-              _poiInlineError = 'Latitude invalide (doit être entre -90 et 90).',
+          () => _poiInlineError =
+              'Latitude invalide (doit être entre -90 et 90).',
         );
         return;
       }
@@ -3571,11 +3605,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
     if (_poiInlineEditorMode == _PoiInlineEditorMode.createZone) {
       if (_selectedLayer?.type != 'parking') {
-        setState(() => _poiInlineError = 'Zone disponible uniquement en parking.');
+        setState(
+          () => _poiInlineError = 'Zone disponible uniquement en parking.',
+        );
         return;
       }
       if (_parkingZonePoints.length < 3) {
-        setState(() => _poiInlineError = 'Périmètre incomplet (min. 3 points).');
+        setState(
+          () => _poiInlineError = 'Périmètre incomplet (min. 3 points).',
+        );
         return;
       }
 
@@ -3583,7 +3621,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           ? 'Zone parking'
           : _poiInlineNameController.text.trim();
 
-      final fillHex = _normalizeColorHex(_parkingZoneColorController.text) ??
+      final fillHex =
+          _normalizeColorHex(_parkingZoneColorController.text) ??
           _normalizeColorHex(_parkingZoneFillColorHex);
       if (fillHex == null) {
         setState(
@@ -3644,7 +3683,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
       Map<String, dynamic>? nextMetadata = poi.metadata;
       if (isZone) {
-        final fillHex = _normalizeColorHex(_parkingZoneColorController.text) ??
+        final fillHex =
+            _normalizeColorHex(_parkingZoneColorController.text) ??
             _normalizeColorHex(_parkingZoneFillColorHex);
         if (fillHex == null) {
           setState(
@@ -3696,13 +3736,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final bg = colorScheme.surface;
 
     final isCreatePoint =
-      _poiInlineEditorMode == _PoiInlineEditorMode.createPoint;
-    final isCreateZone = _poiInlineEditorMode == _PoiInlineEditorMode.createZone;
+        _poiInlineEditorMode == _PoiInlineEditorMode.createPoint;
+    final isCreateZone =
+        _poiInlineEditorMode == _PoiInlineEditorMode.createZone;
     final isEdit = _poiInlineEditorMode == _PoiInlineEditorMode.edit;
 
     final editingPoi = _poiEditingPoi;
     final isEditZone =
-      isEdit && editingPoi != null && _poiPerimeterFromMetadata(editingPoi) != null;
+        isEdit &&
+        editingPoi != null &&
+        _poiPerimeterFromMetadata(editingPoi) != null;
 
     final title = isEdit
         ? 'Modifier le POI'
@@ -3732,8 +3775,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     child: Text(
                       title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -3786,9 +3829,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 const SizedBox(height: 12),
                 Text(
                   'Périmètre: ${_parkingZonePoints.length} points',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ],
 
@@ -3811,9 +3854,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 const SizedBox(height: 12),
                 Text(
                   'Fond (opacité): ${(100 * _parkingZoneFillOpacity).round()}%',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 Slider(
                   value: _parkingZoneFillOpacity.clamp(0.0, 1.0),
@@ -3839,10 +3882,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       value: _parkingZoneStrokeDash,
                       isExpanded: true,
                       items: const [
-                        DropdownMenuItem(
-                          value: 'solid',
-                          child: Text('Plein'),
-                        ),
+                        DropdownMenuItem(value: 'solid', child: Text('Plein')),
                         DropdownMenuItem(
                           value: 'dashed',
                           child: Text('Pointillé'),
@@ -3875,10 +3915,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       value: _parkingZonePattern,
                       isExpanded: true,
                       items: const [
-                        DropdownMenuItem(
-                          value: 'none',
-                          child: Text('Aucune'),
-                        ),
+                        DropdownMenuItem(value: 'none', child: Text('Aucune')),
                         DropdownMenuItem(
                           value: 'diag',
                           child: Text('Diagonale'),
@@ -3887,10 +3924,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                           value: 'cross',
                           child: Text('Croisillons'),
                         ),
-                        DropdownMenuItem(
-                          value: 'dots',
-                          child: Text('Points'),
-                        ),
+                        DropdownMenuItem(value: 'dots', child: Text('Points')),
                       ],
                       onChanged: (v) {
                         if (v == null) return;
@@ -4258,7 +4292,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         final msg = e is FirebaseException
             ? '❌ Publication Firestore (${e.code}): ${e.message ?? e.toString()}'
             : '❌ Erreur publication: $e';
-        _showTopSnackBar(msg, isError: true, duration: const Duration(seconds: 7));
+        _showTopSnackBar(
+          msg,
+          isError: true,
+          duration: const Duration(seconds: 7),
+        );
       }
     } finally {
       if (mounted) {
@@ -4273,7 +4311,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     bool fullBleed,
     bool tintOnSelected,
     bool showBorder,
-  }) _poiNavVisualForLayerType(String type) {
+  })
+  _poiNavVisualForLayerType(String type) {
     final norm = type.trim().toLowerCase();
 
     // Aligné avec les icônes utilisées sur la Home (barre nav verticale).

@@ -1032,6 +1032,18 @@
       }
     },
     {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (routeStylePro everywhere)",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat(route-style-pro): publish + render routeStylePro everywhere\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (wizard toolbar contrast)",
       "type": "shell",
       "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"fix(wizard): improve toolbar buttons contrast\"",

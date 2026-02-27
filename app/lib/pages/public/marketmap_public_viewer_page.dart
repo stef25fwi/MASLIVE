@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
+import '../../route_style_pro/services/route_style_pro_projection.dart';
+
 /// ===============================
 /// MarketMap Public Viewer (Mobile)
 /// ===============================
@@ -64,6 +66,7 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
   static const String _routeSourceId = 'mm_public_route_src';
   static const String _poiSourceId = 'mm_public_poi_src';
 
+  static const String _routeCasingLayerId = 'mm_public_route_casing_layer';
   static const String _routeLayerId = 'mm_public_route_layer';
   final Set<String> _poiLayerIdsCreated = <String>{};
 
@@ -80,6 +83,8 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
   // UI toggles
   bool _showRoute = true;
 
+  bool _routeCasingWantedVisible = false;
+
   // Layers config (local)
   final Map<String, _UiLayer> _uiLayersById = <String, _UiLayer>{};
 
@@ -87,6 +92,8 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
   String _routeGeoJsonString = _emptyFeatureCollection();
   String _poisGeoJsonString = _emptyFeatureCollection();
   final List<_PoiItem> _visiblePois = <_PoiItem>[];
+
+  Map<String, dynamic>? _lastCircuitDocData;
 
   // Firestore refs
   CollectionReference<Map<String, dynamic>> get _circuitsCol => _db
@@ -143,6 +150,9 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
 
     await _ensureBaseSourcesAndLayers();
     await _rebuildPoiLayersFromUiState();
+    if (_lastCircuitDocData != null) {
+      await _applyRouteStyleFromCircuitDoc(_lastCircuitDocData!);
+    }
     await _applyDataIfReady();
   }
 
@@ -155,6 +165,17 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
     await _tryAddSource(_poiSourceId, _emptyFeatureCollection());
 
     // Route layer
+    await _tryAddLayer(
+      LineLayer(
+        id: _routeCasingLayerId,
+        sourceId: _routeSourceId,
+        lineJoin: LineJoin.ROUND,
+        lineCap: LineCap.ROUND,
+        lineOpacity: 0.95,
+        lineWidth: 11.0,
+        lineColor: const Color(0xFF0B1B2B).toARGB32(),
+      ),
+    );
     await _tryAddLayer(
       LineLayer(
         id: _routeLayerId,
@@ -172,7 +193,11 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
     try {
       await map.style.setStyleSourceProperty(_poiSourceId, 'cluster', true);
       await map.style.setStyleSourceProperty(_poiSourceId, 'clusterRadius', 55);
-      await map.style.setStyleSourceProperty(_poiSourceId, 'clusterMaxZoom', 14);
+      await map.style.setStyleSourceProperty(
+        _poiSourceId,
+        'clusterMaxZoom',
+        14,
+      );
     } catch (_) {
       // ignore
     }
@@ -211,6 +236,10 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
     await _updateGeoJson(_poiSourceId, _poisGeoJsonString);
 
     await _setLayerVisibility(_routeLayerId, _showRoute);
+    await _setLayerVisibility(
+      _routeCasingLayerId,
+      _showRoute && _routeCasingWantedVisible,
+    );
 
     // POI layers visibilités selon _uiLayersById
     for (final entry in _uiLayersById.entries) {
@@ -231,6 +260,68 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
     } catch (_) {
       // ignore
     }
+  }
+
+  Future<void> _applyRouteStyleFromCircuitDoc(Map<String, dynamic> d) async {
+    final map = _map;
+    if (map == null) return;
+    if (!_styleLoaded) return;
+
+    Future<void> safeSet(String layerId, String key, dynamic value) async {
+      try {
+        await map.style.setStyleLayerProperty(layerId, key, value);
+      } catch (_) {
+        // ignore
+      }
+    }
+
+    final proCfg = tryParseRouteStylePro(d['routeStylePro']);
+    if (proCfg != null) {
+      final join = proCfg.lineJoin.name;
+      final cap = proCfg.lineCap.name;
+      final dash = proCfg.dashEnabled
+          ? <double>[proCfg.dashLength, proCfg.dashGap]
+          : <double>[1.0, 0.0];
+
+      _routeCasingWantedVisible = proCfg.casingWidth > proCfg.mainWidth + 0.5;
+
+      await safeSet(_routeLayerId, 'line-join', join);
+      await safeSet(_routeLayerId, 'line-cap', cap);
+      await safeSet(_routeLayerId, 'line-opacity', proCfg.opacity);
+      await safeSet(_routeLayerId, 'line-width', proCfg.mainWidth);
+      await safeSet(_routeLayerId, 'line-color', proCfg.mainColor.toARGB32());
+      await safeSet(_routeLayerId, 'line-dasharray', dash);
+
+      await safeSet(_routeCasingLayerId, 'line-join', join);
+      await safeSet(_routeCasingLayerId, 'line-cap', cap);
+      await safeSet(_routeCasingLayerId, 'line-opacity', proCfg.opacity);
+      await safeSet(_routeCasingLayerId, 'line-width', proCfg.casingWidth);
+      await safeSet(
+        _routeCasingLayerId,
+        'line-color',
+        proCfg.casingColor.toARGB32(),
+      );
+      await safeSet(_routeCasingLayerId, 'line-dasharray', dash);
+
+      if (mounted) setState(() {});
+      return;
+    }
+
+    // Fallback legacy
+    _routeCasingWantedVisible = false;
+    final legacyAny = d['style'] ?? d['routeStyle'];
+    final legacy = legacyAny is Map
+        ? Map<String, dynamic>.from(legacyAny)
+        : const <String, dynamic>{};
+
+    final legacyColor =
+        _parseHexColor(legacy['color']?.toString()) ?? const Color(0xFF00A3FF);
+    final legacyWidth = (legacy['width'] as num?)?.toDouble() ?? 7.0;
+    await safeSet(_routeLayerId, 'line-width', legacyWidth);
+    await safeSet(_routeLayerId, 'line-color', legacyColor.toARGB32());
+    await safeSet(_routeLayerId, 'line-opacity', 0.95);
+    await safeSet(_routeLayerId, 'line-dasharray', <double>[1.0, 0.0]);
+    if (mounted) setState(() {});
   }
 
   // -----------------------------
@@ -254,7 +345,8 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
         ? styleUrl
         : widget.defaultStyleUri;
 
-    if (_map != null && wantedStyle != (_currentStyleUri ?? widget.defaultStyleUri)) {
+    if (_map != null &&
+        wantedStyle != (_currentStyleUri ?? widget.defaultStyleUri)) {
       _currentStyleUri = wantedStyle;
       _styleLoaded = false;
       _poiLayerIdsCreated.clear();
@@ -275,12 +367,17 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
     _subCircuitDoc = _circuitRef(circuitId).snapshots().listen((snap) async {
       if (!snap.exists) return;
       final d = snap.data() ?? <String, dynamic>{};
-      _routeGeoJsonString = _buildRouteGeoJsonFromCircuitDoc(d) ?? _emptyFeatureCollection();
+      _lastCircuitDocData = d;
+      _routeGeoJsonString =
+          _buildRouteGeoJsonFromCircuitDoc(d) ?? _emptyFeatureCollection();
+      await _applyRouteStyleFromCircuitDoc(d);
       await _applyDataIfReady();
     });
 
     // Layers stream (UI + layers style)
-    _subLayers = _layersCol(circuitId).orderBy('order').snapshots().listen((qs) async {
+    _subLayers = _layersCol(circuitId).orderBy('order').snapshots().listen((
+      qs,
+    ) async {
       _uiLayersById.clear();
 
       for (final doc in qs.docs) {
@@ -313,59 +410,59 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
         .where('isVisible', isEqualTo: true)
         .snapshots()
         .listen((qs) async {
-      final features = <Map<String, dynamic>>[];
-      final pois = <_PoiItem>[];
+          final features = <Map<String, dynamic>>[];
+          final pois = <_PoiItem>[];
 
-      for (final doc in qs.docs) {
-        final d = doc.data();
-        final coord = _parsePoiCoord(d);
-        if (coord == null) continue;
+          for (final doc in qs.docs) {
+            final d = doc.data();
+            final coord = _parsePoiCoord(d);
+            if (coord == null) continue;
 
-        final layerId = (d['layerId'] ?? d['layerType'] ?? '').toString();
-        final name = (d['name'] ?? d['title'] ?? '').toString();
-        final desc = (d['description'] ?? d['desc'] ?? '').toString();
-        final imageUrl = (d['imageUrl'] ?? '').toString();
+            final layerId = (d['layerId'] ?? d['layerType'] ?? '').toString();
+            final name = (d['name'] ?? d['title'] ?? '').toString();
+            final desc = (d['description'] ?? d['desc'] ?? '').toString();
+            final imageUrl = (d['imageUrl'] ?? '').toString();
 
-        pois.add(
-          _PoiItem(
-            id: doc.id,
-            layerId: layerId,
-            name: name,
-            desc: desc,
-            imageUrl: imageUrl,
-            lng: coord.$1,
-            lat: coord.$2,
-          ),
-        );
+            pois.add(
+              _PoiItem(
+                id: doc.id,
+                layerId: layerId,
+                name: name,
+                desc: desc,
+                imageUrl: imageUrl,
+                lng: coord.$1,
+                lat: coord.$2,
+              ),
+            );
 
-        features.add({
-          'type': 'Feature',
-          'id': doc.id,
-          'geometry': {
-            'type': 'Point',
-            'coordinates': [coord.$1, coord.$2],
-          },
-          'properties': {
-            'id': doc.id,
-            'name': name,
-            'desc': desc,
-            'imageUrl': imageUrl,
-            'layerId': layerId,
-          },
+            features.add({
+              'type': 'Feature',
+              'id': doc.id,
+              'geometry': {
+                'type': 'Point',
+                'coordinates': [coord.$1, coord.$2],
+              },
+              'properties': {
+                'id': doc.id,
+                'name': name,
+                'desc': desc,
+                'imageUrl': imageUrl,
+                'layerId': layerId,
+              },
+            });
+          }
+
+          _visiblePois
+            ..clear()
+            ..addAll(pois);
+
+          _poisGeoJsonString = jsonEncode({
+            'type': 'FeatureCollection',
+            'features': features,
+          });
+
+          await _applyDataIfReady();
         });
-      }
-
-      _visiblePois
-        ..clear()
-        ..addAll(pois);
-
-      _poisGeoJsonString = jsonEncode({
-        'type': 'FeatureCollection',
-        'features': features,
-      });
-
-      await _applyDataIfReady();
-    });
   }
 
   Future<void> _moveCameraToCircuit(Map<String, dynamic> data) async {
@@ -476,7 +573,10 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
 
   String? _buildRouteGeoJsonFromCircuitDoc(Map<String, dynamic> data) {
     final raw =
-        data['route'] ?? data['routePoints'] ?? data['routeGeometry'] ?? data['waypoints'];
+        data['route'] ??
+        data['routePoints'] ??
+        data['routeGeometry'] ??
+        data['waypoints'];
     if (raw == null || raw is! List) return null;
 
     final coords = <List<double>>[];
@@ -494,7 +594,7 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
           'id': 'route',
           'geometry': {'type': 'LineString', 'coordinates': coords},
           'properties': <String, dynamic>{},
-        }
+        },
       ],
     });
   }
@@ -562,7 +662,12 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
     final dLng = (bLng - aLng) * (math.pi / 180.0);
     final s1 = math.sin(dLat / 2.0);
     final s2 = math.sin(dLng / 2.0);
-    final aa = s1 * s1 + math.cos(aLat * (math.pi / 180.0)) * math.cos(bLat * (math.pi / 180.0)) * s2 * s2;
+    final aa =
+        s1 * s1 +
+        math.cos(aLat * (math.pi / 180.0)) *
+            math.cos(bLat * (math.pi / 180.0)) *
+            s2 *
+            s2;
     return 2.0 * r * math.asin(math.sqrt(aa));
   }
 
@@ -623,7 +728,10 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
             ),
             const SizedBox(height: 6),
             if (uiLayer != null)
-              Text(uiLayer.label, style: TextStyle(color: Colors.grey.shade700)),
+              Text(
+                uiLayer.label,
+                style: TextStyle(color: Colors.grey.shade700),
+              ),
             if (poi.desc.isNotEmpty) ...[
               const SizedBox(height: 10),
               Text(poi.desc),
@@ -684,11 +792,16 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
                   const Expanded(
                     child: Text(
                       'Couches',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   IconButton(
-                    tooltip: _showRoute ? 'Masquer la route' : 'Afficher la route',
+                    tooltip: _showRoute
+                        ? 'Masquer la route'
+                        : 'Afficher la route',
                     onPressed: () async {
                       setState(() => _showRoute = !_showRoute);
                       await _setLayerVisibility(_routeLayerId, _showRoute);
@@ -698,7 +811,8 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
                 ],
               ),
               const SizedBox(height: 8),
-              if (layers.isEmpty) const Text('Aucune couche trouvée pour ce circuit.'),
+              if (layers.isEmpty)
+                const Text('Aucune couche trouvée pour ce circuit.'),
               if (layers.isNotEmpty)
                 Flexible(
                   child: ListView.separated(
@@ -710,12 +824,15 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
                         title: Text(l.label),
                         subtitle: l.type.isNotEmpty ? Text(l.type) : null,
                         onChanged: (v) async {
-                          setState(() => _uiLayersById[l.id] = l.copyWith(visible: v));
+                          setState(
+                            () => _uiLayersById[l.id] = l.copyWith(visible: v),
+                          );
                           await _setLayerVisibility(_poiLayerIdFor(l.id), v);
                         },
                       );
                     },
-                    separatorBuilder: (context, index) => const Divider(height: 1),
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 1),
                     itemCount: layers.length,
                   ),
                 ),
@@ -750,7 +867,9 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_selectedCircuitName.isEmpty ? 'Carte' : _selectedCircuitName),
+        title: Text(
+          _selectedCircuitName.isEmpty ? 'Carte' : _selectedCircuitName,
+        ),
         actions: [
           IconButton(
             tooltip: 'Couches',
@@ -778,7 +897,9 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
 
                 final docs = snap.data!.docs;
                 if (docs.isEmpty) {
-                  return const Text('Aucun circuit visible pour cet événement.');
+                  return const Text(
+                    'Aucun circuit visible pour cet événement.',
+                  );
                 }
 
                 // Choix initial
@@ -792,7 +913,9 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
                   _didAutoSelectFromList = true;
                   WidgetsBinding.instance.addPostFrameCallback((_) async {
                     if (!mounted) return;
-                    final doc = docs.firstWhere((d) => d.id == _selectedCircuitId);
+                    final doc = docs.firstWhere(
+                      (d) => d.id == _selectedCircuitId,
+                    );
                     await _selectCircuitFromDoc(doc.id, doc.data());
                   });
                 }
@@ -811,7 +934,9 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
                     const SizedBox(width: 10),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        key: ValueKey('marketmap-public-circuit-${_selectedCircuitId ?? 'none'}'),
+                        key: ValueKey(
+                          'marketmap-public-circuit-${_selectedCircuitId ?? 'none'}',
+                        ),
                         initialValue: _selectedCircuitId,
                         items: items,
                         decoration: const InputDecoration(
