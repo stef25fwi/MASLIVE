@@ -1016,6 +1016,18 @@
       }
     },
     {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (parking zones)",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"fix(parking): apply zone style on native + init preview\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (splash preload)",
       "type": "shell",
       "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"fix(splash): mask mapbox load behind splash\"",

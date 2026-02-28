@@ -695,6 +695,18 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         ['geometry-type'],
         'Polygon',
       ]);
+
+      // Style depuis properties (comme web): fillColor/fillOpacity
+      await map.style.setStyleLayerProperty(_poiFillLayerId, 'fill-color', [
+        'coalesce',
+        ['get', 'fillColor'],
+        _poiStyle.circleColor.toARGB32(),
+      ]);
+      await map.style.setStyleLayerProperty(_poiFillLayerId, 'fill-opacity', [
+        'coalesce',
+        ['get', 'fillOpacity'],
+        0.20,
+      ]);
     } catch (_) {
       // ignore
     }
@@ -745,6 +757,17 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
           ['==', ['get', 'strokeDash'], 'solid'],
         ],
       ]);
+
+      await map.style.setStyleLayerProperty(_poiLineLayerId, 'line-color', [
+        'coalesce',
+        ['get', 'strokeColor'],
+        _poiStyle.circleStrokeColor.toARGB32(),
+      ]);
+      await map.style.setStyleLayerProperty(_poiLineLayerId, 'line-width', [
+        'coalesce',
+        ['get', 'strokeWidth'],
+        2.0,
+      ]);
     } catch (_) {
       // ignore
     }
@@ -765,6 +788,17 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         ['==', ['get', 'strokeDash'], 'dashed'],
       ]);
       await map.style.setStyleLayerProperty(_poiLineLayerDashedId, 'line-dasharray', [4, 2]);
+
+      await map.style.setStyleLayerProperty(_poiLineLayerDashedId, 'line-color', [
+        'coalesce',
+        ['get', 'strokeColor'],
+        _poiStyle.circleStrokeColor.toARGB32(),
+      ]);
+      await map.style.setStyleLayerProperty(_poiLineLayerDashedId, 'line-width', [
+        'coalesce',
+        ['get', 'strokeWidth'],
+        2.0,
+      ]);
     } catch (_) {
       // ignore
     }
@@ -785,6 +819,17 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         ['==', ['get', 'strokeDash'], 'dotted'],
       ]);
       await map.style.setStyleLayerProperty(_poiLineLayerDottedId, 'line-dasharray', [1, 2]);
+
+      await map.style.setStyleLayerProperty(_poiLineLayerDottedId, 'line-color', [
+        'coalesce',
+        ['get', 'strokeColor'],
+        _poiStyle.circleStrokeColor.toARGB32(),
+      ]);
+      await map.style.setStyleLayerProperty(_poiLineLayerDottedId, 'line-width', [
+        'coalesce',
+        ['get', 'strokeWidth'],
+        2.0,
+      ]);
     } catch (_) {
       // ignore
     }

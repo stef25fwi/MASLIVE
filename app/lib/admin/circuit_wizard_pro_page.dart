@@ -3769,9 +3769,20 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     if (_selectedLayer?.type != 'parking') return;
     _poiSelection.clear();
     _closePoiInlineEditor(keepSelection: false);
+
+    final defaultHex =
+        _normalizeColorHex(_selectedLayer?.color) ??
+        _defaultLayerColorHex('parking') ??
+        _parkingZoneFillColorHex;
     setState(() {
       _isDrawingParkingZone = true;
       _parkingZonePoints = <LngLat>[];
+
+      _parkingZoneFillColorHex = defaultHex;
+      _parkingZoneFillOpacity = _parkingZoneDefaultFillOpacity;
+      _parkingZoneStrokeDash = 'solid';
+      _parkingZonePattern = 'none';
+      _parkingZoneColorController.text = defaultHex;
     });
     _refreshPoiMarkers();
   }
