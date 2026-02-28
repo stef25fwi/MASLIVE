@@ -656,6 +656,8 @@ class CircuitRepository {
       'publishedVersion': version,
       'publishedAt': now,
       'updatedAt': now,
+      if ((currentData['styleUrl'] ?? '').toString().trim().isNotEmpty)
+        'styleUrl': (currentData['styleUrl'] ?? '').toString().trim(),
       'route': currentData['route'] ?? const <dynamic>[],
       'perimeter': currentData['perimeter'] ?? const <dynamic>[],
       'style': currentData['routeStyle'] ?? const <String, dynamic>{},
