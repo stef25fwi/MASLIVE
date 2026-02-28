@@ -118,7 +118,7 @@ class RouteStyleControlsPanel extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               RouteStyleSlider(
-                label: 'Épaisseur (3D)',
+                label: 'Échelle largeur (×)',
                 value: cfg.widthScale3d,
                 min: 0.5,
                 max: 3.0,
@@ -126,6 +126,16 @@ class RouteStyleControlsPanel extends StatelessWidget {
                 unit: '×',
                 decimals: 2,
                 onChanged: (v) => onChanged(cfg.copyWith(widthScale3d: v)),
+              ),
+              RouteStyleSlider(
+                label: 'Épaisseur (3D)',
+                value: cfg.thickness3d,
+                min: 0.6,
+                max: 1.8,
+                divisions: 24,
+                unit: '×',
+                decimals: 2,
+                onChanged: (v) => onChanged(cfg.copyWith(thickness3d: v)),
               ),
               RouteStyleSlider(
                 label: 'Hauteur (3D)',
@@ -419,6 +429,7 @@ class RouteStyleControlsPanel extends StatelessWidget {
     return aa.mainWidth == bb.mainWidth &&
         aa.casingWidth == bb.casingWidth &&
       aa.widthScale3d == bb.widthScale3d &&
+      aa.thickness3d == bb.thickness3d &&
       aa.elevationPx == bb.elevationPx &&
         aa.mainColor.toARGB32() == bb.mainColor.toARGB32() &&
         aa.casingColor.toARGB32() == bb.casingColor.toARGB32() &&

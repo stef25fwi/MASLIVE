@@ -347,6 +347,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       final baseWidth = width;
       final shadowEnabled = options.shadow3d;
       final roadLike = options.roadLike;
+          final thickness3d = (options.thickness3d ?? 1.0).clamp(0.6, 1.8);
 
       // Helpers de couleur
       int to255(double v) => (v * 255.0).round().clamp(0, 255);
@@ -374,9 +375,15 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       }
 
       if (shadowEnabled) {
-        await addLine(lineColor: shadowColor, lineWidth: baseWidth + 8.0);
+        await addLine(
+          lineColor: shadowColor,
+          lineWidth: baseWidth + (8.0 * thickness3d),
+        );
       }
-      await addLine(lineColor: casingColor, lineWidth: baseWidth + 5.0);
+      await addLine(
+        lineColor: casingColor,
+        lineWidth: baseWidth + (5.0 * thickness3d),
+      );
       await addLine(lineColor: color.toARGB32(), lineWidth: baseWidth);
 
       final centerWidth = (baseWidth * 0.33).clamp(1.0, baseWidth);
@@ -1572,6 +1579,9 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     final opacity = (options.opacity ?? 1.0).clamp(0.0, 1.0);
     final roadLike = options.roadLike;
     final shadow3d = options.shadow3d;
+    final thickness3d = (options.thickness3d ?? 1.0).clamp(0.6, 1.8);
+    final shadowOpacityFactor = (options.shadowOpacity ?? 0.25).clamp(0.0, 1.0);
+    final shadowBlurBase = (options.shadowBlur ?? 1.2).clamp(0.0, 20.0);
     final segJson = options.segmentsGeoJson;
     if (segJson == null || segJson.trim().isEmpty) return;
 
@@ -1651,7 +1661,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       }
 
       if (shadow3d) {
-        final shadowWidth = width + 8.0;
+        final shadowWidth = width + (8.0 * thickness3d);
         final shadowWidthExpr = <dynamic>[
           'interpolate',
           ['linear'],
@@ -1676,6 +1686,43 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         } catch (_) {
           // ignore
         }
+
+        // Relief (ruban 3D): accentuer l'ombre (opacity/blur) + décalage viewport.
+        final shadowOpacity = (opacity * shadowOpacityFactor).clamp(0.0, 1.0);
+        final shadowBlur = (shadowBlurBase * thickness3d).clamp(0.0, 40.0);
+        try {
+          await map.style.setStyleLayerProperty(
+            _layerRouteShadow,
+            'line-opacity',
+            shadowOpacity,
+          );
+        } catch (_) {}
+        try {
+          await map.style.setStyleLayerProperty(
+            _layerRouteShadow,
+            'line-blur',
+            shadowBlur,
+          );
+        } catch (_) {}
+
+        final relief = (thickness3d - 1.0);
+        final shadowDx = (relief > 0) ? (relief * 3.0) : 0.0;
+        final shadowDy = (relief > 0) ? (relief * 4.0) : 0.0;
+        final shadowTranslate = <double>[shadowDx, shadowDy];
+        try {
+          await map.style.setStyleLayerProperty(
+            _layerRouteShadow,
+            'line-translate',
+            shadowTranslate,
+          );
+        } catch (_) {}
+        try {
+          await map.style.setStyleLayerProperty(
+            _layerRouteShadow,
+            'line-translate-anchor',
+            'viewport',
+          );
+        } catch (_) {}
       }
     }
 

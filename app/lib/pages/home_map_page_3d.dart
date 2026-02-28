@@ -683,6 +683,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     final casingWidth = c.casingWidth * widthScale;
     final glowWidth = c.glowWidth * widthScale;
     final elevationPx = c.elevationPx;
+    final thickness3d = c.thickness3d;
 
     await _ensureMarketRouteGeoJsonRuntime();
 
@@ -745,26 +746,34 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       await safeSet(layerId, 'line-cap', cap);
     }
 
-    final translate = (elevationPx > 0) ? <double>[0.0, -elevationPx] : null;
+    final translateMap = (elevationPx > 0)
+        ? <double>[0.0, -elevationPx]
+        : const <double>[0.0, 0.0];
     for (final layerId in <String>[
-      _mmRouteLayerShadowId,
       _mmRouteLayerGlowId,
       _mmRouteLayerCasingId,
       _mmRouteLayerMainId,
     ]) {
-      await safeSet(layerId, 'line-translate', translate);
-      await safeSet(
-        layerId,
-        'line-translate-anchor',
-        translate != null ? 'map' : null,
-      );
+      await safeSet(layerId, 'line-translate', translateMap);
+      await safeSet(layerId, 'line-translate-anchor', 'map');
     }
 
+    final relief = max(0.0, thickness3d - 1.0);
+    final shadowTranslate = <double>[relief * 3.0, relief * 4.0];
+    await safeSet(_mmRouteLayerShadowId, 'line-translate', shadowTranslate);
+    await safeSet(_mmRouteLayerShadowId, 'line-translate-anchor', 'viewport');
+
     // Shadow
-    final shadowOpacity = c.shadowEnabled ? c.shadowOpacity : 0.0;
+    final shadowOpacity = c.shadowEnabled
+        ? (c.shadowOpacity * c.opacity).clamp(0.0, 1.0)
+        : 0.0;
     await safeSet(_mmRouteLayerShadowId, 'line-opacity', shadowOpacity);
-    await safeSet(_mmRouteLayerShadowId, 'line-width', max(1.0, casingWidth));
-    await safeSet(_mmRouteLayerShadowId, 'line-blur', c.shadowBlur);
+    await safeSet(
+      _mmRouteLayerShadowId,
+      'line-width',
+      max(1.0, casingWidth * thickness3d),
+    );
+    await safeSet(_mmRouteLayerShadowId, 'line-blur', c.shadowBlur * thickness3d);
 
     // Glow (+ pulse)
     double glowOpacity = c.glowEnabled ? c.glowOpacity : 0.0;

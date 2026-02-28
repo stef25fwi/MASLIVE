@@ -1,7 +1,7 @@
 import 'dart:ui' show Color;
 
 /// Version du schéma JSON stocké.
-const int kRouteStyleSchemaVersion = 2;
+const int kRouteStyleSchemaVersion = 3;
 
 /// Représentation simple (lat, lng) pour les services.
 typedef LatLng = ({double lat, double lng});
@@ -39,6 +39,11 @@ class RouteStyleConfig {
     /// Multiplicateur appliqué aux largeurs (main/casing/glow) pour donner un rendu plus "épais".
     /// 0.5..3.0
     final double widthScale3d;
+
+    /// Facteur de relief (ruban 3D): accentue surtout l'ombre (largeur/blur/offset)
+    /// sans remplacer le réglage de "Largeur".
+    /// 0.6..1.8
+    final double thickness3d;
 
     /// Hauteur simulée au-dessus du "sol" (Mapbox): appliquée via line-translate (px).
     /// 0..40
@@ -102,6 +107,7 @@ class RouteStyleConfig {
     this.casingColor = const Color(0xFF0B1B2B),
     this.opacity = 1.0,
     this.widthScale3d = 1.0,
+    this.thickness3d = 1.0,
     this.elevationPx = 0.0,
     // C
     this.shadowEnabled = true,
@@ -144,6 +150,7 @@ class RouteStyleConfig {
     Color? casingColor,
     double? opacity,
     double? widthScale3d,
+    double? thickness3d,
     double? elevationPx,
     bool? shadowEnabled,
     double? shadowOpacity,
@@ -179,8 +186,9 @@ class RouteStyleConfig {
       mainColor: mainColor ?? this.mainColor,
       casingColor: casingColor ?? this.casingColor,
       opacity: opacity ?? this.opacity,
-    widthScale3d: widthScale3d ?? this.widthScale3d,
-    elevationPx: elevationPx ?? this.elevationPx,
+      widthScale3d: widthScale3d ?? this.widthScale3d,
+      thickness3d: thickness3d ?? this.thickness3d,
+      elevationPx: elevationPx ?? this.elevationPx,
       shadowEnabled: shadowEnabled ?? this.shadowEnabled,
       shadowOpacity: shadowOpacity ?? this.shadowOpacity,
       shadowBlur: shadowBlur ?? this.shadowBlur,
@@ -221,8 +229,9 @@ class RouteStyleConfig {
       mainColor: mainColor,
       casingColor: casingColor,
       opacity: clamp(opacity, 0, 1),
-            widthScale3d: clamp(widthScale3d, 0.5, 3.0),
-            elevationPx: clamp(elevationPx, 0, 40),
+      widthScale3d: clamp(widthScale3d, 0.5, 3.0),
+      thickness3d: clamp(thickness3d, 0.6, 1.8),
+      elevationPx: clamp(elevationPx, 0, 40),
       shadowEnabled: shadowEnabled,
       shadowOpacity: clamp(shadowOpacity, 0, 1),
       shadowBlur: clamp(shadowBlur, 0, 20),
@@ -260,8 +269,9 @@ class RouteStyleConfig {
       'mainColor': _colorToHexArgb(mainColor),
       'casingColor': _colorToHexArgb(casingColor),
       'opacity': opacity,
-    'widthScale3d': widthScale3d,
-    'elevationPx': elevationPx,
+      'widthScale3d': widthScale3d,
+      'thickness3d': thickness3d,
+      'elevationPx': elevationPx,
       'shadowEnabled': shadowEnabled,
       'shadowOpacity': shadowOpacity,
       'shadowBlur': shadowBlur,
@@ -327,6 +337,9 @@ class RouteStyleConfig {
           (json['opacity'] is num) ? (json['opacity'] as num).toDouble() : 1.0,
       widthScale3d: (json['widthScale3d'] is num)
           ? (json['widthScale3d'] as num).toDouble()
+          : 1.0,
+        thickness3d: (json['thickness3d'] is num)
+          ? (json['thickness3d'] as num).toDouble()
           : 1.0,
       elevationPx: (json['elevationPx'] is num)
           ? (json['elevationPx'] as num).toDouble()

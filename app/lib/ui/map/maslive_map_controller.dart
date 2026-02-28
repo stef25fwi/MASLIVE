@@ -172,6 +172,8 @@ class MasLiveMapController {
     double animationSpeed = 1.0,
     // Options avancées (principalement utiles sur Web via Mapbox GL JS)
     double? opacity,
+    double? shadowOpacity,
+    double? shadowBlur,
     Color? casingColor,
     double? casingWidth,
     bool glowEnabled = false,
@@ -179,6 +181,7 @@ class MasLiveMapController {
     double? glowWidth,
     double? glowOpacity,
     double? glowBlur,
+    double? thickness3d,
     double? elevationPx,
     List<double>? dashArray,
     String? lineCap,
@@ -197,6 +200,8 @@ class MasLiveMapController {
         animateDirection: animateDirection,
         animationSpeed: animationSpeed,
         opacity: opacity,
+        shadowOpacity: shadowOpacity,
+        shadowBlur: shadowBlur,
         casingColor: casingColor,
         casingWidth: casingWidth,
         glowEnabled: glowEnabled,
@@ -204,6 +209,7 @@ class MasLiveMapController {
         glowWidth: glowWidth,
         glowOpacity: glowOpacity,
         glowBlur: glowBlur,
+        thickness3d: thickness3d,
         elevationPx: elevationPx,
         dashArray: dashArray,
         lineCap: lineCap,
@@ -291,6 +297,13 @@ class PolylineRenderOptions {
 
   // Options visuelles additionnelles (principalement implémentées côté Web)
   final double? opacity;
+
+  /// Opacité de l'ombre (si supporté par l'implémentation).
+  final double? shadowOpacity;
+
+  /// Blur de l'ombre (si supporté par l'implémentation).
+  final double? shadowBlur;
+
   final Color? casingColor;
   final double? casingWidth;
   final bool glowEnabled;
@@ -301,6 +314,9 @@ class PolylineRenderOptions {
   final List<double>? dashArray;
   final String? lineCap;
   final String? lineJoin;
+
+  /// Facteur de relief (ruban 3D): accentue l'ombre (largeur/blur/offset).
+  final double? thickness3d;
 
   /// Hauteur simulée (Mapbox): line-translate en pixels.
   final double? elevationPx;
@@ -321,6 +337,8 @@ class PolylineRenderOptions {
     this.animateDirection = false,
     this.animationSpeed = 1.0,
     this.opacity,
+    this.shadowOpacity,
+    this.shadowBlur,
     this.casingColor,
     this.casingWidth,
     this.glowEnabled = false,
@@ -331,6 +349,7 @@ class PolylineRenderOptions {
     this.dashArray,
     this.lineCap,
     this.lineJoin,
+    this.thickness3d,
     this.elevationPx,
     this.segmentsGeoJson,
   });
@@ -342,6 +361,8 @@ class PolylineRenderOptions {
         'animateDirection': animateDirection,
         'animationSpeed': animationSpeed,
         if (opacity != null) 'opacity': opacity,
+        if (shadowOpacity != null) 'shadowOpacity': shadowOpacity,
+        if (shadowBlur != null) 'shadowBlur': shadowBlur,
         if (casingWidth != null) 'casingWidth': casingWidth,
         if (casingColor != null) 'casingColor': _toHexRgb(casingColor!),
         'glowEnabled': glowEnabled,
@@ -349,6 +370,7 @@ class PolylineRenderOptions {
         if (glowOpacity != null) 'glowOpacity': glowOpacity,
         if (glowBlur != null) 'glowBlur': glowBlur,
         if (glowColor != null) 'glowColor': _toHexRgb(glowColor!),
+        if (thickness3d != null) 'thickness3d': thickness3d,
         if (elevationPx != null) 'elevationPx': elevationPx,
         if (dashArray != null) 'dashArray': dashArray,
         if (lineCap != null) 'lineCap': lineCap,

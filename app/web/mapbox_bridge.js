@@ -1000,6 +1000,17 @@
         const dashArray = Array.isArray(opts.dashArray) ? opts.dashArray : null;
         const lineCap = (opts.lineCap === 'butt' || opts.lineCap === 'square' || opts.lineCap === 'round') ? opts.lineCap : 'round';
         const lineJoin = (opts.lineJoin === 'bevel' || opts.lineJoin === 'miter' || opts.lineJoin === 'round') ? opts.lineJoin : 'round';
+
+        // Relief "ruban 3D": on accentue surtout l'ombre.
+        const thickness3d = _clampNumber(opts.thickness3d, 0.6, 1.8, 1.0);
+        const shadowOpacityFactor = _clampNumber(opts.shadowOpacity, 0.0, 1.0, 0.25);
+        const shadowBlurBase = _clampNumber(opts.shadowBlur, 0.0, 20.0, 1.2);
+        const shadowBlurEff = Math.min(40.0, shadowBlurBase * thickness3d);
+        const shadowRelief = Math.max(0.0, thickness3d - 1.0);
+        const shadowDx = shadowRelief * 3.0;
+        const shadowDy = shadowRelief * 4.0;
+        const shadowTranslate = (shadowDx > 0.01 || shadowDy > 0.01) ? [shadowDx, shadowDy] : null;
+
         const elevationPx = _clampNumber(opts.elevationPx, 0.0, 40.0, 0.0);
         const lineTranslate = (elevationPx > 0.01) ? [0, -elevationPx] : null;
 
@@ -1117,11 +1128,12 @@
                 'line-join': lineJoin,
               },
               paint: {
-                'line-width': scaledWidthExpr(w + 8),
-                'line-color': 'rgba(0,0,0,0.25)',
-                'line-blur': 1.2,
-                'line-opacity': opacity,
-                ...(lineTranslate ? { 'line-translate': lineTranslate, 'line-translate-anchor': 'map' } : {}),
+                'line-width': scaledWidthExpr(w + (8 * thickness3d)),
+                'line-color': 'rgba(0,0,0,1)',
+                'line-blur': shadowBlurEff,
+                // Important: ne pas sur-multiplier la largeur globale; on joue surtout sur l'ombre.
+                'line-opacity': Math.max(0.0, Math.min(1.0, opacity * shadowOpacityFactor)),
+                ...(shadowTranslate ? { 'line-translate': shadowTranslate, 'line-translate-anchor': 'viewport' } : {}),
               },
             });
           }

@@ -177,10 +177,10 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     final pts = widget.route;
 
     final widthScale = cfg.widthScale3d;
-    final mainWidth = cfg.mainWidth * widthScale;
     final casingWidth = cfg.casingWidth * widthScale;
     final glowWidth = cfg.glowWidth * widthScale;
     final elevationPx = cfg.elevationPx;
+    final thickness3d = cfg.thickness3d;
 
     // Update route source (ligne principale)
     final routeFc = (pts.length < 2)
@@ -213,11 +213,14 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     await _applyLineCaps(cfg);
 
     // Shadow
-    final shadowOpacity = cfg.shadowEnabled ? cfg.shadowOpacity : 0.0;
+    final shadowOpacity = cfg.shadowEnabled
+        ? (cfg.shadowOpacity * cfg.opacity).clamp(0.0, 1.0)
+        : 0.0;
+    final shadowBlur = cfg.shadowBlur * thickness3d;
     await _setLayerProps(_layerShadow, {
       'line-opacity': shadowOpacity,
       'line-width': math.max(1.0, casingWidth),
-      'line-blur': cfg.shadowBlur,
+      'line-blur': shadowBlur,
     });
 
     // Glow (avec pulse optionnel)
@@ -256,21 +259,32 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       });
     }
 
-    // Hauteur (translate) – appliquée à toutes les couches
-    final translate = (elevationPx > 0)
+    // Hauteur (translate) – appliquée aux couches principales (ancre map).
+    final translateMap = (elevationPx > 0)
         ? <double>[0.0, -elevationPx]
-        : null;
+        : const <double>[0.0, 0.0];
     for (final layerId in <String>[
-      _layerShadow,
       _layerGlow,
       _layerCasing,
       _layerMain,
     ]) {
       await _setLayerProps(layerId, {
-        'line-translate': translate,
-        'line-translate-anchor': translate != null ? 'map' : null,
+        'line-translate': translateMap,
+        'line-translate-anchor': 'map',
       });
     }
+
+    // Relief (ruban 3D): léger décalage de l'ombre en viewport.
+    final relief = math.max(0.0, thickness3d - 1.0);
+    final shadowDx = relief * 3.0;
+    final shadowDy = relief * 4.0;
+    final shadowTranslate = (shadowDx > 0.01 || shadowDy > 0.01)
+        ? <double>[shadowDx, shadowDy]
+        : const <double>[0.0, 0.0];
+    await _setLayerProps(_layerShadow, {
+      'line-translate': shadowTranslate,
+      'line-translate-anchor': 'viewport',
+    });
 
     if (cfg.dashEnabled) {
       await _setLayerProps(_layerMain, {
@@ -357,6 +371,8 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       animationSpeed: (cfg.pulseSpeed / 25.0).clamp(0.5, 5.0),
 
       opacity: cfg.opacity,
+      shadowOpacity: cfg.shadowOpacity,
+      shadowBlur: cfg.shadowBlur,
 
       casingColor: cfg.casingColor,
       casingWidth: cfg.casingWidth > 0 ? casingWidth : null,
@@ -366,6 +382,8 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       glowWidth: glowWidth,
       glowOpacity: cfg.glowOpacity,
       glowBlur: cfg.glowBlur,
+
+      thickness3d: cfg.thickness3d,
 
       elevationPx: cfg.elevationPx,
 

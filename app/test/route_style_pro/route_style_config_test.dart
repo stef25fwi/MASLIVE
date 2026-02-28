@@ -13,6 +13,7 @@ void main() {
         casingWidth: 0,
         opacity: 0.9,
         widthScale3d: 1.4,
+        thickness3d: 1.25,
         elevationPx: 12,
         dashEnabled: true,
         dashLength: 3.5,
@@ -30,6 +31,7 @@ void main() {
       expect(decoded.casingWidth, cfg.casingWidth);
       expect(decoded.opacity, cfg.opacity);
       expect(decoded.widthScale3d, cfg.widthScale3d);
+      expect(decoded.thickness3d, cfg.thickness3d);
       expect(decoded.elevationPx, cfg.elevationPx);
       expect(decoded.dashEnabled, cfg.dashEnabled);
       expect(decoded.dashLength, cfg.dashLength);
@@ -45,6 +47,7 @@ void main() {
         casingWidth: -1,
         opacity: 10,
         widthScale3d: 999,
+        thickness3d: 999,
         elevationPx: 999,
         glowOpacity: -2,
         vanishingProgress: 3,
@@ -59,6 +62,7 @@ void main() {
       expect(cfg.casingWidth, inInclusiveRange(0, 30));
       expect(cfg.opacity, inInclusiveRange(0.2, 1.0));
       expect(cfg.widthScale3d, inInclusiveRange(0.5, 3.0));
+      expect(cfg.thickness3d, inInclusiveRange(0.6, 1.8));
       expect(cfg.elevationPx, inInclusiveRange(0.0, 40.0));
       expect(cfg.glowOpacity, inInclusiveRange(0.0, 1.0));
       expect(cfg.vanishingProgress, inInclusiveRange(0.0, 1.0));
