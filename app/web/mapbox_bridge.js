@@ -1058,6 +1058,21 @@
         const mainLineWidth = segmentsFc ? ['get', 'width'] : w;
         const mainLineOpacity = segmentsFc ? ['get', 'opacity'] : opacity;
 
+        // Zoom-aware width:
+        // Quand on dézoome, une largeur en pixels constante devient visuellement
+        // plus large que les routes du style Mapbox (effet "trop épais").
+        // On applique donc un facteur dépendant du zoom.
+        // - activé par défaut pour roadLike et pour le rendu par segments (Style Pro)
+        const scaleWidthWithZoom = _parseBool(opts.scaleWidthWithZoom, (roadLike || !!segmentsFc));
+        const zoomWidthScale = ['interpolate', ['linear'], ['zoom'],
+          10, 0.50,
+          12, 0.70,
+          14, 1.00,
+          22, 1.00,
+        ];
+        const scaledWidth = (base) => scaleWidthWithZoom ? ['*', base, zoomWidthScale] : base;
+        const mainLineWidthScaled = scaledWidth(mainLineWidth);
+
         if (!roadLike) {
           map.addLayer({
             id: 'maslive_polyline_layer',
@@ -1068,7 +1083,7 @@
               'line-join': lineJoin,
             },
             paint: {
-              'line-width': mainLineWidth,
+              'line-width': mainLineWidthScaled,
               'line-color': mainLineColor,
               'line-opacity': mainLineOpacity,
             },
@@ -1084,7 +1099,7 @@
                 'line-join': lineJoin,
               },
               paint: {
-                'line-width': w + 8,
+                'line-width': scaledWidth(w + 8),
                 'line-color': 'rgba(0,0,0,0.25)',
                 'line-blur': 1.2,
                 'line-opacity': opacity,
@@ -1102,7 +1117,7 @@
                 'line-join': lineJoin,
               },
               paint: {
-                'line-width': w + Math.max(0, glowWidth),
+                'line-width': scaledWidth(w + Math.max(0, glowWidth)),
                 'line-color': glowColor,
                 'line-opacity': glowOpacity,
                 'line-blur': Math.max(0, glowBlur),
@@ -1121,7 +1136,7 @@
               'line-join': lineJoin,
             },
             paint: {
-              'line-width': casingWidth,
+              'line-width': scaledWidth(casingWidth),
               'line-color': casingColorOpt,
               'line-opacity': opacity,
             },
@@ -1136,7 +1151,7 @@
               'line-join': lineJoin,
             },
             paint: {
-              'line-width': mainLineWidth,
+              'line-width': mainLineWidthScaled,
               'line-color': mainLineColor,
               'line-opacity': mainLineOpacity,
             },
@@ -1154,7 +1169,9 @@
                 'line-join': lineJoin,
               },
               paint: {
-                'line-width': Math.max(1, Math.min(w, w * 0.33)),
+                'line-width': scaleWidthWithZoom
+                  ? ['max', 1, ['*', w, 0.33, zoomWidthScale]]
+                  : Math.max(1, Math.min(w, w * 0.33)),
                 'line-color': 'rgba(255,255,255,0.85)',
                 'line-opacity': opacity,
               },

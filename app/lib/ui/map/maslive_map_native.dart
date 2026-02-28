@@ -1434,10 +1434,31 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       'to-color',
       ['get', 'color'],
     ];
-    final lineWidthExpr = [
-      'coalesce',
-      ['get', 'width'],
-      fallbackWidth,
+    // Zoom-aware width: quand on dézoome, une largeur fixe (px) devient
+    // visuellement plus large que les routes du style.
+    // On applique un facteur basé sur ['zoom'].
+    const zoomWidthScaleExpr = <dynamic>[
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      10,
+      0.50,
+      12,
+      0.70,
+      14,
+      1.00,
+      22,
+      1.00,
+    ];
+
+    final lineWidthExpr = <dynamic>[
+      '*',
+      [
+        'coalesce',
+        ['get', 'width'],
+        fallbackWidth,
+      ],
+      zoomWidthScaleExpr,
     ];
     final lineOpacityExpr = [
       'coalesce',
@@ -1532,6 +1553,44 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       lineCap: options.lineCap,
       lineJoin: options.lineJoin,
     );
+
+    // Appliquer le même scaling de largeur sur les couches "roadLike" (casing/shadow)
+    // pour éviter un tracé trop épais quand on dézoome.
+    if (roadLike) {
+      const zoomWidthScaleExpr = <dynamic>[
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        10,
+        0.50,
+        12,
+        0.70,
+        14,
+        1.00,
+        22,
+        1.00,
+      ];
+      try {
+        await map.style.setStyleLayerProperty(
+          _layerRouteCasing,
+          'line-width',
+          <dynamic>['*', casingWidth, zoomWidthScaleExpr],
+        );
+      } catch (_) {
+        // ignore
+      }
+      if (shadow3d) {
+        try {
+          await map.style.setStyleLayerProperty(
+            _layerRouteShadow,
+            'line-width',
+            <dynamic>['*', (width + 8.0), zoomWidthScaleExpr],
+          );
+        } catch (_) {
+          // ignore
+        }
+      }
+    }
 
     // Appliquer expressions data-driven sur la layer principale.
     await _applySegmentsExpressions(
