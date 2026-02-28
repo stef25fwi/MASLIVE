@@ -1069,18 +1069,20 @@
         const scaledWidthExpr = (baseExpr) => {
           if (!scaleWidthWithZoom) return baseExpr;
           return ['interpolate', ['linear'], ['zoom'],
-            10, ['*', baseExpr, 0.50],
-            12, ['*', baseExpr, 0.70],
-            14, baseExpr,
+            10, ['*', baseExpr, 0.30],
+            12, ['*', baseExpr, 0.50],
+            14, ['*', baseExpr, 0.80],
+            16, baseExpr,
             22, baseExpr,
           ];
         };
         const scaledWidthExprClampedMin = (baseExpr, minVal) => {
           if (!scaleWidthWithZoom) return baseExpr;
           return ['interpolate', ['linear'], ['zoom'],
-            10, ['max', minVal, ['*', baseExpr, 0.50]],
-            12, ['max', minVal, ['*', baseExpr, 0.70]],
-            14, ['max', minVal, baseExpr],
+            10, ['max', minVal, ['*', baseExpr, 0.30]],
+            12, ['max', minVal, ['*', baseExpr, 0.50]],
+            14, ['max', minVal, ['*', baseExpr, 0.80]],
+            16, ['max', minVal, baseExpr],
             22, ['max', minVal, baseExpr],
           ];
         };
