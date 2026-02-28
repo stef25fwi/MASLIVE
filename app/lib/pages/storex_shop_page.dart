@@ -1025,6 +1025,7 @@ class _StorexAccount extends StatelessWidget {
               onTap: () async {
                 final logoutLabel = l10n.AppLocalizations.of(context)!.logout;
                 await FirebaseAuth.instance.signOut();
+                if (!context.mounted) return;
                 TopSnackBar.show(
                   context,
                   SnackBar(
@@ -1221,6 +1222,7 @@ class _WishlistPage extends StatelessWidget {
                                   try {
                                     debugPrint('[SHOP] Add wishlist item to cart: $productId');
                                     final p = await _fetchProductById(productId);
+                                    if (!context.mounted) return;
                                     if (p == null) {
                                       TopSnackBar.show(
                                         context,
@@ -1245,6 +1247,7 @@ class _WishlistPage extends StatelessWidget {
                                       const SnackBar(content: Text('Ajouté au panier ✅')),
                                     );
                                   } catch (e) {
+                                    if (!context.mounted) return;
                                     TopSnackBar.show(
                                       context,
                                       SnackBar(content: Text('Erreur ajout panier: $e')),

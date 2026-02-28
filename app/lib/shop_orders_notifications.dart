@@ -34,24 +34,13 @@ class PushService {
     if (_initialized) return;
     _initialized = true;
 
-    final nav = Navigator.of(context);
-
     // Handler arrière-plan
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-    // iOS permission
-    await _messaging.requestPermission(
-      alert: true,
-      sound: true,
-      badge: true,
-      provisional: false,
-    );
-
-    // Token sync au login
-    await syncTokenForCurrentUser();
-
-    // Foreground message
+    // Foreground message (on évite d'utiliser un BuildContext potentiellement démonté)
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      if (!context.mounted) return;
+
       // En foreground, tu peux afficher un SnackBar / Dialog / LocalNotification.
       final data = message.data;
       if (data['type'] == 'order') {
@@ -63,8 +52,10 @@ class PushService {
             action: SnackBarAction(
               label: 'Ouvrir',
               onPressed: () {
+                if (!context.mounted) return;
                 if (orderId != null) {
-                  nav.pushNamed('/seller-order', arguments: orderId);
+                  Navigator.of(context)
+                      .pushNamed('/seller-order', arguments: orderId);
                 }
               },
             ),
@@ -72,6 +63,17 @@ class PushService {
         );
       }
     });
+
+    // iOS permission
+    await _messaging.requestPermission(
+      alert: true,
+      sound: true,
+      badge: true,
+      provisional: false,
+    );
+
+    // Token sync au login
+    await syncTokenForCurrentUser();
   }
 
   Future<void> syncTokenForCurrentUser() async {
@@ -394,6 +396,7 @@ class _OrderActions extends StatelessWidget {
                       'validatedAt': FieldValue.serverTimestamp(),
                       'validatedBy': uid,
                     });
+                    if (!context.mounted) return;
                     TopSnackBar.show(
                       context,
                       const SnackBar(content: Text('Commande validée')),
@@ -420,6 +423,7 @@ class _OrderActions extends StatelessWidget {
                       'rejectedAt': FieldValue.serverTimestamp(),
                       'rejectedBy': uid,
                     });
+                    if (!context.mounted) return;
                     TopSnackBar.show(
                       context,
                       const SnackBar(content: Text('Commande refusée')),

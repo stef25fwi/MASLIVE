@@ -147,7 +147,7 @@ class _PaywallPageState extends State<PaywallPage> {
                             cancelUrl: cancelUrl,
                           );
                         } catch (e) {
-                          if (!mounted) return;
+                          if (!context.mounted) return;
                           TopSnackBar.show(
                             context,
                             SnackBar(content: Text('Checkout échoué: $e')),
@@ -212,12 +212,12 @@ class _PaywallPageState extends State<PaywallPage> {
                   subtitle: desc,
                   price: price,
                   onTap: () async {
-                    final nav = Navigator.of(context);
                     try {
                       await PremiumService.instance.purchasePackage(p);
-                      if (mounted) nav.pop();
+                      if (!context.mounted) return;
+                      Navigator.of(context).pop();
                     } catch (e) {
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       TopSnackBar.show(
                         context,
                         SnackBar(content: Text('Achat annulé/échoué: $e')),

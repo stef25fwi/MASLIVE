@@ -320,7 +320,7 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
   void _showAddArticleDialog() {
     showDialog(
       context: context,
-      builder: (context) => _ArticleEditDialog(
+      builder: (dialogContext) => _ArticleEditDialog(
         onSave: (article) async {
           try {
             await _articleService.createArticle(
@@ -353,7 +353,7 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
   void _showEditArticleDialog(SuperadminArticle article) {
     showDialog(
       context: context,
-      builder: (context) => _ArticleEditDialog(
+      builder: (dialogContext) => _ArticleEditDialog(
         article: article,
         onSave: (updatedData) async {
           try {
@@ -889,8 +889,6 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
           onPressed: _isUploading
               ? null
               : () async {
-                  final navigator = Navigator.of(context);
-
                   final name = _nameController.text.trim();
                   if (name.isEmpty) {
                     TopSnackBar.show(
@@ -915,7 +913,7 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
                   if (shouldUpload) {
                     finalImageUrl = await _uploadImageIfNeeded(articleId);
                     if (finalImageUrl == null) {
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       TopSnackBar.show(
                         context,
                         const SnackBar(content: Text('❌ Échec upload image')),
@@ -933,9 +931,8 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
                     'sku': _skuController.text.trim(),
                     'imageUrl': finalImageUrl ?? '',
                   });
-                  if (!mounted) return;
-
-                  navigator.pop();
+                  if (!context.mounted) return;
+                  Navigator.of(context).pop();
                 },
           style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[800]),
           child: _isUploading

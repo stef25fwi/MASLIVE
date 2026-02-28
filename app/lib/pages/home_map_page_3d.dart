@@ -990,15 +990,17 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     if (it is Map) {
       final lat = it['lat'];
       final lng = it['lng'] ?? it['lon'];
-      if (lat is num && lng is num)
+      if (lat is num && lng is num) {
         return Position(lng.toDouble(), lat.toDouble());
+      }
     }
 
     if (it is List && it.length >= 2) {
       final lng = it[0];
       final lat = it[1];
-      if (lng is num && lat is num)
+      if (lng is num && lat is num) {
         return Position(lng.toDouble(), lat.toDouble());
+      }
     }
 
     return null;
