@@ -56,6 +56,58 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
   String? get _projectId => widget.projectId;
   String? get _circuitId => widget.circuitId;
 
+  static const int _wizardCurrentStep = 4; // Style Pro
+
+  String _getWizardStepLabel(int step) {
+    const labels = [
+      'Template',
+      'Infos',
+      'Périmètre',
+      'Tracé + Style',
+      'Style Pro',
+      'POI',
+      'Pré-pub',
+      'Publication',
+    ];
+    return labels[step.clamp(0, labels.length - 1)];
+  }
+
+  Widget _buildWizardHeader() {
+    Widget buildStep(int index) {
+      return Expanded(
+        child: _WizardStepIndicator(
+          step: index,
+          label: _getWizardStepLabel(index),
+          isActive: index == _wizardCurrentStep,
+          isCompleted: index < _wizardCurrentStep,
+          isEnabled: true,
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 112,
+      child: Column(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                for (final i in [0, 1, 2, 3]) buildStep(i),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                for (final i in [4, 5, 6, 7]) buildStep(i),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   CollectionReference<Map<String, dynamic>>? _presetsColForCurrentUser() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if ((uid ?? '').trim().isEmpty) return null;
@@ -374,7 +426,7 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    const proBlue = Color(0xFF1A73E8);
 
     return Scaffold(
       appBar: AppBar(
@@ -397,60 +449,70 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
             ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : LayoutBuilder(
-              builder: (context, c) {
-                final isWide = c.maxWidth >= 980;
+      body: Column(
+        children: [
+          _buildWizardHeader(),
+          const Divider(height: 1),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : LayoutBuilder(
+                    builder: (context, c) {
+                      final isWide = c.maxWidth >= 980;
 
-                final map = Stack(
-                  children: [
-                    Positioned.fill(
-                      child: RouteStylePreviewMap(
-                        config: _renderConfig,
-                        route: _route,
-                      ),
-                    ),
-                    if (_busy)
-                      const Positioned.fill(
-                        child: IgnorePointer(
-                          child: ColoredBox(
-                            color: Color(0x11000000),
-                            child: Center(child: CircularProgressIndicator()),
+                      final map = Stack(
+                        children: [
+                          Positioned.fill(
+                            child: RouteStylePreviewMap(
+                              config: _renderConfig,
+                              route: _route,
+                            ),
                           ),
-                        ),
-                      ),
-                  ],
-                );
+                          if (_busy)
+                            const Positioned.fill(
+                              child: IgnorePointer(
+                                child: ColoredBox(
+                                  color: Color(0x11000000),
+                                  child: Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
 
-                final panel = RouteStyleControlsPanel(
-                  config: _config,
-                  onChanged: _onConfigChanged,
-                  onTestAutoRoute: _busy ? () {} : _testAutoRoute,
-                  onUseMyTrace: _busy ? () {} : _useMyTrace,
-                  onSave: _busy ? () {} : _save,
-                  onReset: _busy ? () {} : _reset,
-                );
+                      final panel = RouteStyleControlsPanel(
+                        config: _config,
+                        onChanged: _onConfigChanged,
+                        onTestAutoRoute: _busy ? () {} : _testAutoRoute,
+                        onUseMyTrace: _busy ? () {} : _useMyTrace,
+                        onSave: _busy ? () {} : _save,
+                        onReset: _busy ? () {} : _reset,
+                      );
 
-                if (isWide) {
-                  return Row(
-                    children: [
-                      Expanded(flex: 3, child: map),
-                      const VerticalDivider(width: 1),
-                      SizedBox(width: 420, child: panel),
-                    ],
-                  );
-                }
+                      if (isWide) {
+                        return Row(
+                          children: [
+                            Expanded(flex: 3, child: map),
+                            const VerticalDivider(width: 1),
+                            SizedBox(width: 420, child: panel),
+                          ],
+                        );
+                      }
 
-                return Column(
-                  children: [
-                    SizedBox(height: 320, child: map),
-                    const Divider(height: 1),
-                    Expanded(child: panel),
-                  ],
-                );
-              },
-            ),
+                      return Column(
+                        children: [
+                          SizedBox(height: 320, child: map),
+                          const Divider(height: 1),
+                          Expanded(child: panel),
+                        ],
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
       bottomNavigationBar: SafeArea(
         top: false,
         child: Padding(
@@ -462,6 +524,11 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
                 child: SizedBox(
                   height: 48,
                   child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: proBlue,
+                      side: BorderSide(color: proBlue.withValues(alpha: 0.45)),
+                      textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                     onPressed: (_busy || _loading)
                         ? null
                         : () => Navigator.of(context).pop('previous'),
@@ -478,8 +545,9 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
                     icon: const Icon(Icons.save, size: 18),
                     label: const Text('Sauvegarder'),
                     style: FilledButton.styleFrom(
-                      backgroundColor: scheme.surface,
-                      foregroundColor: scheme.onSurface,
+                      backgroundColor: const Color(0xFF1D2330),
+                      foregroundColor: Colors.white,
+                      textStyle: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                   ),
                 ),
@@ -492,6 +560,11 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
                     onPressed: (_busy || _loading)
                         ? null
                         : () => Navigator.of(context).pop('next'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: proBlue,
+                      foregroundColor: Colors.white,
+                      textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
                     child: const Text('Suivant →'),
                   ),
                 ),
@@ -500,6 +573,76 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _WizardStepIndicator extends StatelessWidget {
+  final int step;
+  final String label;
+  final bool isActive;
+  final bool isCompleted;
+  final bool isEnabled;
+
+  const _WizardStepIndicator({
+    required this.step,
+    required this.label,
+    required this.isActive,
+    required this.isCompleted,
+    required this.isEnabled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final circleColor = isCompleted
+        ? Colors.green
+        : isActive
+        ? Colors.blue
+        : isEnabled
+        ? Colors.grey.shade300
+        : Colors.grey.shade200;
+
+    final circleTextColor = (isActive || isCompleted)
+        ? Colors.white
+        : isEnabled
+        ? Colors.black
+        : Colors.black38;
+
+    final labelColor = isEnabled || isActive ? null : Colors.black38;
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(color: circleColor, shape: BoxShape.circle),
+          child: Center(
+            child: isCompleted
+                ? const Icon(Icons.check, color: Colors.white, size: 16)
+                : Text(
+                    '${step + 1}',
+                    style: TextStyle(
+                      color: circleTextColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Flexible(
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+              color: labelColor,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
