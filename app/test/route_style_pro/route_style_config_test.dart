@@ -71,6 +71,38 @@ void main() {
       expect(minimal!.config.casingWidth, 0);
     });
 
+    test('legacy presets are still present and valid', () {
+      final ids = RouteStylePresets.all.map((p) => p.id).toSet();
+      expect(ids.contains('waze'), isTrue);
+      expect(ids.contains('night'), isTrue);
+      expect(ids.contains('neon'), isTrue);
+      expect(ids.contains('rainbow'), isTrue);
+      expect(ids.contains('minimal'), isTrue);
+
+      // (nouveaux) presets demandés
+      expect(ids.contains('premium'), isTrue);
+      expect(ids.contains('carnival'), isTrue);
+      expect(ids.contains('collectivite'), isTrue);
+
+      for (final p in RouteStylePresets.all) {
+        final v = p.config.validated();
+        // Invariants simples: rien d'inf/NaN et clamp OK.
+        expect(v.mainWidth, inInclusiveRange(2.0, 20.0));
+        expect(v.casingWidth, inInclusiveRange(0.0, 30.0));
+        expect(v.opacity, inInclusiveRange(0.0, 1.0));
+        expect(v.glowBlur, inInclusiveRange(0.0, 40.0));
+        expect(v.glowWidth, inInclusiveRange(0.0, 30.0));
+        expect(v.shadowBlur, inInclusiveRange(0.0, 20.0));
+        expect(v.rainbowSaturation, inInclusiveRange(0.0, 1.0));
+        expect(v.rainbowSpeed, inInclusiveRange(0.0, 100.0));
+      }
+
+      // Signatures attendues (sanity)
+      expect(RouteStylePresets.neon.config.glowEnabled, isTrue);
+      expect(RouteStylePresets.rainbow.config.rainbowEnabled, isTrue);
+      expect(RouteStylePresets.minimal.config.casingWidth, 0.0);
+    });
+
     test('all preset ids are unique', () {
       final ids = RouteStylePresets.all.map((p) => p.id).toList();
       expect(ids.toSet().length, ids.length);

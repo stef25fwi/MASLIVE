@@ -126,6 +126,34 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   final PoiSelectionController _poiSelection = PoiSelectionController();
   final ScrollController _poiStepScrollController = ScrollController();
 
+  // Empêche le scroll vertical de certaines pages quand l'utilisateur interagit
+  // avec une carte intégrée dans un scroll (drag/pan/zoom).
+  int _wizardMapPointerCount = 0;
+  bool get _isWizardMapInteracting => _wizardMapPointerCount > 0;
+
+  Widget _wrapWizardMapToBlockScroll(Widget child) {
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: (_) {
+        if (!mounted) return;
+        setState(() => _wizardMapPointerCount++);
+      },
+      onPointerUp: (_) {
+        if (!mounted) return;
+        setState(() {
+          _wizardMapPointerCount = math.max(0, _wizardMapPointerCount - 1);
+        });
+      },
+      onPointerCancel: (_) {
+        if (!mounted) return;
+        setState(() {
+          _wizardMapPointerCount = math.max(0, _wizardMapPointerCount - 1);
+        });
+      },
+      child: child,
+    );
+  }
+
   _PoiInlineEditorMode _poiInlineEditorMode = _PoiInlineEditorMode.none;
   MarketMapPOI? _poiEditingPoi;
 
@@ -1797,6 +1825,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   Widget _buildStep0Template() {
     return SingleChildScrollView(
+      physics: _isWizardMapInteracting ? const NeverScrollableScrollPhysics() : null,
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1852,6 +1881,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   Widget _buildStep1Infos() {
     return SingleChildScrollView(
+      physics: _isWizardMapInteracting ? const NeverScrollableScrollPhysics() : null,
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2005,25 +2035,27 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             borderRadius: BorderRadius.circular(12),
             child: SizedBox(
               height: 440,
-              child: MasLiveMap(
-                initialLng: _routePoints.isNotEmpty
-                    ? _routePoints.first.lng
-                    : (_perimeterPoints.isNotEmpty
-                          ? _perimeterPoints.first.lng
-                          : -61.533),
-                initialLat: _routePoints.isNotEmpty
-                    ? _routePoints.first.lat
-                    : (_perimeterPoints.isNotEmpty
-                          ? _perimeterPoints.first.lat
-                          : 16.241),
-                initialZoom:
-                    (_routePoints.isNotEmpty || _perimeterPoints.isNotEmpty)
-                    ? 13.5
-                    : 12.0,
-                styleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text)
-                    .isEmpty
-                  ? null
-                  : _normalizeMapboxStyleUrl(_styleUrlController.text),
+              child: _wrapWizardMapToBlockScroll(
+                MasLiveMap(
+                  initialLng: _routePoints.isNotEmpty
+                      ? _routePoints.first.lng
+                      : (_perimeterPoints.isNotEmpty
+                            ? _perimeterPoints.first.lng
+                            : -61.533),
+                  initialLat: _routePoints.isNotEmpty
+                      ? _routePoints.first.lat
+                      : (_perimeterPoints.isNotEmpty
+                            ? _perimeterPoints.first.lat
+                            : 16.241),
+                  initialZoom:
+                      (_routePoints.isNotEmpty || _perimeterPoints.isNotEmpty)
+                          ? 13.5
+                          : 12.0,
+                  styleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text)
+                          .isEmpty
+                      ? null
+                      : _normalizeMapboxStyleUrl(_styleUrlController.text),
+                ),
               ),
             ),
           ),
@@ -2940,26 +2972,30 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       value: _poiSelection,
       child: SingleChildScrollView(
         controller: _poiStepScrollController,
+        physics: _isWizardMapInteracting ? const NeverScrollableScrollPhysics() : null,
         child: Column(
           children: [
             SizedBox(
               height: viewportHeight,
               child: Stack(
                 children: [
-                  MasLiveMap(
-                    controller: _poiMapController,
-                    initialLng: _poiInitialLng ?? -61.533,
-                    initialLat: _poiInitialLat ?? 16.241,
-                    initialZoom: _poiInitialZoom ?? 12.0,
-                    styleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text)
-                            .isEmpty
-                        ? null
-                        : _normalizeMapboxStyleUrl(_styleUrlController.text),
-                    onMapReady: (ctrl) async {
-                      await _refreshPoiMarkers();
-                      await _refreshPoiRouteOverlay();
-                      _syncPoiRouteStyleProTimer();
-                    },
+                  _wrapWizardMapToBlockScroll(
+                    MasLiveMap(
+                      controller: _poiMapController,
+                      initialLng: _poiInitialLng ?? -61.533,
+                      initialLat: _poiInitialLat ?? 16.241,
+                      initialZoom: _poiInitialZoom ?? 12.0,
+                      styleUrl: _normalizeMapboxStyleUrl(
+                                _styleUrlController.text,
+                              ).isEmpty
+                          ? null
+                          : _normalizeMapboxStyleUrl(_styleUrlController.text),
+                      onMapReady: (ctrl) async {
+                        await _refreshPoiMarkers();
+                        await _refreshPoiRouteOverlay();
+                        _syncPoiRouteStyleProTimer();
+                      },
+                    ),
                   ),
 
                   if (poiLayers.isNotEmpty)

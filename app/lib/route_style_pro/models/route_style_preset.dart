@@ -15,6 +15,97 @@ class RouteStylePreset {
 }
 
 class RouteStylePresets {
+  // Presets demandés (Wizard circuit / étape Style Pro)
+  static const RouteStylePreset premium3d = RouteStylePreset(
+    id: 'premium',
+    label: 'Premium 3D',
+    config: RouteStyleConfig(
+      carMode: true,
+      // Ruban large + glow doux + ombre 3D
+      mainWidth: 14.0,
+      casingWidth: 0.0,
+      mainColor: Color(0xFF00FF88),
+      casingColor: Color(0x00000000),
+      opacity: 1.0,
+
+      shadowEnabled: true,
+      shadowOpacity: 0.35,
+      shadowBlur: 2.0,
+
+      glowEnabled: true,
+      glowOpacity: 0.55,
+      glowBlur: 10.0,
+      glowWidth: 8.0,
+
+      dashEnabled: false,
+      pulseEnabled: false,
+
+      rainbowEnabled: false,
+      trafficDemoEnabled: false,
+      vanishingEnabled: false,
+    ),
+  );
+
+  static const RouteStylePreset carnivalMaslive = RouteStylePreset(
+    id: 'carnival',
+    label: 'Carnaval MASLIVE',
+    config: RouteStyleConfig(
+      carMode: true,
+      // Rainbow néon + halo fort
+      mainWidth: 16.0,
+      casingWidth: 0.0,
+      mainColor: Color(0xFFFF00FF),
+      casingColor: Color(0x00000000),
+      opacity: 1.0,
+
+      shadowEnabled: true,
+      shadowOpacity: 0.38,
+      shadowBlur: 3.0,
+
+      glowEnabled: true,
+      glowOpacity: 0.75,
+      glowBlur: 16.0,
+      glowWidth: 12.0,
+
+      gradientEnabled: true,
+      rainbowEnabled: true,
+      rainbowSaturation: 1.0,
+      rainbowSpeed: 70.0,
+      rainbowReverse: false,
+
+      dashEnabled: false,
+      pulseEnabled: false,
+    ),
+  );
+
+  static const RouteStylePreset collectivite = RouteStylePreset(
+    id: 'collectivite',
+    label: 'Collectivité',
+    config: RouteStyleConfig(
+      carMode: true,
+      // Bleu institutionnel, lisible, sobre
+      mainWidth: 13.0,
+      casingWidth: 0.0,
+      mainColor: Color(0xFF1E5BFF),
+      casingColor: Color(0x00000000),
+      opacity: 1.0,
+
+      shadowEnabled: true,
+      shadowOpacity: 0.30,
+      shadowBlur: 2.0,
+
+      glowEnabled: true,
+      glowOpacity: 0.45,
+      glowBlur: 8.0,
+      glowWidth: 6.0,
+
+      dashEnabled: false,
+      pulseEnabled: false,
+      rainbowEnabled: false,
+      trafficDemoEnabled: false,
+    ),
+  );
+
   static const RouteStylePreset wazeLike = RouteStylePreset(
     id: 'waze',
     label: 'Waze-like',
@@ -107,6 +198,9 @@ class RouteStylePresets {
   );
 
   static const List<RouteStylePreset> all = [
+    premium3d,
+    carnivalMaslive,
+    collectivite,
     wazeLike,
     night,
     rainbow,

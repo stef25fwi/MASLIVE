@@ -190,6 +190,10 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   final double _simplificationThreshold = 0.0001;
   final bool _showToolbar = true;
 
+  // Bloque le scroll parent pendant les gestes de carte (évite conflit scroll/page).
+  int _mapPointerCount = 0;
+  bool get _isMapInteracting => _mapPointerCount > 0;
+
   final MasLiveMapController _mapController = MasLiveMapController();
   bool _isMapReady = false;
 
@@ -733,11 +737,30 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
       final mapH = widget.mapHeight ?? (screenH * 0.62).clamp(380.0, 820.0);
 
       return SingleChildScrollView(
+        physics: _isMapInteracting ? const NeverScrollableScrollPhysics() : null,
         child: Column(
           children: [
             if (widget.showHeader) header,
             if (_showToolbar && widget.showToolbar) toolbar,
-            SizedBox(height: mapH, child: _buildMap()),
+            SizedBox(
+              height: mapH,
+              child: Listener(
+                behavior: HitTestBehavior.opaque,
+                onPointerDown: (_) {
+                  if (!mounted) return;
+                  setState(() => _mapPointerCount++);
+                },
+                onPointerUp: (_) {
+                  if (!mounted) return;
+                  setState(() => _mapPointerCount = math.max(0, _mapPointerCount - 1));
+                },
+                onPointerCancel: (_) {
+                  if (!mounted) return;
+                  setState(() => _mapPointerCount = math.max(0, _mapPointerCount - 1));
+                },
+                child: _buildMap(),
+              ),
+            ),
             _buildPointsSection(),
           ],
         ),
