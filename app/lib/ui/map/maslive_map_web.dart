@@ -1262,6 +1262,24 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
   int _initAttempts = 0;
   String? _lastTransientError;
 
+  bool _tryInitElementViaDartJs(
+    html.Element el,
+    String containerId,
+    String token,
+    String optionsJson,
+  ) {
+    try {
+      final v2 = js.context['MasliveMapboxV2'];
+      if (v2 is js.JsObject) {
+        final res = v2.callMethod('initElement', [el, containerId, token, optionsJson]);
+        return res == true;
+      }
+    } catch (_) {
+      // ignore
+    }
+    return false;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1404,7 +1422,7 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
     try {
       final el = _containerEl;
       if (el != null) {
-        ok = _mbInitElement(el, widget.containerId, widget.accessToken, optionsJson) == true;
+        ok = _tryInitElementViaDartJs(el, widget.containerId, widget.accessToken, optionsJson);
       } else {
         ok = _mbInit(widget.containerId, widget.accessToken, optionsJson) == true;
       }
@@ -1460,9 +1478,6 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
 
 @JS('MasliveMapboxV2.init')
 external bool _mbInit(String containerId, String token, String optionsJson);
-
-@JS('MasliveMapboxV2.initElement')
-external bool _mbInitElement(Object containerEl, String containerId, String token, String optionsJson);
 
 @JS('MasliveMapboxV2.moveTo')
 external void _mbMoveTo(String containerId, double lng, double lat, double zoom, bool animate);
