@@ -30,20 +30,20 @@
   <title>masslive</title>
   <link rel="manifest" href="manifest.json">
   
-  <!-- Mapbox GL JS v2.15.0 (avec fallback CDN si api.mapbox.com est bloqué) -->
+  <!-- Mapbox GL JS v3.0.1 (supporte les styles avec imports; fallback CDN si api.mapbox.com est bloqué) -->
   <script>
     // Statut de chargement Mapbox GL JS (utile pour diagnostiquer MAPBOXGL_MISSING).
     window.__MAPBOXGL_LOAD_STATUS__ = 'loading';
 
     (function() {
       const primary = {
-        css: 'https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css',
-        js: 'https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js',
+        css: 'https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css',
+        js: 'https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js',
         label: 'primary',
       };
       const fallback = {
-        css: 'https://unpkg.com/mapbox-gl@2.15.0/dist/mapbox-gl.css',
-        js: 'https://unpkg.com/mapbox-gl@2.15.0/dist/mapbox-gl.js',
+        css: 'https://unpkg.com/mapbox-gl@3.0.1/dist/mapbox-gl.css',
+        js: 'https://unpkg.com/mapbox-gl@3.0.1/dist/mapbox-gl.js',
         label: 'fallback',
       };
 
