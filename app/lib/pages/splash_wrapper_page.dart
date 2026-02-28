@@ -19,11 +19,14 @@ class SplashWrapperPage extends StatefulWidget {
 }
 
 class _SplashWrapperPageState extends State<SplashWrapperPage> {
+  static const Duration _fadeDuration = Duration(milliseconds: 450);
+
   final bool _showHome = true;
   bool _mapReady = false;
   bool _mapSignalReady = false;
   bool _assetsReady = false;
   bool _didHideSplash = false;
+  bool _showSplashOverlay = true;
   late DateTime _splashStartTime;
 
   Widget get _homeAfterSplash =>
@@ -118,6 +121,14 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
       }
     });
 
+    // Laisser le temps au fade de se terminer avant de retirer le widget splash.
+    Future.delayed(_fadeDuration, () {
+      if (!mounted) return;
+      setState(() {
+        _showSplashOverlay = false;
+      });
+    });
+
     // Restaurer les barres système
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
@@ -135,9 +146,9 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
           const Duration(milliseconds: 220),
           triggerWebViewportResize,
         );
-        // Après la fin du fade (AnimatedOpacity ~400ms)
+        // Après la fin du fade
         Future.delayed(
-          const Duration(milliseconds: 520),
+          _fadeDuration + const Duration(milliseconds: 80),
           triggerWebViewportResize,
         );
       });
@@ -158,7 +169,7 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
                 child: IgnorePointer(
                   ignoring: !_mapReady,
                   child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 400),
+                    duration: _fadeDuration,
                     opacity: _mapReady ? 1.0 : 0.0,
                     child: _homeAfterSplash,
                   ),
@@ -166,12 +177,15 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
               ),
 
             // Le splashscreen reste visible tant que la carte n'est pas prête
-            if (!_mapReady)
+            if (_showSplashOverlay)
               Positioned.fill(
-                child: AnimatedOpacity(
-                  duration: const Duration(milliseconds: 400),
-                  opacity: _mapReady ? 0.0 : 1.0,
-                  child: const SplashScreen(),
+                child: IgnorePointer(
+                  ignoring: _mapReady,
+                  child: AnimatedOpacity(
+                    duration: _fadeDuration,
+                    opacity: _mapReady ? 0.0 : 1.0,
+                    child: const SplashScreen(),
+                  ),
                 ),
               ),
           ],

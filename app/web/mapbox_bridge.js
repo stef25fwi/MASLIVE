@@ -402,7 +402,13 @@
 
   function _ensureState(containerId, map) {
     if (_v2State.has(containerId)) return _v2State.get(containerId);
-    const state = { map, markers: new Map(), routeAnim: null };
+    const state = {
+      map,
+      markers: new Map(),
+      routeAnim: null,
+      lastErrorKey: null,
+      lastErrorAt: 0,
+    };
     _v2State.set(containerId, state);
     return state;
   }
@@ -772,15 +778,30 @@
         });
 
         // Remonte les erreurs runtime (ex: style/tiles/token) vers Flutter.
-        // On évite de spammer en n'envoyant qu'un message par init.
+        // On évite de spammer via un petit throttle/dédoublonnage.
         try {
-          let didPostRuntimeError = false;
           map.on('error', function(e) {
             try {
-              if (didPostRuntimeError) return;
-              didPostRuntimeError = true;
               const raw = (e && (e.error || e)) ? (e.error || e) : e;
               const c = _classifyRuntimeError(raw);
+
+              const now = Date.now();
+              const key = String(c.reason || '') + '|' + String(c.message || '');
+              try {
+                const st = _v2State.get(containerId);
+                if (st) {
+                  const lastKey = st.lastErrorKey;
+                  const lastAt = Number(st.lastErrorAt || 0);
+                  if (lastKey === key && (now - lastAt) < 2000) {
+                    return;
+                  }
+                  st.lastErrorKey = key;
+                  st.lastErrorAt = now;
+                }
+              } catch (_) {
+                // ignore
+              }
+
               _postToFlutter({
                 type: 'MASLIVE_MAP_ERROR',
                 containerId,

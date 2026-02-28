@@ -801,10 +801,69 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     _styleUrlDebounce?.cancel();
     _styleUrlDebounce = Timer(const Duration(milliseconds: 450), () {
       if (!mounted) return;
+
+      final current = _styleUrlController.text;
+      final normalized = _normalizeMapboxStyleUrl(current);
+      if (normalized != current) {
+        _styleUrlController.text = normalized;
+        _styleUrlController.selection = TextSelection.collapsed(
+          offset: normalized.length,
+        );
+      }
+
       setState(() {
         // La valeur source-of-truth reste _styleUrlController.text.
         // Le rebuild suffit pour propager le nouveau styleUrl aux MasLiveMap.
       });
+    });
+  }
+
+  String _normalizeMapboxStyleUrl(String raw) {
+    final value = raw.trim();
+    if (value.isEmpty) return '';
+
+    Uri uri;
+    try {
+      uri = Uri.parse(value);
+    } catch (_) {
+      return value;
+    }
+
+    final host = uri.host.toLowerCase();
+
+    // Cas fréquent: URL Mapbox Studio (page HTML) copiée depuis l'UI.
+    // Ex: https://studio.mapbox.com/styles/{user}/{styleId}/edit
+    // => mapbox://styles/{user}/{styleId}
+    if (host == 'studio.mapbox.com') {
+      final seg = uri.pathSegments;
+      final stylesIndex = seg.indexOf('styles');
+      if (stylesIndex != -1 && seg.length >= stylesIndex + 3) {
+        final user = seg[stylesIndex + 1];
+        final styleId = seg[stylesIndex + 2];
+        if (user.isNotEmpty && styleId.isNotEmpty) {
+          return 'mapbox://styles/$user/$styleId';
+        }
+      }
+    }
+
+    // Certains liens finissent par ".html" (HTML, non JSON). On tente d'enlever le suffixe.
+    if (value.toLowerCase().endsWith('.html')) {
+      return value.substring(0, value.length - 5);
+    }
+
+    return value;
+  }
+
+  void _applyStylePreset(String styleUrl) {
+    _styleUrlDebounce?.cancel();
+    final normalized = _normalizeMapboxStyleUrl(styleUrl);
+    _styleUrlController.text = normalized;
+    _styleUrlController.selection = TextSelection.collapsed(
+      offset: normalized.length,
+    );
+    if (!mounted) return;
+    setState(() {
+      // Rebuild immédiat pour que la preview réagisse au clic.
     });
   }
 
@@ -1654,9 +1713,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       points: _routePoints,
       controller: _routeEditorController,
       perimeterOverlay: _perimeterPoints,
-      styleUrl: _styleUrlController.text.trim().isEmpty
+      styleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text).isEmpty
           ? null
-          : _styleUrlController.text.trim(),
+          : _normalizeMapboxStyleUrl(_styleUrlController.text),
       showToolbar: false,
       allowVerticalScroll: true,
       mapHeight: 720,
@@ -1817,6 +1876,82 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               border: OutlineInputBorder(),
             ),
           ),
+          const SizedBox(height: 10),
+          Builder(
+            builder: (context) {
+              final current = _normalizeMapboxStyleUrl(_styleUrlController.text);
+              final presets = <({String label, String url})>[
+                (label: 'Effacer', url: ''),
+                (label: 'Streets', url: 'mapbox://styles/mapbox/streets-v12'),
+                (label: 'Outdoors', url: 'mapbox://styles/mapbox/outdoors-v12'),
+                (
+                  label: 'Satellite',
+                  url: 'mapbox://styles/mapbox/satellite-streets-v12',
+                ),
+                (label: 'Light', url: 'mapbox://styles/mapbox/light-v11'),
+                (label: 'Dark', url: 'mapbox://styles/mapbox/dark-v11'),
+                (
+                  label: 'Perso (stef971fwi)',
+                  url: 'mapbox://styles/stef971fwi/cmm3zyr4q00fn01s12idvb2oe',
+                ),
+              ];
+
+              Widget tile({required String label, required String url}) {
+                final normalized = _normalizeMapboxStyleUrl(url);
+                final selected = (normalized.isEmpty && current.isEmpty) ||
+                    (normalized.isNotEmpty && normalized == current);
+                return InkWell(
+                  onTap: () => _applyStylePreset(url),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? Colors.blue.withValues(alpha: 0.08)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: selected
+                            ? Colors.blue
+                            : Colors.grey.shade300,
+                      ),
+                    ),
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontWeight:
+                            selected ? FontWeight.w800 : FontWeight.w600,
+                        color: selected
+                            ? Colors.blue.shade900
+                            : Colors.grey.shade900,
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Presets rapides',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final p in presets) tile(label: p.label, url: p.url),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
           const SizedBox(height: 16),
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
@@ -1837,9 +1972,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     (_routePoints.isNotEmpty || _perimeterPoints.isNotEmpty)
                     ? 13.5
                     : 12.0,
-                styleUrl: _styleUrlController.text.trim().isEmpty
-                    ? null
-                    : _styleUrlController.text.trim(),
+                styleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text)
+                    .isEmpty
+                  ? null
+                  : _normalizeMapboxStyleUrl(_styleUrlController.text),
               ),
             ),
           ),
@@ -1866,9 +2002,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       subtitle: 'Tracez la zone de couverture (polygon fermé)',
       points: _perimeterPoints,
       controller: _perimeterEditorController,
-      styleUrl: _styleUrlController.text.trim().isEmpty
-          ? null
-          : _styleUrlController.text.trim(),
+      styleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text).isEmpty
+        ? null
+        : _normalizeMapboxStyleUrl(_styleUrlController.text),
       editingEnabled: true,
       onPointAddedOverride: _perimeterCircleMode
           ? (p) {
@@ -2767,9 +2903,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     initialLng: _poiInitialLng ?? -61.533,
                     initialLat: _poiInitialLat ?? 16.241,
                     initialZoom: _poiInitialZoom ?? 12.0,
-                    styleUrl: _styleUrlController.text.trim().isEmpty
+                    styleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text)
+                            .isEmpty
                         ? null
-                        : _styleUrlController.text.trim(),
+                        : _normalizeMapboxStyleUrl(_styleUrlController.text),
                     onMapReady: (ctrl) async {
                       await _refreshPoiMarkers();
                       await _refreshPoiRouteOverlay();

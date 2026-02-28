@@ -111,6 +111,83 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   _lastPolyline;
 
   String? _pendingStyleUrlToApply;
+  String? _styleLoadError;
+
+  String _normalizeMapboxStyleUri(String raw) {
+    final value = raw.trim();
+    if (value.isEmpty) return '';
+
+    Uri uri;
+    try {
+      uri = Uri.parse(value);
+    } catch (_) {
+      return value;
+    }
+
+    final host = uri.host.toLowerCase();
+
+    // Cas fréquent: URL Mapbox Studio (page HTML) copiée depuis l'UI.
+    // Ex: https://studio.mapbox.com/styles/{user}/{styleId}/edit
+    // => mapbox://styles/{user}/{styleId}
+    if (host == 'studio.mapbox.com') {
+      final seg = uri.pathSegments;
+      final stylesIndex = seg.indexOf('styles');
+      if (stylesIndex != -1 && seg.length >= stylesIndex + 3) {
+        final user = seg[stylesIndex + 1];
+        final styleId = seg[stylesIndex + 2];
+        if (user.isNotEmpty && styleId.isNotEmpty) {
+          return 'mapbox://styles/$user/$styleId';
+        }
+      }
+    }
+
+    // Certains liens finissent par ".html" (HTML, non JSON). On tente d'enlever le suffixe.
+    if (value.toLowerCase().endsWith('.html')) {
+      return value.substring(0, value.length - 5);
+    }
+
+    return value;
+  }
+
+  String _friendlyStyleLoadError(Object error) {
+    final msg = error.toString();
+    final lower = msg.toLowerCase();
+    if (lower.contains('403') || lower.contains('forbidden')) {
+      return 'Accès Mapbox refusé (403). Vérifie les permissions/restrictions du token et l\'accès au style.';
+    }
+    if (lower.contains('401') || lower.contains('unauthorized')) {
+      return 'Token Mapbox invalide (401). Vérifie MAPBOX_ACCESS_TOKEN (pk.*) et réessaie.';
+    }
+    if (lower.contains('network') || lower.contains('timeout')) {
+      return 'Erreur réseau pendant le chargement du style. Vérifie la connexion et réessaie.';
+    }
+    return 'Impossible de charger le style Mapbox. ($msg)';
+  }
+
+  Future<void> _applyStyleUri(String styleUri, {MapboxMap? mapOverride}) async {
+    final map = mapOverride ?? _mapboxMap;
+    if (map == null) {
+      _pendingStyleUrlToApply = styleUri;
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _styleLoadError = null;
+      });
+    }
+
+    _styleLoaded = false;
+    try {
+      await map.loadStyleURI(styleUri);
+    } catch (e) {
+      debugPrint('⚠️ loadStyleURI error: $e');
+      if (!mounted) return;
+      setState(() {
+        _styleLoadError = _friendlyStyleLoadError(e);
+      });
+    }
+  }
 
   void _notifyHostMapReadyIfNeeded() {
     if (_didNotifyHostMapReady) return;
@@ -137,18 +214,12 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       _connectController();
     }
 
-    final oldStyle = (oldWidget.styleUrl ?? '').trim();
-    final newStyle = (widget.styleUrl ?? '').trim();
+    final oldStyle = _normalizeMapboxStyleUri(oldWidget.styleUrl ?? '');
+    final newStyle = _normalizeMapboxStyleUri(widget.styleUrl ?? '');
     if (oldStyle == newStyle) return;
 
     final styleToApply = newStyle.isEmpty ? MapboxStyles.STANDARD : newStyle;
-    if (_mapboxMap == null) {
-      _pendingStyleUrlToApply = styleToApply;
-      return;
-    }
-
-    _styleLoaded = false;
-    unawaited(_mapboxMap!.loadStyleURI(styleToApply));
+    unawaited(_applyStyleUri(styleToApply));
   }
 
   Future<void> _initMapboxToken() async {
@@ -777,8 +848,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     final pending = _pendingStyleUrlToApply;
     if (pending != null) {
       _pendingStyleUrlToApply = null;
-      _styleLoaded = false;
-      unawaited(mapboxMap.loadStyleURI(pending));
+      unawaited(_applyStyleUri(pending, mapOverride: mapboxMap));
     }
 
     // IMPORTANT: on NE notifie plus l'hôte ici.
@@ -898,9 +968,10 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
 
   @override
   Widget build(BuildContext context) {
-    final styleUri = widget.styleUrl ?? MapboxStyles.STANDARD;
+    final normalized = _normalizeMapboxStyleUri(widget.styleUrl ?? '');
+    final styleUri = normalized.isEmpty ? MapboxStyles.STANDARD : normalized;
 
-    return MapWidget(
+    final map = MapWidget(
       cameraOptions: CameraOptions(
         center: Point(
           coordinates: Position(widget.initialLng, widget.initialLat),
@@ -918,6 +989,11 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       },
       onStyleLoadedListener: (_) async {
         _styleLoaded = true;
+        if (mounted) {
+          setState(() {
+            _styleLoadError = null;
+          });
+        }
         _patternImagesReady = false;
         await _applyPoisGeoJsonIfReady();
         await _applyPoiStyleIfReady();
@@ -1016,6 +1092,50 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         // 4) Callback onTap standard
         widget.onTap?.call(MapPoint(lng, lat));
       },
+    );
+
+    final err = _styleLoadError;
+    if (err == null || err.isEmpty) return map;
+
+    return Stack(
+      children: [
+        Positioned.fill(child: map),
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.04),
+              alignment: Alignment.center,
+              padding: const EdgeInsets.all(16),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, size: 40),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Style Mapbox non chargé',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          err,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
