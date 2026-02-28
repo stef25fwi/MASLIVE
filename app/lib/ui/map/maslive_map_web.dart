@@ -1262,6 +1262,34 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
   int _initAttempts = 0;
   String? _lastTransientError;
 
+  bool _hasWebGlSupport() {
+    try {
+      final canvas = html.CanvasElement(width: 1, height: 1);
+      final ctx = canvas.getContext('webgl') ?? canvas.getContext('experimental-webgl');
+      return ctx != null;
+    } catch (_) {
+      return true; // ne pas bloquer si la détection échoue
+    }
+  }
+
+  bool _hasBridge() {
+    try {
+      return js.context.hasProperty('MasliveMapboxV2') == true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  String _formatTokenHint(String token) {
+    final t = token.trim();
+    if (t.isEmpty) return '[TOKEN_MISSING] Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).';
+    if (!t.startsWith('pk.')) {
+      return '[TOKEN_INVALID] Token Mapbox inattendu (web: pk.* requis).';
+    }
+    // Token présent, format OK.
+    return '';
+  }
+
   bool _tryInitElementViaDartJs(
     html.Element el,
     String containerId,
@@ -1364,6 +1392,22 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
 
     _initAttempts++;
 
+    // Erreurs déterministes: inutile de retenter.
+    final tokenHint = _formatTokenHint(widget.accessToken);
+    if (tokenHint.isNotEmpty) {
+      _didInit = true;
+      widget.onInitError?.call(tokenHint);
+      return;
+    }
+
+    if (!_hasWebGlSupport()) {
+      _didInit = true;
+      widget.onInitError?.call(
+        '[WEBGL_UNSUPPORTED] WebGL est indisponible. Active l\'accélération matérielle ou teste un autre navigateur/appareil.',
+      );
+      return;
+    }
+
     // IMPORTANT: le DivElement est créé dans le factory, mais peut ne pas être
     // encore attaché au DOM (HtmlElementView pas encore monté), surtout sur mobile.
     // Dans ce cas, l'init JS échoue avec CONTAINER_NOT_FOUND.
@@ -1443,7 +1487,22 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
       hasMapboxGl = true;
     }
 
+    bool hasBridge = true;
+    try {
+      hasBridge = _hasBridge();
+    } catch (_) {
+      hasBridge = true;
+    }
+
     if (!hasMapboxGl && _initAttempts < _maxInitAttempts) {
+      Future.delayed(const Duration(milliseconds: 250), _tryInit);
+      return;
+    }
+
+    if (!hasBridge && _initAttempts < _maxInitAttempts) {
+      // Bridge non prêt (fichier JS pas encore chargé): retente.
+      _lastTransientError =
+          '[MAPBOXGL_MISSING] Les scripts Mapbox GL JS ne sont pas chargés. Désactive adblock/anti-tracker, ou autorise `api.mapbox.com` / `unpkg.com`.';
       Future.delayed(const Duration(milliseconds: 250), _tryInit);
       return;
     }
@@ -1458,8 +1517,19 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
       if (!mounted) return;
       if (_didInit) return;
       if (_didReceiveErrorFromJs) return;
-      widget.onInitError?.call(transientHint ??
-          'Initialisation Mapbox GL JS échouée (token invalide, scripts Mapbox bloqués, ou WebGL indisponible).');
+
+      String? hint = transientHint;
+      // Dernier recours: message ciblé en fonction de l'état détectable.
+      if (hint == null || hint.isEmpty) {
+        if (!hasMapboxGl || !hasBridge) {
+          hint =
+              '[MAPBOXGL_MISSING] Les scripts Mapbox GL JS ne sont pas chargés. Désactive adblock/anti-tracker, ou autorise `api.mapbox.com` / `unpkg.com`.';
+        } else {
+          hint =
+              'Initialisation Mapbox GL JS échouée. Vérifie le token Mapbox, l\'accès au style, et le réseau.';
+        }
+      }
+      widget.onInitError?.call(hint);
     });
   }
 
