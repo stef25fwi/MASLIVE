@@ -1030,7 +1030,6 @@
 
         // Segments source (optionnel)
         const segSrc = map.getSource(segmentsSourceId);
-        let shouldCleanupSegmentsSource = false;
         if (segmentsFc) {
           if (!segSrc) {
             map.addSource(segmentsSourceId, { type: 'geojson', data: segmentsFc });
@@ -1038,10 +1037,8 @@
             segSrc.setData(segmentsFc);
           }
         } else {
-          // Nettoyage si on repasse en mode “plein”.
-          // IMPORTANT: on ne retire la source qu'après avoir retiré les layers
-          // susceptibles de la référencer (sinon erreur Mapbox "source in use").
-          shouldCleanupSegmentsSource = true;
+          // Nettoyage si on repasse en mode “plein”
+          _removeSourceIfExists(map, segmentsSourceId);
         }
 
         // Recréer les couches pour refléter le style
@@ -1052,10 +1049,6 @@
         _removeLayerIfExists(map, 'maslive_polyline_shadow');
         _removeLayerIfExists(map, 'maslive_polyline_arrows');
         _removeLayerIfExists(map, 'maslive_polyline_layer');
-
-        if (shouldCleanupSegmentsSource) {
-          _removeSourceIfExists(map, segmentsSourceId);
-        }
 
         const w = Number(width || 6);
         const mainColor = String(colorHex || '#1A73E8');

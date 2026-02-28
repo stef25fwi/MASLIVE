@@ -851,12 +851,12 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   @override
   void didChangeMetrics() {
     super.didChangeMetrics();
-    if (!mounted) return;
-    try {
-      final mediaSize = MediaQuery.sizeOf(context);
-      _scheduleResize(ui.Size(mediaSize.width, mediaSize.height));
-    } catch (e) {
-      debugPrint('⚠️ Erreur didChangeMetrics: $e');
+    if (mounted) {
+      try {
+        setState(() => _mapRebuildTick++);
+      } catch (e) {
+        debugPrint('⚠️ Erreur didChangeMetrics: $e');
+      }
     }
   }
 
