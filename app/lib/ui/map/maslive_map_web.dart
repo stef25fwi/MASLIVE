@@ -1259,7 +1259,11 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
   StreamSubscription<html.MessageEvent>? _messageSub;
   bool _didInit = false;
   bool _didReceiveErrorFromJs = false;
+  // Nombre de tentatives réelles d'initialisation JS (quand le container est prêt).
+  // IMPORTANT: ne pas consommer ce compteur pendant les phases où le layout est à 0,
+  // sinon on finit par échouer même si le DOM devient prêt après quelques secondes.
   int _initAttempts = 0;
+  DateTime? _initStartedAt;
   String? _lastTransientError;
 
   bool _hasWebGlSupport() {
@@ -1392,7 +1396,22 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
     if (!mounted) return;
     if (_didInit) return;
 
-    _initAttempts++;
+    _initStartedAt ??= DateTime.now();
+
+    // Timeout global de préparation DOM/layout: si le parent ne donne jamais de taille,
+    // mieux vaut rendre un message d'erreur que spinner infini.
+    final startedAt = _initStartedAt;
+    if (startedAt != null) {
+      final elapsed = DateTime.now().difference(startedAt);
+      if (elapsed.inSeconds >= 30) {
+        _didInit = true;
+        widget.onInitError?.call(
+          '[CONTAINER_NOT_FOUND] Conteneur HTML présent mais sans taille (layout non prêt). ' +
+              'Vérifie que le widget parent impose une hauteur/largeur (ex: Positioned.fill / Expanded).',
+        );
+        return;
+      }
+    }
 
     // Erreurs déterministes: inutile de retenter.
     final tokenHint = _formatTokenHint(widget.accessToken);
@@ -1438,14 +1457,9 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
         // Et parfois il est attaché, mais sans taille (layout pas prêt).
         try {
           final rect = el.getBoundingClientRect();
-          if ((rect.width <= 0 || rect.height <= 0) && _initAttempts < _maxInitAttempts) {
-            Future.delayed(const Duration(milliseconds: 80), _tryInit);
-            return;
-          }
           if (rect.width <= 0 || rect.height <= 0) {
-            widget.onInitError?.call(
-              '[CONTAINER_NOT_FOUND] Conteneur HTML présent mais sans taille (layout non prêt).',
-            );
+            // Layout pas prêt: on attend sans "consommer" une tentative d'init JS.
+            Future.delayed(const Duration(milliseconds: 80), _tryInit);
             return;
           }
         } catch (_) {
@@ -1455,6 +1469,9 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
     } catch (_) {
       // ignore
     }
+
+    // À partir d'ici, le container est prêt: on compte une tentative d'init JS.
+    _initAttempts++;
 
     final optionsJson = jsonEncode({
       'style': widget.styleUrl,
