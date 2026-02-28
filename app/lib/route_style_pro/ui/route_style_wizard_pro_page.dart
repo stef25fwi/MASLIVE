@@ -431,6 +431,10 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Route Style Wizard Pro'),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        shadowColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
         actions: [
           IconButton(
             tooltip: 'Presets',
