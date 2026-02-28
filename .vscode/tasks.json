@@ -725,6 +725,17 @@
       }
     },
     {
+      "label": "MASLIVE: Git commit + push (mapbox: fix zoom width expression)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add app/web/mapbox_bridge.js app/lib/ui/map/maslive_map_native.dart .vscode/tasks.json && if git diff --cached --quiet; then echo '⚠️ Rien à committer (mapbox zoom width expression)'; exit 0; fi && git commit -m \"fix(mapbox): use top-level interpolate for zoom width\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git commit + push (wizard step indicator click nav)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add app/lib/admin/circuit_wizard_pro_page.dart .vscode/tasks.json && if git diff --cached --quiet; then echo '⚠️ Rien à committer (wizard click nav)'; exit 0; fi && git commit -m \"feat(wizard): allow direct step indicator navigation\" && git push origin main",

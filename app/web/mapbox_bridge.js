@@ -1061,17 +1061,30 @@
         // Zoom-aware width:
         // Quand on dézoome, une largeur en pixels constante devient visuellement
         // plus large que les routes du style Mapbox (effet "trop épais").
-        // On applique donc un facteur dépendant du zoom.
+        // IMPORTANT: Mapbox n'autorise ['zoom'] qu'en entrée d'une expression
+        // top-level 'step'/'interpolate'. Donc on génère directement une
+        // expression line-width de type 'interpolate' (top-level).
         // - activé par défaut pour roadLike et pour le rendu par segments (Style Pro)
         const scaleWidthWithZoom = _parseBool(opts.scaleWidthWithZoom, (roadLike || !!segmentsFc));
-        const zoomWidthScale = ['interpolate', ['linear'], ['zoom'],
-          10, 0.50,
-          12, 0.70,
-          14, 1.00,
-          22, 1.00,
-        ];
-        const scaledWidth = (base) => scaleWidthWithZoom ? ['*', base, zoomWidthScale] : base;
-        const mainLineWidthScaled = scaledWidth(mainLineWidth);
+        const scaledWidthExpr = (baseExpr) => {
+          if (!scaleWidthWithZoom) return baseExpr;
+          return ['interpolate', ['linear'], ['zoom'],
+            10, ['*', baseExpr, 0.50],
+            12, ['*', baseExpr, 0.70],
+            14, baseExpr,
+            22, baseExpr,
+          ];
+        };
+        const scaledWidthExprClampedMin = (baseExpr, minVal) => {
+          if (!scaleWidthWithZoom) return baseExpr;
+          return ['interpolate', ['linear'], ['zoom'],
+            10, ['max', minVal, ['*', baseExpr, 0.50]],
+            12, ['max', minVal, ['*', baseExpr, 0.70]],
+            14, ['max', minVal, baseExpr],
+            22, ['max', minVal, baseExpr],
+          ];
+        };
+        const mainLineWidthScaled = scaledWidthExpr(mainLineWidth);
 
         if (!roadLike) {
           map.addLayer({
@@ -1099,7 +1112,7 @@
                 'line-join': lineJoin,
               },
               paint: {
-                'line-width': scaledWidth(w + 8),
+                'line-width': scaledWidthExpr(w + 8),
                 'line-color': 'rgba(0,0,0,0.25)',
                 'line-blur': 1.2,
                 'line-opacity': opacity,
@@ -1117,7 +1130,7 @@
                 'line-join': lineJoin,
               },
               paint: {
-                'line-width': scaledWidth(w + Math.max(0, glowWidth)),
+                'line-width': scaledWidthExpr(w + Math.max(0, glowWidth)),
                 'line-color': glowColor,
                 'line-opacity': glowOpacity,
                 'line-blur': Math.max(0, glowBlur),
@@ -1136,7 +1149,7 @@
               'line-join': lineJoin,
             },
             paint: {
-              'line-width': scaledWidth(casingWidth),
+              'line-width': scaledWidthExpr(casingWidth),
               'line-color': casingColorOpt,
               'line-opacity': opacity,
             },
@@ -1160,6 +1173,7 @@
           // Sur un rendu segmenté (multi-couleurs), on évite la "center line" blanche
           // pour rester proche du rendu natif (segments) et ne pas dégrader la lisibilité.
           if (!segmentsFc) {
+            const centerBaseWidth = Math.max(1, Math.min(w, w * 0.33));
             map.addLayer({
               id: 'maslive_polyline_center',
               type: 'line',
@@ -1169,9 +1183,7 @@
                 'line-join': lineJoin,
               },
               paint: {
-                'line-width': scaleWidthWithZoom
-                  ? ['max', 1, ['*', w, 0.33, zoomWidthScale]]
-                  : Math.max(1, Math.min(w, w * 0.33)),
+                'line-width': scaledWidthExprClampedMin(centerBaseWidth, 1),
                 'line-color': 'rgba(255,255,255,0.85)',
                 'line-opacity': opacity,
               },

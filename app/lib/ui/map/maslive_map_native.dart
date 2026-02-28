@@ -1434,31 +1434,27 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       'to-color',
       ['get', 'color'],
     ];
-    // Zoom-aware width: quand on dézoome, une largeur fixe (px) devient
-    // visuellement plus large que les routes du style.
-    // On applique un facteur basé sur ['zoom'].
-    const zoomWidthScaleExpr = <dynamic>[
+    // Zoom-aware width:
+    // IMPORTANT: Mapbox n'autorise ['zoom'] qu'en entrée d'une expression
+    // top-level 'step'/'interpolate'. Donc la propriété 'line-width' doit être
+    // une expression 'interpolate' au niveau racine.
+    final baseWidthExpr = <dynamic>[
+      'coalesce',
+      ['get', 'width'],
+      fallbackWidth,
+    ];
+    final lineWidthExpr = <dynamic>[
       'interpolate',
       ['linear'],
       ['zoom'],
       10,
-      0.50,
+      <dynamic>['*', baseWidthExpr, 0.50],
       12,
-      0.70,
+      <dynamic>['*', baseWidthExpr, 0.70],
       14,
-      1.00,
+      baseWidthExpr,
       22,
-      1.00,
-    ];
-
-    final lineWidthExpr = <dynamic>[
-      '*',
-      [
-        'coalesce',
-        ['get', 'width'],
-        fallbackWidth,
-      ],
-      zoomWidthScaleExpr,
+      baseWidthExpr,
     ];
     final lineOpacityExpr = [
       'coalesce',
@@ -1557,34 +1553,49 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     // Appliquer le même scaling de largeur sur les couches "roadLike" (casing/shadow)
     // pour éviter un tracé trop épais quand on dézoome.
     if (roadLike) {
-      const zoomWidthScaleExpr = <dynamic>[
+      final casingWidthExpr = <dynamic>[
         'interpolate',
         ['linear'],
         ['zoom'],
         10,
-        0.50,
+        casingWidth * 0.50,
         12,
-        0.70,
+        casingWidth * 0.70,
         14,
-        1.00,
+        casingWidth,
         22,
-        1.00,
+        casingWidth,
       ];
       try {
         await map.style.setStyleLayerProperty(
           _layerRouteCasing,
           'line-width',
-          <dynamic>['*', casingWidth, zoomWidthScaleExpr],
+          casingWidthExpr,
         );
       } catch (_) {
         // ignore
       }
+
       if (shadow3d) {
+        final shadowWidth = width + 8.0;
+        final shadowWidthExpr = <dynamic>[
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          10,
+          shadowWidth * 0.50,
+          12,
+          shadowWidth * 0.70,
+          14,
+          shadowWidth,
+          22,
+          shadowWidth,
+        ];
         try {
           await map.style.setStyleLayerProperty(
             _layerRouteShadow,
             'line-width',
-            <dynamic>['*', (width + 8.0), zoomWidthScaleExpr],
+            shadowWidthExpr,
           );
         } catch (_) {
           // ignore
