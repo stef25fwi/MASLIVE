@@ -33,6 +33,71 @@
     return window.MapboxBridge.map;
   };
 
+  // Recherche un élément par id, y compris à travers les Shadow DOM.
+  // (HtmlElementView Flutter Web peut monter les platform views dans un shadowRoot,
+  // rendant document.getElementById inopérant.)
+  function _findElementDeepById(id) {
+    try {
+      if (!id || String(id).trim().length === 0) return null;
+    } catch (_) {
+      return null;
+    }
+
+    try {
+      const direct = document.getElementById(id);
+      if (direct) return direct;
+    } catch (_) {
+      // ignore
+    }
+
+    const maxNodes = 15000;
+    let visited = 0;
+    const stack = [];
+    try {
+      if (document && document.documentElement) stack.push(document.documentElement);
+    } catch (_) {
+      // ignore
+    }
+
+    while (stack.length > 0) {
+      const node = stack.pop();
+      if (!node) continue;
+      visited++;
+      if (visited > maxNodes) break;
+
+      try {
+        if (node.id === id) return node;
+      } catch (_) {
+        // ignore
+      }
+
+      // Traverse shadow DOM if present.
+      try {
+        const sr = node.shadowRoot;
+        if (sr && sr.children) {
+          for (let i = 0; i < sr.children.length; i++) {
+            stack.push(sr.children[i]);
+          }
+        }
+      } catch (_) {
+        // ignore
+      }
+
+      // Traverse light DOM children.
+      try {
+        if (node.children) {
+          for (let i = 0; i < node.children.length; i++) {
+            stack.push(node.children[i]);
+          }
+        }
+      } catch (_) {
+        // ignore
+      }
+    }
+
+    return null;
+  }
+
   /**
    * Initialise la carte Mapbox
    * @param {string} containerId - ID du conteneur HTML
@@ -43,6 +108,23 @@
     const containerId = (typeof container === 'string')
       ? container
       : ((container && container.id) ? String(container.id) : '');
+
+    // Mapbox GL JS accepte un HTMLElement, mais si on passe un id string,
+    // il fera son propre getElementById (qui ne traverse pas les Shadow DOM).
+    // On résout donc l'élément ici pour être robuste.
+    let containerEl = container;
+    if (typeof container === 'string') {
+      try {
+        containerEl = document.getElementById(containerId) || _findElementDeepById(containerId);
+      } catch (_) {
+        containerEl = _findElementDeepById(containerId);
+      }
+    }
+
+    if (!containerEl) {
+      console.error('❌ Conteneur HTML introuvable (DOM): ' + String(containerId));
+      return null;
+    }
     // Priorité: paramètre > options.accessToken > window.__MAPBOX_TOKEN__
     const accessToken = token || options.accessToken || window.__MAPBOX_TOKEN__;
     const style = options.style || window.__MAPBOX_STYLE__ || 'mapbox://styles/mapbox/streets-v12';
@@ -56,7 +138,7 @@
     mapboxgl.accessToken = accessToken;
 
     const defaultOptions = {
-      container: container,
+      container: containerEl,
       style: style,
       center: options.center || [-61.533, 16.241], // [lng, lat]
       zoom: options.zoom || 13,
@@ -667,7 +749,7 @@
             return false;
           }
 
-          const el = containerEl || document.getElementById(containerId);
+          const el = containerEl || document.getElementById(containerId) || _findElementDeepById(containerId);
           if (!el) {
             _postToFlutter({
               type: 'MASLIVE_MAP_ERROR',
@@ -716,7 +798,7 @@
           // ignore
         }
 
-        const map = window.initMapboxMap(containerEl, token, options);
+        const map = window.initMapboxMap(el, token, options);
         if (!map) {
           _postToFlutter({
             type: 'MASLIVE_MAP_ERROR',
@@ -844,7 +926,7 @@
             return false;
           }
 
-          const el = document.getElementById(containerId);
+          const el = document.getElementById(containerId) || _findElementDeepById(containerId);
           if (!el) {
             _postToFlutter({
               type: 'MASLIVE_MAP_ERROR',
