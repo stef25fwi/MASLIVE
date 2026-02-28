@@ -1362,11 +1362,21 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     }
   }
 
-  Future<void> _saveDraft({bool createSnapshot = false}) async {
+  Future<void> _saveDraft({
+    bool createSnapshot = false,
+    bool ensureRouteSnapped = true,
+  }) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         throw Exception('User not authenticated');
+      }
+
+      // Garantit que le tracé est bien "au milieu de la voie" au moment
+      // de la persistance (si l'utilisateur clique vite après avoir posé des points).
+      // On ne persiste pas ici: on laisse `_repository.saveDraft` écrire `currentData`.
+      if (ensureRouteSnapped && _currentStep == 3) {
+        await _ensureRouteSnappedBeforePersist();
       }
 
       await _ensureActorContext();
@@ -1449,13 +1459,47 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       }
     }
 
+    // En quittant l'étape Tracé + Style, on force un snap immédiat et on attend.
+    // Objectif: le tracé reste toujours centré sur la route, même si l'utilisateur
+    // a posé les points "à la main" et enchaîne rapidement sur l'étape suivante.
+    final leavingRouteStep = _currentStep == 3 && step != 3;
+    if (leavingRouteStep) {
+      await _ensureRouteSnappedBeforePersist();
+    }
+
     if (_canWriteMapProjects) {
-      await _saveDraft(createSnapshot: true);
+      await _saveDraft(
+        createSnapshot: true,
+        ensureRouteSnapped: !leavingRouteStep,
+      );
     }
     _pageController.animateToPage(
       step,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
+    );
+  }
+
+  Future<void> _ensureRouteSnappedBeforePersist() async {
+    if (_routePoints.length < 2) return;
+
+    // Si un snap est déjà en cours, on attend un peu qu'il se termine.
+    // (Evite un early-return de `_snapRouteToRoadsInternal`.)
+    final startedAt = DateTime.now();
+    while (mounted &&
+        _isSnappingRoute &&
+        DateTime.now().difference(startedAt) < const Duration(seconds: 8)) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+
+    if (!mounted) return;
+
+    // Snap silencieux (sans snack) et sans persistance Firestore.
+    // La persistance est faite ensuite via `_saveDraft`/`_repository.saveDraft`.
+    await _snapRouteToRoadsInternal(
+      persist: false,
+      showSnackBar: false,
+      expectedSeq: null,
     );
   }
 
@@ -1491,58 +1535,61 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Création de circuit'), elevation: 0),
-      body: Column(
-        children: [
-          // Progress indicator
-          SizedBox(
-            height: 112,
-            child: Builder(
-              builder: (context) {
-                Widget buildStep(int index) {
-                  final isPoiOnly = widget.poiOnly;
-                  // UX: accès direct par clic sur une étape.
-                  // En mode POI-only, on verrouille sur l'étape POI.
-                  final isEnabled = isPoiOnly ? index == _poiStepIndex : true;
-                  final isCompleted = isPoiOnly ? false : index < _currentStep;
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: isEnabled
-                          ? () => unawaited(_continueToStep(index))
-                          : null,
-                      child: _StepIndicator(
-                        step: index,
-                        label: _getStepLabel(index),
-                        isActive: index == _currentStep,
-                        isCompleted: isCompleted,
-                        isEnabled: isEnabled,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // Progress indicator
+            SizedBox(
+              height: 112,
+              child: Builder(
+                builder: (context) {
+                  Widget buildStep(int index) {
+                    final isPoiOnly = widget.poiOnly;
+                    // UX: accès direct par clic sur une étape.
+                    // En mode POI-only, on verrouille sur l'étape POI.
+                    final isEnabled =
+                        isPoiOnly ? index == _poiStepIndex : true;
+                    final isCompleted =
+                        isPoiOnly ? false : index < _currentStep;
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: isEnabled
+                            ? () => unawaited(_continueToStep(index))
+                            : null,
+                        child: _StepIndicator(
+                          step: index,
+                          label: _getStepLabel(index),
+                          isActive: index == _currentStep,
+                          isCompleted: isCompleted,
+                          isEnabled: isEnabled,
+                        ),
                       ),
-                    ),
-                  );
-                }
+                    );
+                  }
 
-                return Column(
-                  children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          for (final i in [0, 1, 2, 3]) buildStep(i),
-                        ],
+                  return Column(
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            for (final i in [0, 1, 2, 3]) buildStep(i),
+                          ],
+                        ),
                       ),
-                    ),
-                    Expanded(
-                      child: Row(
-                        children: [
-                          for (final i in [4, 5, 6, 7]) buildStep(i),
-                        ],
+                      Expanded(
+                        child: Row(
+                          children: [
+                            for (final i in [4, 5, 6, 7]) buildStep(i),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                );
-              },
+                    ],
+                  );
+                },
+              ),
             ),
-          ),
-          const Divider(height: 1),
+            const Divider(height: 1),
 
           // Étape 3 (côté UI): Définir le périmètre.
           // On affiche le titre juste sous le header principal pour une meilleure lisibilité.
@@ -1683,6 +1730,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -2359,7 +2407,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       }
 
       if (persist && _projectId != null) {
-        await _saveDraft();
+        await _saveDraft(ensureRouteSnapped: false);
       }
     } catch (e) {
       debugPrint('WizardPro _snapRouteToRoadsInternal error: $e');
