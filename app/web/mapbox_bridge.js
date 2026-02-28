@@ -39,7 +39,10 @@
    * @param {string|null} token - Token Mapbox (prioritaire sur window.__MAPBOX_TOKEN__)
    * @param {object} options - Options de configuration
    */
-  window.initMapboxMap = function(containerId, token = null, options = {}) {
+  window.initMapboxMap = function(container, token = null, options = {}) {
+    const containerId = (typeof container === 'string')
+      ? container
+      : ((container && container.id) ? String(container.id) : '');
     // Priorité: paramètre > options.accessToken > window.__MAPBOX_TOKEN__
     const accessToken = token || options.accessToken || window.__MAPBOX_TOKEN__;
     const style = options.style || window.__MAPBOX_STYLE__ || 'mapbox://styles/mapbox/streets-v12';
@@ -53,7 +56,7 @@
     mapboxgl.accessToken = accessToken;
 
     const defaultOptions = {
-      container: containerId,
+      container: container,
       style: style,
       center: options.center || [-61.533, 16.241], // [lng, lat]
       zoom: options.zoom || 13,
@@ -67,7 +70,9 @@
       // Compat legacy: conserve un pointeur global, MAIS stocke aussi par container.
       window.MapboxBridge.map = map;
       try {
-        window.MapboxBridge.mapsByContainerId.set(containerId, map);
+        if (containerId) {
+          window.MapboxBridge.mapsByContainerId.set(containerId, map);
+        }
       } catch (_) {
         // ignore
       }
@@ -647,6 +652,183 @@
   }
 
   window.MasliveMapboxV2 = {
+    // Variante: init avec un élément DOM direct (évite le lookup getElementById).
+    initElement: function(containerEl, containerId, token, optionsJson) {
+      try {
+        const options = optionsJson ? JSON.parse(optionsJson) : {};
+        try {
+          if (!containerId || String(containerId).trim().length === 0) {
+            _postToFlutter({
+              type: 'MASLIVE_MAP_ERROR',
+              containerId: containerId || '',
+              reason: 'CONTAINER_ID_MISSING',
+              message: 'ContainerId manquant pour la carte.',
+            });
+            return false;
+          }
+
+          const el = containerEl || document.getElementById(containerId);
+          if (!el) {
+            _postToFlutter({
+              type: 'MASLIVE_MAP_ERROR',
+              containerId,
+              reason: 'CONTAINER_NOT_FOUND',
+              message: 'Conteneur HTML introuvable (DOM).',
+            });
+            return false;
+          }
+
+          // Assure un id stable pour compat stockage par containerId.
+          try {
+            if (!el.id) el.id = containerId;
+          } catch (_) {
+            // ignore
+          }
+
+          if (typeof mapboxgl === 'undefined') {
+            let status = '';
+            try {
+              status = (window.__MAPBOXGL_LOAD_STATUS__ ? String(window.__MAPBOXGL_LOAD_STATUS__) : '');
+            } catch (_) {
+              status = '';
+            }
+            _postToFlutter({
+              type: 'MASLIVE_MAP_ERROR',
+              containerId,
+              reason: 'MAPBOXGL_MISSING',
+              message: 'Mapbox GL JS non chargé (scripts https://api.mapbox.com potentiellement bloqués). Status=' + status,
+            });
+            return false;
+          }
+
+          // Token manquant
+          const accessToken = token || options.accessToken || window.__MAPBOX_TOKEN__;
+          if (!accessToken || accessToken === 'YOUR_MAPBOX_TOKEN') {
+            _postToFlutter({
+              type: 'MASLIVE_MAP_ERROR',
+              containerId,
+              reason: 'TOKEN_MISSING',
+              message: 'Token Mapbox manquant ou invalide.',
+            });
+            return false;
+          }
+        } catch (_) {
+          // ignore
+        }
+
+        const map = window.initMapboxMap(containerEl, token, options);
+        if (!map) {
+          _postToFlutter({
+            type: 'MASLIVE_MAP_ERROR',
+            containerId,
+            reason: 'INIT_FAILED',
+            message: 'Initialisation Mapbox GL JS échouée (voir console navigateur pour le détail).',
+          });
+          return false;
+        }
+
+        const state = _ensureState(containerId, map);
+        state.map = map;
+
+        let didPostReady = false;
+        const postReady = () => {
+          if (didPostReady) return;
+          didPostReady = true;
+          _postToFlutter({ type: 'MASLIVE_MAP_READY', containerId });
+        };
+        const isStable = () => {
+          try {
+            const styleOk = (map.isStyleLoaded && map.isStyleLoaded() === true);
+            const tilesOk = (typeof map.areTilesLoaded === 'function') ? (map.areTilesLoaded() === true) : true;
+            return styleOk && tilesOk;
+          } catch (_) {
+            return false;
+          }
+        };
+
+        map.on('load', function() {
+          if (isStable()) {
+            postReady();
+            return;
+          }
+
+          const onIdle = function() {
+            if (!isStable()) return;
+            try { map.off('idle', onIdle); } catch (_) {}
+            postReady();
+          };
+          try { map.on('idle', onIdle); } catch (_) {}
+          setTimeout(() => { postReady(); }, 8000);
+        });
+
+        try {
+          map.on('error', function(e) {
+            try {
+              const raw = (e && (e.error || e)) ? (e.error || e) : e;
+              const c = _classifyRuntimeError(raw);
+
+              const now = Date.now();
+              const key = String(c.reason || '') + '|' + String(c.message || '');
+              try {
+                const st = _v2State.get(containerId);
+                if (st) {
+                  const lastKey = st.lastErrorKey;
+                  const lastAt = Number(st.lastErrorAt || 0);
+                  if (lastKey === key && (now - lastAt) < 2000) {
+                    return;
+                  }
+                  st.lastErrorKey = key;
+                  st.lastErrorAt = now;
+                }
+              } catch (_) {
+                // ignore
+              }
+
+              _postToFlutter({
+                type: 'MASLIVE_MAP_ERROR',
+                containerId,
+                reason: c.reason,
+                message: c.message,
+              });
+            } catch (_) {
+              // ignore
+            }
+          });
+        } catch (_) {
+          // ignore
+        }
+
+        map.on('click', function(e) {
+          try {
+            if (!e || !e.lngLat) return;
+            _postToFlutter({
+              type: 'MASLIVE_MAP_TAP',
+              containerId,
+              lng: e.lngLat.lng,
+              lat: e.lngLat.lat,
+            });
+          } catch (_) {
+            // ignore
+          }
+        });
+
+        return true;
+      } catch (e) {
+        console.error('❌ MasliveMapboxV2.initElement error:', e);
+        try {
+          _postToFlutter({
+            type: 'MASLIVE_MAP_ERROR',
+            containerId: containerId || '',
+            reason: 'EXCEPTION',
+            message: 'Erreur JS pendant l\'initialisation Mapbox: ' + String(e),
+          });
+        } catch (_) {
+          // ignore
+        }
+        return false;
+      }
+    },
+
     init: function(containerId, token, optionsJson) {
       try {
         const options = optionsJson ? JSON.parse(optionsJson) : {};

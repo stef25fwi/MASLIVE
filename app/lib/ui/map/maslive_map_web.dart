@@ -1255,6 +1255,7 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
   static const int _maxInitAttempts = 120;
 
   late final String _viewType;
+  html.DivElement? _containerEl;
   StreamSubscription<html.MessageEvent>? _messageSub;
   bool _didInit = false;
   bool _didReceiveErrorFromJs = false;
@@ -1325,6 +1326,7 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
         container.id = widget.containerId;
         container.style.width = '100%';
         container.style.height = '100%';
+        _containerEl = container;
 
         // L'élément doit être réellement monté dans le DOM avant init Mapbox.
         // requestAnimationFrame donne une chance au layout/attach de se faire.
@@ -1348,7 +1350,7 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
     // encore attaché au DOM (HtmlElementView pas encore monté), surtout sur mobile.
     // Dans ce cas, l'init JS échoue avec CONTAINER_NOT_FOUND.
     try {
-      final el = html.document.getElementById(widget.containerId);
+      final el = _containerEl;
       if (el == null) {
         if (_initAttempts < _maxInitAttempts) {
           Future.delayed(const Duration(milliseconds: 80), _tryInit);
@@ -1358,8 +1360,18 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
         widget.onInitError?.call('[CONTAINER_NOT_FOUND] Conteneur HTML introuvable (DOM).');
         return;
       } else {
-        // Sur certains devices, l'élément est dans le DOM mais n'a pas encore
-        // de taille => Mapbox peut échouer / rester noir.
+        // Sur certains devices, l'élément est créé mais pas encore "connecté" au DOM.
+        // Même avec un element direct, Mapbox peut échouer si pas attaché.
+        try {
+          if (el.isConnected != true && _initAttempts < _maxInitAttempts) {
+            Future.delayed(const Duration(milliseconds: 80), _tryInit);
+            return;
+          }
+        } catch (_) {
+          // ignore
+        }
+
+        // Et parfois il est attaché, mais sans taille (layout pas prêt).
         try {
           final rect = el.getBoundingClientRect();
           if ((rect.width <= 0 || rect.height <= 0) && _initAttempts < _maxInitAttempts) {
@@ -1390,7 +1402,12 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
 
     bool ok = false;
     try {
-      ok = _mbInit(widget.containerId, widget.accessToken, optionsJson) == true;
+      final el = _containerEl;
+      if (el != null) {
+        ok = _mbInitElement(el, widget.containerId, widget.accessToken, optionsJson) == true;
+      } else {
+        ok = _mbInit(widget.containerId, widget.accessToken, optionsJson) == true;
+      }
     } catch (_) {
       ok = false;
     }
@@ -1443,6 +1460,9 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
 
 @JS('MasliveMapboxV2.init')
 external bool _mbInit(String containerId, String token, String optionsJson);
+
+@JS('MasliveMapboxV2.initElement')
+external bool _mbInitElement(Object containerEl, String containerId, String token, String optionsJson);
 
 @JS('MasliveMapboxV2.moveTo')
 external void _mbMoveTo(String containerId, double lng, double lat, double zoom, bool animate);
