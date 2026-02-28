@@ -3334,6 +3334,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           show: true,
           roadLike: shouldRoadLike,
           shadow3d: cfg.shadowEnabled,
+          shadowOpacity: cfg.shadowOpacity,
+          shadowBlur: cfg.shadowBlur,
           showDirection: false,
           animateDirection: cfg.pulseEnabled,
           animationSpeed: (cfg.pulseSpeed / 25.0).clamp(0.5, 5.0),
@@ -3348,6 +3350,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           glowOpacity: cfg.glowOpacity,
           glowBlur: cfg.glowBlur,
 
+          thickness3d: cfg.thickness3d,
           elevationPx: cfg.elevationPx,
 
           dashArray: cfg.dashEnabled
