@@ -653,6 +653,8 @@
     _removeLayerIfExists(map, 'maslive_polyline_center');
     _removeLayerIfExists(map, 'maslive_polyline_core');
     _removeLayerIfExists(map, 'maslive_polyline_casing');
+    _removeLayerIfExists(map, 'maslive_polyline_side_l');
+    _removeLayerIfExists(map, 'maslive_polyline_side_r');
     _removeLayerIfExists(map, 'maslive_polyline_glow');
     _removeLayerIfExists(map, 'maslive_polyline_shadow');
     _removeLayerIfExists(map, 'maslive_polyline_arrows');
@@ -1278,6 +1280,20 @@
         const elevationPx = _clampNumber(opts.elevationPx, 0.0, 40.0, 0.0);
         const lineTranslate = (elevationPx > 0.01) ? [0, -elevationPx] : null;
 
+        // Faces latérales (relief visible): deux copies du tracé, décalées,
+        // pour simuler des "côtés". La "hauteur" dépend de thickness3d.
+        const sideRelief = Math.max(0.0, thickness3d - 1.0);
+        const sideDx = sideRelief * 3.0;
+        const sideDy = sideRelief * 10.0;
+        const baseTx = lineTranslate ? Number(lineTranslate[0] || 0) : 0;
+        const baseTy = lineTranslate ? Number(lineTranslate[1] || 0) : 0;
+        const sideTranslateL = (sideDy > 0.01)
+          ? [baseTx - sideDx, baseTy + sideDy]
+          : null;
+        const sideTranslateR = (sideDy > 0.01)
+          ? [baseTx + sideDx, baseTy + sideDy]
+          : null;
+
         // Optionnel: rendu par segments (FeatureCollection) pour styles avancés.
         let segmentsFc = null;
         try {
@@ -1322,6 +1338,8 @@
         _removeLayerIfExists(map, 'maslive_polyline_center');
         _removeLayerIfExists(map, 'maslive_polyline_core');
         _removeLayerIfExists(map, 'maslive_polyline_casing');
+        _removeLayerIfExists(map, 'maslive_polyline_side_l');
+        _removeLayerIfExists(map, 'maslive_polyline_side_r');
         _removeLayerIfExists(map, 'maslive_polyline_glow');
         _removeLayerIfExists(map, 'maslive_polyline_shadow');
         _removeLayerIfExists(map, 'maslive_polyline_arrows');
@@ -1422,6 +1440,55 @@
           }
 
           const casingWidth = (casingWidthOpt && casingWidthOpt > 0) ? casingWidthOpt : (w + 5);
+
+          // Côtés: sous le casing/core, pour donner un vrai relief (pas juste une ombre).
+          if (sideTranslateL || sideTranslateR) {
+            const sideWidthScaled = scaledWidthExpr(['+', mainLineWidth, 2]);
+            const sideColor = mainLineColor;
+            const sideOpacity = segmentsFc
+              ? ['*', mainLineOpacity, 0.55]
+              : Math.max(0.0, Math.min(1.0, opacity * 0.55));
+
+            if (sideTranslateL) {
+              map.addLayer({
+                id: 'maslive_polyline_side_l',
+                type: 'line',
+                source: mainSource,
+                layout: {
+                  'line-cap': lineCap,
+                  'line-join': lineJoin,
+                },
+                paint: {
+                  'line-width': sideWidthScaled,
+                  'line-color': sideColor,
+                  'line-opacity': sideOpacity,
+                  'line-blur': 0,
+                  'line-translate': sideTranslateL,
+                  'line-translate-anchor': 'map',
+                },
+              });
+            }
+
+            if (sideTranslateR) {
+              map.addLayer({
+                id: 'maslive_polyline_side_r',
+                type: 'line',
+                source: mainSource,
+                layout: {
+                  'line-cap': lineCap,
+                  'line-join': lineJoin,
+                },
+                paint: {
+                  'line-width': sideWidthScaled,
+                  'line-color': sideColor,
+                  'line-opacity': sideOpacity,
+                  'line-blur': 0,
+                  'line-translate': sideTranslateR,
+                  'line-translate-anchor': 'map',
+                },
+              });
+            }
+          }
 
           map.addLayer({
             id: 'maslive_polyline_casing',
@@ -1596,6 +1663,8 @@
         _removeLayerIfExists(map, 'maslive_polyline_center');
         _removeLayerIfExists(map, 'maslive_polyline_core');
         _removeLayerIfExists(map, 'maslive_polyline_casing');
+        _removeLayerIfExists(map, 'maslive_polyline_side_l');
+        _removeLayerIfExists(map, 'maslive_polyline_side_r');
         _removeLayerIfExists(map, 'maslive_polyline_glow');
         _removeLayerIfExists(map, 'maslive_polyline_shadow');
         _removeLayerIfExists(map, 'maslive_polyline_arrows');

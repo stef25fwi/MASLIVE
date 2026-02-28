@@ -62,6 +62,8 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   static const String _segmentsSourceId = 'maslive_polyline_segments';
 
   static const String _layerRouteShadow = 'maslive_polyline_shadow';
+  static const String _layerRouteSideL = 'maslive_polyline_side_l';
+  static const String _layerRouteSideR = 'maslive_polyline_side_r';
   static const String _layerRouteCasing = 'maslive_polyline_casing';
   static const String _layerRouteCore = 'maslive_polyline_core';
   static const String _layerRoutePlain = 'maslive_polyline_layer';
@@ -1316,6 +1318,8 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       _layerRoutePlain,
       _layerRouteCore,
       _layerRouteCasing,
+      _layerRouteSideL,
+      _layerRouteSideR,
       _layerRouteShadow,
     ]) {
       try {
@@ -1400,6 +1404,34 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
           ),
         );
       }
+
+      // Faces latérales (relief visible): par défaut invisibles (opacity=0)
+      // et configurées ensuite via setStyleLayerProperty.
+      await _tryAddRouteLayer(
+        LineLayer(
+          id: _layerRouteSideL,
+          sourceId: _segmentsSourceId,
+          lineColor: const Color(0xFF1A73E8).toARGB32(),
+          lineOpacity: 0.0,
+          lineWidth: width + 2.0,
+          lineBlur: 0.0,
+          lineJoin: LineJoin.ROUND,
+          lineCap: LineCap.ROUND,
+        ),
+      );
+      await _tryAddRouteLayer(
+        LineLayer(
+          id: _layerRouteSideR,
+          sourceId: _segmentsSourceId,
+          lineColor: const Color(0xFF1A73E8).toARGB32(),
+          lineOpacity: 0.0,
+          lineWidth: width + 2.0,
+          lineBlur: 0.0,
+          lineJoin: LineJoin.ROUND,
+          lineCap: LineCap.ROUND,
+        ),
+      );
+
       await _tryAddRouteLayer(
         LineLayer(
           id: _layerRouteCasing,
@@ -1448,6 +1480,8 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     for (final layerId in <String>[
       if (roadLike) ...[
         if (shadow3d) _layerRouteShadow,
+        _layerRouteSideL,
+        _layerRouteSideR,
         _layerRouteCasing,
         _layerRouteCore,
       ] else
@@ -1557,6 +1591,82 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         );
       } catch (_) {}
     }
+
+    // Appliquer des expressions aussi aux faces latérales (si roadLike).
+    if (!roadLike) return;
+
+    final sideBaseWidthExpr = <dynamic>['+', baseWidthExpr, 2.0];
+    final sideWidthExpr = <dynamic>[
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      10,
+      <dynamic>['*', sideBaseWidthExpr, 0.30],
+      12,
+      <dynamic>['*', sideBaseWidthExpr, 0.50],
+      14,
+      <dynamic>['*', sideBaseWidthExpr, 0.80],
+      16,
+      sideBaseWidthExpr,
+      22,
+      sideBaseWidthExpr,
+    ];
+    final sideOpacityExpr = <dynamic>['*', lineOpacityExpr, 0.55];
+
+    for (final sideLayerId in <String>[_layerRouteSideL, _layerRouteSideR]) {
+      try {
+        await map.style.setStyleLayerProperty(
+          sideLayerId,
+          'line-color',
+          lineColorExpr,
+        );
+        await map.style.setStyleLayerProperty(
+          sideLayerId,
+          'line-width',
+          sideWidthExpr,
+        );
+        await map.style.setStyleLayerProperty(
+          sideLayerId,
+          'line-opacity',
+          sideOpacityExpr,
+        );
+        await map.style.setStyleLayerProperty(
+          sideLayerId,
+          'line-blur',
+          0.0,
+        );
+      } catch (_) {
+        // Fallback: valeurs constantes (SDK sans expressions)
+        try {
+          await map.style.setStyleLayerProperty(
+            sideLayerId,
+            'line-color',
+            fallbackColor.toARGB32(),
+          );
+        } catch (_) {}
+        try {
+          await map.style.setStyleLayerProperty(
+            sideLayerId,
+            'line-width',
+            fallbackWidth + 2.0,
+          );
+        } catch (_) {}
+        try {
+          await map.style.setStyleLayerProperty(
+            sideLayerId,
+            'line-opacity',
+            (fallbackOpacity * 0.55).clamp(0.0, 1.0),
+          );
+        } catch (_) {}
+        try {
+          await map.style.setStyleLayerProperty(
+            sideLayerId,
+            'line-blur',
+            0.0,
+          );
+        } catch (_) {}
+      }
+    }
   }
 
   Future<void> _renderSegmentedPolylineNative({
@@ -1615,6 +1725,8 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     for (final layerId in <String>[
       if (roadLike) ...[
         if (shadow3d) _layerRouteShadow,
+        _layerRouteSideL,
+        _layerRouteSideR,
         _layerRouteCasing,
         _layerRouteCore,
       ] else
@@ -1723,6 +1835,38 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
             'viewport',
           );
         } catch (_) {}
+      }
+
+      // Relief (faces latérales): hauteur pilotée par thickness3d.
+      final relief = (thickness3d - 1.0).clamp(0.0, 1.0);
+      final sideDx = relief * 3.0;
+      final sideDy = relief * 10.0;
+      final sideTranslateL = <double>[-sideDx, -elevationPx + sideDy];
+      final sideTranslateR = <double>[sideDx, -elevationPx + sideDy];
+
+      for (final entry in <({String id, List<double> translate})>[
+        (id: _layerRouteSideL, translate: sideTranslateL),
+        (id: _layerRouteSideR, translate: sideTranslateR),
+      ]) {
+        try {
+          await map.style.setStyleLayerProperty(
+            entry.id,
+            'line-translate',
+            entry.translate,
+          );
+        } catch (_) {}
+        try {
+          await map.style.setStyleLayerProperty(
+            entry.id,
+            'line-translate-anchor',
+            'map',
+          );
+        } catch (_) {}
+        if (relief <= 0.01) {
+          try {
+            await map.style.setStyleLayerProperty(entry.id, 'line-opacity', 0.0);
+          } catch (_) {}
+        }
       }
     }
 
