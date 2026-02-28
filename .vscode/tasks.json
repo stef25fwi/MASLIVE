@@ -200,6 +200,17 @@
         "clear": true
       }
     },
+    {
+      "label": "MASLIVE: Git commit + push (mapbox token scripts)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add scripts/setup_mapbox.sh scripts/build_with_mapbox.sh scripts/deploy_with_mapbox.sh && if git diff --cached --quiet; then echo '⚠️ Rien à committer (mapbox token scripts)'; exit 0; fi && git commit -m \"fix(mapbox): align token scripts (pk. + MAPBOX_ACCESS_TOKEN)\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
     /* {
       "label": "MASLIVE: PATCH (temp) circuit_poi_editor SnackBars top",
       "type": "shell",
