@@ -176,6 +176,12 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     final cfg = widget.config.validated();
     final pts = widget.route;
 
+    final widthScale = cfg.widthScale3d;
+    final mainWidth = cfg.mainWidth * widthScale;
+    final casingWidth = cfg.casingWidth * widthScale;
+    final glowWidth = cfg.glowWidth * widthScale;
+    final elevationPx = cfg.elevationPx;
+
     // Update route source (ligne principale)
     final routeFc = (pts.length < 2)
         ? _emptyFeatureCollection()
@@ -210,7 +216,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     final shadowOpacity = cfg.shadowEnabled ? cfg.shadowOpacity : 0.0;
     await _setLayerProps(_layerShadow, {
       'line-opacity': shadowOpacity,
-      'line-width': math.max(1.0, cfg.casingWidth),
+      'line-width': math.max(1.0, casingWidth),
       'line-blur': cfg.shadowBlur,
     });
 
@@ -223,7 +229,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     }
     await _setLayerProps(_layerGlow, {
       'line-opacity': glowOpacity,
-      'line-width': math.max(1.0, cfg.casingWidth + cfg.glowWidth),
+      'line-width': math.max(1.0, casingWidth + glowWidth),
       'line-blur': cfg.glowBlur,
       'line-color': _argbInt(cfg.mainColor),
     });
@@ -232,7 +238,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     final casingOpacity = (cfg.casingWidth <= 0) ? 0.0 : cfg.opacity;
     await _setLayerProps(_layerCasing, {
       'line-opacity': casingOpacity,
-      'line-width': math.max(0.0, cfg.casingWidth),
+      'line-width': math.max(0.0, casingWidth),
       'line-color': _argbInt(cfg.casingColor),
     });
 
@@ -247,6 +253,22 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
         'line-color': ['get', 'color'],
         'line-width': ['get', 'width'],
         'line-opacity': ['get', 'opacity'],
+      });
+    }
+
+    // Hauteur (translate) – appliquée à toutes les couches
+    final translate = (elevationPx > 0)
+        ? <double>[0.0, -elevationPx]
+        : null;
+    for (final layerId in <String>[
+      _layerShadow,
+      _layerGlow,
+      _layerCasing,
+      _layerMain,
+    ]) {
+      await _setLayerProps(layerId, {
+        'line-translate': translate,
+        'line-translate-anchor': translate != null ? 'map' : null,
       });
     }
 
@@ -280,6 +302,11 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       _lastWebBoundsKey = null;
       return;
     }
+
+    final widthScale = cfg.widthScale3d;
+    final mainWidth = cfg.mainWidth * widthScale;
+    final casingWidth = cfg.casingWidth * widthScale;
+    final glowWidth = cfg.glowWidth * widthScale;
 
     // Segments (rainbow/traffic/vanishing): FC GeoJSON avec propriétés color/width/opacity.
     final useSegments = cfg.rainbowEnabled || cfg.trafficDemoEnabled || cfg.vanishingEnabled;
@@ -321,7 +348,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     await _webController.setPolyline(
       points: [for (final p in widget.route) MapPoint(p.lng, p.lat)],
       color: cfg.mainColor,
-      width: cfg.mainWidth,
+      width: mainWidth,
       show: true,
       roadLike: shouldRoadLike,
       shadow3d: cfg.shadowEnabled,
@@ -332,13 +359,15 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       opacity: cfg.opacity,
 
       casingColor: cfg.casingColor,
-      casingWidth: cfg.casingWidth > 0 ? cfg.casingWidth : null,
+      casingWidth: cfg.casingWidth > 0 ? casingWidth : null,
 
       glowEnabled: cfg.glowEnabled,
       glowColor: cfg.mainColor,
-      glowWidth: cfg.glowWidth,
+      glowWidth: glowWidth,
       glowOpacity: cfg.glowOpacity,
       glowBlur: cfg.glowBlur,
+
+      elevationPx: cfg.elevationPx,
 
       dashArray: cfg.dashEnabled ? [cfg.dashLength, cfg.dashGap] : null,
       lineCap: lineCap,
@@ -428,6 +457,8 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
   }) {
     if (pts.length < 2) return _emptyFeatureCollection();
 
+    final width = cfg.mainWidth * cfg.widthScale3d;
+
     // Limite le nombre de segments (perf)
     final maxSeg = 60;
     final step = math.max(1, ((pts.length - 1) / maxSeg).ceil());
@@ -452,7 +483,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
         'type': 'Feature',
         'properties': {
           'color': _toHexRgba(color, opacity: opacity),
-          'width': cfg.mainWidth,
+          'width': width,
           'opacity': opacity,
         },
         'geometry': {
@@ -471,12 +502,13 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
 
   String _buildSolidFeatureCollection(List<LatLng> pts, RouteStyleConfig cfg) {
     if (pts.length < 2) return _emptyFeatureCollection();
+    final width = cfg.mainWidth * cfg.widthScale3d;
     return _featureCollection([
       {
         'type': 'Feature',
         'properties': {
           'color': _toHexRgba(cfg.mainColor, opacity: cfg.opacity),
-          'width': cfg.mainWidth,
+          'width': width,
           'opacity': cfg.opacity,
         },
         'geometry': {

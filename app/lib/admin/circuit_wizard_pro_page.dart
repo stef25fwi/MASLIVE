@@ -174,8 +174,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   static const double _parkingZoneDefaultPatternOpacity = 0.55;
   String _parkingZoneFillColorHex = '#FBBF24';
   double _parkingZoneFillOpacity = _parkingZoneDefaultFillOpacity;
+  double _parkingZoneStrokeWidth = _parkingZoneDefaultStrokeWidth;
   String _parkingZoneStrokeDash = 'solid'; // solid|dashed|dotted
   String _parkingZonePattern = 'none'; // none|diag|cross|dots
+  double _parkingZonePatternOpacity = _parkingZoneDefaultPatternOpacity;
   final TextEditingController _parkingZoneColorController =
       TextEditingController(text: '#FBBF24');
 
@@ -660,7 +662,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     //   (ex: Home/Default map qui lit `style.color/width/...`).
     if (proCfg != null) {
       routeStyle['color'] = _toHexRgb(proCfg.mainColor);
-      routeStyle['width'] = proCfg.mainWidth;
+      routeStyle['width'] = proCfg.mainWidth * proCfg.widthScale3d;
       routeStyle['shadow3d'] = proCfg.shadowEnabled;
       routeStyle['animateDirection'] = proCfg.pulseEnabled;
       routeStyle['animationSpeed'] = (proCfg.pulseSpeed / 25.0).clamp(0.5, 5.0);
@@ -1576,10 +1578,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     final isPoiOnly = widget.poiOnly;
                     // UX: accès direct par clic sur une étape.
                     // En mode POI-only, on verrouille sur l'étape POI.
-                    final isEnabled =
-                        isPoiOnly ? index == _poiStepIndex : true;
-                    final isCompleted =
-                        isPoiOnly ? false : index < _currentStep;
+                    final isEnabled = isPoiOnly ? index == _poiStepIndex : true;
+                    final isCompleted = isPoiOnly
+                        ? false
+                        : index < _currentStep;
                     return Expanded(
                       child: GestureDetector(
                         onTap: isEnabled
@@ -1619,146 +1621,152 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             ),
             const Divider(height: 1),
 
-          // Étape 3 (côté UI): Définir le périmètre.
-          // On affiche le titre juste sous le header principal pour une meilleure lisibilité.
-          if (_currentStep == 2)
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-              width: double.infinity,
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // Étape 3 (côté UI): Définir le périmètre.
+            // On affiche le titre juste sous le header principal pour une meilleure lisibilité.
+            if (_currentStep == 2)
+              Container(
+                color: Colors.white,
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+                width: double.infinity,
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Définir le périmètre',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Tracez la zone de couverture (polygone fermé)',
+                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                  ],
+                ),
+              ),
+
+            if (_currentStep == 2 || _currentStep == 3)
+              _buildCentralMapToolsBar(),
+
+            // Pages
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(),
+                onPageChanged: (page) {
+                  setState(() => _currentStep = page);
+
+                  // Auto-ouvrir Style Pro quand on arrive sur l'étape Style Pro (index 4)
+                  // pour éviter le clic sur "Ouvrir Style Pro".
+                  if (_currentStep != 4) {
+                    _didAutoOpenStyleProForCurrentVisit = false;
+                  }
+
+                  // Quand on arrive sur l'étape POI, on veut afficher le circuit
+                  // (Style Pro si présent) sur la carte immédiatement.
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!mounted) return;
+                    if (_currentStep == _poiStepIndex) {
+                      unawaited(_refreshPoiRouteOverlay());
+                    }
+
+                    if (_currentStep == 4 &&
+                        !_didAutoOpenStyleProForCurrentVisit) {
+                      _didAutoOpenStyleProForCurrentVisit = true;
+                      unawaited(_openRouteStylePro());
+                    }
+
+                    _syncPoiRouteStyleProTimer();
+                  });
+                },
                 children: [
-                  Text(
-                    'Définir le périmètre',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Tracez la zone de couverture (polygone fermé)',
-                    style: TextStyle(fontSize: 12, color: Colors.black54),
-                  ),
+                  _buildStep0Template(),
+                  _buildStep1Infos(),
+                  _buildStep2Perimeter(),
+                  _buildStep3RouteAndStyleTabbed(),
+                  _buildStep6StylePro(),
+                  _buildStep5POI(),
+                  _buildStep7Validation(),
+                  _buildStep8Publish(),
                 ],
               ),
             ),
 
-          if (_currentStep == 2 || _currentStep == 3)
-            _buildCentralMapToolsBar(),
-
-          // Pages
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              onPageChanged: (page) {
-                setState(() => _currentStep = page);
-
-                // Auto-ouvrir Style Pro quand on arrive sur l'étape Style Pro (index 4)
-                // pour éviter le clic sur "Ouvrir Style Pro".
-                if (_currentStep != 4) {
-                  _didAutoOpenStyleProForCurrentVisit = false;
-                }
-
-                // Quand on arrive sur l'étape POI, on veut afficher le circuit
-                // (Style Pro si présent) sur la carte immédiatement.
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (!mounted) return;
-                  if (_currentStep == _poiStepIndex) {
-                    unawaited(_refreshPoiRouteOverlay());
-                  }
-
-                  if (_currentStep == 4 &&
-                      !_didAutoOpenStyleProForCurrentVisit) {
-                    _didAutoOpenStyleProForCurrentVisit = true;
-                    unawaited(_openRouteStylePro());
-                  }
-
-                  _syncPoiRouteStyleProTimer();
-                });
-              },
-              children: [
-                _buildStep0Template(),
-                _buildStep1Infos(),
-                _buildStep2Perimeter(),
-                _buildStep3RouteAndStyleTabbed(),
-                _buildStep6StylePro(),
-                _buildStep5POI(),
-                _buildStep7Validation(),
-                _buildStep8Publish(),
-              ],
-            ),
-          ),
-
-          // Navigation buttons
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 48,
-                    child: (!widget.poiOnly && _currentStep > 0)
-                        ? OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: proBlue,
-                              side: BorderSide(
-                                color: proBlue.withValues(alpha: 0.45),
+            // Navigation buttons
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: (!widget.poiOnly && _currentStep > 0)
+                          ? OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: proBlue,
+                                side: BorderSide(
+                                  color: proBlue.withValues(alpha: 0.45),
+                                ),
+                                textStyle: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
-                              textStyle: const TextStyle(
-                                fontWeight: FontWeight.w700,
+                              onPressed: () => _pageController.previousPage(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
                               ),
-                            ),
-                            onPressed: () => _pageController.previousPage(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            ),
-                            child: const Text('← Précédent'),
-                          )
-                        : const SizedBox(),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: SizedBox(
-                    height: 48,
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF1D2330),
-                        foregroundColor: Colors.white,
-                        textStyle: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      icon: const Icon(Icons.save, size: 18),
-                      onPressed: () => _saveDraft(createSnapshot: true),
-                      label: const Text('Sauvegarder'),
+                              child: const Text('← Précédent'),
+                            )
+                          : const SizedBox(),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: SizedBox(
-                    height: 48,
-                    child: (!widget.poiOnly && _currentStep < 7)
-                        ? FilledButton(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: proBlue,
-                              foregroundColor: Colors.white,
-                              textStyle: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            onPressed: () => _continueToStep(_currentStep + 1),
-                            child: const Text('Suivant →'),
-                          )
-                        : const SizedBox(),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF1D2330),
+                          foregroundColor: Colors.white,
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        icon: const Icon(Icons.save, size: 18),
+                        onPressed: () => _saveDraft(createSnapshot: true),
+                        label: const Text('Sauvegarder'),
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: (!widget.poiOnly && _currentStep < 7)
+                          ? FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: proBlue,
+                                foregroundColor: Colors.white,
+                                textStyle: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              onPressed: () =>
+                                  _continueToStep(_currentStep + 1),
+                              child: const Text('Suivant →'),
+                            )
+                          : const SizedBox(),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
     );
   }
 
@@ -1825,7 +1833,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   Widget _buildStep0Template() {
     return SingleChildScrollView(
-      physics: _isWizardMapInteracting ? const NeverScrollableScrollPhysics() : null,
+      physics: _isWizardMapInteracting
+          ? const NeverScrollableScrollPhysics()
+          : null,
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1881,7 +1891,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   Widget _buildStep1Infos() {
     return SingleChildScrollView(
-      physics: _isWizardMapInteracting ? const NeverScrollableScrollPhysics() : null,
+      physics: _isWizardMapInteracting
+          ? const NeverScrollableScrollPhysics()
+          : null,
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1957,7 +1969,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           const SizedBox(height: 10),
           Builder(
             builder: (context) {
-              final current = _normalizeMapboxStyleUrl(_styleUrlController.text);
+              final current = _normalizeMapboxStyleUrl(
+                _styleUrlController.text,
+              );
               final presets = <({String label, String url})>[
                 (label: 'Effacer', url: ''),
                 (label: 'Streets', url: 'mapbox://styles/mapbox/streets-v12'),
@@ -1976,7 +1990,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
               Widget tile({required String label, required String url}) {
                 final normalized = _normalizeMapboxStyleUrl(url);
-                final selected = (normalized.isEmpty && current.isEmpty) ||
+                final selected =
+                    (normalized.isEmpty && current.isEmpty) ||
                     (normalized.isNotEmpty && normalized == current);
                 return InkWell(
                   onTap: () => _applyStylePreset(url),
@@ -1992,16 +2007,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                           : Colors.white,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: selected
-                            ? Colors.blue
-                            : Colors.grey.shade300,
+                        color: selected ? Colors.blue : Colors.grey.shade300,
                       ),
                     ),
                     child: Text(
                       label,
                       style: TextStyle(
-                        fontWeight:
-                            selected ? FontWeight.w800 : FontWeight.w600,
+                        fontWeight: selected
+                            ? FontWeight.w800
+                            : FontWeight.w600,
                         color: selected
                             ? Colors.blue.shade900
                             : Colors.grey.shade900,
@@ -2049,10 +2063,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                             : 16.241),
                   initialZoom:
                       (_routePoints.isNotEmpty || _perimeterPoints.isNotEmpty)
-                          ? 13.5
-                          : 12.0,
-                  styleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text)
-                          .isEmpty
+                      ? 13.5
+                      : 12.0,
+                  styleUrl:
+                      _normalizeMapboxStyleUrl(_styleUrlController.text).isEmpty
                       ? null
                       : _normalizeMapboxStyleUrl(_styleUrlController.text),
                 ),
@@ -2083,8 +2097,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       points: _perimeterPoints,
       controller: _perimeterEditorController,
       styleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text).isEmpty
-        ? null
-        : _normalizeMapboxStyleUrl(_styleUrlController.text),
+          ? null
+          : _normalizeMapboxStyleUrl(_styleUrlController.text),
       editingEnabled: true,
       onPointAddedOverride: _perimeterCircleMode
           ? (p) {
@@ -2972,7 +2986,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       value: _poiSelection,
       child: SingleChildScrollView(
         controller: _poiStepScrollController,
-        physics: _isWizardMapInteracting ? const NeverScrollableScrollPhysics() : null,
+        physics: _isWizardMapInteracting
+            ? const NeverScrollableScrollPhysics()
+            : null,
         child: Column(
           children: [
             SizedBox(
@@ -2985,9 +3001,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       initialLng: _poiInitialLng ?? -61.533,
                       initialLat: _poiInitialLat ?? 16.241,
                       initialZoom: _poiInitialZoom ?? 12.0,
-                      styleUrl: _normalizeMapboxStyleUrl(
-                                _styleUrlController.text,
-                              ).isEmpty
+                      styleUrl:
+                          _normalizeMapboxStyleUrl(
+                            _styleUrlController.text,
+                          ).isEmpty
                           ? null
                           : _normalizeMapboxStyleUrl(_styleUrlController.text),
                       onMapReady: (ctrl) async {
@@ -3128,8 +3145,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
       _parkingZoneFillColorHex = defaultHex;
       _parkingZoneFillOpacity = _parkingZoneDefaultFillOpacity;
+      _parkingZoneStrokeWidth = _parkingZoneDefaultStrokeWidth;
       _parkingZoneStrokeDash = 'solid';
       _parkingZonePattern = 'none';
+      _parkingZonePatternOpacity = _parkingZoneDefaultPatternOpacity;
       _parkingZoneColorController.text = defaultHex;
 
       // Pour une zone, lat/lng servent de centre (centroid approx.)
@@ -3164,6 +3183,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         _parkingZoneFillOpacity =
             (style['fillOpacity'] as num?)?.toDouble() ??
             _parkingZoneFillOpacity;
+        _parkingZoneStrokeWidth =
+            (style['strokeWidth'] as num?)?.toDouble() ??
+            _parkingZoneStrokeWidth;
         _parkingZoneStrokeDash =
             (style['strokeDash'] as String?)?.trim().isNotEmpty == true
             ? (style['strokeDash'] as String).trim()
@@ -3172,6 +3194,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             (style['pattern'] as String?)?.trim().isNotEmpty == true
             ? (style['pattern'] as String).trim()
             : _parkingZonePattern;
+        _parkingZonePatternOpacity =
+            (style['patternOpacity'] as num?)?.toDouble() ??
+            _parkingZonePatternOpacity;
         _parkingZoneColorController.text = _parkingZoneFillColorHex;
       }
     });
@@ -3282,6 +3307,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       if (pro != null) {
         final cfg = pro.validated();
 
+        final widthScale = cfg.widthScale3d;
+        final mainWidth = cfg.mainWidth * widthScale;
+        final casingWidth = cfg.casingWidth * widthScale;
+        final glowWidth = cfg.glowWidth * widthScale;
+
         final useSegments =
             cfg.rainbowEnabled ||
             cfg.trafficDemoEnabled ||
@@ -3300,7 +3330,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         await _poiMapController.setPolyline(
           points: mapPoints,
           color: cfg.mainColor,
-          width: cfg.mainWidth,
+          width: mainWidth,
           show: true,
           roadLike: shouldRoadLike,
           shadow3d: cfg.shadowEnabled,
@@ -3310,13 +3340,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
           opacity: cfg.opacity,
           casingColor: cfg.casingColor,
-          casingWidth: cfg.casingWidth > 0 ? cfg.casingWidth : null,
+          casingWidth: cfg.casingWidth > 0 ? casingWidth : null,
 
           glowEnabled: cfg.glowEnabled,
           glowColor: cfg.mainColor,
-          glowWidth: cfg.glowWidth,
+          glowWidth: glowWidth,
           glowOpacity: cfg.glowOpacity,
           glowBlur: cfg.glowBlur,
+
+          elevationPx: cfg.elevationPx,
 
           dashArray: cfg.dashEnabled
               ? <double>[cfg.dashLength, cfg.dashGap]
@@ -3360,6 +3392,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }) {
     if (pts.length < 2) return _emptyFeatureCollection();
 
+    final width = cfg.mainWidth * cfg.widthScale3d;
+
     // Limite le nombre de segments (perf)
     const maxSeg = 60;
     final step = math.max(1, ((pts.length - 1) / maxSeg).ceil());
@@ -3384,7 +3418,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         'type': 'Feature',
         'properties': {
           'color': _toHexRgba(color, opacity: opacity),
-          'width': cfg.mainWidth,
+          'width': width,
           'opacity': opacity,
         },
         'geometry': {
@@ -3673,10 +3707,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           'fillColor': previewFill,
           'fillOpacity': _parkingZoneFillOpacity.clamp(0.0, 1.0),
           'strokeColor': previewFill,
-          'strokeWidth': _parkingZoneDefaultStrokeWidth,
+          'strokeWidth': _parkingZoneStrokeWidth,
           'strokeDash': _parkingZoneStrokeDash,
           if (previewPattern != null) 'fillPattern': previewPattern,
-          'patternOpacity': _parkingZoneDefaultPatternOpacity,
+          'patternOpacity': _parkingZonePatternOpacity.clamp(0.0, 1.0),
         },
         'geometry': <String, dynamic>{
           'type': 'Polygon',
@@ -3780,8 +3814,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
       _parkingZoneFillColorHex = defaultHex;
       _parkingZoneFillOpacity = _parkingZoneDefaultFillOpacity;
+      _parkingZoneStrokeWidth = _parkingZoneDefaultStrokeWidth;
       _parkingZoneStrokeDash = 'solid';
       _parkingZonePattern = 'none';
+      _parkingZonePatternOpacity = _parkingZoneDefaultPatternOpacity;
       _parkingZoneColorController.text = defaultHex;
     });
     _refreshPoiMarkers();
@@ -3897,10 +3933,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             'fillColor': fillHex,
             'fillOpacity': _parkingZoneFillOpacity.clamp(0.0, 1.0),
             'strokeColor': fillHex,
-            'strokeWidth': _parkingZoneDefaultStrokeWidth,
+            'strokeWidth': _parkingZoneStrokeWidth,
             'strokeDash': _parkingZoneStrokeDash,
             'pattern': _parkingZonePattern,
-            'patternOpacity': _parkingZoneDefaultPatternOpacity,
+            'patternOpacity': _parkingZonePatternOpacity.clamp(0.0, 1.0),
           },
         },
       );
@@ -3947,10 +3983,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             'fillColor': fillHex,
             'fillOpacity': _parkingZoneFillOpacity.clamp(0.0, 1.0),
             'strokeColor': fillHex,
-            'strokeWidth': _parkingZoneDefaultStrokeWidth,
+            'strokeWidth': _parkingZoneStrokeWidth,
             'strokeDash': _parkingZoneStrokeDash,
             'pattern': _parkingZonePattern,
-            'patternOpacity': _parkingZoneDefaultPatternOpacity,
+            'patternOpacity': _parkingZonePatternOpacity.clamp(0.0, 1.0),
           },
         };
       }
@@ -4119,6 +4155,26 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     _refreshPoiMarkers();
                   },
                 ),
+                const SizedBox(height: 12),
+                Text(
+                  'Contour (largeur): ${_parkingZoneStrokeWidth.toStringAsFixed(1)}',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                Slider(
+                  value: _parkingZoneStrokeWidth.clamp(1.0, 10.0),
+                  min: 1.0,
+                  max: 10.0,
+                  divisions: 18,
+                  onChanged: (v) {
+                    setState(() {
+                      _parkingZoneStrokeWidth = v;
+                      _poiInlineError = null;
+                    });
+                    _refreshPoiMarkers();
+                  },
+                ),
                 const SizedBox(height: 4),
                 InputDecorator(
                   decoration: const InputDecoration(
@@ -4184,6 +4240,28 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       },
                     ),
                   ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Texture intérieure (opacité): ${(100 * _parkingZonePatternOpacity.clamp(0.0, 1.0)).round()}%',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                Slider(
+                  value: _parkingZonePatternOpacity.clamp(0.0, 1.0),
+                  min: 0.0,
+                  max: 1.0,
+                  divisions: 20,
+                  onChanged: _parkingZonePattern == 'none'
+                      ? null
+                      : (v) {
+                          setState(() {
+                            _parkingZonePatternOpacity = v;
+                            _poiInlineError = null;
+                          });
+                          _refreshPoiMarkers();
+                        },
                 ),
               ],
               if (_poiInlineError != null) ...[

@@ -59,7 +59,7 @@ Map<String, dynamic> projectProToLegacyStyle(
 
   // Compat minimale (utilisée par DefaultMap/Home, etc.)
   out['color'] = colorToHexRgb(cfg.mainColor);
-  out['width'] = cfg.mainWidth;
+  out['width'] = cfg.mainWidth * cfg.widthScale3d;
 
   // Heuristiques: si la config Pro a une "casing" significative, on active un rendu roadLike
   // (les consommateurs legacy n'ont pas de double-stroke explicite).

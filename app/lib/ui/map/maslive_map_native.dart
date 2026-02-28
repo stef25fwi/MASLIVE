@@ -1597,6 +1597,31 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       lineJoin: options.lineJoin,
     );
 
+    // Hauteur simulée (translate) – alignée avec le Web bridge.
+    final elevationPx = (options.elevationPx ?? 0.0).clamp(0.0, 40.0);
+    final translate = elevationPx > 0
+        ? <double>[0.0, -elevationPx]
+        : const <double>[0.0, 0.0];
+    for (final layerId in <String>[
+      if (roadLike) ...[
+        if (shadow3d) _layerRouteShadow,
+        _layerRouteCasing,
+        _layerRouteCore,
+      ] else
+        _layerRoutePlain,
+    ]) {
+      try {
+        await map.style.setStyleLayerProperty(layerId, 'line-translate', translate);
+      } catch (_) {}
+      try {
+        await map.style.setStyleLayerProperty(
+          layerId,
+          'line-translate-anchor',
+          'map',
+        );
+      } catch (_) {}
+    }
+
     // Appliquer le même scaling de largeur sur les couches "roadLike" (casing/shadow)
     // pour éviter un tracé trop épais quand on dézoome.
     if (roadLike) {

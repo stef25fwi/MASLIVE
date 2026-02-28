@@ -441,6 +441,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   }) {
     if (pts.length < 2) return _emptyRouteFeatureCollection();
 
+    final width = cfg.mainWidth * cfg.widthScale3d;
+
     // Limite segments (perf)
     const maxSeg = 60;
     final step = max(1, ((pts.length - 1) / maxSeg).ceil());
@@ -465,7 +467,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         'type': 'Feature',
         'properties': {
           'color': _toHexRgba(color, opacity: opacity),
-          'width': cfg.mainWidth,
+          'width': width,
           'opacity': opacity,
         },
         'geometry': {
@@ -487,12 +489,13 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     RouteStyleConfig cfg,
   ) {
     if (pts.length < 2) return _emptyRouteFeatureCollection();
+    final width = cfg.mainWidth * cfg.widthScale3d;
     return _routeFeatureCollection([
       {
         'type': 'Feature',
         'properties': {
           'color': _toHexRgba(cfg.mainColor, opacity: cfg.opacity),
-          'width': cfg.mainWidth,
+          'width': width,
           'opacity': cfg.opacity,
         },
         'geometry': {
@@ -676,6 +679,11 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
     final c = cfg.validated();
 
+    final widthScale = c.widthScale3d;
+    final casingWidth = c.casingWidth * widthScale;
+    final glowWidth = c.glowWidth * widthScale;
+    final elevationPx = c.elevationPx;
+
     await _ensureMarketRouteGeoJsonRuntime();
 
     final routeFc = _routeFeatureCollection([
@@ -737,10 +745,25 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       await safeSet(layerId, 'line-cap', cap);
     }
 
+    final translate = (elevationPx > 0) ? <double>[0.0, -elevationPx] : null;
+    for (final layerId in <String>[
+      _mmRouteLayerShadowId,
+      _mmRouteLayerGlowId,
+      _mmRouteLayerCasingId,
+      _mmRouteLayerMainId,
+    ]) {
+      await safeSet(layerId, 'line-translate', translate);
+      await safeSet(
+        layerId,
+        'line-translate-anchor',
+        translate != null ? 'map' : null,
+      );
+    }
+
     // Shadow
     final shadowOpacity = c.shadowEnabled ? c.shadowOpacity : 0.0;
     await safeSet(_mmRouteLayerShadowId, 'line-opacity', shadowOpacity);
-    await safeSet(_mmRouteLayerShadowId, 'line-width', max(1.0, c.casingWidth));
+    await safeSet(_mmRouteLayerShadowId, 'line-width', max(1.0, casingWidth));
     await safeSet(_mmRouteLayerShadowId, 'line-blur', c.shadowBlur);
 
     // Glow (+ pulse)
@@ -754,7 +777,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     await safeSet(
       _mmRouteLayerGlowId,
       'line-width',
-      max(1.0, c.casingWidth + c.glowWidth),
+      max(1.0, casingWidth + glowWidth),
     );
     await safeSet(_mmRouteLayerGlowId, 'line-blur', c.glowBlur);
     await safeSet(_mmRouteLayerGlowId, 'line-color', c.mainColor.toARGB32());
@@ -762,7 +785,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     // Casing
     final casingOpacity = (c.casingWidth <= 0) ? 0.0 : c.opacity;
     await safeSet(_mmRouteLayerCasingId, 'line-opacity', casingOpacity);
-    await safeSet(_mmRouteLayerCasingId, 'line-width', max(0.0, c.casingWidth));
+    await safeSet(_mmRouteLayerCasingId, 'line-width', max(0.0, casingWidth));
     await safeSet(
       _mmRouteLayerCasingId,
       'line-color',

@@ -116,6 +116,27 @@ class RouteStyleControlsPanel extends StatelessWidget {
                 decimals: 0,
                 onChanged: (v) => onChanged(cfg.copyWith(casingWidth: v)),
               ),
+              const SizedBox(height: 8),
+              RouteStyleSlider(
+                label: 'Épaisseur (3D)',
+                value: cfg.widthScale3d,
+                min: 0.5,
+                max: 3.0,
+                divisions: 25,
+                unit: '×',
+                decimals: 2,
+                onChanged: (v) => onChanged(cfg.copyWith(widthScale3d: v)),
+              ),
+              RouteStyleSlider(
+                label: 'Hauteur (3D)',
+                value: cfg.elevationPx,
+                min: 0,
+                max: 40,
+                divisions: 40,
+                unit: ' px',
+                decimals: 0,
+                onChanged: (v) => onChanged(cfg.copyWith(elevationPx: v)),
+              ),
               ColorPickerTile(
                 title: 'Couleur main',
                 color: cfg.mainColor,
@@ -397,6 +418,8 @@ class RouteStyleControlsPanel extends StatelessWidget {
     final bb = b.validated();
     return aa.mainWidth == bb.mainWidth &&
         aa.casingWidth == bb.casingWidth &&
+      aa.widthScale3d == bb.widthScale3d &&
+      aa.elevationPx == bb.elevationPx &&
         aa.mainColor.toARGB32() == bb.mainColor.toARGB32() &&
         aa.casingColor.toARGB32() == bb.casingColor.toARGB32() &&
         aa.glowEnabled == bb.glowEnabled &&

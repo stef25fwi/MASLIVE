@@ -1000,6 +1000,8 @@
         const dashArray = Array.isArray(opts.dashArray) ? opts.dashArray : null;
         const lineCap = (opts.lineCap === 'butt' || opts.lineCap === 'square' || opts.lineCap === 'round') ? opts.lineCap : 'round';
         const lineJoin = (opts.lineJoin === 'bevel' || opts.lineJoin === 'miter' || opts.lineJoin === 'round') ? opts.lineJoin : 'round';
+        const elevationPx = _clampNumber(opts.elevationPx, 0.0, 40.0, 0.0);
+        const lineTranslate = (elevationPx > 0.01) ? [0, -elevationPx] : null;
 
         // Optionnel: rendu par segments (FeatureCollection) pour styles avancés.
         let segmentsFc = null;
@@ -1101,6 +1103,7 @@
               'line-width': mainLineWidthScaled,
               'line-color': mainLineColor,
               'line-opacity': mainLineOpacity,
+              ...(lineTranslate ? { 'line-translate': lineTranslate, 'line-translate-anchor': 'map' } : {}),
             },
           });
         } else {
@@ -1118,6 +1121,7 @@
                 'line-color': 'rgba(0,0,0,0.25)',
                 'line-blur': 1.2,
                 'line-opacity': opacity,
+                ...(lineTranslate ? { 'line-translate': lineTranslate, 'line-translate-anchor': 'map' } : {}),
               },
             });
           }
@@ -1136,6 +1140,7 @@
                 'line-color': glowColor,
                 'line-opacity': glowOpacity,
                 'line-blur': Math.max(0, glowBlur),
+                ...(lineTranslate ? { 'line-translate': lineTranslate, 'line-translate-anchor': 'map' } : {}),
               },
             });
           }
@@ -1154,6 +1159,7 @@
               'line-width': scaledWidthExpr(casingWidth),
               'line-color': casingColorOpt,
               'line-opacity': opacity,
+              ...(lineTranslate ? { 'line-translate': lineTranslate, 'line-translate-anchor': 'map' } : {}),
             },
           });
 
@@ -1169,6 +1175,7 @@
               'line-width': mainLineWidthScaled,
               'line-color': mainLineColor,
               'line-opacity': mainLineOpacity,
+              ...(lineTranslate ? { 'line-translate': lineTranslate, 'line-translate-anchor': 'map' } : {}),
             },
           });
 
@@ -1188,6 +1195,7 @@
                 'line-width': scaledWidthExprClampedMin(centerBaseWidth, 1),
                 'line-color': 'rgba(255,255,255,0.85)',
                 'line-opacity': opacity,
+                ...(lineTranslate ? { 'line-translate': lineTranslate, 'line-translate-anchor': 'map' } : {}),
               },
             });
           }

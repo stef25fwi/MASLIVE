@@ -107,7 +107,7 @@ class RouteStylePersistence {
       mergedLegacy['roadLike'] = preservedRoadLike;
       mergedLegacy['showDirection'] = preservedShowDirection;
       mergedLegacy['color'] = _toHexRgb(config.mainColor);
-      mergedLegacy['width'] = config.mainWidth;
+        mergedLegacy['width'] = config.mainWidth * config.widthScale3d;
       mergedLegacy['shadow3d'] = config.shadowEnabled;
       mergedLegacy['animateDirection'] = config.pulseEnabled;
       mergedLegacy['animationSpeed'] =

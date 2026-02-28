@@ -277,31 +277,50 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
 
     final proCfg = tryParseRouteStylePro(d['routeStylePro']);
     if (proCfg != null) {
+      final widthScale = proCfg.widthScale3d;
+      final mainWidth = proCfg.mainWidth * widthScale;
+      final casingWidth = proCfg.casingWidth * widthScale;
+      final translate = (proCfg.elevationPx > 0)
+          ? <double>[0.0, -proCfg.elevationPx]
+          : null;
+
       final join = proCfg.lineJoin.name;
       final cap = proCfg.lineCap.name;
       final dash = proCfg.dashEnabled
           ? <double>[proCfg.dashLength, proCfg.dashGap]
           : <double>[1.0, 0.0];
 
-      _routeCasingWantedVisible = proCfg.casingWidth > proCfg.mainWidth + 0.5;
+      _routeCasingWantedVisible = casingWidth > mainWidth + 0.5;
 
       await safeSet(_routeLayerId, 'line-join', join);
       await safeSet(_routeLayerId, 'line-cap', cap);
       await safeSet(_routeLayerId, 'line-opacity', proCfg.opacity);
-      await safeSet(_routeLayerId, 'line-width', proCfg.mainWidth);
+      await safeSet(_routeLayerId, 'line-width', mainWidth);
       await safeSet(_routeLayerId, 'line-color', proCfg.mainColor.toARGB32());
       await safeSet(_routeLayerId, 'line-dasharray', dash);
+      await safeSet(_routeLayerId, 'line-translate', translate);
+      await safeSet(
+        _routeLayerId,
+        'line-translate-anchor',
+        translate != null ? 'map' : null,
+      );
 
       await safeSet(_routeCasingLayerId, 'line-join', join);
       await safeSet(_routeCasingLayerId, 'line-cap', cap);
       await safeSet(_routeCasingLayerId, 'line-opacity', proCfg.opacity);
-      await safeSet(_routeCasingLayerId, 'line-width', proCfg.casingWidth);
+      await safeSet(_routeCasingLayerId, 'line-width', casingWidth);
       await safeSet(
         _routeCasingLayerId,
         'line-color',
         proCfg.casingColor.toARGB32(),
       );
       await safeSet(_routeCasingLayerId, 'line-dasharray', dash);
+      await safeSet(_routeCasingLayerId, 'line-translate', translate);
+      await safeSet(
+        _routeCasingLayerId,
+        'line-translate-anchor',
+        translate != null ? 'map' : null,
+      );
 
       if (mounted) setState(() {});
       return;

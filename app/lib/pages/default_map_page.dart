@@ -438,6 +438,11 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       if (pro != null) {
         final cfg = pro.validated();
 
+        final widthScale = cfg.widthScale3d;
+        final mainWidth = cfg.mainWidth * widthScale;
+        final casingWidth = cfg.casingWidth * widthScale;
+        final glowWidth = cfg.glowWidth * widthScale;
+
         final useSegments =
             cfg.rainbowEnabled || cfg.trafficDemoEnabled || cfg.vanishingEnabled;
         final segmentsGeoJson = useSegments
@@ -454,7 +459,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         await _mapController.setPolyline(
           points: pts,
           color: cfg.mainColor,
-          width: cfg.mainWidth,
+          width: mainWidth,
           show: true,
           roadLike: shouldRoadLike,
           shadow3d: cfg.shadowEnabled,
@@ -464,13 +469,15 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
           opacity: cfg.opacity,
           casingColor: cfg.casingColor,
-          casingWidth: cfg.casingWidth > 0 ? cfg.casingWidth : null,
+          casingWidth: cfg.casingWidth > 0 ? casingWidth : null,
 
           glowEnabled: cfg.glowEnabled,
           glowColor: cfg.mainColor,
-          glowWidth: cfg.glowWidth,
+          glowWidth: glowWidth,
           glowOpacity: cfg.glowOpacity,
           glowBlur: cfg.glowBlur,
+
+          elevationPx: cfg.elevationPx,
 
           dashArray: cfg.dashEnabled
               ? <double>[cfg.dashLength, cfg.dashGap]
@@ -531,6 +538,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       return jsonEncode({'type': 'FeatureCollection', 'features': []});
     }
 
+    final width = cfg.mainWidth * cfg.widthScale3d;
+
     // Limite le nombre de segments (perf)
     const maxSeg = 60;
     final step = math.max(1, ((pts.length - 1) / maxSeg).ceil());
@@ -556,7 +565,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         'type': 'Feature',
         'properties': {
           'color': _toRgba(color, opacity: opacity),
-          'width': cfg.mainWidth,
+          'width': width,
           'opacity': opacity,
         },
         'geometry': {

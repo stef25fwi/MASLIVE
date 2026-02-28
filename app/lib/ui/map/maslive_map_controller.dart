@@ -179,6 +179,7 @@ class MasLiveMapController {
     double? glowWidth,
     double? glowOpacity,
     double? glowBlur,
+    double? elevationPx,
     List<double>? dashArray,
     String? lineCap,
     String? lineJoin,
@@ -203,6 +204,7 @@ class MasLiveMapController {
         glowWidth: glowWidth,
         glowOpacity: glowOpacity,
         glowBlur: glowBlur,
+        elevationPx: elevationPx,
         dashArray: dashArray,
         lineCap: lineCap,
         lineJoin: lineJoin,
@@ -300,6 +302,9 @@ class PolylineRenderOptions {
   final String? lineCap;
   final String? lineJoin;
 
+  /// Hauteur simulée (Mapbox): line-translate en pixels.
+  final double? elevationPx;
+
   /// Optionnel (Web): GeoJSON FeatureCollection de segments.
   ///
   /// Permet d'appliquer des styles par segment via expressions (ex: rainbow/traffic/vanishing).
@@ -326,6 +331,7 @@ class PolylineRenderOptions {
     this.dashArray,
     this.lineCap,
     this.lineJoin,
+    this.elevationPx,
     this.segmentsGeoJson,
   });
 
@@ -343,6 +349,7 @@ class PolylineRenderOptions {
         if (glowOpacity != null) 'glowOpacity': glowOpacity,
         if (glowBlur != null) 'glowBlur': glowBlur,
         if (glowColor != null) 'glowColor': _toHexRgb(glowColor!),
+        if (elevationPx != null) 'elevationPx': elevationPx,
         if (dashArray != null) 'dashArray': dashArray,
         if (lineCap != null) 'lineCap': lineCap,
         if (lineJoin != null) 'lineJoin': lineJoin,
