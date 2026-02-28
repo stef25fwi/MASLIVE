@@ -13,35 +13,40 @@ echo "=================================="
 echo ""
 
 # Get token from argument or environment
-MAPBOX_TOKEN="${1:-$MAPBOX_PUBLIC_TOKEN}"
+TOKEN_ARG="${1:-}"
+TOKEN_ENV="${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}}"
+MAPBOX_TOKEN="${TOKEN_ARG:-$TOKEN_ENV}"
 
 # Try to load from .env
 if [ -z "$MAPBOX_TOKEN" ] && [ -f "$PROJECT_ROOT/.env" ]; then
     source "$PROJECT_ROOT/.env"
-    MAPBOX_TOKEN="$MAPBOX_PUBLIC_TOKEN"
+    TOKEN_ENV="${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}}"
+    MAPBOX_TOKEN="$TOKEN_ENV"
 fi
 
 # Verify token
 if [ -z "$MAPBOX_TOKEN" ]; then
-    echo "❌ Erreur: MAPBOX_PUBLIC_TOKEN non fourni"
+    echo "❌ Erreur: token Mapbox non fourni (MAPBOX_ACCESS_TOKEN / MAPBOX_PUBLIC_TOKEN / MAPBOX_TOKEN)"
     echo ""
     echo "Usage:"
     echo "  1. Passer le token en argument:"
-    echo "     bash scripts/build_with_mapbox.sh 'pk_your_token_here'"
+    echo "     bash scripts/build_with_mapbox.sh 'pk.your_token_here'"
     echo ""
     echo "  2. Ou définir via environnement:"
-    echo "     export MAPBOX_PUBLIC_TOKEN='pk_your_token_here'"
+    echo "     export MAPBOX_ACCESS_TOKEN='pk.your_token_here'"
+    echo "     # ou: export MAPBOX_PUBLIC_TOKEN='pk.your_token_here'"
     echo "     bash scripts/build_with_mapbox.sh"
     echo ""
     echo "  3. Ou créer .env à la racine:"
-    echo "     echo 'MAPBOX_PUBLIC_TOKEN=pk_your_token_here' > .env"
+    echo "     echo 'MAPBOX_ACCESS_TOKEN=pk.your_token_here' > .env"
+    echo "     echo 'MAPBOX_PUBLIC_TOKEN=pk.your_token_here' >> .env"
     echo "     bash scripts/build_with_mapbox.sh"
     exit 1
 fi
 
 # Validate token format
-if [[ ! $MAPBOX_TOKEN =~ ^pk_ ]]; then
-    echo "⚠️  Attention: Le token ne commence pas par 'pk_'"
+if [[ ! $MAPBOX_TOKEN =~ ^pk[\._] ]]; then
+    echo "⚠️  Attention: le token ne commence pas par 'pk.' (ou 'pk_')"
     echo "   Assurez-vous qu'il s'agit d'un token PUBLIC Mapbox"
     echo ""
     read -p "Continuer? (y/n) " -n 1 -r

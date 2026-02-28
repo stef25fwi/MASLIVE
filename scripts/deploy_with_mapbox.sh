@@ -17,22 +17,23 @@ MAPBOX_TOKEN="${1}"
 # Try .env if no argument
 if [ -z "$MAPBOX_TOKEN" ] && [ -f "$PROJECT_ROOT/.env" ]; then
     source "$PROJECT_ROOT/.env"
-    MAPBOX_TOKEN="$MAPBOX_PUBLIC_TOKEN"
+    MAPBOX_TOKEN="${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}}"
 fi
 
 # Try environment variable
 if [ -z "$MAPBOX_TOKEN" ]; then
-    MAPBOX_TOKEN="$MAPBOX_PUBLIC_TOKEN"
+    MAPBOX_TOKEN="${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}}"
 fi
 
 if [ -z "$MAPBOX_TOKEN" ]; then
-    echo "❌ Erreur: MAPBOX_PUBLIC_TOKEN non trouvé"
+    echo "❌ Erreur: token Mapbox non trouvé (MAPBOX_ACCESS_TOKEN / MAPBOX_PUBLIC_TOKEN / MAPBOX_TOKEN)"
     echo ""
     echo "Usage:"
-    echo "  bash scripts/deploy_with_mapbox.sh 'pk_your_token'"
+    echo "  bash scripts/deploy_with_mapbox.sh 'pk.your_token'"
     echo ""
-    echo "Ou créer .env:"
-    echo "  bash scripts/setup_mapbox.sh"
+    echo "Ou créer/mettre à jour .env:"
+    echo "  bash scripts/configure_mapbox.sh 'pk.your_token'"
+    echo "  # ou (interactif): bash scripts/setup_mapbox.sh"
     exit 1
 fi
 

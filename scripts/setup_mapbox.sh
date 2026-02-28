@@ -29,10 +29,10 @@ echo ""
 echo "📌 Comment obtenir votre token Mapbox:"
 echo "   1. Rendez-vous sur https://account.mapbox.com/tokens/"
 echo "   2. Créez un nouveau token (Create a token)"
-echo "   3. Copiez le token public (pk_...)"
+echo "   3. Copiez le token public (pk....)"
 echo ""
 
-read -p "Entrez votre Mapbox Public Token (pk_...): " MAPBOX_TOKEN
+read -p "Entrez votre Mapbox Public Token (pk....): " MAPBOX_TOKEN
 
 # Validate token
 if [ -z "$MAPBOX_TOKEN" ]; then
@@ -40,8 +40,8 @@ if [ -z "$MAPBOX_TOKEN" ]; then
     exit 1
 fi
 
-if [[ ! $MAPBOX_TOKEN =~ ^pk_ ]]; then
-    echo "❌ Erreur: Le token doit commencer par 'pk_'"
+if [[ ! $MAPBOX_TOKEN =~ ^pk[\._] ]]; then
+    echo "❌ Erreur: Le token doit commencer par 'pk.' (ou 'pk_')"
     exit 1
 fi
 
@@ -50,7 +50,9 @@ echo "💾 Création du fichier .env..."
 cat > "$PROJECT_ROOT/.env" << EOF
 # Mapbox Configuration
 # Token: ${MAPBOX_TOKEN:0:15}...
+MAPBOX_ACCESS_TOKEN=$MAPBOX_TOKEN
 MAPBOX_PUBLIC_TOKEN=$MAPBOX_TOKEN
+MAPBOX_TOKEN=$MAPBOX_TOKEN
 
 # Generated: $(date)
 EOF
