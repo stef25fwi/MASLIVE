@@ -1018,11 +1018,23 @@
     {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (quick, log)",
       "type": "shell",
-      "command": "bash -lc 'rm -f /tmp/maslive_quick_deploy.log && cd /workspaces/MASLIVE && bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"chore: quick deploy\" > /tmp/maslive_quick_deploy.log 2>&1'",
+      "command": "bash -lc 'rm -f /tmp/maslive_quick_deploy.log && cd /workspaces/MASLIVE && set +e; bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"chore: quick deploy\" > /tmp/maslive_quick_deploy.log 2>&1; code=$?; echo EXIT_CODE=$code >> /tmp/maslive_quick_deploy.log; exit $code'",
       "problemMatcher": [],
       "isBackground": false,
       "presentation": {
         "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: 🧪 Debug processes (flutter/firebase)",
+      "type": "shell",
+      "command": "bash -lc 'ps -ef | egrep \"(flutter|dart|firebase)\" | grep -v egrep > /tmp/maslive_processes.log'",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "never",
         "panel": "dedicated",
         "clear": true
       }
