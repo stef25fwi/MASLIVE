@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+
 
 /// Service abstrait pour contrôler le style des bâtiments 3D sur la carte Mapbox.
 ///
@@ -39,16 +39,4 @@ abstract class MapBuildingsStyleService {
   ///
   /// Retourne l'ID de la couche trouvée, ou `null` si aucune n'existe.
   Future<String?> findBuildingLayer();
-
-  /// Log un message de debug avec préfixe [BuildingsOpacity]
-  void _log(String message) {
-    if (kDebugMode) {
-      debugPrint('[BuildingsOpacity] $message');
-    }
-  }
-
-  /// Clamp une valeur d'opacité entre 0.0 et 1.0
-  double _clampOpacity(double value) {
-    return value.clamp(0.0, 1.0);
-  }
 }

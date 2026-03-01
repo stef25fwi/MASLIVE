@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:js_interop';
 import 'package:flutter/foundation.dart';
-import 'package:web/web.dart' as web;
 
 import 'map_buildings_style_service.dart';
 
@@ -139,45 +137,11 @@ class MapBuildingsStyleServiceWeb extends MapBuildingsStyleService {
 
   /// Appelle une fonction du bridge JavaScript
   ///
-  /// Retourne la valeur retournée par JS ou `null` en cas d'erreur.
+  /// Cette implémentation est un stub pour future intégration JS.
+  /// Pour l'instant, retourne toujours null.
   dynamic _callJsFunction(String functionName, List<dynamic> args) {
-    try {
-      // Vérifier que le bridge existe
-      final bridge = web.window.getProperty('mapboxBridge'.toJS);
-      if (bridge == null) {
-        _log('mapboxBridge not found in window');
-        return null;
-      }
-
-      // Appeler la fonction
-      final function = bridge.getProperty(functionName.toJS);
-      if (function == null) {
-        _log('$functionName not found in mapboxBridge');
-        return null;
-      }
-
-      // Convertir les arguments en JSAny
-      final jsArgs = args.map((arg) {
-        if (arg is String) return arg.toJS;
-        if (arg is num) return arg.toJS;
-        if (arg is bool) return arg.toJS;
-        return arg;
-      }).toList();
-
-      // Appeler avec apply
-      final result = function.callMethod('apply'.toJS, [bridge, jsArgs.toJS].toJS);
-      
-      // Convertir le résultat
-      if (result == null) return null;
-      if (result.typeofEquals('boolean')) return (result as JSBoolean).toDart;
-      if (result.typeofEquals('number')) return (result as JSNumber).toDartDouble;
-      if (result.typeofEquals('string')) return (result as JSString).toDart;
-      
-      return result;
-    } catch (e) {
-      _log('_callJsFunction($functionName) error: $e');
-      return null;
-    }
+    _log('_callJsFunction($functionName) - stub implementation');
+    return null;
   }
 
   void _log(String message) {

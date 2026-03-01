@@ -1,0 +1,150 @@
+// Ce fichier n'est qu'un exemple de documentation.
+// Il contient du code incomplet et des classes non disponibles.
+// Voir BUILDINGS_OPACITY_INTEGRATION_GUIDE.md pour l'intégration réelle.
+
+// import 'package:firebase_core/firebase_core.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:flutter/material.dart';
+// import 'package:google_maps_flutter/google_maps_flutter.dart';
+// 
+// import '../services/map_buildings_style_service.dart';
+// 
+// /// Exemple complet d'intégration du service de bâtiments 3D
+// /// dans une application Flutter.
+// ///
+// /// Cet exemple montre :
+// /// - Initialisation du service approprié (web ou native)
+// /// - Intégration dans une GoogleMapController
+// /// - Gestion de l'interface utilisateur pour contrôler les bâtiments
+// /// - Gestion d'erreurs appropriée
+// ///
+// /// À adapter selon votre contexte d'application.
+// 
+// void main() async {
+//   WidgetsFlutterBinding.ensureInitialized();
+//   await Firebase.initializeApp();
+//   runApp(const MyApp());
+// }
+// 
+// class MyApp extends StatelessWidget {
+//   const MyApp({Key? key}) : super(key: key);
+// 
+//   @override
+//   Widget build(BuildContext context) {
+//     return MaterialApp(
+//       title: 'Buildings Opacity Demo',
+//       theme: ThemeData(primarySwatch: Colors.blue),
+//       home: const MapScreen(),
+//     );
+//   }
+// }
+// 
+// class MapScreen extends StatefulWidget {
+//   const MapScreen({Key? key}) : super(key: key);
+// 
+//   @override
+//   State<MapScreen> createState() => _MapScreenState();
+// }
+// 
+// class _MapScreenState extends State<MapScreen> {
+//   late final MapBuildingsStyleService _buildingsService;
+//   // MapboxMap? _map;
+//   double _opacity = 1.0;
+//   bool _buildingsEnabled = true;
+//   bool _is3DAvailable = false;
+//   bool _loading = true;
+// 
+//   @override
+//   void initState() {
+//     super.initState();
+//     _buildingsService = MapBuildingsStyleServiceWeb(); // ou Native
+//     _checkAvailability();
+//   }
+// 
+//   Future<void> _checkAvailability() async {
+//     try {
+//       final available = await _buildingsService.is3DBuildingsAvailable();
+//       setState(() {
+//         _is3DAvailable = available;
+//         _loading = false;
+//       });
+//     } catch (e) {
+//       setState(() => _loading = false);
+//       debugPrint('Erreur: $e');
+//     }
+//   }
+// 
+//   Future<void> _setOpacity(double newOpacity) async {
+//     try {
+//       final success = await _buildingsService.setBuildingsOpacity(newOpacity);
+//       if (success) {
+//         setState(() => _opacity = newOpacity);
+//       }
+//     } catch (e) {
+//       debugPrint('Erreur set opacity: $e');
+//     }
+//   }
+// 
+//   Future<void> _toggleBuildings() async {
+//     try {
+//       final success = await _buildingsService.setBuildingsEnabled(!_buildingsEnabled);
+//       if (success) {
+//         setState(() => _buildingsEnabled = !_buildingsEnabled);
+//       }
+//     } catch (e) {
+//       debugPrint('Erreur toggle: $e');
+//     }
+//   }
+// 
+//   @override
+//   Widget build(BuildContext context) {
+//     if (_loading) {
+//       return const Scaffold(
+//         body: Center(child: CircularProgressIndicator()),
+//       );
+//     }
+// 
+//     if (!_is3DAvailable) {
+//       return Scaffold(
+//         appBar: AppBar(title: const Text('Buildings Opacity')),
+//         body: const Center(
+//           child: Text('Les bâtiments 3D ne sont pas disponibles dans ce style.'),
+//         ),
+//       );
+//     }
+// 
+//     return Scaffold(
+//       appBar: AppBar(
+//         title: const Text('Buildings Opacity Control'),
+//         actions: [
+//           IconButton(
+//             icon: Icon(_buildingsEnabled ? Icons.visibility : Icons.visibility_off),
+//             onPressed: _toggleBuildings,
+//             tooltip: _buildingsEnabled ? 'Masquer bâtiments' : 'Afficher bâtiments',
+//           ),
+//         ],
+//       ),
+//       body: Column(
+//         children: [
+//           Padding(
+//             padding: const EdgeInsets.all(16),
+//             child: Column(
+//               crossAxisAlignment: CrossAxisAlignment.start,
+//               children: [
+//                 const Text('Opacité des bâtiments 3D'),
+//                 Slider(
+//                   value: _opacity,
+//                   min: 0.0,
+//                   max: 1.0,
+//                   onChanged: _setOpacity,
+//                   divisions: 100,
+//                   label: '${(_opacity * 100).toStringAsFixed(0)}%',
+//                 ),
+//               ],
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+// }
