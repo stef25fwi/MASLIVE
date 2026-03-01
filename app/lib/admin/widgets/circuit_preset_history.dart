@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:timeago/timeago.dart' as timeago;
-import '../services/circuit_preset_service.dart';
+import '../../services/circuit_preset_service.dart';
 
 /// Widget pour afficher l'historique des presets avec possibilité de restauration
 class CircuitPresetHistory extends StatefulWidget {

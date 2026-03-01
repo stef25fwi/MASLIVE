@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/circuit_preset_service.dart';
+import '../../services/circuit_preset_service.dart';
 
 /// Widget pour afficher un log des modifications avant publication
 class CircuitChangelogViewer extends StatelessWidget {
