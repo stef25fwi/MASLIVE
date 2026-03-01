@@ -159,6 +159,28 @@
       }
     },
     {
+      "label": "MASLIVE: Git commit + push (security: redact Mapbox token logs)",
+      "type": "shell",
+      "command": "bash -lc 'cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z "$EMAIL" ]; then git config user.email "devcontainer@maslive.local"; fi && if [ -z "$NAME" ]; then git config user.name "MASLIVE Devcontainer"; fi && git add commit_push_build_deploy.sh build_deploy_now.sh build_and_deploy_hosting.sh quick_deploy.sh deploy_firebase.sh deploy_production.sh scripts/build_with_mapbox.sh .vscode/tasks.json && if git diff --cached --quiet; then echo "⚠️ Rien à committer (redact token logs)"; exit 0; fi && git commit -m "chore(security): redact Mapbox token in logs" && git push origin main' > /tmp/maslive_security_commit.log 2>&1; echo EXIT_CODE=$? >> /tmp/maslive_security_commit.log; tail -n 80 /tmp/maslive_security_commit.log",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: 🧹 Clean Build + Deploy (fresh artifacts)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -z \"$TOKEN\" ]; then echo '❌ Token Mapbox manquant'; exit 1; fi && echo '🧹 Nettoyage app/build/web...' && cd app && flutter clean && rm -rf build/web && cd .. && echo '✅ Nettoyé' && echo '' && echo '🔨 Pub get + Build ...' && cd app && flutter pub get && flutter build web --release --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" && cd .. && echo '✅ Build OK' && echo '' && echo '🌐 Deploy Firebase...' && firebase deploy --only hosting,functions,firestore:rules,firestore:indexes && echo '✅ Déployé' && echo '' && echo '════════════════════════════' && echo '✅ CLEAN BUILD + DEPLOY réussi' && echo '════════════════════════════'",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: 🚀 Commit wizard tracé + directions + sécurité",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add app/lib/ui/wizard/pro_circuit_wizard_page.dart app/lib/providers/wizard_circuit_provider.dart app/lib/services/mapbox_directions_service.dart app/lib/services/mapbox_token_service.dart app/lib/models/draft_circuit.dart app/web/index.html .gitignore .vscode/tasks.json && git commit -m \"feat(wizard): étape Tracé & Style Pro (auto/hybrid) + sécurité token mapbox\" && git push origin main",
@@ -214,7 +236,7 @@
     /* {
       "label": "MASLIVE: PATCH (temp) circuit_poi_editor SnackBars top",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE && python3 -c 'from pathlib import Path; import re; p=Path(\"app/lib/admin/circuit_poi_editor_page.dart\"); t=p.read_text(encoding=\"utf-8\"); nl=\"\\r\\n\" if \"\\r\\n\" in t else \"\\n\"; t=t if \"top_snack_bar.dart\" in t else t.replace(\"import \'../ui/map/maslive_map.dart\';\"+nl, \"import \'../ui/map/maslive_map.dart\';\"+nl+\"import \'../ui/snack/top_snack_bar.dart\';\"+nl, 1); pat=re.compile(r\"(^[ \\t]*)ScaffoldMessenger\\.of\\(context\\)\\.showSnackBar\\(\", re.M); t,n=pat.subn(r\"\\1TopSnackBar.show(\"+nl+r\"\\1  context,\"+nl, t); p.write_text(t, encoding=\"utf-8\", newline=nl); print(\"replaced\", n)'",
+      "command": "cd /workspaces/MASLIVE && LOG=/workspaces/MASLIVE/_security_commit.log && : > \"$LOG\" && bash -lc 'cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add commit_push_build_deploy.sh build_deploy_now.sh build_and_deploy_hosting.sh quick_deploy.sh deploy_firebase.sh deploy_production.sh scripts/build_with_mapbox.sh .vscode/tasks.json && if git diff --cached --quiet; then echo \"⚠️ Rien à committer (redact token logs)\"; exit 0; fi && git commit -m \"chore(security): redact Mapbox token in logs\" && git push origin main' >> \"$LOG\" 2>&1; echo EXIT_CODE=$? >> \"$LOG\"; tail -n 80 \"$LOG\"",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -1030,7 +1052,19 @@
     {
       "label": "MASLIVE: 🧪 Debug processes (flutter/firebase)",
       "type": "shell",
-      "command": "bash -lc 'ps -ef | egrep \"(flutter|dart|firebase)\" | grep -v egrep > /tmp/maslive_processes.log'",
+      "command": "bash -lc 'ps -ef | egrep \"(commit_push_build_deploy\\.sh|flutter|dart|firebase|npm|node|git)\" | grep -v egrep > /tmp/maslive_processes.log'",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "never",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: 🧪 Debug processes (all deploy tools)",
+      "type": "shell",
+      "command": "bash -lc 'ps -ef | egrep \"(commit_push_build_deploy\\.sh|commit_and_push_now\\.sh|flutter|dart|firebase|npm|node|git)\" | grep -v egrep > /tmp/maslive_processes_all.log'",
       "problemMatcher": [],
       "isBackground": false,
       "presentation": {

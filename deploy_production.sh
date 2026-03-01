@@ -48,7 +48,7 @@ if [ -z "$TOKEN" ]; then
   echo "➡️  Lance la tâche: MASLIVE: 🗺️ Set Mapbox token (.env) puis relance."
   exit 1
 fi
-echo "🗺️  Token Mapbox détecté: ${TOKEN:0:15}..."
+echo "🗺️  Token Mapbox détecté: OK (redacted)"
 flutter build web --release --no-tree-shake-icons --dart-define=MAPBOX_ACCESS_TOKEN="$TOKEN"
 
 # Step 4: Deploy

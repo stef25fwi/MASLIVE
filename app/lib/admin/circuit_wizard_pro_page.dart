@@ -16,6 +16,7 @@ import '../services/publish_quality_service.dart';
 import '../ui/map/maslive_map.dart';
 import '../ui/map/maslive_map_controller.dart';
 import '../ui/widgets/country_autocomplete_field.dart';
+import '../ui/widgets/glass_scrollbar.dart';
 import '../ui/snack/top_snack_bar.dart';
 import '../models/market_country.dart';
 import 'circuit_map_editor.dart';
@@ -1832,76 +1833,79 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   Widget _buildStep0Template() {
-    return SingleChildScrollView(
-      physics: _isWizardMapInteracting
-          ? const NeverScrollableScrollPhysics()
-          : null,
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'Choisir un modèle (optionnel)',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Tu peux démarrer depuis un template global ou passer cette étape.',
-            style: TextStyle(fontSize: 13, color: Colors.black54),
-          ),
-          const SizedBox(height: 20),
-          DropdownButtonFormField<CircuitTemplate>(
-            initialValue: _selectedTemplate,
-            items: _templates
-                .map(
-                  (t) => DropdownMenuItem<CircuitTemplate>(
-                    value: t,
-                    child: Text('${t.name} (${t.category})'),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) => setState(() => _selectedTemplate = value),
-            decoration: const InputDecoration(
-              labelText: 'Template',
-              border: OutlineInputBorder(),
+    return GlassScrollbar(
+      child: SingleChildScrollView(
+        physics: _isWizardMapInteracting
+            ? const NeverScrollableScrollPhysics()
+            : null,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Choisir un modèle (optionnel)',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              ElevatedButton.icon(
-                icon: const Icon(Icons.auto_awesome),
-                onPressed: _selectedTemplate == null
-                    ? null
-                    : () => _applyTemplate(_selectedTemplate!),
-                label: const Text('Appliquer le modèle'),
+            const SizedBox(height: 12),
+            const Text(
+              'Tu peux démarrer depuis un template global ou passer cette étape.',
+              style: TextStyle(fontSize: 13, color: Colors.black54),
+            ),
+            const SizedBox(height: 20),
+            DropdownButtonFormField<CircuitTemplate>(
+              initialValue: _selectedTemplate,
+              items: _templates
+                  .map(
+                    (t) => DropdownMenuItem<CircuitTemplate>(
+                      value: t,
+                      child: Text('${t.name} (${t.category})'),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) => setState(() => _selectedTemplate = value),
+              decoration: const InputDecoration(
+                labelText: 'Template',
+                border: OutlineInputBorder(),
               ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.history),
-                onPressed: _showDraftHistory,
-                label: const Text('Historique'),
-              ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.auto_awesome),
+                  onPressed: _selectedTemplate == null
+                      ? null
+                      : () => _applyTemplate(_selectedTemplate!),
+                  label: const Text('Appliquer le modèle'),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.history),
+                  onPressed: _showDraftHistory,
+                  label: const Text('Historique'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildStep1Infos() {
-    return SingleChildScrollView(
-      physics: _isWizardMapInteracting
-          ? const NeverScrollableScrollPhysics()
-          : null,
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'Informations de base',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
+    return GlassScrollbar(
+      child: SingleChildScrollView(
+        physics: _isWizardMapInteracting
+            ? const NeverScrollableScrollPhysics()
+            : null,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Informations de base',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           const SizedBox(height: 20),
           TextField(
             controller: _nameController,
@@ -2086,6 +2090,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -4340,15 +4345,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   Widget _buildStep7Validation() {
     final report = _qualityReport;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'Pré-publication',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
+    return GlassScrollbar(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Pré-publication',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           const SizedBox(height: 12),
           Text(
             'Score qualité: ${report.score}/100',
@@ -4380,22 +4386,24 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   ? const Chip(label: Text('Requis'))
                   : const Chip(label: Text('Optionnel')),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildStep8Publish() {
     final report = _qualityReport;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'Publication',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
+    return GlassScrollbar(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Publication',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.all(16),
@@ -4490,6 +4498,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             label: const Text('Rester en brouillon'),
           ),
         ],
+        ),
       ),
     );
   }

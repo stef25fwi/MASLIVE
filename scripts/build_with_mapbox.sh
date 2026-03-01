@@ -56,7 +56,7 @@ if [[ ! $MAPBOX_TOKEN =~ ^pk[\._] ]]; then
     fi
 fi
 
-echo "✅ Token Mapbox détecté: ${MAPBOX_TOKEN:0:15}..."
+echo "✅ Token Mapbox détecté: OK (redacted)"
 echo ""
 
 # Step 1: Clean previous builds

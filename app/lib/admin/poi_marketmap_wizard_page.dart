@@ -11,6 +11,7 @@ import '../services/circuit_search_service.dart';
 import '../utils/country_flag.dart';
 import '../ui/snack/top_snack_bar.dart';
 import '../ui/widgets/country_autocomplete_field.dart';
+import '../ui/widgets/glass_scrollbar.dart';
 import 'circuit_wizard_pro_page.dart';
 
 class POIMarketMapWizardPage extends StatefulWidget {
@@ -761,43 +762,45 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
                     child: Text('Aucune couche trouvée pour ce circuit.'));
               }
 
-              return ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: layers.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  final layer = layers[index];
-                  final color = _layerColor(layer);
+              return GlassScrollbar(
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: layers.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final layer = layers[index];
+                    final color = _layerColor(layer);
 
-                  return Card(
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: color.withValues(alpha: 0.15),
-                        foregroundColor: color,
-                        child: Icon(_layerIcon(layer)),
-                      ),
-                      title: Text(layer.id),
-                      subtitle: Text(
-                          'type: ${layer.type} • enabled: ${layer.isEnabled}'),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => _LayerPoisPage(
-                              countryId: country.id,
-                              countryName: country.name,
-                              eventId: event.id,
-                              eventName: event.name,
-                              circuitId: circuit.id,
-                              circuitName: circuit.name,
-                              layer: layer,
+                    return Card(
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: color.withValues(alpha: 0.15),
+                          foregroundColor: color,
+                          child: Icon(_layerIcon(layer)),
+                        ),
+                        title: Text(layer.id),
+                        subtitle: Text(
+                            'type: ${layer.type} • enabled: ${layer.isEnabled}'),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => _LayerPoisPage(
+                                countryId: country.id,
+                                countryName: country.name,
+                                eventId: event.id,
+                                eventName: event.name,
+                                circuitId: circuit.id,
+                                circuitName: circuit.name,
+                                layer: layer,
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                },
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
               );
             },
           ),
@@ -1271,60 +1274,62 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
                   return const Center(child: Text('Aucun POI pour cette couche.'));
                 }
 
-                return ListView.separated(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: docs.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final doc = docs[index];
-                    final data = doc.data();
-                    final name = (data['name'] ?? doc.id).toString();
-                    final type = data['type']?.toString();
-                    final lat = (data['lat'] as num?)?.toDouble();
-                    final lng = (data['lng'] as num?)?.toDouble();
-                    final isVisible = (data['isVisible'] as bool?) ?? true;
+                return GlassScrollbar(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: docs.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final doc = docs[index];
+                      final data = doc.data();
+                      final name = (data['name'] ?? doc.id).toString();
+                      final type = data['type']?.toString();
+                      final lat = (data['lat'] as num?)?.toDouble();
+                      final lng = (data['lng'] as num?)?.toDouble();
+                      final isVisible = (data['isVisible'] as bool?) ?? true;
 
-                    return Card(
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          child: Icon(_typeIcon(type)),
-                        ),
-                        title: Text(name),
-                        subtitle: Text(
-                          '${type ?? 'poi'}'
-                          '${lat != null && lng != null ? ' • ${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}' : ''}',
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Tooltip(
-                              message: 'Visible',
-                              child: Checkbox(
-                                value: isVisible,
-                                onChanged: (v) {
-                                  if (v == null) return;
-                                  _toggleVisible(doc.id, v);
-                                },
+                      return Card(
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            child: Icon(_typeIcon(type)),
+                          ),
+                          title: Text(name),
+                          subtitle: Text(
+                            '${type ?? 'poi'}'
+                            '${lat != null && lng != null ? ' • ${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}' : ''}',
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Tooltip(
+                                message: 'Visible',
+                                child: Checkbox(
+                                  value: isVisible,
+                                  onChanged: (v) {
+                                    if (v == null) return;
+                                    _toggleVisible(doc.id, v);
+                                  },
+                                ),
                               ),
-                            ),
-                            IconButton(
-                              tooltip: 'Modifier',
-                              onPressed: () => _createOrEditPoi(
-                                poiId: doc.id,
-                                existing: data,
+                              IconButton(
+                                tooltip: 'Modifier',
+                                onPressed: () => _createOrEditPoi(
+                                  poiId: doc.id,
+                                  existing: data,
+                                ),
+                                icon: const Icon(Icons.edit_rounded),
                               ),
-                              icon: const Icon(Icons.edit_rounded),
-                            ),
-                            IconButton(
-                              tooltip: 'Supprimer',
-                              onPressed: () => _deletePoi(doc.id),
-                              icon: const Icon(Icons.delete_outline_rounded),
-                            ),
-                          ],
+                              IconButton(
+                                tooltip: 'Supprimer',
+                                onPressed: () => _deletePoi(doc.id),
+                                icon: const Icon(Icons.delete_outline_rounded),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 );
               },
             ),

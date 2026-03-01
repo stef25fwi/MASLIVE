@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import '../models/route_style_config.dart';
 import '../services/route_snap_service.dart';
 import '../services/route_style_persistence.dart';
-import '../../ui/snack/top_snack_bar.dart';
 import 'widgets/route_style_controls_panel.dart';
 import 'widgets/route_style_preview_map.dart';
 
@@ -418,10 +417,26 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
 
   void _snack(String msg) {
     if (!mounted) return;
-    TopSnackBar.show(
-      context,
-      SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
-    );
+    
+    final messenger = ScaffoldMessenger.of(context);
+    final media = MediaQuery.of(context);
+    
+    // Position juste sous la status bar système en haut
+    final top = media.padding.top + 8;
+    final viewportH = media.size.height;
+    final bottom = (viewportH - top - 72).clamp(0.0, viewportH);
+    
+    messenger
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          dismissDirection: DismissDirection.up,
+          margin: EdgeInsets.fromLTRB(16, top, 16, bottom),
+        ),
+      );
   }
 
   @override
@@ -429,30 +444,6 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
     const proBlue = Color(0xFF1A73E8);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Route Style Wizard Pro'),
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        shadowColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        actions: [
-          IconButton(
-            tooltip: 'Presets',
-            onPressed: _busy ? null : _openPresetsDialog,
-            icon: const Icon(Icons.bookmarks_outlined),
-          ),
-          if ((_projectId ?? '').trim().isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: Center(
-                child: Text(
-                  'project: ${_projectId!}',
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ),
-            ),
-        ],
-      ),
       body: Column(
         children: [
           _buildWizardHeader(),

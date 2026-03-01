@@ -151,7 +151,7 @@ if [[ -z "$TOKEN" ]]; then
 	echo "➡️  Utilise la tâche VS Code: 'MASLIVE: 🗺️ Set Mapbox token (.env)' puis relance."
 	exit 1
 fi
-echo "🗺️  Token Mapbox détecté: ${TOKEN:0:15}..."
+echo "🗺️  Token Mapbox détecté: OK (redacted)"
 (cd app && flutter pub get && flutter build web --release --dart-define=MAPBOX_ACCESS_TOKEN="$TOKEN")
 
 FIREBASE_CMD="firebase"
