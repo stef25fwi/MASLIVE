@@ -26,6 +26,9 @@ import '../route_style_pro/ui/route_style_wizard_pro_page.dart';
 import '../pages/home_vertical_nav.dart';
 import 'poi_bottom_popup.dart';
 import 'poi_edit_popup.dart';
+import '../services/circuit_preset_service.dart';
+import 'widgets/circuit_preset_history.dart';
+import 'widgets/circuit_changelog_viewer.dart';
 
 typedef LngLat = ({double lng, double lat});
 
@@ -197,6 +200,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   // Brouillon
   Map<String, dynamic> _draftData = {};
+
+  // Publication: onglets et presets
+  int _publicationTabIndex = 0;
+  final CircuitPresetService _presetService = CircuitPresetService();
+  Map<String, dynamic>? _lastPublishedData;
 
   void _showTopSnackBar(
     String message, {
@@ -800,6 +808,157 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     await _loadDraftOrInitialize();
     if (!mounted) return;
     _showTopSnackBar('✅ Version ${selected.version} restaurée');
+  }
+
+  Future<void> _createPreset() async {
+    if (_projectId == null) {
+      if (!mounted) return;
+      _showTopSnackBar('ℹ️ Sauvegarde d\'abord le projet.');
+      return;
+    }
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final nameController = TextEditingController();
+    final descController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Nouveau preset'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Nom du preset *',
+                hintText: 'Ex: Version initiale, Avant modification POIs...',
+              ),
+              autofocus: true,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: descController,
+              decoration: const InputDecoration(
+                labelText: 'Description (optionnel)',
+                hintText: 'Détails des changements...',
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Créer'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != true) return;
+
+    final name = nameController.text.trim();
+    if (name.isEmpty) {
+      if (!mounted) return;
+      _showTopSnackBar('❌ Le nom est requis', isError: true);
+      return;
+    }
+
+    try {
+      await _presetService.savePreset(
+        projectId: _projectId!,
+        name: name,
+        description: descController.text.trim(),
+        createdBy: user.uid,
+        data: _buildCurrentData(),
+      );
+
+      // Sauvegarder également comme dernière version publiée
+      setState(() {
+        _lastPublishedData = _buildCurrentData();
+      });
+
+      if (!mounted) return;
+      _showTopSnackBar('✅ Preset "$name" créé');
+      setState(() {}); // Rafraîchir l'UI
+    } catch (e) {
+      if (!mounted) return;
+      _showTopSnackBar('❌ Erreur: $e', isError: true);
+    }
+  }
+
+  Future<void> _restorePreset(Map<String, dynamic> data, String presetName) async {
+    if (!_canWriteMapProjects) {
+      if (!mounted) return;
+      _showTopSnackBar(
+        '⛔ Restauration réservée aux admins master.',
+        isError: true,
+      );
+      return;
+    }
+
+    try {
+      // Restaurer les données du preset
+      _nameController.text = (data['name'] as String?) ?? '';
+      _descriptionController.text = (data['description'] as String?) ?? '';
+      _countryController.text = (data['countryId'] as String?) ?? '';
+      _eventController.text = (data['eventId'] as String?) ?? '';
+      _styleUrlController.text = (data['styleUrl'] as String?) ?? '';
+
+      // Restaurer périmètre
+      final perimeterData = data['perimeter'] as List?;
+      if (perimeterData != null) {
+        _perimeterPoints = perimeterData
+            .map((p) => (lng: (p['lng'] as num).toDouble(), lat: (p['lat'] as num).toDouble()))
+            .toList();
+      }
+
+      // Restaurer tracé
+      final routeData = data['route'] as List?;
+      if (routeData != null) {
+        _routePoints = routeData
+            .map((p) => (lng: (p['lng'] as num).toDouble(), lat: (p['lat'] as num).toDouble()))
+            .toList();
+      }
+
+      // Restaurer style tracé
+      final routeStyle = data['routeStyle'] as Map?;
+      if (routeStyle != null) {
+        _routeColorHex = (routeStyle['color'] as String?) ?? '#1A73E8';
+        _routeWidth = ((routeStyle['width'] as num?) ?? 6.0).toDouble();
+      }
+
+      // Restaurer layers et POIs
+      final layersData = data['layers'] as List?;
+      if (layersData != null) {
+        _layers = layersData
+            .map((l) => MarketMapLayer.fromJson(Map<String, dynamic>.from(l as Map)))
+            .toList();
+      }
+
+      final poisData = data['pois'] as List?;
+      if (poisData != null) {
+        _pois = poisData
+            .map((p) => MarketMapPOI.fromJson(Map<String, dynamic>.from(p as Map)))
+            .toList();
+      }
+
+      setState(() {});
+      await _saveDraft();
+
+      if (!mounted) return;
+      _showTopSnackBar('✅ Preset "$presetName" restauré');
+    } catch (e) {
+      if (!mounted) return;
+      _showTopSnackBar('❌ Erreur restauration: $e', isError: true);
+    }
   }
 
   @override

@@ -8,7 +8,6 @@ import 'favorites_page.dart';
 import 'login_page.dart';
 import 'media_gallery_maslive_instagram_page.dart';
 import '../widgets/rainbow_header.dart';
-import '../widgets/honeycomb_background.dart';
 import '../widgets/admin_route_guard.dart';
 import '../admin/admin_stock_page.dart';
 import '../admin/admin_product_categories_page.dart';
@@ -63,9 +62,8 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
         final showSuperAdminCommerce = isSuperAdmin || isStephane;
 
         return Scaffold(
-          body: HoneycombBackground(
-            child: CustomScrollView(
-              slivers: [
+          body: CustomScrollView(
+            slivers: [
                 SliverToBoxAdapter(
                   child: RainbowHeader(
                     title: 'Espace administrateur',
@@ -182,7 +180,7 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
                 ),
               ],
             ),
-          ),
+
         );
       },
     );
