@@ -301,6 +301,141 @@
   }
 
   /**
+   * Trouve une couche de bâtiments 3D (fill-extrusion) dans le style actuel
+   * @param {mapboxgl.Map} map - Instance de la carte (optionnel, utilise map globale si null)
+   * @returns {string|null} - ID de la couche trouvée ou null
+   */
+  window.mapboxBridge = window.mapboxBridge || {};
+  window.mapboxBridge.findBuildingLayer = function(map) {
+    const mapInstance = map || window.MapboxBridge.map;
+    if (!mapInstance || !mapInstance.getStyle()) {
+      console.warn('[BuildingsOpacity] No map or style available');
+      return null;
+    }
+
+    const possibleIds = [
+      '3d-buildings',
+      'building-3d',
+      'buildings-3d',
+      'maslive-3d-buildings',
+      'building',
+    ];
+
+    const style = mapInstance.getStyle();
+    if (!style || !style.layers) {
+      console.warn('[BuildingsOpacity] Style has no layers');
+      return null;
+    }
+
+    // Chercher dans les IDs connus
+    for (const id of possibleIds) {
+      const layer = style.layers.find(l => l.id === id && l.type === 'fill-extrusion');
+      if (layer) {
+        console.log(`[BuildingsOpacity] layer found: ${id}`);
+        return id;
+      }
+    }
+
+    // Chercher n'importe quelle couche fill-extrusion
+    const anyFillExtrusion = style.layers.find(l => l.type === 'fill-extrusion');
+    if (anyFillExtrusion) {
+      console.log(`[BuildingsOpacity] layer found: ${anyFillExtrusion.id}`);
+      return anyFillExtrusion.id;
+    }
+
+    console.log('[BuildingsOpacity] no fill-extrusion layer found in current style');
+    return null;
+  };
+
+  /**
+   * Définit l'opacité des bâtiments 3D
+   * @param {string} layerId - ID de la couche
+   * @param {number} opacity - Opacité (0.0 à 1.0)
+   * @param {mapboxgl.Map} map - Instance de la carte (optionnel)
+   * @returns {boolean} - true si succès, false sinon
+   */
+  window.mapboxBridge.setBuildingsOpacity = function(layerId, opacity, map) {
+    const mapInstance = map || window.MapboxBridge.map;
+    if (!mapInstance) {
+      console.warn('[BuildingsOpacity] No map instance');
+      return false;
+    }
+
+    try {
+      const clampedOpacity = Math.max(0.0, Math.min(1.0, opacity));
+      
+      if (!mapInstance.getLayer(layerId)) {
+        console.warn(`[BuildingsOpacity] Layer ${layerId} not found`);
+        return false;
+      }
+
+      mapInstance.setPaintProperty(layerId, 'fill-extrusion-opacity', clampedOpacity);
+      console.log(`[BuildingsOpacity] apply opacity=${clampedOpacity} layer=${layerId} success`);
+      return true;
+    } catch (e) {
+      console.error('[BuildingsOpacity] setBuildingsOpacity error:', e);
+      return false;
+    }
+  };
+
+  /**
+   * Récupère l'opacité actuelle des bâtiments 3D
+   * @param {string} layerId - ID de la couche
+   * @param {mapboxgl.Map} map - Instance de la carte (optionnel)
+   * @returns {number|null} - Opacité actuelle ou null
+   */
+  window.mapboxBridge.getBuildingsOpacity = function(layerId, map) {
+    const mapInstance = map || window.MapboxBridge.map;
+    if (!mapInstance) {
+      console.warn('[BuildingsOpacity] No map instance');
+      return null;
+    }
+
+    try {
+      if (!mapInstance.getLayer(layerId)) {
+        console.warn(`[BuildingsOpacity] Layer ${layerId} not found`);
+        return null;
+      }
+
+      const opacity = mapInstance.getPaintProperty(layerId, 'fill-extrusion-opacity');
+      return opacity !== undefined ? opacity : 0.7; // Défaut Mapbox
+    } catch (e) {
+      console.error('[BuildingsOpacity] getBuildingsOpacity error:', e);
+      return null;
+    }
+  };
+
+  /**
+   * Active ou désactive les bâtiments 3D
+   * @param {string} layerId - ID de la couche
+   * @param {boolean} enabled - true pour visible, false pour caché
+   * @param {mapboxgl.Map} map - Instance de la carte (optionnel)
+   * @returns {boolean} - true si succès, false sinon
+   */
+  window.mapboxBridge.setBuildingsEnabled = function(layerId, enabled, map) {
+    const mapInstance = map || window.MapboxBridge.map;
+    if (!mapInstance) {
+      console.warn('[BuildingsOpacity] No map instance');
+      return false;
+    }
+
+    try {
+      if (!mapInstance.getLayer(layerId)) {
+        console.warn(`[BuildingsOpacity] Layer ${layerId} not found`);
+        return false;
+      }
+
+      const visibility = enabled ? 'visible' : 'none';
+      mapInstance.setLayoutProperty(layerId, 'visibility', visibility);
+      console.log(`[BuildingsOpacity] set buildings enabled=${enabled} layer=${layerId} success`);
+      return true;
+    } catch (e) {
+      console.error('[BuildingsOpacity] setBuildingsEnabled error:', e);
+      return false;
+    }
+  };
+
+  /**
    * Centre la carte sur une position
    * @param {number} lng - Longitude
    * @param {number} lat - Latitude

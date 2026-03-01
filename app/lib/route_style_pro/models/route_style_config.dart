@@ -92,6 +92,13 @@ class RouteStyleConfig {
 
   final bool alternativesEnabled;
 
+  // H) Immeubles 3D (environnement)
+  /// Active/désactive les bâtiments 3D sur la carte
+  final bool buildings3dEnabled;
+  /// Transparence des immeubles 3D (0=invisible, 1=opaque)
+  /// 0..1
+  final double buildingOpacity;
+
   const RouteStyleConfig({
     this.schemaVersion = kRouteStyleSchemaVersion,
     // A
@@ -135,6 +142,9 @@ class RouteStyleConfig {
     this.vanishingEnabled = false,
     this.vanishingProgress = 0.0,
     this.alternativesEnabled = false,
+    // H
+    this.buildings3dEnabled = true,
+    this.buildingOpacity = 0.60,
   });
 
   RouteStyleConfig copyWith({
@@ -173,6 +183,8 @@ class RouteStyleConfig {
     bool? vanishingEnabled,
     double? vanishingProgress,
     bool? alternativesEnabled,
+    bool? buildings3dEnabled,
+    double? buildingOpacity,
   }) {
     return RouteStyleConfig(
       schemaVersion: schemaVersion ?? this.schemaVersion,
@@ -210,6 +222,8 @@ class RouteStyleConfig {
       vanishingEnabled: vanishingEnabled ?? this.vanishingEnabled,
       vanishingProgress: vanishingProgress ?? this.vanishingProgress,
       alternativesEnabled: alternativesEnabled ?? this.alternativesEnabled,
+      buildings3dEnabled: buildings3dEnabled ?? this.buildings3dEnabled,
+      buildingOpacity: buildingOpacity ?? this.buildingOpacity,
     ).validated();
   }
 
@@ -253,6 +267,8 @@ class RouteStyleConfig {
       vanishingEnabled: vanishingEnabled,
       vanishingProgress: clamp(vanishingProgress, 0, 1),
       alternativesEnabled: alternativesEnabled,
+      buildings3dEnabled: buildings3dEnabled,
+      buildingOpacity: clamp(buildingOpacity, 0, 1),
     );
   }
 
@@ -293,6 +309,8 @@ class RouteStyleConfig {
       'vanishingEnabled': vanishingEnabled,
       'vanishingProgress': vanishingProgress,
       'alternativesEnabled': alternativesEnabled,
+      'buildings3dEnabled': buildings3dEnabled,
+      'buildingOpacity': buildingOpacity,
     };
   }
 
@@ -400,6 +418,12 @@ class RouteStyleConfig {
       alternativesEnabled: json['alternativesEnabled'] is bool
           ? json['alternativesEnabled'] as bool
           : false,
+      buildings3dEnabled: json['buildings3dEnabled'] is bool
+          ? json['buildings3dEnabled'] as bool
+          : true,
+      buildingOpacity: (json['buildingOpacity'] is num)
+          ? (json['buildingOpacity'] as num).toDouble()
+          : 0.60,
     );
 
     return cfg.validated();

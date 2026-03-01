@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/route_style_config.dart';
 import '../../models/route_style_preset.dart';
+import 'building_opacity_control.dart';
 import 'color_picker_tile.dart';
 import 'route_style_slider.dart';
 import 'toggle_tile.dart';
@@ -396,6 +397,14 @@ class RouteStyleControlsPanel extends StatelessWidget {
                   onChanged: (v) => onChanged(cfg.copyWith(pulseSpeed: v)),
                 ),
             ],
+          ),
+
+          const SizedBox(height: 24),
+
+          // Contrôle de transparence des immeubles 3D (premium)
+          BuildingOpacityControl(
+            config: cfg,
+            onChanged: onChanged,
           ),
 
           const SizedBox(height: 16),
