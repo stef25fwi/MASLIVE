@@ -737,62 +737,99 @@
 
   window.MasliveMapboxV2 = {
     // Variante: init avec un élément DOM direct (évite le lookup getElementById).
+    // ─── FLUX LINÉAIRE ──────────────────────────────────────────────────────────
+    // Chaque étape de validation retourne false IMMÉDIATEMENT via un return au
+    // niveau de la fonction (pas d'imbrication try/catch qui avalerait les return).
+    // Cela évite le ReferenceError historique « Can't find variable: el » causé par
+    // un `const el` déclaré dans un bloc try interne puis référencé en dehors.
     initElement: function(containerEl, containerId, token, optionsJson) {
+      // Le try/catch EXTERNE attrape uniquement les exceptions imprévues (ex: JSON.parse).
       try {
         const options = optionsJson ? JSON.parse(optionsJson) : {};
+
+        // ── 1. containerId ────────────────────────────────────────────────────
+        if (!containerId || String(containerId).trim().length === 0) {
+          _postToFlutter({
+            type: 'MASLIVE_MAP_ERROR',
+            containerId: containerId || '',
+            reason: 'CONTAINER_ID_MISSING',
+            message: 'ContainerId manquant pour la carte.',
+          });
+          return false;
+        }
+
+        // ── 2. Résolution de l'élément DOM ────────────────────────────────────
+        // CRITIQUE: `el` déclaré ici (scope de la fonction), JAMAIS dans un bloc
+        // try interne. Sur WebKit/Safari, `const el` inside try {} → ReferenceError
+        // garanti quand référencé après le bloc.
+        let el = null;
         try {
-          if (!containerId || String(containerId).trim().length === 0) {
-            _postToFlutter({
-              type: 'MASLIVE_MAP_ERROR',
-              containerId: containerId || '',
-              reason: 'CONTAINER_ID_MISSING',
-              message: 'ContainerId manquant pour la carte.',
-            });
-            return false;
-          }
+          el = containerEl
+            || document.getElementById(containerId)
+            || _findElementDeepById(containerId);
+        } catch (_) {
+          // DOM API a levé : tentative deep-search seule
+          try { el = _findElementDeepById(containerId); } catch (__) { /* ignore */ }
+        }
 
-          const el = containerEl || document.getElementById(containerId) || _findElementDeepById(containerId);
-          if (!el) {
-            _postToFlutter({
-              type: 'MASLIVE_MAP_ERROR',
-              containerId,
-              reason: 'CONTAINER_NOT_FOUND',
-              message: 'Conteneur HTML introuvable (DOM).',
-            });
-            return false;
-          }
+        if (!el) {
+          _postToFlutter({
+            type: 'MASLIVE_MAP_ERROR',
+            containerId,
+            reason: 'CONTAINER_NOT_FOUND',
+            message: 'Conteneur HTML introuvable (DOM).',
+          });
+          return false;
+        }
 
-          // Assure un id stable pour compat stockage par containerId.
+        // Fixe un id stable sur l'élément pour les lookups internes Mapbox.
+        try { if (!el.id) el.id = containerId; } catch (_) { /* ignore */ }
+
+        // ── 3. Mapbox GL JS disponible ? ──────────────────────────────────────
+        if (typeof mapboxgl === 'undefined') {
+          let status = '';
           try {
-            if (!el.id) el.id = containerId;
-          } catch (_) {
-            // ignore
-          }
+            status = window.__MAPBOXGL_LOAD_STATUS__ ? String(window.__MAPBOXGL_LOAD_STATUS__) : '';
+          } catch (_) { status = ''; }
+          _postToFlutter({
+            type: 'MASLIVE_MAP_ERROR',
+            containerId,
+            reason: 'MAPBOXGL_MISSING',
+            message: 'Mapbox GL JS non chargé (scripts https://api.mapbox.com potentiellement bloqués). Status=' + status,
+          });
+          return false;
+        }
 
-          if (typeof mapboxgl === 'undefined') {
-            let status = '';
-            try {
-              status = (window.__MAPBOXGL_LOAD_STATUS__ ? String(window.__MAPBOXGL_LOAD_STATUS__) : '');
-            } catch (_) {
-              status = '';
-            }
+        // Bridge incomplet (cas théorique: chargement partiel du script).
+        if (typeof window.initMapboxMap !== 'function') {
+          _postToFlutter({
+            type: 'MASLIVE_MAP_ERROR',
+            containerId,
+            reason: 'BRIDGE_MISSING',
+            message: 'Bridge Mapbox non prêt: initMapboxMap() manquante. Vérifie le chargement de mapbox_bridge.js.',
+          });
+          return false;
+        }
+
+        // ── 3bis. WebGL supporté ? ───────────────────────────────────────────
+        // Mapbox GL JS v3 nécessite WebGL2. Un fallback v2 peut être déclenché
+        // par index.html si supported() == false.
+        let isFallbacking = false;
+        try {
+          isFallbacking = (window.__MAPBOXGL_FALLBACKING__ === true);
+        } catch (_) {
+          isFallbacking = false;
+        }
+
+        try {
+          if (typeof mapboxgl.supported === 'function' && mapboxgl.supported() !== true) {
             _postToFlutter({
               type: 'MASLIVE_MAP_ERROR',
               containerId,
-              reason: 'MAPBOXGL_MISSING',
-              message: 'Mapbox GL JS non chargé (scripts https://api.mapbox.com potentiellement bloqués). Status=' + status,
-            });
-            return false;
-          }
-
-          // Token manquant
-          const accessToken = token || options.accessToken || window.__MAPBOX_TOKEN__;
-          if (!accessToken || accessToken === 'YOUR_MAPBOX_TOKEN') {
-            _postToFlutter({
-              type: 'MASLIVE_MAP_ERROR',
-              containerId,
-              reason: 'TOKEN_MISSING',
-              message: 'Token Mapbox manquant ou invalide.',
+              reason: isFallbacking ? 'MAPBOXGL_FALLBACKING' : 'WEBGL_UNSUPPORTED',
+              message: isFallbacking
+                ? 'Fallback Mapbox GL JS en cours (v3 non supporté) — chargement de la version compatible.'
+                : 'WebGL2 indisponible: Mapbox GL JS ne peut pas s\'initialiser sur ce navigateur/appareil.',
             });
             return false;
           }
@@ -800,6 +837,19 @@
           // ignore
         }
 
+        // ── 4. Token Mapbox présent ? ─────────────────────────────────────────
+        const accessToken = token || options.accessToken || window.__MAPBOX_TOKEN__;
+        if (!accessToken || accessToken === 'YOUR_MAPBOX_TOKEN') {
+          _postToFlutter({
+            type: 'MASLIVE_MAP_ERROR',
+            containerId,
+            reason: 'TOKEN_MISSING',
+            message: 'Token Mapbox manquant ou invalide.',
+          });
+          return false;
+        }
+
+        // ── 5. Initialisation Mapbox GL JS ────────────────────────────────────
         const map = window.initMapboxMap(el, token, options);
         if (!map) {
           _postToFlutter({
@@ -814,6 +864,7 @@
         const state = _ensureState(containerId, map);
         state.map = map;
 
+        // ── 6. Signal READY (quand style + tuiles stables) ───────────────────
         let didPostReady = false;
         const postReady = () => {
           if (didPostReady) return;
@@ -825,79 +876,55 @@
             const styleOk = (map.isStyleLoaded && map.isStyleLoaded() === true);
             const tilesOk = (typeof map.areTilesLoaded === 'function') ? (map.areTilesLoaded() === true) : true;
             return styleOk && tilesOk;
-          } catch (_) {
-            return false;
-          }
+          } catch (_) { return false; }
         };
 
         map.on('load', function() {
-          if (isStable()) {
-            postReady();
-            return;
-          }
-
+          if (isStable()) { postReady(); return; }
           const onIdle = function() {
             if (!isStable()) return;
             try { map.off('idle', onIdle); } catch (_) {}
             postReady();
           };
           try { map.on('idle', onIdle); } catch (_) {}
+          // Fallback: évite un spinner infini si idle ne se déclenche pas.
           setTimeout(() => { postReady(); }, 8000);
         });
 
+        // ── 7. Erreurs runtime (token révoqué, style, réseau, etc.) ──────────
         try {
           map.on('error', function(e) {
             try {
               const raw = (e && (e.error || e)) ? (e.error || e) : e;
               const c = _classifyRuntimeError(raw);
-
               const now = Date.now();
               const key = String(c.reason || '') + '|' + String(c.message || '');
+              // Throttle: évite le spam si la même erreur se répète en boucle.
               try {
                 const st = _v2State.get(containerId);
                 if (st) {
-                  const lastKey = st.lastErrorKey;
-                  const lastAt = Number(st.lastErrorAt || 0);
-                  if (lastKey === key && (now - lastAt) < 2000) {
-                    return;
-                  }
+                  if (st.lastErrorKey === key && (now - Number(st.lastErrorAt || 0)) < 2000) return;
                   st.lastErrorKey = key;
                   st.lastErrorAt = now;
                 }
-              } catch (_) {
-                // ignore
-              }
-
-              _postToFlutter({
-                type: 'MASLIVE_MAP_ERROR',
-                containerId,
-                reason: c.reason,
-                message: c.message,
-              });
-            } catch (_) {
-              // ignore
-            }
+              } catch (_) { /* ignore */ }
+              _postToFlutter({ type: 'MASLIVE_MAP_ERROR', containerId, reason: c.reason, message: c.message });
+            } catch (_) { /* ignore */ }
           });
-        } catch (_) {
-          // ignore
-        }
+        } catch (_) { /* ignore */ }
 
+        // ── 8. Clics carte ────────────────────────────────────────────────────
         map.on('click', function(e) {
           try {
             if (!e || !e.lngLat) return;
-            _postToFlutter({
-              type: 'MASLIVE_MAP_TAP',
-              containerId,
-              lng: e.lngLat.lng,
-              lat: e.lngLat.lat,
-            });
-          } catch (_) {
-            // ignore
-          }
+            _postToFlutter({ type: 'MASLIVE_MAP_TAP', containerId, lng: e.lngLat.lng, lat: e.lngLat.lat });
+          } catch (_) { /* ignore */ }
         });
 
         return true;
+
       } catch (e) {
+        // Exception imprévue (ex: JSON.parse sur optionsJson malformé).
         console.error('❌ MasliveMapboxV2.initElement error:', e);
         try {
           _postToFlutter({
@@ -906,9 +933,7 @@
             reason: 'EXCEPTION',
             message: 'Erreur JS pendant l\'initialisation Mapbox: ' + String(e),
           });
-        } catch (_) {
-          // ignore
-        }
+        } catch (_) { /* ignore */ }
         return false;
       }
     },

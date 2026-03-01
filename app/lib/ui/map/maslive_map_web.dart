@@ -157,10 +157,14 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         return 'Le token est refusé (403). Vérifie restrictions du token, scopes et accès au style utilisé.';
       case 'MAPBOXGL_MISSING':
         return 'Les scripts Mapbox GL JS ne sont pas chargés. Désactive adblock/anti-tracker, ou autorise `api.mapbox.com` / `unpkg.com`.';
+      case 'MAPBOXGL_FALLBACKING':
+        return 'Mapbox GL JS bascule vers une version compatible (fallback). Attends 1–2 secondes puis réessaie / refresh.';
+      case 'BRIDGE_MISSING':
+        return 'Le bridge web `mapbox_bridge.js` n\'est pas chargé. Vérifie que `web/index.html` inclut bien le script et que le déploiement est à jour.';
       case 'NETWORK_BLOCKED':
         return 'Le réseau/bloqueur empêche les requêtes Mapbox (styles/tiles). Essaie un autre réseau ou whitelist Mapbox.';
       case 'WEBGL_UNSUPPORTED':
-        return 'WebGL est indisponible. Active l\'accélération matérielle ou teste un autre navigateur/appareil.';
+        return 'WebGL est indisponible (ou trop limité). Active l\'accélération matérielle ou teste un autre navigateur/appareil.';
       case 'CONTAINER_NOT_FOUND':
         return 'Problème DOM/transitoire. Un refresh suffit généralement.';
       case 'STYLE_NOT_JSON':
@@ -176,6 +180,13 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     _containerId = 'maslive-mapbox-${DateTime.now().microsecondsSinceEpoch}';
     _metricsObserver = _MasliveMetricsObserver(onMetrics: _scheduleResize);
     WidgetsBinding.instance.addObserver(_metricsObserver);
+    // Résolution synchrone immédiate (dart-define ou cache préchauffé) pour éviter
+    // le spinner de chargement initial si le token est déjà connu.
+    final syncToken = MapboxTokenService.getTokenSync();
+    if (syncToken.isNotEmpty) {
+      _mapboxToken = syncToken;
+      _isLoading = false;
+    }
     _loadMapboxToken();
   }
 
@@ -1268,8 +1279,23 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
 
   bool _hasWebGlSupport() {
     try {
+      // Si Mapbox GL JS est chargé, on délègue à `mapboxgl.supported()`.
+      // - v3 => vérifie WebGL2
+      // - v2 => vérifie WebGL1
+      try {
+        final mb = js.context['mapboxgl'];
+        if (mb is js.JsObject && mb.hasProperty('supported')) {
+          final res = mb.callMethod('supported', const []);
+          if (res is bool) return res;
+        }
+      } catch (_) {
+        // ignore (fallback détection canvas)
+      }
+
+      // Fallback: heuristique canvas (WebGL2 ou WebGL1).
       final canvas = html.CanvasElement(width: 1, height: 1);
-      final ctx = canvas.getContext('webgl') ?? canvas.getContext('experimental-webgl');
+      final ctx =
+          canvas.getContext('webgl2') ?? canvas.getContext('webgl') ?? canvas.getContext('experimental-webgl');
       return ctx != null;
     } catch (_) {
       return true; // ne pas bloquer si la détection échoue
@@ -1351,16 +1377,23 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
 
           _didReceiveErrorFromJs = true;
 
-          // Erreurs transitoires: on laisse l'init retenter tant qu'on n'a pas épuisé
-          // quelques tentatives (races DOM / scripts lents).
+          // Erreurs transitoires: retente sans signaler d'erreur.
+          // - DOM pas encore prêt
+          // - scripts en cours de chargement
+          // - fallback Mapbox (v3 -> v2)
           if (!_didInit && _initAttempts < _maxInitAttempts) {
-            if (reason == 'CONTAINER_NOT_FOUND' || reason == 'MAPBOXGL_MISSING') {
+            if (reason == 'CONTAINER_NOT_FOUND' ||
+                reason == 'MAPBOXGL_MISSING' ||
+                reason == 'MAPBOXGL_FALLBACKING' ||
+                reason == 'BRIDGE_MISSING') {
               _lastTransientError = fullMsg;
               Future.delayed(const Duration(milliseconds: 120), _tryInit);
               return;
             }
           }
 
+          // Erreur permanente: bloque toute nouvelle tentative d'init pour ce widget.
+          _didInit = true;
           widget.onInitError?.call(fullMsg);
           return;
         }
@@ -1521,7 +1554,7 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
     if (!hasBridge && _initAttempts < _maxInitAttempts) {
       // Bridge non prêt (fichier JS pas encore chargé): retente.
       _lastTransientError =
-          '[MAPBOXGL_MISSING] Les scripts Mapbox GL JS ne sont pas chargés. Désactive adblock/anti-tracker, ou autorise `api.mapbox.com` / `unpkg.com`.';
+          '[BRIDGE_MISSING] Le bridge web `mapbox_bridge.js` n\'est pas chargé (déploiement/caching). Hard-refresh (Ctrl+Shift+R) et réessaie.';
       Future.delayed(const Duration(milliseconds: 250), _tryInit);
       return;
     }
@@ -1540,7 +1573,10 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
       String? hint = transientHint;
       // Dernier recours: message ciblé en fonction de l'état détectable.
       if (hint == null || hint.isEmpty) {
-        if (!hasMapboxGl || !hasBridge) {
+        if (!hasBridge) {
+          hint =
+              '[BRIDGE_MISSING] Le bridge web `mapbox_bridge.js` n\'est pas chargé. Vérifie le déploiement et fais un hard-refresh.';
+        } else if (!hasMapboxGl) {
           hint =
               '[MAPBOXGL_MISSING] Les scripts Mapbox GL JS ne sont pas chargés. Désactive adblock/anti-tracker, ou autorise `api.mapbox.com` / `unpkg.com`.';
         } else {

@@ -97,6 +97,9 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
 
     _bootstrapLocation();
     _loadUserGroupId();
+    // Initialisation synchrone immédiate du token (dart-define ou cache préchauffé)
+    // pour éviter le flash « token manquant » avant que l'async revienne.
+    _runtimeMapboxToken = MapboxTokenService.getTokenSync();
     _loadRuntimeMapboxToken();
     // Préchargement des icônes pour éviter les retards d'affichage
     WidgetsBinding.instance.addPostFrameCallback((_) {

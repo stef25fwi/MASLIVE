@@ -30,21 +30,33 @@
   <title>masslive</title>
   <link rel="manifest" href="manifest.json">
   
-  <!-- Mapbox GL JS v3.0.1 (supporte les styles avec imports; fallback CDN si api.mapbox.com est bloqué) -->
+  <!-- Mapbox GL JS v3 (WebGL2). Fallback automatique v2 si WebGL2 indisponible. -->
   <script>
     // Statut de chargement Mapbox GL JS (utile pour diagnostiquer MAPBOXGL_MISSING).
     window.__MAPBOXGL_LOAD_STATUS__ = 'loading';
+    // Indique au bridge qu'un fallback de version est en cours (évite une erreur permanente).
+    window.__MAPBOXGL_FALLBACKING__ = false;
 
     (function() {
-      const primary = {
+      const v3Primary = {
         css: 'https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css',
         js: 'https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js',
-        label: 'primary',
+        label: 'v3-primary',
       };
-      const fallback = {
+      const v3Fallback = {
         css: 'https://unpkg.com/mapbox-gl@3.0.1/dist/mapbox-gl.css',
         js: 'https://unpkg.com/mapbox-gl@3.0.1/dist/mapbox-gl.js',
-        label: 'fallback',
+        label: 'v3-fallback',
+      };
+      const v2Primary = {
+        css: 'https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css',
+        js: 'https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js',
+        label: 'v2-primary',
+      };
+      const v2Fallback = {
+        css: 'https://unpkg.com/mapbox-gl@2.15.0/dist/mapbox-gl.css',
+        js: 'https://unpkg.com/mapbox-gl@2.15.0/dist/mapbox-gl.js',
+        label: 'v2-fallback',
       };
 
       function loadCss(href) {
@@ -79,18 +91,76 @@
         window.__MAPBOXGL_LOAD_STATUS__ = 'error(' + label + ')';
       }
 
-      loadCss(primary.css);
+      function isSupported() {
+        try {
+          if (window.mapboxgl && typeof window.mapboxgl.supported === 'function') {
+            return window.mapboxgl.supported() === true;
+          }
+        } catch (_) {
+          // ignore
+        }
+        // Si on ne peut pas déterminer, on considère OK pour ne pas bloquer.
+        return true;
+      }
+
+      function loadV2ThenMark(fromLabel) {
+        window.__MAPBOXGL_FALLBACKING__ = true;
+        window.__MAPBOXGL_LOAD_STATUS__ = 'fallbacking(' + fromLabel + '->v2)';
+        loadCss(v2Primary.css);
+        loadJs(
+          v2Primary.js,
+          function() {
+            window.__MAPBOXGL_FALLBACKING__ = false;
+            markLoaded(v2Primary.label);
+          },
+          function() {
+            markError(v2Primary.label);
+            // Si api.mapbox.com est bloqué, tente unpkg.
+            loadCss(v2Fallback.css);
+            loadJs(
+              v2Fallback.js,
+              function() {
+                window.__MAPBOXGL_FALLBACKING__ = false;
+                markLoaded(v2Fallback.label);
+              },
+              function() {
+                window.__MAPBOXGL_FALLBACKING__ = false;
+                markError(v2Fallback.label);
+              }
+            );
+          }
+        );
+      }
+
+      // Charge v3 (préféré). Si v3 est chargé mais non supporté (WebGL2 absent), bascule sur v2.
+      loadCss(v3Primary.css);
       loadJs(
-        primary.js,
-        function() { markLoaded(primary.label); },
+        v3Primary.js,
         function() {
-          markError(primary.label);
+          if (!isSupported()) {
+            loadV2ThenMark(v3Primary.label);
+            return;
+          }
+          markLoaded(v3Primary.label);
+        },
+        function() {
+          markError(v3Primary.label);
           // Tentative fallback: utile si un bloqueur cible api.mapbox.com.
-          loadCss(fallback.css);
+          loadCss(v3Fallback.css);
           loadJs(
-            fallback.js,
-            function() { markLoaded(fallback.label); },
-            function() { markError(fallback.label); }
+            v3Fallback.js,
+            function() {
+              if (!isSupported()) {
+                loadV2ThenMark(v3Fallback.label);
+                return;
+              }
+              markLoaded(v3Fallback.label);
+            },
+            function() {
+              markError(v3Fallback.label);
+              // Dernier recours: v2 directement.
+              loadV2ThenMark('v3-failed');
+            }
           );
         }
       );
