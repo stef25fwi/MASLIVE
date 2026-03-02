@@ -10,6 +10,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/mapbox_token_service.dart';
 import '../services/auth_service.dart';
 import '../services/geolocation_service.dart';
@@ -48,6 +49,9 @@ class DefaultMapPage extends StatefulWidget {
 
 class _DefaultMapPageState extends State<DefaultMapPage>
     with WidgetsBindingObserver, TickerProviderStateMixin {
+  static const String _prefsKeyDidAutoOpenActionsMenuOnce =
+      'default_map_page.did_auto_open_actions_menu_once';
+
   // Constantes
   static const Duration _resizeDebounceDelay = Duration(milliseconds: 80);
   static const Duration _gpsTimeout = Duration(seconds: 8);
@@ -69,7 +73,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   // UI
   bool _showActionsMenu = false;
-  bool _showOnboardingTooltip = true;
+  bool _showOnboardingTooltip = false;
   String _currentLanguageFlag = '🇫🇷'; // Pré-initialisé français (pas de délai)
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
@@ -162,6 +166,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           ),
         );
 
+    // Ouvrir la barre verticale uniquement à la toute première ouverture.
+    unawaited(_autoOpenActionsMenuOnceIfNeeded());
+
     final canShowMap = kIsWeb && MapboxTokenService.getTokenSync().isNotEmpty;
     if (canShowMap) {
       _bootstrapLocation();
@@ -184,6 +191,33 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         _notifyMapReady();
       }
     });
+  }
+
+  Future<void> _autoOpenActionsMenuOnceIfNeeded() async {
+    final prefs = await SharedPreferences.getInstance();
+    final didAutoOpen =
+        prefs.getBool(_prefsKeyDidAutoOpenActionsMenuOnce) ?? false;
+    if (!mounted) return;
+
+    // Tooltip uniquement à la première ouverture.
+    if (didAutoOpen) {
+      if (_showOnboardingTooltip) {
+        setState(() => _showOnboardingTooltip = false);
+      }
+      return;
+    }
+
+    // On marque avant d'afficher pour éviter les doubles ouvertures en cas de
+    // rebuild/relance rapide.
+    await prefs.setBool(_prefsKeyDidAutoOpenActionsMenuOnce, true);
+    if (!mounted) return;
+
+    setState(() {
+      _showActionsMenu = true;
+      _showOnboardingTooltip = true;
+    });
+    // Sans animation d'entrée pour être immédiatement visible.
+    _menuAnimController.value = 1.0;
   }
 
   void _notifyMapReady() {
@@ -1108,6 +1142,17 @@ class _DefaultMapPageState extends State<DefaultMapPage>
             final topInset = MediaQuery.of(context).padding.top;
             final menuTopOffset = topInset + 134;
 
+            // Géométrie de la barre verticale (doit rester cohérente avec
+            // `HomeVerticalNavMenu` et `HomeVerticalNavActionItem`).
+            const navItemSize = 60.0;
+            const navVerticalPadding = 10.0;
+            const navHorizontalPadding = 6.0;
+            const tooltipGapToMenu = 12.0;
+            final navMenuWidth = navItemSize + (navHorizontalPadding * 2);
+            final tooltipRight = navMenuWidth + tooltipGapToMenu;
+            final carteIconCenterY =
+                menuTopOffset + navVerticalPadding + (navItemSize / 2);
+
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _scheduleResize(size);
             });
@@ -1281,8 +1326,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                   ),
 
                 // Onboarding tooltip (sélectionner votre carte)
-                if (_showOnboardingTooltip)
+                if (_showOnboardingTooltip && _showActionsMenu)
                   _OnboardingTooltip(
+                    anchorCenterY: carteIconCenterY,
+                    right: tooltipRight,
                     onDismiss: () {
                       setState(() => _showOnboardingTooltip = false);
                     },
@@ -1386,72 +1433,91 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
 class _OnboardingTooltip extends StatelessWidget {
   final VoidCallback onDismiss;
+  final double anchorCenterY;
+  final double right;
 
-  const _OnboardingTooltip({required this.onDismiss});
+  const _OnboardingTooltip({
+    required this.onDismiss,
+    required this.anchorCenterY,
+    required this.right,
+  });
 
   @override
   Widget build(BuildContext context) {
     // Flèche personnalisée pointant vers le haut-droit
     const arrowSize = 12.0;
+    const arrowBoxHeight = arrowSize + 4;
 
     return Positioned(
-      top: 160,
-      right: 80,
+      // Centrage vertical sur l'icône "Carte" (barre verticale)
+      top: anchorCenterY,
+      right: right,
       child: GestureDetector(
         onTap: onDismiss,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            // Boîte de texte
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Flexible(
-                    child: Text(
-                      'Sélectionnez\nvotre carte',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                        height: 1.3,
+        child: FractionalTranslation(
+          translation: const Offset(0.0, -0.5),
+          // On centre la boîte, et on laisse le triangle en overflow
+          // (sinon il décale le centrage vertical).
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.centerRight,
+            children: [
+              // Boîte de texte
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Flexible(
+                      child: Text(
+                        'Sélectionnez\nvotre carte',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                          height: 1.3,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Flèche vers le bas
-                  Transform.rotate(
-                    angle: 3.14159, // 180 degrés pour pointer vers le bas
-                    child: const Icon(
-                      Icons.arrow_upward_rounded,
-                      size: 18,
-                      color: Colors.black87,
+                    const SizedBox(width: 12),
+                    // Flèche vers le bas
+                    Transform.rotate(
+                      angle: 3.14159, // 180 degrés pour pointer vers le bas
+                      child: const Icon(
+                        Icons.arrow_upward_rounded,
+                        size: 18,
+                        color: Colors.black87,
+                      ),
                     ),
+                  ],
+                ),
+              ),
+              // Triangle pointeur (flèche)
+              Positioned(
+                right: 0,
+                bottom: -arrowBoxHeight,
+                child: SizedBox(
+                  width: 40,
+                  height: arrowBoxHeight,
+                  child: CustomPaint(
+                    painter: _ArrowPainter(),
                   ),
-                ],
+                ),
               ),
-            ),
-            // Triangle pointeur (flèche)
-            SizedBox(
-              width: 40,
-              height: arrowSize + 4,
-              child: CustomPaint(
-                painter: _ArrowPainter(),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
