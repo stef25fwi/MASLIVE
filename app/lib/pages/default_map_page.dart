@@ -869,7 +869,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         _menuAnimController.reverse();
         Future.delayed(_menuAnimationDuration, () {
           if (mounted && _showActionsMenu) {
-            setState(() => _showActionsMenu = false);
+            setState(() {
+              _showActionsMenu = false;
+              _showOnboardingTooltip = false;
+            });
           }
         });
       }
@@ -1212,6 +1215,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                     child: GestureDetector(
                       behavior: HitTestBehavior.translucent,
                       onTap: () {
+                        if (_showOnboardingTooltip) {
+                          setState(() => _showOnboardingTooltip = false);
+                        }
                         _menuAnimController.reverse();
                         Future.delayed(_menuAnimationDuration, () {
                           if (mounted) {
@@ -1409,7 +1415,12 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                           tooltip: l10n.AppLocalizations.of(context)!.menu,
                           onTap: () {
                             setState(
-                              () => _showActionsMenu = !_showActionsMenu,
+                              () {
+                                _showActionsMenu = !_showActionsMenu;
+                                if (!_showActionsMenu) {
+                                  _showOnboardingTooltip = false;
+                                }
+                              },
                             );
                             if (_showActionsMenu) {
                               _menuAnimController.forward();
