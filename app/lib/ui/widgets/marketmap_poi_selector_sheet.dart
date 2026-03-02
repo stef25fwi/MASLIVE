@@ -46,6 +46,7 @@ Future<MarketMapPoiSelection?> showMarketMapPoiSelectorSheet(
   MarketMapPoiSelection? initial,
   String title = 'POIs MarketMap',
   bool showLayers = true,
+  bool disableKeyboardInput = false,
 }) {
   return showModalBottomSheet<MarketMapPoiSelection>(
     context: context,
@@ -56,6 +57,7 @@ Future<MarketMapPoiSelection?> showMarketMapPoiSelectorSheet(
       initial: initial,
       title: title,
       showLayers: showLayers,
+      disableKeyboardInput: disableKeyboardInput,
     ),
   );
 }
@@ -64,6 +66,7 @@ Future<MarketMapPoiSelection?> showMarketMapCircuitSelectorSheet(
   BuildContext context, {
   MarketMapService? service,
   MarketMapPoiSelection? initial,
+  bool disableKeyboardInput = false,
 }) {
   return showMarketMapPoiSelectorSheet(
     context,
@@ -71,6 +74,7 @@ Future<MarketMapPoiSelection?> showMarketMapCircuitSelectorSheet(
     initial: initial,
     title: 'Carte',
     showLayers: false,
+    disableKeyboardInput: disableKeyboardInput,
   );
 }
 
@@ -80,18 +84,22 @@ class _MarketMapPoiSelectorSheet extends StatefulWidget {
     this.initial,
     required this.title,
     required this.showLayers,
+    required this.disableKeyboardInput,
   });
 
   final MarketMapService service;
   final MarketMapPoiSelection? initial;
   final String title;
   final bool showLayers;
+  final bool disableKeyboardInput;
 
   @override
-  State<_MarketMapPoiSelectorSheet> createState() => _MarketMapPoiSelectorSheetState();
+  State<_MarketMapPoiSelectorSheet> createState() =>
+      _MarketMapPoiSelectorSheetState();
 }
 
-class _MarketMapPoiSelectorSheetState extends State<_MarketMapPoiSelectorSheet> {
+class _MarketMapPoiSelectorSheetState
+    extends State<_MarketMapPoiSelectorSheet> {
   MarketCountry? _country;
   MarketEvent? _event;
   MarketCircuit? _circuit;
@@ -113,7 +121,9 @@ class _MarketMapPoiSelectorSheetState extends State<_MarketMapPoiSelectorSheet> 
 
       final country = _country;
       if (country != null) {
-        _countryCtrl.text = country.name.trim().isNotEmpty ? country.name : country.id;
+        _countryCtrl.text = country.name.trim().isNotEmpty
+            ? country.name
+            : country.id;
       }
     }
   }
@@ -128,171 +138,258 @@ class _MarketMapPoiSelectorSheetState extends State<_MarketMapPoiSelectorSheet> 
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.viewInsetsOf(context).bottom;
 
-    return Padding(
-      padding: EdgeInsets.only(left: 16, right: 16, top: 4, bottom: 16 + bottomPadding),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
+    return StreamBuilder<VisibleCircuitsIndex>(
+      stream: widget.service.watchVisibleCircuitsIndex(),
+      builder: (context, visibleSnap) {
+        final visibleIndex = visibleSnap.data;
+        final visibleCountryIds = visibleIndex?.countryIds;
+        final visibleEventIds = (_country == null)
+            ? null
+            : visibleIndex?.eventIdsForCountry(_country!.id);
+
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 4,
+            bottom: 16 + bottomPadding,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: Text(
-                  widget.title,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-                ),
-              ),
-              TextButton.icon(
-                onPressed: () => Navigator.of(context).pop(const MarketMapPoiSelection.disabled()),
-                icon: const Icon(Icons.visibility_off_rounded),
-                label: const Text('Désactiver'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          StreamBuilder<List<MarketCountry>>(
-            stream: widget.service.watchCountries(),
-            builder: (context, snap) {
-              final items = snap.data ?? const <MarketCountry>[];
-              return MarketCountryAutocompleteField(
-                items: items,
-                controller: _countryCtrl,
-                labelText: 'Pays',
-                hintText: 'Rechercher un pays…',
-                onSelected: (c) {
-                  setState(() {
-                    _country = c;
-                    _event = null;
-                    _circuit = null;
-                    _layerIds = <String>{};
-                    _layerSelectionInitialized = false;
-                  });
-                },
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          StreamBuilder<List<MarketEvent>>(
-            stream: _country == null
-                ? const Stream.empty()
-                : widget.service.watchEvents(countryId: _country!.id),
-            builder: (context, snap) {
-              final items = snap.data ?? const <MarketEvent>[];
-
-              final selectedId = _event?.id;
-              final value = items.any((e) => e.id == selectedId) ? selectedId : null;
-
-              return DropdownButtonFormField<String>(
-                initialValue: value,
-                decoration: const InputDecoration(
-                  labelText: 'Événement',
-                  border: OutlineInputBorder(),
-                ),
-                items: [
-                  for (final e in items)
-                    DropdownMenuItem(value: e.id, child: Text(e.name)),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => Navigator.of(
+                      context,
+                    ).pop(const MarketMapPoiSelection.disabled()),
+                    icon: const Icon(Icons.visibility_off_rounded),
+                    label: const Text('Désactiver'),
+                  ),
                 ],
-                onChanged: (_country == null)
-                    ? null
-                    : (id) {
+              ),
+              const SizedBox(height: 8),
+              StreamBuilder<List<MarketCountry>>(
+                stream: widget.service.watchCountries(),
+                builder: (context, snap) {
+                  final all = snap.data ?? const <MarketCountry>[];
+                  final items = (visibleCountryIds == null)
+                      ? all
+                      : all
+                            .where((c) => visibleCountryIds.contains(c.id))
+                            .toList(growable: false);
+
+                  final selectedCountryId = _country?.id;
+                  final currentCountryId =
+                      items.any((c) => c.id == selectedCountryId)
+                      ? selectedCountryId
+                      : null;
+
+                  if (widget.disableKeyboardInput) {
+                    return DropdownButtonFormField<String>(
+                      initialValue: currentCountryId,
+                      decoration: const InputDecoration(
+                        labelText: 'Pays',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: [
+                        for (final c in items)
+                          DropdownMenuItem(
+                            value: c.id,
+                            child: Text(
+                              c.name.trim().isNotEmpty ? c.name : c.id,
+                            ),
+                          ),
+                      ],
+                      onChanged: (id) {
                         if (id == null) return;
                         final selected = items.firstWhere(
-                          (e) => e.id == id,
-                          orElse: () => MarketEvent(
-                            id: '',
-                            countryId: _country?.id ?? '',
-                            name: '',
-                            slug: '',
-                          ),
+                          (c) => c.id == id,
+                          orElse: () =>
+                              const MarketCountry(id: '', name: '', slug: ''),
                         );
                         if (selected.id.isEmpty) return;
                         setState(() {
-                          _event = selected;
+                          _country = selected;
+                          _event = null;
                           _circuit = null;
                           _layerIds = <String>{};
                           _layerSelectionInitialized = false;
                         });
                       },
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          StreamBuilder<List<MarketCircuit>>(
-            stream: (_country == null || _event == null)
-                ? const Stream.empty()
-                : widget.service.watchCircuits(countryId: _country!.id, eventId: _event!.id),
-            builder: (context, snap) {
-              final allCircuits = snap.data ?? const <MarketCircuit>[];
-                // Ne proposer dans le menu "Carte" que les circuits "On line".
-                final items = allCircuits
-                  .where((c) => c.isVisible == true)
-                  .toList(growable: false);
-
-              final selectedId = _circuit?.id;
-              final currentValue = items.any((c) => c.id == selectedId) ? selectedId : null;
-
-              return DropdownButtonFormField<String>(
-                initialValue: currentValue,
-                decoration: const InputDecoration(
-                  labelText: 'Circuit',
-                  border: OutlineInputBorder(),
-                ),
-                items: [
-                  for (final c in items)
-                    DropdownMenuItem(value: c.id, child: Text('${c.name} (${c.status})')),
-                ],
-                onChanged: (_country == null || _event == null)
-                    ? null
-                    : (id) {
-                        if (id == null) return;
-                        final selected = items.firstWhere(
-                          (c) => c.id == id,
-                          orElse: () => MarketCircuit(
-                            id: '',
-                            countryId: _country?.id ?? '',
-                            eventId: _event?.id ?? '',
-                            name: '',
-                            slug: '',
-                            status: 'draft',
-                            createdByUid: '',
-                            perimeterLocked: false,
-                            zoomLocked: false,
-                            center: const {'lat': 0.0, 'lng': 0.0},
-                            initialZoom: 14,
-                            isVisible: false,
-                            wizardState: const <String, dynamic>{},
-                          ),
-                        );
-                        if (selected.id.isEmpty) return;
-                        setState(() {
-                          _circuit = selected;
-                          _layerIds = <String>{};
-                          _layerSelectionInitialized = false;
-                        });
-                      },
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          if (widget.showLayers) _buildLayerChooser(),
-          if (widget.showLayers) const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: (_country != null && _event != null && _circuit != null)
-                ? () {
-                    final selection = MarketMapPoiSelection.enabled(
-                      country: _country!,
-                      event: _event!,
-                      circuit: _circuit!,
-                      layerIds: widget.showLayers ? {..._layerIds} : <String>{},
                     );
-                    Navigator.of(context).pop(selection);
                   }
-                : null,
-            icon: const Icon(Icons.check_rounded),
-            label: const Text('Appliquer'),
+
+                  return MarketCountryAutocompleteField(
+                    items: items,
+                    controller: _countryCtrl,
+                    labelText: 'Pays',
+                    hintText: 'Rechercher un pays…',
+                    onSelected: (c) {
+                      setState(() {
+                        _country = c;
+                        _event = null;
+                        _circuit = null;
+                        _layerIds = <String>{};
+                        _layerSelectionInitialized = false;
+                      });
+                    },
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              StreamBuilder<List<MarketEvent>>(
+                stream: _country == null
+                    ? const Stream.empty()
+                    : widget.service.watchEvents(countryId: _country!.id),
+                builder: (context, snap) {
+                  final all = snap.data ?? const <MarketEvent>[];
+                  final items = (visibleEventIds == null)
+                      ? all
+                      : all
+                            .where((e) => visibleEventIds.contains(e.id))
+                            .toList(growable: false);
+
+                  final selectedId = _event?.id;
+                  final value = items.any((e) => e.id == selectedId)
+                      ? selectedId
+                      : null;
+
+                  return DropdownButtonFormField<String>(
+                    initialValue: value,
+                    decoration: const InputDecoration(
+                      labelText: 'Événement',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      for (final e in items)
+                        DropdownMenuItem(value: e.id, child: Text(e.name)),
+                    ],
+                    onChanged: (_country == null)
+                        ? null
+                        : (id) {
+                            if (id == null) return;
+                            final selected = items.firstWhere(
+                              (e) => e.id == id,
+                              orElse: () => MarketEvent(
+                                id: '',
+                                countryId: _country?.id ?? '',
+                                name: '',
+                                slug: '',
+                              ),
+                            );
+                            if (selected.id.isEmpty) return;
+                            setState(() {
+                              _event = selected;
+                              _circuit = null;
+                              _layerIds = <String>{};
+                              _layerSelectionInitialized = false;
+                            });
+                          },
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              StreamBuilder<List<MarketCircuit>>(
+                stream: (_country == null || _event == null)
+                    ? const Stream.empty()
+                    : widget.service.watchCircuits(
+                        countryId: _country!.id,
+                        eventId: _event!.id,
+                      ),
+                builder: (context, snap) {
+                  final allCircuits = snap.data ?? const <MarketCircuit>[];
+
+                  // Ne proposer dans le menu "Carte" que les circuits "On line".
+                  final items = allCircuits
+                      .where((c) => c.isVisible == true)
+                      .toList(growable: false);
+
+                  final selectedId = _circuit?.id;
+                  final currentValue = items.any((c) => c.id == selectedId)
+                      ? selectedId
+                      : null;
+
+                  return DropdownButtonFormField<String>(
+                    initialValue: currentValue,
+                    decoration: const InputDecoration(
+                      labelText: 'Circuit',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      for (final c in items)
+                        DropdownMenuItem(
+                          value: c.id,
+                          child: Text('${c.name} (${c.status})'),
+                        ),
+                    ],
+                    onChanged: (_country == null || _event == null)
+                        ? null
+                        : (id) {
+                            if (id == null) return;
+                            final selected = items.firstWhere(
+                              (c) => c.id == id,
+                              orElse: () => MarketCircuit(
+                                id: '',
+                                countryId: _country?.id ?? '',
+                                eventId: _event?.id ?? '',
+                                name: '',
+                                slug: '',
+                                status: 'draft',
+                                createdByUid: '',
+                                perimeterLocked: false,
+                                zoomLocked: false,
+                                center: const {'lat': 0.0, 'lng': 0.0},
+                                initialZoom: 14,
+                                isVisible: false,
+                                wizardState: const <String, dynamic>{},
+                              ),
+                            );
+                            if (selected.id.isEmpty) return;
+                            setState(() {
+                              _circuit = selected;
+                              _layerIds = <String>{};
+                              _layerSelectionInitialized = false;
+                            });
+                          },
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              if (widget.showLayers) _buildLayerChooser(),
+              if (widget.showLayers) const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed:
+                    (_country != null && _event != null && _circuit != null)
+                    ? () {
+                        final selection = MarketMapPoiSelection.enabled(
+                          country: _country!,
+                          event: _event!,
+                          circuit: _circuit!,
+                          layerIds: widget.showLayers
+                              ? {..._layerIds}
+                              : <String>{},
+                        );
+                        Navigator.of(context).pop(selection);
+                      }
+                    : null,
+                icon: const Icon(Icons.check_rounded),
+                label: const Text('Appliquer'),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

@@ -183,6 +183,20 @@
           add3DBuildings(map);
         }
 
+        // IMPORTANT: un `map.setStyle(...)` supprime les layers custom.
+        // On ré-applique donc automatiquement les bâtiments 3D à chaque
+        // rechargement de style pour que les réglages (opacité/visibility)
+        // restent effectifs dans les écrans wizard/previews.
+        try {
+          map.on('style.load', () => {
+            if (options.enable3DBuildings !== false) {
+              add3DBuildings(map);
+            }
+          });
+        } catch (_) {
+          // ignore
+        }
+
         // Callback vers Flutter si disponible.
         // NOTE: `load` = style prêt, mais les tuiles peuvent encore se charger.
         // On attend un état stable (idle/tiles) pour éviter que l'utilisateur

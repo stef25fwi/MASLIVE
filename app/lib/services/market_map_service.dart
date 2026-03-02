@@ -28,19 +28,65 @@ class CreateCircuitResult {
   final DocumentReference<Map<String, dynamic>> circuitRef;
 }
 
+class VisibleCircuitsIndex {
+  const VisibleCircuitsIndex({
+    required this.countryIds,
+    required this.eventIdsByCountry,
+  });
+
+  final Set<String> countryIds;
+  final Map<String, Set<String>> eventIdsByCountry;
+
+  Set<String> eventIdsForCountry(String countryId) {
+    return eventIdsByCountry[countryId] ?? const <String>{};
+  }
+}
+
 class MarketMapService {
   MarketMapService({FirebaseFirestore? firestore})
-      : _db = firestore ?? FirebaseFirestore.instance;
+    : _db = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _db;
 
   CollectionReference<Map<String, dynamic>> get _countriesCol =>
       _db.collection('marketMap');
 
+  /// Index (runtime) des circuits "On line".
+  ///
+  /// Objectif: filtrer les pays/événements affichés dans le menu "Carte"
+  /// sans avoir besoin d'index composite Firestore (on fait une seule requête
+  /// `collectionGroup('circuits')` filtrée sur `isVisible==true`).
+  Stream<VisibleCircuitsIndex> watchVisibleCircuitsIndex() {
+    return _db
+        .collectionGroup('circuits')
+        .where('isVisible', isEqualTo: true)
+        .snapshots()
+        .map((snap) {
+          final countryIds = <String>{};
+          final eventIdsByCountry = <String, Set<String>>{};
+
+          for (final d in snap.docs) {
+            final data = d.data();
+            final countryId = (data['countryId'] ?? '').toString().trim();
+            final eventId = (data['eventId'] ?? '').toString().trim();
+            if (countryId.isEmpty || eventId.isEmpty) continue;
+
+            countryIds.add(countryId);
+            (eventIdsByCountry[countryId] ??= <String>{}).add(eventId);
+          }
+
+          return VisibleCircuitsIndex(
+            countryIds: countryIds,
+            eventIdsByCountry: eventIdsByCountry,
+          );
+        });
+  }
+
   Stream<List<MarketCountry>> watchCountries() {
-    return _countriesCol.orderBy('name').snapshots().map(
-          (snapshot) => snapshot.docs.map(MarketCountry.fromDoc).toList(),
-        );
+    return _countriesCol
+        .orderBy('name')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map(MarketCountry.fromDoc).toList());
   }
 
   Stream<List<MarketEvent>> watchEvents({required String countryId}) {
@@ -70,9 +116,8 @@ class MarketMapService {
         .orderBy('name')
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => MarketCircuit.fromDoc(doc))
-              .toList(),
+          (snapshot) =>
+              snapshot.docs.map((doc) => MarketCircuit.fromDoc(doc)).toList(),
         );
   }
 
@@ -91,9 +136,8 @@ class MarketMapService {
         .orderBy('order')
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => MarketLayer.fromDoc(doc))
-              .toList(),
+          (snapshot) =>
+              snapshot.docs.map((doc) => MarketLayer.fromDoc(doc)).toList(),
         );
   }
 
@@ -113,9 +157,10 @@ class MarketMapService {
     required String eventId,
     required String circuitId,
   }) {
-    return eventRef(countryId: countryId, eventId: eventId)
-        .collection('circuits')
-        .doc(circuitId);
+    return eventRef(
+      countryId: countryId,
+      eventId: eventId,
+    ).collection('circuits').doc(circuitId);
   }
 
   CollectionReference<Map<String, dynamic>> circuitPoisCol({
@@ -123,8 +168,11 @@ class MarketMapService {
     required String eventId,
     required String circuitId,
   }) {
-    return circuitRef(countryId: countryId, eventId: eventId, circuitId: circuitId)
-        .collection('pois');
+    return circuitRef(
+      countryId: countryId,
+      eventId: eventId,
+      circuitId: circuitId,
+    ).collection('pois');
   }
 
   /// Stream des POIs visibles pour un circuit.
@@ -138,9 +186,15 @@ class MarketMapService {
     required String circuitId,
     Set<String>? layerIds,
   }) {
-    final col = circuitPoisCol(countryId: countryId, eventId: eventId, circuitId: circuitId);
+    final col = circuitPoisCol(
+      countryId: countryId,
+      eventId: eventId,
+      circuitId: circuitId,
+    );
 
-    final normalized = (layerIds ?? const <String>{}).where((e) => e.trim().isNotEmpty).toSet();
+    final normalized = (layerIds ?? const <String>{})
+        .where((e) => e.trim().isNotEmpty)
+        .toSet();
 
     Query<Map<String, dynamic>> query = col.where('isVisible', isEqualTo: true);
 
@@ -178,13 +232,10 @@ class MarketMapService {
                 .where('layerId', whereIn: chunk);
 
             subs.add(
-              q.snapshots().listen(
-                (snap) {
-                  latestByChunk[idx] = snap.docs.map(MarketPoi.fromDoc).toList();
-                  emitMerged();
-                },
-                onError: controller.addError,
-              ),
+              q.snapshots().listen((snap) {
+                latestByChunk[idx] = snap.docs.map(MarketPoi.fromDoc).toList();
+                emitMerged();
+              }, onError: controller.addError),
             );
           }
         },
@@ -243,8 +294,9 @@ class MarketMapService {
 
     // Id lisible + suffix pour éviter collisions
     String circuitId = _buildCircuitId(circuitSlug);
-    DocumentReference<Map<String, dynamic>> circuitRef =
-        eventRef.collection('circuits').doc(circuitId);
+    DocumentReference<Map<String, dynamic>> circuitRef = eventRef
+        .collection('circuits')
+        .doc(circuitId);
 
     const defaultCenter = {'lat': 16.241, 'lng': -61.533};
 
@@ -325,14 +377,8 @@ class MarketMapService {
         'type': 'perimeter',
         'isEnabled': true,
         'order': 0,
-        'style': {
-          'fillOpacity': 0.15,
-          'lineWidth': 3,
-        },
-        'params': {
-          'snapToRoad': false,
-          'showLabels': true,
-        },
+        'style': {'fillOpacity': 0.15, 'lineWidth': 3},
+        'params': {'snapToRoad': false, 'showLabels': true},
         'createdAt': serverNow,
         'updatedAt': serverNow,
       });
@@ -341,13 +387,8 @@ class MarketMapService {
         'type': 'pois',
         'isEnabled': true,
         'order': 1,
-        'style': {
-          'icon': 'marker',
-          'iconSize': 1.0,
-        },
-        'params': {
-          'showLabels': true,
-        },
+        'style': {'icon': 'marker', 'iconSize': 1.0},
+        'params': {'showLabels': true},
         'createdAt': serverNow,
         'updatedAt': serverNow,
       });
@@ -356,13 +397,8 @@ class MarketMapService {
         'type': 'track',
         'isEnabled': true,
         'order': 2,
-        'style': {
-          'lineWidth': 4,
-          'opacity': 1.0,
-        },
-        'params': {
-          'snapToRoad': false,
-        },
+        'style': {'lineWidth': 4, 'opacity': 1.0},
+        'params': {'snapToRoad': false},
         'createdAt': serverNow,
         'updatedAt': serverNow,
       });
@@ -447,8 +483,10 @@ class MarketMapService {
   static String _buildCircuitId(String circuitSlug) {
     final rand = Random.secure();
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    final suffix = List.generate(5, (_) => chars[rand.nextInt(chars.length)])
-        .join();
+    final suffix = List.generate(
+      5,
+      (_) => chars[rand.nextInt(chars.length)],
+    ).join();
     final base = circuitSlug.isEmpty ? 'circuit' : circuitSlug;
     return '$base-$suffix';
   }

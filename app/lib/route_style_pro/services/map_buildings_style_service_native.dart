@@ -1,48 +1,46 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import 'map_buildings_style_service.dart';
 
-/// Implémentation native du service de style des bâtiments 3D.
+/// Implémentation **native** (iOS/Android) du contrôle des bâtiments 3D.
 ///
-/// Cette implémentation utilise directement le SDK Mapbox Maps Flutter pour
-/// contrôler les couches fill-extrusion.
+/// Cette classe avait été coupée/corrompue pendant une édition : on la remet
+/// en état avec une implémentation fonctionnelle basée sur `setStyleLayerProperty`.
 ///
-/// TODO: Intégrer avec votre instance MapboxMap existante.
-/// Pour l'instant, cette classe fournit une structure prête à intégrer.
+/// Usage:
+/// ```dart
+/// final buildings = MapBuildingsStyleServiceNative();
+///
+/// void _onMapCreated(MapboxMap map) {
+///   buildings.setMapInstance(map);
+/// }
+/// ```
 class MapBuildingsStyleServiceNative extends MapBuildingsStyleService {
-  /// Instance de la carte Mapbox (à injecter depuis votre page)
-  /// 
-  /// Exemple dans votre page:
-  /// ```dart
-  /// final _buildingsService = MapBuildingsStyleServiceNative();
-  /// 
-  /// Future<void> _onMapCreated(MapboxMap map) async {
-  ///   _buildingsService.setMapInstance(map);
-  ///   // ...
-  /// }
-  /// ```
-  dynamic _mapboxMap; // Type: MapboxMap du package mapbox_maps_flutter
+  MapboxMap? _mapboxMap;
 
-  /// Cache de l'ID de la couche trouvée
   String? _cachedLayerId;
+  double? _lastAppliedOpacity;
+  bool? _lastAppliedEnabled;
 
-  /// Injecte l'instance de la carte Mapbox
-  void setMapInstance(dynamic mapboxMap) {
+  /// Injecte l'instance de la carte Mapbox.
+  void setMapInstance(MapboxMap mapboxMap) {
     _mapboxMap = mapboxMap;
-    _cachedLayerId = null; // Invalide le cache
+    invalidateCache();
     _log('map instance set');
   }
 
   @override
   Future<bool> setBuildingsOpacity(double opacity) async {
-    final clampedOpacity = _clampOpacity(opacity);
-
-    if (_mapboxMap == null) {
+    final map = _mapboxMap;
+    if (map == null) {
       _log('map instance not set');
       return false;
     }
 
+    final clampedOpacity = _clampOpacity(opacity);
     try {
       final layerId = await findBuildingLayer();
       if (layerId == null) {
@@ -50,19 +48,14 @@ class MapBuildingsStyleServiceNative extends MapBuildingsStyleService {
         return false;
       }
 
-      // TODO: Utilisez l'API Mapbox Maps Flutter pour mettre à jour la propriété
-      // Exemple (à adapter selon votre version du SDK):
-      // 
-      // await _mapboxMap.style.setStyleLayerProperty(
-      //   layerId,
-      //   'fill-extrusion-opacity',
-      //   clampedOpacity,
-      // );
-      
-      _log('apply opacity=$clampedOpacity layer=$layerId (TODO: implement native API call)');
-      
-      // Pour l'instant, retourne true si la couche existe
-      // À remplacer par le vrai appel SDK une fois implémenté
+      await map.style.setStyleLayerProperty(
+        layerId,
+        'fill-extrusion-opacity',
+        clampedOpacity,
+      );
+
+      _lastAppliedOpacity = clampedOpacity;
+      _log('apply opacity=$clampedOpacity layer=$layerId success');
       return true;
     } catch (e) {
       _log('setBuildingsOpacity error: $e');
@@ -72,31 +65,44 @@ class MapBuildingsStyleServiceNative extends MapBuildingsStyleService {
 
   @override
   Future<double?> getBuildingsOpacity() async {
-    if (_mapboxMap == null) return null;
+    final map = _mapboxMap;
+    if (map == null) {
+      _log('map instance not set');
+      return null;
+    }
+
+    // Best effort: si on a déjà appliqué une valeur, on la renvoie.
+    final cached = _lastAppliedOpacity;
+    if (cached != null) return cached;
 
     try {
       final layerId = await findBuildingLayer();
       if (layerId == null) return null;
 
-      // TODO: Récupérer la propriété depuis le style
-      // Exemple:
-      // final value = await _mapboxMap.style.getStyleLayerProperty(
-      //   layerId,
-      //   'fill-extrusion-opacity',
-      // );
-      // return value as double?;
+      // Selon versions du SDK, `getStyleLayerProperty` peut exister.
+      // On passe via `dynamic` pour ne pas bloquer la compilation.
+      final dynamic style = map.style;
+      final dynamic raw = await style.getStyleLayerProperty(
+        layerId,
+        'fill-extrusion-opacity',
+      );
 
-      _log('getBuildingsOpacity layer=$layerId (TODO: implement native API call)');
-      return 0.60; // Valeur par défaut temporaire
+      final parsed = _tryParseNumFromStyleProperty(raw);
+      if (parsed != null) {
+        _lastAppliedOpacity = _clampOpacity(parsed);
+        return _lastAppliedOpacity;
+      }
     } catch (e) {
       _log('getBuildingsOpacity error: $e');
-      return null;
     }
+
+    return null;
   }
 
   @override
   Future<bool> setBuildingsEnabled(bool enabled) async {
-    if (_mapboxMap == null) {
+    final map = _mapboxMap;
+    if (map == null) {
       _log('map instance not set');
       return false;
     }
@@ -108,15 +114,14 @@ class MapBuildingsStyleServiceNative extends MapBuildingsStyleService {
         return false;
       }
 
-      // TODO: Changer la visibilité de la couche
-      // Exemple:
-      // await _mapboxMap.style.setStyleLayerProperty(
-      //   layerId,
-      //   'visibility',
-      //   enabled ? 'visible' : 'none',
-      // );
+      await map.style.setStyleLayerProperty(
+        layerId,
+        'visibility',
+        enabled ? 'visible' : 'none',
+      );
 
-      _log('set buildings enabled=$enabled layer=$layerId (TODO: implement native API call)');
+      _lastAppliedEnabled = enabled;
+      _log('apply visibility=${enabled ? 'visible' : 'none'} layer=$layerId success');
       return true;
     } catch (e) {
       _log('setBuildingsEnabled error: $e');
@@ -126,62 +131,89 @@ class MapBuildingsStyleServiceNative extends MapBuildingsStyleService {
 
   @override
   Future<bool> is3DBuildingsAvailable() async {
-    final layerId = await findBuildingLayer();
-    return layerId != null;
+    return (await findBuildingLayer()) != null;
   }
 
   @override
   Future<String?> findBuildingLayer() async {
-    // Si on a déjà trouvé une couche, la retourner (cache)
-    if (_cachedLayerId != null) {
-      return _cachedLayerId;
-    }
-
-    if (_mapboxMap == null) {
+    if (_cachedLayerId != null) return _cachedLayerId;
+    final map = _mapboxMap;
+    if (map == null) {
       _log('map instance not set');
       return null;
     }
 
-    try {
-      // TODO: Parcourir les couches du style pour trouver une fill-extrusion
-      // Exemple:
-      // final layers = await _mapboxMap.style.getStyleLayers();
-      // for (final layerId in MapBuildingsStyleService.possibleLayerIds) {
-      //   final layer = layers.firstWhere(
-      //     (l) => l.id == layerId && l.type == 'fill-extrusion',
-      //     orElse: () => null,
-      //   );
-      //   if (layer != null) {
-      //     _cachedLayerId = layer.id;
-      //     _log('layer found: ${layer.id}');
-      //     return _cachedLayerId;
-      //   }
-      // }
+    // Stratégie: tenter les IDs connus en lisant une propriété (si supportée).
+    // Sinon, fallback: tester l'existence via un setStyleLayerProperty "réversible"
+    // (on ne modifie rien si la couche n'existe pas, l'appel lève).
+    for (final id in MapBuildingsStyleService.possibleLayerIds) {
+      if (id.trim().isEmpty) continue;
+      if (await _styleLayerSeemsToExist(map, id)) {
+        _cachedLayerId = id;
+        _log('layer found: $id');
+        return id;
+      }
+    }
 
-      // Pour l'instant, retourne le layer ID standard
-      const standardLayerId = 'maslive-3d-buildings';
-      _cachedLayerId = standardLayerId;
-      _log('layer found (hardcoded): $standardLayerId (TODO: implement real layer search)');
-      return _cachedLayerId;
-    } catch (e) {
-      _log('findBuildingLayer error: $e');
-      return null;
+    _log('no fill-extrusion layer found in current style');
+    return null;
+  }
+
+  /// Invalide le cache (à appeler après un changement de style).
+  void invalidateCache() {
+    _cachedLayerId = null;
+  }
+
+  Future<bool> _styleLayerSeemsToExist(MapboxMap map, String layerId) async {
+    // 1) Tentative via getStyleLayerProperty (si dispo dans cette version).
+    try {
+      final dynamic style = map.style;
+      final dynamic v = await style.getStyleLayerProperty(layerId, 'visibility');
+      // Si ça ne jette pas, c'est déjà un bon signal.
+      if (v != null) return true;
+    } catch (_) {
+      // ignore
+    }
+
+    // 2) Fallback: essayer d'écrire une propriété inoffensive.
+    // Si la couche n'existe pas, Mapbox lève une erreur.
+    try {
+      final desired = _lastAppliedEnabled == false ? 'none' : 'visible';
+      await map.style.setStyleLayerProperty(layerId, 'visibility', desired);
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 
-  /// Invalide le cache de la couche (à appeler après changement de style)
-  void invalidateCache() {
-    _cachedLayerId = null;
-    _log('cache invalidated');
+  double? _tryParseNumFromStyleProperty(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is num) return raw.toDouble();
+
+    // Certains retours platform sont de la forme {"value": ...}
+    if (raw is Map) {
+      final v = raw['value'];
+      if (v is num) return v.toDouble();
+      if (v is String) return double.tryParse(v);
+    }
+
+    // D'autres renvoient un objet avec champ `.value`.
+    try {
+      final dynamic v = raw.value;
+      if (v is num) return v.toDouble();
+      if (v is String) return double.tryParse(v);
+    } catch (_) {
+      // ignore
+    }
+
+    return null;
   }
 
   void _log(String message) {
     if (kDebugMode) {
-      debugPrint('[BuildingsOpacity] $message');
+      debugPrint('[BuildingsOpacity][native] $message');
     }
   }
 
-  double _clampOpacity(double value) {
-    return value.clamp(0.0, 1.0);
-  }
+  double _clampOpacity(double value) => value.clamp(0.0, 1.0);
 }

@@ -9,6 +9,7 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import '../../../services/mapbox_token_service.dart';
 import '../../../ui/map/maslive_map.dart';
 import '../../../ui/map/maslive_map_controller.dart';
+import '../../services/map_buildings_style_service_native.dart';
 import '../../models/route_style_config.dart';
 
 class RouteStylePreviewMap extends StatefulWidget {
@@ -32,10 +33,15 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
   final _webController = MasLiveMapController();
 
   String? _lastWebBoundsKey;
+  String? _lastWebBuildingsKey;
 
   // Mobile: MapboxMaps
   MapboxMap? _map;
   bool _styleReady = false;
+
+  // Mobile: service bâtiments (opacity + enable)
+  final _buildingsNative = MapBuildingsStyleServiceNative();
+  String? _lastNativeBuildingsKey;
 
   Timer? _animTimer;
   int _animTick = 0;
@@ -101,10 +107,12 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
 
   Future<void> _onMapCreated(MapboxMap mapboxMap) async {
     _map = mapboxMap;
+    _buildingsNative.setMapInstance(mapboxMap);
   }
 
   Future<void> _onStyleLoaded(StyleLoadedEventData data) async {
     _styleReady = true;
+    _buildingsNative.invalidateCache();
     await _ensureBaseStyle();
     await _render();
     widget.onMapReady?.call();
@@ -175,6 +183,16 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
 
     final cfg = widget.config.validated();
     final pts = widget.route;
+
+    // Bâtiments 3D (opacity + enabled) : applique via le service natif.
+    final nativeBuildingsKey = '${cfg.buildings3dEnabled ? 1 : 0}:${cfg.buildingOpacity.toStringAsFixed(3)}';
+    if (_lastNativeBuildingsKey != nativeBuildingsKey) {
+      _lastNativeBuildingsKey = nativeBuildingsKey;
+      unawaited(_buildingsNative.setBuildingsEnabled(cfg.buildings3dEnabled));
+      if (cfg.buildings3dEnabled) {
+        unawaited(_buildingsNative.setBuildingsOpacity(cfg.buildingOpacity));
+      }
+    }
 
     final widthScale = cfg.widthScale3d;
     final casingWidth = cfg.casingWidth * widthScale;
@@ -302,7 +320,10 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       await _map!.setCamera(
         CameraOptions(
           center: Point(coordinates: Position(center.lng, center.lat)),
-          zoom: 14.0,
+          // Rendu 3D: zoom/pitch plus adaptés pour rendre les immeubles visibles.
+          // (Les couches fill-extrusion sont souvent masquées sous ~14.5.)
+          zoom: 15.5,
+          pitch: 45.0,
         ),
       );
     }
@@ -314,6 +335,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     if (widget.route.length < 2) {
       await _webController.clearAll();
       _lastWebBoundsKey = null;
+      _lastWebBuildingsKey = null;
       return;
     }
 
@@ -393,6 +415,16 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
 
       segmentsGeoJson: segmentsGeoJson,
     );
+
+    // Bâtiments 3D (opacity + enabled) : ne réapplique que si valeur a changé.
+    final buildingsKey = '${cfg.buildings3dEnabled ? 1 : 0}:${cfg.buildingOpacity.toStringAsFixed(3)}';
+    if (_lastWebBuildingsKey != buildingsKey) {
+      _lastWebBuildingsKey = buildingsKey;
+      await _webController.setBuildings3d(
+        enabled: cfg.buildings3dEnabled,
+        opacity: cfg.buildingOpacity,
+      );
+    }
 
     if (_lastWebBoundsKey != boundsKey) {
       _lastWebBoundsKey = boundsKey;
@@ -626,7 +658,11 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
           controller: _webController,
           initialLng: initial.lng,
           initialLat: initial.lat,
-          initialZoom: 13.5,
+          // Les bâtiments 3D (fill-extrusion) ne deviennent visibles qu'à partir
+          // d'un certain zoom (souvent ~14.5+). On démarre donc un peu plus près
+          // pour rendre les réglages d'opacité observables immédiatement.
+          initialZoom: 15.5,
+          initialPitch: 45.0,
           onMapReady: (_) {
             widget.onMapReady?.call();
             _renderWeb(animTick: _animTick);

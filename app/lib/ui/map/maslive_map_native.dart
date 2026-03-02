@@ -7,6 +7,7 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'maslive_map_controller.dart';
 import 'maslive_poi_style.dart';
 import '../../services/mapbox_token_service.dart';
+import '../../route_style_pro/services/map_buildings_style_service_native.dart';
 
 /// Implémentation Native (iOS/Android) de MasLiveMap
 /// Utilise mapbox_maps_flutter avec API Phase 1 complète
@@ -90,6 +91,12 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   void Function(double lat, double lng)? _onPointAddedCallback;
 
   bool _patternImagesReady = false;
+
+  // Bâtiments 3D (opacité/visibilité) - cache + réapplication après reload style.
+  final MapBuildingsStyleServiceNative _buildingsNative =
+      MapBuildingsStyleServiceNative();
+  bool? _lastBuildings3dEnabled;
+  double? _lastBuildings3dOpacity;
 
   String _poisGeoJsonString = '{"type":"FeatureCollection","features":[]}';
 
@@ -498,6 +505,20 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       }
     };
 
+    controller.setBuildings3dImpl = (enabled, opacity) async {
+      _lastBuildings3dEnabled = enabled;
+      _lastBuildings3dOpacity = opacity;
+
+      // Si le style n'est pas prêt, on garde juste en cache.
+      if (_mapboxMap == null) return;
+      if (!_styleLoaded) return;
+
+      await _buildingsNative.setBuildingsEnabled(enabled);
+      if (enabled) {
+        await _buildingsNative.setBuildingsOpacity(opacity);
+      }
+    };
+
     // POIs GeoJSON (Mapbox Pro)
     try {
       (controller as dynamic).setPoisGeoJsonImpl = (String fcJson) async {
@@ -524,6 +545,19 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       };
     } catch (_) {
       // ignore
+    }
+  }
+
+  Future<void> _applyCachedBuildings3dAfterStyleLoad() async {
+    if (!_styleLoaded) return;
+    final enabled = _lastBuildings3dEnabled;
+    final opacity = _lastBuildings3dOpacity;
+    if (enabled == null || opacity == null) return;
+
+    _buildingsNative.invalidateCache();
+    await _buildingsNative.setBuildingsEnabled(enabled);
+    if (enabled) {
+      await _buildingsNative.setBuildingsOpacity(opacity);
     }
   }
 
@@ -891,6 +925,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
 
   void _onMapCreated(MapboxMap mapboxMap) async {
     _mapboxMap = mapboxMap;
+    _buildingsNative.setMapInstance(mapboxMap);
 
     // Le controller peut être branché dès que l'instance MapboxMap existe,
     // même si le style/tiles ne sont pas encore complètement prêts.
@@ -1070,6 +1105,9 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         // Après un reload de style (ou un changement de styleUrl), il faut restaurer
         // les overlays applicatifs (annotations + éventuels segments).
         await _reapplyCachedOverlaysAfterStyleLoad();
+
+        // Ré-appliquer le cache bâtiments (opacité/visibilité) après reload style.
+        await _applyCachedBuildings3dAfterStyleLoad();
       },
       onTapListener: (gestureContext) async {
         final controller = widget.controller;

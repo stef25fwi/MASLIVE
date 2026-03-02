@@ -46,6 +46,9 @@ class MasLiveMapController {
   /// Callback interne pour getCameraCenter
   Future<MapPoint?> Function()? _getCameraCenterImpl;
 
+  /// Callback interne pour régler les bâtiments 3D (web: fill-extrusion opacity/visibility)
+  Future<void> Function(bool enabled, double opacity)? _setBuildings3dImpl;
+
   // =====================================================================
   // SETTERS publics pour brancher les implémentations (Web/Native)
   // ⚠️ Ne PAS utiliser dans le code applicatif, réservés aux impl internes
@@ -117,6 +120,11 @@ class MasLiveMapController {
   /// @nodoc - Usage interne seulement
   set getCameraCenterImpl(Future<MapPoint?> Function()? impl) {
     _getCameraCenterImpl = impl;
+  }
+
+  /// @nodoc - Usage interne seulement
+  set setBuildings3dImpl(Future<void> Function(bool enabled, double opacity)? impl) {
+    _setBuildings3dImpl = impl;
   }
 
   // =====================================================================
@@ -217,6 +225,17 @@ class MasLiveMapController {
         segmentsGeoJson: segmentsGeoJson,
       ),
     );
+  }
+
+  /// Activer/désactiver les bâtiments 3D et régler leur opacité.
+  ///
+  /// Web (Mapbox GL JS): applique sur la couche `fill-extrusion` (si présente).
+  /// Mobile: no-op tant que l'impl native n'est pas branchée.
+  Future<void> setBuildings3d({
+    required bool enabled,
+    required double opacity,
+  }) async {
+    await _setBuildings3dImpl?.call(enabled, opacity);
   }
 
   /// Afficher un polygone (zone, circuit fermé)

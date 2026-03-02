@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
+import '../../route_style_pro/services/map_buildings_style_service_native.dart';
 import '../../route_style_pro/services/route_style_pro_projection.dart';
 
 /// ===============================
@@ -61,6 +62,9 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
   MapboxMap? _map;
   bool _styleLoaded = false;
   String? _currentStyleUri;
+  final MapBuildingsStyleServiceNative _buildings =
+      MapBuildingsStyleServiceNative();
+  String? _lastBuildingsKey;
 
   // Sources / Layers
   static const String _routeSourceId = 'mm_public_route_src';
@@ -140,10 +144,14 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
 
   void _onMapCreated(MapboxMap mapboxMap) {
     _map = mapboxMap;
+    _buildings.setMapInstance(mapboxMap);
   }
 
   Future<void> _onStyleLoaded(StyleLoadedEventData data) async {
     _styleLoaded = true;
+
+    // Nouveau style => invalider la couche bâtiments.
+    _buildings.invalidateCache();
 
     // Le rechargement du style remet les layers à zéro.
     _poiLayerIdsCreated.clear();
@@ -152,8 +160,25 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
     await _rebuildPoiLayersFromUiState();
     if (_lastCircuitDocData != null) {
       await _applyRouteStyleFromCircuitDoc(_lastCircuitDocData!);
+      await _applyBuildingsStyleFromCircuitDoc(_lastCircuitDocData!);
     }
     await _applyDataIfReady();
+  }
+
+  Future<void> _applyBuildingsStyleFromCircuitDoc(Map<String, dynamic> d) async {
+    if (!_styleLoaded) return;
+    final proCfg = tryParseRouteStylePro(d['routeStylePro']);
+    if (proCfg == null) return;
+
+    final key =
+        '${proCfg.buildings3dEnabled ? 1 : 0}:${proCfg.buildingOpacity.toStringAsFixed(3)}';
+    if (_lastBuildingsKey == key) return;
+    _lastBuildingsKey = key;
+
+    await _buildings.setBuildingsEnabled(proCfg.buildings3dEnabled);
+    if (proCfg.buildings3dEnabled) {
+      await _buildings.setBuildingsOpacity(proCfg.buildingOpacity);
+    }
   }
 
   Future<void> _ensureBaseSourcesAndLayers() async {
@@ -390,6 +415,7 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
       _routeGeoJsonString =
           _buildRouteGeoJsonFromCircuitDoc(d) ?? _emptyFeatureCollection();
       await _applyRouteStyleFromCircuitDoc(d);
+      await _applyBuildingsStyleFromCircuitDoc(d);
       await _applyDataIfReady();
     });
 

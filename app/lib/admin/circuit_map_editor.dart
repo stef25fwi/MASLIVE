@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
+import 'dart:async';
 import 'dart:math' as math;
 import '../services/mapbox_token_service.dart';
 import '../ui/map/maslive_map.dart';
@@ -94,6 +95,11 @@ class CircuitMapEditor extends StatefulWidget {
   final CircuitMapEditorController? controller;
   final String? styleUrl;
 
+  /// Réglage bâtiments 3D (Style Pro): visible/masqué + opacité.
+  /// Si null, l'éditeur ne touche pas aux bâtiments.
+  final bool? buildings3dEnabled;
+  final double? buildingsOpacity;
+
   /// Afficher (ou non) le header interne (titre + sous-titre).
   /// Utile quand la page parente affiche déjà le titre sous l'AppBar.
   final bool showHeader;
@@ -154,6 +160,8 @@ class CircuitMapEditor extends StatefulWidget {
     this.showToolbar = true,
     this.controller,
     this.styleUrl,
+    this.buildings3dEnabled,
+    this.buildingsOpacity,
 
     this.showHeader = true,
     this.pointsListMaxHeight = 180,
@@ -197,6 +205,13 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   final MasLiveMapController _mapController = MasLiveMapController();
   bool _isMapReady = false;
 
+  Future<void> _applyBuildings3dIfNeeded() async {
+    final enabled = widget.buildings3dEnabled;
+    if (enabled == null) return;
+    final opacity = (widget.buildingsOpacity ?? 0.6).clamp(0.0, 1.0);
+    await _mapController.setBuildings3d(enabled: enabled, opacity: opacity);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -218,6 +233,13 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   @override
   void didUpdateWidget(covariant CircuitMapEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    final buildingsChanged =
+        oldWidget.buildings3dEnabled != widget.buildings3dEnabled ||
+        oldWidget.buildingsOpacity != widget.buildingsOpacity;
+    if (buildingsChanged && _isMapReady) {
+      unawaited(_applyBuildings3dIfNeeded());
+    }
 
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller?._detach();
@@ -951,6 +973,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
               },
             );
             await _renderOnMap();
+            await _applyBuildings3dIfNeeded();
           },
         ),
         Positioned(

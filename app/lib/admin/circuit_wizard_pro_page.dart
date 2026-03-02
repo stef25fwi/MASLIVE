@@ -115,6 +115,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   Timer? _poiRouteStyleProTimer;
   int _poiRouteStyleProAnimTick = 0;
   bool _isRenderingPoiRoute = false;
+  String? _lastPoiBuildingsKey;
 
   // Step 4: Layers/POI
   List<MarketMapLayer> _layers = [];
@@ -1792,6 +1793,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   Widget _buildStep3RouteAndStyleUnified() {
+    final proCfg = _routeStyleProConfig?.validated();
     return CircuitMapEditor(
       title: 'Tracé + Style',
       subtitle: 'Tracez l\'itinéraire et réglez son apparence',
@@ -1801,6 +1803,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       styleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text).isEmpty
           ? null
           : _normalizeMapboxStyleUrl(_styleUrlController.text),
+      buildings3dEnabled: proCfg?.buildings3dEnabled,
+      buildingsOpacity: proCfg?.buildingOpacity,
       showToolbar: false,
       allowVerticalScroll: true,
       mapHeight: 720,
@@ -2096,6 +2100,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   Widget _buildStep2Perimeter() {
+    final proCfg = _routeStyleProConfig?.validated();
     return CircuitMapEditor(
       title: 'Définir le périmètre',
       subtitle: 'Tracez la zone de couverture (polygon fermé)',
@@ -2104,6 +2109,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       styleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text).isEmpty
           ? null
           : _normalizeMapboxStyleUrl(_styleUrlController.text),
+      buildings3dEnabled: proCfg?.buildings3dEnabled,
+      buildingsOpacity: proCfg?.buildingOpacity,
       editingEnabled: true,
       onPointAddedOverride: _perimeterCircleMode
           ? (p) {
@@ -3013,6 +3020,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                           ? null
                           : _normalizeMapboxStyleUrl(_styleUrlController.text),
                       onMapReady: (ctrl) async {
+                        final cfg = _routeStyleProConfig?.validated();
+                        if (cfg != null) {
+                          await ctrl.setBuildings3d(
+                            enabled: cfg.buildings3dEnabled,
+                            opacity: cfg.buildingOpacity,
+                          );
+                        }
                         await _refreshPoiMarkers();
                         await _refreshPoiRouteOverlay();
                         _syncPoiRouteStyleProTimer();
@@ -3311,6 +3325,18 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       final pro = _routeStyleProConfig;
       if (pro != null) {
         final cfg = pro.validated();
+
+        final buildingsKey =
+            '${cfg.buildings3dEnabled ? 1 : 0}:${cfg.buildingOpacity.toStringAsFixed(3)}';
+        if (_lastPoiBuildingsKey != buildingsKey) {
+          _lastPoiBuildingsKey = buildingsKey;
+          unawaited(
+            _poiMapController.setBuildings3d(
+              enabled: cfg.buildings3dEnabled,
+              opacity: cfg.buildingOpacity,
+            ),
+          );
+        }
 
         final widthScale = cfg.widthScale3d;
         final mainWidth = cfg.mainWidth * widthScale;

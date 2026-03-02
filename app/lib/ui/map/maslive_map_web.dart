@@ -99,6 +99,9 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   })?
   _lastPolygon;
 
+  bool? _lastBuildings3dEnabled;
+  double? _lastBuildings3dOpacity;
+
   String? _pendingStyleUrlToApply;
   int _styleChangeNonce = 0;
 
@@ -317,6 +320,51 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       } catch (e) {
         debugPrint('⚠️ reapply polygon error: $e');
       }
+    }
+
+    // Bâtiments 3D
+    final enabled = _lastBuildings3dEnabled;
+    final opacity = _lastBuildings3dOpacity;
+    if (enabled != null && opacity != null) {
+      await _applyBuildings3d(enabled: enabled, opacity: opacity);
+    }
+  }
+
+  Future<void> _applyBuildings3d({required bool enabled, required double opacity}) async {
+    final map = _getMapForThisContainer();
+    if (map == null) return;
+
+    final o = opacity.clamp(0.0, 1.0);
+    try {
+      final bridge = js.context['mapboxBridge'];
+      if (bridge is! js.JsObject) return;
+
+      dynamic layerId = bridge.callMethod('findBuildingLayer', [map]);
+
+      // Si aucune couche fill-extrusion n'est présente, on tente d'injecter
+      // notre layer 3D (maslive-3d-buildings) puis on réessaie.
+      if ((layerId is! String || layerId.trim().isEmpty) && enabled) {
+        try {
+          bridge.callMethod('ensure3DBuildings', [map]);
+        } catch (_) {
+          // ignore
+        }
+
+        for (var attempt = 0; attempt < 12; attempt++) {
+          await Future.delayed(const Duration(milliseconds: 120));
+          layerId = bridge.callMethod('findBuildingLayer', [map]);
+          if (layerId is String && layerId.trim().isNotEmpty) break;
+        }
+      }
+
+      if (layerId is! String || layerId.trim().isEmpty) return;
+
+      bridge.callMethod('setBuildingsEnabled', [layerId, enabled, map]);
+      if (enabled) {
+        bridge.callMethod('setBuildingsOpacity', [layerId, o, map]);
+      }
+    } catch (e) {
+      debugPrint('⚠️ setBuildings3d error: $e');
     }
   }
 
@@ -971,6 +1019,12 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       }
     };
 
+    controller.setBuildings3dImpl = (enabled, opacity) async {
+      _lastBuildings3dEnabled = enabled;
+      _lastBuildings3dOpacity = opacity;
+      await _applyBuildings3d(enabled: enabled, opacity: opacity);
+    };
+
     controller.setPolygonImpl = (points, fillColor, strokeColor, strokeWidth, show) async {
       if (!show) {
         _lastPolygon = null;
@@ -1011,6 +1065,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       _lastMarkers = null;
       _lastPolyline = null;
       _lastPolygon = null;
+      _lastBuildings3dEnabled = null;
+      _lastBuildings3dOpacity = null;
       try {
         _mbClearAll(_containerId);
       } catch (e) {

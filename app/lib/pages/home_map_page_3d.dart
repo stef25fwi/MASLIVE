@@ -244,6 +244,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       context,
       service: _marketMapService,
       initial: _marketPoiSelection,
+      disableKeyboardInput: true,
     );
     if (selection == null) return;
     if (!mounted) return;
@@ -340,11 +341,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     if (map != null) {
       final empty = _emptyRouteFeatureCollection();
       try {
-        await map.style.setStyleSourceProperty(
-          _mmRouteSourceId,
-          'data',
-          empty,
-        );
+        await map.style.setStyleSourceProperty(_mmRouteSourceId, 'data', empty);
       } catch (_) {
         // ignore
       }
@@ -504,7 +501,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
             for (final p in pts) [p.lng.toDouble(), p.lat.toDouble()],
           ],
         },
-      }
+      },
     ]);
   }
 
@@ -516,10 +513,11 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       return;
     }
 
-    final periodMs = (cfg.rainbowEnabled
-            ? (110 - (cfg.rainbowSpeed * 0.8)).clamp(25, 110)
-            : (160 - (cfg.pulseSpeed * 1.0)).clamp(40, 160))
-        .round();
+    final periodMs =
+        (cfg.rainbowEnabled
+                ? (110 - (cfg.rainbowSpeed * 0.8)).clamp(25, 110)
+                : (160 - (cfg.pulseSpeed * 1.0)).clamp(40, 160))
+            .round();
 
     _routeAnimTimer?.cancel();
     _routeAnimTimer = Timer.periodic(Duration(milliseconds: periodMs), (_) {
@@ -575,7 +573,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         // Sources
         try {
           await style.addSource(
-            GeoJsonSource(id: _mmRouteSourceId, data: _emptyRouteFeatureCollection()),
+            GeoJsonSource(
+              id: _mmRouteSourceId,
+              data: _emptyRouteFeatureCollection(),
+            ),
           );
         } catch (_) {
           // ignore
@@ -697,13 +698,17 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
             for (final p in pts) [p.lng.toDouble(), p.lat.toDouble()],
           ],
         },
-      }
+      },
     ]);
 
     final useSegments =
         c.rainbowEnabled || c.trafficDemoEnabled || c.vanishingEnabled;
     final segmentsFc = useSegments
-        ? _buildSegmentsFeatureCollection(pts, c, animTick: animTick ?? _routeAnimTick)
+        ? _buildSegmentsFeatureCollection(
+            pts,
+            c,
+            animTick: animTick ?? _routeAnimTick,
+          )
         : _buildSolidFeatureCollection(pts, c);
 
     Future<void> safeSetSourceData(String sourceId, String data) async {
@@ -773,7 +778,11 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       'line-width',
       max(1.0, casingWidth * thickness3d),
     );
-    await safeSet(_mmRouteLayerShadowId, 'line-blur', c.shadowBlur * thickness3d);
+    await safeSet(
+      _mmRouteLayerShadowId,
+      'line-blur',
+      c.shadowBlur * thickness3d,
+    );
 
     // Glow (+ pulse)
     double glowOpacity = c.glowEnabled ? c.glowOpacity : 0.0;
@@ -807,7 +816,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     await safeSet(_mmRouteLayerMainId, 'line-opacity', ['get', 'opacity']);
 
     if (c.dashEnabled) {
-      await safeSet(_mmRouteLayerMainId, 'line-dasharray', [c.dashLength, c.dashGap]);
+      await safeSet(_mmRouteLayerMainId, 'line-dasharray', [
+        c.dashLength,
+        c.dashGap,
+      ]);
     } else {
       await safeSet(_mmRouteLayerMainId, 'line-dasharray', null);
     }
@@ -929,13 +941,14 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       final manager = _circuitsAnnotationManager;
       if (manager == null) return false;
 
-        // Rendu legacy (roadLike) si pas de StylePro
-        final color = _parseHexColor(legacy['color']?.toString()) ??
+      // Rendu legacy (roadLike) si pas de StylePro
+      final color =
+          _parseHexColor(legacy['color']?.toString()) ??
           const Color(0xFF0A84FF);
-        final width = (legacy['width'] as num?)?.toDouble() ?? 6.0;
+      final width = (legacy['width'] as num?)?.toDouble() ?? 6.0;
 
-        final roadLike = (legacy['roadLike'] as bool?) ?? true;
-        final shadow3d = (legacy['shadow3d'] as bool?) ?? true;
+      final roadLike = (legacy['roadLike'] as bool?) ?? true;
+      final shadow3d = (legacy['shadow3d'] as bool?) ?? true;
 
       await manager.deleteAll();
 
@@ -2065,6 +2078,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       context,
       service: _marketMapService,
       initial: _marketPoiSelection.enabled ? _marketPoiSelection : null,
+      disableKeyboardInput: true,
     );
     if (selection == null || !mounted) return;
 
