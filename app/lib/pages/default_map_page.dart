@@ -443,9 +443,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         final casingWidth = cfg.casingWidth * widthScale;
         final glowWidth = cfg.glowWidth * widthScale;
 
-        final useSegments =
-            cfg.rainbowEnabled || cfg.trafficDemoEnabled || cfg.vanishingEnabled;
-        final segmentsGeoJson = useSegments
+        final segmentsForMain =
+          cfg.rainbowEnabled || cfg.trafficDemoEnabled || cfg.vanishingEnabled;
+        final needSegmentsSource = segmentsForMain || cfg.casingRainbowEnabled;
+        final segmentsGeoJson = needSegmentsSource
             ? _buildRouteStyleProSegmentsGeoJson(
                 pts,
                 cfg,
@@ -472,6 +473,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           opacity: cfg.opacity,
           casingColor: cfg.casingColor,
           casingWidth: cfg.casingWidth > 0 ? casingWidth : null,
+          casingRainbowEnabled: cfg.casingRainbowEnabled,
 
           glowEnabled: cfg.glowEnabled,
           glowColor: cfg.mainColor,
@@ -490,6 +492,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           lineCap: cfg.lineCap.name,
           lineJoin: cfg.lineJoin.name,
           segmentsGeoJson: segmentsGeoJson,
+          segmentsForMain: segmentsForMain,
         );
       } else {
         final style = _marketRouteStyle;
@@ -565,11 +568,13 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           : baseOpacity;
 
       final color = _routeStyleProSegmentColor(cfg, segIndex, animTick);
+      final casingColor = _routeStyleProSegmentCasingColor(cfg, segIndex, animTick);
 
       features.add({
         'type': 'Feature',
         'properties': {
           'color': _toRgba(color, opacity: opacity),
+          'casingColor': _toCssRgb(casingColor),
           'width': width,
           'opacity': opacity,
         },
@@ -605,6 +610,18 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     }
 
     return cfg.mainColor;
+  }
+
+  Color _routeStyleProSegmentCasingColor(
+    rsp.RouteStyleConfig cfg,
+    int index,
+    int animTick,
+  ) {
+    if (!cfg.casingRainbowEnabled) return cfg.casingColor;
+    final shift = (animTick % 360);
+    final dir = cfg.rainbowReverse ? -1 : 1;
+    final hue = (shift + dir * index * 14) % 360;
+    return _hsvToColor(hue.toDouble(), cfg.rainbowSaturation, 1.0);
   }
 
   Color _hsvToColor(double h, double s, double v) {
@@ -647,6 +664,13 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     final g = ((c.g * 255).round()).clamp(0, 255);
     final b = ((c.b * 255).round()).clamp(0, 255);
     return 'rgba($r,$g,$b,${a.toStringAsFixed(3)})';
+  }
+
+  String _toCssRgb(Color c) {
+    final r = ((c.r * 255).round()).clamp(0, 255);
+    final g = ((c.g * 255).round()).clamp(0, 255);
+    final b = ((c.b * 255).round()).clamp(0, 255);
+    return 'rgb($r,$g,$b)';
   }
 
   static List<MapPoint> _parseRoutePoints(dynamic raw) {

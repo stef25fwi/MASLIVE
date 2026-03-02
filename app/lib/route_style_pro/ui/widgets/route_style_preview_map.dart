@@ -87,7 +87,8 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
 
   void _syncTimers() {
     final cfg = widget.config;
-    final needsAnim = cfg.pulseEnabled || cfg.rainbowEnabled;
+    final needsAnim =
+        cfg.pulseEnabled || cfg.rainbowEnabled || cfg.casingRainbowEnabled;
     if (!needsAnim) {
       _animTimer?.cancel();
       _animTimer = null;
@@ -96,7 +97,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
 
     // Periodic update (throttlé)
     final periodMs =
-        (cfg.rainbowEnabled
+      ((cfg.rainbowEnabled || cfg.casingRainbowEnabled)
                 ? (110 - (cfg.rainbowSpeed * 0.8)).clamp(25, 110)
                 : (160 - (cfg.pulseSpeed * 1.0)).clamp(40, 160))
             .round();
@@ -155,7 +156,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     await _tryAddLayer(
       LineLayer(
         id: _layerCasing,
-        sourceId: _srcRoute,
+        sourceId: _srcSegments,
         lineColor: const Color(0xFF0B1B2B).toARGB32(),
         lineOpacity: 1.0,
         lineWidth: 11.0,
@@ -224,7 +225,10 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
 
     // Section segments (rainbow/traffic/vanishing)
     final useSegments =
-        cfg.rainbowEnabled || cfg.trafficDemoEnabled || cfg.vanishingEnabled;
+      cfg.rainbowEnabled ||
+      cfg.trafficDemoEnabled ||
+      cfg.vanishingEnabled ||
+      cfg.casingRainbowEnabled;
     final segmentsFc = useSegments
         ? _buildSegmentsFeatureCollection(
             pts,
@@ -267,7 +271,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     await _setLayerProps(_layerCasing, {
       'line-opacity': casingOpacity,
       'line-width': math.max(0.0, casingWidth),
-      'line-color': _argbInt(cfg.casingColor),
+      'line-color': ['get', 'casingColor'],
     });
 
     if (useSegments) {
@@ -346,9 +350,10 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     final glowWidth = cfg.glowWidth * widthScale;
 
     // Segments (rainbow/traffic/vanishing): FC GeoJSON avec propriétés color/width/opacity.
-    final useSegments =
-        cfg.rainbowEnabled || cfg.trafficDemoEnabled || cfg.vanishingEnabled;
-    final segmentsGeoJson = useSegments
+    final segmentsForMain =
+      cfg.rainbowEnabled || cfg.trafficDemoEnabled || cfg.vanishingEnabled;
+    final needSegmentsSource = segmentsForMain || cfg.casingRainbowEnabled;
+    final segmentsGeoJson = needSegmentsSource
         ? _buildSegmentsFeatureCollection(
             widget.route,
             cfg,
@@ -402,6 +407,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
 
       casingColor: cfg.casingColor,
       casingWidth: cfg.casingWidth > 0 ? casingWidth : null,
+      casingRainbowEnabled: cfg.casingRainbowEnabled,
 
       glowEnabled: cfg.glowEnabled,
       glowColor: cfg.mainColor,
@@ -420,6 +426,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       lineJoin: lineJoin,
 
       segmentsGeoJson: segmentsGeoJson,
+      segmentsForMain: segmentsForMain,
     );
 
     // Bâtiments 3D (opacity + enabled) : ne réapplique que si valeur a changé.
@@ -538,11 +545,13 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
           : baseOpacity;
 
       final color = _segmentColor(cfg, segIndex, animTick);
+      final casingColor = _segmentCasingColor(cfg, segIndex, animTick);
 
       features.add({
         'type': 'Feature',
         'properties': {
           'color': _toHexRgba(color, opacity: opacity),
+          'casingColor': _toCssRgb(casingColor),
           'width': width,
           'opacity': opacity,
         },
@@ -568,6 +577,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
         'type': 'Feature',
         'properties': {
           'color': _toHexRgba(cfg.mainColor, opacity: cfg.opacity),
+          'casingColor': _toCssRgb(cfg.casingColor),
           'width': width,
           'opacity': cfg.opacity,
         },
@@ -600,6 +610,14 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
 
     // Fallback: mainColor
     return cfg.mainColor;
+  }
+
+  Color _segmentCasingColor(RouteStyleConfig cfg, int index, int animTick) {
+    if (!cfg.casingRainbowEnabled) return cfg.casingColor;
+    final shift = (animTick % 360);
+    final dir = cfg.rainbowReverse ? -1 : 1;
+    final hue = (shift + dir * index * 14) % 360;
+    return _hsvToColor(hue.toDouble(), cfg.rainbowSaturation, 1.0);
   }
 
   Color _hsvToColor(double h, double s, double v) {
@@ -643,6 +661,13 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     final g = ((c.g * 255).round()).clamp(0, 255);
     final b = ((c.b * 255).round()).clamp(0, 255);
     return 'rgba($r,$g,$b,${a.toStringAsFixed(3)})';
+  }
+
+  String _toCssRgb(Color c) {
+    final r = ((c.r * 255).round()).clamp(0, 255);
+    final g = ((c.g * 255).round()).clamp(0, 255);
+    final b = ((c.b * 255).round()).clamp(0, 255);
+    return 'rgb($r,$g,$b)';
   }
 
   int _argbInt(Color c) {

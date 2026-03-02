@@ -169,6 +169,7 @@ class _MasLiveCircuitMapWebState extends State<_MasLiveCircuitMapWeb> {
         shadow3d: false,
         showDirection: false,
         segmentsGeoJson: segJson,
+        segmentsForMain: true,
       );
     } else {
       await _controller.setPolyline(points: const [], show: false);

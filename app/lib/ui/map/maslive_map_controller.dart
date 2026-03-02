@@ -184,6 +184,7 @@ class MasLiveMapController {
     double? shadowBlur,
     Color? casingColor,
     double? casingWidth,
+    bool? casingRainbowEnabled,
     bool glowEnabled = false,
     Color? glowColor,
     double? glowWidth,
@@ -198,6 +199,7 @@ class MasLiveMapController {
     String? lineCap,
     String? lineJoin,
     String? segmentsGeoJson,
+    bool? segmentsForMain,
   }) async {
     await _setPolylineImpl?.call(
       points,
@@ -215,6 +217,7 @@ class MasLiveMapController {
         shadowBlur: shadowBlur,
         casingColor: casingColor,
         casingWidth: casingWidth,
+        casingRainbowEnabled: casingRainbowEnabled,
         glowEnabled: glowEnabled,
         glowColor: glowColor,
         glowWidth: glowWidth,
@@ -229,6 +232,7 @@ class MasLiveMapController {
         lineCap: lineCap,
         lineJoin: lineJoin,
         segmentsGeoJson: segmentsGeoJson,
+        segmentsForMain: segmentsForMain,
       ),
     );
   }
@@ -331,6 +335,9 @@ class PolylineRenderOptions {
 
   final Color? casingColor;
   final double? casingWidth;
+
+  /// Si true, le casing utilise une couleur par segment (rainbow), si supporté.
+  final bool? casingRainbowEnabled;
   final bool glowEnabled;
   final Color? glowColor;
   final double? glowWidth;
@@ -364,6 +371,10 @@ class PolylineRenderOptions {
   /// - opacity: number
   final String? segmentsGeoJson;
 
+  /// Optionnel (Web): si false, les segments servent seulement au casing
+  /// (le tracé principal reste sur la source pleine).
+  final bool? segmentsForMain;
+
   const PolylineRenderOptions({
     this.roadLike = true,
     this.shadow3d = true,
@@ -375,6 +386,7 @@ class PolylineRenderOptions {
     this.shadowBlur,
     this.casingColor,
     this.casingWidth,
+    this.casingRainbowEnabled,
     this.glowEnabled = false,
     this.glowColor,
     this.glowWidth,
@@ -389,6 +401,7 @@ class PolylineRenderOptions {
     this.sidesEnabled,
     this.sidesIntensity,
     this.segmentsGeoJson,
+    this.segmentsForMain,
   });
 
   Map<String, dynamic> toJson() => {
@@ -402,6 +415,8 @@ class PolylineRenderOptions {
         if (shadowBlur != null) 'shadowBlur': shadowBlur,
         if (casingWidth != null) 'casingWidth': casingWidth,
         if (casingColor != null) 'casingColor': _toHexRgb(casingColor!),
+        if (casingRainbowEnabled != null)
+          'casingRainbowEnabled': casingRainbowEnabled,
         'glowEnabled': glowEnabled,
         if (glowWidth != null) 'glowWidth': glowWidth,
         if (glowOpacity != null) 'glowOpacity': glowOpacity,
@@ -416,6 +431,7 @@ class PolylineRenderOptions {
         if (lineCap != null) 'lineCap': lineCap,
         if (lineJoin != null) 'lineJoin': lineJoin,
         if (segmentsGeoJson != null) 'segmentsGeoJson': segmentsGeoJson,
+        if (segmentsForMain != null) 'segmentsForMain': segmentsForMain,
       };
 
   static String _toHexRgb(Color c) {

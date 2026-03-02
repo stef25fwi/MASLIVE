@@ -1,7 +1,7 @@
 import 'dart:ui' show Color;
 
 /// Version du schéma JSON stocké.
-const int kRouteStyleSchemaVersion = 4;
+const int kRouteStyleSchemaVersion = 5;
 
 /// Représentation simple (lat, lng) pour les services.
 typedef LatLng = ({double lat, double lng});
@@ -32,6 +32,10 @@ class RouteStyleConfig {
   final double casingWidth;
   final Color mainColor;
   final Color casingColor;
+
+  /// Si true, la couleur du casing est un dégradé "rainbow" par segments
+  /// (au lieu d'une couleur fixe).
+  final bool casingRainbowEnabled;
   /// 0..1
   final double opacity;
 
@@ -125,6 +129,7 @@ class RouteStyleConfig {
     this.casingWidth = 11.0,
     this.mainColor = const Color(0xFF1A73E8),
     this.casingColor = const Color(0xFF0B1B2B),
+    this.casingRainbowEnabled = false,
     this.opacity = 1.0,
     this.widthScale3d = 1.0,
     this.thickness3d = 1.0,
@@ -175,6 +180,7 @@ class RouteStyleConfig {
     double? casingWidth,
     Color? mainColor,
     Color? casingColor,
+    bool? casingRainbowEnabled,
     double? opacity,
     double? widthScale3d,
     double? thickness3d,
@@ -217,6 +223,7 @@ class RouteStyleConfig {
       casingWidth: casingWidth ?? this.casingWidth,
       mainColor: mainColor ?? this.mainColor,
       casingColor: casingColor ?? this.casingColor,
+      casingRainbowEnabled: casingRainbowEnabled ?? this.casingRainbowEnabled,
       opacity: opacity ?? this.opacity,
       widthScale3d: widthScale3d ?? this.widthScale3d,
       thickness3d: thickness3d ?? this.thickness3d,
@@ -265,6 +272,7 @@ class RouteStyleConfig {
             casingWidth: clamp(casingWidth, 0, 30),
       mainColor: mainColor,
       casingColor: casingColor,
+      casingRainbowEnabled: casingRainbowEnabled,
       opacity: clamp(opacity, 0, 1),
       widthScale3d: clamp(widthScale3d, 0.5, 3.0),
       thickness3d: clamp(thickness3d, 0.6, 1.8),
@@ -310,6 +318,7 @@ class RouteStyleConfig {
       'casingWidth': casingWidth,
       'mainColor': _colorToHexArgb(mainColor),
       'casingColor': _colorToHexArgb(casingColor),
+      'casingRainbowEnabled': casingRainbowEnabled,
       'opacity': opacity,
       'widthScale3d': widthScale3d,
       'thickness3d': thickness3d,
@@ -380,6 +389,9 @@ class RouteStyleConfig {
           const Color(0xFF1A73E8),
       casingColor: _colorFromHexArgb(json['casingColor'] as String?) ??
           const Color(0xFF0B1B2B),
+        casingRainbowEnabled: json['casingRainbowEnabled'] is bool
+          ? json['casingRainbowEnabled'] as bool
+          : false,
       opacity:
           (json['opacity'] is num) ? (json['opacity'] as num).toDouble() : 1.0,
       widthScale3d: (json['widthScale3d'] is num)

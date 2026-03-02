@@ -173,7 +173,14 @@ class RouteStyleControlsPanel extends StatelessWidget {
               ColorPickerTile(
                 title: 'Couleur casing',
                 color: cfg.casingColor,
-                onChanged: (c) => onChanged(cfg.copyWith(casingColor: c)),
+                onChanged: (c) =>
+                    onChanged(cfg.copyWith(casingColor: c, casingRainbowEnabled: false)),
+              ),
+
+              ToggleTile(
+                title: 'Rainbow casing',
+                value: cfg.casingRainbowEnabled,
+                onChanged: (v) => onChanged(cfg.copyWith(casingRainbowEnabled: v)),
               ),
             ],
           ),

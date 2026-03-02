@@ -380,6 +380,13 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     return 'rgba($r,$g,$b,${a.toStringAsFixed(3)})';
   }
 
+  static String _toCssRgb(Color c) {
+    final r = ((c.r * 255).round()).clamp(0, 255);
+    final g = ((c.g * 255).round()).clamp(0, 255);
+    final b = ((c.b * 255).round()).clamp(0, 255);
+    return 'rgb($r,$g,$b)';
+  }
+
   static Color _hsvToColor(double h, double s, double v) {
     final hh = (h % 360) / 60.0;
     final c = v * s;
@@ -433,6 +440,14 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     return cfg.mainColor;
   }
 
+  static Color _segmentCasingColor(RouteStyleConfig cfg, int index, int animTick) {
+    if (!cfg.casingRainbowEnabled) return cfg.casingColor;
+    final shift = (animTick % 360);
+    final dir = cfg.rainbowReverse ? -1 : 1;
+    final hue = (shift + dir * index * 14) % 360;
+    return _hsvToColor(hue.toDouble(), cfg.rainbowSaturation, 1.0);
+  }
+
   static String _buildSegmentsFeatureCollection(
     List<Position> pts,
     RouteStyleConfig cfg, {
@@ -461,11 +476,13 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           : baseOpacity;
 
       final color = _segmentColor(cfg, segIndex, animTick);
+      final casingColor = _segmentCasingColor(cfg, segIndex, animTick);
 
       features.add({
         'type': 'Feature',
         'properties': {
           'color': _toHexRgba(color, opacity: opacity),
+          'casingColor': _toCssRgb(casingColor),
           'width': width,
           'opacity': opacity,
         },
@@ -494,6 +511,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         'type': 'Feature',
         'properties': {
           'color': _toHexRgba(cfg.mainColor, opacity: cfg.opacity),
+          'casingColor': _toCssRgb(cfg.casingColor),
           'width': width,
           'opacity': cfg.opacity,
         },
@@ -508,7 +526,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   }
 
   void _syncMarketRouteAnimTimer(RouteStyleConfig cfg) {
-    final needsAnim = cfg.pulseEnabled || cfg.rainbowEnabled;
+    final needsAnim =
+        cfg.pulseEnabled || cfg.rainbowEnabled || cfg.casingRainbowEnabled;
     if (!needsAnim) {
       _routeAnimTimer?.cancel();
       _routeAnimTimer = null;
@@ -516,7 +535,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     }
 
     final periodMs =
-        (cfg.rainbowEnabled
+      ((cfg.rainbowEnabled || cfg.casingRainbowEnabled)
                 ? (110 - (cfg.rainbowSpeed * 0.8)).clamp(25, 110)
                 : (160 - (cfg.pulseSpeed * 1.0)).clamp(40, 160))
             .round();
@@ -671,7 +690,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           await style.addLayer(
             LineLayer(
               id: _mmRouteLayerCasingId,
-              sourceId: _mmRouteSourceId,
+              sourceId: _mmRouteSegmentsSourceId,
               lineColor: const Color(0xFF0B1B2B).toARGB32(),
               lineOpacity: 1.0,
               lineWidth: 11.0,
@@ -744,7 +763,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     ]);
 
     final useSegments =
-        c.rainbowEnabled || c.trafficDemoEnabled || c.vanishingEnabled;
+      c.rainbowEnabled ||
+      c.trafficDemoEnabled ||
+      c.vanishingEnabled ||
+      c.casingRainbowEnabled;
     final segmentsFc = useSegments
         ? _buildSegmentsFeatureCollection(
             pts,
@@ -880,11 +902,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     final casingOpacity = (c.casingWidth <= 0) ? 0.0 : c.opacity;
     await safeSet(_mmRouteLayerCasingId, 'line-opacity', casingOpacity);
     await safeSet(_mmRouteLayerCasingId, 'line-width', max(0.0, casingWidth));
-    await safeSet(
-      _mmRouteLayerCasingId,
-      'line-color',
-      c.casingColor.toARGB32(),
-    );
+    await safeSet(_mmRouteLayerCasingId, 'line-color', ['get', 'casingColor']);
 
     // Main layer from feature props
     await safeSet(_mmRouteLayerMainId, 'line-color', ['get', 'color']);
