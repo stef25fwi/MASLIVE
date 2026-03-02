@@ -1,7 +1,7 @@
 import 'dart:ui' show Color;
 
 /// Version du schéma JSON stocké.
-const int kRouteStyleSchemaVersion = 3;
+const int kRouteStyleSchemaVersion = 4;
 
 /// Représentation simple (lat, lng) pour les services.
 typedef LatLng = ({double lat, double lng});
@@ -107,6 +107,11 @@ class RouteStyleConfig {
   /// 0..1
   final double buildingOpacity;
 
+  // I) Lisibilité du tracé
+  /// Si activé, force le tracé à rester au-dessus des immeubles (ordre des layers).
+  /// (Utile sur certains styles/pitches où les bâtiments masquent le tracé.)
+  final bool routeAlwaysOnTop;
+
   const RouteStyleConfig({
     this.schemaVersion = kRouteStyleSchemaVersion,
     // A
@@ -155,6 +160,8 @@ class RouteStyleConfig {
     // H
     this.buildings3dEnabled = true,
     this.buildingOpacity = 0.60,
+    // I
+    this.routeAlwaysOnTop = false,
   });
 
   RouteStyleConfig copyWith({
@@ -197,6 +204,7 @@ class RouteStyleConfig {
     bool? alternativesEnabled,
     bool? buildings3dEnabled,
     double? buildingOpacity,
+    bool? routeAlwaysOnTop,
   }) {
     return RouteStyleConfig(
       schemaVersion: schemaVersion ?? this.schemaVersion,
@@ -238,6 +246,7 @@ class RouteStyleConfig {
       alternativesEnabled: alternativesEnabled ?? this.alternativesEnabled,
       buildings3dEnabled: buildings3dEnabled ?? this.buildings3dEnabled,
       buildingOpacity: buildingOpacity ?? this.buildingOpacity,
+      routeAlwaysOnTop: routeAlwaysOnTop ?? this.routeAlwaysOnTop,
     ).validated();
   }
 
@@ -285,6 +294,7 @@ class RouteStyleConfig {
       alternativesEnabled: alternativesEnabled,
       buildings3dEnabled: buildings3dEnabled,
       buildingOpacity: clamp(buildingOpacity, 0, 1),
+      routeAlwaysOnTop: routeAlwaysOnTop,
     );
   }
 
@@ -329,6 +339,7 @@ class RouteStyleConfig {
       'alternativesEnabled': alternativesEnabled,
       'buildings3dEnabled': buildings3dEnabled,
       'buildingOpacity': buildingOpacity,
+      'routeAlwaysOnTop': routeAlwaysOnTop,
     };
   }
 
@@ -447,6 +458,9 @@ class RouteStyleConfig {
       buildingOpacity: (json['buildingOpacity'] is num)
           ? (json['buildingOpacity'] as num).toDouble()
           : 0.60,
+        routeAlwaysOnTop: json['routeAlwaysOnTop'] is bool
+          ? json['routeAlwaysOnTop'] as bool
+          : false,
     );
 
     return cfg.validated();

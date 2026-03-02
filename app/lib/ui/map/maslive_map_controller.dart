@@ -191,6 +191,7 @@ class MasLiveMapController {
     double? glowBlur,
     double? thickness3d,
     double? elevationPx,
+    bool? routeAlwaysOnTop,
     bool? sidesEnabled,
     double? sidesIntensity,
     List<double>? dashArray,
@@ -221,6 +222,7 @@ class MasLiveMapController {
         glowBlur: glowBlur,
         thickness3d: thickness3d,
         elevationPx: elevationPx,
+        routeAlwaysOnTop: routeAlwaysOnTop,
         sidesEnabled: sidesEnabled,
         sidesIntensity: sidesIntensity,
         dashArray: dashArray,
@@ -344,6 +346,9 @@ class PolylineRenderOptions {
   /// Hauteur simulée (Mapbox): line-translate en pixels.
   final double? elevationPx;
 
+  /// Si true, force le tracé à rester au-dessus des immeubles (ordre des layers).
+  final bool? routeAlwaysOnTop;
+
   /// Faces latérales (côtés) du ruban 3D.
   final bool? sidesEnabled;
 
@@ -380,6 +385,7 @@ class PolylineRenderOptions {
     this.lineJoin,
     this.thickness3d,
     this.elevationPx,
+    this.routeAlwaysOnTop,
     this.sidesEnabled,
     this.sidesIntensity,
     this.segmentsGeoJson,
@@ -403,6 +409,7 @@ class PolylineRenderOptions {
         if (glowColor != null) 'glowColor': _toHexRgb(glowColor!),
         if (thickness3d != null) 'thickness3d': thickness3d,
         if (elevationPx != null) 'elevationPx': elevationPx,
+        if (routeAlwaysOnTop != null) 'routeAlwaysOnTop': routeAlwaysOnTop,
         if (sidesEnabled != null) 'sidesEnabled': sidesEnabled,
         if (sidesIntensity != null) 'sidesIntensity': sidesIntensity,
         if (dashArray != null) 'dashArray': dashArray,

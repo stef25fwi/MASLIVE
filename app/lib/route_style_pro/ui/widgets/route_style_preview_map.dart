@@ -413,6 +413,8 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
 
       elevationPx: cfg.elevationPx,
 
+      routeAlwaysOnTop: cfg.routeAlwaysOnTop,
+
       dashArray: cfg.dashEnabled ? [cfg.dashLength, cfg.dashGap] : null,
       lineCap: lineCap,
       lineJoin: lineJoin,

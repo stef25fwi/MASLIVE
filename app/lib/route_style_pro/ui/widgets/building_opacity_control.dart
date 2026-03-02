@@ -36,6 +36,7 @@ class BuildingOpacityControl extends StatelessWidget {
     final theme = Theme.of(context);
     final isEnabled = config.buildings3dEnabled;
     final opacity = config.buildingOpacity;
+    final routeAlwaysOnTop = config.routeAlwaysOnTop;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -123,6 +124,39 @@ class BuildingOpacityControl extends StatelessWidget {
           ),
 
           const SizedBox(height: 12),
+
+          // Toggle: tracé au-dessus des immeubles
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tracé toujours visible',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      'Même à travers les immeubles',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: routeAlwaysOnTop,
+                onChanged: isEnabled
+                    ? (v) => onChanged(
+                          config.copyWith(routeAlwaysOnTop: v),
+                        )
+                    : null,
+              ),
+            ],
+          ),
 
           // Presets rapides
           Wrap(
