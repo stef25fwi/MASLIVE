@@ -1656,6 +1656,21 @@
         "panel": "dedicated",
         "clear": true
       }
+    },
+    {
+      "label": "MASLIVE: 🚀 Deploy UX Optimizations (affichage drapeaux + tooltip)",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/deploy_ux_optimizations.sh",
+      "problemMatcher": [],
+      "isBackground": false,
+      "group": {
+        "kind": "build"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
     }
   ]
 }

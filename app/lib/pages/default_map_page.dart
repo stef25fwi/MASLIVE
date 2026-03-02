@@ -69,6 +69,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   // UI
   bool _showActionsMenu = false;
+  bool _showOnboardingTooltip = true;
+  String _currentLanguageFlag = '🇫🇷'; // Pré-initialisé français (pas de délai)
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
   _MapAction? _selectedAction;
@@ -143,6 +145,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     WidgetsBinding.instance.addObserver(this);
 
     _isTracking = _geo.isTracking;
+
+    // Initialiser le drapeau de langue dès initState (pas de délai)
+    _updateLanguageFlag();
 
     _menuAnimController = AnimationController(
       duration: _menuAnimationDuration,
@@ -792,12 +797,23 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           .collection('users')
           .doc(user.uid)
           .get();
-
       if (!doc.exists || !mounted) return;
       final groupId = doc.data()?['groupId'] as String?;
       setState(() => _userGroupId = groupId);
     } catch (e) {
       debugPrint('Erreur chargement groupId: $e');
+    }
+  }
+
+  void _updateLanguageFlag() {
+    try {
+      final langService = Get.find<LanguageService>();
+      _currentLanguageFlag = langService.getLanguageFlag(
+        langService.currentLanguageCode,
+      );
+    } catch (_) {
+      // En cas d'erreur (service non prêt), garder la valeur par défaut
+      _currentLanguageFlag = '🇫🇷';
     }
   }
 
@@ -808,6 +824,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     final idx = langs.indexOf(current);
     final next = langs[(idx + 1) % langs.length];
     langService.changeLanguage(next);
+    // Mettre à jour le drapeau immédiatement (pas de délai Obx)
+    _updateLanguageFlag();
     setState(() {});
   }
 
@@ -1126,7 +1144,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                           styleUrl: _styleUrl,
                           showUserLocation: false,
                           onTap: (_) {
-                            // Pas d'action sur tap pour cette page
+                            // Fermer la tooltip au premier clic
+                            if (_showOnboardingTooltip) {
+                              setState(() => _showOnboardingTooltip = false);
+                            }
                           },
                           onMapReady: (_) {
                             _isMasLiveMapReady = true;
@@ -1229,38 +1250,18 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                               ),
                               HomeVerticalNavItem(
                                 label: '',
-                                iconWidget: Image.asset(
-                                  'assets/images/icon wc parking.png',
-                                  fit: BoxFit.cover,
-                                  filterQuality: FilterQuality.high,
-                                ),
-                                fullBleed: true,
-                                showBorder: false,
-                                selected: _selectedAction == _MapAction.parking,
-                                onTap: () {
-                                  _selectAction(_MapAction.parking, 'Parking');
-                                  _closeNavWithDelay();
-                                },
-                              ),
-                              HomeVerticalNavItem(
-                                label: '',
-                                iconWidget: Obx(() {
-                                  final lang = Get.find<LanguageService>();
-                                  final flag = lang.getLanguageFlag(
-                                    lang.currentLanguageCode,
-                                  );
-                                  return Container(
-                                    color: Colors.white,
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      flag,
-                                      style: const TextStyle(
-                                        fontSize: 34,
-                                        height: 1,
-                                      ),
+                                // Affichage direct du drapeau sans délai Obx réactif
+                                iconWidget: Container(
+                                  color: Colors.white,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    _currentLanguageFlag,
+                                    style: const TextStyle(
+                                      fontSize: 34,
+                                      height: 1,
                                     ),
-                                  );
-                                }),
+                                  ),
+                                ),
                                 fullBleed: true,
                                 tintOnSelected: false,
                                 highlightBackgroundOnSelected: false,
@@ -1277,6 +1278,14 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                         ),
                       ),
                     ),
+                  ),
+
+                // Onboarding tooltip (sélectionner votre carte)
+                if (_showOnboardingTooltip)
+                  _OnboardingTooltip(
+                    onDismiss: () {
+                      setState(() => _showOnboardingTooltip = false);
+                    },
                   ),
 
                 // Tracking pill
@@ -1373,6 +1382,108 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       ),
     );
   }
+}
+
+class _OnboardingTooltip extends StatelessWidget {
+  final VoidCallback onDismiss;
+
+  const _OnboardingTooltip({required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    // Flèche personnalisée pointant vers le haut-droit
+    const arrowSize = 12.0;
+
+    return Positioned(
+      top: 160,
+      right: 80,
+      child: GestureDetector(
+        onTap: onDismiss,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            // Boîte de texte
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Flexible(
+                    child: Text(
+                      'Sélectionnez\nvotre carte',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Flèche vers le bas
+                  Transform.rotate(
+                    angle: 3.14159, // 180 degrés pour pointer vers le bas
+                    child: const Icon(
+                      Icons.arrow_upward_rounded,
+                      size: 18,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Triangle pointeur (flèche)
+            SizedBox(
+              width: 40,
+              height: arrowSize + 4,
+              child: CustomPaint(
+                painter: _ArrowPainter(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ArrowPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    final shadowPaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.15)
+      ..style = PaintingStyle.fill;
+
+    // Points du triangle pointant vers le bas
+    final path = Path();
+    path.moveTo(size.width * 0.7, 0); // Point haut-gauche
+    path.lineTo(size.width, size.height); // Point bas-droit
+    path.lineTo(size.width * 0.7 - 8, size.height); // Point bas-gauche
+    path.close();
+
+    // Ombre
+    canvas.drawPath(path, shadowPaint);
+    // Triangle
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
 
 class _TrackingPill extends StatelessWidget {

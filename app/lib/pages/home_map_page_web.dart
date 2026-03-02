@@ -41,6 +41,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   _MapAction _selected = _MapAction.ville;
   bool _showActionsMenu = false;
+  String _currentLanguageFlag = '🇫🇷'; // Pré-initialisé français (pas de délai)
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
   // Offset vertical du menu d'actions pour ne pas chevaucher la boussole
@@ -82,6 +83,10 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
     WidgetsBinding.instance.addObserver(this);
     debugPrint('🗺️ HomeMapPageWeb: initState called');
     _isTracking = _geo.isTracking;
+    
+    // Initialiser le drapeau de langue dès initState (pas de délai)
+    _updateLanguageFlag();
+    
     _menuAnimController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -337,6 +342,18 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
     setState(() => _isTracking = ok);
   }
 
+  void _updateLanguageFlag() {
+    try {
+      final langService = Get.find<LanguageService>();
+      _currentLanguageFlag = langService.getLanguageFlag(
+        langService.currentLanguageCode,
+      );
+    } catch (_) {
+      // En cas d'erreur (service non prêt), garder la valeur par défaut
+      _currentLanguageFlag = '🇫🇷';
+    }
+  }
+
   void _cycleLanguage() {
     final langService = Get.find<LanguageService>();
     final langs = ['fr', 'en', 'es'];
@@ -344,6 +361,8 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
     final idx = langs.indexOf(current);
     final next = langs[(idx + 1) % langs.length];
     langService.changeLanguage(next);
+    // Mettre à jour le drapeau immédiatement (pas de délai Obx)
+    _updateLanguageFlag();
     setState(() {});
   }
 
@@ -892,23 +911,18 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                               const SizedBox(height: 8),
                               _ActionItem(
                                 label: '',
-                                iconWidget: Obx(() {
-                                  final lang = Get.find<LanguageService>();
-                                  final flag = lang.getLanguageFlag(
-                                    lang.currentLanguageCode,
-                                  );
-                                  return Container(
-                                    color: Colors.white,
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      flag,
-                                      style: const TextStyle(
-                                        fontSize: 34,
-                                        height: 1,
-                                      ),
+                                // Affichage direct du drapeau sans délai Obx réactif
+                                iconWidget: Container(
+                                  color: Colors.white,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    _currentLanguageFlag,
+                                    style: const TextStyle(
+                                      fontSize: 34,
+                                      height: 1,
                                     ),
-                                  );
-                                }),
+                                  ),
+                                ),
                                 fullBleed: true,
                                 tintOnSelected: false,
                                 highlightBackgroundOnSelected: false,
