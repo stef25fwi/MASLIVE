@@ -37,6 +37,7 @@ class GroupAverageService {
     String adminGroupId, {
     bool useWeightedAverage = true,
     bool useGeodetic = true,
+    bool publishToFirestore = false,
   }) async {
     // Récupère toutes les positions des membres
     final snapshot = await _firestore
@@ -121,6 +122,15 @@ class GroupAverageService {
         accuracy: null,
         timestamp: DateTime.now(),
       );
+    }
+
+    if (publishToFirestore) {
+      try {
+        await updateAveragePositionInAdmin(adminGroupId, avgPos);
+      } catch (_) {
+        // Le fallback doit rester best-effort : si l'utilisateur n'a pas les droits
+        // (ex: tracker), on ne bloque pas l'app.
+      }
     }
 
     return avgPos;

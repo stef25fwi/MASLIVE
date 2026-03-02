@@ -75,8 +75,11 @@ const GeoUtils = {
 
     for (const pos of positions) {
       // Poids basé sur accuracy
+      const accuracy = Number.isFinite(Number(pos.accuracy))
+        ? Number(pos.accuracy)
+        : 50;
       const weight = useWeights
-        ? 1.0 / (1.0 + (pos.accuracy || 50) / 50.0)
+        ? 1.0 / (1.0 + accuracy / 50.0)
         : 1.0;
 
       // Conversion lat/lng en radians
@@ -116,7 +119,8 @@ const GeoUtils = {
    * Calcule poids inversement proportionnels à accuracy
    */
   calculateWeight(accuracy) {
-    return 1.0 / (1.0 + (accuracy || 50) / 50.0);
+    const a = Number.isFinite(Number(accuracy)) ? Number(accuracy) : 50;
+    return 1.0 / (1.0 + a / 50.0);
   },
 
   /**
@@ -174,8 +178,10 @@ exports.calculateGroupAveragePosition = onDocumentWritten(
       }
 
       const validPositions = [];
+      const fallbackRecentPositions = [];
       const now = Date.now();
-      const MAX_AGE_MS = 20 * 1000; // 20 secondes
+      const STRICT_MAX_AGE_MS = 20 * 1000; // 20 secondes (live)
+      const FALLBACK_MAX_AGE_MS = 2 * 60 * 1000; // 2 minutes (immobile / réseau)
       const MAX_ACCURACY = 50; // 50 mètres
 
       let filteredCount = 0;
@@ -193,15 +199,8 @@ exports.calculateGroupAveragePosition = onDocumentWritten(
         const timestamp = pos.ts?.toMillis?.() || pos.ts || 0;
         const age = now - timestamp;
 
-        // Ignore positions trop anciennes
-        if (age > MAX_AGE_MS) {
-          filteredCount++;
-          details.push(`${doc.id}: too old (${age}ms)`);
-          return;
-        }
-
         // Ignore positions avec mauvaise précision
-        if (pos.accuracy && pos.accuracy > MAX_ACCURACY) {
+        if (pos.accuracy != null && Number(pos.accuracy) > MAX_ACCURACY) {
           filteredCount++;
           details.push(`${doc.id}: low accuracy (${pos.accuracy}m)`);
           return;
@@ -214,24 +213,51 @@ exports.calculateGroupAveragePosition = onDocumentWritten(
           return;
         }
 
-        validPositions.push({
-          lat: pos.lat,
-          lng: pos.lng,
-          alt: pos.altitude || 0,
-          accuracy: pos.accuracy || 0,
-          uid: doc.id,
-        });
+        // Classement par fraîcheur: live (<=20s) ou fallback (<=2min)
+        if (age <= STRICT_MAX_AGE_MS) {
+          validPositions.push({
+            lat: pos.lat,
+            lng: pos.lng,
+            alt: (pos.alt ?? pos.altitude) || 0,
+            accuracy: pos.accuracy || 0,
+            uid: doc.id,
+          });
+          return;
+        }
+
+        if (age <= FALLBACK_MAX_AGE_MS) {
+          fallbackRecentPositions.push({
+            lat: pos.lat,
+            lng: pos.lng,
+            alt: (pos.alt ?? pos.altitude) || 0,
+            accuracy: pos.accuracy || 0,
+            uid: doc.id,
+          });
+          details.push(`${doc.id}: stale (${age}ms)`);
+          return;
+        }
+
+        filteredCount++;
+        details.push(`${doc.id}: too old (${age}ms)`);
       });
 
+      const usedCount = validPositions.length > 0
+        ? validPositions.length
+        : fallbackRecentPositions.length;
+
       console.log(
-        `📊 Positions: total=${membersSnapshot.size}, valides=${validPositions.length}, filtrées=${filteredCount}`
+        `📊 Positions: total=${membersSnapshot.size}, live=${validPositions.length}, fallback<=2min=${fallbackRecentPositions.length}, utilisées=${usedCount}, filtrées=${filteredCount}`
       );
       if (details.length > 0 && details.length <= 5) {
         console.log(`   Détails filtrage: ${details.join(", ")}`);
       }
 
-      if (validPositions.length === 0) {
-        console.log("⚠️  Aucune position valide => efface averagePosition");
+      const positionsForAverage = validPositions.length > 0
+        ? validPositions
+        : fallbackRecentPositions;
+
+      if (positionsForAverage.length === 0) {
+        console.log("⚠️  Aucune position (live ou fallback) => efface averagePosition");
         const adminUid = await findAdminUidByGroupId(adminGroupId);
         if (!adminUid) return;
         await db.collection("group_admins").doc(adminUid).update({
@@ -241,7 +267,7 @@ exports.calculateGroupAveragePosition = onDocumentWritten(
       }
 
       // Calcule le centroïde géodésique avec pondération
-      const avgPos = GeoUtils.calculateGeodeticCenter(validPositions, true);
+      const avgPos = GeoUtils.calculateGeodeticCenter(positionsForAverage, true);
 
       if (!avgPos) {
         console.log("❌ Impossible calculer centroïde");
@@ -253,7 +279,7 @@ exports.calculateGroupAveragePosition = onDocumentWritten(
       );
 
       // Calcule distances par rapport à la moyenne
-      const distances = validPositions.map((pos) => ({
+      const distances = positionsForAverage.map((pos) => ({
         uid: pos.uid,
         distance: GeoUtils.distanceKm(pos.lat, pos.lng, avgPos.lat, avgPos.lng) * 1000, // en mètres
       }));
@@ -280,10 +306,15 @@ exports.calculateGroupAveragePosition = onDocumentWritten(
       await db.collection("group_admins").doc(adminUid).update({
         "averagePosition.lat": avgPos.lat,
         "averagePosition.lng": avgPos.lng,
+        // Align with GeoPosition.toMap() (client): alt + ts
+        "averagePosition.alt": avgPos.alt,
+        "averagePosition.ts": serverTimestamp,
+        // Back-compat (legacy keys used in older writes)
         "averagePosition.altitude": avgPos.alt,
         "averagePosition.timestamp": serverTimestamp,
-        "averagePosition.memberCount": validPositions.length,
+        "averagePosition.memberCount": positionsForAverage.length,
         "averagePosition.calculatedAt": serverTimestamp,
+        "averagePosition.windowMs": validPositions.length > 0 ? STRICT_MAX_AGE_MS : FALLBACK_MAX_AGE_MS,
         "averagePosition.distances": distances,
         "averagePosition.stats": {
           minDistance: minDist,
