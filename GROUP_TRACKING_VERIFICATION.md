@@ -76,12 +76,14 @@
 ---
 
 #### 5️⃣ **CLOUD FUNCTIONS** (1 fichier) ✅
-- ✅ `functions/group_tracking.js` - Calcul position moyenne
+- ✅ `functions/group_tracking.js` - Calcul + publication tracking groupe
   - Trigger: `group_positions/{adminGroupId}/members/{uid}`
   - Récupère toutes les positions du groupe
-  - Filtre: positions > 20s, accuracy > 50m
+  - Filtre: live 20s, fallback 2 min, accuracy > 50m
   - Calcule moyenne (lat, lng, alt)
   - Écrit dans `group_admins/{adminUid}.averagePosition`
+  - Trigger: `group_admins/{adminUid}`
+  - Publie/supprime position groupe dans `marketMap/.../group_tracking/{adminGroupId}`
 
 **État**: Cloud Function Gen2 déployée et fonctionnelle
 
@@ -146,6 +148,16 @@
   ├─ tags{}
   ├─ isVisible
   └─ createdAt
+
+/marketMap/{countryId}/events/{eventId}/circuits/{circuitId}/group_tracking/{adminGroupId}
+  ├─ adminGroupId
+  ├─ adminUid
+  ├─ displayName
+  ├─ position (GeoPoint)
+  ├─ lat
+  ├─ lng
+  ├─ memberCount
+  └─ updatedAt
 ```
 
 **État**: Complète et conforme spec
@@ -205,9 +217,9 @@ Présentes dans `firestore.rules` avec permissions granulaires:
 
 ### ✅ Contrainte 6: Visibilité + Carte
 - [x] Toggle "Visibilité Groupe"
-- [x] Dropdown sélection carte
-- [x] Source dropdown = même liste menu "Carte" nav
-- [x] averagePosition affichée sur carte sélectionnée
+- [x] Sélecteur circuit actif (pays/événement/circuit)
+- [x] Publication `marketMap/.../group_tracking` via Cloud Function
+- [x] Affichage côté user standard sur circuit sélectionné (tracking ON)
 - [x] Masquage si visibilité OFF
 
 ### ✅ Contrainte 7: Modèle Firestore
@@ -217,8 +229,11 @@ Présentes dans `firestore.rules` avec permissions granulaires:
 
 ### ✅ Contrainte 8: Cloud Function
 - [x] Trigger sur write positions
-- [x] Filtrage positions valides
+- [x] Filtrage positions valides + fallback immobile (2 min)
 - [x] Calcul moyenne et persist
+- [x] Trigger publication sur profil admin
+- [x] Suppression ancien circuit lors changement
+- [x] Suppression publication si `isVisible=false`
 
 ### ✅ Contrainte 9: Pages Flutter
 - [x] 5 pages créées
@@ -302,12 +317,19 @@ Présentes dans `firestore.rules` avec permissions granulaires:
 **À faire**:
 - [ ] Vérifier imports dans `functions/index.js`
 - [ ] Vérifier appel corrects Cloud Functions
-- [ ] Déployer: `firebase deploy --only functions:calculateGroupAveragePosition`
-- [ ] Tester dans logs Firebase
+- [ ] Déployer: `firebase deploy --only functions:calculateGroupAveragePosition,functions:publishGroupAverageToCircuit`
+- [ ] Tester logs des deux fonctions Firebase
+
+**Vérifications publication circuit**:
+- [ ] `group_admins/{adminUid}.selectedCircuit` valide
+- [ ] Doc `marketMap/.../group_tracking/{adminGroupId}` créé si visible
+- [ ] Ancien doc supprimé quand circuit change
+- [ ] Doc supprimé si `isVisible=false`
 
 **Commande test**:
 ```bash
 firebase functions:log --only calculateGroupAveragePosition
+firebase functions:log --only publishGroupAverageToCircuit
 ```
 
 **Localisation**: `/functions/group_tracking.js` (ou intégré dans `functions/index.js`)

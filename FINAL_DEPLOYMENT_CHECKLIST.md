@@ -34,7 +34,7 @@
 
 ```bash
 # Depuis le répertoire principal
-firebase deploy --only functions:calculateGroupAveragePosition
+firebase deploy --only functions:calculateGroupAveragePosition,functions:publishGroupAverageToCircuit
 ```
 
 **Fichiers concernés**:
@@ -44,9 +44,11 @@ firebase deploy --only functions:calculateGroupAveragePosition
 
 **Qu'elle fait**:
 - Trigger: `onDocumentWritten("group_positions/{adminGroupId}/members/{uid}")`
-- Filtre positions valides (<20s, <50m précision)
+- Filtre positions valides (live 20s, fallback 2 min, accuracy < 50m)
 - Calcule moyenne lat/lng/alt
 - Met à jour `group_admins/{adminUid}.averagePosition`
+- Trigger publication: `onDocumentWritten("group_admins/{adminUid}")`
+- Publie/supprime `marketMap/{countryId}/events/{eventId}/circuits/{circuitId}/group_tracking/{adminGroupId}` selon `selectedCircuit`, `isVisible`, `averagePosition`
 
 ### Tâche 3: Firestore Rules
 **Status**: ⏳ À déployer
@@ -119,6 +121,36 @@ Résultat: ✓ Positions écrites en temps réel
 Résultat: ✓ 1 marqueur, position mise à jour
 ```
 
+### Test 4 bis: Publication circuit public
+```
+Étapes:
+1. Admin choisit un circuit actif (pays/événement/circuit)
+2. Vérifier `group_admins/{adminUid}.selectedCircuit` + `isVisible=true`
+3. Vérifier création doc `marketMap/.../group_tracking/{adminGroupId}`
+4. Changer de circuit actif
+5. Vérifier suppression ancien doc + création nouveau doc
+Résultat: ✓ publication migrée sur le circuit actif
+```
+
+### Test 4 ter: Visibilité OFF + fallback immobile
+```
+Étapes:
+1. Groupe immobile >20s mais <2min
+2. Vérifier `averagePosition` toujours présente (fallback)
+3. Passer `isVisible=false`
+4. Vérifier suppression doc `marketMap/.../group_tracking/{adminGroupId}`
+Résultat: ✓ fallback conserve la moyenne, visibilité OFF supprime la publication
+```
+
+### Test 4 quater: Affichage côté utilisateur standard
+```
+Étapes:
+1. Utilisateur standard sélectionne le même circuit sur Home map
+2. Active l'icône Tracking
+3. Vérifier affichage du marqueur groupe public
+Résultat: ✓ flux circuit public visible côté user
+```
+
 ### Test 5: Exports CSV/JSON
 ```
 Étapes:
@@ -144,7 +176,7 @@ Résultat: ✓ Permissions accordées
 
 ```bash
 # 1. Déployer Cloud Function
-firebase deploy --only functions:calculateGroupAveragePosition
+firebase deploy --only functions:calculateGroupAveragePosition,functions:publishGroupAverageToCircuit
 
 # 2. Déployer Firestore Rules
 firebase deploy --only firestore:rules
@@ -160,6 +192,10 @@ firebase deploy:list
 
 # 6. Voir logs Cloud Function
 firebase functions:log --lines 50
+
+# 7. Voir logs fonctions tracking groupe
+firebase functions:log --only calculateGroupAveragePosition --lines 100
+firebase functions:log --only publishGroupAverageToCircuit --lines 100
 ```
 
 ---

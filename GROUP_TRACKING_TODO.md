@@ -219,13 +219,15 @@ ListTile(
 **How**:
 ```bash
 # Déployer
-firebase deploy --only functions:calculateGroupAveragePosition
+firebase deploy --only functions:calculateGroupAveragePosition,functions:publishGroupAverageToCircuit
 
 # Tester
 firebase functions:log --only calculateGroupAveragePosition
+firebase functions:log --only publishGroupAverageToCircuit
 
 # Vérifier dans Firestore
 # group_admins/{uid}.averagePosition doit se remplir
+# marketMap/{countryId}/events/{eventId}/circuits/{circuitId}/group_tracking/{adminGroupId} doit être publié
 ```
 
 **Test**:
@@ -234,6 +236,7 @@ firebase functions:log --only calculateGroupAveragePosition
 # 2. Tracker démarre GPS → écrit dans group_positions/123456/members/{uid}
 # 3. Cloud Function s'exécute
 # 4. Vérifier group_admins/abc123.averagePosition mis à jour
+# 5. Vérifier publication group_tracking sur le circuit actif
 ```
 
 ---
@@ -425,6 +428,23 @@ date,distance_m,duration_sec,ascent_m,descent_m,avg_speed_mps
 [ ] Vérifier group_admins/{adminUid}.averagePosition calculée
 [ ] Admin → Carte Live → Vérifier marqueur unique
 
+# Test 4 bis: Publication circuit public
+[ ] Admin choisit circuit actif (pays/événement/circuit)
+[ ] Vérifier création marketMap/.../group_tracking/{adminGroupId}
+[ ] Changer circuit actif
+[ ] Vérifier suppression ancien doc + création nouveau doc
+
+# Test 4 ter: Visibilité + fallback immobile
+[ ] Groupe immobile >20s et <2min
+[ ] Vérifier averagePosition conservée (fallback)
+[ ] Admin passe isVisible=false
+[ ] Vérifier suppression doc marketMap/.../group_tracking/{adminGroupId}
+
+# Test 4 quater: User standard
+[ ] User standard sélectionne le même circuit
+[ ] Active icône Tracking sur Home map
+[ ] Vérifier affichage marqueur groupe public
+
 # Test 5: Historique + Exports
 [ ] Admin → Historique → Voir sessions
 [ ] Cliquer session → Voir détails (durée, distance)
@@ -450,7 +470,7 @@ date,distance_m,duration_sec,ascent_m,descent_m,avg_speed_mps
 
 ```
 ☐ Vérifier imports dans index.js (Cloud Function)
-☐ firebase deploy --only functions
+☐ firebase deploy --only functions:calculateGroupAveragePosition,functions:publishGroupAverageToCircuit
 ☐ firebase deploy --only firestore:rules
 ☐ firebase deploy --only storage
 ☐ Vérifier permissions Android/iOS
