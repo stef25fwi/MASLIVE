@@ -9,6 +9,8 @@ import '../../services/group/group_link_service.dart';
 import '../../services/group/group_tracking_service.dart';
 import '../../ui/snack/top_snack_bar.dart';
 import '../../widgets/group_map_visibility_widget.dart';
+import '../../services/market_map_service.dart';
+import '../../ui/widgets/marketmap_poi_selector_sheet.dart';
 import 'group_map_live_page.dart';
 import 'group_track_history_page.dart';
 import 'group_export_page.dart';
@@ -23,6 +25,7 @@ class AdminGroupDashboardPage extends StatefulWidget {
 class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
   final _linkService = GroupLinkService.instance;
   final _trackingService = GroupTrackingService.instance;
+  final _marketMapService = MarketMapService();
 
   GroupAdmin? _admin;
   bool _isLoading = false;
@@ -169,6 +172,67 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
     }
   }
 
+  Future<void> _selectActiveCircuit() async {
+    final selection = await showMarketMapCircuitSelectorSheet(
+      context,
+      service: _marketMapService,
+    );
+    if (!mounted || selection == null) return;
+
+    final country = selection.country;
+    final event = selection.event;
+    final circuit = selection.circuit;
+    if (!selection.enabled || country == null || event == null || circuit == null) {
+      return;
+    }
+
+    final admin = _admin;
+    if (admin == null) return;
+
+    final selectedCircuit = GroupSelectedCircuit(
+      countryId: country.id,
+      countryName: country.name,
+      eventId: event.id,
+      eventName: event.name,
+      circuitId: circuit.id,
+      circuitName: circuit.name,
+    );
+
+    setState(() => _isLoading = true);
+    try {
+      await _linkService.updateSelectedCircuit(
+        adminUid: admin.uid,
+        selectedCircuit: selectedCircuit,
+      );
+
+      setState(() {
+        _admin = admin.copyWith(
+          selectedCircuit: selectedCircuit,
+          isVisible: true,
+        );
+      });
+
+      if (mounted) {
+        TopSnackBar.show(
+          context,
+          const SnackBar(
+            content: Text('Circuit actif enregistré'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        TopSnackBar.show(
+          context,
+          SnackBar(content: Text('Erreur: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   void _copyCodeToClipboard() {
     if (_admin != null) {
       Clipboard.setData(ClipboardData(text: _admin!.adminGroupId));
@@ -235,6 +299,8 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
             const SizedBox(height: 16),
             _buildTrackingCard(),
             const SizedBox(height: 16),
+            _buildCircuitSelectionCard(),
+            const SizedBox(height: 16),
             GroupMapVisibilityWidget(
               adminUid: _admin!.uid,
               groupId: _admin!.adminGroupId,
@@ -243,6 +309,64 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
             _buildActionsGrid(),
             const SizedBox(height: 24),
             _buildTrackersList(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCircuitSelectionCard() {
+    final selected = _admin?.selectedCircuit;
+    final hasSelection = selected != null && selected.isValid;
+
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.flag,
+                  size: 24,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'Circuit actif du groupe',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: _selectActiveCircuit,
+                  icon: const Icon(Icons.edit),
+                  label: const Text('Choisir'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (!hasSelection)
+              Text(
+                'Aucun circuit sélectionné',
+                style: TextStyle(color: Colors.grey[600]),
+              )
+            else
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Pays: ${selected.countryName}'),
+                  Text('Événement: ${selected.eventName}'),
+                  Text('Circuit: ${selected.circuitName}'),
+                ],
+              ),
+            const SizedBox(height: 8),
+            Text(
+              'La position moyenne du groupe sera publiée sur ce circuit.',
+              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            ),
           ],
         ),
       ),

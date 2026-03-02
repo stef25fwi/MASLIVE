@@ -3428,4 +3428,5 @@ exports.initSuperadminArticles = onCall({ region: "us-east1" }, async (request) 
 
 const groupTracking = require("./group_tracking");
 exports.calculateGroupAveragePosition = groupTracking.calculateGroupAveragePosition;
+exports.publishGroupAverageToCircuit = groupTracking.publishGroupAverageToCircuit;
 

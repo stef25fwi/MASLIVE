@@ -31,6 +31,8 @@ import 'splash_wrapper_page.dart' show mapReadyNotifier;
 import '../l10n/app_localizations.dart' as l10n;
 import '../services/market_map_service.dart';
 import '../models/market_poi.dart';
+import '../models/group_circuit_public_position.dart';
+import '../services/group/marketmap_group_public_position_service.dart';
 import '../utils/web_viewport_resize.dart';
 import 'storex_shop_page.dart';
 import 'home_vertical_nav.dart';
@@ -84,6 +86,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   bool _isTracking = false;
   String? _userGroupId;
 
+  // Affichage position groupe (publiée par l'admin sur un circuit)
+  StreamSubscription<List<GroupCircuitPublicPosition>>? _groupPublicPosSub;
+  List<MapMarker> _groupPublicMarkers = const <MapMarker>[];
+
   // Projets cartographiques
   String _styleUrl = 'mapbox://styles/mapbox/streets-v12';
   double? _projectCenterLat;
@@ -115,6 +121,12 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   List<MapMarker> _composeMarkers() {
     final markers = List<MapMarker>.from(_marketPoiMarkers);
+
+    // Position moyenne du/des groupe(s) (visible uniquement quand l'utilisateur active Tracking)
+    if (_isTracking && _groupPublicMarkers.isNotEmpty) {
+      markers.addAll(_groupPublicMarkers);
+    }
+
     final lat = _userLat;
     final lng = _userLng;
     if (lat != null && lng != null) {
@@ -123,6 +135,60 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       );
     }
     return markers;
+  }
+
+  void _restartGroupPublicPositionStream() {
+    _groupPublicPosSub?.cancel();
+    _groupPublicPosSub = null;
+    _groupPublicMarkers = const <MapMarker>[];
+
+    if (!_isTracking) {
+      if (_isMasLiveMapReady) {
+        unawaited(_syncMarkersToMap());
+      }
+      return;
+    }
+
+    final selection = _marketPoiSelection;
+    final country = selection.country;
+    final event = selection.event;
+    final circuit = selection.circuit;
+    if (!selection.enabled || country == null || event == null || circuit == null) {
+      if (_isMasLiveMapReady) {
+        unawaited(_syncMarkersToMap());
+      }
+      return;
+    }
+
+    _groupPublicPosSub = MarketMapGroupPublicPositionService.instance
+        .streamCircuitGroupPositions(
+          countryId: country.id,
+          eventId: event.id,
+          circuitId: circuit.id,
+        )
+        .listen((positions) {
+      if (!mounted) return;
+
+      final markers = <MapMarker>[];
+      for (final p in positions) {
+        markers.add(
+          MapMarker(
+            id: 'group-${p.adminGroupId}',
+            lng: p.lng,
+            lat: p.lat,
+            label: (p.displayName != null && p.displayName!.trim().isNotEmpty)
+                ? p.displayName!.trim()
+                : 'Groupe',
+            size: 1.4,
+          ),
+        );
+      }
+
+      setState(() => _groupPublicMarkers = markers);
+      if (_isMasLiveMapReady) {
+        unawaited(_syncMarkersToMap());
+      }
+    });
   }
 
   Future<void> _syncMarkersToMap() async {
@@ -242,6 +308,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   @override
   void dispose() {
+    _groupPublicPosSub?.cancel();
     _marketPoisSub?.cancel();
     _marketRouteStyleProTimer?.cancel();
     _resizeDebounce?.cancel();
@@ -915,16 +982,18 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     if (_isTracking) {
       _geo.stopTracking();
       if (mounted) setState(() => _isTracking = false);
+      _restartGroupPublicPositionStream();
       return;
     }
 
+    // Activer l'UI Tracking (affichage position groupe)
+    if (mounted) setState(() => _isTracking = true);
+    _restartGroupPublicPositionStream();
+
+    // Partage GPS (si l'utilisateur appartient à un groupe)
     final uid = AuthService.instance.currentUser?.uid;
-    if (uid == null) {
-      return;
-    }
-
     final groupId = _userGroupId;
-    if (groupId == null || groupId.isEmpty) {
+    if (uid == null || groupId == null || groupId.isEmpty) {
       return;
     }
 
@@ -933,7 +1002,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       intervalSeconds: _trackingIntervalSeconds,
     );
     if (!mounted) return;
-    setState(() => _isTracking = ok);
+    if (!ok) {
+      // On garde l'affichage Tracking actif (view-only), mais le partage GPS a échoué.
+      debugPrint('⚠️ startTracking échoué (view-only actif)');
+    }
   }
 
   Future<void> _showMapProjectsSelector() async {
@@ -947,6 +1019,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     setState(() {
       _marketPoiSelection = selection;
     });
+
+    // Changement de circuit => relancer le stream de position groupe si Tracking est actif.
+    _restartGroupPublicPositionStream();
 
     await _applyMarketPoiSelection(selection, resetPoiFilter: true);
   }

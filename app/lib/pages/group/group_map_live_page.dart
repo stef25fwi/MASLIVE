@@ -1,10 +1,13 @@
 // Page carte live affichant position moyenne du groupe
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+
 import '../../models/group_admin.dart';
 import '../../services/group/group_average_service.dart';
+import '../../ui/map/maslive_map.dart';
+import '../../ui/map/maslive_map_controller.dart';
 
 class GroupMapLivePage extends StatefulWidget {
   final String adminGroupId;
@@ -17,7 +20,33 @@ class GroupMapLivePage extends StatefulWidget {
 
 class _GroupMapLivePageState extends State<GroupMapLivePage> {
   final _averageService = GroupAverageService.instance;
-  final _mapController = MapController();
+  final _mapController = MasLiveMapController();
+
+  GeoPosition? _lastAvgPos;
+  bool _mapReady = false;
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _applyAverageToMap({required GeoPosition pos, bool recenter = false}) async {
+    if (!_mapReady) return;
+
+    await _mapController.setMarkers([
+      MapMarker(
+        id: 'group_avg',
+        lng: pos.lng,
+        lat: pos.lat,
+        label: 'Position moyenne',
+      ),
+    ]);
+
+    if (recenter) {
+      await _mapController.moveTo(lng: pos.lng, lat: pos.lat, zoom: 15.0, animate: true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +57,9 @@ class _GroupMapLivePageState extends State<GroupMapLivePage> {
           IconButton(
             icon: const Icon(Icons.my_location),
             onPressed: () {
-              // Recentre sur position moyenne
+              final pos = _lastAvgPos;
+              if (pos == null) return;
+              _applyAverageToMap(pos: pos, recenter: true);
             },
           ),
         ],
@@ -63,53 +94,27 @@ class _GroupMapLivePageState extends State<GroupMapLivePage> {
             );
           }
 
-          return FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: LatLng(avgPos.lat, avgPos.lng),
-              initialZoom: 15.0,
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.maslive.app',
-              ),
-              MarkerLayer(
-                markers: [
-                  Marker(
-                    point: LatLng(avgPos.lat, avgPos.lng),
-                    width: 80,
-                    height: 80,
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withAlpha(51),
-                                blurRadius: 4,
-                              ),
-                            ],
-                          ),
-                          child: const Text(
-                            'Groupe',
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        const Icon(
-                          Icons.location_on,
-                          color: Colors.red,
-                          size: 40,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
+          if (_lastAvgPos != avgPos) {
+            _lastAvgPos = avgPos;
+            // Ne pas await dans build().
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              unawaited(_applyAverageToMap(pos: avgPos));
+            });
+          }
+
+          return MasLiveMap(
+            controller: _mapController,
+            initialLat: avgPos.lat,
+            initialLng: avgPos.lng,
+            initialZoom: 15.0,
+            onMapReady: (_) {
+              _mapReady = true;
+              final pos = _lastAvgPos;
+              if (pos != null) {
+                unawaited(_applyAverageToMap(pos: pos));
+              }
+            },
           );
         },
       ),

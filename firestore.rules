@@ -560,6 +560,14 @@ service cloud.firestore {
             allow read: if true;
             allow create, update, delete: if isMasterAdmin();
           }
+
+          // Position de groupe publiée (moyenne GPS Admin + Trackers)
+          // Lecture: publique (utilisateurs simples)
+          // Écriture: Cloud Functions uniquement (Admin SDK) => interdite côté client
+          match /group_tracking/{adminGroupId} {
+            allow read: if true;
+            allow write: if false;
+          }
         }
       }
     }

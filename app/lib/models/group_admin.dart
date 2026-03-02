@@ -3,12 +3,59 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+class GroupSelectedCircuit {
+  const GroupSelectedCircuit({
+    required this.countryId,
+    required this.countryName,
+    required this.eventId,
+    required this.eventName,
+    required this.circuitId,
+    required this.circuitName,
+  });
+
+  final String countryId;
+  final String countryName;
+  final String eventId;
+  final String eventName;
+  final String circuitId;
+  final String circuitName;
+
+  factory GroupSelectedCircuit.fromMap(Map<String, dynamic> map) {
+    return GroupSelectedCircuit(
+      countryId: (map['countryId'] as String?) ?? '',
+      countryName: (map['countryName'] as String?) ?? '',
+      eventId: (map['eventId'] as String?) ?? '',
+      eventName: (map['eventName'] as String?) ?? '',
+      circuitId: (map['circuitId'] as String?) ?? '',
+      circuitName: (map['circuitName'] as String?) ?? '',
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'countryId': countryId,
+      'countryName': countryName,
+      'eventId': eventId,
+      'eventName': eventName,
+      'circuitId': circuitId,
+      'circuitName': circuitName,
+    };
+  }
+
+  bool get isValid =>
+      countryId.trim().isNotEmpty &&
+      eventId.trim().isNotEmpty &&
+      circuitId.trim().isNotEmpty;
+}
+
 class GroupAdmin {
   final String uid;
   final String adminGroupId; // 6 digits unique
   final String displayName;
   final bool isVisible;
   final String? selectedMapId;
+  final GroupSelectedCircuit? selectedCircuit;
+  final List<String> visibleMapIds;
   final GeoPosition? lastPosition;
   final GeoPosition? averagePosition;
   final DateTime createdAt;
@@ -20,6 +67,8 @@ class GroupAdmin {
     required this.displayName,
     this.isVisible = true,
     this.selectedMapId,
+    this.selectedCircuit,
+    this.visibleMapIds = const <String>[],
     this.lastPosition,
     this.averagePosition,
     required this.createdAt,
@@ -34,6 +83,14 @@ class GroupAdmin {
       displayName: data['displayName'] ?? '',
       isVisible: data['isVisible'] ?? true,
       selectedMapId: data['selectedMapId'],
+      selectedCircuit: data['selectedCircuit'] is Map<String, dynamic>
+          ? GroupSelectedCircuit.fromMap(
+              Map<String, dynamic>.from(data['selectedCircuit']),
+            )
+          : null,
+      visibleMapIds: (data['visibleMapIds'] is List)
+          ? List<String>.from(data['visibleMapIds'] as List)
+          : const <String>[],
       lastPosition: data['lastPosition'] != null
           ? GeoPosition.fromMap(data['lastPosition'])
           : null,
@@ -51,6 +108,8 @@ class GroupAdmin {
       'displayName': displayName,
       'isVisible': isVisible,
       'selectedMapId': selectedMapId,
+      'selectedCircuit': selectedCircuit?.toMap(),
+      'visibleMapIds': visibleMapIds,
       'lastPosition': lastPosition?.toMap(),
       'averagePosition': averagePosition?.toMap(),
       'createdAt': Timestamp.fromDate(createdAt),
@@ -62,6 +121,8 @@ class GroupAdmin {
     String? displayName,
     bool? isVisible,
     String? selectedMapId,
+    GroupSelectedCircuit? selectedCircuit,
+    List<String>? visibleMapIds,
     GeoPosition? lastPosition,
     GeoPosition? averagePosition,
     DateTime? updatedAt,
@@ -72,6 +133,8 @@ class GroupAdmin {
       displayName: displayName ?? this.displayName,
       isVisible: isVisible ?? this.isVisible,
       selectedMapId: selectedMapId ?? this.selectedMapId,
+      selectedCircuit: selectedCircuit ?? this.selectedCircuit,
+      visibleMapIds: visibleMapIds ?? this.visibleMapIds,
       lastPosition: lastPosition ?? this.lastPosition,
       averagePosition: averagePosition ?? this.averagePosition,
       createdAt: createdAt,

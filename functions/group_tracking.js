@@ -14,6 +14,50 @@ if (!admin.apps.length) {
 }
 const db = admin.firestore();
 
+async function findAdminUidByGroupId(adminGroupId) {
+  const snap = await db
+    .collection("group_admins")
+    .where("adminGroupId", "==", adminGroupId)
+    .limit(1)
+    .get();
+  if (snap.empty) return null;
+  return snap.docs[0].id;
+}
+
+function looksLikeCircuitSelection(sel) {
+  return (
+    sel &&
+    typeof sel === "object" &&
+    typeof sel.countryId === "string" &&
+    sel.countryId.trim().length > 0 &&
+    typeof sel.eventId === "string" &&
+    sel.eventId.trim().length > 0 &&
+    typeof sel.circuitId === "string" &&
+    sel.circuitId.trim().length > 0
+  );
+}
+
+function sameCircuit(a, b) {
+  if (!looksLikeCircuitSelection(a) || !looksLikeCircuitSelection(b)) return false;
+  return (
+    a.countryId === b.countryId &&
+    a.eventId === b.eventId &&
+    a.circuitId === b.circuitId
+  );
+}
+
+function groupTrackingDocRef(sel, adminGroupId) {
+  return db
+    .collection("marketMap")
+    .doc(sel.countryId)
+    .collection("events")
+    .doc(sel.eventId)
+    .collection("circuits")
+    .doc(sel.circuitId)
+    .collection("group_tracking")
+    .doc(adminGroupId);
+}
+
 /**
  * Utilitaires géodésiques
  */
@@ -120,7 +164,12 @@ exports.calculateGroupAveragePosition = onDocumentWritten(
         .get();
 
       if (membersSnapshot.empty) {
-        console.log("❌ Aucun membre trouvé");
+        console.log("⚠️  Aucun membre trouvé => efface averagePosition");
+        const adminUid = await findAdminUidByGroupId(adminGroupId);
+        if (!adminUid) return;
+        await db.collection("group_admins").doc(adminUid).update({
+          averagePosition: admin.firestore.FieldValue.delete(),
+        });
         return;
       }
 
@@ -182,7 +231,12 @@ exports.calculateGroupAveragePosition = onDocumentWritten(
       }
 
       if (validPositions.length === 0) {
-        console.log("⚠️  Aucune position valide");
+        console.log("⚠️  Aucune position valide => efface averagePosition");
+        const adminUid = await findAdminUidByGroupId(adminGroupId);
+        if (!adminUid) return;
+        await db.collection("group_admins").doc(adminUid).update({
+          averagePosition: admin.firestore.FieldValue.delete(),
+        });
         return;
       }
 
@@ -215,18 +269,11 @@ exports.calculateGroupAveragePosition = onDocumentWritten(
       );
 
       // Récupère l'admin pour trouver son UID
-      const adminSnapshot = await db
-        .collection("group_admins")
-        .where("adminGroupId", "==", adminGroupId)
-        .limit(1)
-        .get();
-
-      if (adminSnapshot.empty) {
+      const adminUid = await findAdminUidByGroupId(adminGroupId);
+      if (!adminUid) {
         console.log("❌ Admin non trouvé pour groupe");
         return;
       }
-
-      const adminUid = adminSnapshot.docs[0].id;
 
       // Met à jour la position moyenne de l'admin
       const serverTimestamp = admin.firestore.FieldValue.serverTimestamp();
@@ -252,5 +299,95 @@ exports.calculateGroupAveragePosition = onDocumentWritten(
       console.error("❌ Erreur calcul position moyenne:", error);
       throw error;
     }
+  }
+);
+
+/**
+ * Publie la position moyenne d'un groupe sur le circuit MarketMap sélectionné par l'admin.
+ *
+ * Source: group_admins/{adminUid}
+ * Dest: marketMap/{countryId}/events/{eventId}/circuits/{circuitId}/group_tracking/{adminGroupId}
+ *
+ * - Si `isVisible` est false OU circuit non sélectionné OU averagePosition manquante => suppression.
+ * - Si circuit change => suppression de l'ancien emplacement.
+ */
+exports.publishGroupAverageToCircuit = onDocumentWritten(
+  {
+    document: "group_admins/{adminUid}",
+    region: "us-east1",
+    cpu: 0.25,
+    memory: "256MiB",
+    timeoutSeconds: 60,
+    maxInstances: 5,
+  },
+  async (event) => {
+    const afterSnap = event.data?.after;
+    const beforeSnap = event.data?.before;
+
+    const after = afterSnap && afterSnap.exists ? afterSnap.data() : null;
+    const before = beforeSnap && beforeSnap.exists ? beforeSnap.data() : null;
+
+    const adminUid = event.params.adminUid;
+    const adminGroupId = (after?.adminGroupId || before?.adminGroupId || "").toString();
+    if (!adminGroupId || adminGroupId.trim().length === 0) {
+      return;
+    }
+
+    const beforeSel = before?.selectedCircuit;
+    const afterSel = after?.selectedCircuit;
+
+    // Si changement de circuit => supprimer l'ancien doc.
+    if (looksLikeCircuitSelection(beforeSel) && !sameCircuit(beforeSel, afterSel)) {
+      try {
+        await groupTrackingDocRef(beforeSel, adminGroupId).delete();
+      } catch (e) {
+        // Delete idempotent: si doc absent, ok.
+        console.log("ℹ️ delete old group_tracking skipped:", String(e));
+      }
+    }
+
+    // Si suppression du doc admin, ou circuit invalide => rien à publier.
+    if (!after) {
+      return;
+    }
+
+    if (!looksLikeCircuitSelection(afterSel)) {
+      return;
+    }
+
+    const isVisible = after.isVisible !== false;
+    const avg = after.averagePosition;
+
+    const lat = Number(avg?.lat);
+    const lng = Number(avg?.lng);
+    const hasAvg = Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0;
+
+    const ref = groupTrackingDocRef(afterSel, adminGroupId);
+
+    if (!isVisible || !hasAvg) {
+      try {
+        await ref.delete();
+      } catch (e) {
+        console.log("ℹ️ delete group_tracking skipped:", String(e));
+      }
+      return;
+    }
+
+    const memberCount = typeof avg?.memberCount === "number" ? avg.memberCount : null;
+    const displayName = typeof after.displayName === "string" ? after.displayName : "";
+
+    await ref.set(
+      {
+        adminGroupId,
+        adminUid,
+        displayName,
+        position: new admin.firestore.GeoPoint(lat, lng),
+        lat,
+        lng,
+        ...(memberCount != null ? { memberCount } : {}),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
   }
 );

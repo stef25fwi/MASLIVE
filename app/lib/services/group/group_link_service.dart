@@ -268,4 +268,20 @@ class GroupLinkService {
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
+
+  // Met à jour le circuit actif (pays/événement/circuit) pour publication tracking
+  Future<void> updateSelectedCircuit({
+    required String adminUid,
+    required GroupSelectedCircuit selectedCircuit,
+  }) async {
+    await _firestore
+        .collection('group_admins')
+        .doc(adminUid)
+        .update({
+      'selectedCircuit': selectedCircuit.toMap(),
+      // L'admin choisit son circuit actif => on rend visible par défaut.
+      'isVisible': true,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
 }
