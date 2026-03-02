@@ -66,9 +66,33 @@ class MarketMapService {
           final eventIdsByCountry = <String, Set<String>>{};
 
           for (final d in snap.docs) {
-            final data = d.data();
-            final countryId = (data['countryId'] ?? '').toString().trim();
-            final eventId = (data['eventId'] ?? '').toString().trim();
+            // IMPORTANT: certains anciens circuits n'ont pas (ou plus) des champs
+            // `countryId`/`eventId` fiables. On dérive donc d'abord depuis le chemin.
+            // Attendu: marketMap/{countryId}/events/{eventId}/circuits/{circuitId}
+            String countryId = '';
+            String eventId = '';
+
+            final segments = d.reference.path.split('/');
+            final marketMapIdx = segments.indexOf('marketMap');
+
+            // Si ce `circuits` ne vient pas du MarketMap, on l'ignore.
+            if (marketMapIdx == -1) continue;
+
+            final canParseFromPath =
+                segments.length >= marketMapIdx + 6 &&
+                segments[marketMapIdx + 2] == 'events' &&
+                segments[marketMapIdx + 4] == 'circuits';
+
+            if (canParseFromPath) {
+              countryId = segments[marketMapIdx + 1].trim();
+              eventId = segments[marketMapIdx + 3].trim();
+            }
+
+            if (countryId.isEmpty || eventId.isEmpty) {
+              final data = d.data();
+              countryId = (data['countryId'] ?? '').toString().trim();
+              eventId = (data['eventId'] ?? '').toString().trim();
+            }
             if (countryId.isEmpty || eventId.isEmpty) continue;
 
             countryIds.add(countryId);

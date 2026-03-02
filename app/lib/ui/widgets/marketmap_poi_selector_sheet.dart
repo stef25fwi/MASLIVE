@@ -141,15 +141,19 @@ class _MarketMapPoiSelectorSheetState
     return StreamBuilder<VisibleCircuitsIndex>(
       stream: widget.service.watchVisibleCircuitsIndex(),
       builder: (context, visibleSnap) {
-        final visibleIndexReady = visibleSnap.hasData;
+        final canFilterByVisibleIndex = visibleSnap.hasData;
+        final visibleIndexHasError = visibleSnap.hasError;
+
         final visibleIndex = visibleSnap.data;
-        final visibleCountryIds = visibleIndexReady
+        final visibleCountryIds = canFilterByVisibleIndex
             ? (visibleIndex?.countryIds ?? const <String>{})
             : const <String>{};
-        final visibleEventIds = (!visibleIndexReady || _country == null)
+        final visibleEventIds = (!canFilterByVisibleIndex || _country == null)
             ? const <String>{}
             : visibleIndex?.eventIdsForCountry(_country!.id) ??
                   const <String>{};
+
+        final allowSelection = canFilterByVisibleIndex || visibleIndexHasError;
 
         return Padding(
           padding: EdgeInsets.only(
@@ -182,16 +186,26 @@ class _MarketMapPoiSelectorSheetState
                   ),
                 ],
               ),
-              if (!visibleIndexReady) const LinearProgressIndicator(),
+              if (!allowSelection) const LinearProgressIndicator(),
+              if (visibleIndexHasError)
+                const Padding(
+                  padding: EdgeInsets.only(top: 6),
+                  child: Text(
+                    "Impossible de charger la liste des circuits publiés (mode dégradé).",
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
               const SizedBox(height: 8),
               StreamBuilder<List<MarketCountry>>(
                 stream: widget.service.watchCountries(),
                 builder: (context, snap) {
                   final all = snap.data ?? const <MarketCountry>[];
-                  final items = visibleIndexReady
+                  final items = canFilterByVisibleIndex
                       ? all
                             .where((c) => visibleCountryIds.contains(c.id))
                             .toList(growable: false)
+                      : visibleIndexHasError
+                      ? all
                       : const <MarketCountry>[];
 
                   final selectedCountryId = _country?.id;
@@ -216,7 +230,7 @@ class _MarketMapPoiSelectorSheetState
                             ),
                           ),
                       ],
-                      onChanged: !visibleIndexReady
+                      onChanged: !allowSelection
                           ? null
                           : (id) {
                               if (id == null) return;
@@ -245,7 +259,7 @@ class _MarketMapPoiSelectorSheetState
                     controller: _countryCtrl,
                     labelText: 'Pays',
                     hintText: 'Rechercher un pays…',
-                    enabled: visibleIndexReady,
+                    enabled: allowSelection,
                     onSelected: (c) {
                       setState(() {
                         _country = c;
@@ -265,10 +279,12 @@ class _MarketMapPoiSelectorSheetState
                     : widget.service.watchEvents(countryId: _country!.id),
                 builder: (context, snap) {
                   final all = snap.data ?? const <MarketEvent>[];
-                  final items = visibleIndexReady
+                  final items = canFilterByVisibleIndex
                       ? all
                             .where((e) => visibleEventIds.contains(e.id))
                             .toList(growable: false)
+                      : visibleIndexHasError
+                      ? all
                       : const <MarketEvent>[];
 
                   final selectedId = _event?.id;
@@ -286,7 +302,7 @@ class _MarketMapPoiSelectorSheetState
                       for (final e in items)
                         DropdownMenuItem(value: e.id, child: Text(e.name)),
                     ],
-                    onChanged: (_country == null)
+                    onChanged: (!allowSelection || _country == null)
                         ? null
                         : (id) {
                             if (id == null) return;
@@ -344,7 +360,8 @@ class _MarketMapPoiSelectorSheetState
                           child: Text('${c.name} (${c.status})'),
                         ),
                     ],
-                    onChanged: (_country == null || _event == null)
+                    onChanged:
+                        (!allowSelection || _country == null || _event == null)
                         ? null
                         : (id) {
                             if (id == null) return;
