@@ -107,6 +107,18 @@ class _MarketMapPoiSelectorSheetState
   bool _layerSelectionInitialized = false;
 
   final TextEditingController _countryCtrl = TextEditingController();
+  final TextEditingController _eventCtrl = TextEditingController();
+  final TextEditingController _circuitCtrl = TextEditingController();
+
+  final FocusNode _countryFocus = FocusNode();
+  final FocusNode _eventFocus = FocusNode();
+  final FocusNode _circuitFocus = FocusNode();
+
+  bool _countryHasSelectedOption = false;
+  bool _eventHasSelectedOption = false;
+  bool _circuitHasSelectedOption = false;
+
+  bool _updatingControllers = false;
 
   @override
   void initState() {
@@ -121,17 +133,160 @@ class _MarketMapPoiSelectorSheetState
 
       final country = _country;
       if (country != null) {
-        _countryCtrl.text = country.name.trim().isNotEmpty
-            ? country.name
-            : country.id;
+        _countryCtrl.text = _countryLabel(country);
+        _countryHasSelectedOption = true;
+      }
+
+      final event = _event;
+      if (event != null) {
+        _eventCtrl.text = _eventLabel(event);
+        _eventHasSelectedOption = true;
+      }
+
+      final circuit = _circuit;
+      if (circuit != null) {
+        _circuitCtrl.text = _circuitLabel(circuit);
+        _circuitHasSelectedOption = true;
       }
     }
+
+    // En mode strict (Home): si l'utilisateur modifie le texte après sélection,
+    // on annule la sélection (pas de saisie libre).
+    _countryCtrl.addListener(() {
+      if (!widget.disableKeyboardInput) return;
+      if (_updatingControllers) return;
+      final selected = _country;
+      if (selected == null) return;
+      final typed = MarketMapService.slugify(_countryCtrl.text);
+      final expected = MarketMapService.slugify(_countryLabel(selected));
+      if (typed == expected) return;
+      setState(() {
+        _country = null;
+        _countryHasSelectedOption = false;
+        _event = null;
+        _eventCtrl.clear();
+        _eventHasSelectedOption = false;
+        _circuit = null;
+        _circuitCtrl.clear();
+        _circuitHasSelectedOption = false;
+        _layerIds = <String>{};
+        _layerSelectionInitialized = false;
+      });
+    });
+
+    _eventCtrl.addListener(() {
+      if (!widget.disableKeyboardInput) return;
+      if (_updatingControllers) return;
+      final selected = _event;
+      if (selected == null) return;
+      final typed = MarketMapService.slugify(_eventCtrl.text);
+      final expected = MarketMapService.slugify(_eventLabel(selected));
+      if (typed == expected) return;
+      setState(() {
+        _event = null;
+        _eventHasSelectedOption = false;
+        _circuit = null;
+        _circuitCtrl.clear();
+        _circuitHasSelectedOption = false;
+        _layerIds = <String>{};
+        _layerSelectionInitialized = false;
+      });
+    });
+
+    _circuitCtrl.addListener(() {
+      if (!widget.disableKeyboardInput) return;
+      if (_updatingControllers) return;
+      final selected = _circuit;
+      if (selected == null) return;
+      final typed = MarketMapService.slugify(_circuitCtrl.text);
+      final expected = MarketMapService.slugify(_circuitLabel(selected));
+      if (typed == expected) return;
+      setState(() {
+        _circuit = null;
+        _circuitHasSelectedOption = false;
+        _layerIds = <String>{};
+        _layerSelectionInitialized = false;
+      });
+    });
+
+    _countryFocus.addListener(() {
+      if (!widget.disableKeyboardInput) return;
+      if (_countryFocus.hasFocus) return;
+      if (!_countryHasSelectedOption) {
+        if (_countryCtrl.text.trim().isNotEmpty) {
+          _countryCtrl.clear();
+        }
+      } else {
+        final c = _country;
+        if (c != null) {
+          _updatingControllers = true;
+          _countryCtrl.text = _countryLabel(c);
+          _updatingControllers = false;
+        }
+      }
+    });
+
+    _eventFocus.addListener(() {
+      if (!widget.disableKeyboardInput) return;
+      if (_eventFocus.hasFocus) return;
+      if (!_eventHasSelectedOption) {
+        if (_eventCtrl.text.trim().isNotEmpty) {
+          _eventCtrl.clear();
+        }
+      } else {
+        final event = _event;
+        if (event != null) {
+          _updatingControllers = true;
+          _eventCtrl.text = _eventLabel(event);
+          _updatingControllers = false;
+        }
+      }
+    });
+
+    _circuitFocus.addListener(() {
+      if (!widget.disableKeyboardInput) return;
+      if (_circuitFocus.hasFocus) return;
+      if (!_circuitHasSelectedOption) {
+        if (_circuitCtrl.text.trim().isNotEmpty) {
+          _circuitCtrl.clear();
+        }
+      } else {
+        final circuit = _circuit;
+        if (circuit != null) {
+          _updatingControllers = true;
+          _circuitCtrl.text = _circuitLabel(circuit);
+          _updatingControllers = false;
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
     _countryCtrl.dispose();
+    _eventCtrl.dispose();
+    _circuitCtrl.dispose();
+    _countryFocus.dispose();
+    _eventFocus.dispose();
+    _circuitFocus.dispose();
     super.dispose();
+  }
+
+  String _countryLabel(MarketCountry c) {
+    final name = c.name.trim();
+    return name.isNotEmpty ? name : c.id;
+  }
+
+  String _eventLabel(MarketEvent e) {
+    final name = e.name.trim();
+    return name.isNotEmpty ? name : e.id;
+  }
+
+  String _circuitLabel(MarketCircuit c) {
+    final name = c.name.trim();
+    final base = name.isNotEmpty ? name : c.id;
+    final status = c.status.trim();
+    return status.isNotEmpty ? '$base ($status)' : base;
   }
 
   @override
@@ -208,45 +363,54 @@ class _MarketMapPoiSelectorSheetState
                       ? all
                       : const <MarketCountry>[];
 
-                  final selectedCountryId = _country?.id;
-                  final currentCountryId =
-                      items.any((c) => c.id == selectedCountryId)
-                      ? selectedCountryId
-                      : null;
-
                   if (widget.disableKeyboardInput) {
-                    return DropdownButtonFormField<String>(
-                      initialValue: currentCountryId,
-                      decoration: const InputDecoration(
-                        labelText: 'Pays',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: [
+                    MarketCountry? initialSelection;
+                    final selectedId = _country?.id;
+                    if (selectedId != null) {
+                      for (final c in items) {
+                        if (c.id == selectedId) {
+                          initialSelection = c;
+                          break;
+                        }
+                      }
+                    }
+
+                    return DropdownMenu<MarketCountry>(
+                      controller: _countryCtrl,
+                      focusNode: _countryFocus,
+                      enabled: allowSelection,
+                      label: const Text('Pays'),
+                      enableSearch: true,
+                      enableFilter: true,
+                      requestFocusOnTap: true,
+                      initialSelection: initialSelection,
+                      dropdownMenuEntries: [
                         for (final c in items)
-                          DropdownMenuItem(
-                            value: c.id,
-                            child: Text(
-                              c.name.trim().isNotEmpty ? c.name : c.id,
-                            ),
+                          DropdownMenuEntry<MarketCountry>(
+                            value: c,
+                            label: _countryLabel(c),
                           ),
                       ],
-                      onChanged: !allowSelection
+                      onSelected: !allowSelection
                           ? null
-                          : (id) {
-                              if (id == null) return;
-                              final selected = items.firstWhere(
-                                (c) => c.id == id,
-                                orElse: () => const MarketCountry(
-                                  id: '',
-                                  name: '',
-                                  slug: '',
-                                ),
-                              );
-                              if (selected.id.isEmpty) return;
+                          : (c) {
                               setState(() {
-                                _country = selected;
+                                _country = c;
+                                _countryHasSelectedOption = c != null;
+                                _updatingControllers = true;
+                                if (c == null) {
+                                  _countryCtrl.clear();
+                                } else {
+                                  _countryCtrl.text = _countryLabel(c);
+                                }
+                                _updatingControllers = false;
+
                                 _event = null;
+                                _eventCtrl.clear();
+                                _eventHasSelectedOption = false;
                                 _circuit = null;
+                                _circuitCtrl.clear();
+                                _circuitHasSelectedOption = false;
                                 _layerIds = <String>{};
                                 _layerSelectionInitialized = false;
                               });
@@ -258,13 +422,24 @@ class _MarketMapPoiSelectorSheetState
                     items: items,
                     controller: _countryCtrl,
                     labelText: 'Pays',
-                    hintText: 'Rechercher un pays…',
+                    hintText: widget.disableKeyboardInput
+                        ? 'Rechercher un pays…'
+                        : 'Rechercher un pays…',
                     enabled: allowSelection,
+                    strictSelection: widget.disableKeyboardInput,
                     onSelected: (c) {
                       setState(() {
-                        _country = c;
+                        if (c == null) {
+                          _country = null;
+                        } else {
+                          _country = c;
+                        }
                         _event = null;
+                        _eventCtrl.clear();
+                        _eventHasSelectedOption = false;
                         _circuit = null;
+                        _circuitCtrl.clear();
+                        _circuitHasSelectedOption = false;
                         _layerIds = <String>{};
                         _layerSelectionInitialized = false;
                       });
@@ -288,6 +463,58 @@ class _MarketMapPoiSelectorSheetState
                       : const <MarketEvent>[];
 
                   final selectedId = _event?.id;
+
+                  if (widget.disableKeyboardInput) {
+                    MarketEvent? initialSelection;
+                    if (selectedId != null) {
+                      for (final e in items) {
+                        if (e.id == selectedId) {
+                          initialSelection = e;
+                          break;
+                        }
+                      }
+                    }
+
+                    return DropdownMenu<MarketEvent>(
+                      controller: _eventCtrl,
+                      focusNode: _eventFocus,
+                      enabled: allowSelection && _country != null,
+                      label: const Text('Événement'),
+                      enableSearch: true,
+                      enableFilter: true,
+                      requestFocusOnTap: true,
+                      initialSelection: initialSelection,
+                      dropdownMenuEntries: [
+                        for (final e in items)
+                          DropdownMenuEntry<MarketEvent>(
+                            value: e,
+                            label: _eventLabel(e),
+                          ),
+                      ],
+                      onSelected: (!allowSelection || _country == null)
+                          ? null
+                          : (e) {
+                              setState(() {
+                                _event = e;
+                                _eventHasSelectedOption = e != null;
+                                _updatingControllers = true;
+                                if (e == null) {
+                                  _eventCtrl.clear();
+                                } else {
+                                  _eventCtrl.text = _eventLabel(e);
+                                }
+                                _updatingControllers = false;
+
+                                _circuit = null;
+                                _circuitCtrl.clear();
+                                _circuitHasSelectedOption = false;
+                                _layerIds = <String>{};
+                                _layerSelectionInitialized = false;
+                              });
+                            },
+                    );
+                  }
+
                   final value = items.any((e) => e.id == selectedId)
                       ? selectedId
                       : null;
@@ -300,25 +527,21 @@ class _MarketMapPoiSelectorSheetState
                     ),
                     items: [
                       for (final e in items)
-                        DropdownMenuItem(value: e.id, child: Text(e.name)),
+                        DropdownMenuItem(
+                          value: e.id,
+                          child: Text(_eventLabel(e)),
+                        ),
                     ],
                     onChanged: (!allowSelection || _country == null)
                         ? null
                         : (id) {
                             if (id == null) return;
-                            final selected = items.firstWhere(
-                              (e) => e.id == id,
-                              orElse: () => MarketEvent(
-                                id: '',
-                                countryId: _country?.id ?? '',
-                                name: '',
-                                slug: '',
-                              ),
-                            );
-                            if (selected.id.isEmpty) return;
+                            final selected = items.firstWhere((e) => e.id == id);
                             setState(() {
                               _event = selected;
+                              _eventCtrl.text = _eventLabel(selected);
                               _circuit = null;
+                              _circuitCtrl.clear();
                               _layerIds = <String>{};
                               _layerSelectionInitialized = false;
                             });
@@ -343,49 +566,102 @@ class _MarketMapPoiSelectorSheetState
                       .toList(growable: false);
 
                   final selectedId = _circuit?.id;
-                  final currentValue = items.any((c) => c.id == selectedId)
-                      ? selectedId
-                      : null;
 
-                  return DropdownButtonFormField<String>(
-                    initialValue: currentValue,
-                    decoration: const InputDecoration(
-                      labelText: 'Circuit',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: [
+                  if (!widget.disableKeyboardInput) {
+                    final currentValue = items.any((c) => c.id == selectedId)
+                        ? selectedId
+                        : null;
+
+                    return DropdownButtonFormField<String>(
+                      initialValue: currentValue,
+                      decoration: const InputDecoration(
+                        labelText: 'Circuit',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: [
+                        for (final c in items)
+                          DropdownMenuItem(
+                            value: c.id,
+                            child: Text(_circuitLabel(c)),
+                          ),
+                      ],
+                      onChanged:
+                          (!allowSelection ||
+                              _country == null ||
+                              _event == null)
+                          ? null
+                          : (id) {
+                              if (id == null) return;
+                              final selected = items.firstWhere(
+                                (c) => c.id == id,
+                                orElse: () => MarketCircuit(
+                                  id: '',
+                                  countryId: _country?.id ?? '',
+                                  eventId: _event?.id ?? '',
+                                  name: '',
+                                  slug: '',
+                                  status: 'draft',
+                                  createdByUid: '',
+                                  perimeterLocked: false,
+                                  zoomLocked: false,
+                                  center: const {'lat': 0.0, 'lng': 0.0},
+                                  initialZoom: 14,
+                                  isVisible: false,
+                                  wizardState: const <String, dynamic>{},
+                                ),
+                              );
+                              if (selected.id.isEmpty) return;
+                              setState(() {
+                                _circuit = selected;
+                                _circuitCtrl.text = _circuitLabel(selected);
+                                _layerIds = <String>{};
+                                _layerSelectionInitialized = false;
+                              });
+                            },
+                    );
+                  }
+
+                  MarketCircuit? initialSelection;
+                  if (selectedId != null) {
+                    for (final c in items) {
+                      if (c.id == selectedId) {
+                        initialSelection = c;
+                        break;
+                      }
+                    }
+                  }
+
+                  return DropdownMenu<MarketCircuit>(
+                    controller: _circuitCtrl,
+                    focusNode: _circuitFocus,
+                    enabled: allowSelection && _country != null && _event != null,
+                    label: const Text('Circuit'),
+                    enableSearch: true,
+                    enableFilter: true,
+                    requestFocusOnTap: true,
+                    initialSelection: initialSelection,
+                    dropdownMenuEntries: [
                       for (final c in items)
-                        DropdownMenuItem(
-                          value: c.id,
-                          child: Text('${c.name} (${c.status})'),
+                        DropdownMenuEntry<MarketCircuit>(
+                          value: c,
+                          label: _circuitLabel(c),
                         ),
                     ],
-                    onChanged:
+                    onSelected:
                         (!allowSelection || _country == null || _event == null)
                         ? null
-                        : (id) {
-                            if (id == null) return;
-                            final selected = items.firstWhere(
-                              (c) => c.id == id,
-                              orElse: () => MarketCircuit(
-                                id: '',
-                                countryId: _country?.id ?? '',
-                                eventId: _event?.id ?? '',
-                                name: '',
-                                slug: '',
-                                status: 'draft',
-                                createdByUid: '',
-                                perimeterLocked: false,
-                                zoomLocked: false,
-                                center: const {'lat': 0.0, 'lng': 0.0},
-                                initialZoom: 14,
-                                isVisible: false,
-                                wizardState: const <String, dynamic>{},
-                              ),
-                            );
-                            if (selected.id.isEmpty) return;
+                        : (c) {
                             setState(() {
-                              _circuit = selected;
+                              _circuit = c;
+                              _circuitHasSelectedOption = c != null;
+                              _updatingControllers = true;
+                              if (c == null) {
+                                _circuitCtrl.clear();
+                              } else {
+                                _circuitCtrl.text = _circuitLabel(c);
+                              }
+                              _updatingControllers = false;
+
                               _layerIds = <String>{};
                               _layerSelectionInitialized = false;
                             });

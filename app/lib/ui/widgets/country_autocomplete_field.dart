@@ -25,10 +25,12 @@ class CountryNameAutocompleteField extends StatefulWidget {
   final bool enabled;
 
   @override
-  State<CountryNameAutocompleteField> createState() => _CountryNameAutocompleteFieldState();
+  State<CountryNameAutocompleteField> createState() =>
+      _CountryNameAutocompleteFieldState();
 }
 
-class _CountryNameAutocompleteFieldState extends State<CountryNameAutocompleteField> {
+class _CountryNameAutocompleteFieldState
+    extends State<CountryNameAutocompleteField> {
   late final TextEditingController _ctrl;
   late final FocusNode _focus;
 
@@ -132,10 +134,12 @@ class CountryNameAutocompleteFormField extends StatefulWidget {
   final FormFieldValidator<String>? validator;
 
   @override
-  State<CountryNameAutocompleteFormField> createState() => _CountryNameAutocompleteFormFieldState();
+  State<CountryNameAutocompleteFormField> createState() =>
+      _CountryNameAutocompleteFormFieldState();
 }
 
-class _CountryNameAutocompleteFormFieldState extends State<CountryNameAutocompleteFormField> {
+class _CountryNameAutocompleteFormFieldState
+    extends State<CountryNameAutocompleteFormField> {
   late final TextEditingController _ctrl;
   late final FocusNode _focus;
 
@@ -207,7 +211,10 @@ class _CountryNameAutocompleteFormFieldState extends State<CountryNameAutocomple
               child: Material(
                 elevation: 4,
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520, maxHeight: 280),
+                  constraints: const BoxConstraints(
+                    maxWidth: 520,
+                    maxHeight: 280,
+                  ),
                   child: ListView.builder(
                     padding: EdgeInsets.zero,
                     itemCount: options.length,
@@ -240,6 +247,7 @@ class MarketCountryAutocompleteField extends StatefulWidget {
     this.hintText,
     this.enabled = true,
     this.valueForOption,
+    this.strictSelection = false,
   });
 
   final List<MarketCountry> items;
@@ -249,18 +257,37 @@ class MarketCountryAutocompleteField extends StatefulWidget {
   final String? hintText;
   final bool enabled;
   final String Function(MarketCountry)? valueForOption;
+  final bool strictSelection;
 
   @override
-  State<MarketCountryAutocompleteField> createState() => _MarketCountryAutocompleteFieldState();
+  State<MarketCountryAutocompleteField> createState() =>
+      _MarketCountryAutocompleteFieldState();
 }
 
-class _MarketCountryAutocompleteFieldState extends State<MarketCountryAutocompleteField> {
+class _MarketCountryAutocompleteFieldState
+    extends State<MarketCountryAutocompleteField> {
   late final FocusNode _focus;
+  bool _hasSelectedOption = false;
 
   @override
   void initState() {
     super.initState();
     _focus = FocusNode();
+
+    // Si un texte initial est présent, on considère qu'il vient d'une sélection
+    // (ex: valeur initiale fournie par un parent).
+    _hasSelectedOption = widget.controller.text.trim().isNotEmpty;
+
+    _focus.addListener(() {
+      // Mode strict: jamais de saisie libre. Le texte sert seulement à filtrer.
+      // Si l'utilisateur quitte le champ sans sélectionner une option, on efface.
+      if (widget.strictSelection && !_focus.hasFocus && !_hasSelectedOption) {
+        if (widget.controller.text.trim().isNotEmpty) {
+          widget.controller.clear();
+        }
+        widget.onSelected(null);
+      }
+    });
   }
 
   @override
@@ -292,6 +319,7 @@ class _MarketCountryAutocompleteFieldState extends State<MarketCountryAutocomple
       optionsBuilder: (value) => _filter(value.text),
       displayStringForOption: _label,
       onSelected: (c) {
+        _hasSelectedOption = true;
         widget.controller.text = widget.valueForOption?.call(c) ?? _label(c);
         widget.onSelected(c);
       },
@@ -305,7 +333,10 @@ class _MarketCountryAutocompleteFieldState extends State<MarketCountryAutocomple
             hintText: widget.hintText,
             border: const OutlineInputBorder(),
           ),
-          onChanged: (_) => widget.onSelected(null),
+          onChanged: (_) {
+            _hasSelectedOption = false;
+            widget.onSelected(null);
+          },
         );
       },
       optionsViewBuilder: (context, onSelected, options) {
@@ -327,8 +358,12 @@ class _MarketCountryAutocompleteFieldState extends State<MarketCountryAutocomple
                   );
                   return ListTile(
                     dense: true,
-                    title: Text(formatCountryLabelWithFlag(name: _label(c), iso2: iso2)),
-                    subtitle: (c.id.trim().isEmpty || c.id.trim() == _label(c)) ? null : Text(c.id),
+                    title: Text(
+                      formatCountryLabelWithFlag(name: _label(c), iso2: iso2),
+                    ),
+                    subtitle: (c.id.trim().isEmpty || c.id.trim() == _label(c))
+                        ? null
+                        : Text(c.id),
                     onTap: () => onSelected(c),
                   );
                 },
