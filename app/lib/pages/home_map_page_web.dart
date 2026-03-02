@@ -41,7 +41,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   _MapAction _selected = _MapAction.ville;
   bool _showActionsMenu = false;
-  String _currentLanguageFlag = '🇫🇷'; // Pré-initialisé français (pas de délai)
+  String _currentLanguageFlag = '';
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
   // Offset vertical du menu d'actions pour ne pas chevaucher la boussole
@@ -86,6 +86,17 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
     
     // Initialiser le drapeau de langue dès initState (pas de délai)
     _updateLanguageFlag();
+
+    // Retente après 1er frame (service/langue et rendu emoji peuvent arriver après).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final before = _currentLanguageFlag;
+      _updateLanguageFlag();
+      if (!mounted) return;
+      if (_currentLanguageFlag != before) {
+        setState(() {});
+      }
+    });
     
     _menuAnimController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -349,8 +360,8 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
         langService.currentLanguageCode,
       );
     } catch (_) {
-      // En cas d'erreur (service non prêt), garder la valeur par défaut
-      _currentLanguageFlag = '🇫🇷';
+      // En cas d'erreur (service non prêt), ne rien afficher.
+      _currentLanguageFlag = '';
     }
   }
 
@@ -912,16 +923,16 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                               _ActionItem(
                                 label: '',
                                 // Affichage direct du drapeau sans délai Obx réactif
-                                iconWidget: Container(
-                                  color: Colors.white,
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    _currentLanguageFlag,
-                                    style: const TextStyle(
-                                      fontSize: 34,
-                                      height: 1,
-                                    ),
-                                  ),
+                                iconWidget: Center(
+                                  child: _currentLanguageFlag.isEmpty
+                                      ? const SizedBox.shrink()
+                                      : Text(
+                                          _currentLanguageFlag,
+                                          style: const TextStyle(
+                                            fontSize: 34,
+                                            height: 1,
+                                          ),
+                                        ),
                                 ),
                                 fullBleed: true,
                                 tintOnSelected: false,

@@ -65,7 +65,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   // ========== ÉTAT UI ==========
   bool _showActionsMenu = false;
-  String _currentLanguageFlag = '🇫🇷'; // Pré-initialisé français (pas de délai)
+  String _currentLanguageFlag = '';
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
   _MapAction? _selectedAction;
@@ -163,6 +163,17 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     
     // Initialiser le drapeau de langue dès initState (pas de délai)
     _updateLanguageFlag();
+
+    // Retente après 1er frame (service/langue et rendu emoji peuvent arriver après).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final before = _currentLanguageFlag;
+      _updateLanguageFlag();
+      if (!mounted) return;
+      if (_currentLanguageFlag != before) {
+        setState(() {});
+      }
+    });
 
     // Configuration de l'animation du menu latéral
     _menuAnimController = AnimationController(
@@ -2128,8 +2139,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         langService.currentLanguageCode,
       );
     } catch (_) {
-      // En cas d'erreur (service non prêt), garder la valeur par défaut
-      _currentLanguageFlag = '🇫🇷';
+      // En cas d'erreur (service non prêt), ne rien afficher.
+      _currentLanguageFlag = '';
     }
   }
 
@@ -2451,16 +2462,16 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                               _ActionItem(
                                 label: '',
                                 // Affichage direct du drapeau sans délai Obx réactif
-                                iconWidget: Container(
-                                  color: Colors.white,
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    _currentLanguageFlag,
-                                    style: const TextStyle(
-                                      fontSize: 34,
-                                      height: 1,
-                                    ),
-                                  ),
+                                iconWidget: Center(
+                                  child: _currentLanguageFlag.isEmpty
+                                      ? const SizedBox.shrink()
+                                      : Text(
+                                          _currentLanguageFlag,
+                                          style: const TextStyle(
+                                            fontSize: 34,
+                                            height: 1,
+                                          ),
+                                        ),
                                 ),
                                 fullBleed: true,
                                 tintOnSelected: false,
