@@ -449,6 +449,12 @@ date,distance_m,duration_sec,ascent_m,descent_m,avg_speed_mps
 [ ] Active icône Tracking sur Home map
 [ ] Vérifier affichage marqueur groupe public
 
+# Test 4 quinquies: Compat schéma averagePosition
+[ ] Vérifier `group_admins/{adminUid}.averagePosition.lat/lng/alt/ts`
+[ ] Vérifier coexistence possible des clés legacy `altitude/timestamp`
+[ ] Vérifier lecture complète côté app (carte groupe + Home tracking)
+[ ] Vérifier absence de lecture partielle (position/fraîcheur manquante)
+
 # Test 5: Historique + Exports
 [ ] Admin → Historique → Voir sessions
 [ ] Cliquer session → Voir détails (durée, distance)
@@ -460,6 +466,11 @@ date,distance_m,duration_sec,ascent_m,descent_m,avg_speed_mps
 [ ] Tracker B lié Admin 2
 [ ] Tracker A ne doit PAS voir données Tracker B
 [ ] Admin1 masque visibilité → Tracker A ne voit plus average
+
+# Test 6 bis: Sécurité group_tracking
+[ ] User standard lit `marketMap/.../group_tracking/{adminGroupId}` (autorisé)
+[ ] Tenter write client (create/update/delete) sur `group_tracking/{adminGroupId}`
+[ ] Vérifier erreur `PERMISSION_DENIED`
 
 # Test 7: Boutique
 [ ] Admin → Boutique → Ajouter produit

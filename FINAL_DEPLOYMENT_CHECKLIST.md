@@ -155,6 +155,16 @@ Résultat: ✓ fallback conserve la moyenne entre 20s et 2min, puis purge au-del
 Résultat: ✓ flux circuit public visible côté user
 ```
 
+### Test 4 quinquies: Compat schéma averagePosition (alt/ts + legacy)
+```
+Étapes:
+1. Vérifier dans Firestore que `group_admins/{adminUid}.averagePosition` contient `lat/lng/alt/ts`
+2. Vérifier présence éventuelle des clés legacy `altitude/timestamp`
+3. Ouvrir la carte groupe et la carte Home (tracking ON)
+4. Vérifier lecture complète côté app (position + fraîcheur) sans valeur partielle
+Résultat: ✓ l'app lit correctement `averagePosition` même si les clés legacy sont présentes
+```
+
 ### Test 5: Exports CSV/JSON
 ```
 Étapes:
@@ -172,6 +182,16 @@ Résultat: ✓ Fichier téléchargé avec données correctes
 3. Cliquer "Allow"
 4. Vérifier Geolocator reçoit positions
 Résultat: ✓ Permissions accordées
+```
+
+### Test 7: Sécurité group_tracking (lecture publique / écriture interdite)
+```
+Étapes:
+1. En compte utilisateur standard non admin, lire `marketMap/.../group_tracking/{adminGroupId}`
+2. Vérifier lecture autorisée
+3. Tenter un write client (create/update/delete) sur le même doc via app/console SDK
+4. Vérifier échec `PERMISSION_DENIED`
+Résultat: ✓ lecture publique OK, écriture client interdite (Cloud Functions only)
 ```
 
 ---
