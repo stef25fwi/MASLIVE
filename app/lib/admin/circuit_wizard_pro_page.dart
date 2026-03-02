@@ -1833,6 +1833,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       polylineShowDirection: _routeShowDirection,
       polylineAnimateDirection: _routeAnimateDirection,
       polylineAnimationSpeed: _routeAnimationSpeed,
+      polylineOpacity: proCfg?.opacity,
     );
   }
 
@@ -3383,6 +3384,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
           thickness3d: cfg.thickness3d,
           elevationPx: cfg.elevationPx,
+          sidesEnabled: cfg.sidesEnabled,
+          sidesIntensity: cfg.sidesIntensity,
 
           dashArray: cfg.dashEnabled
               ? <double>[cfg.dashLength, cfg.dashGap]

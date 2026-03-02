@@ -49,6 +49,14 @@ class RouteStyleConfig {
     /// 0..40
     final double elevationPx;
 
+    // B3) Faces latérales (côtés)
+    /// Active/désactive l'affichage des faces latérales (côtés) du ruban 3D.
+    final bool sidesEnabled;
+
+    /// Intensité des côtés (principalement opacité).
+    /// 0..1
+    final double sidesIntensity;
+
   // C) Ombre / Glow
   final bool shadowEnabled;
   /// 0..1
@@ -116,6 +124,8 @@ class RouteStyleConfig {
     this.widthScale3d = 1.0,
     this.thickness3d = 1.0,
     this.elevationPx = 0.0,
+    this.sidesEnabled = false,
+    this.sidesIntensity = 0.70,
     // C
     this.shadowEnabled = true,
     this.shadowOpacity = 0.40,
@@ -162,6 +172,8 @@ class RouteStyleConfig {
     double? widthScale3d,
     double? thickness3d,
     double? elevationPx,
+    bool? sidesEnabled,
+    double? sidesIntensity,
     bool? shadowEnabled,
     double? shadowOpacity,
     double? shadowBlur,
@@ -201,6 +213,8 @@ class RouteStyleConfig {
       widthScale3d: widthScale3d ?? this.widthScale3d,
       thickness3d: thickness3d ?? this.thickness3d,
       elevationPx: elevationPx ?? this.elevationPx,
+    sidesEnabled: sidesEnabled ?? this.sidesEnabled,
+    sidesIntensity: sidesIntensity ?? this.sidesIntensity,
       shadowEnabled: shadowEnabled ?? this.shadowEnabled,
       shadowOpacity: shadowOpacity ?? this.shadowOpacity,
       shadowBlur: shadowBlur ?? this.shadowBlur,
@@ -246,6 +260,8 @@ class RouteStyleConfig {
       widthScale3d: clamp(widthScale3d, 0.5, 3.0),
       thickness3d: clamp(thickness3d, 0.6, 1.8),
       elevationPx: clamp(elevationPx, 0, 40),
+    sidesEnabled: sidesEnabled,
+    sidesIntensity: clamp(sidesIntensity, 0, 1),
       shadowEnabled: shadowEnabled,
       shadowOpacity: clamp(shadowOpacity, 0, 1),
       shadowBlur: clamp(shadowBlur, 0, 20),
@@ -288,6 +304,8 @@ class RouteStyleConfig {
       'widthScale3d': widthScale3d,
       'thickness3d': thickness3d,
       'elevationPx': elevationPx,
+    'sidesEnabled': sidesEnabled,
+    'sidesIntensity': sidesIntensity,
       'shadowEnabled': shadowEnabled,
       'shadowOpacity': shadowOpacity,
       'shadowBlur': shadowBlur,
@@ -362,6 +380,11 @@ class RouteStyleConfig {
       elevationPx: (json['elevationPx'] is num)
           ? (json['elevationPx'] as num).toDouble()
           : 0.0,
+      sidesEnabled:
+          json['sidesEnabled'] is bool ? json['sidesEnabled'] as bool : false,
+      sidesIntensity: (json['sidesIntensity'] is num)
+          ? (json['sidesIntensity'] as num).toDouble()
+          : 0.70,
       shadowEnabled:
           json['shadowEnabled'] is bool ? json['shadowEnabled'] as bool : true,
       shadowOpacity: (json['shadowOpacity'] is num)

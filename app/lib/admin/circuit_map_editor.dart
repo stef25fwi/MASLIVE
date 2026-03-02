@@ -148,6 +148,7 @@ class CircuitMapEditor extends StatefulWidget {
   final bool polylineShowDirection;
   final bool polylineAnimateDirection;
   final double polylineAnimationSpeed;
+  final double? polylineOpacity;
 
   const CircuitMapEditor({
     super.key,
@@ -183,6 +184,7 @@ class CircuitMapEditor extends StatefulWidget {
     this.polylineShowDirection = false,
     this.polylineAnimateDirection = false,
     this.polylineAnimationSpeed = 1.0,
+    this.polylineOpacity,
   });
 
   @override
@@ -275,7 +277,8 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
         oldWidget.polylineShadow3d != widget.polylineShadow3d ||
         oldWidget.polylineShowDirection != widget.polylineShowDirection ||
         oldWidget.polylineAnimateDirection != widget.polylineAnimateDirection ||
-        oldWidget.polylineAnimationSpeed != widget.polylineAnimationSpeed;
+        oldWidget.polylineAnimationSpeed != widget.polylineAnimationSpeed ||
+        oldWidget.polylineOpacity != widget.polylineOpacity;
     if (widget.mode == 'polyline' && polyStyleChanged) {
       _renderOnMap();
     }
@@ -367,6 +370,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
               showDirection: false,
               animateDirection: false,
               animationSpeed: 1.0,
+                opacity: widget.polylineOpacity,
             );
           }
         }
@@ -382,6 +386,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
             showDirection: widget.polylineShowDirection,
             animateDirection: widget.polylineAnimateDirection,
             animationSpeed: widget.polylineAnimationSpeed,
+              opacity: widget.polylineOpacity,
           );
         }
       }

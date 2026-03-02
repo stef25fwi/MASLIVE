@@ -120,6 +120,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   static const String _mmRouteSegmentsSourceId = 'mm_route_segments_src';
   static const String _mmRouteLayerShadowId = 'mm_route_shadow';
   static const String _mmRouteLayerGlowId = 'mm_route_glow';
+  static const String _mmRouteLayerSideLId = 'mm_route_side_l';
+  static const String _mmRouteLayerSideRId = 'mm_route_side_r';
   static const String _mmRouteLayerCasingId = 'mm_route_casing';
   static const String _mmRouteLayerMainId = 'mm_route_main';
 
@@ -546,6 +548,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           for (final layerId in <String>[
             _mmRouteLayerMainId,
             _mmRouteLayerCasingId,
+            _mmRouteLayerSideLId,
+            _mmRouteLayerSideRId,
             _mmRouteLayerGlowId,
             _mmRouteLayerShadowId,
           ]) {
@@ -592,7 +596,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           // ignore
         }
 
-        // Layers order: shadow -> glow -> casing -> main
+        // Layers order: shadow -> glow -> sides -> casing -> main
         try {
           await style.addLayer(
             LineLayer(
@@ -618,6 +622,42 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
               lineColor: const Color(0xFF1A73E8).toARGB32(),
               lineOpacity: 0.0,
               lineWidth: 1.0,
+              lineBlur: 0.0,
+              lineJoin: LineJoin.ROUND,
+              lineCap: LineCap.ROUND,
+            ),
+          );
+        } catch (_) {
+          // ignore
+        }
+
+        // Faces latérales (côtés): même source/couleur que le tracé principal,
+        // mais un peu plus transparent.
+        try {
+          await style.addLayer(
+            LineLayer(
+              id: _mmRouteLayerSideLId,
+              sourceId: _mmRouteSegmentsSourceId,
+              lineColor: const Color(0xFF1A73E8).toARGB32(),
+              lineOpacity: 0.0,
+              lineWidth: 7.0,
+              lineBlur: 0.0,
+              lineJoin: LineJoin.ROUND,
+              lineCap: LineCap.ROUND,
+            ),
+          );
+        } catch (_) {
+          // ignore
+        }
+
+        try {
+          await style.addLayer(
+            LineLayer(
+              id: _mmRouteLayerSideRId,
+              sourceId: _mmRouteSegmentsSourceId,
+              lineColor: const Color(0xFF1A73E8).toARGB32(),
+              lineOpacity: 0.0,
+              lineWidth: 7.0,
               lineBlur: 0.0,
               lineJoin: LineJoin.ROUND,
               lineCap: LineCap.ROUND,
@@ -685,6 +725,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     final glowWidth = c.glowWidth * widthScale;
     final elevationPx = c.elevationPx;
     final thickness3d = c.thickness3d;
+    final sidesEnabled = c.sidesEnabled;
+    final sidesIntensity = c.sidesIntensity.clamp(0.0, 1.0);
 
     await _ensureMarketRouteGeoJsonRuntime();
 
@@ -744,6 +786,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     for (final layerId in <String>[
       _mmRouteLayerShadowId,
       _mmRouteLayerGlowId,
+      _mmRouteLayerSideLId,
+      _mmRouteLayerSideRId,
       _mmRouteLayerCasingId,
       _mmRouteLayerMainId,
     ]) {
@@ -756,6 +800,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         : const <double>[0.0, 0.0];
     for (final layerId in <String>[
       _mmRouteLayerGlowId,
+      _mmRouteLayerSideLId,
+      _mmRouteLayerSideRId,
       _mmRouteLayerCasingId,
       _mmRouteLayerMainId,
     ]) {
@@ -767,6 +813,36 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     final shadowTranslate = <double>[relief * 3.0, relief * 4.0];
     await safeSet(_mmRouteLayerShadowId, 'line-translate', shadowTranslate);
     await safeSet(_mmRouteLayerShadowId, 'line-translate-anchor', 'viewport');
+
+    // Côtés (faces latérales): décalage + intensité.
+    final sideRelief = sidesEnabled ? max(0.12, relief) : relief;
+    final sideDx = sideRelief * 3.0;
+    final sideDy = sideRelief * 10.0;
+    final sideTranslateL = <double>[-sideDx, -elevationPx + sideDy];
+    final sideTranslateR = <double>[sideDx, -elevationPx + sideDy];
+
+    await safeSet(_mmRouteLayerSideLId, 'line-translate', sideTranslateL);
+    await safeSet(_mmRouteLayerSideRId, 'line-translate', sideTranslateR);
+    await safeSet(_mmRouteLayerSideLId, 'line-translate-anchor', 'map');
+    await safeSet(_mmRouteLayerSideRId, 'line-translate-anchor', 'map');
+
+    final sideOpacityFactor = (0.55 * sidesIntensity).clamp(0.0, 1.0);
+    await safeSet(_mmRouteLayerSideLId, 'line-color', ['get', 'color']);
+    await safeSet(_mmRouteLayerSideRId, 'line-color', ['get', 'color']);
+    await safeSet(_mmRouteLayerSideLId, 'line-width', ['+', ['get', 'width'], 2]);
+    await safeSet(_mmRouteLayerSideRId, 'line-width', ['+', ['get', 'width'], 2]);
+    await safeSet(
+      _mmRouteLayerSideLId,
+      'line-opacity',
+      sidesEnabled ? ['*', ['get', 'opacity'], sideOpacityFactor] : 0.0,
+    );
+    await safeSet(
+      _mmRouteLayerSideRId,
+      'line-opacity',
+      sidesEnabled ? ['*', ['get', 'opacity'], sideOpacityFactor] : 0.0,
+    );
+    await safeSet(_mmRouteLayerSideLId, 'line-blur', 0.0);
+    await safeSet(_mmRouteLayerSideRId, 'line-blur', 0.0);
 
     // Shadow
     final shadowOpacity = c.shadowEnabled

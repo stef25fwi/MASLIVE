@@ -481,6 +481,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
           thickness3d: cfg.thickness3d,
           elevationPx: cfg.elevationPx,
+          sidesEnabled: cfg.sidesEnabled,
+          sidesIntensity: cfg.sidesIntensity,
 
           dashArray: cfg.dashEnabled
               ? <double>[cfg.dashLength, cfg.dashGap]

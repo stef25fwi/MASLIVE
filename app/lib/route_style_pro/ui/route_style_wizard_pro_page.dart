@@ -45,6 +45,11 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
   RouteStyleConfig _renderConfig = const RouteStyleConfig();
 
   Timer? _debounce;
+  Timer? _autosaveDebounce;
+
+  bool _hasUnsavedChanges = false;
+  bool _persisting = false;
+  Future<void>? _persistInFlight;
 
   List<LatLng> _route = const [];
   String? _baseStyleUrl;
@@ -113,7 +118,71 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _autosaveDebounce?.cancel();
     super.dispose();
+  }
+
+  Future<void> _persistIfNeeded({required bool showSnack}) async {
+    if (_persisting) {
+      // Si on demande explicitement une action (save/flush), on attend.
+      if (showSnack) {
+        await (_persistInFlight ?? Future<void>.value());
+      }
+      return;
+    }
+    if (!_hasUnsavedChanges) return;
+
+    final pid = (_projectId ?? '').trim();
+    final cid = (_circuitId ?? '').trim();
+
+    // Toujours persister en local; remote uniquement si contexte présent.
+    final cfg = _config.validated();
+
+    _persisting = true;
+    _hasUnsavedChanges = false;
+
+    Future<void> doPersist() async {
+      await _persistence.saveLocal(cfg);
+      if (pid.isNotEmpty || cid.isNotEmpty) {
+        await _persistence.saveRemote(
+          cfg,
+          projectId: _projectId,
+          circuitId: _circuitId,
+        );
+      }
+    }
+
+    final future = doPersist();
+    _persistInFlight = future;
+
+    try {
+      await future;
+      if (showSnack) _snack('Style enregistré');
+    } catch (e) {
+      // Si la persistance échoue, on garde le dirty flag.
+      _hasUnsavedChanges = true;
+      if (showSnack) _snack('Sauvegarde échouée: ${e.toString()}');
+    } finally {
+      _persisting = false;
+      if (identical(_persistInFlight, future)) _persistInFlight = null;
+    }
+  }
+
+  void _scheduleAutosave() {
+    _autosaveDebounce?.cancel();
+    _autosaveDebounce = Timer(const Duration(milliseconds: 450), () {
+      if (!mounted) return;
+      // Fire-and-forget: on ne bloque pas l'UI pendant le réglage.
+      unawaited(_persistIfNeeded(showSnack: false));
+    });
+  }
+
+  Future<void> _flushAutosave() async {
+    _autosaveDebounce?.cancel();
+    _autosaveDebounce = null;
+    // Attend une écriture en cours, puis persiste tout ce qui reste dirty.
+    await (_persistInFlight ?? Future<void>.value());
+    await _persistIfNeeded(showSnack: false);
   }
 
   Future<void> _init() async {
@@ -197,6 +266,9 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
     final next = cfg.validated();
     setState(() => _config = next);
 
+    _hasUnsavedChanges = true;
+    _scheduleAutosave();
+
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 80), () {
       if (!mounted) return;
@@ -273,16 +345,7 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
 
     setState(() => _busy = true);
     try {
-      final cfg = _config.validated();
-      await _persistence.saveLocal(cfg);
-      await _persistence.saveRemote(
-        cfg,
-        projectId: _projectId,
-        circuitId: _circuitId,
-      );
-      _snack('Style enregistré');
-    } catch (e) {
-      _snack('Sauvegarde échouée: ${e.toString()}');
+      await _persistIfNeeded(showSnack: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -322,7 +385,12 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
   Widget build(BuildContext context) {
     const proBlue = Color(0xFF1A73E8);
 
-    return Scaffold(
+    return WillPopScope(
+      onWillPop: () async {
+        await _flushAutosave();
+        return true;
+      },
+      child: Scaffold(
       body: Column(
         children: [
           _buildWizardHeader(),
@@ -406,7 +474,16 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
                     ),
                     onPressed: (_busy || _loading)
                         ? null
-                        : () => Navigator.of(context).pop('previous'),
+                        : () async {
+                            setState(() => _busy = true);
+                            try {
+                              await _flushAutosave();
+                            } finally {
+                              if (mounted) setState(() => _busy = false);
+                            }
+                            if (!context.mounted) return;
+                            Navigator.of(context).pop('previous');
+                          },
                     child: const Text('← Précédent'),
                   ),
                 ),
@@ -434,7 +511,16 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
                   child: FilledButton(
                     onPressed: (_busy || _loading)
                         ? null
-                        : () => Navigator.of(context).pop('next'),
+                        : () async {
+                            setState(() => _busy = true);
+                            try {
+                              await _flushAutosave();
+                            } finally {
+                              if (mounted) setState(() => _busy = false);
+                            }
+                            if (!context.mounted) return;
+                            Navigator.of(context).pop('next');
+                          },
                     style: FilledButton.styleFrom(
                       backgroundColor: proBlue,
                       foregroundColor: Colors.white,
@@ -447,6 +533,7 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

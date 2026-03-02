@@ -148,6 +148,23 @@ class RouteStyleControlsPanel extends StatelessWidget {
                 decimals: 0,
                 onChanged: (v) => onChanged(cfg.copyWith(elevationPx: v)),
               ),
+              ToggleTile(
+                title: 'Côtés (faces latérales)',
+                value: cfg.sidesEnabled,
+                onChanged: (v) => onChanged(cfg.copyWith(sidesEnabled: v)),
+              ),
+              if (cfg.sidesEnabled)
+                RouteStyleSlider(
+                  label: 'Intensité côtés',
+                  value: cfg.sidesIntensity,
+                  min: 0,
+                  max: 1.0,
+                  divisions: 20,
+                  unit: '',
+                  decimals: 2,
+                  onChanged: (v) =>
+                      onChanged(cfg.copyWith(sidesIntensity: v)),
+                ),
               ColorPickerTile(
                 title: 'Couleur main',
                 color: cfg.mainColor,

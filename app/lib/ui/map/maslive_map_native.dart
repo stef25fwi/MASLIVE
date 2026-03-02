@@ -1543,6 +1543,8 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     required double fallbackWidth,
     required double fallbackOpacity,
     required Color fallbackColor,
+    required bool sidesEnabled,
+    required double sidesIntensity,
   }) async {
     final map = _mapboxMap;
     if (map == null) return;
@@ -1649,7 +1651,10 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       22,
       sideBaseWidthExpr,
     ];
-    final sideOpacityExpr = <dynamic>['*', lineOpacityExpr, 0.55];
+    final sideOpacityFactor = (0.55 * sidesIntensity).clamp(0.0, 1.0);
+    final sideOpacityExpr = sidesEnabled
+      ? <dynamic>['*', lineOpacityExpr, sideOpacityFactor]
+      : 0.0;
 
     for (final sideLayerId in <String>[_layerRouteSideL, _layerRouteSideR]) {
       try {
@@ -1728,6 +1733,8 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     final roadLike = options.roadLike;
     final shadow3d = options.shadow3d;
     final thickness3d = (options.thickness3d ?? 1.0).clamp(0.6, 1.8);
+    final sidesEnabled = options.sidesEnabled ?? false;
+    final sidesIntensity = (options.sidesIntensity ?? 0.70).clamp(0.0, 1.0);
     final shadowOpacityFactor = (options.shadowOpacity ?? 0.25).clamp(0.0, 1.0);
     final shadowBlurBase = (options.shadowBlur ?? 1.2).clamp(0.0, 20.0);
     final segJson = options.segmentsGeoJson;
@@ -1875,8 +1882,11 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         } catch (_) {}
       }
 
-      // Relief (faces latérales): hauteur pilotée par thickness3d.
-      final relief = (thickness3d - 1.0).clamp(0.0, 1.0);
+      // Relief (faces latérales): visible uniquement si activé.
+      final baseRelief = (thickness3d - 1.0).clamp(0.0, 1.0);
+      // Si l'utilisateur active explicitement les côtés, on force un léger relief
+      // pour les rendre visibles même si thickness3d est proche de 1.
+      final relief = sidesEnabled ? (baseRelief < 0.12 ? 0.12 : baseRelief) : baseRelief;
       final sideDx = relief * 3.0;
       final sideDy = relief * 10.0;
       final sideTranslateL = <double>[-sideDx, -elevationPx + sideDy];
@@ -1900,7 +1910,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
             'map',
           );
         } catch (_) {}
-        if (relief <= 0.01) {
+        if (!sidesEnabled || relief <= 0.01) {
           try {
             await map.style.setStyleLayerProperty(entry.id, 'line-opacity', 0.0);
           } catch (_) {}
@@ -1914,6 +1924,8 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       fallbackWidth: width,
       fallbackOpacity: opacity,
       fallbackColor: color,
+      sidesEnabled: sidesEnabled,
+      sidesIntensity: sidesIntensity,
     );
 
     // Pour rester cohérent avec Web: pas de "center line" blanche en mode segments.

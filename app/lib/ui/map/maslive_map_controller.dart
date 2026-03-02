@@ -191,6 +191,8 @@ class MasLiveMapController {
     double? glowBlur,
     double? thickness3d,
     double? elevationPx,
+    bool? sidesEnabled,
+    double? sidesIntensity,
     List<double>? dashArray,
     String? lineCap,
     String? lineJoin,
@@ -219,6 +221,8 @@ class MasLiveMapController {
         glowBlur: glowBlur,
         thickness3d: thickness3d,
         elevationPx: elevationPx,
+        sidesEnabled: sidesEnabled,
+        sidesIntensity: sidesIntensity,
         dashArray: dashArray,
         lineCap: lineCap,
         lineJoin: lineJoin,
@@ -340,6 +344,12 @@ class PolylineRenderOptions {
   /// Hauteur simulée (Mapbox): line-translate en pixels.
   final double? elevationPx;
 
+  /// Faces latérales (côtés) du ruban 3D.
+  final bool? sidesEnabled;
+
+  /// Intensité des côtés (principalement opacité), 0..1.
+  final double? sidesIntensity;
+
   /// Optionnel (Web): GeoJSON FeatureCollection de segments.
   ///
   /// Permet d'appliquer des styles par segment via expressions (ex: rainbow/traffic/vanishing).
@@ -370,6 +380,8 @@ class PolylineRenderOptions {
     this.lineJoin,
     this.thickness3d,
     this.elevationPx,
+    this.sidesEnabled,
+    this.sidesIntensity,
     this.segmentsGeoJson,
   });
 
@@ -391,6 +403,8 @@ class PolylineRenderOptions {
         if (glowColor != null) 'glowColor': _toHexRgb(glowColor!),
         if (thickness3d != null) 'thickness3d': thickness3d,
         if (elevationPx != null) 'elevationPx': elevationPx,
+        if (sidesEnabled != null) 'sidesEnabled': sidesEnabled,
+        if (sidesIntensity != null) 'sidesIntensity': sidesIntensity,
         if (dashArray != null) 'dashArray': dashArray,
         if (lineCap != null) 'lineCap': lineCap,
         if (lineJoin != null) 'lineJoin': lineJoin,
