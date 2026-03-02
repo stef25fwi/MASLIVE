@@ -435,10 +435,14 @@ date,distance_m,duration_sec,ascent_m,descent_m,avg_speed_mps
 [ ] Vérifier suppression ancien doc + création nouveau doc
 
 # Test 4 ter: Visibilité + fallback immobile
-[ ] Groupe immobile >20s et <2min
-[ ] Vérifier averagePosition conservée (fallback)
-[ ] Admin passe isVisible=false
-[ ] Vérifier suppression doc marketMap/.../group_tracking/{adminGroupId}
+[ ] Groupe immobile 30-90s (admin + tracker en tracking)
+[ ] Vérifier `group_admins/{adminUid}.averagePosition` conservée
+[ ] Vérifier `averagePosition.windowMs = 120000` (fallback actif)
+[ ] Vérifier doc `marketMap/.../group_tracking/{adminGroupId}` toujours présent si visible
+[ ] Rester immobile jusqu'à >120s sans nouvelle position valide
+[ ] Vérifier suppression `averagePosition` + suppression doc `marketMap/.../group_tracking/{adminGroupId}`
+[ ] Reprendre tracking, puis admin passe `isVisible=false`
+[ ] Vérifier suppression immédiate doc `marketMap/.../group_tracking/{adminGroupId}`
 
 # Test 4 quater: User standard
 [ ] User standard sélectionne le même circuit

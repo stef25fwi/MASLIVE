@@ -135,11 +135,15 @@ Résultat: ✓ publication migrée sur le circuit actif
 ### Test 4 ter: Visibilité OFF + fallback immobile
 ```
 Étapes:
-1. Groupe immobile >20s mais <2min
-2. Vérifier `averagePosition` toujours présente (fallback)
-3. Passer `isVisible=false`
-4. Vérifier suppression doc `marketMap/.../group_tracking/{adminGroupId}`
-Résultat: ✓ fallback conserve la moyenne, visibilité OFF supprime la publication
+1. Démarrer tracking (admin + au moins 1 tracker) puis rester immobile 30 à 90s
+2. Vérifier `group_admins/{adminUid}.averagePosition` toujours présente
+3. Vérifier `group_admins/{adminUid}.averagePosition.windowMs = 120000` (mode fallback)
+4. Vérifier que `marketMap/.../group_tracking/{adminGroupId}` est toujours publié si `isVisible=true`
+5. Continuer immobile jusqu'à dépasser 120s sans nouvelle position valide
+6. Vérifier suppression de `averagePosition` puis suppression du doc `marketMap/.../group_tracking/{adminGroupId}`
+7. Reprendre le tracking, puis passer `isVisible=false`
+8. Vérifier suppression immédiate du doc `marketMap/.../group_tracking/{adminGroupId}`
+Résultat: ✓ fallback conserve la moyenne entre 20s et 2min, puis purge au-delà de 2min; visibilité OFF supprime la publication immédiatement
 ```
 
 ### Test 4 quater: Affichage côté utilisateur standard
