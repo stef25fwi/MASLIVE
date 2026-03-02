@@ -351,6 +351,7 @@ class MasLiveApp extends StatelessWidget {
                       projectId: args.projectId,
                       circuitId: args.circuitId,
                       initialRoute: args.initialRoute,
+                      initialStyleUrl: args.initialStyleUrl,
                     ),
                   );
                 }

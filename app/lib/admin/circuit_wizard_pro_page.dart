@@ -453,6 +453,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       arguments: RouteStyleProArgs(
         projectId: projectId,
         circuitId: widget.circuitId,
+        initialStyleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text)
+                .trim()
+                .isEmpty
+            ? null
+            : _normalizeMapboxStyleUrl(_styleUrlController.text).trim(),
         initialRoute: _routePoints.isNotEmpty
             ? <rsp.LatLng>[
                 for (final p in _routePoints) (lat: p.lat, lng: p.lng),

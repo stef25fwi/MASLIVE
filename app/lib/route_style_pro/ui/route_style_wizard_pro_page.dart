@@ -13,20 +13,28 @@ class RouteStyleProArgs {
   final String? projectId;
   final String? circuitId;
   final List<LatLng>? initialRoute;
+  final String? initialStyleUrl;
 
-  const RouteStyleProArgs({this.projectId, this.circuitId, this.initialRoute});
+  const RouteStyleProArgs({
+    this.projectId,
+    this.circuitId,
+    this.initialRoute,
+    this.initialStyleUrl,
+  });
 }
 
 class RouteStyleWizardProPage extends StatefulWidget {
   final String? projectId;
   final String? circuitId;
   final List<LatLng>? initialRoute;
+  final String? initialStyleUrl;
 
   const RouteStyleWizardProPage({
     super.key,
     this.projectId,
     this.circuitId,
     this.initialRoute,
+    this.initialStyleUrl,
   });
 
   @override
@@ -195,16 +203,22 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
       final cfg = (remote ?? local ?? const RouteStyleConfig()).validated();
 
       final initialRoute = widget.initialRoute;
+      final initialStyleUrl = (widget.initialStyleUrl ?? '').trim();
       List<LatLng> route;
       String? styleUrl;
       if (initialRoute != null) {
         route = initialRoute;
+        styleUrl = initialStyleUrl.isEmpty ? null : initialStyleUrl;
+        if (styleUrl == null && (_projectId ?? '').trim().isNotEmpty) {
+          styleUrl = await _loadProjectStyleUrl(_projectId!);
+        }
       } else if ((_projectId ?? '').trim().isNotEmpty) {
         final loaded = await _loadProjectRouteAndStyle(_projectId!);
         route = loaded.route;
-        styleUrl = loaded.styleUrl;
+        styleUrl = (initialStyleUrl.isNotEmpty) ? initialStyleUrl : loaded.styleUrl;
       } else {
         route = _defaultTestRoute();
+        styleUrl = initialStyleUrl.isEmpty ? null : initialStyleUrl;
       }
 
       if (!mounted) return;
@@ -249,6 +263,16 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
       }
     }
     return (route: out, styleUrl: styleUrl);
+  }
+
+  Future<String?> _loadProjectStyleUrl(String projectId) async {
+    final doc = await FirebaseFirestore.instance
+        .collection('map_projects')
+        .doc(projectId)
+        .get();
+    final data = doc.data();
+    final styleUrl = (data?['styleUrl'] as String?)?.trim();
+    return (styleUrl ?? '').isEmpty ? null : styleUrl;
   }
 
   List<LatLng> _defaultTestRoute() {
