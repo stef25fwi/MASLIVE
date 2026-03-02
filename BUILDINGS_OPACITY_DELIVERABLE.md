@@ -97,7 +97,7 @@ JS Bridge           SDK Mapbox
    - Plan de test manuel (10 scénarios)
    - Debugging et troubleshooting
 
-2. **INTEGRATION_EXAMPLE.dart** (fichier de référence)
+2. **integration_example.dart** (fichier de référence)
    - Exemple complet commenté
    - Cas d'usage minimal et exhaustif
    - Instructions copier-coller
@@ -175,7 +175,7 @@ JS Bridge           SDK Mapbox
    - Switch, slider, presets, reset
    - Design adaptatif
 
-5. **`app/lib/route_style_pro/INTEGRATION_EXAMPLE.dart`** (~350 lignes)
+5. **`app/lib/route_style_pro/integration_example.dart`** (~350 lignes)
    - Exemple complet commenté
    - Cas minimal et exhaustif
    - Instructions copier-coller
@@ -426,7 +426,7 @@ Voir : [BUILDINGS_OPACITY_INTEGRATION_GUIDE.md](BUILDINGS_OPACITY_INTEGRATION_GU
 - Guide intégration : [BUILDINGS_OPACITY_INTEGRATION_GUIDE.md](BUILDINGS_OPACITY_INTEGRATION_GUIDE.md)
 - Checklist tests : [BUILDINGS_OPACITY_TEST_CHECKLIST.md](BUILDINGS_OPACITY_TEST_CHECKLIST.md)
 - Architecture : [BUILDINGS_OPACITY_ARCHITECTURE.md](BUILDINGS_OPACITY_ARCHITECTURE.md)
-- Exemples code : [app/lib/route_style_pro/INTEGRATION_EXAMPLE.dart](app/lib/route_style_pro/INTEGRATION_EXAMPLE.dart)
+- Exemples code : [app/lib/route_style_pro/integration_example.dart](app/lib/route_style_pro/integration_example.dart)
 
 ### Debugging
 
@@ -479,7 +479,7 @@ Le système de contrôle de transparence des immeubles 3D est **100% complet** p
 │   │       │   └── widgets/
 │   │       │       ├── building_opacity_control.dart          [NOUVEAU]
 │   │       │       └── route_style_controls_panel.dart        [MODIFIÉ]
-│   │       └── INTEGRATION_EXAMPLE.dart             [NOUVEAU]
+│   │       └── integration_example.dart             [NOUVEAU]
 │   └── web/
 │       └── mapbox_bridge.js                     [MODIFIÉ]
 └── docs/ (nouveaux)

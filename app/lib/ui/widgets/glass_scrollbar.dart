@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 
 /// Scrollbar avec effet glass (glassmorphism) sur le côté
@@ -22,12 +21,12 @@ class GlassScrollbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     // Couleurs pour l'effet glass
-    final thumbColor = isDark 
+    final thumbColor = isDark
         ? Colors.white.withValues(alpha: 0.25)
         : Colors.black.withValues(alpha: 0.15);
-    
+
     final trackColor = isDark
         ? Colors.white.withValues(alpha: 0.08)
         : Colors.black.withValues(alpha: 0.05);
@@ -52,10 +51,7 @@ class GlassScrollbar extends StatelessWidget {
         mainAxisMargin: 4.0,
         minThumbLength: 48.0,
       ),
-      child: Scrollbar(
-        controller: controller,
-        child: child,
-      ),
+      child: Scrollbar(controller: controller, child: child),
     );
   }
 }

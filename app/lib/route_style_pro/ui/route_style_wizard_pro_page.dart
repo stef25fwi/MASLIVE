@@ -46,6 +46,9 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
   final _persistence = RouteStylePersistence();
   final _snapService = RouteSnapService();
 
+  bool _canPopNow = false;
+  bool _popHandlerInFlight = false;
+
   bool _loading = true;
   bool _busy = false;
 
@@ -215,7 +218,9 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
       } else if ((_projectId ?? '').trim().isNotEmpty) {
         final loaded = await _loadProjectRouteAndStyle(_projectId!);
         route = loaded.route;
-        styleUrl = (initialStyleUrl.isNotEmpty) ? initialStyleUrl : loaded.styleUrl;
+        styleUrl = (initialStyleUrl.isNotEmpty)
+            ? initialStyleUrl
+            : loaded.styleUrl;
       } else {
         route = _defaultTestRoute();
         styleUrl = initialStyleUrl.isEmpty ? null : initialStyleUrl;
@@ -409,155 +414,178 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
   Widget build(BuildContext context) {
     const proBlue = Color(0xFF1A73E8);
 
-    return WillPopScope(
-      onWillPop: () async {
-        await _flushAutosave();
-        return true;
+    return PopScope(
+      canPop: _canPopNow,
+      onPopInvoked: (didPop) {
+        if (didPop) {
+          _popHandlerInFlight = false;
+          return;
+        }
+        if (_popHandlerInFlight) return;
+        _popHandlerInFlight = true;
+
+        () async {
+          await _flushAutosave();
+          if (!mounted) return;
+
+          // Autorise le pop puis relance une demande de pop.
+          setState(() => _canPopNow = true);
+          final popped = await Navigator.of(context).maybePop();
+          if (!mounted) return;
+
+          // Si rien n'a pop (ex: route racine), on réarme le blocage.
+          if (!popped) {
+            setState(() => _canPopNow = false);
+            _popHandlerInFlight = false;
+          }
+        }();
       },
       child: Scaffold(
-      body: Column(
-        children: [
-          _buildWizardHeader(),
-          const Divider(height: 1),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : LayoutBuilder(
-                    builder: (context, c) {
-                      final isWide = c.maxWidth >= 980;
+        body: Column(
+          children: [
+            _buildWizardHeader(),
+            const Divider(height: 1),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : LayoutBuilder(
+                      builder: (context, c) {
+                        final isWide = c.maxWidth >= 980;
 
-                      final map = Stack(
-                        children: [
-                          Positioned.fill(
-                            child: RouteStylePreviewMap(
-                              config: _renderConfig,
-                              route: _route,
-                              styleUrl: _baseStyleUrl,
+                        final map = Stack(
+                          children: [
+                            Positioned.fill(
+                              child: RouteStylePreviewMap(
+                                config: _renderConfig,
+                                route: _route,
+                                styleUrl: _baseStyleUrl,
+                              ),
                             ),
-                          ),
-                          if (_busy)
-                            const Positioned.fill(
-                              child: IgnorePointer(
-                                child: ColoredBox(
-                                  color: Color(0x11000000),
-                                  child: Center(
-                                    child: CircularProgressIndicator(),
+                            if (_busy)
+                              const Positioned.fill(
+                                child: IgnorePointer(
+                                  child: ColoredBox(
+                                    color: Color(0x11000000),
+                                    child: Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                        ],
-                      );
-
-                      final panel = RouteStyleControlsPanel(
-                        config: _config,
-                        onChanged: _onConfigChanged,
-                        onTestAutoRoute: _busy ? () {} : _testAutoRoute,
-                        onUseMyTrace: _busy ? () {} : _useMyTrace,
-                        onSave: _busy ? () {} : _save,
-                        onReset: _busy ? () {} : _reset,
-                      );
-
-                      if (isWide) {
-                        return Row(
-                          children: [
-                            Expanded(flex: 3, child: map),
-                            const VerticalDivider(width: 1),
-                            SizedBox(width: 420, child: panel),
                           ],
                         );
-                      }
 
-                      return Column(
-                        children: [
-                          SizedBox(height: 320, child: map),
-                          const Divider(height: 1),
-                          Expanded(child: panel),
-                        ],
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: proBlue,
-                      side: BorderSide(color: proBlue.withValues(alpha: 0.45)),
-                      textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                        final panel = RouteStyleControlsPanel(
+                          config: _config,
+                          onChanged: _onConfigChanged,
+                          onTestAutoRoute: _busy ? () {} : _testAutoRoute,
+                          onUseMyTrace: _busy ? () {} : _useMyTrace,
+                          onSave: _busy ? () {} : _save,
+                          onReset: _busy ? () {} : _reset,
+                        );
+
+                        if (isWide) {
+                          return Row(
+                            children: [
+                              Expanded(flex: 3, child: map),
+                              const VerticalDivider(width: 1),
+                              SizedBox(width: 420, child: panel),
+                            ],
+                          );
+                        }
+
+                        return Column(
+                          children: [
+                            SizedBox(height: 320, child: map),
+                            const Divider(height: 1),
+                            Expanded(child: panel),
+                          ],
+                        );
+                      },
                     ),
-                    onPressed: (_busy || _loading)
-                        ? null
-                        : () async {
-                            setState(() => _busy = true);
-                            try {
-                              await _flushAutosave();
-                            } finally {
-                              if (mounted) setState(() => _busy = false);
-                            }
-                            if (!context.mounted) return;
-                            Navigator.of(context).pop('previous');
-                          },
-                    child: const Text('← Précédent'),
+            ),
+          ],
+        ),
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: proBlue,
+                        side: BorderSide(
+                          color: proBlue.withValues(alpha: 0.45),
+                        ),
+                        textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      onPressed: (_busy || _loading)
+                          ? null
+                          : () async {
+                              setState(() => _busy = true);
+                              try {
+                                await _flushAutosave();
+                              } finally {
+                                if (mounted) setState(() => _busy = false);
+                              }
+                              if (!context.mounted) return;
+                              Navigator.of(context).pop('previous');
+                            },
+                      child: const Text('← Précédent'),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: FilledButton.icon(
-                    onPressed: (_busy || _loading) ? null : _save,
-                    icon: const Icon(Icons.save, size: 18),
-                    label: const Text('Sauvegarder'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF1D2330),
-                      foregroundColor: Colors.white,
-                      textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: FilledButton.icon(
+                      onPressed: (_busy || _loading) ? null : _save,
+                      icon: const Icon(Icons.save, size: 18),
+                      label: const Text('Sauvegarder'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF1D2330),
+                        foregroundColor: Colors.white,
+                        textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: FilledButton(
-                    onPressed: (_busy || _loading)
-                        ? null
-                        : () async {
-                            setState(() => _busy = true);
-                            try {
-                              await _flushAutosave();
-                            } finally {
-                              if (mounted) setState(() => _busy = false);
-                            }
-                            if (!context.mounted) return;
-                            Navigator.of(context).pop('next');
-                          },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: proBlue,
-                      foregroundColor: Colors.white,
-                      textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: FilledButton(
+                      onPressed: (_busy || _loading)
+                          ? null
+                          : () async {
+                              setState(() => _busy = true);
+                              try {
+                                await _flushAutosave();
+                              } finally {
+                                if (mounted) setState(() => _busy = false);
+                              }
+                              if (!context.mounted) return;
+                              Navigator.of(context).pop('next');
+                            },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: proBlue,
+                        foregroundColor: Colors.white,
+                        textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      child: const Text('Suivant →'),
                     ),
-                    child: const Text('Suivant →'),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }

@@ -43,7 +43,7 @@ class _CircuitPresetHistoryState extends State<CircuitPresetHistory> {
         projectId: widget.projectId,
         limit: 50,
       );
-      
+
       if (mounted) {
         setState(() {
           _presets = presets;
@@ -216,27 +216,17 @@ class _CircuitPresetHistoryState extends State<CircuitPresetHistory> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.history,
-                size: 64,
-                color: Colors.grey[400],
-              ),
+              Icon(Icons.history, size: 64, color: Colors.grey[400]),
               const SizedBox(height: 16),
               Text(
                 'Aucune version sauvegardée',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
               ),
               const SizedBox(height: 8),
               Text(
                 'Créez des presets pour sauvegarder\nl\'état actuel de votre circuit',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey[500],
-                ),
+                style: TextStyle(fontSize: 13, color: Colors.grey[500]),
               ),
             ],
           ),
@@ -247,7 +237,7 @@ class _CircuitPresetHistoryState extends State<CircuitPresetHistory> {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: _presets!.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final preset = _presets![index];
         return _PresetCard(
@@ -370,7 +360,10 @@ class _PresetCard extends StatelessWidget {
                           children: [
                             Icon(Icons.delete, size: 20, color: Colors.red),
                             SizedBox(width: 8),
-                            Text('Supprimer', style: TextStyle(color: Colors.red)),
+                            Text(
+                              'Supprimer',
+                              style: TextStyle(color: Colors.red),
+                            ),
                           ],
                         ),
                       ),
@@ -382,10 +375,7 @@ class _PresetCard extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                   preset.description,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[700],
-                  ),
+                  style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                 ),
               ],
               const SizedBox(height: 12),
@@ -395,15 +385,18 @@ class _PresetCard extends StatelessWidget {
                 children: [
                   _InfoChip(
                     icon: Icons.polyline,
-                    label: '${(preset.data['routePoints'] as List?)?.length ?? 0} pts tracé',
+                    label:
+                        '${(preset.data['routePoints'] as List?)?.length ?? 0} pts tracé',
                   ),
                   _InfoChip(
                     icon: Icons.location_on,
-                    label: '${(preset.data['pois'] as List?)?.length ?? 0} POIs',
+                    label:
+                        '${(preset.data['pois'] as List?)?.length ?? 0} POIs',
                   ),
                   _InfoChip(
                     icon: Icons.layers,
-                    label: '${(preset.data['layers'] as List?)?.length ?? 0} layers',
+                    label:
+                        '${(preset.data['layers'] as List?)?.length ?? 0} layers',
                   ),
                 ],
               ),
@@ -419,10 +412,7 @@ class _InfoChip extends StatelessWidget {
   final IconData icon;
   final String label;
 
-  const _InfoChip({
-    required this.icon,
-    required this.label,
-  });
+  const _InfoChip({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -437,13 +427,7 @@ class _InfoChip extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: Colors.grey[700]),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey[700],
-            ),
-          ),
+          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[700])),
         ],
       ),
     );

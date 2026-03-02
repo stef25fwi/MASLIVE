@@ -214,7 +214,9 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       try {
         _mbSetStyle(_containerId, styleToApply);
       } catch (e) {
-        debugPrint('⚠️ setStyle (didUpdateWidget, map not ready yet) error: $e');
+        debugPrint(
+          '⚠️ setStyle (didUpdateWidget, map not ready yet) error: $e',
+        );
         return;
       }
 
@@ -274,9 +276,10 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
               'lng': m.lng,
               'lat': m.lat,
               'size': m.size,
-              'color': '#${m.color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}',
+              'color':
+                  '#${m.color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}',
               'label': m.label,
-            }
+            },
         ]);
         _mbSetMarkers(_containerId, markersJson);
       } catch (e) {
@@ -289,11 +292,19 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     if (poly != null && poly.show) {
       try {
         final pointsJson = jsonEncode([
-          for (final p in poly.points) {'lng': p.lng, 'lat': p.lat}
+          for (final p in poly.points) {'lng': p.lng, 'lat': p.lat},
         ]);
-        final colorHex = '#${poly.color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2, 8)}';
+        final colorHex =
+            '#${poly.color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2, 8)}';
         final optionsJson = jsonEncode(poly.options.toJson());
-        _mbSetPolyline(_containerId, pointsJson, colorHex, poly.width, true, optionsJson);
+        _mbSetPolyline(
+          _containerId,
+          pointsJson,
+          colorHex,
+          poly.width,
+          true,
+          optionsJson,
+        );
       } catch (e) {
         debugPrint('⚠️ reapply polyline error: $e');
       }
@@ -304,10 +315,12 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     if (polyGon != null && polyGon.show) {
       try {
         final pointsJson = jsonEncode([
-          for (final p in polyGon.points) {'lng': p.lng, 'lat': p.lat}
+          for (final p in polyGon.points) {'lng': p.lng, 'lat': p.lat},
         ]);
-        final fillHex = '#${polyGon.fillColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2, 8)}';
-        final strokeHex = '#${polyGon.strokeColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2, 8)}';
+        final fillHex =
+            '#${polyGon.fillColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2, 8)}';
+        final strokeHex =
+            '#${polyGon.strokeColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2, 8)}';
         _mbSetPolygon(
           _containerId,
           pointsJson,
@@ -330,7 +343,10 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     }
   }
 
-  Future<void> _applyBuildings3d({required bool enabled, required double opacity}) async {
+  Future<void> _applyBuildings3d({
+    required bool enabled,
+    required double opacity,
+  }) async {
     final map = _getMapForThisContainer();
     if (map == null) return;
 
@@ -466,30 +482,64 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     }
 
     final defaultFillColor = masLiveColorToCssHex(_poiStyle.circleColor);
-    final defaultStrokeColor = masLiveColorToCssHex(_poiStyle.circleStrokeColor);
+    final defaultStrokeColor = masLiveColorToCssHex(
+      _poiStyle.circleStrokeColor,
+    );
 
-    final fillColorExpr = <dynamic>['coalesce', ['get', 'fillColor'], defaultFillColor];
-    final fillOpacityExpr = <dynamic>['coalesce', ['get', 'fillOpacity'], 0.20];
-    final lineColorExpr = <dynamic>['coalesce', ['get', 'strokeColor'], defaultStrokeColor];
-    final lineWidthExpr = <dynamic>['coalesce', ['get', 'strokeWidth'], 2.0];
+    final fillColorExpr = <dynamic>[
+      'coalesce',
+      ['get', 'fillColor'],
+      defaultFillColor,
+    ];
+    final fillOpacityExpr = <dynamic>[
+      'coalesce',
+      ['get', 'fillOpacity'],
+      0.20,
+    ];
+    final lineColorExpr = <dynamic>[
+      'coalesce',
+      ['get', 'strokeColor'],
+      defaultStrokeColor,
+    ];
+    final lineWidthExpr = <dynamic>[
+      'coalesce',
+      ['get', 'strokeWidth'],
+      2.0,
+    ];
 
     try {
-      map.callMethod('setPaintProperty', [_poiLayerId, 'circle-radius', _poiStyle.circleRadius]);
+      map.callMethod('setPaintProperty', [
+        _poiLayerId,
+        'circle-radius',
+        _poiStyle.circleRadius,
+      ]);
     } catch (_) {
       // ignore
     }
     try {
-      map.callMethod('setPaintProperty', [_poiLayerId, 'circle-color', masLiveColorToCssHex(_poiStyle.circleColor)]);
+      map.callMethod('setPaintProperty', [
+        _poiLayerId,
+        'circle-color',
+        masLiveColorToCssHex(_poiStyle.circleColor),
+      ]);
     } catch (_) {
       // ignore
     }
     try {
-      map.callMethod('setPaintProperty', [_poiLayerId, 'circle-stroke-width', _poiStyle.circleStrokeWidth]);
+      map.callMethod('setPaintProperty', [
+        _poiLayerId,
+        'circle-stroke-width',
+        _poiStyle.circleStrokeWidth,
+      ]);
     } catch (_) {
       // ignore
     }
     try {
-      map.callMethod('setPaintProperty', [_poiLayerId, 'circle-stroke-color', masLiveColorToCssHex(_poiStyle.circleStrokeColor)]);
+      map.callMethod('setPaintProperty', [
+        _poiLayerId,
+        'circle-stroke-color',
+        masLiveColorToCssHex(_poiStyle.circleStrokeColor),
+      ]);
     } catch (_) {
       // ignore
     }
@@ -498,14 +548,16 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     try {
       final fillLayer = map.callMethod('getLayer', [_poiFillLayerId]);
       if (fillLayer != null) {
-        map.callMethod(
-          'setPaintProperty',
-          [_poiFillLayerId, 'fill-color', jsValue(fillColorExpr)],
-        );
-        map.callMethod(
-          'setPaintProperty',
-          [_poiFillLayerId, 'fill-opacity', jsValue(fillOpacityExpr)],
-        );
+        map.callMethod('setPaintProperty', [
+          _poiFillLayerId,
+          'fill-color',
+          jsValue(fillColorExpr),
+        ]);
+        map.callMethod('setPaintProperty', [
+          _poiFillLayerId,
+          'fill-opacity',
+          jsValue(fillOpacityExpr),
+        ]);
       }
     } catch (_) {
       // ignore
@@ -519,18 +571,20 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         return;
       }
       try {
-        map.callMethod(
-          'setPaintProperty',
-          [layerId, 'line-color', jsValue(lineColorExpr)],
-        );
+        map.callMethod('setPaintProperty', [
+          layerId,
+          'line-color',
+          jsValue(lineColorExpr),
+        ]);
       } catch (_) {
         // ignore
       }
       try {
-        map.callMethod(
-          'setPaintProperty',
-          [layerId, 'line-width', jsValue(lineWidthExpr)],
-        );
+        map.callMethod('setPaintProperty', [
+          layerId,
+          'line-width',
+          jsValue(lineWidthExpr),
+        ]);
       } catch (_) {
         // ignore
       }
@@ -555,7 +609,10 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       if (styleLoaded != true) {
         // Pas d'allowInterop ici: on retente un peu plus tard.
         unawaited(
-          Future.delayed(const Duration(milliseconds: 120), _applyPoisGeoJsonIfReady),
+          Future.delayed(
+            const Duration(milliseconds: 120),
+            _applyPoisGeoJsonIfReady,
+          ),
         );
         return;
       }
@@ -628,10 +685,18 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
               'Polygon',
             ],
             'paint': {
-              'fill-color': ['coalesce', ['get', 'fillColor'], masLiveColorToCssHex(_poiStyle.circleColor)],
-              'fill-opacity': ['coalesce', ['get', 'fillOpacity'], 0.20],
+              'fill-color': [
+                'coalesce',
+                ['get', 'fillColor'],
+                masLiveColorToCssHex(_poiStyle.circleColor),
+              ],
+              'fill-opacity': [
+                'coalesce',
+                ['get', 'fillOpacity'],
+                0.20,
+              ],
             },
-          })
+          }),
         ]);
       }
 
@@ -644,20 +709,36 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             'source': _poiSourceId,
             'filter': [
               'all',
-              ['==', ['geometry-type'], 'Polygon'],
+              [
+                '==',
+                ['geometry-type'],
+                'Polygon',
+              ],
               ['has', 'fillPattern'],
             ],
             'paint': {
               'fill-pattern': ['get', 'fillPattern'],
-              'fill-opacity': ['coalesce', ['get', 'patternOpacity'], 0.55],
+              'fill-opacity': [
+                'coalesce',
+                ['get', 'patternOpacity'],
+                0.55,
+              ],
             },
-          })
+          }),
         ]);
       }
 
       final commonLinePaint = <String, dynamic>{
-        'line-color': ['coalesce', ['get', 'strokeColor'], masLiveColorToCssHex(_poiStyle.circleStrokeColor)],
-        'line-width': ['coalesce', ['get', 'strokeWidth'], 2.0],
+        'line-color': [
+          'coalesce',
+          ['get', 'strokeColor'],
+          masLiveColorToCssHex(_poiStyle.circleStrokeColor),
+        ],
+        'line-width': [
+          'coalesce',
+          ['get', 'strokeWidth'],
+          2.0,
+        ],
         'line-opacity': 0.85,
       };
 
@@ -670,19 +751,32 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             'source': _poiSourceId,
             'filter': [
               'all',
-              ['==', ['geometry-type'], 'Polygon'],
+              [
+                '==',
+                ['geometry-type'],
+                'Polygon',
+              ],
               [
                 'any',
-                ['!', ['has', 'strokeDash']],
-                ['==', ['get', 'strokeDash'], 'solid'],
+                [
+                  '!',
+                  ['has', 'strokeDash'],
+                ],
+                [
+                  '==',
+                  ['get', 'strokeDash'],
+                  'solid',
+                ],
               ],
             ],
             'paint': commonLinePaint,
-          })
+          }),
         ]);
       }
 
-      final dashedExisting = map.callMethod('getLayer', [_poiLineLayerDashedId]);
+      final dashedExisting = map.callMethod('getLayer', [
+        _poiLineLayerDashedId,
+      ]);
       if (dashedExisting == null) {
         map.callMethod('addLayer', [
           js.JsObject.jsify({
@@ -691,18 +785,28 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             'source': _poiSourceId,
             'filter': [
               'all',
-              ['==', ['geometry-type'], 'Polygon'],
-              ['==', ['get', 'strokeDash'], 'dashed'],
+              [
+                '==',
+                ['geometry-type'],
+                'Polygon',
+              ],
+              [
+                '==',
+                ['get', 'strokeDash'],
+                'dashed',
+              ],
             ],
             'paint': {
               ...commonLinePaint,
               'line-dasharray': [4, 2],
             },
-          })
+          }),
         ]);
       }
 
-      final dottedExisting = map.callMethod('getLayer', [_poiLineLayerDottedId]);
+      final dottedExisting = map.callMethod('getLayer', [
+        _poiLineLayerDottedId,
+      ]);
       if (dottedExisting == null) {
         map.callMethod('addLayer', [
           js.JsObject.jsify({
@@ -711,14 +815,22 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             'source': _poiSourceId,
             'filter': [
               'all',
-              ['==', ['geometry-type'], 'Polygon'],
-              ['==', ['get', 'strokeDash'], 'dotted'],
+              [
+                '==',
+                ['geometry-type'],
+                'Polygon',
+              ],
+              [
+                '==',
+                ['get', 'strokeDash'],
+                'dotted',
+              ],
             ],
             'paint': {
               ...commonLinePaint,
               'line-dasharray': [1, 2],
             },
-          })
+          }),
         ]);
       }
 
@@ -738,9 +850,11 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
               'circle-radius': _poiStyle.circleRadius,
               'circle-color': masLiveColorToCssHex(_poiStyle.circleColor),
               'circle-stroke-width': _poiStyle.circleStrokeWidth,
-              'circle-stroke-color': masLiveColorToCssHex(_poiStyle.circleStrokeColor),
+              'circle-stroke-color': masLiveColorToCssHex(
+                _poiStyle.circleStrokeColor,
+              ),
             },
-          })
+          }),
         ]);
       }
     } catch (_) {
@@ -775,7 +889,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
     try {
       final point = map.callMethod('project', [
-        [lng, lat]
+        [lng, lat],
       ]);
       final feats = map.callMethod('queryRenderedFeatures', [
         point,
@@ -794,7 +908,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         final f = feats[0];
         if (f is js.JsObject) {
           final props = f['properties'];
-          final poiId = (props is js.JsObject ? props['poiId'] : null) ?? f['id'];
+          final poiId =
+              (props is js.JsObject ? props['poiId'] : null) ?? f['id'];
           final id = (poiId ?? '').toString();
           return id.isEmpty ? null : id;
         }
@@ -905,7 +1020,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     }
 
     try {
-      final cb = (controller as dynamic).onMapTap as void Function(double, double)?;
+      final cb =
+          (controller as dynamic).onMapTap as void Function(double, double)?;
       cb?.call(lat, lng);
     } catch (_) {
       // ignore
@@ -950,7 +1066,9 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     final pending = _pendingStyleUrlToApply;
     if (pending != null) {
       _pendingStyleUrlToApply = null;
-      final styleToApply = pending.trim().isEmpty ? _fallbackStyleUrl : pending.trim();
+      final styleToApply = pending.trim().isEmpty
+          ? _fallbackStyleUrl
+          : pending.trim();
       try {
         _mbSetStyle(_containerId, styleToApply);
       } catch (e) {
@@ -996,9 +1114,10 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
               'lng': m.lng,
               'lat': m.lat,
               'size': m.size,
-              'color': '#${m.color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}',
+              'color':
+                  '#${m.color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}',
               'label': m.label,
-            }
+            },
         ]);
         _mbSetMarkers(_containerId, markersJson);
       } catch (e) {
@@ -1020,12 +1139,20 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       }
       try {
         final pointsJson = jsonEncode([
-          for (final p in points) {'lng': p.lng, 'lat': p.lat}
+          for (final p in points) {'lng': p.lng, 'lat': p.lat},
         ]);
-        final colorHex = '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2, 8)}';
+        final colorHex =
+            '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2, 8)}';
         // Options avancées (itinéraire routier, flèches, animation, ombrage)
         final optionsJson = jsonEncode(options.toJson());
-        _mbSetPolyline(_containerId, pointsJson, colorHex, width, show, optionsJson);
+        _mbSetPolyline(
+          _containerId,
+          pointsJson,
+          colorHex,
+          width,
+          show,
+          optionsJson,
+        );
       } catch (e) {
         debugPrint('⚠️ setPolyline error: $e');
       }
@@ -1037,7 +1164,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       await _applyBuildings3d(enabled: enabled, opacity: opacity);
     };
 
-    controller.setPolygonImpl = (points, fillColor, strokeColor, strokeWidth, show) async {
+    controller
+        .setPolygonImpl = (points, fillColor, strokeColor, strokeWidth, show) async {
       if (!show) {
         _lastPolygon = null;
       } else {
@@ -1051,10 +1179,12 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       }
       try {
         final pointsJson = jsonEncode([
-          for (final p in points) {'lng': p.lng, 'lat': p.lat}
+          for (final p in points) {'lng': p.lng, 'lat': p.lat},
         ]);
-        final fillHex = '#${fillColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2, 8)}';
-        final strokeHex = '#${strokeColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2, 8)}';
+        final fillHex =
+            '#${fillColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2, 8)}';
+        final strokeHex =
+            '#${strokeColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2, 8)}';
         _mbSetPolygon(
           _containerId,
           pointsJson,
@@ -1086,7 +1216,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       }
     };
 
-    controller.fitBoundsImpl = (west, south, east, north, padding, animate) async {
+    controller
+        .fitBoundsImpl = (west, south, east, north, padding, animate) async {
       try {
         _mbFitBounds(_containerId, west, south, east, north, padding, animate);
       } catch (e) {
@@ -1178,9 +1309,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     if (_mapboxToken.isEmpty) {
       return Container(
         color: Colors.grey.shade100,
-        child: const Center(
-          child: Text('Token Mapbox manquant'),
-        ),
+        child: const Center(child: Text('Token Mapbox manquant')),
       );
     }
 
@@ -1189,7 +1318,9 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       final (reason, cleanMsg) = _splitInitError(initError);
       final hint = _friendlyHintForReason(reason);
       final tokenLen = _mapboxToken.trim().length;
-      final isPk = _mapboxToken.trim().startsWith('pk.') || _mapboxToken.trim().startsWith('pk_');
+      final isPk =
+          _mapboxToken.trim().startsWith('pk.') ||
+          _mapboxToken.trim().startsWith('pk_');
       final resolvedSource = MapboxTokenService.cachedSource;
       String mapboxGlLoadStatus = 'unknown';
       try {
@@ -1215,16 +1346,16 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  cleanMsg,
-                  textAlign: TextAlign.center,
-                ),
+                Text(cleanMsg, textAlign: TextAlign.center),
                 if (hint != null && hint.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   Text(
                     hint,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey.shade800, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: Colors.grey.shade800,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
                 const SizedBox(height: 12),
@@ -1255,7 +1386,9 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             _lastConstraintsSize = size;
             // Après un changement de layout (rotation, split view, etc.)
             // il faut appeler map.resize() pour que Mapbox GL JS recalcule son canvas.
-            WidgetsBinding.instance.addPostFrameCallback((_) => _scheduleResize());
+            WidgetsBinding.instance.addPostFrameCallback(
+              (_) => _scheduleResize(),
+            );
           }
         }
 
@@ -1363,7 +1496,9 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
       // Fallback: heuristique canvas (WebGL2 ou WebGL1).
       final canvas = html.CanvasElement(width: 1, height: 1);
       final ctx =
-          canvas.getContext('webgl2') ?? canvas.getContext('webgl') ?? canvas.getContext('experimental-webgl');
+          canvas.getContext('webgl2') ??
+          canvas.getContext('webgl') ??
+          canvas.getContext('experimental-webgl');
       return ctx != null;
     } catch (_) {
       return true; // ne pas bloquer si la détection échoue
@@ -1380,7 +1515,8 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
 
   String _formatTokenHint(String token) {
     final t = token.trim();
-    if (t.isEmpty) return '[TOKEN_MISSING] Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).';
+    if (t.isEmpty)
+      return '[TOKEN_MISSING] Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).';
     // Mapbox: tokens publics typiquement `pk.`. On accepte aussi `pk_` par tolérance
     // (certaines configs historiques/masquées utilisent ce préfixe).
     if (!t.startsWith('pk.') && !t.startsWith('pk_')) {
@@ -1399,7 +1535,12 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
     try {
       final v2 = js.context['MasliveMapboxV2'];
       if (v2 is js.JsObject) {
-        final res = v2.callMethod('initElement', [el, containerId, token, optionsJson]);
+        final res = v2.callMethod('initElement', [
+          el,
+          containerId,
+          token,
+          optionsJson,
+        ]);
         return res == true;
       }
     } catch (_) {
@@ -1440,8 +1581,11 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
 
         if (type == 'MASLIVE_MAP_ERROR') {
           final reason = decoded['reason']?.toString();
-          final msg = decoded['message']?.toString() ?? 'Erreur Mapbox inconnue.';
-          final fullMsg = (reason != null && reason.isNotEmpty) ? '[$reason] $msg' : msg;
+          final msg =
+              decoded['message']?.toString() ?? 'Erreur Mapbox inconnue.';
+          final fullMsg = (reason != null && reason.isNotEmpty)
+              ? '[$reason] $msg'
+              : msg;
 
           _didReceiveErrorFromJs = true;
 
@@ -1472,25 +1616,22 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
   }
 
   void _registerFactory() {
-    ui_web.platformViewRegistry.registerViewFactory(
-      _viewType,
-      (int viewId) {
-        final container = html.DivElement();
-        container.id = widget.containerId;
-        container.style.width = '100%';
-        container.style.height = '100%';
-        _containerEl = container;
+    ui_web.platformViewRegistry.registerViewFactory(_viewType, (int viewId) {
+      final container = html.DivElement();
+      container.id = widget.containerId;
+      container.style.width = '100%';
+      container.style.height = '100%';
+      _containerEl = container;
 
-        // L'élément doit être réellement monté dans le DOM avant init Mapbox.
-        // requestAnimationFrame donne une chance au layout/attach de se faire.
-        html.window.requestAnimationFrame((_) {
-          if (!mounted) return;
-          _tryInit();
-        });
+      // L'élément doit être réellement monté dans le DOM avant init Mapbox.
+      // requestAnimationFrame donne une chance au layout/attach de se faire.
+      html.window.requestAnimationFrame((_) {
+        if (!mounted) return;
+        _tryInit();
+      });
 
-        return container;
-      },
-    );
+      return container;
+    });
   }
 
   void _tryInit() {
@@ -1507,8 +1648,8 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
       if (elapsed.inSeconds >= 30) {
         _didInit = true;
         widget.onInitError?.call(
-          '[CONTAINER_NOT_FOUND] Conteneur HTML présent mais sans taille (layout non prêt). ' +
-              'Vérifie que le widget parent impose une hauteur/largeur (ex: Positioned.fill / Expanded).',
+          '[CONTAINER_NOT_FOUND] Conteneur HTML présent mais sans taille (layout non prêt). '
+          'Vérifie que le widget parent impose une hauteur/largeur (ex: Positioned.fill / Expanded).',
         );
         return;
       }
@@ -1541,7 +1682,9 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
           return;
         }
 
-        widget.onInitError?.call('[CONTAINER_NOT_FOUND] Conteneur HTML introuvable (DOM).');
+        widget.onInitError?.call(
+          '[CONTAINER_NOT_FOUND] Conteneur HTML introuvable (DOM).',
+        );
         return;
       } else {
         // Sur certains devices, l'élément est créé mais pas encore "connecté" au DOM.
@@ -1586,9 +1729,16 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
     try {
       final el = _containerEl;
       if (el != null) {
-        ok = _tryInitElementViaDartJs(el, widget.containerId, widget.accessToken, optionsJson);
+        ok = _tryInitElementViaDartJs(
+          el,
+          widget.containerId,
+          widget.accessToken,
+          optionsJson,
+        );
       } else {
-        ok = _mbInit(widget.containerId, widget.accessToken, optionsJson) == true;
+        ok =
+            _mbInit(widget.containerId, widget.accessToken, optionsJson) ==
+            true;
       }
     } catch (_) {
       ok = false;
@@ -1673,7 +1823,13 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
 external bool _mbInit(String containerId, String token, String optionsJson);
 
 @JS('MasliveMapboxV2.moveTo')
-external void _mbMoveTo(String containerId, double lng, double lat, double zoom, bool animate);
+external void _mbMoveTo(
+  String containerId,
+  double lng,
+  double lat,
+  double zoom,
+  bool animate,
+);
 
 @JS('MasliveMapboxV2.resize')
 external void _mbResize(String containerId);

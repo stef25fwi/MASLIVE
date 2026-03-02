@@ -31,7 +31,7 @@ app/lib/
 │   │   └── widgets/
 │   │       ├── building_opacity_control.dart          [NOUVEAU] ← Widget UI premium
 │   │       └── route_style_controls_panel.dart        [MODIFIÉ] ← Intégration widget
-│   └── INTEGRATION_EXAMPLE.dart             [NOUVEAU] ← Exemples code
+│   └── integration_example.dart             [NOUVEAU] ← Exemples code
 └── web/
     └── mapbox_bridge.js                     [MODIFIÉ] ← 4 fonctions JS ajoutées
 
