@@ -141,11 +141,15 @@ class _MarketMapPoiSelectorSheetState
     return StreamBuilder<VisibleCircuitsIndex>(
       stream: widget.service.watchVisibleCircuitsIndex(),
       builder: (context, visibleSnap) {
+        final visibleIndexReady = visibleSnap.hasData;
         final visibleIndex = visibleSnap.data;
-        final visibleCountryIds = visibleIndex?.countryIds;
-        final visibleEventIds = (_country == null)
-            ? null
-            : visibleIndex?.eventIdsForCountry(_country!.id);
+        final visibleCountryIds = visibleIndexReady
+            ? (visibleIndex?.countryIds ?? const <String>{})
+            : const <String>{};
+        final visibleEventIds = (!visibleIndexReady || _country == null)
+            ? const <String>{}
+            : visibleIndex?.eventIdsForCountry(_country!.id) ??
+                  const <String>{};
 
         return Padding(
           padding: EdgeInsets.only(
@@ -178,16 +182,17 @@ class _MarketMapPoiSelectorSheetState
                   ),
                 ],
               ),
+              if (!visibleIndexReady) const LinearProgressIndicator(),
               const SizedBox(height: 8),
               StreamBuilder<List<MarketCountry>>(
                 stream: widget.service.watchCountries(),
                 builder: (context, snap) {
                   final all = snap.data ?? const <MarketCountry>[];
-                  final items = (visibleCountryIds == null)
+                  final items = visibleIndexReady
                       ? all
-                      : all
                             .where((c) => visibleCountryIds.contains(c.id))
-                            .toList(growable: false);
+                            .toList(growable: false)
+                      : const <MarketCountry>[];
 
                   final selectedCountryId = _country?.id;
                   final currentCountryId =
@@ -211,22 +216,27 @@ class _MarketMapPoiSelectorSheetState
                             ),
                           ),
                       ],
-                      onChanged: (id) {
-                        if (id == null) return;
-                        final selected = items.firstWhere(
-                          (c) => c.id == id,
-                          orElse: () =>
-                              const MarketCountry(id: '', name: '', slug: ''),
-                        );
-                        if (selected.id.isEmpty) return;
-                        setState(() {
-                          _country = selected;
-                          _event = null;
-                          _circuit = null;
-                          _layerIds = <String>{};
-                          _layerSelectionInitialized = false;
-                        });
-                      },
+                      onChanged: !visibleIndexReady
+                          ? null
+                          : (id) {
+                              if (id == null) return;
+                              final selected = items.firstWhere(
+                                (c) => c.id == id,
+                                orElse: () => const MarketCountry(
+                                  id: '',
+                                  name: '',
+                                  slug: '',
+                                ),
+                              );
+                              if (selected.id.isEmpty) return;
+                              setState(() {
+                                _country = selected;
+                                _event = null;
+                                _circuit = null;
+                                _layerIds = <String>{};
+                                _layerSelectionInitialized = false;
+                              });
+                            },
                     );
                   }
 
@@ -235,6 +245,7 @@ class _MarketMapPoiSelectorSheetState
                     controller: _countryCtrl,
                     labelText: 'Pays',
                     hintText: 'Rechercher un pays…',
+                    enabled: visibleIndexReady,
                     onSelected: (c) {
                       setState(() {
                         _country = c;
@@ -254,11 +265,11 @@ class _MarketMapPoiSelectorSheetState
                     : widget.service.watchEvents(countryId: _country!.id),
                 builder: (context, snap) {
                   final all = snap.data ?? const <MarketEvent>[];
-                  final items = (visibleEventIds == null)
+                  final items = visibleIndexReady
                       ? all
-                      : all
                             .where((e) => visibleEventIds.contains(e.id))
-                            .toList(growable: false);
+                            .toList(growable: false)
+                      : const <MarketEvent>[];
 
                   final selectedId = _event?.id;
                   final value = items.any((e) => e.id == selectedId)

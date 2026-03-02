@@ -16,12 +16,14 @@ class RouteStylePreviewMap extends StatefulWidget {
   final RouteStyleConfig config;
   final List<LatLng> route;
   final VoidCallback? onMapReady;
+  final String? styleUrl;
 
   const RouteStylePreviewMap({
     super.key,
     required this.config,
     required this.route,
     this.onMapReady,
+    this.styleUrl,
   });
 
   @override
@@ -93,10 +95,11 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     }
 
     // Periodic update (throttlé)
-    final periodMs = (cfg.rainbowEnabled
-            ? (110 - (cfg.rainbowSpeed * 0.8)).clamp(25, 110)
-            : (160 - (cfg.pulseSpeed * 1.0)).clamp(40, 160))
-        .round();
+    final periodMs =
+        (cfg.rainbowEnabled
+                ? (110 - (cfg.rainbowSpeed * 0.8)).clamp(25, 110)
+                : (160 - (cfg.pulseSpeed * 1.0)).clamp(40, 160))
+            .round();
 
     _animTimer?.cancel();
     _animTimer = Timer.periodic(Duration(milliseconds: periodMs), (_) {
@@ -185,7 +188,8 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     final pts = widget.route;
 
     // Bâtiments 3D (opacity + enabled) : applique via le service natif.
-    final nativeBuildingsKey = '${cfg.buildings3dEnabled ? 1 : 0}:${cfg.buildingOpacity.toStringAsFixed(3)}';
+    final nativeBuildingsKey =
+        '${cfg.buildings3dEnabled ? 1 : 0}:${cfg.buildingOpacity.toStringAsFixed(3)}';
     if (_lastNativeBuildingsKey != nativeBuildingsKey) {
       _lastNativeBuildingsKey = nativeBuildingsKey;
       unawaited(_buildingsNative.setBuildingsEnabled(cfg.buildings3dEnabled));
@@ -209,15 +213,18 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
               'properties': <String, dynamic>{},
               'geometry': {
                 'type': 'LineString',
-                'coordinates': [for (final p in pts) [p.lng, p.lat]],
+                'coordinates': [
+                  for (final p in pts) [p.lng, p.lat],
+                ],
               },
-            }
+            },
           ]);
 
     await _updateGeoJson(_srcRoute, routeFc);
 
     // Section segments (rainbow/traffic/vanishing)
-    final useSegments = cfg.rainbowEnabled || cfg.trafficDemoEnabled || cfg.vanishingEnabled;
+    final useSegments =
+        cfg.rainbowEnabled || cfg.trafficDemoEnabled || cfg.vanishingEnabled;
     final segmentsFc = useSegments
         ? _buildSegmentsFeatureCollection(
             pts,
@@ -281,11 +288,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     final translateMap = (elevationPx > 0)
         ? <double>[0.0, -elevationPx]
         : const <double>[0.0, 0.0];
-    for (final layerId in <String>[
-      _layerGlow,
-      _layerCasing,
-      _layerMain,
-    ]) {
+    for (final layerId in <String>[_layerGlow, _layerCasing, _layerMain]) {
       await _setLayerProps(layerId, {
         'line-translate': translateMap,
         'line-translate-anchor': 'map',
@@ -309,9 +312,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
         'line-dasharray': [cfg.dashLength, cfg.dashGap],
       });
     } else {
-      await _setLayerProps(_layerMain, {
-        'line-dasharray': null,
-      });
+      await _setLayerProps(_layerMain, {'line-dasharray': null});
     }
 
     // Recentrage simple
@@ -345,7 +346,8 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     final glowWidth = cfg.glowWidth * widthScale;
 
     // Segments (rainbow/traffic/vanishing): FC GeoJSON avec propriétés color/width/opacity.
-    final useSegments = cfg.rainbowEnabled || cfg.trafficDemoEnabled || cfg.vanishingEnabled;
+    final useSegments =
+        cfg.rainbowEnabled || cfg.trafficDemoEnabled || cfg.vanishingEnabled;
     final segmentsGeoJson = useSegments
         ? _buildSegmentsFeatureCollection(
             widget.route,
@@ -366,7 +368,8 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       minLng = math.min(minLng, p.lng);
       maxLng = math.max(maxLng, p.lng);
     }
-    final boundsKey = '${minLng.toStringAsFixed(6)},${minLat.toStringAsFixed(6)},${maxLng.toStringAsFixed(6)},${maxLat.toStringAsFixed(6)}';
+    final boundsKey =
+        '${minLng.toStringAsFixed(6)},${minLat.toStringAsFixed(6)},${maxLng.toStringAsFixed(6)},${maxLat.toStringAsFixed(6)}';
 
     final lineJoin = switch (cfg.lineJoin) {
       RouteLineJoin.round => 'round',
@@ -379,7 +382,8 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       RouteLineCap.square => 'square',
     };
 
-    final shouldRoadLike = (cfg.casingWidth > 0) || cfg.shadowEnabled || cfg.glowEnabled;
+    final shouldRoadLike =
+        (cfg.casingWidth > 0) || cfg.shadowEnabled || cfg.glowEnabled;
 
     await _webController.setPolyline(
       points: [for (final p in widget.route) MapPoint(p.lng, p.lat)],
@@ -417,7 +421,8 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     );
 
     // Bâtiments 3D (opacity + enabled) : ne réapplique que si valeur a changé.
-    final buildingsKey = '${cfg.buildings3dEnabled ? 1 : 0}:${cfg.buildingOpacity.toStringAsFixed(3)}';
+    final buildingsKey =
+        '${cfg.buildings3dEnabled ? 1 : 0}:${cfg.buildingOpacity.toStringAsFixed(3)}';
     if (_lastWebBuildingsKey != buildingsKey) {
       _lastWebBuildingsKey = buildingsKey;
       await _webController.setBuildings3d(
@@ -478,7 +483,10 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     await _tryAddSource(sourceId, fcJson);
   }
 
-  Future<void> _setLayerProps(String layerId, Map<String, dynamic> props) async {
+  Future<void> _setLayerProps(
+    String layerId,
+    Map<String, dynamic> props,
+  ) async {
     final map = _map;
     if (map == null) return;
 
@@ -563,9 +571,11 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
         },
         'geometry': {
           'type': 'LineString',
-          'coordinates': [for (final p in pts) [p.lng, p.lat]],
+          'coordinates': [
+            for (final p in pts) [p.lng, p.lat],
+          ],
         },
-      }
+      },
     ]);
   }
 
@@ -583,11 +593,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       final shift = (animTick % 360);
       final dir = cfg.rainbowReverse ? -1 : 1;
       final hue = (shift + dir * index * 14) % 360;
-      return _hsvToColor(
-        hue.toDouble(),
-        cfg.rainbowSaturation,
-        1.0,
-      );
+      return _hsvToColor(hue.toDouble(), cfg.rainbowSaturation, 1.0);
     }
 
     // Fallback: mainColor
@@ -647,6 +653,10 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
 
   @override
   Widget build(BuildContext context) {
+    final effectiveStyleUrl = (widget.styleUrl ?? '').trim().isEmpty
+        ? null
+        : widget.styleUrl!.trim();
+
     if (kIsWeb) {
       final initial = widget.route.isNotEmpty
           ? widget.route.first
@@ -663,6 +673,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
           // pour rendre les réglages d'opacité observables immédiatement.
           initialZoom: 15.5,
           initialPitch: 45.0,
+          styleUrl: effectiveStyleUrl,
           onMapReady: (_) {
             widget.onMapReady?.call();
             _renderWeb(animTick: _animTick);
@@ -679,7 +690,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       borderRadius: BorderRadius.circular(12),
       child: MapWidget(
         key: const ValueKey('route_style_preview_map'),
-        styleUri: MapboxStyles.MAPBOX_STREETS,
+        styleUri: effectiveStyleUrl ?? MapboxStyles.MAPBOX_STREETS,
         cameraOptions: CameraOptions(
           center: Point(coordinates: Position(center.lng, center.lat)),
           zoom: 13.5,

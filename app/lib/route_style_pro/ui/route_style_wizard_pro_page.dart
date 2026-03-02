@@ -14,11 +14,7 @@ class RouteStyleProArgs {
   final String? circuitId;
   final List<LatLng>? initialRoute;
 
-  const RouteStyleProArgs({
-    this.projectId,
-    this.circuitId,
-    this.initialRoute,
-  });
+  const RouteStyleProArgs({this.projectId, this.circuitId, this.initialRoute});
 }
 
 class RouteStyleWizardProPage extends StatefulWidget {
@@ -34,7 +30,8 @@ class RouteStyleWizardProPage extends StatefulWidget {
   });
 
   @override
-  State<RouteStyleWizardProPage> createState() => _RouteStyleWizardProPageState();
+  State<RouteStyleWizardProPage> createState() =>
+      _RouteStyleWizardProPageState();
 }
 
 class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
@@ -50,6 +47,7 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
   Timer? _debounce;
 
   List<LatLng> _route = const [];
+  String? _baseStyleUrl;
 
   String? get _projectId => widget.projectId;
   String? get _circuitId => widget.circuitId;
@@ -120,16 +118,22 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
 
   Future<void> _init() async {
     try {
-      final remote = await _persistence.loadRemote(projectId: _projectId, circuitId: _circuitId);
+      final remote = await _persistence.loadRemote(
+        projectId: _projectId,
+        circuitId: _circuitId,
+      );
       final local = await _persistence.loadLocal();
       final cfg = (remote ?? local ?? const RouteStyleConfig()).validated();
 
       final initialRoute = widget.initialRoute;
       List<LatLng> route;
+      String? styleUrl;
       if (initialRoute != null) {
         route = initialRoute;
       } else if ((_projectId ?? '').trim().isNotEmpty) {
-        route = await _loadProjectRoute(_projectId!);
+        final loaded = await _loadProjectRouteAndStyle(_projectId!);
+        route = loaded.route;
+        styleUrl = loaded.styleUrl;
       } else {
         route = _defaultTestRoute();
       }
@@ -139,6 +143,7 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
         _config = cfg;
         _renderConfig = cfg;
         _route = route;
+        _baseStyleUrl = (styleUrl ?? '').trim().isEmpty ? null : styleUrl;
         _loading = false;
       });
     } catch (_) {
@@ -147,12 +152,22 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
     }
   }
 
-  Future<List<LatLng>> _loadProjectRoute(String projectId) async {
-    final doc = await FirebaseFirestore.instance.collection('map_projects').doc(projectId).get();
+  Future<({List<LatLng> route, String? styleUrl})> _loadProjectRouteAndStyle(
+    String projectId,
+  ) async {
+    final doc = await FirebaseFirestore.instance
+        .collection('map_projects')
+        .doc(projectId)
+        .get();
     final data = doc.data();
-    final current = (data?['current'] is Map) ? Map<String, dynamic>.from(data?['current'] as Map) : null;
-    final raw = (current != null && current['route'] is List) ? current['route'] : data?['route'];
-    if (raw is! List) return const [];
+    final current = (data?['current'] is Map)
+        ? Map<String, dynamic>.from(data?['current'] as Map)
+        : null;
+    final raw = (current != null && current['route'] is List)
+        ? current['route']
+        : data?['route'];
+    final styleUrl = (data?['styleUrl'] as String?)?.trim();
+    if (raw is! List) return (route: const <LatLng>[], styleUrl: styleUrl);
 
     final out = <LatLng>[];
     for (final p in raw) {
@@ -164,7 +179,7 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
         }
       }
     }
-    return out;
+    return (route: out, styleUrl: styleUrl);
   }
 
   List<LatLng> _defaultTestRoute() {
@@ -217,7 +232,9 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
   Future<void> _testAutoRoute() async {
     if (_busy) return;
 
-    final start = (_route.isNotEmpty) ? _route.first : _defaultTestRoute().first;
+    final start = (_route.isNotEmpty)
+        ? _route.first
+        : _defaultTestRoute().first;
     final end = (_route.length >= 2) ? _route.last : _defaultTestRoute().last;
 
     setState(() => _route = [start, end]);
@@ -235,9 +252,13 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
 
     setState(() => _busy = true);
     try {
-      final route = await _loadProjectRoute(pid!);
+      final loaded = await _loadProjectRouteAndStyle(pid!);
       if (!mounted) return;
-      setState(() => _route = route);
+      setState(() {
+        _route = loaded.route;
+        final styleUrl = (loaded.styleUrl ?? '').trim();
+        _baseStyleUrl = styleUrl.isEmpty ? null : styleUrl;
+      });
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -254,7 +275,11 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
     try {
       final cfg = _config.validated();
       await _persistence.saveLocal(cfg);
-      await _persistence.saveRemote(cfg, projectId: _projectId, circuitId: _circuitId);
+      await _persistence.saveRemote(
+        cfg,
+        projectId: _projectId,
+        circuitId: _circuitId,
+      );
       _snack('Style enregistré');
     } catch (e) {
       _snack('Sauvegarde échouée: ${e.toString()}');
@@ -271,15 +296,15 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
 
   void _snack(String msg) {
     if (!mounted) return;
-    
+
     final messenger = ScaffoldMessenger.of(context);
     final media = MediaQuery.of(context);
-    
+
     // Position juste sous la status bar système en haut
     final top = media.padding.top + 8;
     final viewportH = media.size.height;
     final bottom = (viewportH - top - 72).clamp(0.0, viewportH);
-    
+
     messenger
       ..clearSnackBars()
       ..showSnackBar(
@@ -315,6 +340,7 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
                             child: RouteStylePreviewMap(
                               config: _renderConfig,
                               route: _route,
+                              styleUrl: _baseStyleUrl,
                             ),
                           ),
                           if (_busy)
