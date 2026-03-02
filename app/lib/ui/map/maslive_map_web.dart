@@ -339,6 +339,18 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       final bridge = js.context['mapboxBridge'];
       if (bridge is! js.JsObject) return;
 
+      // Nouvelle API (plus robuste): applique aux *toutes* les couches fill-extrusion
+      // (styles perso peuvent en avoir plusieurs).
+      try {
+        final hasSetBuildings3d = bridge.hasProperty('setBuildings3d');
+        if (hasSetBuildings3d == true) {
+          bridge.callMethod('setBuildings3d', [enabled, o, map]);
+          return;
+        }
+      } catch (_) {
+        // ignore -> fallback legacy
+      }
+
       dynamic layerId = bridge.callMethod('findBuildingLayer', [map]);
 
       // Si aucune couche fill-extrusion n'est présente, on tente d'injecter
