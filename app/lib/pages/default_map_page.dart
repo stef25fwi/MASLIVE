@@ -574,7 +574,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         'type': 'Feature',
         'properties': {
           'color': _toRgba(color, opacity: opacity),
-          'casingColor': _toCssRgb(casingColor),
+          'casingColor': _toHexRgb(casingColor),
           'width': width,
           'opacity': opacity,
         },
@@ -666,11 +666,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     return 'rgba($r,$g,$b,${a.toStringAsFixed(3)})';
   }
 
-  String _toCssRgb(Color c) {
-    final r = ((c.r * 255).round()).clamp(0, 255);
-    final g = ((c.g * 255).round()).clamp(0, 255);
-    final b = ((c.b * 255).round()).clamp(0, 255);
-    return 'rgb($r,$g,$b)';
+  String _toHexRgb(Color c) {
+    final v = c.toARGB32().toRadixString(16).padLeft(8, '0');
+    return '#${v.substring(2, 8)}';
   }
 
   static List<MapPoint> _parseRoutePoints(dynamic raw) {

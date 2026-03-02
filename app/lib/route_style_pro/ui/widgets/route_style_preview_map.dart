@@ -551,7 +551,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
         'type': 'Feature',
         'properties': {
           'color': _toHexRgba(color, opacity: opacity),
-          'casingColor': _toCssRgb(casingColor),
+          'casingColor': _toHexRgb(casingColor),
           'width': width,
           'opacity': opacity,
         },
@@ -577,7 +577,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
         'type': 'Feature',
         'properties': {
           'color': _toHexRgba(cfg.mainColor, opacity: cfg.opacity),
-          'casingColor': _toCssRgb(cfg.casingColor),
+          'casingColor': _toHexRgb(cfg.casingColor),
           'width': width,
           'opacity': cfg.opacity,
         },
@@ -663,11 +663,9 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     return 'rgba($r,$g,$b,${a.toStringAsFixed(3)})';
   }
 
-  String _toCssRgb(Color c) {
-    final r = ((c.r * 255).round()).clamp(0, 255);
-    final g = ((c.g * 255).round()).clamp(0, 255);
-    final b = ((c.b * 255).round()).clamp(0, 255);
-    return 'rgb($r,$g,$b)';
+  String _toHexRgb(Color c) {
+    final v = c.toARGB32().toRadixString(16).padLeft(8, '0');
+    return '#${v.substring(2, 8)}';
   }
 
   int _argbInt(Color c) {

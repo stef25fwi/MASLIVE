@@ -380,37 +380,35 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     return 'rgba($r,$g,$b,${a.toStringAsFixed(3)})';
   }
 
-  static String _toCssRgb(Color c) {
-    final r = ((c.r * 255).round()).clamp(0, 255);
-    final g = ((c.g * 255).round()).clamp(0, 255);
-    final b = ((c.b * 255).round()).clamp(0, 255);
-    return 'rgb($r,$g,$b)';
+  static String _toHexRgb(Color c) {
+    final v = c.toARGB32().toRadixString(16).padLeft(8, '0');
+    return '#${v.substring(2, 8)}';
   }
 
   static Color _hsvToColor(double h, double s, double v) {
     final hh = (h % 360) / 60.0;
-    final c = v * s;
-    final x = c * (1 - ((hh % 2) - 1).abs());
-    final m = v - c;
+    final chroma = v * s;
+    final x = chroma * (1 - ((hh % 2) - 1).abs());
+    final m = v - chroma;
 
     double r1 = 0, g1 = 0, b1 = 0;
     if (hh >= 0 && hh < 1) {
-      r1 = c;
+      r1 = chroma;
       g1 = x;
     } else if (hh < 2) {
       r1 = x;
-      g1 = c;
+      g1 = chroma;
     } else if (hh < 3) {
-      g1 = c;
+      g1 = chroma;
       b1 = x;
     } else if (hh < 4) {
       g1 = x;
-      b1 = c;
+      b1 = chroma;
     } else if (hh < 5) {
       r1 = x;
-      b1 = c;
+      b1 = chroma;
     } else {
-      r1 = c;
+      r1 = chroma;
       b1 = x;
     }
 
@@ -482,7 +480,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         'type': 'Feature',
         'properties': {
           'color': _toHexRgba(color, opacity: opacity),
-          'casingColor': _toCssRgb(casingColor),
+          'casingColor': _toHexRgb(casingColor),
           'width': width,
           'opacity': opacity,
         },
@@ -511,7 +509,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         'type': 'Feature',
         'properties': {
           'color': _toHexRgba(cfg.mainColor, opacity: cfg.opacity),
-          'casingColor': _toCssRgb(cfg.casingColor),
+          'casingColor': _toHexRgb(cfg.casingColor),
           'width': width,
           'opacity': cfg.opacity,
         },

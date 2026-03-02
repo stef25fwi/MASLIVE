@@ -3462,7 +3462,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         'type': 'Feature',
         'properties': {
           'color': _toHexRgba(color, opacity: opacity),
-          'casingColor': _toCssRgb(casingColor),
+          'casingColor': _toHexRgb(casingColor),
           'width': width,
           'opacity': opacity,
         },
@@ -3552,13 +3552,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final g = ((c.g * 255).round()).clamp(0, 255);
     final b = ((c.b * 255).round()).clamp(0, 255);
     return 'rgba($r,$g,$b,${a.toStringAsFixed(3)})';
-  }
-
-  String _toCssRgb(Color c) {
-    final r = ((c.r * 255).round()).clamp(0, 255);
-    final g = ((c.g * 255).round()).clamp(0, 255);
-    final b = ((c.b * 255).round()).clamp(0, 255);
-    return 'rgb($r,$g,$b)';
   }
 
   String _toHexRgb(Color c) {
