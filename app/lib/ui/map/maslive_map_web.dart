@@ -895,7 +895,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       // Toujours (ré)appliquer le filtre/paint, même si layer déjà existant.
       map.callMethod('setFilter', [
         _poiLayerId,
-        [
+        js.JsObject.jsify([
           'all',
           [
             '==',
@@ -926,7 +926,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
               false,
             ],
           ],
-        ],
+        ]),
       ]);
 
       // Points de prévisualisation (vertices) pour zone parking.
@@ -967,7 +967,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
       map.callMethod('setFilter', [
         _poiPreviewVertexLayerId,
-        [
+        js.JsObject.jsify([
           'all',
           [
             '==',
@@ -979,7 +979,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             ['get', 'isPreviewVertex'],
             true,
           ],
-        ],
+        ]),
       ]);
       map.callMethod('setPaintProperty', [
         _poiPreviewVertexLayerId,
@@ -1042,7 +1042,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
       map.callMethod('setFilter', [
         _poiZoneLabelLayerId,
-        [
+        js.JsObject.jsify([
           'all',
           [
             '==',
@@ -1054,7 +1054,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             ['get', 'isZoneLabel'],
             true,
           ],
-        ],
+        ]),
       ]);
     } catch (_) {
       // ignore

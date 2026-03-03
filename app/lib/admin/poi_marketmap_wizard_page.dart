@@ -763,12 +763,15 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
                   stream: _eventsWithCircuitsIndex$,
                   builder: (context, idxSnap) {
                     final allowedEventIds = idxSnap.data?.eventIdsForCountry(country.id) ?? const <String>{};
+                    final shouldFilterByVisibleCircuits = allowedEventIds.isNotEmpty;
 
                     return StreamBuilder<List<MarketEvent>>(
                       stream: _service.watchEvents(countryId: country.id),
                       builder: (context, snapshot) {
                         var items = snapshot.data ?? const <MarketEvent>[];
-                        items = items.where((e) => allowedEventIds.contains(e.id)).toList();
+                        if (shouldFilterByVisibleCircuits) {
+                          items = items.where((e) => allowedEventIds.contains(e.id)).toList();
+                        }
 
                         return DropdownButtonFormField<String>(
                           key: ValueKey('event-${_event?.id ?? ''}'),
