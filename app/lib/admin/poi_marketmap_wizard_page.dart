@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +15,80 @@ import '../ui/snack/top_snack_bar.dart';
 import '../ui/widgets/country_autocomplete_field.dart';
 import '../ui/widgets/glass_scrollbar.dart';
 import 'circuit_wizard_pro_page.dart';
+
+const _emptyVisibleCircuitsIndex = VisibleCircuitsIndex(
+  countryIds: <String>{},
+  eventIdsByCountry: <String, Set<String>>{},
+);
+
+Stream<R> _combineLatest2<A, B, R>(
+  Stream<A> a$,
+  Stream<B> b$,
+  R Function(A a, B b) combiner,
+) {
+  late final StreamController<R> controller;
+  StreamSubscription<A>? subA;
+  StreamSubscription<B>? subB;
+
+  A? lastA;
+  B? lastB;
+  var hasA = false;
+  var hasB = false;
+
+  void emitIfReady() {
+    if (!hasA || !hasB) return;
+    controller.add(combiner(lastA as A, lastB as B));
+  }
+
+  controller = StreamController<R>(
+    onListen: () {
+      subA = a$.listen(
+        (a) {
+          lastA = a;
+          hasA = true;
+          emitIfReady();
+        },
+        onError: controller.addError,
+      );
+      subB = b$.listen(
+        (b) {
+          lastB = b;
+          hasB = true;
+          emitIfReady();
+        },
+        onError: controller.addError,
+      );
+    },
+    onCancel: () async {
+      await subA?.cancel();
+      await subB?.cancel();
+    },
+  );
+
+  return controller.stream;
+}
+
+VisibleCircuitsIndex _mergeVisibleCircuitsIndexes(
+  VisibleCircuitsIndex a,
+  VisibleCircuitsIndex b,
+) {
+  final mergedCountryIds = <String>{...a.countryIds, ...b.countryIds};
+  final mergedEventIdsByCountry = <String, Set<String>>{};
+
+  void addAll(Map<String, Set<String>> src) {
+    src.forEach((countryId, eventIds) {
+      (mergedEventIdsByCountry[countryId] ??= <String>{}).addAll(eventIds);
+    });
+  }
+
+  addAll(a.eventIdsByCountry);
+  addAll(b.eventIdsByCountry);
+
+  return VisibleCircuitsIndex(
+    countryIds: mergedCountryIds,
+    eventIdsByCountry: mergedEventIdsByCountry,
+  );
+}
 
 class POIMarketMapWizardPage extends StatefulWidget {
   const POIMarketMapWizardPage({
@@ -40,7 +116,10 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
 
   late final MarketMapService _service = widget._service ?? MarketMapService();
 
-  late final Stream<Set<String>> _countryIdsWithAtLeastOneEvent$ =
+  late final Stream<VisibleCircuitsIndex> _draftCircuitsIndex$ =
+      _watchDraftCircuitsIndexPreferAllThenFallbackToUid();
+
+  late final Stream<Set<String>> _marketMapCountryIdsWithAtLeastOneEvent$ =
       FirebaseFirestore.instance.collectionGroup('events').snapshots().map((snap) {
         final ids = <String>{};
         for (final d in snap.docs) {
@@ -59,7 +138,16 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
         return ids;
       });
 
-  late final Stream<VisibleCircuitsIndex> _eventsWithCircuitsIndex$ =
+  late final Stream<Set<String>> _countryIdsWithAtLeastOneEvent$ = _combineLatest2<
+      Set<String>,
+      Set<String>,
+      Set<String>>(
+    _marketMapCountryIdsWithAtLeastOneEvent$,
+    _draftCircuitsIndex$.map((idx) => idx.countryIds),
+    (a, b) => <String>{...a, ...b},
+  );
+
+  late final Stream<VisibleCircuitsIndex> _publishedCircuitsIndex$ =
       FirebaseFirestore.instance.collectionGroup('circuits').snapshots().map((snap) {
         final countryIds = <String>{};
         final eventIdsByCountry = <String, Set<String>>{};
@@ -71,16 +159,22 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
 
           final segments = d.reference.path.split('/');
           final marketMapIdx = segments.indexOf('marketMap');
-          if (marketMapIdx == -1) continue;
+          if (marketMapIdx != -1) {
+            final canParseFromPath =
+                segments.length >= marketMapIdx + 6 &&
+                segments[marketMapIdx + 2] == 'events' &&
+                segments[marketMapIdx + 4] == 'circuits';
 
-          final canParseFromPath =
-              segments.length >= marketMapIdx + 6 &&
-              segments[marketMapIdx + 2] == 'events' &&
-              segments[marketMapIdx + 4] == 'circuits';
+            if (canParseFromPath) {
+              countryId = segments[marketMapIdx + 1].trim();
+              eventId = segments[marketMapIdx + 3].trim();
+            }
+          }
 
-          if (canParseFromPath) {
-            countryId = segments[marketMapIdx + 1].trim();
-            eventId = segments[marketMapIdx + 3].trim();
+          if (countryId.isEmpty || eventId.isEmpty) {
+            final data = d.data();
+            countryId = (data['countryId'] ?? '').toString().trim();
+            eventId = (data['eventId'] ?? '').toString().trim();
           }
 
           if (countryId.isEmpty || eventId.isEmpty) continue;
@@ -94,6 +188,13 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
         );
       });
 
+  late final Stream<VisibleCircuitsIndex> _eventsWithCircuitsIndex$ =
+      _combineLatest2<VisibleCircuitsIndex, VisibleCircuitsIndex, VisibleCircuitsIndex>(
+    _publishedCircuitsIndex$,
+    _draftCircuitsIndex$,
+    _mergeVisibleCircuitsIndexes,
+  );
+
   MarketCountry? _country;
   MarketEvent? _event;
   MarketCircuit? _circuit;
@@ -104,6 +205,74 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
   String _circuitQuery = '';
 
   final TextEditingController _countryCtrl = TextEditingController();
+
+  Stream<VisibleCircuitsIndex> _watchDraftCircuitsIndexPreferAllThenFallbackToUid() {
+    final uid = FirebaseAuth.instance.currentUser?.uid.trim() ?? '';
+    final db = FirebaseFirestore.instance;
+
+    final primary = db.collection('map_projects').snapshots();
+    final fallback = uid.isEmpty
+        ? const Stream<QuerySnapshot<Map<String, dynamic>>>.empty()
+        : db.collection('map_projects').where('uid', isEqualTo: uid).snapshots();
+
+    late final StreamController<VisibleCircuitsIndex> controller;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? sub;
+    var usedFallback = false;
+
+    VisibleCircuitsIndex buildIndex(QuerySnapshot<Map<String, dynamic>> snap) {
+      final countryIds = <String>{};
+      final eventIdsByCountry = <String, Set<String>>{};
+
+      for (final d in snap.docs) {
+        final data = d.data();
+        final countryId = (data['countryId'] ?? '').toString().trim();
+        final eventId = (data['eventId'] ?? '').toString().trim();
+        if (countryId.isEmpty || eventId.isEmpty) continue;
+        countryIds.add(countryId);
+        (eventIdsByCountry[countryId] ??= <String>{}).add(eventId);
+      }
+
+      return VisibleCircuitsIndex(
+        countryIds: countryIds,
+        eventIdsByCountry: eventIdsByCountry,
+      );
+    }
+
+    void listenTo(Stream<QuerySnapshot<Map<String, dynamic>>> s) {
+      sub = s.listen(
+        (snap) => controller.add(buildIndex(snap)),
+        onError: (error, stackTrace) {
+          if (!usedFallback &&
+              error is FirebaseException &&
+              error.code == 'permission-denied' &&
+              uid.isNotEmpty) {
+            usedFallback = true;
+            sub?.cancel();
+            listenTo(fallback);
+            return;
+          }
+
+          if (error is FirebaseException && error.code == 'permission-denied') {
+            controller.add(_emptyVisibleCircuitsIndex);
+            return;
+          }
+
+          controller.addError(error, stackTrace);
+        },
+      );
+    }
+
+    controller = StreamController<VisibleCircuitsIndex>(
+      onListen: () {
+        listenTo(primary);
+      },
+      onCancel: () async {
+        await sub?.cancel();
+      },
+    );
+
+    return controller.stream;
+  }
 
   @override
   void initState() {
@@ -530,7 +699,7 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
                       builder: (context, snapshot) {
                         final allowed = idsSnap.data;
                         var items = snapshot.data ?? const <MarketCountry>[];
-                        if (allowed != null && allowed.isNotEmpty) {
+                        if (allowed != null) {
                           items = items.where((c) => allowed.contains(c.id)).toList();
                         }
 
