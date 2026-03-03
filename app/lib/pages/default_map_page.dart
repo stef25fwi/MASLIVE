@@ -153,7 +153,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     final country = selection.country;
     final event = selection.event;
     final circuit = selection.circuit;
-    if (!selection.enabled || country == null || event == null || circuit == null) {
+    if (!selection.enabled ||
+        country == null ||
+        event == null ||
+        circuit == null) {
       if (_isMasLiveMapReady) {
         unawaited(_syncMarkersToMap());
       }
@@ -167,28 +170,29 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           circuitId: circuit.id,
         )
         .listen((positions) {
-      if (!mounted) return;
+          if (!mounted) return;
 
-      final markers = <MapMarker>[];
-      for (final p in positions) {
-        markers.add(
-          MapMarker(
-            id: 'group-${p.adminGroupId}',
-            lng: p.lng,
-            lat: p.lat,
-            label: (p.displayName != null && p.displayName!.trim().isNotEmpty)
-                ? p.displayName!.trim()
-                : 'Groupe',
-            size: 1.4,
-          ),
-        );
-      }
+          final markers = <MapMarker>[];
+          for (final p in positions) {
+            markers.add(
+              MapMarker(
+                id: 'group-${p.adminGroupId}',
+                lng: p.lng,
+                lat: p.lat,
+                label:
+                    (p.displayName != null && p.displayName!.trim().isNotEmpty)
+                    ? p.displayName!.trim()
+                    : 'Groupe',
+                size: 1.4,
+              ),
+            );
+          }
 
-      setState(() => _groupPublicMarkers = markers);
-      if (_isMasLiveMapReady) {
-        unawaited(_syncMarkersToMap());
-      }
-    });
+          setState(() => _groupPublicMarkers = markers);
+          if (_isMasLiveMapReady) {
+            unawaited(_syncMarkersToMap());
+          }
+        });
   }
 
   Future<void> _syncMarkersToMap() async {
@@ -279,7 +283,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
     // Toujours ouvrir le menu, mais afficher la tooltip uniquement au premier lancement.
     final showTooltip = !didAutoOpen;
-    
+
     if (showTooltip) {
       // On marque avant d'afficher pour éviter les doubles ouvertures en cas de
       // rebuild/relance rapide.
@@ -488,15 +492,17 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     }
 
     final validated = cfg.validated();
-    final periodMs =
-        (110 - (validated.rainbowSpeed * 0.8)).clamp(25, 110).round();
+    final periodMs = (110 - (validated.rainbowSpeed * 0.8))
+        .clamp(25, 110)
+        .round();
 
     _marketRouteStyleProTimer?.cancel();
     _marketRouteStyleProTimer = Timer.periodic(
       Duration(milliseconds: periodMs),
       (_) {
         if (!mounted) return;
-        if (!_marketPoiSelection.enabled || _marketPoiSelection.circuit == null) {
+        if (!_marketPoiSelection.enabled ||
+            _marketPoiSelection.circuit == null) {
           _syncMarketRouteStyleProTimer();
           return;
         }
@@ -559,7 +565,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         final glowWidth = cfg.glowWidth * widthScale;
 
         final segmentsForMain =
-          cfg.rainbowEnabled || cfg.trafficDemoEnabled || cfg.vanishingEnabled;
+            cfg.rainbowEnabled ||
+            cfg.trafficDemoEnabled ||
+            cfg.vanishingEnabled;
         final needSegmentsSource = segmentsForMain || cfg.casingRainbowEnabled;
         final segmentsGeoJson = needSegmentsSource
             ? _buildRouteStyleProSegmentsGeoJson(
@@ -611,7 +619,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         );
       } else {
         final style = _marketRouteStyle;
-        final color = _parseHexColor(style['color']?.toString()) ??
+        final color =
+            _parseHexColor(style['color']?.toString()) ??
             const Color(0xFF0A84FF);
         final width = (style['width'] as num?)?.toDouble() ?? 6.0;
         final roadLike = (style['roadLike'] as bool?) ?? true;
@@ -683,7 +692,11 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           : baseOpacity;
 
       final color = _routeStyleProSegmentColor(cfg, segIndex, animTick);
-      final casingColor = _routeStyleProSegmentCasingColor(cfg, segIndex, animTick);
+      final casingColor = _routeStyleProSegmentCasingColor(
+        cfg,
+        segIndex,
+        animTick,
+      );
 
       features.add({
         'type': 'Feature',
@@ -1384,6 +1397,26 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                                 },
                               ),
                               HomeVerticalNavItem(
+                                label: l10n.AppLocalizations.of(
+                                  context,
+                                )!.parking,
+                                icon: Icons.local_parking_rounded,
+                                selected: _selectedAction == _MapAction.parking,
+                                onTap: () {
+                                  _selectAction(_MapAction.parking, 'Parking');
+                                  _closeNavWithDelay();
+                                },
+                              ),
+                              HomeVerticalNavItem(
+                                label: 'WC',
+                                icon: Icons.wc_rounded,
+                                selected: _selectedAction == _MapAction.wc,
+                                onTap: () {
+                                  _selectAction(_MapAction.wc, 'WC');
+                                  _closeNavWithDelay();
+                                },
+                              ),
+                              HomeVerticalNavItem(
                                 label: '',
                                 // Affichage direct du drapeau sans délai Obx réactif
                                 iconWidget: Center(
@@ -1401,9 +1434,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                                 tintOnSelected: false,
                                 highlightBackgroundOnSelected: false,
                                 showBorder: false,
-                                selected: _selectedAction == _MapAction.wc,
+                                selected: false,
                                 onTap: () {
-                                  _selectAction(_MapAction.wc, 'Langue');
                                   _cycleLanguage();
                                   _closeNavWithDelay();
                                 },
@@ -1499,14 +1531,12 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                           icon: Icons.menu_rounded,
                           tooltip: l10n.AppLocalizations.of(context)!.menu,
                           onTap: () {
-                            setState(
-                              () {
-                                _showActionsMenu = !_showActionsMenu;
-                                if (!_showActionsMenu) {
-                                  _showOnboardingTooltip = false;
-                                }
-                              },
-                            );
+                            setState(() {
+                              _showActionsMenu = !_showActionsMenu;
+                              if (!_showActionsMenu) {
+                                _showOnboardingTooltip = false;
+                              }
+                            });
                             if (_showActionsMenu) {
                               _menuAnimController.forward();
                             } else {
@@ -1562,8 +1592,10 @@ class _OnboardingTooltip extends StatelessWidget {
             children: [
               // Boîte de texte
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
@@ -1609,9 +1641,7 @@ class _OnboardingTooltip extends StatelessWidget {
                 child: SizedBox(
                   width: 40,
                   height: arrowBoxHeight,
-                  child: CustomPaint(
-                    painter: _ArrowPainter(),
-                  ),
+                  child: CustomPaint(painter: _ArrowPainter()),
                 ),
               ),
             ],
