@@ -637,7 +637,47 @@ class CircuitRepository {
           final lng = c['lng'];
           if (lat is num && lng is num) {
             publishedCenter = {'lat': lat.toDouble(), 'lng': lng.toDouble()};
+            // En mode cercle, le périmètre est bien défini côté wizard.
+            // On doit donc considérer le périmètre comme « verrouillé » à la publication.
+            publishedPerimeterLocked = true;
           }
+        }
+      }
+
+      // Même si le centre provient du mode cercle, on garde la contrainte
+      // « périmètre défini » et les bounds basées sur les points du périmètre.
+      final perim = currentData['perimeter'];
+      if (perim is List && perim.length >= 3) {
+        publishedPerimeterLocked = true;
+      }
+
+      if (perim is List && perim.isNotEmpty) {
+        double? minLat;
+        double? maxLat;
+        double? minLng;
+        double? maxLng;
+
+        for (final p in perim) {
+          if (p is! Map) continue;
+          final lat = p['lat'];
+          final lng = p['lng'];
+          if (lat is! num || lng is! num) continue;
+          final a = lat.toDouble();
+          final o = lng.toDouble();
+          minLat = (minLat == null) ? a : (a < minLat ? a : minLat);
+          maxLat = (maxLat == null) ? a : (a > maxLat ? a : maxLat);
+          minLng = (minLng == null) ? o : (o < minLng ? o : minLng);
+          maxLng = (maxLng == null) ? o : (o > maxLng ? o : maxLng);
+        }
+
+        if (minLat != null &&
+            maxLat != null &&
+            minLng != null &&
+            maxLng != null) {
+          publishedBounds ??= {
+            'sw': {'lat': minLat, 'lng': minLng},
+            'ne': {'lat': maxLat, 'lng': maxLng},
+          };
         }
       }
 
