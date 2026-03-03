@@ -40,6 +40,60 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
 
   late final MarketMapService _service = widget._service ?? MarketMapService();
 
+  late final Stream<Set<String>> _countryIdsWithAtLeastOneEvent$ =
+      FirebaseFirestore.instance.collectionGroup('events').snapshots().map((snap) {
+        final ids = <String>{};
+        for (final d in snap.docs) {
+          // Attendu: marketMap/{countryId}/events/{eventId}
+          final segments = d.reference.path.split('/');
+          final marketMapIdx = segments.indexOf('marketMap');
+          final canParseFromPath =
+              segments.length >= marketMapIdx + 4 &&
+              marketMapIdx != -1 &&
+              segments[marketMapIdx + 2] == 'events';
+          if (!canParseFromPath) continue;
+          final countryId = segments[marketMapIdx + 1].trim();
+          if (countryId.isEmpty) continue;
+          ids.add(countryId);
+        }
+        return ids;
+      });
+
+  late final Stream<VisibleCircuitsIndex> _eventsWithCircuitsIndex$ =
+      FirebaseFirestore.instance.collectionGroup('circuits').snapshots().map((snap) {
+        final countryIds = <String>{};
+        final eventIdsByCountry = <String, Set<String>>{};
+
+        for (final d in snap.docs) {
+          // Attendu: marketMap/{countryId}/events/{eventId}/circuits/{circuitId}
+          String countryId = '';
+          String eventId = '';
+
+          final segments = d.reference.path.split('/');
+          final marketMapIdx = segments.indexOf('marketMap');
+          if (marketMapIdx == -1) continue;
+
+          final canParseFromPath =
+              segments.length >= marketMapIdx + 6 &&
+              segments[marketMapIdx + 2] == 'events' &&
+              segments[marketMapIdx + 4] == 'circuits';
+
+          if (canParseFromPath) {
+            countryId = segments[marketMapIdx + 1].trim();
+            eventId = segments[marketMapIdx + 3].trim();
+          }
+
+          if (countryId.isEmpty || eventId.isEmpty) continue;
+          countryIds.add(countryId);
+          (eventIdsByCountry[countryId] ??= <String>{}).add(eventId);
+        }
+
+        return VisibleCircuitsIndex(
+          countryIds: countryIds,
+          eventIdsByCountry: eventIdsByCountry,
+        );
+      });
+
   MarketCountry? _country;
   MarketEvent? _event;
   MarketCircuit? _circuit;
@@ -50,21 +104,6 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
   String _circuitQuery = '';
 
   final TextEditingController _countryCtrl = TextEditingController();
-
-  bool get _canGoNext {
-    switch (_step) {
-      case 0:
-        return _country != null;
-      case 1:
-        return _event != null;
-      case 2:
-        return _circuit != null;
-      case 3:
-        return true;
-      default:
-        return false;
-    }
-  }
 
   @override
   void initState() {
@@ -208,6 +247,7 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
       setState(() {
         _circuit = circuit;
         _selectedCircuitPickKey = pick.key;
+        _step = 3;
       });
     } catch (_) {
       if (!mounted) return;
@@ -222,19 +262,6 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
     setState(() {
       _step = next;
     });
-  }
-
-  void _next() {
-    if (!_canGoNext) return;
-    if (_step < 3) {
-      setState(() => _step += 1);
-    }
-  }
-
-  void _prev() {
-    if (_step > 0) {
-      setState(() => _step -= 1);
-    }
   }
 
   Future<String?> _promptName({required String title, required String hint}) async {
@@ -463,26 +490,6 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
           Expanded(child: _buildStepContent()),
         ],
       ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-        child: Row(
-          children: [
-            if (_step > 0)
-              TextButton.icon(
-                onPressed: _prev,
-                icon: const Icon(Icons.chevron_left_rounded),
-                label: const Text('Retour'),
-              ),
-            const Spacer(),
-            if (_step < 3)
-              FilledButton.icon(
-                onPressed: _canGoNext ? _next : null,
-                icon: const Icon(Icons.chevron_right_rounded),
-                label: const Text('Suivant'),
-              ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -515,22 +522,33 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
           Row(
             children: [
               Expanded(
-                child: StreamBuilder<List<MarketCountry>>(
-                  stream: _service.watchCountries(),
-                  builder: (context, snapshot) {
-                    final items = snapshot.data ?? const <MarketCountry>[];
+                child: StreamBuilder<Set<String>>(
+                  stream: _countryIdsWithAtLeastOneEvent$,
+                  builder: (context, idsSnap) {
+                    return StreamBuilder<List<MarketCountry>>(
+                      stream: _service.watchCountries(),
+                      builder: (context, snapshot) {
+                        final allowed = idsSnap.data;
+                        var items = snapshot.data ?? const <MarketCountry>[];
+                        if (allowed != null && allowed.isNotEmpty) {
+                          items = items.where((c) => allowed.contains(c.id)).toList();
+                        }
 
-                    return MarketCountryAutocompleteField(
-                      items: items,
-                      controller: _countryCtrl,
-                      labelText: 'Pays',
-                      hintText: 'Rechercher un pays…',
-                      onSelected: (c) {
-                        setState(() {
-                          _country = c;
-                          _event = null;
-                          _circuit = null;
-                        });
+                        return MarketCountryAutocompleteField(
+                          items: items,
+                          controller: _countryCtrl,
+                          labelText: 'Pays',
+                          hintText: 'Rechercher un pays…',
+                          onSelected: (c) {
+                            setState(() {
+                              _country = c;
+                              _event = null;
+                              _circuit = null;
+                              _selectedCircuitPickKey = null;
+                              _step = 1;
+                            });
+                          },
+                        );
                       },
                     );
                   },
@@ -572,37 +590,47 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
           Row(
             children: [
               Expanded(
-                child: StreamBuilder<List<MarketEvent>>(
-                  stream: _service.watchEvents(countryId: country.id),
-                  builder: (context, snapshot) {
-                    final items = snapshot.data ?? const <MarketEvent>[];
+                child: StreamBuilder<VisibleCircuitsIndex>(
+                  stream: _eventsWithCircuitsIndex$,
+                  builder: (context, idxSnap) {
+                    final allowedEventIds = idxSnap.data?.eventIdsForCountry(country.id) ?? const <String>{};
 
-                    return DropdownButtonFormField<String>(
-                      key: ValueKey('event-${_event?.id ?? ''}'),
-                      initialValue: _event?.id,
-                      decoration: const InputDecoration(
-                        labelText: 'Événement',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: [
-                        for (final e in items)
-                          DropdownMenuItem(value: e.id, child: Text(e.name)),
-                      ],
-                      onChanged: (id) {
-                        final selected = items.firstWhere(
-                          (e) => e.id == id,
-                          orElse: () => MarketEvent(
-                            id: '',
-                            countryId: country.id,
-                            name: '',
-                            slug: '',
+                    return StreamBuilder<List<MarketEvent>>(
+                      stream: _service.watchEvents(countryId: country.id),
+                      builder: (context, snapshot) {
+                        var items = snapshot.data ?? const <MarketEvent>[];
+                        items = items.where((e) => allowedEventIds.contains(e.id)).toList();
+
+                        return DropdownButtonFormField<String>(
+                          key: ValueKey('event-${_event?.id ?? ''}'),
+                          initialValue: _event?.id,
+                          decoration: const InputDecoration(
+                            labelText: 'Événement',
+                            border: OutlineInputBorder(),
                           ),
+                          items: [
+                            for (final e in items)
+                              DropdownMenuItem(value: e.id, child: Text(e.name)),
+                          ],
+                          onChanged: (id) {
+                            final selected = items.firstWhere(
+                              (e) => e.id == id,
+                              orElse: () => MarketEvent(
+                                id: '',
+                                countryId: country.id,
+                                name: '',
+                                slug: '',
+                              ),
+                            );
+                            if (selected.id.isEmpty) return;
+                            setState(() {
+                              _event = selected;
+                              _circuit = null;
+                              _selectedCircuitPickKey = null;
+                              _step = 2;
+                            });
+                          },
                         );
-                        if (selected.id.isEmpty) return;
-                        setState(() {
-                          _event = selected;
-                          _circuit = null;
-                        });
                       },
                     );
                   },
