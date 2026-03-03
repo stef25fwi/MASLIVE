@@ -39,7 +39,7 @@ import 'home_vertical_nav.dart';
 
 // Menu vertical: modes/actions (pour refléter la sélection UI)
 // Note: seul le tracking et les projets sont pleinement câblés ici.
-enum _MapAction { visiter, food, assistance, parking, wc }
+enum _MapAction { visiter, food, assistance, parking, wc, parkingWc }
 
 /// Page de carte par défaut avec Mapbox en plein écran
 class DefaultMapPage extends StatefulWidget {
@@ -871,6 +871,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         return 'parking';
       case _MapAction.wc:
         return 'wc';
+      case _MapAction.parkingWc:
+        return null;
       case null:
         return null;
     }
@@ -878,7 +880,33 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   void _refreshMarketPoiMarkers() {
     if (!mounted) return;
-    final filterType = _actionToPoiType(_selectedAction);
+    final action = _selectedAction;
+    final filterType = _actionToPoiType(action);
+
+    // Action fusionnée: afficher parking + wc.
+    if (action == _MapAction.parkingWc) {
+      final markers = _marketPois
+          .where((p) => p.lat != 0.0 && p.lng != 0.0)
+          .where((p) => p.type == 'parking' || p.type == 'wc')
+          .map(
+            (p) => MapMarker(
+              id: 'marketpoi:${p.id}',
+              lng: p.lng,
+              lat: p.lat,
+              label: p.name,
+              color: _poiColorForType(p.type),
+              size: 1.0,
+            ),
+          )
+          .toList();
+
+      setState(() {
+        _marketPoiMarkers = markers;
+      });
+
+      unawaited(_syncMarkersToMap());
+      return;
+    }
 
     // Par défaut (aucune action sélectionnée), on n'affiche aucun POI.
     // Les POIs apparaissent uniquement après clic sur une icône de la barre verticale.
@@ -1397,22 +1425,29 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                                 },
                               ),
                               HomeVerticalNavItem(
-                                label: l10n.AppLocalizations.of(
-                                  context,
-                                )!.parking,
-                                icon: Icons.local_parking_rounded,
-                                selected: _selectedAction == _MapAction.parking,
+                                label: 'P/WC',
+                                iconWidget: IconTheme(
+                                  data: const IconThemeData(size: 18),
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: const [
+                                      Positioned(
+                                        left: 0,
+                                        child: Icon(
+                                          Icons.local_parking_rounded,
+                                        ),
+                                      ),
+                                      Positioned(
+                                        right: 0,
+                                        child: Icon(Icons.wc_rounded),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                selected:
+                                    _selectedAction == _MapAction.parkingWc,
                                 onTap: () {
-                                  _selectAction(_MapAction.parking, 'Parking');
-                                  _closeNavWithDelay();
-                                },
-                              ),
-                              HomeVerticalNavItem(
-                                label: 'WC',
-                                icon: Icons.wc_rounded,
-                                selected: _selectedAction == _MapAction.wc,
-                                onTap: () {
-                                  _selectAction(_MapAction.wc, 'WC');
+                                  _selectAction(_MapAction.parkingWc, 'P/WC');
                                   _closeNavWithDelay();
                                 },
                               ),
