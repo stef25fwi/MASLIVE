@@ -181,6 +181,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   static const double _parkingZoneDefaultStrokeWidth = 2.0;
   static const double _parkingZoneDefaultPatternOpacity = 0.55;
   String _parkingZoneFillColorHex = '#FBBF24';
+  String _parkingZoneStrokeColorHex = '#FBBF24';
+  bool _parkingZoneStrokeFollowsFill = true;
   double _parkingZoneFillOpacity = _parkingZoneDefaultFillOpacity;
   double _parkingZoneStrokeWidth = _parkingZoneDefaultStrokeWidth;
   String _parkingZoneStrokeDash = 'solid'; // solid|dashed|dotted
@@ -188,6 +190,25 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   double _parkingZonePatternOpacity = _parkingZoneDefaultPatternOpacity;
   final TextEditingController _parkingZoneColorController =
       TextEditingController(text: '#FBBF24');
+
+  void _applyParkingZonePresetWhiteBlue() {
+    // Preset demandé: contour blanc, intérieur bleu.
+    const fillHex = '#0A84FF';
+    const strokeHex = '#FFFFFF';
+    setState(() {
+      _parkingZoneFillColorHex = fillHex;
+      _parkingZoneStrokeColorHex = strokeHex;
+      _parkingZoneStrokeFollowsFill = false;
+      _parkingZoneFillOpacity = 0.30;
+      _parkingZoneStrokeWidth = _parkingZoneDefaultStrokeWidth;
+      _parkingZoneStrokeDash = 'solid';
+      _parkingZonePattern = 'none';
+      _parkingZonePatternOpacity = _parkingZoneDefaultPatternOpacity;
+      _parkingZoneColorController.text = fillHex;
+      _poiInlineError = null;
+    });
+    _refreshPoiMarkers();
+  }
 
   double? _poiInitialLng;
   double? _poiInitialLat;
@@ -3429,6 +3450,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       _poiInlineNameController.text = '';
 
       _parkingZoneFillColorHex = defaultHex;
+      _parkingZoneStrokeColorHex = defaultHex;
+      _parkingZoneStrokeFollowsFill = true;
       _parkingZoneFillOpacity = _parkingZoneDefaultFillOpacity;
       _parkingZoneStrokeWidth = _parkingZoneDefaultStrokeWidth;
       _parkingZoneStrokeDash = 'solid';
@@ -3465,6 +3488,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             _normalizeColorHex(_selectedLayer?.color) ??
             _defaultLayerColorHex(poi.layerType) ??
             _parkingZoneFillColorHex;
+          _parkingZoneStrokeColorHex =
+            style['strokeColor'] as String? ?? _parkingZoneFillColorHex;
+          _parkingZoneStrokeFollowsFill =
+            _parkingZoneStrokeColorHex.toUpperCase() ==
+            _parkingZoneFillColorHex.toUpperCase();
         _parkingZoneFillOpacity =
             (style['fillOpacity'] as num?)?.toDouble() ??
             _parkingZoneFillOpacity;
@@ -3985,6 +4013,26 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             'coordinates': <List<List<double>>>[ring],
           },
         });
+
+        // Label “P” au centre pour les zones parking.
+        if (poi.layerType == 'parking') {
+          final c = _centroidOf(perimeter);
+          features.add(<String, dynamic>{
+            'type': 'Feature',
+            'id': '${poi.id}__zone_label',
+            'properties': <String, dynamic>{
+              'poiId': poi.id,
+              'layerId': poi.layerType,
+              'title': poi.name,
+              'isZoneLabel': true,
+              'labelText': 'P',
+            },
+            'geometry': <String, dynamic>{
+              'type': 'Point',
+              'coordinates': <double>[c.lng, c.lat],
+            },
+          });
+        }
       } else {
         features.add(<String, dynamic>{
           'type': 'Feature',
@@ -4047,6 +4095,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           _defaultLayerColorHex('parking') ??
           '#FBBF24';
 
+          final previewStroke =
+            (_parkingZoneStrokeFollowsFill
+              ? previewFill
+              : (_normalizeColorHex(_parkingZoneStrokeColorHex) ?? previewFill));
+
       final previewPattern = _mapboxFillPatternIdFromStylePattern(
         _parkingZonePattern,
       );
@@ -4062,7 +4115,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           'isZone': true,
           'fillColor': previewFill,
           'fillOpacity': _parkingZoneFillOpacity.clamp(0.0, 1.0),
-          'strokeColor': previewFill,
+          'strokeColor': previewStroke,
           'strokeWidth': _parkingZoneStrokeWidth,
           'strokeDash': _parkingZoneStrokeDash,
           if (previewPattern != null) 'fillPattern': previewPattern,
@@ -4071,6 +4124,25 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         'geometry': <String, dynamic>{
           'type': 'Polygon',
           'coordinates': <List<List<double>>>[ring],
+        },
+      });
+
+      // Label “P” preview au centre.
+      final c = _centroidOf(previewParkingZonePoints);
+      features.add(<String, dynamic>{
+        'type': 'Feature',
+        'id': '__preview_parking_zone_label__',
+        'properties': <String, dynamic>{
+          'poiId': '__preview_parking_zone__',
+          'layerId': 'parking',
+          'title': 'Zone parking (aperçu)',
+          'isPreview': true,
+          'isZoneLabel': true,
+          'labelText': 'P',
+        },
+        'geometry': <String, dynamic>{
+          'type': 'Point',
+          'coordinates': <double>[c.lng, c.lat],
         },
       });
     }
@@ -4272,6 +4344,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         return;
       }
 
+      final strokeHex =
+          _parkingZoneStrokeFollowsFill
+              ? fillHex
+              : (_normalizeColorHex(_parkingZoneStrokeColorHex) ?? fillHex);
+
       final centroid = _centroidOf(_parkingZonePoints);
       final poi = MarketMapPOI(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -4288,7 +4365,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           _parkingZoneStyleKey: <String, dynamic>{
             'fillColor': fillHex,
             'fillOpacity': _parkingZoneFillOpacity.clamp(0.0, 1.0),
-            'strokeColor': fillHex,
+            'strokeColor': strokeHex,
             'strokeWidth': _parkingZoneStrokeWidth,
             'strokeDash': _parkingZoneStrokeDash,
             'pattern': _parkingZonePattern,
@@ -4333,12 +4410,17 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           );
           return;
         }
+
+        final strokeHex =
+            _parkingZoneStrokeFollowsFill
+                ? fillHex
+                : (_normalizeColorHex(_parkingZoneStrokeColorHex) ?? fillHex);
         nextMetadata = <String, dynamic>{
           ...(poi.metadata ?? const <String, dynamic>{}),
           _parkingZoneStyleKey: <String, dynamic>{
             'fillColor': fillHex,
             'fillOpacity': _parkingZoneFillOpacity.clamp(0.0, 1.0),
-            'strokeColor': fillHex,
+            'strokeColor': strokeHex,
             'strokeWidth': _parkingZoneStrokeWidth,
             'strokeDash': _parkingZoneStrokeDash,
             'pattern': _parkingZonePattern,
@@ -4477,11 +4559,19 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
               if (isCreateZone || isEditZone) ...[
                 const SizedBox(height: 12),
+                FilledButton.tonal(
+                  onPressed: _applyParkingZonePresetWhiteBlue,
+                  child: const Text('Preset parking (contour blanc / fond bleu)'),
+                ),
+                const SizedBox(height: 12),
                 TextField(
                   controller: _parkingZoneColorController,
                   onChanged: (v) {
                     setState(() {
                       _parkingZoneFillColorHex = v;
+                      if (_parkingZoneStrokeFollowsFill) {
+                        _parkingZoneStrokeColorHex = v;
+                      }
                       _poiInlineError = null;
                     });
                     _refreshPoiMarkers();

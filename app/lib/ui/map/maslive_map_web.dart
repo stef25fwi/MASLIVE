@@ -54,6 +54,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   static const String _poiSourceId = 'src_pois';
   static const String _poiLayerId = 'ly_pois_circle';
   static const String _poiPreviewVertexLayerId = 'ly_pois_preview_vertices';
+  static const String _poiZoneLabelLayerId = 'ly_pois_zone_label';
   static const String _poiFillLayerId = 'ly_pois_fill';
   static const String _poiPatternLayerId = 'ly_pois_pattern';
   static const String _poiLineLayerId = 'ly_pois_line_solid';
@@ -633,6 +634,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           await _removeLayerIfExists(map, _poiLineLayerId);
           await _removeLayerIfExists(map, _poiPatternLayerId);
           await _removeLayerIfExists(map, _poiFillLayerId);
+          await _removeLayerIfExists(map, _poiZoneLabelLayerId);
           await _removeLayerIfExists(map, _poiLayerId);
           await _removeSourceIfExists(map, _poiSourceId);
           return;
@@ -849,6 +851,19 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
                 ['geometry-type'],
                 'Point',
               ],
+              // Exclure les labels de zones parking (rendus par un layer symbol).
+              [
+                'any',
+                [
+                  '!',
+                  ['has', 'isZoneLabel'],
+                ],
+                [
+                  '==',
+                  ['get', 'isZoneLabel'],
+                  false,
+                ],
+              ],
               // Exclure les vertices de prévisualisation (zone parking)
               [
                 'any',
@@ -884,6 +899,18 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             '==',
             ['geometry-type'],
             'Point',
+          ],
+          [
+            'any',
+            [
+              '!',
+              ['has', 'isZoneLabel'],
+            ],
+            [
+              '==',
+              ['get', 'isZoneLabel'],
+              false,
+            ],
           ],
           [
             'any',
@@ -961,6 +988,72 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           masLiveColorToCssHex(_poiStyle.circleStrokeColor),
         ],
       ]);
+
+      // Labels de zones parking ("P") : symbol layer, taille dépendante du zoom.
+      final labelExisting = map.callMethod('getLayer', [_poiZoneLabelLayerId]);
+      if (labelExisting == null) {
+        map.callMethod('addLayer', [
+          js.JsObject.jsify({
+            'id': _poiZoneLabelLayerId,
+            'type': 'symbol',
+            'source': _poiSourceId,
+            'filter': [
+              'all',
+              [
+                '==',
+                ['geometry-type'],
+                'Point',
+              ],
+              [
+                '==',
+                ['get', 'isZoneLabel'],
+                true,
+              ],
+            ],
+            'layout': {
+              'text-field': [
+                'coalesce',
+                ['get', 'labelText'],
+                'P',
+              ],
+              'text-size': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                10,
+                12,
+                14,
+                16,
+                18,
+                22,
+              ],
+              'text-anchor': 'center',
+              'text-allow-overlap': true,
+              'text-ignore-placement': true,
+            },
+            'paint': {
+              'text-color': '#FFFFFF',
+            },
+          }),
+        ]);
+      }
+
+      map.callMethod('setFilter', [
+        _poiZoneLabelLayerId,
+        [
+          'all',
+          [
+            '==',
+            ['geometry-type'],
+            'Point',
+          ],
+          [
+            '==',
+            ['get', 'isZoneLabel'],
+            true,
+          ],
+        ],
+      ]);
     } catch (_) {
       // ignore
     }
@@ -974,12 +1067,14 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
     try {
       final layerPoint = map.callMethod('getLayer', [_poiLayerId]);
+      final layerLabel = map.callMethod('getLayer', [_poiZoneLabelLayerId]);
       final layerFill = map.callMethod('getLayer', [_poiFillLayerId]);
       final layerPattern = map.callMethod('getLayer', [_poiPatternLayerId]);
       final layerLine = map.callMethod('getLayer', [_poiLineLayerId]);
       final layerDashed = map.callMethod('getLayer', [_poiLineLayerDashedId]);
       final layerDotted = map.callMethod('getLayer', [_poiLineLayerDottedId]);
       if (layerPoint == null &&
+          layerLabel == null &&
           layerFill == null &&
           layerPattern == null &&
           layerLine == null &&
@@ -1004,6 +1099,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             _poiLineLayerDottedId,
             _poiLineLayerDashedId,
             _poiLineLayerId,
+            _poiZoneLabelLayerId,
             _poiLayerId,
           ],
         }),

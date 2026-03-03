@@ -49,6 +49,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   static const String _poiSourceId = 'src_pois';
   static const String _poiLayerId = 'ly_pois_circle';
   static const String _poiPreviewVertexLayerId = 'ly_pois_preview_vertices';
+  static const String _poiZoneLabelLayerId = 'ly_pois_zone_label';
   static const String _poiFillLayerId = 'ly_pois_fill';
   static const String _poiPatternLayerId = 'ly_pois_pattern';
   static const String _poiLineLayerId = 'ly_pois_line_solid';
@@ -780,6 +781,11 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       // ignore
     }
     try {
+      await map.style.removeStyleLayer(_poiZoneLabelLayerId);
+    } catch (_) {
+      // ignore
+    }
+    try {
       await map.style.removeStyleLayer('ly_pois_line');
     } catch (_) {
       // ignore (legacy)
@@ -1060,6 +1066,19 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
           ['geometry-type'],
           'Point',
         ],
+        // Exclure les labels de zones parking (rendus par un layer symbol).
+        [
+          'any',
+          [
+            '!',
+            ['has', 'isZoneLabel'],
+          ],
+          [
+            '==',
+            ['get', 'isZoneLabel'],
+            false,
+          ],
+        ],
         // Exclure les vertices de prévisualisation (zone parking)
         [
           'any',
@@ -1116,6 +1135,75 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
           ['get', 'strokeColor'],
           _poiStyle.circleStrokeColor.toARGB32(),
         ],
+      );
+    } catch (_) {
+      // ignore
+    }
+
+    // Labels de zones parking ("P"): SymbolLayer, taille dépendante du zoom.
+    try {
+      await map.style.addLayer(
+        SymbolLayer(
+          id: _poiZoneLabelLayerId,
+          sourceId: _poiSourceId,
+        ),
+      );
+      await map.style.setStyleLayerProperty(_poiZoneLabelLayerId, 'filter', [
+        'all',
+        [
+          '==',
+          ['geometry-type'],
+          'Point',
+        ],
+        [
+          '==',
+          ['get', 'isZoneLabel'],
+          true,
+        ],
+      ]);
+      await map.style.setStyleLayerProperty(
+        _poiZoneLabelLayerId,
+        'text-field',
+        [
+          'coalesce',
+          ['get', 'labelText'],
+          'P',
+        ],
+      );
+      await map.style.setStyleLayerProperty(
+        _poiZoneLabelLayerId,
+        'text-size',
+        [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          10,
+          12,
+          14,
+          16,
+          18,
+          22,
+        ],
+      );
+      await map.style.setStyleLayerProperty(
+        _poiZoneLabelLayerId,
+        'text-anchor',
+        'center',
+      );
+      await map.style.setStyleLayerProperty(
+        _poiZoneLabelLayerId,
+        'text-allow-overlap',
+        true,
+      );
+      await map.style.setStyleLayerProperty(
+        _poiZoneLabelLayerId,
+        'text-ignore-placement',
+        true,
+      );
+      await map.style.setStyleLayerProperty(
+        _poiZoneLabelLayerId,
+        'text-color',
+        Colors.white.toARGB32(),
       );
     } catch (_) {
       // ignore
@@ -1356,6 +1444,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
                   _poiLineLayerDottedId,
                   _poiLineLayerDashedId,
                   _poiLineLayerId,
+                  _poiZoneLabelLayerId,
                   _poiLayerId,
                 ],
                 filter: null,
