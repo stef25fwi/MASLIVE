@@ -12,7 +12,7 @@ import '../services/auth_claims_service.dart';
 import '../ui/snack/top_snack_bar.dart';
 import '../widgets/admin_route_guard.dart';
 import '../theme/maslive_theme.dart';
-import 'admin_tracking_page.dart';
+import 'tracking_live/tracking_live_page.dart';
 import 'admin_orders_page.dart';
 import 'admin_stock_page.dart';
 import 'admin_product_categories_page.dart';
@@ -29,6 +29,7 @@ import 'commerce_analytics_page.dart';
 import 'user_profile_preview_page.dart';
 import '../pages/superadmin_articles_page.dart';
 import '../commerce_module_single_file.dart';
+import 'admin_groups_page.dart';
 
 /// Dashboard admin principal 10/10 avec toutes les fonctionnalités
 class AdminMainDashboard extends StatefulWidget {
@@ -244,7 +245,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const AdminTrackingPage(),
+                        builder: (_) => const TrackingLivePage(),
                       ),
                     ),
                   ),
@@ -256,12 +257,12 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                     subtitle: 'Gérer les groupes',
                     icon: Icons.group,
                     color: Colors.purple,
-                    onTap: () {
-                      TopSnackBar.show(
-                        context,
-                        const SnackBar(content: Text('Page groupes à venir')),
-                      );
-                    },
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AdminGroupsPage(),
+                      ),
+                    ),
                   ),
                 ),
               ],

@@ -241,6 +241,47 @@ class GroupLinkService {
             .toList());
   }
 
+  // Liste de tous les admins de groupe
+  Stream<List<GroupAdmin>> streamAllAdmins() {
+    return _firestore
+        .collection('group_admins')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => GroupAdmin.fromFirestore(doc))
+            .toList());
+  }
+
+  // Rattache un tracker existant à un admin (mode admin)
+  Future<void> linkExistingTrackerToAdmin({
+    required String trackerUid,
+    required String adminGroupId,
+    required String linkedAdminUid,
+  }) async {
+    final trackerRef = _firestore.collection('group_trackers').doc(trackerUid);
+    final trackerDoc = await trackerRef.get();
+    if (!trackerDoc.exists) {
+      throw Exception('Tracker introuvable: $trackerUid');
+    }
+
+    await trackerRef.update({
+      'adminGroupId': adminGroupId,
+      'linkedAdminUid': linkedAdminUid,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Délie un tracker (mode admin)
+  Future<void> unlinkTrackerByUid({
+    required String trackerUid,
+  }) async {
+    await _firestore.collection('group_trackers').doc(trackerUid).update({
+      'adminGroupId': null,
+      'linkedAdminUid': null,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   // Met à jour la visibilité du groupe admin
   Future<void> updateAdminVisibility({
     required String adminUid,
