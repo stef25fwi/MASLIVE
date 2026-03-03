@@ -1425,27 +1425,72 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                                 },
                               ),
                               HomeVerticalNavItem(
-                                label: 'P/WC',
-                                iconWidget: IconTheme(
-                                  data: const IconThemeData(size: 18),
-                                  child: Stack(
-                                    alignment: Alignment.center,
-                                    children: const [
-                                      Positioned(
-                                        left: 0,
-                                        child: Icon(
-                                          Icons.local_parking_rounded,
+                                label: '',
+                                iconWidget: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: SizedBox(
+                                    width: 32,
+                                    height: 32,
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Container(
+                                            color: MasliveTheme
+                                                .headerGradient
+                                                .colors
+                                                .last,
+                                            alignment: Alignment.center,
+                                            child: const Text(
+                                              'P',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w900,
+                                                fontSize: 16,
+                                                height: 1,
+                                              ),
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                      Positioned(
-                                        right: 0,
-                                        child: Icon(Icons.wc_rounded),
-                                      ),
-                                    ],
+                                        Expanded(
+                                          child: Container(
+                                            color: MasliveTheme.textPrimary,
+                                            alignment: Alignment.center,
+                                            child: const SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child: Stack(
+                                                clipBehavior: Clip.none,
+                                                children: [
+                                                  Positioned(
+                                                    left: -1,
+                                                    top: 0,
+                                                    child: Icon(
+                                                      Icons.man,
+                                                      size: 14,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                  Positioned(
+                                                    right: -1,
+                                                    top: 0,
+                                                    child: Icon(
+                                                      Icons.woman,
+                                                      size: 14,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                                 selected:
                                     _selectedAction == _MapAction.parkingWc,
+                                tintOnSelected: false,
                                 onTap: () {
                                   _selectAction(_MapAction.parkingWc, 'P/WC');
                                   _closeNavWithDelay();
