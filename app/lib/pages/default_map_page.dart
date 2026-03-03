@@ -1426,71 +1426,68 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                               ),
                               HomeVerticalNavItem(
                                 label: '',
-                                iconWidget: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: SizedBox(
-                                    width: 32,
-                                    height: 32,
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Container(
-                                            color: MasliveTheme
-                                                .headerGradient
-                                                .colors
-                                                .last,
-                                            alignment: Alignment.center,
-                                            child: const Text(
-                                              'P',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w900,
-                                                fontSize: 16,
-                                                height: 1,
-                                              ),
+                                fullBleed: true,
+                                iconWidget: Row(
+                                  children: [
+                                    Expanded(
+                                      child: ColoredBox(
+                                        color: MasliveTheme
+                                            .headerGradient
+                                            .colors
+                                            .last,
+                                        child: const Center(
+                                          child: Text(
+                                            'P',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w900,
+                                              fontSize: 26,
+                                              height: 1,
                                             ),
                                           ),
                                         ),
-                                        Expanded(
-                                          child: Container(
-                                            color: MasliveTheme.textPrimary,
-                                            alignment: Alignment.center,
-                                            child: const SizedBox(
-                                              width: 18,
-                                              height: 18,
-                                              child: Stack(
-                                                clipBehavior: Clip.none,
-                                                children: [
-                                                  Positioned(
-                                                    left: -1,
-                                                    top: 0,
-                                                    child: Icon(
-                                                      Icons.man,
-                                                      size: 14,
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
-                                                  Positioned(
-                                                    right: -1,
-                                                    top: 0,
-                                                    child: Icon(
-                                                      Icons.woman,
-                                                      size: 14,
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                      ),
                                     ),
-                                  ),
+                                    Expanded(
+                                      child: ColoredBox(
+                                        color: MasliveTheme.textPrimary,
+                                        child: const Center(
+                                          child: SizedBox(
+                                            width: 34,
+                                            height: 20,
+                                            child: Stack(
+                                              clipBehavior: Clip.none,
+                                              children: [
+                                                Positioned(
+                                                  left: 0,
+                                                  top: 0,
+                                                  child: Icon(
+                                                    Icons.man,
+                                                    size: 20,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                                Positioned(
+                                                  right: 0,
+                                                  top: 0,
+                                                  child: Icon(
+                                                    Icons.woman,
+                                                    size: 20,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 selected:
                                     _selectedAction == _MapAction.parkingWc,
                                 tintOnSelected: false,
+                                highlightBackgroundOnSelected: false,
                                 onTap: () {
                                   _selectAction(_MapAction.parkingWc, 'P/WC');
                                   _closeNavWithDelay();
