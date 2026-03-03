@@ -48,6 +48,7 @@ class MasLiveMapNative extends StatefulWidget {
 class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   static const String _poiSourceId = 'src_pois';
   static const String _poiLayerId = 'ly_pois_circle';
+  static const String _poiPreviewVertexLayerId = 'ly_pois_preview_vertices';
   static const String _poiFillLayerId = 'ly_pois_fill';
   static const String _poiPatternLayerId = 'ly_pois_pattern';
   static const String _poiLineLayerId = 'ly_pois_line_solid';
@@ -356,7 +357,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       final baseWidth = width;
       final shadowEnabled = options.shadow3d;
       final roadLike = options.roadLike;
-          final thickness3d = (options.thickness3d ?? 1.0).clamp(0.6, 1.8);
+      final thickness3d = (options.thickness3d ?? 1.0).clamp(0.6, 1.8);
 
       // Helpers de couleur
       int to255(double v) => (v * 255.0).round().clamp(0, 255);
@@ -567,9 +568,21 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     if (!_styleLoaded) return;
 
     String cssHex(Color c) {
-      final r = (c.r * 255).round().clamp(0, 255).toRadixString(16).padLeft(2, '0');
-      final g = (c.g * 255).round().clamp(0, 255).toRadixString(16).padLeft(2, '0');
-      final b = (c.b * 255).round().clamp(0, 255).toRadixString(16).padLeft(2, '0');
+      final r = (c.r * 255)
+          .round()
+          .clamp(0, 255)
+          .toRadixString(16)
+          .padLeft(2, '0');
+      final g = (c.g * 255)
+          .round()
+          .clamp(0, 255)
+          .toRadixString(16)
+          .padLeft(2, '0');
+      final b = (c.b * 255)
+          .round()
+          .clamp(0, 255)
+          .toRadixString(16)
+          .padLeft(2, '0');
       return '#${(r + g + b).toUpperCase()}';
     }
 
@@ -578,16 +591,30 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
 
     final fillColorExpr = <dynamic>[
       'coalesce',
-      ['to-color', ['get', 'fillColor']],
+      [
+        'to-color',
+        ['get', 'fillColor'],
+      ],
       ['to-color', defaultFillHex],
     ];
-    final fillOpacityExpr = <dynamic>['coalesce', ['get', 'fillOpacity'], 0.20];
+    final fillOpacityExpr = <dynamic>[
+      'coalesce',
+      ['get', 'fillOpacity'],
+      0.20,
+    ];
     final lineColorExpr = <dynamic>[
       'coalesce',
-      ['to-color', ['get', 'strokeColor']],
+      [
+        'to-color',
+        ['get', 'strokeColor'],
+      ],
       ['to-color', defaultStrokeHex],
     ];
-    final lineWidthExpr = <dynamic>['coalesce', ['get', 'strokeWidth'], 2.0];
+    final lineWidthExpr = <dynamic>[
+      'coalesce',
+      ['get', 'strokeWidth'],
+      2.0,
+    ];
 
     try {
       await map.style.setStyleLayerProperty(
@@ -628,7 +655,11 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
 
     // Zones (Polygon)
     try {
-      await map.style.setStyleLayerProperty(_poiFillLayerId, 'fill-color', fillColorExpr);
+      await map.style.setStyleLayerProperty(
+        _poiFillLayerId,
+        'fill-color',
+        fillColorExpr,
+      );
       await map.style.setStyleLayerProperty(
         _poiFillLayerId,
         'fill-opacity',
@@ -640,12 +671,20 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
 
     Future<void> applyLineStyle(String layerId) async {
       try {
-        await map.style.setStyleLayerProperty(layerId, 'line-color', lineColorExpr);
+        await map.style.setStyleLayerProperty(
+          layerId,
+          'line-color',
+          lineColorExpr,
+        );
       } catch (_) {
         // ignore
       }
       try {
-        await map.style.setStyleLayerProperty(layerId, 'line-width', lineWidthExpr);
+        await map.style.setStyleLayerProperty(
+          layerId,
+          'line-width',
+          lineWidthExpr,
+        );
       } catch (_) {
         // ignore
       }
@@ -671,6 +710,11 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     // Remove + add source, puis layer si besoin.
     try {
       await map.style.removeStyleLayer(_poiLayerId);
+    } catch (_) {
+      // ignore
+    }
+    try {
+      await map.style.removeStyleLayer(_poiPreviewVertexLayerId);
     } catch (_) {
       // ignore
     }
@@ -765,7 +809,11 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       );
       await map.style.setStyleLayerProperty(_poiPatternLayerId, 'filter', [
         'all',
-        ['==', ['geometry-type'], 'Polygon'],
+        [
+          '==',
+          ['geometry-type'],
+          'Polygon',
+        ],
         ['has', 'fillPattern'],
       ]);
       await map.style.setStyleLayerProperty(
@@ -776,7 +824,11 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       await map.style.setStyleLayerProperty(
         _poiPatternLayerId,
         'fill-opacity',
-        ['coalesce', ['get', 'patternOpacity'], 0.55],
+        [
+          'coalesce',
+          ['get', 'patternOpacity'],
+          0.55,
+        ],
       );
     } catch (_) {
       // ignore
@@ -793,11 +845,22 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       );
       await map.style.setStyleLayerProperty(_poiLineLayerId, 'filter', [
         'all',
-        ['==', ['geometry-type'], 'Polygon'],
+        [
+          '==',
+          ['geometry-type'],
+          'Polygon',
+        ],
         [
           'any',
-          ['!', ['has', 'strokeDash']],
-          ['==', ['get', 'strokeDash'], 'solid'],
+          [
+            '!',
+            ['has', 'strokeDash'],
+          ],
+          [
+            '==',
+            ['get', 'strokeDash'],
+            'solid',
+          ],
         ],
       ]);
 
@@ -827,21 +890,41 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       );
       await map.style.setStyleLayerProperty(_poiLineLayerDashedId, 'filter', [
         'all',
-        ['==', ['geometry-type'], 'Polygon'],
-        ['==', ['get', 'strokeDash'], 'dashed'],
+        [
+          '==',
+          ['geometry-type'],
+          'Polygon',
+        ],
+        [
+          '==',
+          ['get', 'strokeDash'],
+          'dashed',
+        ],
       ]);
-      await map.style.setStyleLayerProperty(_poiLineLayerDashedId, 'line-dasharray', [4, 2]);
+      await map.style.setStyleLayerProperty(
+        _poiLineLayerDashedId,
+        'line-dasharray',
+        [4, 2],
+      );
 
-      await map.style.setStyleLayerProperty(_poiLineLayerDashedId, 'line-color', [
-        'coalesce',
-        ['get', 'strokeColor'],
-        _poiStyle.circleStrokeColor.toARGB32(),
-      ]);
-      await map.style.setStyleLayerProperty(_poiLineLayerDashedId, 'line-width', [
-        'coalesce',
-        ['get', 'strokeWidth'],
-        2.0,
-      ]);
+      await map.style.setStyleLayerProperty(
+        _poiLineLayerDashedId,
+        'line-color',
+        [
+          'coalesce',
+          ['get', 'strokeColor'],
+          _poiStyle.circleStrokeColor.toARGB32(),
+        ],
+      );
+      await map.style.setStyleLayerProperty(
+        _poiLineLayerDashedId,
+        'line-width',
+        [
+          'coalesce',
+          ['get', 'strokeWidth'],
+          2.0,
+        ],
+      );
     } catch (_) {
       // ignore
     }
@@ -858,21 +941,41 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       );
       await map.style.setStyleLayerProperty(_poiLineLayerDottedId, 'filter', [
         'all',
-        ['==', ['geometry-type'], 'Polygon'],
-        ['==', ['get', 'strokeDash'], 'dotted'],
+        [
+          '==',
+          ['geometry-type'],
+          'Polygon',
+        ],
+        [
+          '==',
+          ['get', 'strokeDash'],
+          'dotted',
+        ],
       ]);
-      await map.style.setStyleLayerProperty(_poiLineLayerDottedId, 'line-dasharray', [1, 2]);
+      await map.style.setStyleLayerProperty(
+        _poiLineLayerDottedId,
+        'line-dasharray',
+        [1, 2],
+      );
 
-      await map.style.setStyleLayerProperty(_poiLineLayerDottedId, 'line-color', [
-        'coalesce',
-        ['get', 'strokeColor'],
-        _poiStyle.circleStrokeColor.toARGB32(),
-      ]);
-      await map.style.setStyleLayerProperty(_poiLineLayerDottedId, 'line-width', [
-        'coalesce',
-        ['get', 'strokeWidth'],
-        2.0,
-      ]);
+      await map.style.setStyleLayerProperty(
+        _poiLineLayerDottedId,
+        'line-color',
+        [
+          'coalesce',
+          ['get', 'strokeColor'],
+          _poiStyle.circleStrokeColor.toARGB32(),
+        ],
+      );
+      await map.style.setStyleLayerProperty(
+        _poiLineLayerDottedId,
+        'line-width',
+        [
+          'coalesce',
+          ['get', 'strokeWidth'],
+          2.0,
+        ],
+      );
     } catch (_) {
       // ignore
     }
@@ -890,10 +993,69 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         ),
       );
       await map.style.setStyleLayerProperty(_poiLayerId, 'filter', [
-        '==',
-        ['geometry-type'],
-        'Point',
+        'all',
+        [
+          '==',
+          ['geometry-type'],
+          'Point',
+        ],
+        // Exclure les vertices de prévisualisation (zone parking)
+        [
+          'any',
+          [
+            '!',
+            ['has', 'isPreviewVertex'],
+          ],
+          [
+            '==',
+            ['get', 'isPreviewVertex'],
+            false,
+          ],
+        ],
       ]);
+    } catch (_) {
+      // ignore
+    }
+
+    // Layer séparé: vertices de prévisualisation (zone parking)
+    // Important: ne pas l'inclure dans le hit-test POI.
+    try {
+      await map.style.addLayer(
+        CircleLayer(
+          id: _poiPreviewVertexLayerId,
+          sourceId: _poiSourceId,
+          circleRadius: 5.0,
+          circleColor: 0x00000000,
+          circleStrokeColor: _poiStyle.circleStrokeColor.toARGB32(),
+          circleStrokeWidth: 2.0,
+        ),
+      );
+      await map.style.setStyleLayerProperty(
+        _poiPreviewVertexLayerId,
+        'filter',
+        [
+          'all',
+          [
+            '==',
+            ['geometry-type'],
+            'Point',
+          ],
+          [
+            '==',
+            ['get', 'isPreviewVertex'],
+            true,
+          ],
+        ],
+      );
+      await map.style.setStyleLayerProperty(
+        _poiPreviewVertexLayerId,
+        'circle-stroke-color',
+        [
+          'coalesce',
+          ['get', 'strokeColor'],
+          _poiStyle.circleStrokeColor.toARGB32(),
+        ],
+      );
     } catch (_) {
       // ignore
     }
@@ -1653,8 +1815,8 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     ];
     final sideOpacityFactor = (0.55 * sidesIntensity).clamp(0.0, 1.0);
     final sideOpacityExpr = sidesEnabled
-      ? <dynamic>['*', lineOpacityExpr, sideOpacityFactor]
-      : 0.0;
+        ? <dynamic>['*', lineOpacityExpr, sideOpacityFactor]
+        : 0.0;
 
     for (final sideLayerId in <String>[_layerRouteSideL, _layerRouteSideR]) {
       try {
@@ -1673,11 +1835,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
           'line-opacity',
           sideOpacityExpr,
         );
-        await map.style.setStyleLayerProperty(
-          sideLayerId,
-          'line-blur',
-          0.0,
-        );
+        await map.style.setStyleLayerProperty(sideLayerId, 'line-blur', 0.0);
       } catch (_) {
         // Fallback: valeurs constantes (SDK sans expressions)
         try {
@@ -1702,11 +1860,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
           );
         } catch (_) {}
         try {
-          await map.style.setStyleLayerProperty(
-            sideLayerId,
-            'line-blur',
-            0.0,
-          );
+          await map.style.setStyleLayerProperty(sideLayerId, 'line-blur', 0.0);
         } catch (_) {}
       }
     }
@@ -1778,7 +1932,11 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         _layerRoutePlain,
     ]) {
       try {
-        await map.style.setStyleLayerProperty(layerId, 'line-translate', translate);
+        await map.style.setStyleLayerProperty(
+          layerId,
+          'line-translate',
+          translate,
+        );
       } catch (_) {}
       try {
         await map.style.setStyleLayerProperty(
@@ -1886,7 +2044,9 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       final baseRelief = (thickness3d - 1.0).clamp(0.0, 1.0);
       // Si l'utilisateur active explicitement les côtés, on force un léger relief
       // pour les rendre visibles même si thickness3d est proche de 1.
-      final relief = sidesEnabled ? (baseRelief < 0.12 ? 0.12 : baseRelief) : baseRelief;
+      final relief = sidesEnabled
+          ? (baseRelief < 0.12 ? 0.12 : baseRelief)
+          : baseRelief;
       final sideDx = relief * 3.0;
       final sideDy = relief * 10.0;
       final sideTranslateL = <double>[-sideDx, -elevationPx + sideDy];
@@ -1912,7 +2072,11 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         } catch (_) {}
         if (!sidesEnabled || relief <= 0.01) {
           try {
-            await map.style.setStyleLayerProperty(entry.id, 'line-opacity', 0.0);
+            await map.style.setStyleLayerProperty(
+              entry.id,
+              'line-opacity',
+              0.0,
+            );
           } catch (_) {}
         }
       }

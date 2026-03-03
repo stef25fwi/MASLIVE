@@ -53,6 +53,7 @@ class MasLiveMapWeb extends StatefulWidget {
 class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   static const String _poiSourceId = 'src_pois';
   static const String _poiLayerId = 'ly_pois_circle';
+  static const String _poiPreviewVertexLayerId = 'ly_pois_preview_vertices';
   static const String _poiFillLayerId = 'ly_pois_fill';
   static const String _poiPatternLayerId = 'ly_pois_pattern';
   static const String _poiLineLayerId = 'ly_pois_line_solid';
@@ -842,9 +843,25 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             'type': 'circle',
             'source': _poiSourceId,
             'filter': [
-              '==',
-              ['geometry-type'],
-              'Point',
+              'all',
+              [
+                '==',
+                ['geometry-type'],
+                'Point',
+              ],
+              // Exclure les vertices de prévisualisation (zone parking)
+              [
+                'any',
+                [
+                  '!',
+                  ['has', 'isPreviewVertex'],
+                ],
+                [
+                  '==',
+                  ['get', 'isPreviewVertex'],
+                  false,
+                ],
+              ],
             ],
             'paint': {
               'circle-radius': _poiStyle.circleRadius,
@@ -857,6 +874,93 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           }),
         ]);
       }
+
+      // Toujours (ré)appliquer le filtre/paint, même si layer déjà existant.
+      map.callMethod('setFilter', [
+        _poiLayerId,
+        [
+          'all',
+          [
+            '==',
+            ['geometry-type'],
+            'Point',
+          ],
+          [
+            'any',
+            [
+              '!',
+              ['has', 'isPreviewVertex'],
+            ],
+            [
+              '==',
+              ['get', 'isPreviewVertex'],
+              false,
+            ],
+          ],
+        ],
+      ]);
+
+      // Points de prévisualisation (vertices) pour zone parking.
+      // Layer séparé pour rester visible sans intercepter le hit-test POI.
+      final preview = map.callMethod('getLayer', [_poiPreviewVertexLayerId]);
+      if (preview == null) {
+        map.callMethod('addLayer', [
+          js.JsObject.jsify({
+            'id': _poiPreviewVertexLayerId,
+            'type': 'circle',
+            'source': _poiSourceId,
+            'filter': [
+              'all',
+              [
+                '==',
+                ['geometry-type'],
+                'Point',
+              ],
+              [
+                '==',
+                ['get', 'isPreviewVertex'],
+                true,
+              ],
+            ],
+            'paint': {
+              'circle-radius': 5.0,
+              'circle-color': 'rgba(0,0,0,0)',
+              'circle-stroke-width': 2.0,
+              'circle-stroke-color': [
+                'coalesce',
+                ['get', 'strokeColor'],
+                masLiveColorToCssHex(_poiStyle.circleStrokeColor),
+              ],
+            },
+          }),
+        ]);
+      }
+
+      map.callMethod('setFilter', [
+        _poiPreviewVertexLayerId,
+        [
+          'all',
+          [
+            '==',
+            ['geometry-type'],
+            'Point',
+          ],
+          [
+            '==',
+            ['get', 'isPreviewVertex'],
+            true,
+          ],
+        ],
+      ]);
+      map.callMethod('setPaintProperty', [
+        _poiPreviewVertexLayerId,
+        'circle-stroke-color',
+        [
+          'coalesce',
+          ['get', 'strokeColor'],
+          masLiveColorToCssHex(_poiStyle.circleStrokeColor),
+        ],
+      ]);
     } catch (_) {
       // ignore
     }

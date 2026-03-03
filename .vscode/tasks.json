@@ -1671,6 +1671,21 @@
         "panel": "dedicated",
         "clear": true
       }
+    },
+    {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (toolinfo i18n + parking vertices)",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat(home+wizard): localize onboarding toolinfo + parking zone preview vertices\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "group": {
+        "kind": "build"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
     }
   ]
 }

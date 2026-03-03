@@ -3265,17 +3265,17 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         .where((p) => _poiMatchesSelectedLayer(p, layer))
         .toList();
 
-    final previewZone =
-        (_isDrawingParkingZone &&
-            layer.type == 'parking' &&
-            _parkingZonePoints.length >= 3)
-        ? _parkingZonePoints
-        : null;
+    final previewParkingZonePoints =
+      (_isDrawingParkingZone &&
+        layer.type == 'parking' &&
+        _parkingZonePoints.isNotEmpty)
+      ? _parkingZonePoints
+      : null;
 
     await _poiMapController.setPoisGeoJson(
       _buildPoisFeatureCollection(
         poisForLayer,
-        previewParkingZone: previewZone,
+        previewParkingZonePoints: previewParkingZonePoints,
       ),
     );
   }
@@ -3682,7 +3682,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   Map<String, dynamic> _buildPoisFeatureCollection(
     List<MarketMapPOI> pois, {
-    List<LngLat>? previewParkingZone,
+    List<LngLat>? previewParkingZonePoints,
   }) {
     final features = <Map<String, dynamic>>[];
 
@@ -3736,10 +3736,43 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       }
     }
 
-    if (previewParkingZone != null && previewParkingZone.length >= 3) {
+    if (previewParkingZonePoints != null &&
+        previewParkingZonePoints.isNotEmpty) {
+      final previewFill =
+          _normalizeColorHex(_parkingZoneFillColorHex) ??
+          _normalizeColorHex(_selectedLayer?.color) ??
+          _defaultLayerColorHex('parking') ??
+          '#FBBF24';
+
+      // Points de prévisualisation: un point visible à chaque tap.
+      for (var i = 0; i < previewParkingZonePoints.length; i++) {
+        final p = previewParkingZonePoints[i];
+        features.add(<String, dynamic>{
+          'type': 'Feature',
+          'id': '__preview_parking_vertex__$i',
+          'properties': <String, dynamic>{
+            'layerId': 'parking',
+            'title': 'Point zone parking',
+            'isPreview': true,
+            'isPreviewVertex': true,
+            'strokeColor': previewFill,
+          },
+          'geometry': <String, dynamic>{
+            'type': 'Point',
+            'coordinates': <double>[p.lng, p.lat],
+          },
+        });
+      }
+    }
+
+    if (previewParkingZonePoints != null &&
+        previewParkingZonePoints.length >= 3) {
       final ring = <List<double>>[
-        for (final p in previewParkingZone) <double>[p.lng, p.lat],
-        <double>[previewParkingZone.first.lng, previewParkingZone.first.lat],
+        for (final p in previewParkingZonePoints) <double>[p.lng, p.lat],
+        <double>[
+          previewParkingZonePoints.first.lng,
+          previewParkingZonePoints.first.lat,
+        ],
       ];
 
       final previewFill =

@@ -1421,6 +1421,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                 // Onboarding tooltip (sélectionner votre carte)
                 if (_showOnboardingTooltip && _showActionsMenu)
                   _OnboardingTooltip(
+                    message: l10n.AppLocalizations.of(context)!.selectMap,
                     anchorCenterY: carteIconCenterY,
                     right: tooltipRight,
                     onDismiss: () {
@@ -1530,11 +1531,13 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 }
 
 class _OnboardingTooltip extends StatelessWidget {
+  final String message;
   final VoidCallback onDismiss;
   final double anchorCenterY;
   final double right;
 
   const _OnboardingTooltip({
+    required this.message,
     required this.onDismiss,
     required this.anchorCenterY,
     required this.right,
@@ -1578,9 +1581,9 @@ class _OnboardingTooltip extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Flexible(
+                    Flexible(
                       child: Text(
-                        'Sélectionnez\nvotre carte',
+                        message,
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
