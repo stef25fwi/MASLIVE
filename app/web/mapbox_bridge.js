@@ -137,6 +137,13 @@
 
     mapboxgl.accessToken = accessToken;
 
+    // Attribution (Mapbox GL JS)
+    // Par défaut Mapbox utilise un mode compact sur certains viewports (bouton "i").
+    // On permet de forcer le mode non-compact pour supprimer ce bouton.
+    const compactAttribution = (options && typeof options.compactAttribution === 'boolean')
+      ? options.compactAttribution
+      : true;
+
     const defaultOptions = {
       container: containerEl,
       style: style,
@@ -146,6 +153,11 @@
       bearing: options.bearing || 0,
       antialias: true,
     };
+
+    if (compactAttribution === false) {
+      // Supprime le contrôle d'attribution par défaut.
+      defaultOptions.attributionControl = false;
+    }
 
     try {
       const map = new mapboxgl.Map(defaultOptions);
@@ -167,6 +179,15 @@
         map.addControl(new mapboxgl.NavigationControl({
           visualizePitch: true
         }), 'top-right');
+
+        // Attribution non-compact (sans bouton "i") si demandé.
+        try {
+          if (compactAttribution === false) {
+            map.addControl(new mapboxgl.AttributionControl({ compact: false }), 'bottom-right');
+          }
+        } catch (_) {
+          // ignore
+        }
 
         // Ajouter le contrôle de géolocalisation
         const geolocate = new mapboxgl.GeolocateControl({

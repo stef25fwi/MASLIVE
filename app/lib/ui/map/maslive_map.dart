@@ -107,6 +107,11 @@ class MasLiveMap extends StatelessWidget {
   final bool showUserLocation;
   final double? userLng;
   final double? userLat;
+  /// Web (Mapbox GL JS): contrôle le mode compact de l'attribution.
+  ///
+  /// - `true` (défaut): comportement Mapbox standard (bouton compact "i" selon viewport).
+  /// - `false`: supprime le bouton compact et force l'affichage non-compact.
+  final bool compactAttribution;
   final ValueChanged<MapPoint>? onTap;
   final void Function(MasLiveMapController controller)? onMapReady;
 
@@ -122,6 +127,7 @@ class MasLiveMap extends StatelessWidget {
     this.showUserLocation = false,
     this.userLng,
     this.userLat,
+    this.compactAttribution = true,
     this.onTap,
     this.onMapReady,
   });
@@ -141,6 +147,7 @@ class MasLiveMap extends StatelessWidget {
         showUserLocation: showUserLocation,
         userLng: userLng,
         userLat: userLat,
+        compactAttribution: compactAttribution,
         onTap: onTap,
         onMapReady: onMapReady,
       );

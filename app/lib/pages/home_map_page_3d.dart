@@ -2335,6 +2335,22 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
               ),
             ),
 
+            // Libellé Mapbox en haut à gauche
+            Positioned(
+              left: 14,
+              top: 10,
+              child: SafeArea(
+                child: Text(
+                  'mapbox',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: MasliveTheme.textPrimary,
+                  ),
+                ),
+              ),
+            ),
+
             // Boussole (demi-flèche rouge)
             const Positioned(top: 104, right: 14, child: _HalfRedCompass()),
 

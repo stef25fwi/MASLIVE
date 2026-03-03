@@ -740,6 +740,7 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                         initialPitch: 45.0,
                         initialBearing: 0.0,
                         styleUrl: 'mapbox://styles/mapbox/streets-v12',
+                        compactAttribution: false,
                         showUserLocation: false,
                         onMapReady: (_) {
                           _onMapReady();
@@ -777,6 +778,22 @@ class _HomeMapPageWebState extends State<HomeMapPageWeb>
                         ),
                       ),
                     ),
+            ),
+
+            // Libellé Mapbox en haut à gauche
+            Positioned(
+              left: 14,
+              top: 10,
+              child: SafeArea(
+                child: Text(
+                  'mapbox',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: MasliveTheme.textPrimary,
+                  ),
+                ),
+              ),
             ),
 
             // Boussole (demi-flèche rouge)

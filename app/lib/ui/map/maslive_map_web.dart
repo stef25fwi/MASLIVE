@@ -27,6 +27,7 @@ class MasLiveMapWeb extends StatefulWidget {
   final bool showUserLocation;
   final double? userLng;
   final double? userLat;
+  final bool compactAttribution;
   final ValueChanged<MapPoint>? onTap;
   final void Function(MasLiveMapController)? onMapReady;
 
@@ -42,6 +43,7 @@ class MasLiveMapWeb extends StatefulWidget {
     this.showUserLocation = false,
     this.userLng,
     this.userLat,
+    this.compactAttribution = true,
     this.onTap,
     this.onMapReady,
   });
@@ -1642,6 +1644,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           initialPitch: widget.initialPitch,
           initialBearing: widget.initialBearing,
           styleUrl: _normalizeMapboxStyleUrl(widget.styleUrl ?? ''),
+          compactAttribution: widget.compactAttribution,
           onMapReady: _onMapReady,
           onTap: (lng, lat) {
             _handleTapFromJs(lng, lat);
@@ -1680,6 +1683,7 @@ class _MapboxWebViewCustom extends StatefulWidget {
   final double initialPitch;
   final double initialBearing;
   final String? styleUrl;
+  final bool compactAttribution;
   final VoidCallback? onMapReady;
   final void Function(double lng, double lat)? onTap;
   final void Function(String message)? onInitError;
@@ -1694,6 +1698,7 @@ class _MapboxWebViewCustom extends StatefulWidget {
     this.initialPitch = 0.0,
     this.initialBearing = 0.0,
     this.styleUrl,
+    this.compactAttribution = true,
     this.onMapReady,
     this.onTap,
     this.onInitError,
@@ -1963,6 +1968,7 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
       'zoom': widget.initialZoom,
       'pitch': widget.initialPitch,
       'bearing': widget.initialBearing,
+      'compactAttribution': widget.compactAttribution,
     });
 
     bool ok = false;

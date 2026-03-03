@@ -19,6 +19,7 @@ class MasLiveMapWeb extends StatelessWidget {
     this.showUserLocation = false,
     this.userLng,
     this.userLat,
+    this.compactAttribution = true,
     this.onTap,
     this.onMapReady,
   });
@@ -33,6 +34,7 @@ class MasLiveMapWeb extends StatelessWidget {
   final bool showUserLocation;
   final double? userLng;
   final double? userLat;
+  final bool compactAttribution;
   final ValueChanged<MapPoint>? onTap;
   final void Function(MasLiveMapController)? onMapReady;
 
