@@ -1431,10 +1431,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                                   children: [
                                     Expanded(
                                       child: ColoredBox(
-                                        color: MasliveTheme
-                                            .headerGradient
-                                            .colors
-                                            .last,
+                                        color: const Color(0xFF005BBB),
                                         child: const Center(
                                           child: Text(
                                             'P',
@@ -1450,7 +1447,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                                     ),
                                     Expanded(
                                       child: ColoredBox(
-                                        color: MasliveTheme.textPrimary,
+                                        color: Colors.black,
                                         child: const Center(
                                           child: SizedBox(
                                             width: 34,
