@@ -1345,6 +1345,22 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       }
     };
 
+    controller.setZoomRangeImpl = (minZoom, maxZoom) async {
+      try {
+        _mbSetZoomRange(_containerId, minZoom, maxZoom);
+      } catch (e) {
+        debugPrint('⚠️ setZoomRange error: $e');
+      }
+    };
+
+    controller.setPitchImpl = (pitch, animate) async {
+      try {
+        _mbSetPitch(_containerId, pitch, animate);
+      } catch (e) {
+        debugPrint('⚠️ setPitch error: $e');
+      }
+    };
+
     controller.getCameraCenterImpl = () async {
       try {
         final raw = _mbGetCenter(_containerId);
@@ -1360,6 +1376,30 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         debugPrint('⚠️ getCenter error: $e');
       }
       return null;
+    };
+
+    controller.getCameraStateImpl = () async {
+      try {
+        final raw = _mbGetCenter(_containerId);
+        if (raw == null || raw.isEmpty) return null;
+        final decoded = jsonDecode(raw);
+        if (decoded is! Map) return null;
+        final lng = decoded['lng'];
+        final lat = decoded['lat'];
+        final zoom = decoded['zoom'];
+        final pitch = decoded['pitch'];
+        final bearing = decoded['bearing'];
+        if (lng is! num || lat is! num) return null;
+        return MapCameraState(
+          center: MapPoint(lng.toDouble(), lat.toDouble()),
+          zoom: zoom is num ? zoom.toDouble() : double.nan,
+          pitch: pitch is num ? pitch.toDouble() : double.nan,
+          bearing: bearing is num ? bearing.toDouble() : double.nan,
+        );
+      } catch (e) {
+        debugPrint('⚠️ getCameraState error: $e');
+        return null;
+      }
     };
 
     // POIs GeoJSON (Mapbox Pro)
@@ -1981,6 +2021,16 @@ external void _mbFitBounds(
 
 @JS('MasliveMapboxV2.setMaxBounds')
 external void _mbSetMaxBounds(String containerId, String? boundsJson);
+
+@JS('MasliveMapboxV2.setZoomRange')
+external void _mbSetZoomRange(
+  String containerId,
+  double? minZoom,
+  double? maxZoom,
+);
+
+@JS('MasliveMapboxV2.setPitch')
+external void _mbSetPitch(String containerId, double pitch, bool animate);
 
 @JS('MasliveMapboxV2.getCenter')
 external String? _mbGetCenter(String containerId);

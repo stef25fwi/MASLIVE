@@ -1301,6 +1301,36 @@
       }
     },
 
+    setZoomRange: function(containerId, minZoom, maxZoom) {
+      const map = _getMap(containerId);
+      if (!map) return;
+      try {
+        if (minZoom !== null && minZoom !== undefined) {
+          map.setMinZoom(Number(minZoom));
+        }
+        if (maxZoom !== null && maxZoom !== undefined) {
+          map.setMaxZoom(Number(maxZoom));
+        }
+      } catch (e) {
+        console.error('❌ MasliveMapboxV2.setZoomRange error:', e);
+      }
+    },
+
+    setPitch: function(containerId, pitch, animate) {
+      const map = _getMap(containerId);
+      if (!map) return;
+      try {
+        const p = Number(pitch || 0);
+        if (animate) {
+          map.easeTo({ pitch: p, duration: 700 });
+        } else {
+          map.setPitch(p);
+        }
+      } catch (e) {
+        console.error('❌ MasliveMapboxV2.setPitch error:', e);
+      }
+    },
+
     resize: function(containerId) {
       const map = _getMap(containerId);
       if (!map) return;
@@ -1401,7 +1431,13 @@
       if (!map) return null;
       try {
         const c = map.getCenter();
-        return JSON.stringify({ lng: c.lng, lat: c.lat, zoom: map.getZoom() });
+        return JSON.stringify({
+          lng: c.lng,
+          lat: c.lat,
+          zoom: map.getZoom(),
+          pitch: map.getPitch(),
+          bearing: map.getBearing(),
+        });
       } catch (e) {
         console.error('❌ MasliveMapboxV2.getCenter error:', e);
         return null;

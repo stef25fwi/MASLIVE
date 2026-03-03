@@ -46,6 +46,15 @@ class MasLiveMapController {
   /// Callback interne pour getCameraCenter
   Future<MapPoint?> Function()? _getCameraCenterImpl;
 
+  /// Callback interne pour getCameraState (centre + zoom/pitch/bearing)
+  Future<MapCameraState?> Function()? _getCameraStateImpl;
+
+  /// Callback interne pour régler min/max zoom
+  Future<void> Function(double? minZoom, double? maxZoom)? _setZoomRangeImpl;
+
+  /// Callback interne pour régler le pitch (inclinaison) de la caméra
+  Future<void> Function(double pitch, bool animate)? _setPitchImpl;
+
   /// Callback interne pour régler les bâtiments 3D (web: fill-extrusion opacity/visibility)
   Future<void> Function(bool enabled, double opacity)? _setBuildings3dImpl;
 
@@ -123,6 +132,21 @@ class MasLiveMapController {
   }
 
   /// @nodoc - Usage interne seulement
+  set getCameraStateImpl(Future<MapCameraState?> Function()? impl) {
+    _getCameraStateImpl = impl;
+  }
+
+  /// @nodoc - Usage interne seulement
+  set setZoomRangeImpl(Future<void> Function(double? minZoom, double? maxZoom)? impl) {
+    _setZoomRangeImpl = impl;
+  }
+
+  /// @nodoc - Usage interne seulement
+  set setPitchImpl(Future<void> Function(double pitch, bool animate)? impl) {
+    _setPitchImpl = impl;
+  }
+
+  /// @nodoc - Usage interne seulement
   set setBuildings3dImpl(Future<void> Function(bool enabled, double opacity)? impl) {
     _setBuildings3dImpl = impl;
   }
@@ -139,6 +163,16 @@ class MasLiveMapController {
     bool animate = true,
   }) async {
     await _moveToImpl?.call(lng, lat, zoom, animate);
+  }
+
+  /// Fixer la plage de zoom autorisée (min/max).
+  Future<void> setZoomRange({double? minZoom, double? maxZoom}) async {
+    await _setZoomRangeImpl?.call(minZoom, maxZoom);
+  }
+
+  /// Régler l'inclinaison de la caméra (pitch en degrés).
+  Future<void> setPitch({required double pitch, bool animate = true}) async {
+    await _setPitchImpl?.call(pitch, animate);
   }
 
   /// Changer le style de carte
@@ -300,6 +334,22 @@ class MasLiveMapController {
     return _getCameraCenterImpl?.call();
   }
 
+  /// Retourne l'état courant complet de la caméra (si supporté).
+  Future<MapCameraState?> getCameraState() async {
+    final state = await _getCameraStateImpl?.call();
+    if (state != null) return state;
+
+    // Fallback compat: on n'a que le centre.
+    final center = await _getCameraCenterImpl?.call();
+    if (center == null) return null;
+    return MapCameraState(
+      center: center,
+      zoom: double.nan,
+      pitch: double.nan,
+      bearing: double.nan,
+    );
+  }
+
   /// Dispose (à appeler dans le dispose du State)
   void dispose() {
     _moveToImpl = null;
@@ -313,7 +363,29 @@ class MasLiveMapController {
     _fitBoundsImpl = null;
     _setMaxBoundsImpl = null;
     _getCameraCenterImpl = null;
+    _getCameraStateImpl = null;
+    _setZoomRangeImpl = null;
+    _setPitchImpl = null;
   }
+}
+
+/// État caméra (Mapbox Web + Native)
+class MapCameraState {
+  final MapPoint center;
+  final double zoom;
+  final double pitch;
+  final double bearing;
+
+  const MapCameraState({
+    required this.center,
+    required this.zoom,
+    required this.pitch,
+    required this.bearing,
+  });
+
+  @override
+  String toString() =>
+      'MapCameraState(center: $center, zoom: $zoom, pitch: $pitch, bearing: $bearing)';
 }
 
 /// Options de rendu avancées pour une polyligne (itinéraire routier)

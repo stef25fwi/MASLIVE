@@ -121,6 +121,23 @@ class CircuitMapEditor extends StatefulWidget {
   /// Typiquement: afficher le périmètre défini à l'étape précédente.
   final List<LngLat> perimeterOverlay;
 
+  /// Si true, et si un périmètre est défini, la caméra est verrouillée dans
+  /// les bounds du périmètre (anti-pan hors zone).
+  final bool lockMapToPerimeter;
+
+  /// Zoom initial (à l'ouverture de la carte).
+  /// Si null, l'éditeur utilise sa valeur par défaut.
+  final double? cameraInitialZoom;
+
+  /// Zoom maximal autorisé (anti-zoom excessif).
+  final double? cameraMaxZoom;
+
+  /// Pitch (degrés) appliqué quand le zoom dépasse [cameraPitchZoomThreshold].
+  final double? cameraPitchDegrees;
+
+  /// Seuil de zoom à partir duquel on applique [cameraPitchDegrees].
+  final double? cameraPitchZoomThreshold;
+
   /// Activer l'édition par clic sur carte (ajout de points).
   /// Utile pour des modes alternatifs (ex: périmètre cercle) où le tap sert
   /// à poser un repère plutôt qu'à ajouter des sommets.
@@ -168,6 +185,12 @@ class CircuitMapEditor extends StatefulWidget {
     this.pointsListMaxHeight = 180,
     this.perimeterOverlay = const [],
 
+    this.lockMapToPerimeter = false,
+    this.cameraInitialZoom,
+    this.cameraMaxZoom,
+    this.cameraPitchDegrees,
+    this.cameraPitchZoomThreshold,
+
     this.editingEnabled = true,
     this.onPointAddedOverride,
     this.centerMarker,
@@ -207,6 +230,105 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   final MasLiveMapController _mapController = MasLiveMapController();
   bool _isMapReady = false;
 
+  Timer? _cameraWatchTimer;
+  double? _lastAppliedPitch;
+  bool _lastHadBoundsLock = false;
+
+  ({double west, double south, double east, double north}) _boundsFor(List<LngLat> pts) {
+    var west = pts.first.lng;
+    var east = pts.first.lng;
+    var south = pts.first.lat;
+    var north = pts.first.lat;
+    for (final p in pts) {
+      if (p.lng < west) west = p.lng;
+      if (p.lng > east) east = p.lng;
+      if (p.lat < south) south = p.lat;
+      if (p.lat > north) north = p.lat;
+    }
+    return (west: west, south: south, east: east, north: north);
+  }
+
+  bool _isPolygonClosed(List<LngLat> pts) {
+    if (pts.length < 3) return false;
+    final dKm = _distanceBetween(pts.first, pts.last);
+    return (dKm * 1000) <= 30.0;
+  }
+
+  List<LngLat> _perimeterForLock() {
+    if (!widget.lockMapToPerimeter) return const [];
+
+    // En mode tracé (polyline), on verrouille sur perimeterOverlay.
+    if (widget.mode == 'polyline') {
+      final overlay = widget.perimeterOverlay;
+      if (overlay.length < 3) return const [];
+      final first = overlay.first;
+      final last = overlay.last;
+      final isClosed = first.lng == last.lng && first.lat == last.lat;
+      return isClosed ? overlay : [...overlay, first];
+    }
+
+    // En mode périmètre, on verrouille quand le polygone est défini (bouclé).
+    if (_points.length < 3) return const [];
+    if (!_isPolygonClosed(_points)) return const [];
+    return _points;
+  }
+
+  Future<void> _applyCameraConstraints() async {
+    if (!_isMapReady) return;
+
+    // 1) Zoom max
+    final maxZoom = widget.cameraMaxZoom;
+    if (maxZoom != null) {
+      await _mapController.setZoomRange(maxZoom: maxZoom);
+    }
+
+    // 2) Verrouillage bounds périmètre
+    final perim = _perimeterForLock();
+    if (perim.length >= 3) {
+      final b = _boundsFor(perim);
+      await _mapController.setMaxBounds(
+        west: b.west,
+        south: b.south,
+        east: b.east,
+        north: b.north,
+      );
+      _lastHadBoundsLock = true;
+    } else {
+      if (_lastHadBoundsLock) {
+        await _mapController.setMaxBounds();
+        _lastHadBoundsLock = false;
+      }
+    }
+  }
+
+  void _syncCameraWatch() {
+    _cameraWatchTimer?.cancel();
+    _cameraWatchTimer = null;
+
+    final threshold = widget.cameraPitchZoomThreshold;
+    final pitch = widget.cameraPitchDegrees;
+    if (!_isMapReady || threshold == null || pitch == null) return;
+
+    _cameraWatchTimer = Timer.periodic(const Duration(milliseconds: 350), (_) {
+      unawaited(_tickCameraWatch(threshold: threshold, pitch: pitch));
+    });
+  }
+
+  Future<void> _tickCameraWatch({required double threshold, required double pitch}) async {
+    if (!_isMapReady) return;
+    final state = await _mapController.getCameraState();
+    if (state == null) return;
+    final z = state.zoom;
+    if (z.isNaN) return;
+
+    final desiredPitch = (z >= threshold) ? pitch : 0.0;
+    final prev = _lastAppliedPitch;
+    if (prev != null && (prev - desiredPitch).abs() < 0.5) return;
+
+    _lastAppliedPitch = desiredPitch;
+    await _mapController.setPitch(pitch: desiredPitch.clamp(0.0, 60.0));
+  }
+
   Future<void> _applyBuildings3dIfNeeded() async {
     final enabled = widget.buildings3dEnabled;
     if (enabled == null) return;
@@ -235,6 +357,33 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   @override
   void didUpdateWidget(covariant CircuitMapEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    final cameraConfigChanged =
+        oldWidget.lockMapToPerimeter != widget.lockMapToPerimeter ||
+        oldWidget.cameraMaxZoom != widget.cameraMaxZoom ||
+        oldWidget.cameraPitchDegrees != widget.cameraPitchDegrees ||
+        oldWidget.cameraPitchZoomThreshold != widget.cameraPitchZoomThreshold;
+
+    if (_isMapReady && cameraConfigChanged) {
+      unawaited(_applyCameraConstraints());
+      _syncCameraWatch();
+    }
+
+    if (_isMapReady && oldWidget.cameraInitialZoom != widget.cameraInitialZoom) {
+      final nextZoom = widget.cameraInitialZoom;
+      if (nextZoom != null) {
+        unawaited(() async {
+          final state = await _mapController.getCameraState();
+          if (state == null) return;
+          await _mapController.moveTo(
+            lng: state.center.lng,
+            lat: state.center.lat,
+            zoom: nextZoom,
+            animate: true,
+          );
+        }());
+      }
+    }
 
     final buildingsChanged =
         oldWidget.buildings3dEnabled != widget.buildings3dEnabled ||
@@ -287,6 +436,8 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   @override
   void dispose() {
     widget.controller?._detach();
+    _cameraWatchTimer?.cancel();
+    _cameraWatchTimer = null;
     _mapController.dispose();
     super.dispose();
   }
@@ -307,6 +458,10 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     }
 
     final overlayPerimeter = closedOverlayPerimeterPoints();
+
+    // Applique les contraintes caméra (bounds + zoom max) dès que le périmètre
+    // devient "défini" (bouclé) ou que l'overlay périmètre est présent.
+    await _applyCameraConstraints();
 
     try {
       await _mapController.clearAll();
@@ -957,9 +1112,20 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
             : (widget.perimeterOverlay.isNotEmpty
               ? widget.perimeterOverlay.first.lat
               : 16.241),
-          initialZoom: (_points.isNotEmpty || widget.perimeterOverlay.isNotEmpty)
-            ? 15.0
-            : 12.0,
+          initialZoom: widget.cameraInitialZoom ??
+              ((_points.isNotEmpty || widget.perimeterOverlay.isNotEmpty)
+                  ? 15.0
+                  : 12.0),
+          initialPitch: () {
+            final threshold = widget.cameraPitchZoomThreshold;
+            final pitch = widget.cameraPitchDegrees;
+            final z = widget.cameraInitialZoom ??
+                ((_points.isNotEmpty || widget.perimeterOverlay.isNotEmpty)
+                    ? 15.0
+                    : 12.0);
+            if (threshold == null || pitch == null) return 0.0;
+            return z >= threshold ? pitch.clamp(0.0, 60.0) : 0.0;
+          }(),
           styleUrl: (widget.styleUrl != null && widget.styleUrl!.trim().isNotEmpty)
               ? widget.styleUrl!.trim()
               : null,
@@ -977,6 +1143,8 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                 _addPoint((lng: lng, lat: lat));
               },
             );
+            await _applyCameraConstraints();
+            _syncCameraWatch();
             await _renderOnMap();
             await _applyBuildings3dIfNeeded();
           },

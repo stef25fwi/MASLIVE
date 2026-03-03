@@ -123,6 +123,28 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   String? _pendingStyleUrlToApply;
   String? _styleLoadError;
 
+  // Contraintes caméra (bounds + min/max zoom). On les fusionne pour éviter
+  // d'écraser une contrainte en appliquant l'autre.
+  CoordinateBounds? _cameraConstraintBounds;
+  double? _cameraMinZoom;
+  double? _cameraMaxZoom;
+
+  Future<void> _applyCameraConstraintsIfReady() async {
+    final map = _mapboxMap;
+    if (map == null) return;
+    try {
+      await map.setBounds(
+        CameraBoundsOptions(
+          bounds: _cameraConstraintBounds,
+          minZoom: _cameraMinZoom,
+          maxZoom: _cameraMaxZoom,
+        ),
+      );
+    } catch (e) {
+      debugPrint('⚠️ applyCameraConstraints native error: $e');
+    }
+  }
+
   String _normalizeMapboxStyleUri(String raw) {
     final value = raw.trim();
     if (value.isEmpty) return '';
@@ -479,17 +501,38 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       if (_mapboxMap == null) return;
       try {
         if (west == null || south == null || east == null || north == null) {
-          await _mapboxMap!.setBounds(CameraBoundsOptions(bounds: null));
-          return;
+          _cameraConstraintBounds = null;
+        } else {
+          _cameraConstraintBounds = CoordinateBounds(
+            southwest: Point(coordinates: Position(west, south)),
+            northeast: Point(coordinates: Position(east, north)),
+            infiniteBounds: false,
+          );
         }
-        final bounds = CoordinateBounds(
-          southwest: Point(coordinates: Position(west, south)),
-          northeast: Point(coordinates: Position(east, north)),
-          infiniteBounds: false,
-        );
-        await _mapboxMap!.setBounds(CameraBoundsOptions(bounds: bounds));
+        await _applyCameraConstraintsIfReady();
       } catch (e) {
         debugPrint('⚠️ setMaxBounds native error: $e');
+      }
+    };
+
+    controller.setZoomRangeImpl = (minZoom, maxZoom) async {
+      _cameraMinZoom = minZoom;
+      _cameraMaxZoom = maxZoom;
+      await _applyCameraConstraintsIfReady();
+    };
+
+    controller.setPitchImpl = (pitch, animate) async {
+      final map = _mapboxMap;
+      if (map == null) return;
+      try {
+        final camera = CameraOptions(pitch: pitch);
+        if (animate) {
+          await map.flyTo(camera, MapAnimationOptions(duration: 700));
+        } else {
+          await map.setCamera(camera);
+        }
+      } catch (e) {
+        debugPrint('⚠️ setPitch native error: $e');
       }
     };
 
@@ -502,6 +545,24 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         return MapPoint(coords.lng.toDouble(), coords.lat.toDouble());
       } catch (e) {
         debugPrint('⚠️ getCameraCenter native error: $e');
+        return null;
+      }
+    };
+
+    controller.getCameraStateImpl = () async {
+      final map = _mapboxMap;
+      if (map == null) return null;
+      try {
+        final state = await map.getCameraState();
+        final coords = state.center.coordinates;
+        return MapCameraState(
+          center: MapPoint(coords.lng.toDouble(), coords.lat.toDouble()),
+          zoom: state.zoom,
+          pitch: state.pitch,
+          bearing: state.bearing,
+        );
+      } catch (e) {
+        debugPrint('⚠️ getCameraState native error: $e');
         return null;
       }
     };

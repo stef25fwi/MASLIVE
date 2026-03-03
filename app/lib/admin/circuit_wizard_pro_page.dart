@@ -99,6 +99,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   LngLat? _perimeterCircleCenter;
   double _perimeterCircleDiameterMeters = 1200.0;
 
+  // Step 2 (périmètre): contraintes caméra
+  double _perimeterCameraInitialZoom = 15.0;
+  double _perimeterCameraPitchZoomThreshold = 16.0;
+  double _perimeterCameraPitchDegrees = 45.0;
+  double _perimeterCameraMaxZoom = 18.0;
+
   // Style du tracé (Step 3 + Step 4)
   String _routeColorHex = '#1A73E8';
   double _routeWidth = 6.0;
@@ -695,6 +701,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               },
         'diameterMeters': _perimeterCircleDiameterMeters,
       },
+      'perimeterMapCamera': {
+        'initialZoom': _perimeterCameraInitialZoom,
+        'pitchZoomThreshold': _perimeterCameraPitchZoomThreshold,
+        'pitchDegrees': _perimeterCameraPitchDegrees,
+        'maxZoom': _perimeterCameraMaxZoom,
+      },
       'route': _routePoints.map((p) => {'lng': p.lng, 'lat': p.lat}).toList(),
       'routeStyle': routeStyle,
       if (proCfg != null) 'routeStylePro': proCfg.toJson(),
@@ -1029,6 +1041,30 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 );
               }
             }
+          }
+
+          // Caméra (étape périmètre)
+          final camData = _draftData['perimeterMapCamera'];
+          if (camData is Map) {
+            final m = Map<String, dynamic>.from(camData);
+            final iz = m['initialZoom'];
+            final th = m['pitchZoomThreshold'];
+            final pd = m['pitchDegrees'];
+            final mz = m['maxZoom'];
+            if (iz is num) _perimeterCameraInitialZoom = iz.toDouble();
+            if (th is num) _perimeterCameraPitchZoomThreshold = th.toDouble();
+            if (pd is num) _perimeterCameraPitchDegrees = pd.toDouble();
+            if (mz is num) _perimeterCameraMaxZoom = mz.toDouble();
+
+            _perimeterCameraInitialZoom =
+                _perimeterCameraInitialZoom.clamp(0.0, 22.0);
+            _perimeterCameraMaxZoom =
+                _perimeterCameraMaxZoom.clamp(_perimeterCameraInitialZoom, 22.0);
+            _perimeterCameraPitchZoomThreshold =
+                _perimeterCameraPitchZoomThreshold
+                    .clamp(0.0, _perimeterCameraMaxZoom);
+            _perimeterCameraPitchDegrees =
+                _perimeterCameraPitchDegrees.clamp(0.0, 60.0);
           }
 
           final routeData = _draftData['route'] as List<dynamic>?;
@@ -1805,6 +1841,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       points: _routePoints,
       controller: _routeEditorController,
       perimeterOverlay: _perimeterPoints,
+      lockMapToPerimeter: true,
       styleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text).isEmpty
           ? null
           : _normalizeMapboxStyleUrl(_styleUrlController.text),
@@ -2117,6 +2154,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           : _normalizeMapboxStyleUrl(_styleUrlController.text),
       buildings3dEnabled: proCfg?.buildings3dEnabled,
       buildingsOpacity: proCfg?.buildingOpacity,
+
+      // Verrouillage + caméra (périmètre)
+      lockMapToPerimeter: true,
+      cameraInitialZoom: _perimeterCameraInitialZoom,
+      cameraMaxZoom: _perimeterCameraMaxZoom,
+      cameraPitchZoomThreshold: _perimeterCameraPitchZoomThreshold,
+      cameraPitchDegrees: _perimeterCameraPitchDegrees,
+
       editingEnabled: true,
       onPointAddedOverride: _perimeterCircleMode
           ? (p) {
@@ -2273,6 +2318,143 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       ),
                     ],
                   ],
+
+                  if (isPerimeter) ...[
+                    const VerticalDivider(),
+                    const Text(
+                      'Caméra',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(width: 6),
+
+                    IconButton(
+                      tooltip: 'Zoom initial -',
+                      icon: const Icon(Icons.zoom_out),
+                      onPressed: () {
+                        setState(() {
+                          _perimeterCameraInitialZoom =
+                              (_perimeterCameraInitialZoom - 0.5)
+                                  .clamp(0.0, 22.0);
+                          _perimeterCameraMaxZoom = _perimeterCameraMaxZoom
+                              .clamp(_perimeterCameraInitialZoom, 22.0);
+                          _perimeterCameraPitchZoomThreshold =
+                              _perimeterCameraPitchZoomThreshold
+                                  .clamp(0.0, _perimeterCameraMaxZoom);
+                        });
+                      },
+                    ),
+                    Text(
+                      'Init ${_perimeterCameraInitialZoom.toStringAsFixed(1)}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    IconButton(
+                      tooltip: 'Zoom initial +',
+                      icon: const Icon(Icons.zoom_in),
+                      onPressed: () {
+                        setState(() {
+                          _perimeterCameraInitialZoom =
+                              (_perimeterCameraInitialZoom + 0.5)
+                                  .clamp(0.0, 22.0);
+                          _perimeterCameraMaxZoom = _perimeterCameraMaxZoom
+                              .clamp(_perimeterCameraInitialZoom, 22.0);
+                          _perimeterCameraPitchZoomThreshold =
+                              _perimeterCameraPitchZoomThreshold
+                                  .clamp(0.0, _perimeterCameraMaxZoom);
+                        });
+                      },
+                    ),
+                    const SizedBox(width: 10),
+
+                    IconButton(
+                      tooltip: 'Seuil tilt -',
+                      icon: const Icon(Icons.expand_more),
+                      onPressed: () {
+                        setState(() {
+                          _perimeterCameraPitchZoomThreshold =
+                              (_perimeterCameraPitchZoomThreshold - 0.5)
+                                  .clamp(0.0, _perimeterCameraMaxZoom);
+                        });
+                      },
+                    ),
+                    Text(
+                      'Seuil ${_perimeterCameraPitchZoomThreshold.toStringAsFixed(1)}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    IconButton(
+                      tooltip: 'Seuil tilt +',
+                      icon: const Icon(Icons.expand_less),
+                      onPressed: () {
+                        setState(() {
+                          _perimeterCameraPitchZoomThreshold =
+                              (_perimeterCameraPitchZoomThreshold + 0.5)
+                                  .clamp(0.0, _perimeterCameraMaxZoom);
+                        });
+                      },
+                    ),
+                    const SizedBox(width: 10),
+
+                    IconButton(
+                      tooltip: 'Pitch -',
+                      icon: const Icon(Icons.threed_rotation),
+                      onPressed: () {
+                        setState(() {
+                          _perimeterCameraPitchDegrees =
+                              (_perimeterCameraPitchDegrees - 5.0)
+                                  .clamp(0.0, 60.0);
+                        });
+                      },
+                    ),
+                    Text(
+                      'Pitch ${_perimeterCameraPitchDegrees.toStringAsFixed(0)}°',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    IconButton(
+                      tooltip: 'Pitch +',
+                      icon: const Icon(Icons.rotate_right),
+                      onPressed: () {
+                        setState(() {
+                          _perimeterCameraPitchDegrees =
+                              (_perimeterCameraPitchDegrees + 5.0)
+                                  .clamp(0.0, 60.0);
+                        });
+                      },
+                    ),
+                    const SizedBox(width: 10),
+
+                    IconButton(
+                      tooltip: 'Zoom max -',
+                      icon: const Icon(Icons.remove_circle_outline),
+                      onPressed: () {
+                        setState(() {
+                          _perimeterCameraMaxZoom =
+                              (_perimeterCameraMaxZoom - 0.5)
+                                  .clamp(_perimeterCameraInitialZoom, 22.0);
+                          _perimeterCameraPitchZoomThreshold =
+                              _perimeterCameraPitchZoomThreshold
+                                  .clamp(0.0, _perimeterCameraMaxZoom);
+                        });
+                      },
+                    ),
+                    Text(
+                      'Max ${_perimeterCameraMaxZoom.toStringAsFixed(1)}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    IconButton(
+                      tooltip: 'Zoom max +',
+                      icon: const Icon(Icons.add_circle_outline),
+                      onPressed: () {
+                        setState(() {
+                          _perimeterCameraMaxZoom =
+                              (_perimeterCameraMaxZoom + 0.5)
+                                  .clamp(_perimeterCameraInitialZoom, 22.0);
+                          _perimeterCameraPitchZoomThreshold =
+                              _perimeterCameraPitchZoomThreshold
+                                  .clamp(0.0, _perimeterCameraMaxZoom);
+                        });
+                      },
+                    ),
+                  ],
+
                   IconButton(
                     icon: const Icon(Icons.flip_to_back),
                     onPressed: controller.pointCount >= 2
