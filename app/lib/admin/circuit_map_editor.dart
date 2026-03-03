@@ -70,7 +70,8 @@ class CircuitMapEditorController extends ChangeNotifier {
     required int pointCount,
     required double distanceKm,
   }) {
-    final changed = canUndo != _canUndo ||
+    final changed =
+        canUndo != _canUndo ||
         canRedo != _canRedo ||
         pointCount != _pointCount ||
         distanceKm != _distanceKm;
@@ -234,7 +235,9 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   double? _lastAppliedPitch;
   bool _lastHadBoundsLock = false;
 
-  ({double west, double south, double east, double north}) _boundsFor(List<LngLat> pts) {
+  ({double west, double south, double east, double north}) _boundsFor(
+    List<LngLat> pts,
+  ) {
     var west = pts.first.lng;
     var east = pts.first.lng;
     var south = pts.first.lat;
@@ -263,7 +266,9 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
       if (overlay.length < 3) return const [];
       final first = overlay.first;
       final last = overlay.last;
-      final isClosed = first.lng == last.lng && first.lat == last.lat;
+      final isClosed =
+          (first.lng == last.lng && first.lat == last.lat) ||
+          _isPolygonClosed(overlay);
       return isClosed ? overlay : [...overlay, first];
     }
 
@@ -314,7 +319,10 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     });
   }
 
-  Future<void> _tickCameraWatch({required double threshold, required double pitch}) async {
+  Future<void> _tickCameraWatch({
+    required double threshold,
+    required double pitch,
+  }) async {
     if (!_isMapReady) return;
     final state = await _mapController.getCameraState();
     if (state == null) return;
@@ -369,7 +377,8 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
       _syncCameraWatch();
     }
 
-    if (_isMapReady && oldWidget.cameraInitialZoom != widget.cameraInitialZoom) {
+    if (_isMapReady &&
+        oldWidget.cameraInitialZoom != widget.cameraInitialZoom) {
       final nextZoom = widget.cameraInitialZoom;
       if (nextZoom != null) {
         unawaited(() async {
@@ -471,10 +480,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
 
       // En mode polyline (tracé), on peut afficher le périmètre (polygon) en fond.
       if (widget.mode == 'polyline' && overlayPerimeter.length >= 4) {
-        await _mapController.setPolygon(
-          points: overlayPerimeter,
-          show: true,
-        );
+        await _mapController.setPolygon(points: overlayPerimeter, show: true);
       }
 
       final markers = <MapMarker>[];
@@ -506,7 +512,9 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
       }
 
       if (widget.mode == 'polygon') {
-        final isClosed = _points.length >= 3 && (_distanceBetween(_points.first, _points.last) * 1000) <= 30.0;
+        final isClosed =
+            _points.length >= 3 &&
+            (_distanceBetween(_points.first, _points.last) * 1000) <= 30.0;
         if (isClosed) {
           await _mapController.setPolygon(
             points: mapPoints,
@@ -525,7 +533,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
               showDirection: false,
               animateDirection: false,
               animationSpeed: 1.0,
-                opacity: widget.polylineOpacity,
+              opacity: widget.polylineOpacity,
             );
           }
         }
@@ -541,7 +549,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
             showDirection: widget.polylineShowDirection,
             animateDirection: widget.polylineAnimateDirection,
             animationSpeed: widget.polylineAnimationSpeed,
-              opacity: widget.polylineOpacity,
+            opacity: widget.polylineOpacity,
           );
         }
       }
@@ -635,7 +643,11 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     double dmax = 0;
     int index = 0;
     for (int i = 1; i < points.length - 1; i++) {
-      final d = _perpendiculardistance(points[i], points[0], points[points.length - 1]);
+      final d = _perpendiculardistance(
+        points[i],
+        points[0],
+        points[points.length - 1],
+      );
       if (d > dmax) {
         index = i;
         dmax = d;
@@ -655,11 +667,12 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     final denom = _distanceBetween(line1, line2);
     if (denom == 0) return _distanceBetween(point, line1);
 
-    final num = ((line2.lat - line1.lat) * point.lng -
-            (line2.lng - line1.lng) * point.lat +
-            line2.lng * line1.lat -
-            line2.lat * line1.lng)
-        .abs();
+    final num =
+        ((line2.lat - line1.lat) * point.lng -
+                (line2.lng - line1.lng) * point.lat +
+                line2.lng * line1.lat -
+                line2.lat * line1.lng)
+            .abs();
 
     return num / denom;
   }
@@ -668,7 +681,8 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     const earthRadiusKm = 6371;
     final dLat = _toRad(p2.lat - p1.lat);
     final dLng = _toRad(p2.lng - p1.lng);
-    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+    final a =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
         math.cos(_toRad(p1.lat)) *
             math.cos(_toRad(p2.lat)) *
             math.sin(dLng / 2) *
@@ -777,7 +791,9 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   String _pointRoleLabel(int index) {
     if (index == 0) return 'Départ';
     if (_isClosedLoop && index == _points.length - 1) return 'Bouclage';
-    if (widget.mode == 'polyline' && !_isClosedLoop && index == _points.length - 1) {
+    if (widget.mode == 'polyline' &&
+        !_isClosedLoop &&
+        index == _points.length - 1) {
       return 'Arrivée';
     }
     return 'Point';
@@ -862,7 +878,9 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.redo),
-                    onPressed: _historyIndex < _history.length - 1 ? _redo : null,
+                    onPressed: _historyIndex < _history.length - 1
+                        ? _redo
+                        : null,
                     tooltip: 'Rétablir',
                   ),
                   const VerticalDivider(),
@@ -903,7 +921,10 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                         ),
                         Text(
                           '${_totalDistance().toStringAsFixed(2)} km',
-                          style: const TextStyle(fontSize: 11, color: Colors.grey),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey,
+                          ),
                         ),
                       ],
                     ),
@@ -919,7 +940,9 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
       final mapH = widget.mapHeight ?? (screenH * 0.62).clamp(380.0, 820.0);
 
       return SingleChildScrollView(
-        physics: _isMapInteracting ? const NeverScrollableScrollPhysics() : null,
+        physics: _isMapInteracting
+            ? const NeverScrollableScrollPhysics()
+            : null,
         child: Column(
           children: [
             if (widget.showHeader) header,
@@ -934,11 +957,15 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                 },
                 onPointerUp: (_) {
                   if (!mounted) return;
-                  setState(() => _mapPointerCount = math.max(0, _mapPointerCount - 1));
+                  setState(
+                    () => _mapPointerCount = math.max(0, _mapPointerCount - 1),
+                  );
                 },
                 onPointerCancel: (_) {
                   if (!mounted) return;
-                  setState(() => _mapPointerCount = math.max(0, _mapPointerCount - 1));
+                  setState(
+                    () => _mapPointerCount = math.max(0, _mapPointerCount - 1),
+                  );
                 },
                 child: _buildMap(),
               ),
@@ -1002,7 +1029,9 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
             ),
             const Divider(height: 1),
             ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: widget.pointsListMaxHeight),
+              constraints: BoxConstraints(
+                maxHeight: widget.pointsListMaxHeight,
+              ),
               child: ListView.builder(
                 shrinkWrap: true,
                 itemCount: _points.length,
@@ -1029,8 +1058,9 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                       '${index + 1}/ $role',
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight:
-                            role == 'Point' ? FontWeight.w600 : FontWeight.bold,
+                        fontWeight: role == 'Point'
+                            ? FontWeight.w600
+                            : FontWeight.bold,
                       ),
                     ),
                     subtitle: Text(
@@ -1044,7 +1074,8 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                             index != _points.length - 1)
                           PopupMenuItem(
                             child: Text(
-                                'Définir comme Arrivée (point ${index + 1})'),
+                              'Définir comme Arrivée (point ${index + 1})',
+                            ),
                             onTap: () => _setArrivalPoint(index),
                           ),
                         PopupMenuItem(
@@ -1103,30 +1134,33 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
         MasLiveMap(
           controller: _mapController,
           initialLng: _points.isNotEmpty
-            ? _points.first.lng
-            : (widget.perimeterOverlay.isNotEmpty
-              ? widget.perimeterOverlay.first.lng
-              : -61.533),
+              ? _points.first.lng
+              : (widget.perimeterOverlay.isNotEmpty
+                    ? widget.perimeterOverlay.first.lng
+                    : -61.533),
           initialLat: _points.isNotEmpty
-            ? _points.first.lat
-            : (widget.perimeterOverlay.isNotEmpty
-              ? widget.perimeterOverlay.first.lat
-              : 16.241),
-          initialZoom: widget.cameraInitialZoom ??
+              ? _points.first.lat
+              : (widget.perimeterOverlay.isNotEmpty
+                    ? widget.perimeterOverlay.first.lat
+                    : 16.241),
+          initialZoom:
+              widget.cameraInitialZoom ??
               ((_points.isNotEmpty || widget.perimeterOverlay.isNotEmpty)
                   ? 15.0
                   : 12.0),
           initialPitch: () {
             final threshold = widget.cameraPitchZoomThreshold;
             final pitch = widget.cameraPitchDegrees;
-            final z = widget.cameraInitialZoom ??
+            final z =
+                widget.cameraInitialZoom ??
                 ((_points.isNotEmpty || widget.perimeterOverlay.isNotEmpty)
                     ? 15.0
                     : 12.0);
             if (threshold == null || pitch == null) return 0.0;
             return z >= threshold ? pitch.clamp(0.0, 60.0) : 0.0;
           }(),
-          styleUrl: (widget.styleUrl != null && widget.styleUrl!.trim().isNotEmpty)
+          styleUrl:
+              (widget.styleUrl != null && widget.styleUrl!.trim().isNotEmpty)
               ? widget.styleUrl!.trim()
               : null,
           onMapReady: (ctrl) async {
@@ -1159,7 +1193,10 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 child: Text(
                   widget.mode == 'polygon'
                       ? 'Cliquez pour ajouter des points (polygone)'
@@ -1170,7 +1207,6 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
             ),
           ),
         ),
-
       ],
     );
   }
@@ -1216,16 +1252,8 @@ class PathPainter extends CustomPainter {
     // Points
     for (final p in points) {
       final offset = convertPoint(p);
-      canvas.drawCircle(
-        offset,
-        8,
-        Paint()..color = Colors.blue,
-      );
-      canvas.drawCircle(
-        offset,
-        4,
-        Paint()..color = Colors.white,
-      );
+      canvas.drawCircle(offset, 8, Paint()..color = Colors.blue);
+      canvas.drawCircle(offset, 4, Paint()..color = Colors.white);
     }
   }
 

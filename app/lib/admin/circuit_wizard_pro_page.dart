@@ -459,9 +459,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       arguments: RouteStyleProArgs(
         projectId: projectId,
         circuitId: widget.circuitId,
-        initialStyleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text)
-                .trim()
-                .isEmpty
+        initialStyleUrl:
+            _normalizeMapboxStyleUrl(_styleUrlController.text).trim().isEmpty
             ? null
             : _normalizeMapboxStyleUrl(_styleUrlController.text).trim(),
         initialRoute: _routePoints.isNotEmpty
@@ -930,7 +929,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         ? _routePoints.first.lat
         : (_perimeterPoints.isNotEmpty ? _perimeterPoints.first.lat : 16.241);
     final zoom = (_routePoints.isNotEmpty || _perimeterPoints.isNotEmpty)
-        ? 14.0
+        ? _perimeterCameraInitialZoom
         : 12.0;
 
     _poiInitialLng = lng;
@@ -1056,15 +1055,23 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             if (pd is num) _perimeterCameraPitchDegrees = pd.toDouble();
             if (mz is num) _perimeterCameraMaxZoom = mz.toDouble();
 
-            _perimeterCameraInitialZoom =
-                _perimeterCameraInitialZoom.clamp(0.0, 22.0);
-            _perimeterCameraMaxZoom =
-                _perimeterCameraMaxZoom.clamp(_perimeterCameraInitialZoom, 22.0);
+            _perimeterCameraInitialZoom = _perimeterCameraInitialZoom.clamp(
+              0.0,
+              22.0,
+            );
+            _perimeterCameraMaxZoom = _perimeterCameraMaxZoom.clamp(
+              _perimeterCameraInitialZoom,
+              22.0,
+            );
             _perimeterCameraPitchZoomThreshold =
-                _perimeterCameraPitchZoomThreshold
-                    .clamp(0.0, _perimeterCameraMaxZoom);
-            _perimeterCameraPitchDegrees =
-                _perimeterCameraPitchDegrees.clamp(0.0, 60.0);
+                _perimeterCameraPitchZoomThreshold.clamp(
+                  0.0,
+                  _perimeterCameraMaxZoom,
+                );
+            _perimeterCameraPitchDegrees = _perimeterCameraPitchDegrees.clamp(
+              0.0,
+              60.0,
+            );
           }
 
           final routeData = _draftData['route'] as List<dynamic>?;
@@ -1842,6 +1849,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       controller: _routeEditorController,
       perimeterOverlay: _perimeterPoints,
       lockMapToPerimeter: true,
+      cameraInitialZoom: _perimeterCameraInitialZoom,
+      cameraMaxZoom: _perimeterCameraMaxZoom,
+      cameraPitchZoomThreshold: _perimeterCameraPitchZoomThreshold,
+      cameraPitchDegrees: _perimeterCameraPitchDegrees,
       styleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text).isEmpty
           ? null
           : _normalizeMapboxStyleUrl(_styleUrlController.text),
@@ -1953,190 +1964,196 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               'Informations de base',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-          const SizedBox(height: 20),
-          TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Nom du circuit *',
-              hintText: 'Ex: Circuit Côte Nord',
-              border: OutlineInputBorder(),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'Nom du circuit *',
+                hintText: 'Ex: Circuit Côte Nord',
+                border: OutlineInputBorder(),
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          StreamBuilder<List<MarketCountry>>(
-            stream: _marketMapService.watchCountries(),
-            builder: (context, snap) {
-              final items = snap.data ?? const <MarketCountry>[];
+            const SizedBox(height: 16),
+            StreamBuilder<List<MarketCountry>>(
+              stream: _marketMapService.watchCountries(),
+              builder: (context, snap) {
+                final items = snap.data ?? const <MarketCountry>[];
 
-              // Fallback: champ texte si la liste n'est pas dispo.
-              if (snap.hasError || items.isEmpty) {
-                return TextField(
+                // Fallback: champ texte si la liste n'est pas dispo.
+                if (snap.hasError || items.isEmpty) {
+                  return TextField(
+                    controller: _countryController,
+                    decoration: const InputDecoration(
+                      labelText: 'Pays *',
+                      hintText: 'Ex: guadeloupe',
+                      border: OutlineInputBorder(),
+                    ),
+                  );
+                }
+
+                return MarketCountryAutocompleteField(
+                  items: items,
                   controller: _countryController,
-                  decoration: const InputDecoration(
-                    labelText: 'Pays *',
-                    hintText: 'Ex: guadeloupe',
-                    border: OutlineInputBorder(),
-                  ),
+                  labelText: 'Pays *',
+                  hintText: 'Rechercher un pays…',
+                  valueForOption: (c) => c.id,
+                  onSelected: (_) {},
                 );
-              }
+              },
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _eventController,
+              decoration: const InputDecoration(
+                labelText: 'Événement *',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _descriptionController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Description',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _styleUrlController,
+              onChanged: _onStyleUrlChanged,
+              decoration: const InputDecoration(
+                labelText: 'Style URL Mapbox (optionnel)',
+                hintText: 'mapbox://styles/username/style-id',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Builder(
+              builder: (context) {
+                final current = _normalizeMapboxStyleUrl(
+                  _styleUrlController.text,
+                );
+                final presets = <({String label, String url})>[
+                  (label: 'Effacer', url: ''),
+                  (label: 'Streets', url: 'mapbox://styles/mapbox/streets-v12'),
+                  (
+                    label: 'Outdoors',
+                    url: 'mapbox://styles/mapbox/outdoors-v12',
+                  ),
+                  (
+                    label: 'Satellite',
+                    url: 'mapbox://styles/mapbox/satellite-streets-v12',
+                  ),
+                  (label: 'Light', url: 'mapbox://styles/mapbox/light-v11'),
+                  (label: 'Dark', url: 'mapbox://styles/mapbox/dark-v11'),
+                  (
+                    label: 'Perso (stef971fwi)',
+                    url: 'mapbox://styles/stef971fwi/cmm3zyr4q00fn01s12idvb2oe',
+                  ),
+                ];
 
-              return MarketCountryAutocompleteField(
-                items: items,
-                controller: _countryController,
-                labelText: 'Pays *',
-                hintText: 'Rechercher un pays…',
-                valueForOption: (c) => c.id,
-                onSelected: (_) {},
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _eventController,
-            decoration: const InputDecoration(
-              labelText: 'Événement *',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _descriptionController,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Description',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _styleUrlController,
-            onChanged: _onStyleUrlChanged,
-            decoration: const InputDecoration(
-              labelText: 'Style URL Mapbox (optionnel)',
-              hintText: 'mapbox://styles/username/style-id',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Builder(
-            builder: (context) {
-              final current = _normalizeMapboxStyleUrl(
-                _styleUrlController.text,
-              );
-              final presets = <({String label, String url})>[
-                (label: 'Effacer', url: ''),
-                (label: 'Streets', url: 'mapbox://styles/mapbox/streets-v12'),
-                (label: 'Outdoors', url: 'mapbox://styles/mapbox/outdoors-v12'),
-                (
-                  label: 'Satellite',
-                  url: 'mapbox://styles/mapbox/satellite-streets-v12',
-                ),
-                (label: 'Light', url: 'mapbox://styles/mapbox/light-v11'),
-                (label: 'Dark', url: 'mapbox://styles/mapbox/dark-v11'),
-                (
-                  label: 'Perso (stef971fwi)',
-                  url: 'mapbox://styles/stef971fwi/cmm3zyr4q00fn01s12idvb2oe',
-                ),
-              ];
-
-              Widget tile({required String label, required String url}) {
-                final normalized = _normalizeMapboxStyleUrl(url);
-                final selected =
-                    (normalized.isEmpty && current.isEmpty) ||
-                    (normalized.isNotEmpty && normalized == current);
-                return InkWell(
-                  onTap: () => _applyStylePreset(url),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? Colors.blue.withValues(alpha: 0.08)
-                          : Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: selected ? Colors.blue : Colors.grey.shade300,
+                Widget tile({required String label, required String url}) {
+                  final normalized = _normalizeMapboxStyleUrl(url);
+                  final selected =
+                      (normalized.isEmpty && current.isEmpty) ||
+                      (normalized.isNotEmpty && normalized == current);
+                  return InkWell(
+                    onTap: () => _applyStylePreset(url),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
                       ),
-                    ),
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        fontWeight: selected
-                            ? FontWeight.w800
-                            : FontWeight.w600,
+                      decoration: BoxDecoration(
                         color: selected
-                            ? Colors.blue.shade900
-                            : Colors.grey.shade900,
+                            ? Colors.blue.withValues(alpha: 0.08)
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: selected ? Colors.blue : Colors.grey.shade300,
+                        ),
+                      ),
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontWeight: selected
+                              ? FontWeight.w800
+                              : FontWeight.w600,
+                          color: selected
+                              ? Colors.blue.shade900
+                              : Colors.grey.shade900,
+                        ),
                       ),
                     ),
-                  ),
-                );
-              }
+                  );
+                }
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Presets rapides',
-                    style: TextStyle(fontWeight: FontWeight.w800),
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Presets rapides',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final p in presets)
+                          tile(label: p.label, url: p.url),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                height: 440,
+                child: _wrapWizardMapToBlockScroll(
+                  MasLiveMap(
+                    initialLng: _routePoints.isNotEmpty
+                        ? _routePoints.first.lng
+                        : (_perimeterPoints.isNotEmpty
+                              ? _perimeterPoints.first.lng
+                              : -61.533),
+                    initialLat: _routePoints.isNotEmpty
+                        ? _routePoints.first.lat
+                        : (_perimeterPoints.isNotEmpty
+                              ? _perimeterPoints.first.lat
+                              : 16.241),
+                    initialZoom:
+                        (_routePoints.isNotEmpty || _perimeterPoints.isNotEmpty)
+                        ? 13.5
+                        : 12.0,
+                    styleUrl:
+                        _normalizeMapboxStyleUrl(
+                          _styleUrlController.text,
+                        ).isEmpty
+                        ? null
+                        : _normalizeMapboxStyleUrl(_styleUrlController.text),
                   ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final p in presets) tile(label: p.label, url: p.url),
-                    ],
-                  ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: SizedBox(
-              height: 440,
-              child: _wrapWizardMapToBlockScroll(
-                MasLiveMap(
-                  initialLng: _routePoints.isNotEmpty
-                      ? _routePoints.first.lng
-                      : (_perimeterPoints.isNotEmpty
-                            ? _perimeterPoints.first.lng
-                            : -61.533),
-                  initialLat: _routePoints.isNotEmpty
-                      ? _routePoints.first.lat
-                      : (_perimeterPoints.isNotEmpty
-                            ? _perimeterPoints.first.lat
-                            : 16.241),
-                  initialZoom:
-                      (_routePoints.isNotEmpty || _perimeterPoints.isNotEmpty)
-                      ? 13.5
-                      : 12.0,
-                  styleUrl:
-                      _normalizeMapboxStyleUrl(_styleUrlController.text).isEmpty
-                      ? null
-                      : _normalizeMapboxStyleUrl(_styleUrlController.text),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 32),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.blue.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+            const SizedBox(height: 32),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                '💡 Complétez les informations de base, puis définissez le périmètre et le tracé sur les étapes suivantes.',
+                style: TextStyle(fontSize: 13),
+              ),
             ),
-            child: const Text(
-              '💡 Complétez les informations de base, puis définissez le périmètre et le tracé sur les étapes suivantes.',
-              style: TextStyle(fontSize: 13),
-            ),
-          ),
-        ],
+          ],
         ),
       ),
     );
@@ -2323,7 +2340,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     const VerticalDivider(),
                     const Text(
                       'Caméra',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     const SizedBox(width: 6),
 
@@ -2333,13 +2353,17 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       onPressed: () {
                         setState(() {
                           _perimeterCameraInitialZoom =
-                              (_perimeterCameraInitialZoom - 0.5)
-                                  .clamp(0.0, 22.0);
+                              (_perimeterCameraInitialZoom - 0.5).clamp(
+                                0.0,
+                                22.0,
+                              );
                           _perimeterCameraMaxZoom = _perimeterCameraMaxZoom
                               .clamp(_perimeterCameraInitialZoom, 22.0);
                           _perimeterCameraPitchZoomThreshold =
-                              _perimeterCameraPitchZoomThreshold
-                                  .clamp(0.0, _perimeterCameraMaxZoom);
+                              _perimeterCameraPitchZoomThreshold.clamp(
+                                0.0,
+                                _perimeterCameraMaxZoom,
+                              );
                         });
                       },
                     ),
@@ -2353,13 +2377,17 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       onPressed: () {
                         setState(() {
                           _perimeterCameraInitialZoom =
-                              (_perimeterCameraInitialZoom + 0.5)
-                                  .clamp(0.0, 22.0);
+                              (_perimeterCameraInitialZoom + 0.5).clamp(
+                                0.0,
+                                22.0,
+                              );
                           _perimeterCameraMaxZoom = _perimeterCameraMaxZoom
                               .clamp(_perimeterCameraInitialZoom, 22.0);
                           _perimeterCameraPitchZoomThreshold =
-                              _perimeterCameraPitchZoomThreshold
-                                  .clamp(0.0, _perimeterCameraMaxZoom);
+                              _perimeterCameraPitchZoomThreshold.clamp(
+                                0.0,
+                                _perimeterCameraMaxZoom,
+                              );
                         });
                       },
                     ),
@@ -2371,8 +2399,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       onPressed: () {
                         setState(() {
                           _perimeterCameraPitchZoomThreshold =
-                              (_perimeterCameraPitchZoomThreshold - 0.5)
-                                  .clamp(0.0, _perimeterCameraMaxZoom);
+                              (_perimeterCameraPitchZoomThreshold - 0.5).clamp(
+                                0.0,
+                                _perimeterCameraMaxZoom,
+                              );
                         });
                       },
                     ),
@@ -2386,8 +2416,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       onPressed: () {
                         setState(() {
                           _perimeterCameraPitchZoomThreshold =
-                              (_perimeterCameraPitchZoomThreshold + 0.5)
-                                  .clamp(0.0, _perimeterCameraMaxZoom);
+                              (_perimeterCameraPitchZoomThreshold + 0.5).clamp(
+                                0.0,
+                                _perimeterCameraMaxZoom,
+                              );
                         });
                       },
                     ),
@@ -2399,8 +2431,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       onPressed: () {
                         setState(() {
                           _perimeterCameraPitchDegrees =
-                              (_perimeterCameraPitchDegrees - 5.0)
-                                  .clamp(0.0, 60.0);
+                              (_perimeterCameraPitchDegrees - 5.0).clamp(
+                                0.0,
+                                60.0,
+                              );
                         });
                       },
                     ),
@@ -2414,8 +2448,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       onPressed: () {
                         setState(() {
                           _perimeterCameraPitchDegrees =
-                              (_perimeterCameraPitchDegrees + 5.0)
-                                  .clamp(0.0, 60.0);
+                              (_perimeterCameraPitchDegrees + 5.0).clamp(
+                                0.0,
+                                60.0,
+                              );
                         });
                       },
                     ),
@@ -2427,11 +2463,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       onPressed: () {
                         setState(() {
                           _perimeterCameraMaxZoom =
-                              (_perimeterCameraMaxZoom - 0.5)
-                                  .clamp(_perimeterCameraInitialZoom, 22.0);
+                              (_perimeterCameraMaxZoom - 0.5).clamp(
+                                _perimeterCameraInitialZoom,
+                                22.0,
+                              );
                           _perimeterCameraPitchZoomThreshold =
-                              _perimeterCameraPitchZoomThreshold
-                                  .clamp(0.0, _perimeterCameraMaxZoom);
+                              _perimeterCameraPitchZoomThreshold.clamp(
+                                0.0,
+                                _perimeterCameraMaxZoom,
+                              );
                         });
                       },
                     ),
@@ -2445,11 +2485,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       onPressed: () {
                         setState(() {
                           _perimeterCameraMaxZoom =
-                              (_perimeterCameraMaxZoom + 0.5)
-                                  .clamp(_perimeterCameraInitialZoom, 22.0);
+                              (_perimeterCameraMaxZoom + 0.5).clamp(
+                                _perimeterCameraInitialZoom,
+                                22.0,
+                              );
                           _perimeterCameraPitchZoomThreshold =
-                              _perimeterCameraPitchZoomThreshold
-                                  .clamp(0.0, _perimeterCameraMaxZoom);
+                              _perimeterCameraPitchZoomThreshold.clamp(
+                                0.0,
+                                _perimeterCameraMaxZoom,
+                              );
                         });
                       },
                     ),
@@ -3215,6 +3259,40 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                             opacity: cfg.buildingOpacity,
                           );
                         }
+
+                        // Restrictions périmètre (après l'étape "Périmètre")
+                        // - empêche de pan en dehors du périmètre
+                        // - applique le zoom max configuré
+                        final perim = _perimeterPoints;
+                        final isClosed =
+                            perim.length >= 3 && perim.first == perim.last;
+                        if (isClosed) {
+                          var west = perim.first.lng;
+                          var east = perim.first.lng;
+                          var south = perim.first.lat;
+                          var north = perim.first.lat;
+                          for (final p in perim) {
+                            if (p.lng < west) west = p.lng;
+                            if (p.lng > east) east = p.lng;
+                            if (p.lat < south) south = p.lat;
+                            if (p.lat > north) north = p.lat;
+                          }
+                          await ctrl.setZoomRange(
+                            maxZoom: _perimeterCameraMaxZoom,
+                          );
+                          await ctrl.setMaxBounds(
+                            west: west,
+                            south: south,
+                            east: east,
+                            north: north,
+                          );
+                        } else {
+                          await ctrl.setZoomRange(
+                            maxZoom: _perimeterCameraMaxZoom,
+                          );
+                          await ctrl.setMaxBounds();
+                        }
+
                         await _refreshPoiMarkers();
                         await _refreshPoiRouteOverlay();
                         _syncPoiRouteStyleProTimer();
@@ -3448,11 +3526,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         .toList();
 
     final previewParkingZonePoints =
-      (_isDrawingParkingZone &&
-        layer.type == 'parking' &&
-        _parkingZonePoints.isNotEmpty)
-      ? _parkingZonePoints
-      : null;
+        (_isDrawingParkingZone &&
+            layer.type == 'parking' &&
+            _parkingZonePoints.isNotEmpty)
+        ? _parkingZonePoints
+        : null;
 
     await _poiMapController.setPoisGeoJson(
       _buildPoisFeatureCollection(
@@ -3532,7 +3610,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         final glowWidth = cfg.glowWidth * widthScale;
 
         final segmentsForMain =
-          cfg.rainbowEnabled || cfg.trafficDemoEnabled || cfg.vanishingEnabled;
+            cfg.rainbowEnabled ||
+            cfg.trafficDemoEnabled ||
+            cfg.vanishingEnabled;
         final needSegmentsSource = segmentsForMain || cfg.casingRainbowEnabled;
         final segmentsGeoJson = needSegmentsSource
             ? _buildRouteStyleProSegmentsGeoJson(
@@ -3638,7 +3718,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           : baseOpacity;
 
       final color = _routeStyleProSegmentColor(cfg, segIndex, animTick);
-      final casingColor = _routeStyleProSegmentCasingColor(cfg, segIndex, animTick);
+      final casingColor = _routeStyleProSegmentCasingColor(
+        cfg,
+        segIndex,
+        animTick,
+      );
 
       features.add({
         'type': 'Feature',
@@ -4619,37 +4703,37 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               'Pré-publication',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-          const SizedBox(height: 12),
-          Text(
-            'Score qualité: ${report.score}/100',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+            const SizedBox(height: 12),
+            Text(
+              'Score qualité: ${report.score}/100',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: report.canPublish ? Colors.green : Colors.orange,
+              ),
+            ),
+            const SizedBox(height: 10),
+            LinearProgressIndicator(
+              value: report.score / 100,
+              minHeight: 8,
               color: report.canPublish ? Colors.green : Colors.orange,
             ),
-          ),
-          const SizedBox(height: 10),
-          LinearProgressIndicator(
-            value: report.score / 100,
-            minHeight: 8,
-            color: report.canPublish ? Colors.green : Colors.orange,
-          ),
-          const SizedBox(height: 20),
-          for (final item in report.items)
-            ListTile(
-              dense: true,
-              leading: Icon(
-                item.ok ? Icons.check_circle : Icons.error_outline,
-                color: item.ok ? Colors.green : Colors.redAccent,
+            const SizedBox(height: 20),
+            for (final item in report.items)
+              ListTile(
+                dense: true,
+                leading: Icon(
+                  item.ok ? Icons.check_circle : Icons.error_outline,
+                  color: item.ok ? Colors.green : Colors.redAccent,
+                ),
+                title: Text(item.label),
+                subtitle: (!item.ok && item.hint != null)
+                    ? Text(item.hint!)
+                    : null,
+                trailing: item.required
+                    ? const Chip(label: Text('Requis'))
+                    : const Chip(label: Text('Optionnel')),
               ),
-              title: Text(item.label),
-              subtitle: (!item.ok && item.hint != null)
-                  ? Text(item.hint!)
-                  : null,
-              trailing: item.required
-                  ? const Chip(label: Text('Requis'))
-                  : const Chip(label: Text('Optionnel')),
-            ),
           ],
         ),
       ),
@@ -4668,100 +4752,100 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               'Publication',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '✅ Votre circuit est prêt !',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '✅ Votre circuit est prêt !',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Nom: ${_nameController.text.trim()}',
-                  style: const TextStyle(fontSize: 13),
-                ),
-                Text(
-                  'Points périmètre: ${_perimeterPoints.length}',
-                  style: const TextStyle(fontSize: 13),
-                ),
-                Text(
-                  'Points tracé: ${_routePoints.length}',
-                  style: const TextStyle(fontSize: 13),
-                ),
-                Text(
-                  'Score qualité: ${report.score}/100',
-                  style: const TextStyle(fontSize: 13),
-                ),
-              ],
-            ),
-          ),
-          if (!report.canPublish) ...[
-            const SizedBox(height: 12),
-            const Text(
-              '❌ Publication bloquée: corrige les points requis de l’étape Pré-publication.',
-              style: TextStyle(color: Colors.redAccent),
-            ),
-          ],
-          const SizedBox(height: 32),
-          const Text(
-            'Options de publication',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.cloud_upload),
-            onPressed: (report.canPublish && !_isEnsuringAllPoisLoaded)
-                ? _publishCircuit
-                : null,
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: Colors.green,
-            ),
-            label: const Text(
-              'PUBLIER LE CIRCUIT',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+                  const SizedBox(height: 12),
+                  Text(
+                    'Nom: ${_nameController.text.trim()}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  Text(
+                    'Points périmètre: ${_perimeterPoints.length}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  Text(
+                    'Points tracé: ${_routePoints.length}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  Text(
+                    'Score qualité: ${report.score}/100',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ],
               ),
             ),
-          ),
-          if (_isEnsuringAllPoisLoaded) ...[
-            const SizedBox(height: 12),
-            const Row(
-              children: [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+            if (!report.canPublish) ...[
+              const SizedBox(height: 12),
+              const Text(
+                '❌ Publication bloquée: corrige les points requis de l’étape Pré-publication.',
+                style: TextStyle(color: Colors.redAccent),
+              ),
+            ],
+            const SizedBox(height: 32),
+            const Text(
+              'Options de publication',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.cloud_upload),
+              onPressed: (report.canPublish && !_isEnsuringAllPoisLoaded)
+                  ? _publishCircuit
+                  : null,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: Colors.green,
+              ),
+              label: const Text(
+                'PUBLIER LE CIRCUIT',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
                 ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Chargement de tous les POIs avant publication…',
-                    style: TextStyle(fontSize: 12),
+              ),
+            ),
+            if (_isEnsuringAllPoisLoaded) ...[
+              const SizedBox(height: 12),
+              const Row(
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   ),
-                ),
-              ],
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Chargement de tous les POIs avant publication…',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.save_alt),
+              onPressed: () => _saveDraft(createSnapshot: true),
+              label: const Text('Rester en brouillon'),
             ),
           ],
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.save_alt),
-            onPressed: () => _saveDraft(createSnapshot: true),
-            label: const Text('Rester en brouillon'),
-          ),
-        ],
         ),
       ),
     );

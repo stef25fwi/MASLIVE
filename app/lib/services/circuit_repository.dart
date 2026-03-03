@@ -129,15 +129,22 @@ class CircuitRepository {
       'name': market['name'] ?? fallbackCircuitId,
       'countryId': fallbackCountryId,
       'eventId': fallbackEventId,
+      if (market['styleUrl'] != null) 'styleUrl': market['styleUrl'],
       'route': List<dynamic>.from(
         (market['route'] as List?) ?? const <dynamic>[],
       ),
       'perimeter': List<dynamic>.from(
         (market['perimeter'] as List?) ?? const <dynamic>[],
       ),
+      if (market['perimeterCircle'] is Map)
+        'perimeterCircle': market['perimeterCircle'],
+      if (market['perimeterMapCamera'] is Map)
+        'perimeterMapCamera': market['perimeterMapCamera'],
       'routeStyle': Map<String, dynamic>.from(
         (market['style'] as Map?) ?? const <String, dynamic>{},
       ),
+      if (market['routeStylePro'] is Map)
+        'routeStylePro': market['routeStylePro'],
       'status': 'published',
       'sourceOfTruth': 'map_projects',
     };
@@ -617,6 +624,91 @@ class CircuitRepository {
     final db = _firestore;
     final now = FieldValue.serverTimestamp();
 
+    Map<String, double>? publishedCenter;
+    Map<String, dynamic>? publishedBounds;
+    var publishedPerimeterLocked = false;
+    var publishedZoomLocked = false;
+    {
+      final circle = currentData['perimeterCircle'];
+      if (circle is Map && circle['enabled'] == true) {
+        final c = circle['center'];
+        if (c is Map) {
+          final lat = c['lat'];
+          final lng = c['lng'];
+          if (lat is num && lng is num) {
+            publishedCenter = {'lat': lat.toDouble(), 'lng': lng.toDouble()};
+          }
+        }
+      }
+
+      publishedCenter ??= () {
+        final perim = currentData['perimeter'];
+        if (perim is! List || perim.isEmpty) return null;
+
+        // Un périmètre existe: on considère qu'il est verrouillé côté publication.
+        publishedPerimeterLocked = perim.length >= 3;
+
+        double? minLat;
+        double? maxLat;
+        double? minLng;
+        double? maxLng;
+
+        for (final p in perim) {
+          if (p is! Map) continue;
+          final lat = p['lat'];
+          final lng = p['lng'];
+          if (lat is! num || lng is! num) continue;
+          final a = lat.toDouble();
+          final o = lng.toDouble();
+          minLat = (minLat == null) ? a : (a < minLat ? a : minLat);
+          maxLat = (maxLat == null) ? a : (a > maxLat ? a : maxLat);
+          minLng = (minLng == null) ? o : (o < minLng ? o : minLng);
+          maxLng = (maxLng == null) ? o : (o > maxLng ? o : maxLng);
+        }
+
+        if (minLat == null ||
+            maxLat == null ||
+            minLng == null ||
+            maxLng == null) {
+          return null;
+        }
+
+        publishedBounds = {
+          'sw': {'lat': minLat, 'lng': minLng},
+          'ne': {'lat': maxLat, 'lng': maxLng},
+        };
+
+        return {'lat': (minLat + maxLat) / 2.0, 'lng': (minLng + maxLng) / 2.0};
+      }();
+
+      publishedCenter ??= () {
+        final route = currentData['route'];
+        if (route is! List || route.isEmpty) return null;
+        final p = route.first;
+        if (p is! Map) return null;
+        final lat = p['lat'];
+        final lng = p['lng'];
+        if (lat is! num || lng is! num) return null;
+        return {'lat': lat.toDouble(), 'lng': lng.toDouble()};
+      }();
+    }
+
+    double? publishedInitialZoom;
+    {
+      final cam = currentData['perimeterMapCamera'];
+      if (cam is Map) {
+        final z = cam['initialZoom'];
+        if (z is num) publishedInitialZoom = z.toDouble();
+
+        final mz = cam['maxZoom'];
+        if (mz is num) publishedZoomLocked = true;
+      }
+      final z = currentData['initialZoom'];
+      if (publishedInitialZoom == null && z is num) {
+        publishedInitialZoom = z.toDouble();
+      }
+    }
+
     final projectRef = _projects.doc(projectId);
     final countryRef = db.collection('marketMap').doc(countryId);
     final eventRef = countryRef.collection('events').doc(eventId);
@@ -652,10 +744,17 @@ class CircuitRepository {
       'eventId': eventId,
       'createdByUid': actorUid,
       'isVisible': true,
+      'perimeterLocked': publishedPerimeterLocked,
+      'zoomLocked': publishedZoomLocked,
       'sourceProjectId': projectId,
       'publishedVersion': version,
       'publishedAt': now,
       'updatedAt': now,
+      if (publishedCenter != null) 'center': publishedCenter,
+      if (publishedInitialZoom != null) 'initialZoom': publishedInitialZoom,
+      if (publishedBounds != null) 'bounds': publishedBounds,
+      if (currentData['perimeterMapCamera'] is Map)
+        'perimeterMapCamera': currentData['perimeterMapCamera'],
       if ((currentData['styleUrl'] ?? '').toString().trim().isNotEmpty)
         'styleUrl': (currentData['styleUrl'] ?? '').toString().trim(),
       'route': currentData['route'] ?? const <dynamic>[],
