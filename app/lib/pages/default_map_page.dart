@@ -1449,32 +1449,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                                       child: ColoredBox(
                                         color: Colors.black,
                                         child: const Center(
-                                          child: SizedBox(
-                                            width: 34,
-                                            height: 20,
-                                            child: Stack(
-                                              clipBehavior: Clip.none,
-                                              children: [
-                                                Positioned(
-                                                  left: 0,
-                                                  top: 0,
-                                                  child: Icon(
-                                                    Icons.man,
-                                                    size: 20,
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
-                                                Positioned(
-                                                  right: 0,
-                                                  top: 0,
-                                                  child: Icon(
-                                                    Icons.woman,
-                                                    size: 20,
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
+                                          child: Icon(
+                                            Icons.wc_rounded,
+                                            size: 22,
+                                            color: Colors.white,
                                           ),
                                         ),
                                       ),
