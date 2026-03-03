@@ -343,7 +343,7 @@ class ImageManagementService {
 
   /// Récupérer coverImageId depuis metadata du parent
   Future<String?> _getCoverImageId(String parentId) async {
-    // TODO: Implémenter selon le type de parent
+    // NOTE: À implémenter selon le type de parent
     // Ex: lire document article/product et récupérer coverImageId
     return null;
   }

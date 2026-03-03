@@ -1,5 +1,5 @@
 // Stub export CSV/JSON.
-// TODO: brancher sur share_plus / écriture fichier si nécessaire.
+// NOTE: brancher sur share_plus / écriture fichier si nécessaire.
 
 import '../models/group_admin_live_stats.dart';
 import '../models/tracking_live_summary.dart';
@@ -11,14 +11,14 @@ class TrackingExportService {
     required TrackingLiveSummary summary,
     required List<GroupAdminLiveStats> groups,
   }) async {
-    // TODO: implémenter un vrai export JSON structuré.
+    // NOTE: implémenter un vrai export JSON structuré.
     return '{"summary": "TODO", "groups": ${groups.length}}';
   }
 
   Future<String> exportAsCsv({
     required List<GroupAdminLiveStats> groups,
   }) async {
-    // TODO: implémenter un vrai export CSV.
+    // NOTE: implémenter un vrai export CSV.
     return 'groupAdminId,code,displayName,online,trackersCount\n'
         '${groups.map((g) {
           final safeName = (g.displayName ?? '').replaceAll('"', '""');

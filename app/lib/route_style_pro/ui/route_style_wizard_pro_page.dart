@@ -416,7 +416,7 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
 
     return PopScope(
       canPop: _canPopNow,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
           _popHandlerInFlight = false;
           return;
@@ -430,7 +430,7 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
 
           // Autorise le pop puis relance une demande de pop.
           setState(() => _canPopNow = true);
-          final popped = await Navigator.of(context).maybePop();
+          final popped = await Navigator.of(this.context).maybePop();
           if (!mounted) return;
 
           // Si rien n'a pop (ex: route racine), on réarme le blocage.

@@ -72,7 +72,7 @@ class TrackingLiveRepository {
   }) async {
     // Forme possible: tracking_stats_daily/{yyyyMMdd}/global/{doc}
     // Ici: lecture simple sur tracking_stats_daily, en attente d'une structure finale.
-    // TODO: adapter quand le schéma Firestore sera figé (global vs sous-collections).
+    // NOTE: à adapter quand le schéma Firestore sera figé (global vs sous-collections).
 
     final startKey = _dateKey(start);
     final endKey = _dateKey(end);

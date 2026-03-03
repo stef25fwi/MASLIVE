@@ -18,78 +18,83 @@ class _AdminGroupsPageState extends State<AdminGroupsPage> {
   Future<void> _addTrackerToAdmin(GroupAdmin admin) async {
     final controller = TextEditingController();
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Ajouter un tracker'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Saisissez l\'UID du compte tracker (document Firestore).',
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                labelText: 'Tracker UID',
-                prefixIcon: Icon(Icons.badge),
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Ajouter un tracker'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Saisissez l\'UID du compte tracker (document Firestore).',
               ),
-              textInputAction: TextInputAction.done,
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  labelText: 'Tracker UID',
+                  prefixIcon: Icon(Icons.badge),
+                ),
+                textInputAction: TextInputAction.done,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Ajouter'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Ajouter'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    final trackerUid = controller.text.trim();
-    if (trackerUid.isEmpty) {
-      TopSnackBar.show(
-        context,
-        const SnackBar(
-          content: Text('UID tracker requis'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    try {
-      await _linkService.linkExistingTrackerToAdmin(
-        trackerUid: trackerUid,
-        adminGroupId: admin.adminGroupId,
-        linkedAdminUid: admin.uid,
       );
 
       if (!mounted) return;
-      TopSnackBar.show(
-        context,
-        const SnackBar(
-          content: Text('Tracker ajouté au groupe'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      TopSnackBar.show(
-        context,
-        SnackBar(
-          content: Text('Erreur: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (confirmed != true) return;
+
+      final trackerUid = controller.text.trim();
+      if (trackerUid.isEmpty) {
+        TopSnackBar.show(
+          context,
+          const SnackBar(
+            content: Text('UID tracker requis'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      try {
+        await _linkService.linkExistingTrackerToAdmin(
+          trackerUid: trackerUid,
+          adminGroupId: admin.adminGroupId,
+          linkedAdminUid: admin.uid,
+        );
+
+        if (!mounted) return;
+        TopSnackBar.show(
+          context,
+          const SnackBar(
+            content: Text('Tracker ajouté au groupe'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        TopSnackBar.show(
+          context,
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      controller.dispose();
     }
   }
 
@@ -182,7 +187,7 @@ class _AdminGroupsPageState extends State<AdminGroupsPage> {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: admins.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (_, _) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final admin = admins[index];
               return Card(

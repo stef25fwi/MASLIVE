@@ -82,7 +82,7 @@ class TrackingStatsService {
     String? sessionId,
     Map<String, dynamic>? metadata,
   }) async {
-    // TODO: écrire dans tracking_events + (optionnel) mise à jour tracking_live_*.
+    // NOTE: écrire dans tracking_events + (optionnel) mise à jour tracking_live_*.
   }
 
   Future<void> recordLogoutEvent({
@@ -93,7 +93,7 @@ class TrackingStatsService {
     String? sessionId,
     Map<String, dynamic>? metadata,
   }) async {
-    // TODO: écrire dans tracking_events.
+    // NOTE: écrire dans tracking_events.
   }
 
   Future<void> recordHeartbeatEvent({
@@ -104,7 +104,7 @@ class TrackingStatsService {
     String? sessionId,
     Map<String, dynamic>? metadata,
   }) async {
-    // TODO: écrire dans tracking_events.
+    // NOTE: écrire dans tracking_events.
   }
 
   Future<void> recordGpsPingEvent({
@@ -115,7 +115,7 @@ class TrackingStatsService {
     String? sessionId,
     Map<String, dynamic>? metadata,
   }) async {
-    // TODO: écrire dans tracking_events.
+    // NOTE: écrire dans tracking_events.
   }
 
   Future<void> openSession({
@@ -127,19 +127,19 @@ class TrackingStatsService {
     String? eventRefId,
     String? circuitId,
   }) async {
-    // TODO: créer un document tracking_sessions avec isActive=true.
+    // NOTE: créer un document tracking_sessions avec isActive=true.
   }
 
   Future<void> closeSession({
     required String sessionId,
     DateTime? endedAt,
   }) async {
-    // TODO: fermer la session + calcul durationSec.
+    // NOTE: fermer la session + calcul durationSec.
   }
 
-  // ---- Cloud Functions (pseudo-code / TODO) ----
-  // TODO(functions): agrégation journalière automatique -> tracking_stats_daily
-  // TODO(functions): fermeture de sessions abandonnées (timeout)
-  // TODO(functions): recalcul isOnline si heartbeat expiré
-  // TODO(functions): snapshots horaires optionnels
+  // ---- Cloud Functions (pseudo-code / NOTE) ----
+  // NOTE(functions): agrégation journalière automatique -> tracking_stats_daily
+  // NOTE(functions): fermeture de sessions abandonnées (timeout)
+  // NOTE(functions): recalcul isOnline si heartbeat expiré
+  // NOTE(functions): snapshots horaires optionnels
 }

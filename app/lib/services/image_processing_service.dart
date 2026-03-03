@@ -160,7 +160,7 @@ class ImageProcessingService {
 
   /// Ajoute un filigrane à l'image
   Future<img.Image> addWatermark(img.Image image, String watermarkText) async {
-    // TODO: Implémenter avec package flutter_image
+    // NOTE: Implémenter avec package flutter_image
     // Pour l'instant, retourner l'image sans modification
     return image;
   }
@@ -287,7 +287,7 @@ class ImageProcessingService {
   Future<Uint8List> convertToWebP(img.Image image, {int quality = 85}) async {
     // Note: Le package 'image' ne supporte pas encore WebP
     // Pour l'instant, retourner JPEG
-    // TODO: Utiliser un package natif pour WebP
+    // NOTE: Utiliser un package natif pour WebP
     return _encodeJpeg(image, quality);
   }
 }

@@ -1760,8 +1760,9 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
 
   String _formatTokenHint(String token) {
     final t = token.trim();
-    if (t.isEmpty)
+    if (t.isEmpty) {
       return '[TOKEN_MISSING] Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).';
+    }
     // Mapbox: tokens publics typiquement `pk.`. On accepte aussi `pk_` par tolérance
     // (certaines configs historiques/masquées utilisent ce préfixe).
     if (!t.startsWith('pk.') && !t.startsWith('pk_')) {
