@@ -74,7 +74,7 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
         children: [
           // Header
           Container(
-            color: Colors.blue.withValues(alpha: 0.05),
+            color: Theme.of(context).scaffoldBackgroundColor,
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,

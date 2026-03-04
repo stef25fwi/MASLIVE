@@ -841,6 +841,9 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width;
+    final scale = (w / 390.0).clamp(0.85, 1.15);
+
     final header = widget.showHeader
         ? Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -856,8 +859,8 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                 children: [
                   Text(
                     widget.title,
-                    style: const TextStyle(
-                      fontSize: 18,
+                    style: TextStyle(
+                      fontSize: 18 * scale,
                       fontWeight: FontWeight.w800,
                       color: MasliveTokens.text,
                     ),
@@ -865,8 +868,9 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                   const SizedBox(height: 4),
                   Text(
                     widget.subtitle,
+                    textAlign: TextAlign.justify,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 13 * scale,
                       fontWeight: FontWeight.w600,
                       color: MasliveTokens.textSoft,
                     ),
@@ -1049,6 +1053,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
               Expanded(
                 child: Text(
                   'Liste des points: ajoutez des points sur la carte',
+                  textAlign: TextAlign.justify,
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,

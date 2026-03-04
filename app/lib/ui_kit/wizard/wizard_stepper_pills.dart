@@ -6,6 +6,7 @@ class WizardStepperPills extends StatefulWidget {
   final int currentStep;
   final List<String> labels;
   final ValueChanged<int>? onStepTap;
+  final EdgeInsetsGeometry padding;
 
   /// Permet de conserver la logique existante de verrouillage des étapes.
   final bool Function(int step)? isStepEnabled;
@@ -20,6 +21,7 @@ class WizardStepperPills extends StatefulWidget {
     this.onStepTap,
     this.isStepEnabled,
     this.isStepCompleted,
+    this.padding = const EdgeInsets.symmetric(horizontal: MasliveTokens.m),
   });
 
   @override
@@ -77,12 +79,24 @@ class _WizardStepperPillsState extends State<WizardStepperPills> {
 
   @override
   Widget build(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width;
+    final scale = (w / 390.0).clamp(0.85, 1.15);
+    final stepperHeight = 56.0 * scale;
+    final pillFontSize = 13.0 * scale;
+    final pillHPad = MasliveTokens.m * scale;
+    final pillVPad = MasliveTokens.s * scale;
+    final dotSize = 8.0 * scale;
+    final checkSize = 14.0 * scale;
+    final checkPad = 4.0 * scale;
+    final activeBarH = 3.0 * scale;
+    final activeBarW = 22.0 * scale;
+
     return SizedBox(
-      height: 56,
+      height: stepperHeight,
       child: ListView.separated(
         controller: _scrollController,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: MasliveTokens.m),
+        padding: widget.padding,
         itemBuilder: (context, index) {
           final label = widget.labels[index];
           final isEnabled = widget.isStepEnabled?.call(index) ?? true;
@@ -110,9 +124,9 @@ class _WizardStepperPillsState extends State<WizardStepperPills> {
           Widget pillChild = AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOut,
-            padding: const EdgeInsets.symmetric(
-              horizontal: MasliveTokens.m,
-              vertical: MasliveTokens.s,
+            padding: EdgeInsets.symmetric(
+              horizontal: pillHPad,
+              vertical: pillVPad,
             ),
             decoration: BoxDecoration(
               color: bg,
@@ -128,16 +142,16 @@ class _WizardStepperPillsState extends State<WizardStepperPills> {
                       color: MasliveTokens.success,
                       borderRadius: BorderRadius.circular(MasliveTokens.rPill),
                     ),
-                    child: const Padding(
-                      padding: EdgeInsets.all(4),
-                      child: Icon(Icons.check, size: 14, color: Colors.white),
+                    child: Padding(
+                      padding: EdgeInsets.all(checkPad),
+                      child: Icon(Icons.check, size: checkSize, color: Colors.white),
                     ),
                   ),
                   const SizedBox(width: MasliveTokens.xs),
                 ] else if (isActive) ...[
                   Container(
-                    width: 8,
-                    height: 8,
+                    width: dotSize,
+                    height: dotSize,
                     decoration: BoxDecoration(
                       color: MasliveTokens.primary,
                       borderRadius: BorderRadius.circular(8),
@@ -148,7 +162,7 @@ class _WizardStepperPillsState extends State<WizardStepperPills> {
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: pillFontSize,
                     fontWeight: isActive ? FontWeight.w800 : FontWeight.w700,
                     color: fg.withValues(alpha: isEnabled ? 1.0 : 0.40),
                   ),
@@ -166,8 +180,8 @@ class _WizardStepperPillsState extends State<WizardStepperPills> {
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeOut,
-                  height: 3,
-                  width: 22,
+                  height: activeBarH,
+                  width: activeBarW,
                   decoration: BoxDecoration(
                     color: MasliveTokens.primary.withValues(alpha: 0.75),
                     borderRadius: BorderRadius.circular(999),

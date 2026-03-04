@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_user.dart';
 import '../services/auth_claims_service.dart';
 import '../ui/snack/top_snack_bar.dart';
@@ -40,53 +39,11 @@ class AdminMainDashboard extends StatefulWidget {
   State<AdminMainDashboard> createState() => _AdminMainDashboardState();
 }
 
-enum _AdminDashboardThemePreset {
-  /// Thème actuel de la page Admin (UI “classique” existante)
-  defaultPreset,
-
-  /// Thème global de l'app (MasliveTheme pastel)
-  app,
-}
-
-extension _AdminDashboardThemePresetX on _AdminDashboardThemePreset {
-  static _AdminDashboardThemePreset? tryParse(String? raw) {
-    switch (raw) {
-      case 'default':
-        return _AdminDashboardThemePreset.defaultPreset;
-      case 'app':
-        return _AdminDashboardThemePreset.app;
-    }
-    return null;
-  }
-
-  String get id {
-    switch (this) {
-      case _AdminDashboardThemePreset.defaultPreset:
-        return 'default';
-      case _AdminDashboardThemePreset.app:
-        return 'app';
-    }
-  }
-
-  String get label {
-    switch (this) {
-      case _AdminDashboardThemePreset.defaultPreset:
-        return 'Default';
-      case _AdminDashboardThemePreset.app:
-        return 'App';
-    }
-  }
-}
-
 class _AdminMainDashboardState extends State<AdminMainDashboard> {
   final _authService = AuthClaimsService.instance;
   final _firestore = FirebaseFirestore.instance;
   AppUser? _currentUser;
   bool _isLoading = true;
-
-  static const String _prefsKeyThemePreset = 'admin.mainDashboard.themePreset';
-  _AdminDashboardThemePreset _themePreset =
-      _AdminDashboardThemePreset.defaultPreset;
 
   Stream<int> _watchProductsCount({String? shopId}) {
     final col = (shopId != null && shopId.trim().isNotEmpty)
@@ -166,41 +123,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
   @override
   void initState() {
     super.initState();
-    _loadThemePreset();
     _loadUser();
-  }
-
-  Future<void> _loadThemePreset() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_prefsKeyThemePreset);
-      final parsed = _AdminDashboardThemePresetX.tryParse(raw);
-      if (!mounted || parsed == null) return;
-      setState(() => _themePreset = parsed);
-    } catch (_) {
-      // Best-effort: on garde le preset par défaut.
-    }
-  }
-
-  Future<void> _setThemePreset(_AdminDashboardThemePreset preset) async {
-    if (_themePreset == preset) return;
-    setState(() => _themePreset = preset);
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_prefsKeyThemePreset, preset.id);
-    } catch (_) {
-      // Best-effort.
-    }
-  }
-
-  ThemeData _themeDataForPreset(BuildContext context) {
-    final base = Theme.of(context);
-    switch (_themePreset) {
-      case _AdminDashboardThemePreset.defaultPreset:
-        return base.copyWith(scaffoldBackgroundColor: Colors.grey[50]);
-      case _AdminDashboardThemePreset.app:
-        return base;
-    }
   }
 
   Future<void> _loadUser() async {
@@ -222,7 +145,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final themed = _themeDataForPreset(context);
+    final themed = Theme.of(context).copyWith(scaffoldBackgroundColor: Colors.grey[50]);
 
     return Theme(
       data: themed,
@@ -244,10 +167,6 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Toggle thème (sous le header)
-                  _buildThemePresetToggle(),
-                  const SizedBox(height: 12),
-
                   // Header avec info utilisateur
                   _buildWelcomeCard(),
                   const SizedBox(height: 24),
@@ -784,43 +703,6 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
     );
   }
 
-  Widget _buildThemePresetToggle() {
-    final theme = Theme.of(context);
-    final labelStyle =
-        theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800) ??
-        const TextStyle(fontWeight: FontWeight.w800);
-
-    return Row(
-      children: [
-        Text('Thème', style: labelStyle),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: SegmentedButton<_AdminDashboardThemePreset>(
-              segments: [
-                ButtonSegment(
-                  value: _AdminDashboardThemePreset.defaultPreset,
-                  label: Text(_AdminDashboardThemePreset.defaultPreset.label),
-                ),
-                ButtonSegment(
-                  value: _AdminDashboardThemePreset.app,
-                  label: Text(_AdminDashboardThemePreset.app.label),
-                ),
-              ],
-              selected: {_themePreset},
-              showSelectedIcon: false,
-              onSelectionChanged: (selection) {
-                final preset = selection.first;
-                unawaited(_setThemePreset(preset));
-              },
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Future<void> _showCommitPushDialog() async {
     final messageController = TextEditingController(
       text: 'Update via dashboard',
@@ -866,6 +748,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                   Expanded(
                     child: Text(
                       'Cette action va committer tous les changements et les pousser vers GitHub',
+                      textAlign: TextAlign.justify,
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.orange.shade900,
@@ -909,7 +792,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text('Commit & Push en cours...'),
+            Text('Commit & Push en cours...', textAlign: TextAlign.justify),
           ],
         ),
       ),
@@ -993,7 +876,10 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Compiler l\'application Flutter en mode Web:'),
+            const Text(
+              'Compiler l\'application Flutter en mode Web:',
+              textAlign: TextAlign.justify,
+            ),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -1024,6 +910,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                   const Expanded(
                     child: Text(
                       'La compilation peut prendre 1-2 minutes',
+                      textAlign: TextAlign.justify,
                       style: TextStyle(fontSize: 12),
                     ),
                   ),
@@ -1123,7 +1010,10 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Déployer l\'application sur Firebase Hosting:'),
+            const Text(
+              'Déployer l\'application sur Firebase Hosting:',
+              textAlign: TextAlign.justify,
+            ),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -1155,6 +1045,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                   const Expanded(
                     child: Text(
                       'Assurez-vous que le build a été effectué',
+                      textAlign: TextAlign.justify,
                       style: TextStyle(fontSize: 12),
                     ),
                   ),
@@ -1292,19 +1183,23 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                   const SizedBox(height: 8),
                   const Text(
                     '1. Git commit & push',
+                    textAlign: TextAlign.justify,
                     style: TextStyle(fontSize: 12),
                   ),
                   const Text(
                     '2. Flutter build web',
+                    textAlign: TextAlign.justify,
                     style: TextStyle(fontSize: 12),
                   ),
                   const Text(
                     '3. Firebase deploy',
+                    textAlign: TextAlign.justify,
                     style: TextStyle(fontSize: 12),
                   ),
                   const SizedBox(height: 8),
                   const Text(
                     '⏱️ Durée estimée: 2-3 minutes',
+                    textAlign: TextAlign.justify,
                     style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
                   ),
                 ],
@@ -1360,6 +1255,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                 const SizedBox(height: 16),
                 Text(
                   currentStep,
+                  textAlign: TextAlign.justify,
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
@@ -1515,6 +1411,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                     children: [
                       const Text(
                         'Ce test appelle la Cloud Function Stripe et vérifie la connexion au service de paiement.',
+                        textAlign: TextAlign.justify,
                         style: TextStyle(fontSize: 12),
                       ),
                       const SizedBox(height: 16),
@@ -1581,6 +1478,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                               const SizedBox(height: 8),
                               Text(
                                 result!,
+                                textAlign: TextAlign.justify,
                                 style: const TextStyle(fontSize: 12),
                               ),
                             ],
@@ -1692,6 +1590,7 @@ Vérifiez:
               ),
               child: Text(
                 _currentUser?.initials ?? 'AD',
+                textAlign: TextAlign.justify,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 20,
@@ -1706,6 +1605,7 @@ Vérifiez:
                 children: [
                   Text(
                     'Bonjour, ${_currentUser?.displayName ?? _currentUser?.email ?? 'Admin'}',
+                    textAlign: TextAlign.justify,
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -1714,6 +1614,7 @@ Vérifiez:
                   const SizedBox(height: 4),
                   Text(
                     _currentUser?.roleLabel ?? 'Administrateur',
+                    textAlign: TextAlign.justify,
                     style: TextStyle(
                       color: MasLiveTheme.getRoleColor(
                         _currentUser?.role ?? 'admin',
@@ -1731,12 +1632,7 @@ Vérifiez:
   }
 
   Widget _buildSectionTitle(String title, IconData icon) {
-    final iconColor = switch (_themePreset) {
-      _AdminDashboardThemePreset.defaultPreset => Colors.grey[700],
-      _AdminDashboardThemePreset.app => Theme.of(
-        context,
-      ).colorScheme.onSurfaceVariant,
-    };
+    final iconColor = Colors.grey[700];
 
     final titleStyle =
         Theme.of(
@@ -1748,7 +1644,7 @@ Vérifiez:
       children: [
         Icon(icon, size: 24, color: iconColor),
         const SizedBox(width: 8),
-        Text(title, style: titleStyle),
+        Text(title, textAlign: TextAlign.justify, style: titleStyle),
       ],
     );
   }
@@ -1761,30 +1657,9 @@ Vérifiez:
     Widget? badge,
     required VoidCallback onTap,
   }) {
-    final borderRadius = switch (_themePreset) {
-      _AdminDashboardThemePreset.defaultPreset => BorderRadius.circular(12),
-      _AdminDashboardThemePreset.app => () {
-        final shape = Theme.of(context).cardTheme.shape;
-        if (shape is RoundedRectangleBorder) {
-          final radius = shape.borderRadius;
-          if (radius is BorderRadius) return radius;
-        }
-        return BorderRadius.circular(12);
-      }(),
-    };
-
-    final elevation = switch (_themePreset) {
-      _AdminDashboardThemePreset.defaultPreset => 2.0,
-      _AdminDashboardThemePreset.app =>
-        Theme.of(context).cardTheme.elevation ?? 0.0,
-    };
-
-    final subtitleColor = switch (_themePreset) {
-      _AdminDashboardThemePreset.defaultPreset => Colors.grey[600],
-      _AdminDashboardThemePreset.app => Theme.of(
-        context,
-      ).colorScheme.onSurfaceVariant,
-    };
+    final borderRadius = BorderRadius.circular(12);
+    const elevation = 2.0;
+    final subtitleColor = Colors.grey[600];
 
     return Card(
       elevation: elevation,
@@ -1811,6 +1686,7 @@ Vérifiez:
                   Expanded(
                     child: Text(
                       title,
+                      textAlign: TextAlign.justify,
                       style:
                           Theme.of(context).textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
@@ -1827,6 +1703,7 @@ Vérifiez:
               const SizedBox(height: 4),
               Text(
                 subtitle,
+                textAlign: TextAlign.justify,
                 style:
                     Theme.of(
                       context,

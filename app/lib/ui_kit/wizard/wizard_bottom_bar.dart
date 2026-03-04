@@ -11,6 +11,9 @@ class WizardBottomBar extends StatelessWidget {
   final bool showPrevious;
   final bool showNext;
 
+  final EdgeInsetsGeometry outerPadding;
+  final EdgeInsetsGeometry panelPadding;
+
   const WizardBottomBar({
     super.key,
     required this.onSave,
@@ -18,28 +21,36 @@ class WizardBottomBar extends StatelessWidget {
     this.onNext,
     required this.showPrevious,
     required this.showNext,
+    this.outerPadding = const EdgeInsets.fromLTRB(
+      MasliveTokens.m,
+      MasliveTokens.s,
+      MasliveTokens.m,
+      MasliveTokens.m,
+    ),
+    this.panelPadding = const EdgeInsets.all(MasliveTokens.s),
   });
 
   @override
   Widget build(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width;
+    final scale = (w / 390.0).clamp(0.85, 1.15);
+    final buttonHeight = 52.0 * scale;
+    final buttonFontSize = 16.0 * scale;
+    final saveIconSize = 20.0 * scale;
+
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          MasliveTokens.m,
-          MasliveTokens.s,
-          MasliveTokens.m,
-          MasliveTokens.m,
-        ),
+        padding: outerPadding,
         child: GlassPanel(
           radius: MasliveTokens.rXL,
           opacity: 0.76,
-          padding: const EdgeInsets.all(MasliveTokens.s),
+          padding: panelPadding,
           child: Row(
             children: [
               Expanded(
                 child: SizedBox(
-                  height: 52,
+                  height: buttonHeight,
                   child: showPrevious
                       ? OutlinedButton(
                           style: OutlinedButton.styleFrom(
@@ -47,8 +58,8 @@ class WizardBottomBar extends StatelessWidget {
                             side: BorderSide(
                               color: MasliveTokens.primary.withValues(alpha: 0.28),
                             ),
-                            textStyle: const TextStyle(
-                              fontSize: 16,
+                            textStyle: TextStyle(
+                              fontSize: buttonFontSize,
                               fontWeight: FontWeight.w700,
                             ),
                             shape: RoundedRectangleBorder(
@@ -64,20 +75,20 @@ class WizardBottomBar extends StatelessWidget {
               const SizedBox(width: MasliveTokens.s),
               Expanded(
                 child: SizedBox(
-                  height: 52,
+                  height: buttonHeight,
                   child: FilledButton.icon(
                     style: FilledButton.styleFrom(
                       backgroundColor: MasliveTokens.text,
                       foregroundColor: Colors.white,
-                      textStyle: const TextStyle(
-                        fontSize: 16,
+                      textStyle: TextStyle(
+                        fontSize: buttonFontSize,
                         fontWeight: FontWeight.w800,
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(MasliveTokens.rPill),
                       ),
                     ),
-                    icon: const Icon(Icons.save, size: 20, color: Colors.white),
+                    icon: Icon(Icons.save, size: saveIconSize, color: Colors.white),
                     onPressed: onSave,
                     label: const Text('Sauvegarder'),
                   ),
@@ -86,14 +97,14 @@ class WizardBottomBar extends StatelessWidget {
               const SizedBox(width: MasliveTokens.s),
               Expanded(
                 child: SizedBox(
-                  height: 52,
+                  height: buttonHeight,
                   child: showNext
                       ? FilledButton(
                           style: FilledButton.styleFrom(
                             backgroundColor: MasliveTokens.primary,
                             foregroundColor: Colors.white,
-                            textStyle: const TextStyle(
-                              fontSize: 16,
+                            textStyle: TextStyle(
+                              fontSize: buttonFontSize,
                               fontWeight: FontWeight.w800,
                             ),
                             shape: RoundedRectangleBorder(

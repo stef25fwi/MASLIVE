@@ -1632,11 +1632,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         body: SoftBackground(
           child: Column(
             children: [
-              const GlassAppBar(title: 'Chargement…'),
+              const GlassAppBar(title: 'Chargement…', padding: EdgeInsets.zero),
               const SizedBox(height: MasliveTokens.s),
               WizardStepperPills(
                 currentStep: _currentStep,
                 labels: stepLabels,
+                padding: EdgeInsets.zero,
               ),
               const SizedBox(height: MasliveTokens.s),
               const Expanded(child: Center(child: CircularProgressIndicator())),
@@ -1651,11 +1652,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         body: SoftBackground(
           child: Column(
             children: [
-              const GlassAppBar(title: 'Erreur'),
+              const GlassAppBar(title: 'Erreur', padding: EdgeInsets.zero),
               const SizedBox(height: MasliveTokens.s),
               WizardStepperPills(
                 currentStep: _currentStep,
                 labels: stepLabels,
+                padding: EdgeInsets.zero,
               ),
               const SizedBox(height: MasliveTokens.s),
               Expanded(
@@ -1713,11 +1715,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       body: SoftBackground(
         child: Column(
           children: [
-            const GlassAppBar(title: 'Wizard Circuit Pro'),
+            const GlassAppBar(title: 'Wizard Circuit Pro', padding: EdgeInsets.zero),
             const SizedBox(height: MasliveTokens.s),
             WizardStepperPills(
               currentStep: _currentStep,
               labels: stepLabels,
+              padding: EdgeInsets.zero,
               onStepTap: (index) => unawaited(_continueToStep(index)),
               isStepEnabled: isStepEnabled,
               isStepCompleted: isStepCompleted,
@@ -1778,6 +1781,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               ),
             ),
             WizardBottomBar(
+              outerPadding: EdgeInsets.zero,
+              panelPadding: EdgeInsets.zero,
               showPrevious: (!widget.poiOnly && _currentStep > 0),
               onPrevious: (!widget.poiOnly && _currentStep > 0)
                   ? () => _pageController.previousPage(

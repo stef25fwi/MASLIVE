@@ -9,12 +9,14 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final Widget? leading;
   final List<Widget>? actions;
+  final EdgeInsetsGeometry padding;
 
   const GlassAppBar({
     super.key,
     required this.title,
     this.leading,
     this.actions,
+    this.padding = const EdgeInsets.symmetric(horizontal: MasliveTokens.m),
   });
 
   @override
@@ -22,22 +24,27 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width;
+    final scale = (w / 390.0).clamp(0.85, 1.15);
+    final iconSize = 22.0 * scale;
+    final titleSize = 18.0 * scale;
+
     return SafeArea(
       bottom: false,
       child: GlassPanel(
         radius: 0,
         opacity: 0.76,
-        padding: const EdgeInsets.symmetric(horizontal: MasliveTokens.m),
+        padding: padding,
         child: SizedBox(
           height: 56,
           child: IconTheme(
             data: IconThemeData(
               color: MasliveTokens.text,
-              size: 22,
+              size: iconSize,
             ),
             child: DefaultTextStyle(
-              style: const TextStyle(
-                fontSize: 18,
+              style: TextStyle(
+                fontSize: titleSize,
                 fontWeight: FontWeight.w700,
                 color: MasliveTokens.text,
               ),
