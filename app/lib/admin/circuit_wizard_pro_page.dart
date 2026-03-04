@@ -2221,7 +2221,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       constraints: const BoxConstraints(maxWidth: 520),
       child: GlassPanel(
         radius: MasliveTokens.rM,
-        blur: MasliveTokens.blurL,
         opacity: 0.76,
         padding: const EdgeInsets.symmetric(
           horizontal: MasliveTokens.s,
@@ -2939,7 +2938,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         ),
         child: GlassPanel(
           radius: MasliveTokens.rL,
-          blur: MasliveTokens.blurL,
           opacity: 0.76,
           padding: const EdgeInsets.all(MasliveTokens.l),
           child: Column(
@@ -2992,7 +2990,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
       return GlassPanel(
         radius: MasliveTokens.rL,
-        blur: MasliveTokens.blurL,
         opacity: 0.78,
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -4895,7 +4892,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           children: [
             GlassPanel(
               radius: MasliveTokens.rL,
-              blur: MasliveTokens.blurL,
               opacity: 0.78,
               padding: const EdgeInsets.all(MasliveTokens.m),
               child: Column(
@@ -4934,7 +4930,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             const SizedBox(height: MasliveTokens.m),
             GlassPanel(
               radius: MasliveTokens.rL,
-              blur: MasliveTokens.blurL,
               opacity: 0.76,
               padding: const EdgeInsets.fromLTRB(
                 MasliveTokens.s,
@@ -5000,7 +4995,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           children: [
             GlassPanel(
               radius: MasliveTokens.rL,
-              blur: MasliveTokens.blurL,
               opacity: 0.78,
               padding: const EdgeInsets.all(MasliveTokens.m),
               child: Column(
@@ -5084,7 +5078,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             const SizedBox(height: MasliveTokens.m),
             GlassPanel(
               radius: MasliveTokens.rL,
-              blur: MasliveTokens.blurL,
               opacity: 0.76,
               padding: const EdgeInsets.all(MasliveTokens.m),
               child: Column(

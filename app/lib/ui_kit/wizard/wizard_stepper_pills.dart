@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import '../tokens/maslive_tokens.dart';
@@ -156,18 +154,6 @@ class _WizardStepperPillsState extends State<WizardStepperPills> {
                   ),
                 ),
               ],
-            ),
-          );
-
-          // Glass blur behind (light, cheap).
-          pillChild = ClipRRect(
-            borderRadius: BorderRadius.circular(MasliveTokens.rPill),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(
-                sigmaX: MasliveTokens.blurM,
-                sigmaY: MasliveTokens.blurM,
-              ),
-              child: pillChild,
             ),
           );
 

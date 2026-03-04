@@ -33,7 +33,6 @@ class WizardBottomBar extends StatelessWidget {
         ),
         child: GlassPanel(
           radius: MasliveTokens.rXL,
-          blur: MasliveTokens.blurL,
           opacity: 0.76,
           padding: const EdgeInsets.all(MasliveTokens.s),
           child: Row(

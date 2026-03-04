@@ -887,7 +887,6 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
             ),
             child: GlassPanel(
               radius: MasliveTokens.rM,
-              blur: MasliveTokens.blurL,
               opacity: 0.76,
               padding: const EdgeInsets.symmetric(
                 horizontal: MasliveTokens.s,

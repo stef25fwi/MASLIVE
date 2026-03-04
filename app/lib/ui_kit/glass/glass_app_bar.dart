@@ -26,7 +26,6 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
       bottom: false,
       child: GlassPanel(
         radius: 0,
-        blur: MasliveTokens.blurM,
         opacity: 0.76,
         padding: const EdgeInsets.symmetric(horizontal: MasliveTokens.m),
         child: SizedBox(
