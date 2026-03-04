@@ -297,27 +297,6 @@
       ]
     },
     {
-      "collectionGroup": "pois",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {"fieldPath": "name", "order": "ASCENDING"}
-      ]
-    },
-    {
-      "collectionGroup": "pois",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {"fieldPath": "layerType", "order": "ASCENDING"}
-      ]
-    },
-    {
-      "collectionGroup": "layers",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {"fieldPath": "zIndex", "order": "ASCENDING"}
-      ]
-    },
-    {
       "collectionGroup": "audit_events",
       "queryScope": "COLLECTION",
       "fields": [

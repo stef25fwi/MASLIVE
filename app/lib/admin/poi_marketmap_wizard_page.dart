@@ -461,35 +461,6 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
     return normalized.length > 60 ? normalized.substring(0, 60).trim() : normalized;
   }
 
-  Future<void> _createCountry() async {
-    final name = await _promptName(
-      title: 'Créer un pays',
-      hint: 'Ex: Guadeloupe',
-    );
-    if (!mounted || name == null) return;
-
-    final countryId = MarketMapService.slugify(name);
-    final now = FieldValue.serverTimestamp();
-
-    await _service.countryRef(countryId).set({
-      'name': name,
-      'slug': countryId,
-      'createdAt': now,
-      'updatedAt': now,
-    }, SetOptions(merge: true));
-
-    setState(() {
-      _country = MarketCountry(
-        id: countryId,
-        name: name,
-        slug: countryId,
-      );
-      _event = null;
-      _circuit = null;
-      _step = 1;
-    });
-  }
-
   Future<void> _createEvent() async {
     final country = _country;
     if (country == null) return;
@@ -688,48 +659,36 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: StreamBuilder<Set<String>>(
-                  stream: _countryIdsWithAtLeastOneEvent$,
-                  builder: (context, idsSnap) {
-                    return StreamBuilder<List<MarketCountry>>(
-                      stream: _service.watchCountries(),
-                      builder: (context, snapshot) {
-                        final allowed = idsSnap.data;
-                        var items = snapshot.data ?? const <MarketCountry>[];
-                        if (allowed != null) {
-                          items = items.where((c) => allowed.contains(c.id)).toList();
-                        }
+          StreamBuilder<Set<String>>(
+            stream: _countryIdsWithAtLeastOneEvent$,
+            builder: (context, idsSnap) {
+              return StreamBuilder<List<MarketCountry>>(
+                stream: _service.watchCountries(),
+                builder: (context, snapshot) {
+                  final allowed = idsSnap.data;
+                  var items = snapshot.data ?? const <MarketCountry>[];
+                  if (allowed != null) {
+                    items = items.where((c) => allowed.contains(c.id)).toList();
+                  }
 
-                        return MarketCountryAutocompleteField(
-                          items: items,
-                          controller: _countryCtrl,
-                          labelText: 'Pays',
-                          hintText: 'Rechercher un pays…',
-                          onSelected: (c) {
-                            setState(() {
-                              _country = c;
-                              _event = null;
-                              _circuit = null;
-                              _selectedCircuitPickKey = null;
-                              _step = 1;
-                            });
-                          },
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(width: 12),
-              IconButton.filledTonal(
-                tooltip: 'Créer un pays',
-                onPressed: _createCountry,
-                icon: const Icon(Icons.add_rounded),
-              ),
-            ],
+                  return MarketCountryAutocompleteField(
+                    items: items,
+                    controller: _countryCtrl,
+                    labelText: 'Pays',
+                    hintText: 'Rechercher un pays…',
+                    onSelected: (c) {
+                      setState(() {
+                        _country = c;
+                        _event = null;
+                        _circuit = null;
+                        _selectedCircuitPickKey = null;
+                        _step = 1;
+                      });
+                    },
+                  );
+                },
+              );
+            },
           ),
           const SizedBox(height: 16),
           const Text(
@@ -1222,37 +1181,52 @@ class _Breadcrumb extends StatelessWidget {
       );
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+    return Padding(
       padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          chip(
-            index: 0,
-            label: countryName == null || countryName!.isEmpty
-                ? 'Pays'
-                : 'Pays: $countryName',
-            enabled: step >= 0,
-          ),
-          const SizedBox(width: 8),
-          chip(
-            index: 1,
-            label: eventName == null || eventName!.isEmpty
-                ? 'Événement'
-                : 'Événement: $eventName',
-            enabled: step >= 1,
-          ),
-          const SizedBox(width: 8),
-          chip(
-            index: 2,
-            label: circuitName == null || circuitName!.isEmpty
-                ? 'Circuit'
-                : 'Circuit: $circuitName',
-            enabled: step >= 2,
-          ),
-          const SizedBox(width: 8),
-          chip(index: 3, label: 'Couches', enabled: step >= 3),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final tileWidth = (constraints.maxWidth - 8) / 2;
+          return Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              SizedBox(
+                width: tileWidth,
+                child: chip(
+                  index: 0,
+                  label: countryName == null || countryName!.isEmpty
+                      ? 'Pays'
+                      : 'Pays: $countryName',
+                  enabled: step >= 0,
+                ),
+              ),
+              SizedBox(
+                width: tileWidth,
+                child: chip(
+                  index: 1,
+                  label: eventName == null || eventName!.isEmpty
+                      ? 'Événement'
+                      : 'Événement: $eventName',
+                  enabled: step >= 1,
+                ),
+              ),
+              SizedBox(
+                width: tileWidth,
+                child: chip(
+                  index: 2,
+                  label: circuitName == null || circuitName!.isEmpty
+                      ? 'Circuit'
+                      : 'Circuit: $circuitName',
+                  enabled: step >= 2,
+                ),
+              ),
+              SizedBox(
+                width: tileWidth,
+                child: chip(index: 3, label: 'Couches', enabled: step >= 3),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

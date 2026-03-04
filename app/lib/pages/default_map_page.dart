@@ -281,15 +281,14 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         prefs.getBool(_prefsKeyDidAutoOpenActionsMenuOnce) ?? false;
     if (!mounted) return;
 
-    // Toujours ouvrir le menu, mais afficher la tooltip uniquement au premier lancement.
-    final showTooltip = !didAutoOpen;
+      // Ouvrir le menu et afficher la tooltip à chaque lancement
+      final showTooltip = true;
 
-    if (showTooltip) {
-      // On marque avant d'afficher pour éviter les doubles ouvertures en cas de
-      // rebuild/relance rapide.
-      await prefs.setBool(_prefsKeyDidAutoOpenActionsMenuOnce, true);
-      if (!mounted) return;
-    }
+      if (!didAutoOpen) {
+        // Marquer le premier lancement automatique si jamais
+        await prefs.setBool(_prefsKeyDidAutoOpenActionsMenuOnce, true);
+        if (!mounted) return;
+      }
 
     setState(() {
       _showActionsMenu = true;

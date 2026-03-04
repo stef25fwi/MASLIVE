@@ -1773,7 +1773,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 children: [
                   Expanded(
                     child: SizedBox(
-                      height: 48,
+                      height: 56,
                       child: (!widget.poiOnly && _currentStep > 0)
                           ? OutlinedButton(
                               style: OutlinedButton.styleFrom(
@@ -1782,6 +1782,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                                   color: proBlue.withValues(alpha: 0.45),
                                 ),
                                 textStyle: const TextStyle(
+                                  fontSize: 16,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -1797,16 +1798,17 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   const SizedBox(width: 12),
                   Expanded(
                     child: SizedBox(
-                      height: 48,
+                      height: 56,
                       child: FilledButton.icon(
                         style: FilledButton.styleFrom(
                           backgroundColor: const Color(0xFF1D2330),
                           foregroundColor: Colors.white,
                           textStyle: const TextStyle(
+                            fontSize: 16,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        icon: const Icon(Icons.save, size: 18),
+                        icon: const Icon(Icons.save, size: 20),
                         onPressed: () => _saveDraft(createSnapshot: true),
                         label: const Text('Sauvegarder'),
                       ),
@@ -1815,13 +1817,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   const SizedBox(width: 12),
                   Expanded(
                     child: SizedBox(
-                      height: 48,
+                      height: 56,
                       child: (!widget.poiOnly && _currentStep < 7)
                           ? FilledButton(
                               style: FilledButton.styleFrom(
                                 backgroundColor: proBlue,
                                 foregroundColor: Colors.white,
                                 textStyle: const TextStyle(
+                                  fontSize: 16,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),

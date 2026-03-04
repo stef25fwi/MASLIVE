@@ -984,11 +984,11 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       map.callMethod('setPaintProperty', [
         _poiPreviewVertexLayerId,
         'circle-stroke-color',
-        [
+        js.JsObject.jsify([
           'coalesce',
           ['get', 'strokeColor'],
           masLiveColorToCssHex(_poiStyle.circleStrokeColor),
-        ],
+        ]),
       ]);
 
       // Labels de zones parking ("P") : symbol layer, taille dépendante du zoom.
