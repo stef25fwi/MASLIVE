@@ -9,6 +9,7 @@ import 'package:image_cropper/image_cropper.dart';
 import '../models/image_asset.dart' as img;
 import '../models/market_circuit_models.dart';
 import '../services/image_management_service.dart';
+import '../services/poi_popup_service.dart';
 import '../services/webp_converter.dart';
 import '../ui/snack/top_snack_bar.dart';
 
@@ -52,6 +53,13 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
 
   bool _popupEnabled = true;
 
+  bool get _hasAnyImage {
+    if (_selectedFile != null) return true;
+    if ((_uploadedImageUrl ?? '').trim().isNotEmpty) return true;
+    if ((_uploadedImageAssetId ?? '').trim().isNotEmpty) return true;
+    return false;
+  }
+
   Map<String, dynamic> get _initialMeta {
     final raw = widget.poi.metadata;
     if (raw == null) return <String, dynamic>{};
@@ -68,7 +76,18 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
     _uploadedImageUrl = widget.poi.imageUrl;
 
     final meta = _initialMeta;
-    _popupEnabled = _resolveInitialPopupEnabled(meta);
+
+    // Back-compat imageUrl: certains POIs stockent l'image dans metadata.image.url
+    if ((_uploadedImageUrl ?? '').trim().isEmpty) {
+      final image = meta['image'];
+      if (image is Map) {
+        final url = image['url'];
+        if (url is String && url.trim().isNotEmpty) {
+          _uploadedImageUrl = url.trim();
+        }
+      }
+    }
+
     final polaroid = meta['polaroid'];
     if (polaroid is Map) {
       final a = polaroid['angleDeg'];
@@ -84,21 +103,13 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
         _uploadedImageAssetId = id.trim();
       }
     }
-  }
 
-  bool _resolveInitialPopupEnabled(Map<String, dynamic> meta) {
-    final raw = meta['popupEnabled'];
-    if (raw is bool) return raw;
-    if (raw is num) return raw != 0;
-    if (raw is String) {
-      final s = raw.trim().toLowerCase();
-      if (s == 'true' || s == '1' || s == 'yes') return true;
-      if (s == 'false' || s == '0' || s == 'no') return false;
-    }
-
-    final type = widget.poi.layerType.trim().toLowerCase();
-    if (type == 'wc' || type.contains('toilet')) return false;
-    return true;
+    _popupEnabled = PoiPopupService.isPopupEnabled(
+      type: widget.poi.layerType,
+      meta: meta,
+      requireImage: true,
+      hasImage: _hasAnyImage,
+    );
   }
 
   @override
@@ -297,6 +308,19 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       });
 
       await _applyConversionFromOriginal(file);
+
+      // Si l'utilisateur ajoute une image, on peut re-permettre le popup.
+      if (!mounted) return;
+      if (!_popupEnabled) {
+        setState(() {
+          _popupEnabled = PoiPopupService.isPopupEnabled(
+            type: widget.poi.layerType,
+            meta: _initialMeta,
+            requireImage: true,
+            hasImage: _hasAnyImage,
+          );
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -776,11 +800,15 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
           const SizedBox(height: 8),
           SwitchListTile.adaptive(
             value: _popupEnabled,
-            onChanged: (_isSaving || _isUploading || _isConverting)
+            onChanged: (_isSaving || _isUploading || _isConverting || !_hasAnyImage)
                 ? null
                 : (v) => setState(() => _popupEnabled = v),
             title: const Text('Popup'),
-            subtitle: const Text('Le POI est cliquable et ouvre la fiche photo.'),
+            subtitle: Text(
+              _hasAnyImage
+                  ? 'Le POI est cliquable et ouvre la fiche photo.'
+                  : 'Ajoute une photo pour activer la fiche photo.',
+            ),
             contentPadding: EdgeInsets.zero,
           ),
 

@@ -26,8 +26,11 @@ import '../services/geolocation_service.dart';
 import '../services/language_service.dart';
 import '../services/mapbox_token_service.dart';
 import '../services/market_map_service.dart';
+import '../services/poi_popup_service.dart';
 import '../models/market_poi.dart';
 import '../ui/widgets/marketmap_poi_selector_sheet.dart';
+import '../services/poi_analytics_service.dart';
+import '../utils/poi_normalizer.dart';
 import '../route_style_pro/services/route_style_pro_projection.dart';
 import '../route_style_pro/models/route_style_config.dart';
 import '../l10n/app_localizations.dart' as l10n;
@@ -1258,10 +1261,11 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     final norm = t.toLowerCase();
     if (_mmTypes.contains(norm)) return norm;
 
-    // Mapping de compat (si tes couches utilisent d'autres noms)
-    if (norm == 'visiter') return 'visit';
-    if (norm == 'tour') return 'visit';
-    if (norm == 'toilet' || norm == 'toilets') return 'wc';
+    // Mapping de compat (source de vérité: PoiNormalizer pour visit/food/wc)
+    final normalized = PoiNormalizer.normalizePoiType(norm);
+    if (normalized == PoiType.visit) return 'visit';
+    if (normalized == PoiType.food) return 'food';
+    if (normalized == PoiType.wc) return 'wc';
 
     return 'market';
   }
@@ -1979,19 +1983,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       }
 
       // Si popup désactivé => POI non cliquable (ex: WC)
-      final typeLower = type.trim().toLowerCase();
-      final popupRaw = (meta ?? const <String, dynamic>{})['popupEnabled'];
-      final bool popupEnabled = switch (popupRaw) {
-        bool b => b,
-        num n => n != 0,
-        String s => (() {
-          final v = s.trim().toLowerCase();
-          if (v == 'true' || v == '1' || v == 'yes') return true;
-          if (v == 'false' || v == '0' || v == 'no') return false;
-          return !(typeLower == 'wc' || typeLower.contains('toilet'));
-        })(),
-        _ => !(typeLower == 'wc' || typeLower.contains('toilet')),
-      };
+      final bool popupEnabled = PoiPopupService.isPopupEnabled(
+        type: type,
+        meta: meta,
+      );
 
       if (!popupEnabled) return;
 
@@ -2040,6 +2035,15 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     String mapsUrl = '',
     Map<String, dynamic> meta = const <String, dynamic>{},
   }) {
+    // Analytics: uniquement si on ouvre réellement la polaroid
+    unawaited(
+      PoiAnalyticsService.instance.logPoiPolaroidOpen(
+        type: category,
+        hasImage: (imageUrl ?? '').trim().isNotEmpty,
+        title: title,
+      ),
+    );
+
     // Construire les infos utiles pour le popup
     final usefulInfoParts = <String>[];
     if (address.trim().isNotEmpty) usefulInfoParts.add('📍 $address');

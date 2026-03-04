@@ -2,6 +2,62 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "MASLIVE: 🔄 Migrate POI popupEnabled (dry-run)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && node scripts/migrate_poi_popup_enabled.js --dry-run",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: 🔄 Migrate POI popupEnabled (apply)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && node scripts/migrate_poi_popup_enabled.js",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Flutter pub get (local SDK)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && ../.flutter_sdk/bin/flutter pub get",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Flutter test (poi popup/type)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && ../.flutter_sdk/bin/flutter test test/poi_normalizer_test.dart test/poi_popup_service_test.dart",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (POI popup hardening)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && bash commit_push_build_deploy.sh \"feat(poi): popup rules + normalizer + analytics + migration\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (poi popup toggle)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && bash commit_push_build_deploy.sh \"feat(poi): toggle popupEnabled pour POIs + desactiver clic WC\"",
