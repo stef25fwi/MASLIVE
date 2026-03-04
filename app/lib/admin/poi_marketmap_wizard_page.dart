@@ -1025,6 +1025,11 @@ class _CircuitStyleSelector extends StatelessWidget {
 
   static const List<Map<String, String>> _styles = [
     {
+      'id': '',
+      'name': 'Effacer',
+      'url': '',
+    },
+    {
       'id': 'streets-v12',
       'name': 'Streets',
       'url': 'mapbox://styles/mapbox/streets-v12',
@@ -1049,7 +1054,47 @@ class _CircuitStyleSelector extends StatelessWidget {
       'name': 'Dark',
       'url': 'mapbox://styles/mapbox/dark-v11',
     },
+    {
+      'id': 'maslive-pro',
+      'name': 'Perso (stef971fwi)',
+      'url': 'mapbox://styles/stef971fwi/cmm3zyr4q00fn01s12idvb2oe',
+    },
   ];
+
+  static String _normalizeMapboxStyleUrl(String raw) {
+    final input = raw.trim();
+    if (input.isEmpty) return '';
+
+    if (input.startsWith('mapbox://styles/')) {
+      return input;
+    }
+
+    final uri = Uri.tryParse(input);
+    if (uri != null && uri.host.contains('mapbox.com')) {
+      final seg = uri.pathSegments;
+      final stylesIndex = seg.indexOf('styles');
+      if (stylesIndex != -1 && seg.length >= stylesIndex + 3) {
+        final user = seg[stylesIndex + 1];
+        final styleId = seg[stylesIndex + 2];
+        if (user.isNotEmpty && styleId.isNotEmpty) {
+          return 'mapbox://styles/$user/$styleId';
+        }
+      }
+    }
+
+    return input;
+  }
+
+  static String _styleIdFromUrl(String styleUrl) {
+    final normalized = _normalizeMapboxStyleUrl(styleUrl);
+    for (final style in _styles) {
+      final candidate = _normalizeMapboxStyleUrl(style['url'] ?? '');
+      if (candidate == normalized) {
+        return style['id'] ?? '';
+      }
+    }
+    return '';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1070,7 +1115,9 @@ class _CircuitStyleSelector extends StatelessWidget {
         }
 
         final data = snap.data!.data() ?? const <String, dynamic>{};
-        final currentId = (data['styleId'] as String?) ?? 'streets-v12';
+        final styleUrl = (data['styleUrl'] as String?) ?? '';
+        final styleId = (data['styleId'] as String?) ?? '';
+        final currentId = styleId.trim().isNotEmpty ? styleId : _styleIdFromUrl(styleUrl);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1080,29 +1127,61 @@ class _CircuitStyleSelector extends StatelessWidget {
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: currentId,
-              decoration: const InputDecoration(
-                labelText: 'Style',
-                border: OutlineInputBorder(),
-              ),
-              items: [
-                for (final s in _styles)
-                  DropdownMenuItem(
-                    value: s['id'],
-                    child: Text(s['name'] ?? ''),
-                  ),
-              ],
-              onChanged: (value) async {
-                if (value == null) return;
-                final style =
-                    _styles.firstWhere((s) => s['id'] == value, orElse: () => _styles.first);
-                await circuitRef.update({
+            PopupMenuButton<String>(
+              tooltip: 'Style',
+              onSelected: (value) async {
+                final style = _styles.firstWhere(
+                  (s) => s['id'] == value,
+                  orElse: () => _styles.first,
+                );
+                final nextUrl = _normalizeMapboxStyleUrl(style['url'] ?? '');
+                await circuitRef.set({
                   'styleId': style['id'],
-                  'styleUrl': style['url'],
+                  'styleUrl': nextUrl,
                   'updatedAt': FieldValue.serverTimestamp(),
-                });
+                }, SetOptions(merge: true));
               },
+              itemBuilder: (context) {
+                return [
+                  for (final s in _styles)
+                    PopupMenuItem<String>(
+                      value: s['id'],
+                      child: Row(
+                        children: [
+                          Icon(
+                            currentId == (s['id'] ?? '')
+                                ? Icons.check_rounded
+                                : Icons.circle_outlined,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(s['name'] ?? ''),
+                        ],
+                      ),
+                    ),
+                ];
+              },
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Style',
+                  border: OutlineInputBorder(),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _styles
+                                .firstWhere(
+                                  (s) => s['id'] == currentId,
+                                  orElse: () => _styles.first,
+                                )['name'] ??
+                            'Style',
+                      ),
+                    ),
+                    const Icon(Icons.arrow_drop_down_rounded),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 4),
             const Text(
@@ -1206,6 +1285,22 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
   final _db = FirebaseFirestore.instance;
 
   static const _types = <String>['market', 'visit', 'food', 'wc', 'parking', 'assistance'];
+
+  String _norm(String? value) {
+    return (value ?? '').trim().toLowerCase();
+  }
+
+  bool _matchesLayer(Map<String, dynamic> data) {
+    final layerId = _norm(data['layerId']?.toString());
+    final layerType = _norm(data['layerType']?.toString());
+    final type = _norm(data['type']?.toString());
+    final currentLayerId = _norm(widget.layer.id);
+    final currentLayerType = _norm(widget.layer.type);
+
+    return layerId == currentLayerId ||
+        layerType == currentLayerType ||
+        type == currentLayerType;
+  }
 
   CollectionReference<Map<String, dynamic>> get _poisCol => _db
       .collection('marketMap')
@@ -1362,6 +1457,7 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
       'instagram': instagramCtrl.text.trim().isEmpty ? null : instagramCtrl.text.trim(),
       'facebook': facebookCtrl.text.trim().isEmpty ? null : facebookCtrl.text.trim(),
       'type': type,
+      'layerType': widget.layer.type,
       'lat': lat,
       'lng': lng,
       'layerId': widget.layer.id,
@@ -1457,10 +1553,7 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
           const Divider(height: 1),
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _poisCol
-                  .where('layerId', isEqualTo: widget.layer.id)
-                  .orderBy('name')
-                  .snapshots(),
+              stream: _poisCol.snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return Center(child: Text('Erreur: ${snapshot.error}'));
@@ -1469,7 +1562,12 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                final docs = snapshot.data!.docs;
+                final docs = snapshot.data!.docs.where((doc) => _matchesLayer(doc.data())).toList()
+                  ..sort((a, b) {
+                    final an = (a.data()['name'] ?? a.id).toString().toLowerCase();
+                    final bn = (b.data()['name'] ?? b.id).toString().toLowerCase();
+                    return an.compareTo(bn);
+                  });
                 if (docs.isEmpty) {
                   return const Center(child: Text('Aucun POI pour cette couche.'));
                 }

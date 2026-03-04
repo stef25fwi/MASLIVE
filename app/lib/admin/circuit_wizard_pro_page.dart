@@ -4158,7 +4158,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           (lng: lng, lat: lat),
         ];
       });
-      _refreshPoiMarkers();
+      try {
+        await _refreshPoiMarkers();
+      } catch (e) {
+        debugPrint('Erreur lors de l\'ajout du point parking: $e');
+        if (mounted) {
+          _showTopSnackBar('⚠️ Erreur lors de l\'ajout du point', isError: true);
+        }
+      }
       return;
     }
 
