@@ -2,6 +2,17 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (poi popup toggle)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && bash commit_push_build_deploy.sh \"feat(poi): toggle popupEnabled pour POIs + desactiver clic WC\"",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git commit + push (wizard périmètre: header + overlay)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add app/lib/admin/circuit_map_editor.dart app/lib/admin/circuit_wizard_pro_page.dart && git commit -m \"fix(wizard): perimeter header + show overlay next step\" && git push origin main",

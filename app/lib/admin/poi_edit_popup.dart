@@ -50,6 +50,8 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
   double _angleDeg = -1.7;
   double _grain = 0.35;
 
+  bool _popupEnabled = true;
+
   Map<String, dynamic> get _initialMeta {
     final raw = widget.poi.metadata;
     if (raw == null) return <String, dynamic>{};
@@ -66,6 +68,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
     _uploadedImageUrl = widget.poi.imageUrl;
 
     final meta = _initialMeta;
+    _popupEnabled = _resolveInitialPopupEnabled(meta);
     final polaroid = meta['polaroid'];
     if (polaroid is Map) {
       final a = polaroid['angleDeg'];
@@ -81,6 +84,21 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
         _uploadedImageAssetId = id.trim();
       }
     }
+  }
+
+  bool _resolveInitialPopupEnabled(Map<String, dynamic> meta) {
+    final raw = meta['popupEnabled'];
+    if (raw is bool) return raw;
+    if (raw is num) return raw != 0;
+    if (raw is String) {
+      final s = raw.trim().toLowerCase();
+      if (s == 'true' || s == '1' || s == 'yes') return true;
+      if (s == 'false' || s == '0' || s == 'no') return false;
+    }
+
+    final type = widget.poi.layerType.trim().toLowerCase();
+    if (type == 'wc' || type.contains('toilet')) return false;
+    return true;
   }
 
   @override
@@ -460,6 +478,8 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
 
     final meta = _initialMeta;
 
+    meta['popupEnabled'] = _popupEnabled;
+
     meta['polaroid'] = <String, dynamic>{
       'angleDeg': _angleDeg,
       'grain': _grain,
@@ -752,6 +772,17 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
+
+          const SizedBox(height: 8),
+          SwitchListTile.adaptive(
+            value: _popupEnabled,
+            onChanged: (_isSaving || _isUploading || _isConverting)
+                ? null
+                : (v) => setState(() => _popupEnabled = v),
+            title: const Text('Popup'),
+            subtitle: const Text('Le POI est cliquable et ouvre la fiche photo.'),
+            contentPadding: EdgeInsets.zero,
+          ),
 
           const SizedBox(height: 12),
           Text(
