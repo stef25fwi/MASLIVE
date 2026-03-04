@@ -1616,13 +1616,30 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   @override
   Widget build(BuildContext context) {
+    const stepLabels = <String>[
+      'Template',
+      'Infos',
+      'Périmètre',
+      'Tracé + Style',
+      'Style Pro',
+      'POI',
+      'Pré-pub',
+      'Publication',
+    ];
+
     if (_isLoading) {
       return Scaffold(
         body: SoftBackground(
           child: Column(
-            children: const [
-              GlassAppBar(title: 'Chargement…'),
-              Expanded(child: Center(child: CircularProgressIndicator())),
+            children: [
+              const GlassAppBar(title: 'Chargement…'),
+              const SizedBox(height: MasliveTokens.s),
+              WizardStepperPills(
+                currentStep: _currentStep,
+                labels: stepLabels,
+              ),
+              const SizedBox(height: MasliveTokens.s),
+              const Expanded(child: Center(child: CircularProgressIndicator())),
             ],
           ),
         ),
@@ -1635,6 +1652,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           child: Column(
             children: [
               const GlassAppBar(title: 'Erreur'),
+              const SizedBox(height: MasliveTokens.s),
+              WizardStepperPills(
+                currentStep: _currentStep,
+                labels: stepLabels,
+              ),
+              const SizedBox(height: MasliveTokens.s),
               Expanded(
                 child: Center(
                   child: GlassPanel(
@@ -1675,17 +1698,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         ),
       );
     }
-
-    final stepLabels = const <String>[
-      'Template',
-      'Infos',
-      'Périmètre',
-      'Tracé + Style',
-      'Style Pro',
-      'POI',
-      'Pré-pub',
-      'Publication',
-    ];
 
     bool isStepEnabled(int index) {
       // UX existante: en mode POI-only, on verrouille sur l'étape POI.
