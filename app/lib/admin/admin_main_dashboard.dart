@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_user.dart';
 import '../services/auth_claims_service.dart';
 import '../ui/snack/top_snack_bar.dart';
@@ -39,11 +40,53 @@ class AdminMainDashboard extends StatefulWidget {
   State<AdminMainDashboard> createState() => _AdminMainDashboardState();
 }
 
+enum _AdminDashboardThemePreset {
+  /// Thème actuel de la page Admin (UI “classique” existante)
+  defaultPreset,
+
+  /// Thème global de l'app (MasliveTheme pastel)
+  app,
+}
+
+extension _AdminDashboardThemePresetX on _AdminDashboardThemePreset {
+  static _AdminDashboardThemePreset? tryParse(String? raw) {
+    switch (raw) {
+      case 'default':
+        return _AdminDashboardThemePreset.defaultPreset;
+      case 'app':
+        return _AdminDashboardThemePreset.app;
+    }
+    return null;
+  }
+
+  String get id {
+    switch (this) {
+      case _AdminDashboardThemePreset.defaultPreset:
+        return 'default';
+      case _AdminDashboardThemePreset.app:
+        return 'app';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case _AdminDashboardThemePreset.defaultPreset:
+        return 'Default';
+      case _AdminDashboardThemePreset.app:
+        return 'App';
+    }
+  }
+}
+
 class _AdminMainDashboardState extends State<AdminMainDashboard> {
   final _authService = AuthClaimsService.instance;
   final _firestore = FirebaseFirestore.instance;
   AppUser? _currentUser;
   bool _isLoading = true;
+
+  static const String _prefsKeyThemePreset = 'admin.mainDashboard.themePreset';
+  _AdminDashboardThemePreset _themePreset =
+      _AdminDashboardThemePreset.defaultPreset;
 
   Stream<int> _watchProductsCount({String? shopId}) {
     final col = (shopId != null && shopId.trim().isNotEmpty)
@@ -123,7 +166,41 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
   @override
   void initState() {
     super.initState();
+    _loadThemePreset();
     _loadUser();
+  }
+
+  Future<void> _loadThemePreset() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_prefsKeyThemePreset);
+      final parsed = _AdminDashboardThemePresetX.tryParse(raw);
+      if (!mounted || parsed == null) return;
+      setState(() => _themePreset = parsed);
+    } catch (_) {
+      // Best-effort: on garde le preset par défaut.
+    }
+  }
+
+  Future<void> _setThemePreset(_AdminDashboardThemePreset preset) async {
+    if (_themePreset == preset) return;
+    setState(() => _themePreset = preset);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_prefsKeyThemePreset, preset.id);
+    } catch (_) {
+      // Best-effort.
+    }
+  }
+
+  ThemeData _themeDataForPreset(BuildContext context) {
+    final base = Theme.of(context);
+    switch (_themePreset) {
+      case _AdminDashboardThemePreset.defaultPreset:
+        return base.copyWith(scaffoldBackgroundColor: Colors.grey[50]);
+      case _AdminDashboardThemePreset.app:
+        return base;
+    }
   }
 
   Future<void> _loadUser() async {
@@ -145,531 +222,602 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text('Administration MASLIVE'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadUser,
-            tooltip: 'Rafraîchir',
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header avec info utilisateur
-            _buildWelcomeCard(),
-            const SizedBox(height: 24),
+    final themed = _themeDataForPreset(context);
 
-            // Section Carte & Navigation
-            _buildSectionTitle('Carte & Navigation', Icons.map),
-            const SizedBox(height: 12),
-            _buildDashboardCard(
-              title: 'MapMarket',
-              subtitle: 'Créer / éditer / publier des cartes (Mapbox-only)',
-              icon: Icons.map,
-              color: Colors.blue,
-              onTap: () => Navigator.pushNamed(context, '/admin/mapmarket'),
-            ),
-            const SizedBox(height: 12),
-            _buildDashboardCard(
-              title: 'POIs',
-              subtitle: 'Couches & points d\'intérêt (MarketMap)',
-              icon: Icons.place_rounded,
-              color: const Color(0xFFFF7A00),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      const AdminRouteGuard(child: POIMarketMapWizardPage()),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Mapbox Web (GL JS)',
-                    subtitle: 'Carte Mapbox via HtmlElementView',
-                    icon: Icons.public,
-                    color: Colors.teal,
-                    onTap: () => Navigator.pushNamed(context, '/mapbox-web'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: '🗺️ Wizard Circuit Pro',
-                    subtitle: 'Créer/éditer des circuits (outil unique)',
-                    icon: Icons.auto_fix_high,
-                    color: Colors.deepPurple,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const CircuitWizardEntryPage(),
-                      ),
-                    ),
-                  ),
+    return Theme(
+      data: themed,
+      child: Builder(
+        builder: (context) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Administration MASLIVE'),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: _loadUser,
+                  tooltip: 'Rafraîchir',
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            _buildDashboardCard(
-              title: 'Debug MarketMap (Firestore)',
-              subtitle:
-                  'Lister les pays / événements / circuits (structure marketMap)',
-              icon: Icons.bug_report,
-              color: Colors.grey,
-              onTap: () =>
-                  Navigator.pushNamed(context, '/admin/marketmap-debug'),
-            ),
-            const SizedBox(height: 24),
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Toggle thème (sous le header)
+                  _buildThemePresetToggle(),
+                  const SizedBox(height: 12),
 
-            // Section Tracking & Groupes
-            _buildSectionTitle('Tracking & Groupes', Icons.groups),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Tracking Live',
-                    subtitle: 'Suivre les groupes en temps réel',
-                    icon: Icons.my_location,
-                    color: Colors.green,
+                  // Header avec info utilisateur
+                  _buildWelcomeCard(),
+                  const SizedBox(height: 24),
+
+                  // Section Carte & Navigation
+                  _buildSectionTitle('Carte & Navigation', Icons.map),
+                  const SizedBox(height: 12),
+                  _buildDashboardCard(
+                    title: 'MapMarket',
+                    subtitle:
+                        'Créer / éditer / publier des cartes (Mapbox-only)',
+                    icon: Icons.map,
+                    color: Colors.blue,
+                    onTap: () =>
+                        Navigator.pushNamed(context, '/admin/mapmarket'),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildDashboardCard(
+                    title: 'POIs',
+                    subtitle: 'Couches & points d\'intérêt (MarketMap)',
+                    icon: Icons.place_rounded,
+                    color: const Color(0xFFFF7A00),
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const TrackingLivePage(),
+                        builder: (_) => const AdminRouteGuard(
+                          child: POIMarketMapWizardPage(),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Groupes',
-                    subtitle: 'Gérer les groupes',
-                    icon: Icons.group,
-                    color: Colors.purple,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AdminGroupsPage(),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDashboardCard(
+                          title: 'Mapbox Web (GL JS)',
+                          subtitle: 'Carte Mapbox via HtmlElementView',
+                          icon: Icons.public,
+                          color: Colors.teal,
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/mapbox-web'),
+                        ),
                       ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // Section Commerce
-            _buildSectionTitle('Commerce', Icons.shopping_bag),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: StreamBuilder<int>(
-                    stream: _watchProductsCount(shopId: 'global'),
-                    builder: (context, snap) {
-                      final count = snap.data;
-                      return _buildDashboardCard(
-                        title: 'Produits',
-                        subtitle: 'Gestion produits (monolithique)',
-                        icon: Icons.inventory,
-                        color: Colors.teal,
-                        badge: count == null
-                            ? null
-                            : _countBadge(text: '$count', color: Colors.teal),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                ProductManagementPage(shopId: 'global'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildDashboardCard(
+                          title: '🗺️ Wizard Circuit Pro',
+                          subtitle: 'Créer/éditer des circuits (outil unique)',
+                          icon: Icons.auto_fix_high,
+                          color: Colors.deepPurple,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CircuitWizardEntryPage(),
+                            ),
                           ),
                         ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Commandes',
-                    subtitle: 'Suivi & historique',
-                    icon: Icons.receipt_long,
-                    color: Colors.amber,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AdminOrdersPage(),
                       ),
-                    ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Aperçu boutique',
-                    subtitle: 'Panier + checkout (monolithique)',
-                    icon: Icons.storefront,
-                    color: Colors.blue,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const StorexShopPage(
-                          shopId: "global",
-                          groupId: "MASLIVE",
+                  const SizedBox(height: 12),
+                  _buildDashboardCard(
+                    title: 'Debug MarketMap (Firestore)',
+                    subtitle:
+                        'Lister les pays / événements / circuits (structure marketMap)',
+                    icon: Icons.bug_report,
+                    color: Colors.grey,
+                    onTap: () =>
+                        Navigator.pushNamed(context, '/admin/marketmap-debug'),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Section Tracking & Groupes
+                  _buildSectionTitle('Tracking & Groupes', Icons.groups),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDashboardCard(
+                          title: 'Tracking Live',
+                          subtitle: 'Suivre les groupes en temps réel',
+                          icon: Icons.my_location,
+                          color: Colors.green,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const TrackingLivePage(),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildDashboardCard(
+                          title: 'Groupes',
+                          subtitle: 'Gérer les groupes',
+                          icon: Icons.group,
+                          color: Colors.purple,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminGroupsPage(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: StreamBuilder<int>(
-                    stream: _watchPendingCommerceSubmissionsCount(),
-                    builder: (context, snap) {
-                      final count = snap.data ?? 0;
-                      return _buildDashboardCard(
-                        title: 'Articles à valider',
-                        subtitle: 'Modération des articles commerce',
-                        icon: Icons.pending_actions,
-                        color: Colors.orange,
-                        badge: count <= 0
-                            ? null
-                            : _countBadge(
-                                text: '$count',
-                                color: const Color(0xFFB54708),
+                  const SizedBox(height: 24),
+
+                  // Section Commerce
+                  _buildSectionTitle('Commerce', Icons.shopping_bag),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: StreamBuilder<int>(
+                          stream: _watchProductsCount(shopId: 'global'),
+                          builder: (context, snap) {
+                            final count = snap.data;
+                            return _buildDashboardCard(
+                              title: 'Produits',
+                              subtitle: 'Gestion produits (monolithique)',
+                              icon: Icons.inventory,
+                              color: Colors.teal,
+                              badge: count == null
+                                  ? null
+                                  : _countBadge(
+                                      text: '$count',
+                                      color: Colors.teal,
+                                    ),
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      ProductManagementPage(shopId: 'global'),
+                                ),
                               ),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AdminModerationPage(),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildDashboardCard(
+                          title: 'Commandes',
+                          subtitle: 'Suivi & historique',
+                          icon: Icons.receipt_long,
+                          color: Colors.amber,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminOrdersPage(),
+                            ),
                           ),
                         ),
-                      );
-                    },
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: StreamBuilder<({int out, int low})>(
-                    stream: _watchStockAlerts(shopId: 'global'),
-                    builder: (context, snap) {
-                      final d = snap.data;
-                      final out = d?.out ?? 0;
-                      final low = d?.low ?? 0;
-                      final badge = out > 0
-                          ? _countBadge(
-                              text: 'Rupture $out',
-                              color: const Color(0xFFB42318),
-                            )
-                          : (low > 0
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDashboardCard(
+                          title: 'Aperçu boutique',
+                          subtitle: 'Panier + checkout (monolithique)',
+                          icon: Icons.storefront,
+                          color: Colors.blue,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const StorexShopPage(
+                                shopId: "global",
+                                groupId: "MASLIVE",
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: StreamBuilder<int>(
+                          stream: _watchPendingCommerceSubmissionsCount(),
+                          builder: (context, snap) {
+                            final count = snap.data ?? 0;
+                            return _buildDashboardCard(
+                              title: 'Articles à valider',
+                              subtitle: 'Modération des articles commerce',
+                              icon: Icons.pending_actions,
+                              color: Colors.orange,
+                              badge: count <= 0
+                                  ? null
+                                  : _countBadge(
+                                      text: '$count',
+                                      color: const Color(0xFFB54708),
+                                    ),
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const AdminModerationPage(),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: StreamBuilder<({int out, int low})>(
+                          stream: _watchStockAlerts(shopId: 'global'),
+                          builder: (context, snap) {
+                            final d = snap.data;
+                            final out = d?.out ?? 0;
+                            final low = d?.low ?? 0;
+                            final badge = out > 0
                                 ? _countBadge(
-                                    text: 'Faible $low',
-                                    color: const Color(0xFFB54708),
+                                    text: 'Rupture $out',
+                                    color: const Color(0xFFB42318),
                                   )
-                                : null);
+                                : (low > 0
+                                      ? _countBadge(
+                                          text: 'Faible $low',
+                                          color: const Color(0xFFB54708),
+                                        )
+                                      : null);
 
-                      return _buildDashboardCard(
-                        title: 'Stock',
-                        subtitle: 'Gestion des stocks',
-                        icon: Icons.warehouse,
-                        color: Colors.indigo,
-                        badge: badge,
-                        onTap: () => _showStockManagement(),
-                      );
-                    },
+                            return _buildDashboardCard(
+                              title: 'Stock',
+                              subtitle: 'Gestion des stocks',
+                              icon: Icons.warehouse,
+                              color: Colors.indigo,
+                              badge: badge,
+                              onTap: () => _showStockManagement(),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Modération Commerce',
-                    subtitle: 'Valider produits & médias soumis',
-                    icon: Icons.fact_check,
-                    color: Colors.deepPurple,
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDashboardCard(
+                          title: 'Modération Commerce',
+                          subtitle: 'Valider produits & médias soumis',
+                          icon: Icons.fact_check,
+                          color: Colors.deepPurple,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminModerationPage(),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildDashboardCard(
+                          title: 'Analytics Commerce',
+                          subtitle: 'Stats & conversions',
+                          icon: Icons.analytics,
+                          color: Colors.blue,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CommerceAnalyticsPage(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDashboardCard(
+                          title: 'Articles Superadmin',
+                          subtitle:
+                              'Gérer casquette, t-shirt, porteclé, bandana',
+                          icon: Icons.inventory_2,
+                          color: Colors.teal,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SuperadminArticlesPage(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child:
+                            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                              stream: _firestore
+                                  .collection('productCategories')
+                                  .limit(200)
+                                  .snapshots(),
+                              builder: (context, catSnap) {
+                                return StreamBuilder<
+                                  QuerySnapshot<Map<String, dynamic>>
+                                >(
+                                  stream: _firestore
+                                      .collection('products')
+                                      .orderBy('updatedAt', descending: true)
+                                      .limit(800)
+                                      .snapshots(),
+                                  builder: (context, prodSnap) {
+                                    int? count;
+                                    if (catSnap.hasData || prodSnap.hasData) {
+                                      final set = <String>{};
+                                      if (catSnap.hasData) {
+                                        for (final d in catSnap.data!.docs) {
+                                          final name = (d.data()['name'] ?? '')
+                                              .toString()
+                                              .trim();
+                                          if (name.isNotEmpty) set.add(name);
+                                        }
+                                      }
+                                      if (prodSnap.hasData) {
+                                        for (final d in prodSnap.data!.docs) {
+                                          final c = (d.data()['category'] ?? '')
+                                              .toString()
+                                              .trim();
+                                          if (c.isNotEmpty) set.add(c);
+                                        }
+                                      }
+                                      count = set.length;
+                                    }
+
+                                    return _buildDashboardCard(
+                                      title: 'Catégories',
+                                      subtitle: 'Organiser les produits',
+                                      icon: Icons.category,
+                                      color: Colors.purple,
+                                      badge: count == null
+                                          ? null
+                                          : _countBadge(
+                                              text: '$count',
+                                              color: Colors.purple,
+                                            ),
+                                      onTap: () => _showCategoryManagement(),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildDashboardCard(
+                          title: 'Test Stripe',
+                          subtitle: 'Vérifier paiements',
+                          icon: Icons.payment,
+                          color: Colors.deepPurple,
+                          onTap: () => _showStripeTestDialog(),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Section Utilisateurs
+                  _buildSectionTitle('Utilisateurs', Icons.people),
+                  const SizedBox(height: 12),
+                  _buildDashboardCard(
+                    title: 'Gestion des utilisateurs',
+                    subtitle: 'Créer, modifier, gérer les rôles',
+                    icon: Icons.admin_panel_settings,
+                    color: Colors.indigo,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const AdminModerationPage(),
+                        builder: (_) => const UserManagementPage(),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Analytics Commerce',
-                    subtitle: 'Stats & conversions',
-                    icon: Icons.analytics,
-                    color: Colors.blue,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const CommerceAnalyticsPage(),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Articles Superadmin',
-                    subtitle: 'Gérer casquette, t-shirt, porteclé, bandana',
-                    icon: Icons.inventory_2,
+                  const SizedBox(height: 12),
+                  _buildDashboardCard(
+                    title: 'Aperçu Profils',
+                    subtitle: 'Visualiser les types de profils utilisateurs',
+                    icon: Icons.preview,
                     color: Colors.teal,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const SuperadminArticlesPage(),
+                        builder: (_) => UserProfilePreviewPage(),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                    stream: _firestore
-                        .collection('productCategories')
-                        .limit(200)
-                        .snapshots(),
-                    builder: (context, catSnap) {
-                      return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                        stream: _firestore
-                            .collection('products')
-                            .orderBy('updatedAt', descending: true)
-                            .limit(800)
-                            .snapshots(),
-                        builder: (context, prodSnap) {
-                          int? count;
-                          if (catSnap.hasData || prodSnap.hasData) {
-                            final set = <String>{};
-                            if (catSnap.hasData) {
-                              for (final d in catSnap.data!.docs) {
-                                final name = (d.data()['name'] ?? '')
-                                    .toString()
-                                    .trim();
-                                if (name.isNotEmpty) set.add(name);
-                              }
-                            }
-                            if (prodSnap.hasData) {
-                              for (final d in prodSnap.data!.docs) {
-                                final c = (d.data()['category'] ?? '')
-                                    .toString()
-                                    .trim();
-                                if (c.isNotEmpty) set.add(c);
-                              }
-                            }
-                            count = set.length;
-                          }
+                  const SizedBox(height: 24),
 
-                          return _buildDashboardCard(
-                            title: 'Catégories',
-                            subtitle: 'Organiser les produits',
-                            icon: Icons.category,
-                            color: Colors.purple,
-                            badge: count == null
-                                ? null
-                                : _countBadge(
-                                    text: '$count',
-                                    color: Colors.purple,
-                                  ),
-                            onTap: () => _showCategoryManagement(),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Test Stripe',
-                    subtitle: 'Vérifier paiements',
-                    icon: Icons.payment,
-                    color: Colors.deepPurple,
-                    onTap: () => _showStripeTestDialog(),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // Section Utilisateurs
-            _buildSectionTitle('Utilisateurs', Icons.people),
-            const SizedBox(height: 12),
-            _buildDashboardCard(
-              title: 'Gestion des utilisateurs',
-              subtitle: 'Créer, modifier, gérer les rôles',
-              icon: Icons.admin_panel_settings,
-              color: Colors.indigo,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const UserManagementPage()),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildDashboardCard(
-              title: 'Aperçu Profils',
-              subtitle: 'Visualiser les types de profils utilisateurs',
-              icon: Icons.preview,
-              color: Colors.teal,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => UserProfilePreviewPage()),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Section Comptes Professionnels
-            _buildSectionTitle('Comptes Professionnels', Icons.business),
-            const SizedBox(height: 12),
-            _buildDashboardCard(
-              title: 'Demandes Pro',
-              subtitle: 'Valider les demandes de comptes professionnels',
-              icon: Icons.request_page,
-              color: Colors.deepOrange,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const BusinessRequestsPage()),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Section Analytics & Système
-            _buildSectionTitle('Analytics & Système', Icons.analytics),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Analytics',
-                    subtitle: 'Statistiques détaillées',
-                    icon: Icons.bar_chart,
-                    color: Colors.cyan,
+                  // Section Comptes Professionnels
+                  _buildSectionTitle('Comptes Professionnels', Icons.business),
+                  const SizedBox(height: 12),
+                  _buildDashboardCard(
+                    title: 'Demandes Pro',
+                    subtitle: 'Valider les demandes de comptes professionnels',
+                    icon: Icons.request_page,
+                    color: Colors.deepOrange,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const AdminAnalyticsPage(),
+                        builder: (_) => const BusinessRequestsPage(),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildDashboardCard(
-                    title: 'Logs',
-                    subtitle: 'Journaux système',
-                    icon: Icons.description,
-                    color: Colors.blueGrey,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const AdminLogsPage()),
-                    ),
+                  const SizedBox(height: 24),
+
+                  // Section Analytics & Système
+                  _buildSectionTitle('Analytics & Système', Icons.analytics),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDashboardCard(
+                          title: 'Analytics',
+                          subtitle: 'Statistiques détaillées',
+                          icon: Icons.bar_chart,
+                          color: Colors.cyan,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminAnalyticsPage(),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildDashboardCard(
+                          title: 'Logs',
+                          subtitle: 'Journaux système',
+                          icon: Icons.description,
+                          color: Colors.blueGrey,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminLogsPage(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 12),
+                  if (_currentUser?.isSuperAdmin == true)
+                    _buildDashboardCard(
+                      title: 'Paramètres système',
+                      subtitle: 'Configuration avancée (Super Admin)',
+                      icon: Icons.settings,
+                      color: Colors.red,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AdminSystemSettingsPage(),
+                        ),
+                      ),
+                    ),
+
+                  const SizedBox(height: 24),
+
+                  // Section Déploiement & CI/CD
+                  if (_currentUser?.isSuperAdmin == true) ...[
+                    _buildSectionTitle(
+                      'Déploiement & CI/CD',
+                      Icons.rocket_launch,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildDashboardCard(
+                            title: 'Commit & Push',
+                            subtitle: 'Git commit et push vers GitHub',
+                            icon: Icons.upload,
+                            color: Colors.deepOrange,
+                            onTap: () => _showCommitPushDialog(),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildDashboardCard(
+                            title: 'Build Web',
+                            subtitle: 'Compiler l\'application Flutter',
+                            icon: Icons.build_circle,
+                            color: Colors.blue,
+                            onTap: () => _showBuildDialog(),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildDashboardCard(
+                            title: 'Deploy Firebase',
+                            subtitle: 'Déployer sur Firebase Hosting',
+                            icon: Icons.cloud_upload,
+                            color: Colors.amber,
+                            onTap: () => _showDeployDialog(),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildDashboardCard(
+                            title: 'Pipeline Complet',
+                            subtitle: 'Commit → Push → Build → Deploy',
+                            icon: Icons.rocket,
+                            color: Colors.green,
+                            onTap: () => _showFullPipelineDialog(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildThemePresetToggle() {
+    final theme = Theme.of(context);
+    final labelStyle =
+        theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800) ??
+        const TextStyle(fontWeight: FontWeight.w800);
+
+    return Row(
+      children: [
+        Text('Thème', style: labelStyle),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: SegmentedButton<_AdminDashboardThemePreset>(
+              segments: [
+                ButtonSegment(
+                  value: _AdminDashboardThemePreset.defaultPreset,
+                  label: Text(_AdminDashboardThemePreset.defaultPreset.label),
+                ),
+                ButtonSegment(
+                  value: _AdminDashboardThemePreset.app,
+                  label: Text(_AdminDashboardThemePreset.app.label),
                 ),
               ],
+              selected: {_themePreset},
+              showSelectedIcon: false,
+              onSelectionChanged: (selection) {
+                final preset = selection.first;
+                unawaited(_setThemePreset(preset));
+              },
             ),
-            const SizedBox(height: 12),
-            if (_currentUser?.isSuperAdmin == true)
-              _buildDashboardCard(
-                title: 'Paramètres système',
-                subtitle: 'Configuration avancée (Super Admin)',
-                icon: Icons.settings,
-                color: Colors.red,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const AdminSystemSettingsPage(),
-                  ),
-                ),
-              ),
-
-            const SizedBox(height: 24),
-
-            // Section Déploiement & CI/CD
-            if (_currentUser?.isSuperAdmin == true) ...[
-              _buildSectionTitle('Déploiement & CI/CD', Icons.rocket_launch),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildDashboardCard(
-                      title: 'Commit & Push',
-                      subtitle: 'Git commit et push vers GitHub',
-                      icon: Icons.upload,
-                      color: Colors.deepOrange,
-                      onTap: () => _showCommitPushDialog(),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildDashboardCard(
-                      title: 'Build Web',
-                      subtitle: 'Compiler l\'application Flutter',
-                      icon: Icons.build_circle,
-                      color: Colors.blue,
-                      onTap: () => _showBuildDialog(),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildDashboardCard(
-                      title: 'Deploy Firebase',
-                      subtitle: 'Déployer sur Firebase Hosting',
-                      icon: Icons.cloud_upload,
-                      color: Colors.amber,
-                      onTap: () => _showDeployDialog(),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildDashboardCard(
-                      title: 'Pipeline Complet',
-                      subtitle: 'Commit → Push → Build → Deploy',
-                      icon: Icons.rocket,
-                      color: Colors.green,
-                      onTap: () => _showFullPipelineDialog(),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -1583,14 +1731,24 @@ Vérifiez:
   }
 
   Widget _buildSectionTitle(String title, IconData icon) {
+    final iconColor = switch (_themePreset) {
+      _AdminDashboardThemePreset.defaultPreset => Colors.grey[700],
+      _AdminDashboardThemePreset.app => Theme.of(
+        context,
+      ).colorScheme.onSurfaceVariant,
+    };
+
+    final titleStyle =
+        Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold) ??
+        const TextStyle(fontSize: 18, fontWeight: FontWeight.bold);
+
     return Row(
       children: [
-        Icon(icon, size: 24, color: Colors.grey[700]),
+        Icon(icon, size: 24, color: iconColor),
         const SizedBox(width: 8),
-        Text(
-          title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
+        Text(title, style: titleStyle),
       ],
     );
   }
@@ -1603,11 +1761,37 @@ Vérifiez:
     Widget? badge,
     required VoidCallback onTap,
   }) {
+    final borderRadius = switch (_themePreset) {
+      _AdminDashboardThemePreset.defaultPreset => BorderRadius.circular(12),
+      _AdminDashboardThemePreset.app => () {
+        final shape = Theme.of(context).cardTheme.shape;
+        if (shape is RoundedRectangleBorder) {
+          final radius = shape.borderRadius;
+          if (radius is BorderRadius) return radius;
+        }
+        return BorderRadius.circular(12);
+      }(),
+    };
+
+    final elevation = switch (_themePreset) {
+      _AdminDashboardThemePreset.defaultPreset => 2.0,
+      _AdminDashboardThemePreset.app =>
+        Theme.of(context).cardTheme.elevation ?? 0.0,
+    };
+
+    final subtitleColor = switch (_themePreset) {
+      _AdminDashboardThemePreset.defaultPreset => Colors.grey[600],
+      _AdminDashboardThemePreset.app => Theme.of(
+        context,
+      ).colorScheme.onSurfaceVariant,
+    };
+
     return Card(
-      elevation: 2,
+      elevation: elevation,
+      shape: RoundedRectangleBorder(borderRadius: borderRadius),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: borderRadius,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -1617,7 +1801,7 @@ Vérifiez:
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: borderRadius,
                 ),
                 child: Icon(icon, color: color, size: 28),
               ),
@@ -1627,10 +1811,14 @@ Vérifiez:
                   Expanded(
                     child: Text(
                       title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style:
+                          Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ) ??
+                          const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                   ),
                   if (badge != null) ...[const SizedBox(width: 10), badge],
@@ -1639,7 +1827,11 @@ Vérifiez:
               const SizedBox(height: 4),
               Text(
                 subtitle,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style:
+                    Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: subtitleColor) ??
+                    TextStyle(fontSize: 12, color: subtitleColor),
               ),
             ],
           ),
