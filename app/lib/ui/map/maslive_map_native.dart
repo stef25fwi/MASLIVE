@@ -651,6 +651,39 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     final defaultFillHex = cssHex(_poiStyle.circleColor);
     final defaultStrokeHex = cssHex(_poiStyle.circleStrokeColor);
 
+    List<dynamic> matchAppearanceExpr<T>(
+      T fallback,
+      dynamic Function(MasLivePoiStyle s) pick,
+    ) {
+      final expr = <dynamic>[
+        'match',
+        ['get', kMasLivePoiAppearanceKey],
+      ];
+      for (final p in kMasLivePoiAppearancePresets) {
+        expr.add(p.id);
+        expr.add(pick(p.style));
+      }
+      expr.add(fallback);
+      return expr;
+    }
+
+    final circleRadiusExpr = matchAppearanceExpr<double>(
+      _poiStyle.circleRadius,
+      (s) => s.circleRadius,
+    );
+    final circleStrokeWidthExpr = matchAppearanceExpr<double>(
+      _poiStyle.circleStrokeWidth,
+      (s) => s.circleStrokeWidth,
+    );
+    final circleColorExpr = matchAppearanceExpr<dynamic>(
+      ['to-color', defaultFillHex],
+      (s) => ['to-color', cssHex(s.circleColor)],
+    );
+    final circleStrokeColorExpr = matchAppearanceExpr<dynamic>(
+      ['to-color', defaultStrokeHex],
+      (s) => ['to-color', cssHex(s.circleStrokeColor)],
+    );
+
     final fillColorExpr = <dynamic>[
       'coalesce',
       [
@@ -682,7 +715,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       await map.style.setStyleLayerProperty(
         _poiLayerId,
         'circle-radius',
-        _poiStyle.circleRadius,
+        circleRadiusExpr,
       );
     } catch (_) {
       // ignore
@@ -691,7 +724,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       await map.style.setStyleLayerProperty(
         _poiLayerId,
         'circle-color',
-        _poiStyle.circleColor.toARGB32(),
+        circleColorExpr,
       );
     } catch (_) {
       // ignore
@@ -700,7 +733,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       await map.style.setStyleLayerProperty(
         _poiLayerId,
         'circle-stroke-width',
-        _poiStyle.circleStrokeWidth,
+        circleStrokeWidthExpr,
       );
     } catch (_) {
       // ignore
@@ -709,7 +742,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       await map.style.setStyleLayerProperty(
         _poiLayerId,
         'circle-stroke-color',
-        _poiStyle.circleStrokeColor.toARGB32(),
+        circleStrokeColorExpr,
       );
     } catch (_) {
       // ignore

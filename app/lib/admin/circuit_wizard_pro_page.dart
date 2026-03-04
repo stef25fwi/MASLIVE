@@ -15,10 +15,17 @@ import '../services/market_map_service.dart';
 import '../services/publish_quality_service.dart';
 import '../ui/map/maslive_map.dart';
 import '../ui/map/maslive_map_controller.dart';
+import '../ui/map/maslive_poi_style.dart';
 import '../ui/widgets/country_autocomplete_field.dart';
 import '../ui/widgets/glass_scrollbar.dart';
 import '../ui/snack/top_snack_bar.dart';
 import '../models/market_country.dart';
+import '../ui_kit/glass/glass_app_bar.dart';
+import '../ui_kit/glass/glass_panel.dart';
+import '../ui_kit/layout/soft_background.dart';
+import '../ui_kit/tokens/maslive_tokens.dart';
+import '../ui_kit/wizard/wizard_bottom_bar.dart';
+import '../ui_kit/wizard/wizard_stepper_pills.dart';
 import 'circuit_map_editor.dart';
 import '../route_style_pro/models/route_style_config.dart' as rsp;
 import '../route_style_pro/services/route_snap_service.dart' as snap;
@@ -133,6 +140,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   final MasLiveMapControllerPoi _poiMapController = MasLiveMapControllerPoi();
   final PoiSelectionController _poiSelection = PoiSelectionController();
   final ScrollController _poiStepScrollController = ScrollController();
+
+  String _defaultPoiAppearanceId = kMasLivePoiAppearancePresets.first.id;
+  String _poiInlineAppearanceId = kMasLivePoiAppearancePresets.first.id;
 
   // Empêche le scroll vertical de certaines pages quand l'utilisateur interagit
   // avec une carte intégrée dans un scroll (drag/pan/zoom).
@@ -1606,28 +1616,59 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   @override
   Widget build(BuildContext context) {
-    const proBlue = Color(0xFF1A73E8);
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Chargement...')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: SoftBackground(
+          child: Column(
+            children: const [
+              GlassAppBar(title: 'Chargement…'),
+              Expanded(child: Center(child: CircularProgressIndicator())),
+            ],
+          ),
+        ),
       );
     }
 
     if (_errorMessage != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Erreur')),
-        body: Center(
+        body: SoftBackground(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error, size: 48, color: Colors.red),
-              const SizedBox(height: 16),
-              Text(_errorMessage!),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Retour'),
+              const GlassAppBar(title: 'Erreur'),
+              Expanded(
+                child: Center(
+                  child: GlassPanel(
+                    padding: const EdgeInsets.all(MasliveTokens.l),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error, size: 48, color: Colors.red),
+                        const SizedBox(height: MasliveTokens.m),
+                        Text(
+                          _errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: MasliveTokens.text,
+                          ),
+                        ),
+                        const SizedBox(height: MasliveTokens.m),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: MasliveTokens.primary,
+                            foregroundColor: Colors.white,
+                            textStyle: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          child: const Text('Retour'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -1635,217 +1676,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       );
     }
 
-    return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            // Progress indicator
-            SizedBox(
-              height: 112,
-              child: Builder(
-                builder: (context) {
-                  Widget buildStep(int index) {
-                    final isPoiOnly = widget.poiOnly;
-                    // UX: accès direct par clic sur une étape.
-                    // En mode POI-only, on verrouille sur l'étape POI.
-                    final isEnabled = isPoiOnly ? index == _poiStepIndex : true;
-                    final isCompleted = isPoiOnly
-                        ? false
-                        : index < _currentStep;
-                    return Expanded(
-                      child: GestureDetector(
-                        onTap: isEnabled
-                            ? () => unawaited(_continueToStep(index))
-                            : null,
-                        child: _StepIndicator(
-                          step: index,
-                          label: _getStepLabel(index),
-                          isActive: index == _currentStep,
-                          isCompleted: isCompleted,
-                          isEnabled: isEnabled,
-                        ),
-                      ),
-                    );
-                  }
-
-                  return Column(
-                    children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            for (final i in [0, 1, 2, 3]) buildStep(i),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Row(
-                          children: [
-                            for (final i in [4, 5, 6, 7]) buildStep(i),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-            const Divider(height: 1),
-
-            // Étape 3 (côté UI): Définir le périmètre.
-            // On affiche le titre juste sous le header principal pour une meilleure lisibilité.
-            if (_currentStep == 2)
-              Container(
-                color: Colors.white,
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-                width: double.infinity,
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Définir le périmètre',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Tracez la zone de couverture (polygone fermé)',
-                      style: TextStyle(fontSize: 12, color: Colors.black54),
-                    ),
-                  ],
-                ),
-              ),
-
-            if (_currentStep == 2 || _currentStep == 3)
-              _buildCentralMapToolsBar(),
-
-            // Pages
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                physics: const NeverScrollableScrollPhysics(),
-                onPageChanged: (page) {
-                  setState(() => _currentStep = page);
-
-                  // Auto-ouvrir Style Pro quand on arrive sur l'étape Style Pro (index 4)
-                  // pour éviter le clic sur "Ouvrir Style Pro".
-                  if (_currentStep != 4) {
-                    _didAutoOpenStyleProForCurrentVisit = false;
-                  }
-
-                  // Quand on arrive sur l'étape POI, on veut afficher le circuit
-                  // (Style Pro si présent) sur la carte immédiatement.
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (!mounted) return;
-                    if (_currentStep == _poiStepIndex) {
-                      unawaited(_refreshPoiRouteOverlay());
-                    }
-
-                    if (_currentStep == 4 &&
-                        !_didAutoOpenStyleProForCurrentVisit) {
-                      _didAutoOpenStyleProForCurrentVisit = true;
-                      unawaited(_openRouteStylePro());
-                    }
-
-                    _syncPoiRouteStyleProTimer();
-                  });
-                },
-                children: [
-                  _buildStep0Template(),
-                  _buildStep1Infos(),
-                  _buildStep2Perimeter(),
-                  _buildStep3RouteAndStyleTabbed(),
-                  _buildStep6StylePro(),
-                  _buildStep5POI(),
-                  _buildStep7Validation(),
-                  _buildStep8Publish(),
-                ],
-              ),
-            ),
-
-            // Navigation buttons
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 56,
-                      child: (!widget.poiOnly && _currentStep > 0)
-                          ? OutlinedButton(
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: proBlue,
-                                side: BorderSide(
-                                  color: proBlue.withValues(alpha: 0.45),
-                                ),
-                                textStyle: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              onPressed: () => _pageController.previousPage(
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeInOut,
-                              ),
-                              child: const Text('← Précédent'),
-                            )
-                          : const SizedBox(),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SizedBox(
-                      height: 56,
-                      child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF1D2330),
-                          foregroundColor: Colors.white,
-                          textStyle: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        icon: const Icon(Icons.save, size: 20),
-                        onPressed: () => _saveDraft(createSnapshot: true),
-                        label: const Text('Sauvegarder'),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SizedBox(
-                      height: 56,
-                      child: (!widget.poiOnly && _currentStep < 7)
-                          ? FilledButton(
-                              style: FilledButton.styleFrom(
-                                backgroundColor: proBlue,
-                                foregroundColor: Colors.white,
-                                textStyle: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              onPressed: () =>
-                                  _continueToStep(_currentStep + 1),
-                              child: const Text('Suivant →'),
-                            )
-                          : const SizedBox(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _getStepLabel(int step) {
-    const labels = [
+    final stepLabels = const <String>[
       'Template',
       'Infos',
       'Périmètre',
@@ -1855,7 +1686,103 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       'Pré-pub',
       'Publication',
     ];
-    return labels[step];
+
+    bool isStepEnabled(int index) {
+      // UX existante: en mode POI-only, on verrouille sur l'étape POI.
+      return widget.poiOnly ? index == _poiStepIndex : true;
+    }
+
+    bool isStepCompleted(int index) {
+      // UX existante: en mode POI-only, on n'affiche pas de complétion.
+      return widget.poiOnly ? false : index < _currentStep;
+    }
+
+    return Scaffold(
+      body: SoftBackground(
+        child: Column(
+          children: [
+            const GlassAppBar(title: 'Wizard Circuit Pro'),
+            const SizedBox(height: MasliveTokens.s),
+            WizardStepperPills(
+              currentStep: _currentStep,
+              labels: stepLabels,
+              onStepTap: (index) => unawaited(_continueToStep(index)),
+              isStepEnabled: isStepEnabled,
+              isStepCompleted: isStepCompleted,
+            ),
+            const SizedBox(height: MasliveTokens.s),
+            Expanded(
+              child: Stack(
+                children: [
+                  PageView(
+                    controller: _pageController,
+                    physics: const NeverScrollableScrollPhysics(),
+                    onPageChanged: (page) {
+                      setState(() => _currentStep = page);
+
+                      // Auto-ouvrir Style Pro quand on arrive sur l'étape Style Pro (index 4)
+                      // pour éviter le clic sur "Ouvrir Style Pro".
+                      if (_currentStep != 4) {
+                        _didAutoOpenStyleProForCurrentVisit = false;
+                      }
+
+                      // Quand on arrive sur l'étape POI, on veut afficher le circuit
+                      // (Style Pro si présent) sur la carte immédiatement.
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (!mounted) return;
+                        if (_currentStep == _poiStepIndex) {
+                          unawaited(_refreshPoiRouteOverlay());
+                        }
+
+                        if (_currentStep == 4 &&
+                            !_didAutoOpenStyleProForCurrentVisit) {
+                          _didAutoOpenStyleProForCurrentVisit = true;
+                          unawaited(_openRouteStylePro());
+                        }
+
+                        _syncPoiRouteStyleProTimer();
+                      });
+                    },
+                    children: [
+                      _buildStep0Template(),
+                      _buildStep1Infos(),
+                      _buildStep2Perimeter(),
+                      _buildStep3RouteAndStyleTabbed(),
+                      _buildStep6StylePro(),
+                      _buildStep5POI(),
+                      _buildStep7Validation(),
+                      _buildStep8Publish(),
+                    ],
+                  ),
+
+                  // Map controls (Apple Maps style): overlay right.
+                  if (_currentStep == 2 || _currentStep == 3)
+                    Positioned(
+                      right: MasliveTokens.m,
+                      top: MasliveTokens.m,
+                      child: _buildCentralMapToolsBar(),
+                    ),
+                ],
+              ),
+            ),
+            WizardBottomBar(
+              showPrevious: (!widget.poiOnly && _currentStep > 0),
+              onPrevious: (!widget.poiOnly && _currentStep > 0)
+                  ? () => _pageController.previousPage(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      )
+                  : null,
+              onSave: () => _saveDraft(createSnapshot: true),
+              showNext: (!widget.poiOnly && _currentStep < 7),
+              onNext: (!widget.poiOnly && _currentStep < 7)
+                  ? () => _continueToStep(_currentStep + 1)
+                  : null,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildStep3RouteAndStyleTabbed() {
@@ -1920,55 +1847,72 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         physics: _isWizardMapInteracting
             ? const NeverScrollableScrollPhysics()
             : null,
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Choisir un modèle (optionnel)',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Tu peux démarrer depuis un template global ou passer cette étape.',
-              style: TextStyle(fontSize: 13, color: Colors.black54),
-            ),
-            const SizedBox(height: 20),
-            DropdownButtonFormField<CircuitTemplate>(
-              initialValue: _selectedTemplate,
-              items: _templates
-                  .map(
-                    (t) => DropdownMenuItem<CircuitTemplate>(
-                      value: t,
-                      child: Text('${t.name} (${t.category})'),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (value) => setState(() => _selectedTemplate = value),
-              decoration: const InputDecoration(
-                labelText: 'Template',
-                border: OutlineInputBorder(),
+        padding: const EdgeInsets.fromLTRB(
+          MasliveTokens.m,
+          0,
+          MasliveTokens.m,
+          MasliveTokens.xl,
+        ),
+        child: GlassPanel(
+          padding: const EdgeInsets.all(MasliveTokens.l),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Choisir un modèle (optionnel)',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: MasliveTokens.text,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.auto_awesome),
-                  onPressed: _selectedTemplate == null
-                      ? null
-                      : () => _applyTemplate(_selectedTemplate!),
-                  label: const Text('Appliquer le modèle'),
+              const SizedBox(height: MasliveTokens.s),
+              Text(
+                'Tu peux démarrer depuis un template global ou passer cette étape.',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: MasliveTokens.textSoft,
                 ),
-                const SizedBox(width: 12),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.history),
-                  onPressed: _showDraftHistory,
-                  label: const Text('Historique'),
+              ),
+              const SizedBox(height: MasliveTokens.l),
+              DropdownButtonFormField<CircuitTemplate>(
+                initialValue: _selectedTemplate,
+                items: _templates
+                    .map(
+                      (t) => DropdownMenuItem<CircuitTemplate>(
+                        value: t,
+                        child: Text('${t.name} (${t.category})'),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) =>
+                    setState(() => _selectedTemplate = value),
+                decoration: const InputDecoration(
+                  labelText: 'Template',
+                  border: OutlineInputBorder(),
                 ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(height: MasliveTokens.s),
+              Row(
+                children: [
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.auto_awesome),
+                    onPressed: _selectedTemplate == null
+                        ? null
+                        : () => _applyTemplate(_selectedTemplate!),
+                    label: const Text('Appliquer le modèle'),
+                  ),
+                  const SizedBox(width: MasliveTokens.s),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.history),
+                    onPressed: _showDraftHistory,
+                    label: const Text('Historique'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1980,204 +1924,243 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         physics: _isWizardMapInteracting
             ? const NeverScrollableScrollPhysics()
             : null,
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Informations de base',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Nom du circuit *',
-                hintText: 'Ex: Circuit Côte Nord',
-                border: OutlineInputBorder(),
+        padding: const EdgeInsets.fromLTRB(
+          MasliveTokens.m,
+          0,
+          MasliveTokens.m,
+          MasliveTokens.xl,
+        ),
+        child: GlassPanel(
+          padding: const EdgeInsets.all(MasliveTokens.l),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Informations de base',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: MasliveTokens.text,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            StreamBuilder<List<MarketCountry>>(
-              stream: _marketMapService.watchCountries(),
-              builder: (context, snap) {
-                final items = snap.data ?? const <MarketCountry>[];
+              const SizedBox(height: MasliveTokens.l),
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nom du circuit *',
+                  hintText: 'Ex: Circuit Côte Nord',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: MasliveTokens.m),
+              StreamBuilder<List<MarketCountry>>(
+                stream: _marketMapService.watchCountries(),
+                builder: (context, snap) {
+                  final items = snap.data ?? const <MarketCountry>[];
 
-                // Fallback: champ texte si la liste n'est pas dispo.
-                if (snap.hasError || items.isEmpty) {
-                  return TextField(
+                  // Fallback: champ texte si la liste n'est pas dispo.
+                  if (snap.hasError || items.isEmpty) {
+                    return TextField(
+                      controller: _countryController,
+                      decoration: const InputDecoration(
+                        labelText: 'Pays *',
+                        hintText: 'Ex: guadeloupe',
+                        border: OutlineInputBorder(),
+                      ),
+                    );
+                  }
+
+                  return MarketCountryAutocompleteField(
+                    items: items,
                     controller: _countryController,
-                    decoration: const InputDecoration(
-                      labelText: 'Pays *',
-                      hintText: 'Ex: guadeloupe',
-                      border: OutlineInputBorder(),
-                    ),
+                    labelText: 'Pays *',
+                    hintText: 'Rechercher un pays…',
+                    valueForOption: (c) => c.id,
+                    onSelected: (_) {},
                   );
-                }
+                },
+              ),
+              const SizedBox(height: MasliveTokens.m),
+              TextField(
+                controller: _eventController,
+                decoration: const InputDecoration(
+                  labelText: 'Événement *',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: MasliveTokens.m),
+              TextField(
+                controller: _descriptionController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: MasliveTokens.m),
+              TextField(
+                controller: _styleUrlController,
+                onChanged: _onStyleUrlChanged,
+                decoration: const InputDecoration(
+                  labelText: 'Style URL Mapbox (optionnel)',
+                  hintText: 'mapbox://styles/username/style-id',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: MasliveTokens.s),
+              Builder(
+                builder: (context) {
+                  final current = _normalizeMapboxStyleUrl(
+                    _styleUrlController.text,
+                  );
+                  final presets = <({String label, String url})>[
+                    (label: 'Effacer', url: ''),
+                    (
+                      label: 'Streets',
+                      url: 'mapbox://styles/mapbox/streets-v12',
+                    ),
+                    (
+                      label: 'Outdoors',
+                      url: 'mapbox://styles/mapbox/outdoors-v12',
+                    ),
+                    (
+                      label: 'Satellite',
+                      url: 'mapbox://styles/mapbox/satellite-streets-v12',
+                    ),
+                    (label: 'Light', url: 'mapbox://styles/mapbox/light-v11'),
+                    (label: 'Dark', url: 'mapbox://styles/mapbox/dark-v11'),
+                    (
+                      label: 'Perso (stef971fwi)',
+                      url:
+                          'mapbox://styles/stef971fwi/cmm3zyr4q00fn01s12idvb2oe',
+                    ),
+                  ];
 
-                return MarketCountryAutocompleteField(
-                  items: items,
-                  controller: _countryController,
-                  labelText: 'Pays *',
-                  hintText: 'Rechercher un pays…',
-                  valueForOption: (c) => c.id,
-                  onSelected: (_) {},
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _eventController,
-              decoration: const InputDecoration(
-                labelText: 'Événement *',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _descriptionController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _styleUrlController,
-              onChanged: _onStyleUrlChanged,
-              decoration: const InputDecoration(
-                labelText: 'Style URL Mapbox (optionnel)',
-                hintText: 'mapbox://styles/username/style-id',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Builder(
-              builder: (context) {
-                final current = _normalizeMapboxStyleUrl(
-                  _styleUrlController.text,
-                );
-                final presets = <({String label, String url})>[
-                  (label: 'Effacer', url: ''),
-                  (label: 'Streets', url: 'mapbox://styles/mapbox/streets-v12'),
-                  (
-                    label: 'Outdoors',
-                    url: 'mapbox://styles/mapbox/outdoors-v12',
-                  ),
-                  (
-                    label: 'Satellite',
-                    url: 'mapbox://styles/mapbox/satellite-streets-v12',
-                  ),
-                  (label: 'Light', url: 'mapbox://styles/mapbox/light-v11'),
-                  (label: 'Dark', url: 'mapbox://styles/mapbox/dark-v11'),
-                  (
-                    label: 'Perso (stef971fwi)',
-                    url: 'mapbox://styles/stef971fwi/cmm3zyr4q00fn01s12idvb2oe',
-                  ),
-                ];
+                  Widget pill({required String label, required String url}) {
+                    final normalized = _normalizeMapboxStyleUrl(url);
+                    final selected =
+                        (normalized.isEmpty && current.isEmpty) ||
+                        (normalized.isNotEmpty && normalized == current);
 
-                Widget tile({required String label, required String url}) {
-                  final normalized = _normalizeMapboxStyleUrl(url);
-                  final selected =
-                      (normalized.isEmpty && current.isEmpty) ||
-                      (normalized.isNotEmpty && normalized == current);
-                  return InkWell(
-                    onTap: () => _applyStylePreset(url),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? Colors.blue.withValues(alpha: 0.08)
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: selected ? Colors.blue : Colors.grey.shade300,
+                    final bg = selected
+                        ? MasliveTokens.primary.withValues(alpha: 0.15)
+                        : Colors.white.withValues(alpha: 0.74);
+                    final fg = selected ? MasliveTokens.primary : MasliveTokens.text;
+
+                    return InkWell(
+                      onTap: () => _applyStylePreset(url),
+                      borderRadius: BorderRadius.circular(MasliveTokens.rPill),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        curve: Curves.easeOut,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: MasliveTokens.m,
+                          vertical: MasliveTokens.s,
+                        ),
+                        decoration: BoxDecoration(
+                          color: bg,
+                          borderRadius: BorderRadius.circular(MasliveTokens.rPill),
+                          border: Border.all(
+                            color: selected
+                                ? MasliveTokens.primary.withValues(alpha: 0.22)
+                                : MasliveTokens.borderSoft,
+                          ),
+                        ),
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: fg,
+                          ),
                         ),
                       ),
-                      child: Text(
-                        label,
+                    );
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Presets rapides',
                         style: TextStyle(
-                          fontWeight: selected
-                              ? FontWeight.w800
-                              : FontWeight.w600,
-                          color: selected
-                              ? Colors.blue.shade900
-                              : Colors.grey.shade900,
+                          fontWeight: FontWeight.w800,
+                          color: MasliveTokens.text,
                         ),
                       ),
-                    ),
+                      const SizedBox(height: MasliveTokens.xs),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            for (final p in presets) ...[
+                              pill(label: p.label, url: p.url),
+                              const SizedBox(width: MasliveTokens.xs),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                   );
-                }
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Presets rapides',
-                      style: TextStyle(fontWeight: FontWeight.w800),
+                },
+              ),
+              const SizedBox(height: MasliveTokens.m),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(MasliveTokens.rL),
+                child: SizedBox(
+                  height: 440,
+                  child: _wrapWizardMapToBlockScroll(
+                    MasLiveMap(
+                      initialLng: _routePoints.isNotEmpty
+                          ? _routePoints.first.lng
+                          : (_perimeterPoints.isNotEmpty
+                                ? _perimeterPoints.first.lng
+                                : -61.533),
+                      initialLat: _routePoints.isNotEmpty
+                          ? _routePoints.first.lat
+                          : (_perimeterPoints.isNotEmpty
+                                ? _perimeterPoints.first.lat
+                                : 16.241),
+                      initialZoom: (_routePoints.isNotEmpty ||
+                              _perimeterPoints.isNotEmpty)
+                          ? 13.5
+                          : 12.0,
+                      styleUrl: _normalizeMapboxStyleUrl(
+                                _styleUrlController.text,
+                              ).isEmpty
+                          ? null
+                          : _normalizeMapboxStyleUrl(_styleUrlController.text),
                     ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (final p in presets)
-                          tile(label: p.label, url: p.url),
-                      ],
-                    ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-                height: 440,
-                child: _wrapWizardMapToBlockScroll(
-                  MasLiveMap(
-                    initialLng: _routePoints.isNotEmpty
-                        ? _routePoints.first.lng
-                        : (_perimeterPoints.isNotEmpty
-                              ? _perimeterPoints.first.lng
-                              : -61.533),
-                    initialLat: _routePoints.isNotEmpty
-                        ? _routePoints.first.lat
-                        : (_perimeterPoints.isNotEmpty
-                              ? _perimeterPoints.first.lat
-                              : 16.241),
-                    initialZoom:
-                        (_routePoints.isNotEmpty || _perimeterPoints.isNotEmpty)
-                        ? 13.5
-                        : 12.0,
-                    styleUrl:
-                        _normalizeMapboxStyleUrl(
-                          _styleUrlController.text,
-                        ).isEmpty
-                        ? null
-                        : _normalizeMapboxStyleUrl(_styleUrlController.text),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 32),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
+              const SizedBox(height: MasliveTokens.xl),
+              GlassPanel(
+                radius: MasliveTokens.rM,
+                opacity: 0.74,
+                padding: const EdgeInsets.all(MasliveTokens.m),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 18,
+                      color: MasliveTokens.textSoft,
+                    ),
+                    const SizedBox(width: MasliveTokens.s),
+                    Expanded(
+                      child: Text(
+                        'Complétez les informations de base, puis définissez le périmètre et le tracé sur les étapes suivantes.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: MasliveTokens.textSoft,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              child: const Text(
-                '💡 Complétez les informations de base, puis définissez le périmètre et le tracé sur les étapes suivantes.',
-                style: TextStyle(fontSize: 13),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -2234,10 +2217,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
     final isRouteAndStyleStep = !isPerimeter && _currentStep == 3;
 
-    return Material(
-      color: Colors.white,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    Widget content = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 520),
+      child: GlassPanel(
+        radius: MasliveTokens.rM,
+        blur: MasliveTokens.blurL,
+        opacity: 0.76,
+        padding: const EdgeInsets.symmetric(
+          horizontal: MasliveTokens.s,
+          vertical: MasliveTokens.xs,
+        ),
         child: AnimatedBuilder(
           animation: controller,
           builder: (context, _) {
@@ -2280,6 +2269,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     FilterChip(
                       label: const Text('Boucle fermée'),
                       selected: perimeterIsLooped,
+                      shape: StadiumBorder(
+                        side: BorderSide(color: MasliveTokens.borderSoft),
+                      ),
+                      side: BorderSide(color: MasliveTokens.borderSoft),
+                      selectedColor:
+                          MasliveTokens.primary.withValues(alpha: 0.15),
                       onSelected:
                           (_perimeterCircleMode || controller.pointCount < 2)
                           ? null
@@ -2295,6 +2290,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     FilterChip(
                       label: const Text('Cercle'),
                       selected: _perimeterCircleMode,
+                      shape: StadiumBorder(
+                        side: BorderSide(color: MasliveTokens.borderSoft),
+                      ),
+                      side: BorderSide(color: MasliveTokens.borderSoft),
+                      selectedColor:
+                          MasliveTokens.primary.withValues(alpha: 0.15),
                       onSelected: (v) {
                         if (v) {
                           if (_perimeterCircleCenter != null) {
@@ -2636,6 +2637,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         ),
       ),
     );
+
+    if (kIsWeb) {
+      content = PointerInterceptor(child: content);
+    }
+    return content;
   }
 
   Future<void> _snapRouteToRoads() async {
@@ -2923,17 +2929,39 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   Widget _buildStep6StylePro() {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 12),
-          Text(
-            'Ouverture du Style Pro…',
-            style: TextStyle(fontSize: 13, color: Colors.black54),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          MasliveTokens.m,
+          0,
+          MasliveTokens.m,
+          MasliveTokens.m,
+        ),
+        child: GlassPanel(
+          radius: MasliveTokens.rL,
+          blur: MasliveTokens.blurL,
+          opacity: 0.76,
+          padding: const EdgeInsets.all(MasliveTokens.l),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Ouverture du Style Pro…',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: MasliveTokens.textSoft,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -2962,279 +2990,296 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         );
       }
 
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.92),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.place_outlined, color: Colors.blueGrey),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Points d\'intérêt (POI)',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+      return GlassPanel(
+        radius: MasliveTokens.rL,
+        blur: MasliveTokens.blurL,
+        opacity: 0.78,
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.place_outlined, color: MasliveTokens.textSoft),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Points d\'intérêt (POI)',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: MasliveTokens.text,
                     ),
                   ),
+                ),
+                toolButton(
+                  icon: const Icon(Icons.edit_location_alt_rounded),
+                  tooltip: 'Ajouter un POI (coordonnées manuelles)',
+                  onPressed: (_selectedLayer == null || _pois.length >= _poiLimit)
+                      ? null
+                      : () {
+                          // Pré-remplissage simple (l'utilisateur peut ajuster).
+                          double lng;
+                          double lat;
+                          if (_routePoints.isNotEmpty) {
+                            lng = _routePoints.first.lng;
+                            lat = _routePoints.first.lat;
+                          } else if (_perimeterPoints.isNotEmpty) {
+                            lng = _perimeterPoints.first.lng;
+                            lat = _perimeterPoints.first.lat;
+                          } else {
+                            lng = -61.533;
+                            lat = 16.241;
+                          }
+
+                          unawaited(_createPoiAt(lng: lng, lat: lat));
+                        },
+                ),
+                toolButton(
+                  icon: const Icon(Icons.my_location),
+                  tooltip: 'Ajouter un POI à la position actuelle',
+                  onPressed: (_selectedLayer == null || _pois.length >= _poiLimit)
+                      ? null
+                      : _addPoiAtCurrentCenter,
+                ),
+                if (_selectedLayer?.type == 'parking')
                   toolButton(
-                    icon: const Icon(Icons.edit_location_alt_rounded),
-                    tooltip: 'Ajouter un POI (coordonnées manuelles)',
-                    onPressed:
-                        (_selectedLayer == null || _pois.length >= _poiLimit)
+                    icon: Icon(
+                      _isDrawingParkingZone
+                          ? Icons.crop_square
+                          : Icons.crop_square_rounded,
+                    ),
+                    tooltip: _isDrawingParkingZone
+                        ? 'Mode zone parking (en cours)'
+                        : 'Créer une zone parking (périmètre)',
+                    onPressed: (_pois.length >= _poiLimit)
                         ? null
                         : () {
-                            // Pré-remplissage simple (l'utilisateur peut ajuster).
-                            double lng;
-                            double lat;
-                            if (_routePoints.isNotEmpty) {
-                              lng = _routePoints.first.lng;
-                              lat = _routePoints.first.lat;
-                            } else if (_perimeterPoints.isNotEmpty) {
-                              lng = _perimeterPoints.first.lng;
-                              lat = _perimeterPoints.first.lat;
+                            if (_isDrawingParkingZone) {
+                              _cancelParkingZoneDrawing();
                             } else {
-                              lng = -61.533;
-                              lat = 16.241;
+                              _startParkingZoneDrawing();
                             }
-
-                            unawaited(_createPoiAt(lng: lng, lat: lat));
                           },
                   ),
-                  toolButton(
-                    icon: const Icon(Icons.my_location),
-                    tooltip: 'Ajouter un POI à la position actuelle',
-                    onPressed:
-                        (_selectedLayer == null || _pois.length >= _poiLimit)
-                        ? null
-                        : _addPoiAtCurrentCenter,
-                  ),
-                  if (_selectedLayer?.type == 'parking')
-                    toolButton(
-                      icon: Icon(
-                        _isDrawingParkingZone
-                            ? Icons.crop_square
-                            : Icons.crop_square_rounded,
-                      ),
-                      tooltip: _isDrawingParkingZone
-                          ? 'Mode zone parking (en cours)'
-                          : 'Créer une zone parking (périmètre)',
-                      onPressed: (_pois.length >= _poiLimit)
-                          ? null
-                          : () {
-                              if (_isDrawingParkingZone) {
-                                _cancelParkingZoneDrawing();
-                              } else {
-                                _startParkingZoneDrawing();
-                              }
-                            },
-                    ),
-                  toolButton(
-                    icon: const Icon(Icons.save_alt),
-                    tooltip: 'Enregistrer les POI',
-                    onPressed: _isLoading ? null : _saveDraft,
-                  ),
-                  toolButton(
-                    icon: const Icon(Icons.sync),
-                    tooltip: 'Réimporter POI/couches depuis MarketMap',
-                    onPressed: (_isLoading || _isRefreshingMarketImport)
-                        ? null
-                        : _refreshImportFromMarketMap,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              if (_selectedLayer?.type == 'parking' && _isDrawingParkingZone)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Zone parking: ${_parkingZonePoints.length} points (tap sur la carte)',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: _cancelParkingZoneDrawing,
-                        child: const Text('Annuler'),
-                      ),
-                      const SizedBox(width: 6),
-                      FilledButton.tonal(
-                        onPressed: _parkingZonePoints.length < 3
-                            ? null
-                            : _finishParkingZoneDrawing,
-                        child: const Text('Créer la zone'),
-                      ),
-                    ],
-                  ),
+                toolButton(
+                  icon: const Icon(Icons.save_alt),
+                  tooltip: 'Enregistrer les POI',
+                  onPressed: _isLoading ? null : _saveDraft,
                 ),
-              Row(
-                children: [
-                  Text(
-                    'POI: ${_pois.length}/$_poiLimit',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: _pois.length >= _poiLimit
-                          ? Colors.redAccent
-                          : (_pois.length >= (_poiLimit * 0.9)
-                                ? Colors.orange
-                                : Colors.black87),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  if (_hasMorePois || _isLoadingMorePois)
-                    TextButton.icon(
-                      onPressed: _isLoadingMorePois ? null : _loadMorePoisPage,
-                      icon: _isLoadingMorePois
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.expand_more, size: 16),
-                      label: const Text('Charger +100'),
-                    ),
-                ],
-              ),
-              if (_pois.length >= _poiLimit)
-                const Padding(
-                  padding: EdgeInsets.only(top: 4),
-                  child: Text(
-                    'Limite atteinte: supprime des POI pour continuer.',
-                    style: TextStyle(fontSize: 12, color: Colors.redAccent),
-                  ),
+                toolButton(
+                  icon: const Icon(Icons.sync),
+                  tooltip: 'Réimporter POI/couches depuis MarketMap',
+                  onPressed: (_isLoading || _isRefreshingMarketImport)
+                      ? null
+                      : _refreshImportFromMarketMap,
                 ),
-              const SizedBox(height: 8),
-              if (poiLayers.isNotEmpty)
-                Row(
+              ],
+            ),
+            const SizedBox(height: 6),
+            if (_selectedLayer?.type == 'parking' && _isDrawingParkingZone)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
                   children: [
-                    const Text(
-                      'Catégorie: ',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
                     Expanded(
                       child: Text(
-                        _selectedLayer?.label ?? 'Choisissez une catégorie',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12),
+                        'Zone parking: ${_parkingZonePoints.length} points (tap sur la carte)',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: MasliveTokens.text,
+                        ),
                       ),
                     ),
+                    TextButton(
+                      onPressed: _cancelParkingZoneDrawing,
+                      child: const Text('Annuler'),
+                    ),
+                    const SizedBox(width: 6),
+                    FilledButton.tonal(
+                      onPressed: _parkingZonePoints.length < 3
+                          ? null
+                          : _finishParkingZoneDrawing,
+                      child: const Text('Créer la zone'),
+                    ),
                   ],
-                )
-              else
-                const Text(
-                  'Aucune couche trouvée. Vérifiez la configuration du projet.',
+                ),
+              ),
+            Row(
+              children: [
+                Text(
+                  'POI: ${_pois.length}/$_poiLimit',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: _pois.length >= _poiLimit
+                        ? Colors.redAccent
+                        : (_pois.length >= (_poiLimit * 0.9)
+                            ? Colors.orange
+                            : MasliveTokens.text),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (_hasMorePois || _isLoadingMorePois)
+                  TextButton.icon(
+                    onPressed: _isLoadingMorePois ? null : _loadMorePoisPage,
+                    icon: _isLoadingMorePois
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.expand_more, size: 16),
+                    label: const Text('Charger +100'),
+                  ),
+              ],
+            ),
+            if (_pois.length >= _poiLimit)
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text(
+                  'Limite atteinte: supprime des POI pour continuer.',
                   style: TextStyle(fontSize: 12, color: Colors.redAccent),
                 ),
-
-              if (_selectedLayer != null) ...[
-                const SizedBox(height: 10),
-                ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  initiallyExpanded: true,
-                  title: Text(
-                    'POI de la couche: ${_selectedLayer!.label}',
-                    style: const TextStyle(
-                      fontSize: 13,
+              ),
+            const SizedBox(height: 10),
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Apparence (nouveau POI)',
+                border: OutlineInputBorder(),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _defaultPoiAppearanceId,
+                  isExpanded: true,
+                  items: [
+                    for (final p in kMasLivePoiAppearancePresets)
+                      DropdownMenuItem(value: p.id, child: Text(p.label)),
+                  ],
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setState(() => _defaultPoiAppearanceId = v);
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (poiLayers.isNotEmpty)
+              Row(
+                children: [
+                  const Text(
+                    'Catégorie: ',
+                    style: TextStyle(
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  subtitle: Text(
-                    '${_pois.where((p) => _poiMatchesSelectedLayer(p, _selectedLayer!)).length} POI',
-                    style: const TextStyle(fontSize: 12),
+                  Expanded(
+                    child: Text(
+                      _selectedLayer?.label ?? 'Choisissez une catégorie',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12),
+                    ),
                   ),
-                  children: [
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 220),
-                      child: ListView(
-                        shrinkWrap: true,
-                        children: [
-                          for (final poi in _pois.where(
-                            (p) => _poiMatchesSelectedLayer(p, _selectedLayer!),
-                          ))
-                            ListTile(
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
-                              leading: const Icon(
-                                Icons.place_outlined,
-                                size: 18,
-                              ),
-                              onTap: () => _poiSelection.select(poi),
-                              title: Text(
-                                poi.name,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              subtitle: Text(
-                                '${poi.lng.toStringAsFixed(5)}, ${poi.lat.toStringAsFixed(5)}',
-                                style: const TextStyle(fontSize: 11),
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    tooltip: 'Modifier',
-                                    icon: const Icon(Icons.edit, size: 18),
-                                    onPressed: () => _editPoi(poi),
-                                  ),
-                                  IconButton(
-                                    tooltip: 'Supprimer',
-                                    icon: const Icon(
-                                      Icons.delete_outline,
-                                      size: 18,
-                                    ),
-                                    onPressed: () => _deletePoi(poi),
-                                  ),
-                                ],
+                ],
+              )
+            else
+              const Text(
+                'Aucune couche trouvée. Vérifiez la configuration du projet.',
+                style: TextStyle(fontSize: 12, color: Colors.redAccent),
+              ),
+            if (_selectedLayer != null) ...[
+              const SizedBox(height: 10),
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                initiallyExpanded: true,
+                title: Text(
+                  'POI de la couche: ${_selectedLayer!.label}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: MasliveTokens.text,
+                  ),
+                ),
+                subtitle: Text(
+                  '${_pois.where((p) => _poiMatchesSelectedLayer(p, _selectedLayer!)).length} POI',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: MasliveTokens.textSoft,
+                  ),
+                ),
+                children: [
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 220),
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final poi in _pois.where(
+                          (p) => _poiMatchesSelectedLayer(p, _selectedLayer!),
+                        ))
+                          ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.place_outlined, size: 18),
+                            onTap: () => _poiSelection.select(poi),
+                            title: Text(
+                              poi.name,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: MasliveTokens.text,
                               ),
                             ),
-                        ],
+                            subtitle: Text(
+                              '${poi.lng.toStringAsFixed(5)}, ${poi.lat.toStringAsFixed(5)}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: MasliveTokens.textSoft,
+                              ),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: 'Modifier',
+                                  icon: const Icon(Icons.edit, size: 18),
+                                  onPressed: () => _editPoi(poi),
+                                ),
+                                IconButton(
+                                  tooltip: 'Supprimer',
+                                  icon: const Icon(
+                                    Icons.delete_outline,
+                                    size: 18,
+                                  ),
+                                  onPressed: () => _deletePoi(poi),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (_hasMorePois || _isLoadingMorePois)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: _isLoadingMorePois ? null : _loadMorePoisPage,
+                        icon: _isLoadingMorePois
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.more_horiz),
+                        label: const Text('Voir plus'),
                       ),
                     ),
-                    if (_hasMorePois || _isLoadingMorePois)
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton.icon(
-                          onPressed: _isLoadingMorePois
-                              ? null
-                              : _loadMorePoisPage,
-                          icon: _isLoadingMorePois
-                              ? const SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.more_horiz),
-                          label: const Text('Voir plus'),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
+                ],
+              ),
             ],
-          ),
+          ],
         ),
       );
     }
@@ -3431,6 +3476,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       _poiInlineEditorMode = _PoiInlineEditorMode.createPoint;
       _poiEditingPoi = null;
       _poiInlineError = null;
+      _poiInlineAppearanceId = _defaultPoiAppearanceId;
       _poiInlineNameController.text = '';
       _poiInlineLatController.text = initialLat.toStringAsFixed(6);
       _poiInlineLngController.text = initialLng.toStringAsFixed(6);
@@ -3481,6 +3527,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       _poiInlineEditorMode = _PoiInlineEditorMode.edit;
       _poiEditingPoi = poi;
       _poiInlineError = null;
+      _poiInlineAppearanceId =
+        (poi.metadata?[kMasLivePoiAppearanceKey] as String?)
+              ?.trim()
+              .isNotEmpty ==
+            true
+          ? (poi.metadata![kMasLivePoiAppearanceKey] as String)
+          : _defaultPoiAppearanceId;
       _poiInlineNameController.text = poi.name;
       _poiInlineLatController.text = poi.lat.toStringAsFixed(6);
       _poiInlineLngController.text = poi.lng.toStringAsFixed(6);
@@ -4044,6 +4097,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             'poiId': poi.id,
             'layerId': poi.layerType,
             'title': poi.name,
+            if (poi.metadata?[kMasLivePoiAppearanceKey] is String)
+              kMasLivePoiAppearanceKey: poi.metadata![kMasLivePoiAppearanceKey],
           },
           'geometry': <String, dynamic>{
             'type': 'Point',
@@ -4312,7 +4367,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         lat: lat,
         description: null,
         imageUrl: null,
-        metadata: null,
+        metadata: <String, dynamic>{
+          kMasLivePoiAppearanceKey: _poiInlineAppearanceId,
+        },
       );
 
       setState(() {
@@ -4437,6 +4494,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             'patternOpacity': _parkingZonePatternOpacity.clamp(0.0, 1.0),
           },
         };
+      } else {
+        nextMetadata = <String, dynamic>{
+          ...(poi.metadata ?? const <String, dynamic>{}),
+          kMasLivePoiAppearanceKey: _poiInlineAppearanceId,
+        };
       }
 
       setState(() {
@@ -4531,6 +4593,33 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   border: OutlineInputBorder(),
                 ),
               ),
+              if (!isCreateZone && !isEditZone) ...[
+                const SizedBox(height: 12),
+                InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Apparence',
+                    border: OutlineInputBorder(),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _poiInlineAppearanceId,
+                      isExpanded: true,
+                      items: [
+                        for (final p in kMasLivePoiAppearancePresets)
+                          DropdownMenuItem(value: p.id, child: Text(p.label)),
+                      ],
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setState(() {
+                          _poiInlineAppearanceId = v;
+                          _poiInlineError = null;
+                        });
+                        _refreshPoiMarkers();
+                      },
+                    ),
+                  ),
+                ),
+              ],
               if (isCreatePoint) ...[
                 const SizedBox(height: 12),
                 TextField(
@@ -4795,45 +4884,101 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final report = _qualityReport;
     return GlassScrollbar(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(
+          MasliveTokens.l,
+          MasliveTokens.m,
+          MasliveTokens.l,
+          MasliveTokens.xl,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Pré-publication',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Score qualité: ${report.score}/100',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: report.canPublish ? Colors.green : Colors.orange,
+            GlassPanel(
+              radius: MasliveTokens.rL,
+              blur: MasliveTokens.blurL,
+              opacity: 0.78,
+              padding: const EdgeInsets.all(MasliveTokens.m),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Pré-publication',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: MasliveTokens.text,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Score qualité: ${report.score}/100',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: report.canPublish ? Colors.green : Colors.orange,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: report.score / 100,
+                      minHeight: 8,
+                      color: report.canPublish ? Colors.green : Colors.orange,
+                      backgroundColor: MasliveTokens.borderSoft,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 10),
-            LinearProgressIndicator(
-              value: report.score / 100,
-              minHeight: 8,
-              color: report.canPublish ? Colors.green : Colors.orange,
-            ),
-            const SizedBox(height: 20),
-            for (final item in report.items)
-              ListTile(
-                dense: true,
-                leading: Icon(
-                  item.ok ? Icons.check_circle : Icons.error_outline,
-                  color: item.ok ? Colors.green : Colors.redAccent,
-                ),
-                title: Text(item.label),
-                subtitle: (!item.ok && item.hint != null)
-                    ? Text(item.hint!)
-                    : null,
-                trailing: item.required
-                    ? const Chip(label: Text('Requis'))
-                    : const Chip(label: Text('Optionnel')),
+            const SizedBox(height: MasliveTokens.m),
+            GlassPanel(
+              radius: MasliveTokens.rL,
+              blur: MasliveTokens.blurL,
+              opacity: 0.76,
+              padding: const EdgeInsets.fromLTRB(
+                MasliveTokens.s,
+                MasliveTokens.s,
+                MasliveTokens.s,
+                MasliveTokens.s,
               ),
+              child: Column(
+                children: [
+                  for (final item in report.items)
+                    ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: MasliveTokens.s,
+                        vertical: 2,
+                      ),
+                      leading: Icon(
+                        item.ok ? Icons.check_circle : Icons.error_outline,
+                        color: item.ok ? Colors.green : Colors.redAccent,
+                      ),
+                      title: Text(
+                        item.label,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: MasliveTokens.text,
+                        ),
+                      ),
+                      subtitle: (!item.ok && item.hint != null)
+                          ? Text(
+                              item.hint!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: MasliveTokens.textSoft,
+                              ),
+                            )
+                          : null,
+                      trailing: item.required
+                          ? const Chip(label: Text('Requis'))
+                          : const Chip(label: Text('Optionnel')),
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -4844,106 +4989,163 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final report = _qualityReport;
     return GlassScrollbar(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(
+          MasliveTokens.l,
+          MasliveTokens.m,
+          MasliveTokens.l,
+          MasliveTokens.xl,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Publication',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
+            GlassPanel(
+              radius: MasliveTokens.rL,
+              blur: MasliveTokens.blurL,
+              opacity: 0.78,
+              padding: const EdgeInsets.all(MasliveTokens.m),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Text(
-                    '✅ Votre circuit est prêt !',
+                    'Publication',
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: MasliveTokens.text,
                     ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      const Icon(Icons.check_circle, color: Colors.green),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          report.canPublish
+                              ? 'Votre circuit est prêt !'
+                              : 'Circuit presque prêt',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color:
+                                report.canPublish ? Colors.green : Colors.orange,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   Text(
                     'Nom: ${_nameController.text.trim()}',
-                    style: const TextStyle(fontSize: 13),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: MasliveTokens.text,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   Text(
                     'Points périmètre: ${_perimeterPoints.length}',
-                    style: const TextStyle(fontSize: 13),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: MasliveTokens.textSoft,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   Text(
                     'Points tracé: ${_routePoints.length}',
-                    style: const TextStyle(fontSize: 13),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: MasliveTokens.textSoft,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   Text(
                     'Score qualité: ${report.score}/100',
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-            if (!report.canPublish) ...[
-              const SizedBox(height: 12),
-              const Text(
-                '❌ Publication bloquée: corrige les points requis de l’étape Pré-publication.',
-                style: TextStyle(color: Colors.redAccent),
-              ),
-            ],
-            const SizedBox(height: 32),
-            const Text(
-              'Options de publication',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.cloud_upload),
-              onPressed: (report.canPublish && !_isEnsuringAllPoisLoaded)
-                  ? _publishCircuit
-                  : null,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: Colors.green,
-              ),
-              label: const Text(
-                'PUBLIER LE CIRCUIT',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            if (_isEnsuringAllPoisLoaded) ...[
-              const SizedBox(height: 12),
-              const Row(
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Chargement de tous les POIs avant publication…',
-                      style: TextStyle(fontSize: 12),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: MasliveTokens.textSoft,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
+                  if (!report.canPublish) ...[
+                    const SizedBox(height: 12),
+                    const Text(
+                      '❌ Publication bloquée: corrige les points requis de l’étape Pré-publication.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.redAccent,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ],
               ),
-            ],
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.save_alt),
-              onPressed: () => _saveDraft(createSnapshot: true),
-              label: const Text('Rester en brouillon'),
+            ),
+            const SizedBox(height: MasliveTokens.m),
+            GlassPanel(
+              radius: MasliveTokens.rL,
+              blur: MasliveTokens.blurL,
+              opacity: 0.76,
+              padding: const EdgeInsets.all(MasliveTokens.m),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Options de publication',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: MasliveTokens.text,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.cloud_upload),
+                    onPressed: (report.canPublish && !_isEnsuringAllPoisLoaded)
+                        ? _publishCircuit
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: Colors.green,
+                    ),
+                    label: const Text(
+                      'PUBLIER LE CIRCUIT',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  if (_isEnsuringAllPoisLoaded) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Chargement de tous les POIs avant publication…',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: MasliveTokens.textSoft,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.save_alt),
+                    onPressed: () => _saveDraft(createSnapshot: true),
+                    label: const Text('Rester en brouillon'),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -5162,75 +5364,5 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           showBorder: true,
         );
     }
-  }
-}
-
-class _StepIndicator extends StatelessWidget {
-  final int step;
-  final String label;
-  final bool isActive;
-  final bool isCompleted;
-  final bool isEnabled;
-
-  const _StepIndicator({
-    required this.step,
-    required this.label,
-    required this.isActive,
-    required this.isCompleted,
-    required this.isEnabled,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final circleColor = isCompleted
-        ? Colors.green
-        : isActive
-        ? Colors.blue
-        : isEnabled
-        ? Colors.grey.shade300
-        : Colors.grey.shade200;
-
-    final circleTextColor = (isActive || isCompleted)
-        ? Colors.white
-        : isEnabled
-        ? Colors.black
-        : Colors.black38;
-
-    final labelColor = isEnabled || isActive ? null : Colors.black38;
-
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(color: circleColor, shape: BoxShape.circle),
-          child: Center(
-            child: isCompleted
-                ? const Icon(Icons.check, color: Colors.white, size: 16)
-                : Text(
-                    '${step + 1}',
-                    style: TextStyle(
-                      color: circleTextColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Flexible(
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-              color: labelColor,
-            ),
-          ),
-        ),
-      ],
-    );
   }
 }

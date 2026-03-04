@@ -490,6 +490,39 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       _poiStyle.circleStrokeColor,
     );
 
+    List<dynamic> matchAppearanceExpr<T>(
+      T fallback,
+      T Function(MasLivePoiStyle s) pick,
+    ) {
+      final expr = <dynamic>[
+        'match',
+        ['get', kMasLivePoiAppearanceKey],
+      ];
+      for (final p in kMasLivePoiAppearancePresets) {
+        expr.add(p.id);
+        expr.add(pick(p.style));
+      }
+      expr.add(fallback);
+      return expr;
+    }
+
+    final circleRadiusExpr = matchAppearanceExpr<double>(
+      _poiStyle.circleRadius,
+      (s) => s.circleRadius,
+    );
+    final circleColorExpr = matchAppearanceExpr<String>(
+      defaultFillColor,
+      (s) => masLiveColorToCssHex(s.circleColor),
+    );
+    final circleStrokeWidthExpr = matchAppearanceExpr<double>(
+      _poiStyle.circleStrokeWidth,
+      (s) => s.circleStrokeWidth,
+    );
+    final circleStrokeColorExpr = matchAppearanceExpr<String>(
+      defaultStrokeColor,
+      (s) => masLiveColorToCssHex(s.circleStrokeColor),
+    );
+
     final fillColorExpr = <dynamic>[
       'coalesce',
       ['get', 'fillColor'],
@@ -515,7 +548,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       map.callMethod('setPaintProperty', [
         _poiLayerId,
         'circle-radius',
-        _poiStyle.circleRadius,
+        jsValue(circleRadiusExpr),
       ]);
     } catch (_) {
       // ignore
@@ -524,7 +557,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       map.callMethod('setPaintProperty', [
         _poiLayerId,
         'circle-color',
-        masLiveColorToCssHex(_poiStyle.circleColor),
+        jsValue(circleColorExpr),
       ]);
     } catch (_) {
       // ignore
@@ -533,7 +566,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       map.callMethod('setPaintProperty', [
         _poiLayerId,
         'circle-stroke-width',
-        _poiStyle.circleStrokeWidth,
+        jsValue(circleStrokeWidthExpr),
       ]);
     } catch (_) {
       // ignore
@@ -542,7 +575,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       map.callMethod('setPaintProperty', [
         _poiLayerId,
         'circle-stroke-color',
-        masLiveColorToCssHex(_poiStyle.circleStrokeColor),
+        jsValue(circleStrokeColorExpr),
       ]);
     } catch (_) {
       // ignore

@@ -15,6 +15,50 @@ class MasLivePoiStyle {
   });
 }
 
+/// Clé `metadata` utilisée pour persister le preset d'apparence d'un POI.
+///
+/// Exemple: `{ "appearance": "blue_dot" }`
+const String kMasLivePoiAppearanceKey = 'appearance';
+
+@immutable
+class MasLivePoiAppearancePreset {
+  final String id;
+  final String label;
+  final MasLivePoiStyle style;
+
+  const MasLivePoiAppearancePreset({
+    required this.id,
+    required this.label,
+    required this.style,
+  });
+}
+
+/// Liste de presets extensible (ajout progressif de styles).
+///
+/// Important: les `id` sont persistés dans Firestore via `MarketMapPOI.metadata`.
+const List<MasLivePoiAppearancePreset> kMasLivePoiAppearancePresets = [
+  MasLivePoiAppearancePreset(
+    id: 'blue_dot',
+    label: 'Rond bleu',
+    style: MasLivePoiStyle(
+      circleRadius: 7.0,
+      circleColor: Color(0xFF0A84FF),
+      circleStrokeWidth: 2.0,
+      circleStrokeColor: Color(0xFFFFFFFF),
+    ),
+  ),
+  MasLivePoiAppearancePreset(
+    id: 'red_pin',
+    label: 'Pin rouge',
+    style: MasLivePoiStyle(
+      circleRadius: 10.0,
+      circleColor: Color(0xFFFF3B30),
+      circleStrokeWidth: 3.0,
+      circleStrokeColor: Color(0xFFFFFFFF),
+    ),
+  ),
+];
+
 String masLiveColorToCssHex(Color color) {
   int to8(double v) => (v * 255.0).round().clamp(0, 255);
 

@@ -6,6 +6,8 @@ import 'dart:math' as math;
 import '../services/mapbox_token_service.dart';
 import '../ui/map/maslive_map.dart';
 import '../ui/map/maslive_map_controller.dart';
+import '../ui_kit/glass/glass_panel.dart';
+import '../ui_kit/tokens/maslive_tokens.dart';
 
 typedef LngLat = ({double lng, double lat});
 
@@ -840,96 +842,125 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   @override
   Widget build(BuildContext context) {
     final header = widget.showHeader
-        ? Container(
-            color: Colors.white,
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+        ? Padding(
+            padding: const EdgeInsets.fromLTRB(
+              MasliveTokens.m,
+              MasliveTokens.m,
+              MasliveTokens.m,
+              MasliveTokens.s,
+            ),
+            child: GlassPanel(
+              padding: const EdgeInsets.all(MasliveTokens.m),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.title,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: MasliveTokens.text,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  widget.subtitle,
-                  style: const TextStyle(fontSize: 13, color: Colors.grey),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: MasliveTokens.textSoft,
+                    ),
+                  ),
+                ],
+              ),
             ),
           )
         : const SizedBox.shrink();
 
     final toolbar = (_showToolbar && widget.showToolbar)
-        ? Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.undo),
-                    onPressed: _historyIndex > 0 ? _undo : null,
-                    tooltip: 'Annuler',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.redo),
-                    onPressed: _historyIndex < _history.length - 1
-                        ? _redo
-                        : null,
-                    tooltip: 'Rétablir',
-                  ),
-                  const VerticalDivider(),
-                  if (widget.mode == 'polygon')
+        ? Padding(
+            padding: const EdgeInsets.fromLTRB(
+              MasliveTokens.m,
+              0,
+              MasliveTokens.m,
+              MasliveTokens.s,
+            ),
+            child: GlassPanel(
+              radius: MasliveTokens.rM,
+              blur: MasliveTokens.blurL,
+              opacity: 0.76,
+              padding: const EdgeInsets.symmetric(
+                horizontal: MasliveTokens.s,
+                vertical: MasliveTokens.xs,
+              ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
                     IconButton(
-                      icon: const Icon(Icons.loop_rounded),
-                      onPressed: _closePath,
-                      tooltip: 'Fermer le polygone',
+                      icon: const Icon(Icons.undo),
+                      onPressed: _historyIndex > 0 ? _undo : null,
+                      tooltip: 'Annuler',
                     ),
-                  IconButton(
-                    icon: const Icon(Icons.flip_to_back),
-                    onPressed: _reversePath,
-                    tooltip: 'Inverser sens',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.compress_rounded),
-                    onPressed: _simplifyTrack,
-                    tooltip: 'Simplifier tracé',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_sweep),
-                    onPressed: _clearAll,
-                    tooltip: 'Effacer tous',
-                  ),
-                  const VerticalDivider(),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${_points.length} points',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          '${_totalDistance().toStringAsFixed(2)} km',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
+                    IconButton(
+                      icon: const Icon(Icons.redo),
+                      onPressed: _historyIndex < _history.length - 1
+                          ? _redo
+                          : null,
+                      tooltip: 'Rétablir',
                     ),
-                  ),
-                ],
+                    const VerticalDivider(),
+                    if (widget.mode == 'polygon')
+                      IconButton(
+                        icon: const Icon(Icons.loop_rounded),
+                        onPressed: _closePath,
+                        tooltip: 'Fermer le polygone',
+                      ),
+                    IconButton(
+                      icon: const Icon(Icons.flip_to_back),
+                      onPressed: _reversePath,
+                      tooltip: 'Inverser sens',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.compress_rounded),
+                      onPressed: _simplifyTrack,
+                      tooltip: 'Simplifier tracé',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_sweep),
+                      onPressed: _clearAll,
+                      tooltip: 'Effacer tous',
+                    ),
+                    const VerticalDivider(),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: MasliveTokens.s,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${_points.length} points',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: MasliveTokens.text,
+                            ),
+                          ),
+                          Text(
+                            '${_totalDistance().toStringAsFixed(2)} km',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: MasliveTokens.textSoft,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           )
@@ -992,46 +1023,84 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     }
 
     if (_points.isEmpty) {
-      return Container(
-        color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-        child: Row(
-          children: const [
-            Icon(Icons.info_outline, size: 16, color: Colors.grey),
-            SizedBox(width: 8),
-            Text(
-              'Liste des points: ajoutez des points sur la carte',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(
+          MasliveTokens.m,
+          0,
+          MasliveTokens.m,
+          MasliveTokens.m,
+        ),
+        child: GlassPanel(
+          radius: MasliveTokens.rM,
+          opacity: 0.74,
+          padding: const EdgeInsets.fromLTRB(
+            MasliveTokens.m,
+            MasliveTokens.s,
+            MasliveTokens.m,
+            MasliveTokens.s,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                size: 16,
+                color: MasliveTokens.textSoft,
+              ),
+              const SizedBox(width: MasliveTokens.xs),
+              Expanded(
+                child: Text(
+                  'Liste des points: ajoutez des points sur la carte',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: MasliveTokens.textSoft,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        MasliveTokens.m,
+        0,
+        MasliveTokens.m,
+        MasliveTokens.m,
+      ),
+      child: GlassPanel(
+        radius: MasliveTokens.rL,
+        opacity: 0.76,
+        padding: const EdgeInsets.fromLTRB(
+          0,
+          MasliveTokens.s,
+          0,
+          MasliveTokens.s,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Padding(
-              padding: EdgeInsets.fromLTRB(12, 10, 12, 6),
+              padding: EdgeInsets.fromLTRB(
+                MasliveTokens.m,
+                0,
+                MasliveTokens.m,
+                MasliveTokens.xs,
+              ),
               child: Text(
                 'Liste des points',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: MasliveTokens.text,
+                ),
               ),
             ),
-            const Divider(height: 1),
+            Divider(height: 1, color: MasliveTokens.borderSoft),
             ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: widget.pointsListMaxHeight,
-              ),
+              constraints: BoxConstraints(maxHeight: widget.pointsListMaxHeight),
               child: ListView.builder(
                 shrinkWrap: true,
                 itemCount: _points.length,
@@ -1042,9 +1111,13 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                   return ListTile(
                     dense: true,
                     selected: isSelected,
+                    selectedTileColor:
+                        MasliveTokens.primary.withValues(alpha: 0.08),
                     leading: CircleAvatar(
                       radius: 12,
-                      backgroundColor: isSelected ? Colors.blue : Colors.grey,
+                      backgroundColor: isSelected
+                          ? MasliveTokens.primary
+                          : MasliveTokens.textSoft.withValues(alpha: 0.30),
                       child: Text(
                         '${index + 1}',
                         style: const TextStyle(
@@ -1058,14 +1131,17 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                       '${index + 1}/ $role',
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: role == 'Point'
-                            ? FontWeight.w600
-                            : FontWeight.bold,
+                        fontWeight:
+                            role == 'Point' ? FontWeight.w600 : FontWeight.bold,
+                        color: MasliveTokens.text,
                       ),
                     ),
                     subtitle: Text(
                       '${point.lng.toStringAsFixed(5)}, ${point.lat.toStringAsFixed(5)}',
-                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: MasliveTokens.textSoft,
+                      ),
                     ),
                     trailing: PopupMenuButton(
                       itemBuilder: (ctx) => [
@@ -1187,21 +1263,21 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
           left: 12,
           top: 12,
           child: interceptPointersIfNeeded(
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.9),
-                borderRadius: BorderRadius.circular(10),
+            GlassPanel(
+              radius: MasliveTokens.rM,
+              opacity: 0.76,
+              padding: const EdgeInsets.symmetric(
+                horizontal: MasliveTokens.m,
+                vertical: MasliveTokens.xs,
               ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                child: Text(
-                  widget.mode == 'polygon'
-                      ? 'Cliquez pour ajouter des points (polygone)'
-                      : 'Cliquez pour ajouter des points (route)',
-                  style: const TextStyle(fontSize: 12),
+              child: Text(
+                widget.mode == 'polygon'
+                    ? 'Cliquez pour ajouter des points (polygone)'
+                    : 'Cliquez pour ajouter des points (route)',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: MasliveTokens.text,
                 ),
               ),
             ),
@@ -1244,7 +1320,7 @@ class PathPainter extends CustomPainter {
     canvas.drawPath(
       path,
       Paint()
-        ..color = Colors.blue
+        ..color = MasliveTokens.primary
         ..strokeWidth = 2
         ..style = PaintingStyle.stroke,
     );
@@ -1252,7 +1328,7 @@ class PathPainter extends CustomPainter {
     // Points
     for (final p in points) {
       final offset = convertPoint(p);
-      canvas.drawCircle(offset, 8, Paint()..color = Colors.blue);
+      canvas.drawCircle(offset, 8, Paint()..color = MasliveTokens.primary);
       canvas.drawCircle(offset, 4, Paint()..color = Colors.white);
     }
   }

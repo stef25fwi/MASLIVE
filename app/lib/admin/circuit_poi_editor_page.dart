@@ -9,6 +9,7 @@ import 'package:pointer_interceptor/pointer_interceptor.dart';
 import '../models/market_circuit_models.dart';
 import '../services/circuit_repository.dart';
 import '../ui/map/maslive_map.dart';
+import '../ui/map/maslive_poi_style.dart';
 import '../ui/snack/top_snack_bar.dart';
 
 typedef LngLat = ({double lng, double lat});
@@ -63,6 +64,8 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
   MarketMapLayer? _selectedLayer;
 
   final MasLiveMapControllerPoi _poiMapController = MasLiveMapControllerPoi();
+
+  String _defaultPoiAppearanceId = kMasLivePoiAppearancePresets.first.id;
 
   Map<String, dynamic> _draftData = {};
 
@@ -565,6 +568,8 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
               'poiId': poi.id,
               'layerId': poi.layerType,
               'title': poi.name,
+              if (poi.metadata?[kMasLivePoiAppearanceKey] is String)
+                kMasLivePoiAppearanceKey: poi.metadata![kMasLivePoiAppearanceKey],
             },
             'geometry': <String, dynamic>{
               'type': 'Point',
@@ -589,17 +594,45 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
     }
 
     final nameController = TextEditingController();
+    var appearanceId = _defaultPoiAppearanceId;
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
         title: const Text('Nouveau point d\'intérêt'),
-        content: TextField(
-          controller: nameController,
-          decoration: const InputDecoration(
-            labelText: 'Nom du POI',
-            border: OutlineInputBorder(),
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Nom du POI',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Apparence',
+                border: OutlineInputBorder(),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: appearanceId,
+                  isExpanded: true,
+                  items: [
+                    for (final p in kMasLivePoiAppearancePresets)
+                      DropdownMenuItem(value: p.id, child: Text(p.label)),
+                  ],
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setDialogState(() => appearanceId = v);
+                  },
+                ),
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -611,6 +644,7 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
             child: const Text('Ajouter'),
           ),
         ],
+      ),
       ),
     );
 
@@ -628,7 +662,7 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
       lat: lat,
       description: null,
       imageUrl: null,
-      metadata: null,
+      metadata: <String, dynamic>{kMasLivePoiAppearanceKey: appearanceId},
     );
 
     setState(() {
@@ -639,17 +673,49 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
 
   Future<void> _editPoi(MarketMapPOI poi) async {
     final nameController = TextEditingController(text: poi.name);
+    var appearanceId =
+      (poi.metadata?[kMasLivePoiAppearanceKey] as String?)?.trim().isNotEmpty ==
+          true
+        ? (poi.metadata![kMasLivePoiAppearanceKey] as String)
+        : _defaultPoiAppearanceId;
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
         title: const Text('Modifier le POI'),
-        content: TextField(
-          controller: nameController,
-          decoration: const InputDecoration(
-            labelText: 'Nom du POI',
-            border: OutlineInputBorder(),
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Nom du POI',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Apparence',
+                border: OutlineInputBorder(),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: appearanceId,
+                  isExpanded: true,
+                  items: [
+                    for (final p in kMasLivePoiAppearancePresets)
+                      DropdownMenuItem(value: p.id, child: Text(p.label)),
+                  ],
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setDialogState(() => appearanceId = v);
+                  },
+                ),
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -662,6 +728,7 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
           ),
         ],
       ),
+      ),
     );
 
     if (confirmed != true) return;
@@ -671,6 +738,10 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
     setState(() {
       final idx = _pois.indexWhere((p) => p.id == poi.id);
       if (idx >= 0) {
+        final nextMetadata = <String, dynamic>{
+          ...(poi.metadata ?? const <String, dynamic>{}),
+          kMasLivePoiAppearanceKey: appearanceId,
+        };
         _pois[idx] = MarketMapPOI(
           id: poi.id,
           name: nextName,
@@ -681,7 +752,7 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
           imageUrl: poi.imageUrl,
           instagram: poi.instagram,
           facebook: poi.facebook,
-          metadata: poi.metadata,
+          metadata: nextMetadata,
         );
       }
     });
@@ -833,6 +904,30 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
                           style: TextStyle(fontSize: 12, color: Colors.redAccent),
                         ),
                       ),
+                    const SizedBox(height: 10),
+                    InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Apparence (nouveau POI)',
+                        border: OutlineInputBorder(),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _defaultPoiAppearanceId,
+                          isExpanded: true,
+                          items: [
+                            for (final p in kMasLivePoiAppearancePresets)
+                              DropdownMenuItem(
+                                value: p.id,
+                                child: Text(p.label),
+                              ),
+                          ],
+                          onChanged: (v) {
+                            if (v == null) return;
+                            setState(() => _defaultPoiAppearanceId = v);
+                          },
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     if (poiLayers.isNotEmpty)
                       Row(
