@@ -436,7 +436,7 @@
     {
       "label": "MASLIVE: Build web(no-wasm) + Firebase deploy full",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE/app && { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -z \"$TOKEN\" ]; then echo '❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).'; exit 1; fi && flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" && cd /workspaces/MASLIVE && firebase deploy --only hosting,functions,firestore:rules,firestore:indexes",
+      "command": "cd /workspaces/MASLIVE/app && { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -z \"$TOKEN\" ]; then echo '❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).'; exit 1; fi && /workspaces/MASLIVE/.flutter_sdk/bin/flutter pub get && /workspaces/MASLIVE/.flutter_sdk/bin/flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" && cd /workspaces/MASLIVE && firebase deploy --only hosting,functions,firestore:rules,firestore:indexes",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
