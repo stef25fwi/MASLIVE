@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 
 import '../models/image_asset.dart' as img;
 import '../models/market_circuit_models.dart';
@@ -107,12 +108,126 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       );
       if (file == null) return;
       if (!mounted) return;
-      await _setSelectedFile(file);
+      
+      // Proposer l'édition avec les outils système natifs
+      await _editImageWithSystemTools(file);
     } catch (e) {
       if (!mounted) return;
       TopSnackBar.showMessage(
         context,
         '❌ Erreur sélection image: $e',
+        isError: true,
+      );
+    }
+  }
+
+  /// Édite la photo avec les outils natifs (filtres système iOS/Android)
+  Future<void> _editImageWithSystemTools(XFile pickedFile) async {
+    if (kIsWeb) {
+      // Sur Web, on ne peut pas utiliser l'éditeur natif
+      await _setSelectedFile(pickedFile);
+      return;
+    }
+
+    try {
+      // Demander à l'utilisateur s'il veut éditer
+      final shouldEdit = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Éditer la photo ?'),
+          content: const Text(
+            'Voulez-vous éditer cette photo avec les outils système '
+            '(filtres, ajustements, recadrage) avant de l\'ajouter ?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Non, continuer'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(ctx, true),
+              icon: const Icon(Icons.edit_rounded),
+              label: const Text('Oui, éditer'),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldEdit != true) {
+        if (!mounted) return;
+        await _setSelectedFile(pickedFile);
+        return;
+      }
+
+      // Lancer l'éditeur natif avec support des filtres système
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: pickedFile.path,
+        compressQuality: 88,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        uiSettings: [
+          // Configuration iOS : utilise l'éditeur Photos natif
+          IOSUiSettings(
+            title: 'Éditer la photo',
+            // Active l'accès aux filtres et outils natifs d'iOS
+            aspectRatioPickerButtonHidden: false,
+            resetButtonHidden: false,
+            rotateButtonsHidden: false,
+            aspectRatioLockEnabled: false,
+            // Permet à l'utilisateur d'accéder aux filtres Photos
+            showActivitySheetOnDone: false,
+          ),
+          // Configuration Android : utilise l'éditeur natif UCrop amélioré
+          AndroidUiSettings(
+            toolbarTitle: 'Éditer la photo',
+            toolbarColor: Theme.of(context).colorScheme.primary,
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.original,
+            lockAspectRatio: false,
+            // Active tous les outils d'édition
+            hideBottomControls: false,
+            showCropGrid: true,
+            // Menu d'ajustements (luminosité, contraste, saturation)
+            activeControlsWidgetColor: Theme.of(context).colorScheme.primary,
+          ),
+          // Configuration Web (fallback basique)
+          WebUiSettings(
+            context: context,
+            presentStyle: WebPresentStyle.dialog,
+            size: const CropperSize(width: 720, height: 720),
+          ),
+        ],
+      );
+
+      if (croppedFile == null) {
+        // L'utilisateur a annulé l'édition => on utilise l'image originale
+        if (!mounted) return;
+        await _setSelectedFile(pickedFile);
+        return;
+      }
+
+      // Convertir CroppedFile en XFile
+      final editedFile = XFile(croppedFile.path);
+      
+      if (!mounted) return;
+      await _setSelectedFile(editedFile);
+
+      if (mounted) {
+        TopSnackBar.showMessage(
+          context,
+          '✅ Photo éditée avec succès',
+          isError: false,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      
+      // En cas d'erreur, on utilise l'image originale
+      await _setSelectedFile(pickedFile);
+      
+      TopSnackBar.showMessage(
+        context,
+        '⚠️ Édition impossible, photo originale utilisée: $e',
         isError: true,
       );
     }
@@ -571,6 +686,17 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
               (_selectedFile != null) ? 'Changer la photo' : 'Ajouter une photo',
             ),
           ),
+          if (!kIsWeb) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Vous pourrez éditer la photo avec les filtres et outils système après sélection.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontStyle: FontStyle.italic,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
+          ],
 
           if (_selectedFile != null) ...[
             const SizedBox(height: 6),

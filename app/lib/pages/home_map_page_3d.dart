@@ -21,6 +21,7 @@ import '../ui/widgets/gradient_header.dart';
 import '../ui/widgets/gradient_icon_button.dart';
 import '../ui/widgets/maslive_card.dart';
 import '../ui/widgets/maslive_profile_icon.dart';
+import '../ui/widgets/polaroid_premium_popup.dart';
 import '../services/auth_service.dart';
 import '../services/geolocation_service.dart';
 import '../services/language_service.dart';
@@ -2023,42 +2024,32 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     String mapsUrl = '',
     Map<String, dynamic> meta = const <String, dynamic>{},
   }) {
-    showGeneralDialog(
+    // Construire les infos utiles pour le popup
+    final usefulInfoParts = <String>[];
+    if (address.trim().isNotEmpty) usefulInfoParts.add('📍 $address');
+    if (openingHours.trim().isNotEmpty) usefulInfoParts.add('⏰ $openingHours');
+    if (phone.trim().isNotEmpty) usefulInfoParts.add('📞 $phone');
+    if (website.trim().isNotEmpty) usefulInfoParts.add('🌐 $website');
+    
+    final usefulInfo = usefulInfoParts.isEmpty ? null : usefulInfoParts.join('\n');
+    
+    // Préparer la photo (URL ou placeholder)
+    final ImageProvider photo;
+    if (imageUrl != null && imageUrl.trim().isNotEmpty) {
+      photo = NetworkImage(imageUrl);
+    } else {
+      // Placeholder coloré (image 1x1 pixel étiré)
+      // Créer une simple image grise comme placeholder
+      photo = const NetworkImage('https://via.placeholder.com/400x400/CCCCCC/FFFFFF?text=POI');
+    }
+    
+    // Afficher le popup Polaroid premium
+    showPolaroidPremiumPopup(
       context: context,
-      barrierLabel: 'POI',
-      barrierDismissible: true,
-      barrierColor: Colors.black.withValues(alpha: 0.55),
-      transitionDuration: const Duration(milliseconds: 220),
-      pageBuilder: (dialogContext, animation, secondaryAnimation) {
-        return Center(
-          child: _PolaroidCardDialog(
-            title: title,
-            description: description,
-            category: category,
-            imageUrl: imageUrl,
-            lng: lng,
-            lat: lat,
-            address: address,
-            openingHours: openingHours,
-            phone: phone,
-            website: website,
-            instagram: instagram,
-            facebook: facebook,
-            whatsapp: whatsapp,
-            email: email,
-            mapsUrl: mapsUrl,
-            meta: meta,
-            onClose: () => Navigator.of(context).pop(),
-          ),
-        );
-      },
-      transitionBuilder: (dialogContext, anim, secondaryAnimation, child) {
-        final curved = Curves.easeOutBack.transform(anim.value);
-        return Transform.scale(
-          scale: 0.85 + 0.15 * curved,
-          child: Opacity(opacity: anim.value, child: child),
-        );
-      },
+      photo: photo,
+      title: title,
+      description: description.isEmpty ? 'Aucune description disponible' : description,
+      usefulInfo: usefulInfo,
     );
   }
 
