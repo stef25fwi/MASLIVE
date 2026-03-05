@@ -5,6 +5,7 @@ import '../../models/market_country.dart';
 import '../../models/market_event.dart';
 import '../../models/market_layer.dart';
 import '../../services/market_map_service.dart';
+import '../../ui_kit/tokens/maslive_tokens.dart';
 import 'country_autocomplete_field.dart';
 
 class MarketMapPoiSelection {
@@ -52,6 +53,7 @@ Future<MarketMapPoiSelection?> showMarketMapPoiSelectorSheet(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
+    backgroundColor: Theme.of(context).colorScheme.surface,
     builder: (_) => _MarketMapPoiSelectorSheet(
       service: service ?? MarketMapService(),
       initial: initial,
@@ -292,6 +294,19 @@ class _MarketMapPoiSelectorSheetState
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.viewInsetsOf(context).bottom;
+    final baseTheme = Theme.of(context);
+    final sheetTheme = baseTheme.copyWith(
+      inputDecorationTheme: baseTheme.inputDecorationTheme.copyWith(
+        filled: true,
+        fillColor: MasliveTokens.bg,
+      ),
+      dropdownMenuTheme: DropdownMenuThemeData(
+        inputDecorationTheme: baseTheme.inputDecorationTheme.copyWith(
+          filled: true,
+          fillColor: MasliveTokens.bg,
+        ),
+      ),
+    );
 
     return StreamBuilder<VisibleCircuitsIndex>(
       stream: widget.service.watchVisibleCircuitsIndex(),
@@ -308,145 +323,147 @@ class _MarketMapPoiSelectorSheetState
             : visibleIndex?.eventIdsForCountry(_country!.id) ??
                   const <String>{};
 
-        final allowSelection = canFilterByVisibleIndex || visibleIndexHasError;
+        // Filtre strict demandé: pas de fallback "tous les pays".
+        // Un pays n'apparaît que s'il existe au moins 1 circuit visible (On line).
+        final allowSelection = canFilterByVisibleIndex;
 
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 4,
-            bottom: 16 + bottomPadding,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
+        return Theme(
+          data: sheetTheme,
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 4,
+              bottom: 16 + bottomPadding,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () => Navigator.of(
-                      context,
-                    ).pop(const MarketMapPoiSelection.disabled()),
-                    icon: const Icon(Icons.visibility_off_rounded),
-                    label: const Text('Désactiver'),
-                  ),
-                ],
-              ),
-              if (!allowSelection) const LinearProgressIndicator(),
-              if (visibleIndexHasError)
-                const Padding(
-                  padding: EdgeInsets.only(top: 6),
-                  child: Text(
-                    "Impossible de charger la liste des circuits publiés (mode dégradé).",
-                    style: TextStyle(fontSize: 12),
-                  ),
+                    TextButton.icon(
+                      onPressed: () => Navigator.of(
+                        context,
+                      ).pop(const MarketMapPoiSelection.disabled()),
+                      icon: const Icon(Icons.visibility_off_rounded),
+                      label: const Text('Désactiver'),
+                    ),
+                  ],
                 ),
-              const SizedBox(height: 8),
-              StreamBuilder<List<MarketCountry>>(
-                stream: widget.service.watchCountries(),
-                builder: (context, snap) {
-                  final all = snap.data ?? const <MarketCountry>[];
-                  final items = canFilterByVisibleIndex
-                      ? all
+                if (!allowSelection) const LinearProgressIndicator(),
+                if (visibleIndexHasError)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 6),
+                    child: Text(
+                      "Impossible de charger la liste des circuits publiés (mode dégradé).",
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                StreamBuilder<List<MarketCountry>>(
+                  stream: widget.service.watchCountries(),
+                  builder: (context, snap) {
+                    final all = snap.data ?? const <MarketCountry>[];
+                    final items = canFilterByVisibleIndex
+                        ? all
                             .where((c) => visibleCountryIds.contains(c.id))
                             .toList(growable: false)
-                      : visibleIndexHasError
-                      ? all
-                      : const <MarketCountry>[];
+                        : const <MarketCountry>[];
 
-                  if (widget.disableKeyboardInput) {
-                    MarketCountry? initialSelection;
-                    final selectedId = _country?.id;
-                    if (selectedId != null) {
-                      for (final c in items) {
-                        if (c.id == selectedId) {
-                          initialSelection = c;
-                          break;
+                    if (widget.disableKeyboardInput) {
+                      MarketCountry? initialSelection;
+                      final selectedId = _country?.id;
+                      if (selectedId != null) {
+                        for (final c in items) {
+                          if (c.id == selectedId) {
+                            initialSelection = c;
+                            break;
+                          }
                         }
                       }
+
+                      return DropdownMenu<MarketCountry>(
+                        controller: _countryCtrl,
+                        focusNode: _countryFocus,
+                        enabled: allowSelection,
+                        label: const Text('Pays'),
+                        enableSearch: true,
+                        enableFilter: true,
+                        requestFocusOnTap: true,
+                        initialSelection: initialSelection,
+                        dropdownMenuEntries: [
+                          for (final c in items)
+                            DropdownMenuEntry<MarketCountry>(
+                              value: c,
+                              label: _countryLabel(c),
+                            ),
+                        ],
+                        onSelected: !allowSelection
+                            ? null
+                            : (c) {
+                                setState(() {
+                                  _country = c;
+                                  _countryHasSelectedOption = c != null;
+                                  _updatingControllers = true;
+                                  if (c == null) {
+                                    _countryCtrl.clear();
+                                  } else {
+                                    _countryCtrl.text = _countryLabel(c);
+                                  }
+                                  _updatingControllers = false;
+
+                                  _event = null;
+                                  _eventCtrl.clear();
+                                  _eventHasSelectedOption = false;
+                                  _circuit = null;
+                                  _circuitCtrl.clear();
+                                  _circuitHasSelectedOption = false;
+                                  _layerIds = <String>{};
+                                  _layerSelectionInitialized = false;
+                                });
+                              },
+                      );
                     }
 
-                    return DropdownMenu<MarketCountry>(
+                    return MarketCountryAutocompleteField(
+                      items: items,
                       controller: _countryCtrl,
-                      focusNode: _countryFocus,
+                      labelText: 'Pays',
+                      hintText: widget.disableKeyboardInput
+                          ? 'Rechercher un pays…'
+                          : 'Rechercher un pays…',
                       enabled: allowSelection,
-                      label: const Text('Pays'),
-                      enableSearch: true,
-                      enableFilter: true,
-                      requestFocusOnTap: true,
-                      initialSelection: initialSelection,
-                      dropdownMenuEntries: [
-                        for (final c in items)
-                          DropdownMenuEntry<MarketCountry>(
-                            value: c,
-                            label: _countryLabel(c),
-                          ),
-                      ],
-                      onSelected: !allowSelection
-                          ? null
-                          : (c) {
-                              setState(() {
-                                _country = c;
-                                _countryHasSelectedOption = c != null;
-                                _updatingControllers = true;
-                                if (c == null) {
-                                  _countryCtrl.clear();
-                                } else {
-                                  _countryCtrl.text = _countryLabel(c);
-                                }
-                                _updatingControllers = false;
-
-                                _event = null;
-                                _eventCtrl.clear();
-                                _eventHasSelectedOption = false;
-                                _circuit = null;
-                                _circuitCtrl.clear();
-                                _circuitHasSelectedOption = false;
-                                _layerIds = <String>{};
-                                _layerSelectionInitialized = false;
-                              });
-                            },
+                      strictSelection: widget.disableKeyboardInput,
+                      onSelected: (c) {
+                        setState(() {
+                          if (c == null) {
+                            _country = null;
+                          } else {
+                            _country = c;
+                          }
+                          _event = null;
+                          _eventCtrl.clear();
+                          _eventHasSelectedOption = false;
+                          _circuit = null;
+                          _circuitCtrl.clear();
+                          _circuitHasSelectedOption = false;
+                          _layerIds = <String>{};
+                          _layerSelectionInitialized = false;
+                        });
+                      },
                     );
-                  }
-
-                  return MarketCountryAutocompleteField(
-                    items: items,
-                    controller: _countryCtrl,
-                    labelText: 'Pays',
-                    hintText: widget.disableKeyboardInput
-                        ? 'Rechercher un pays…'
-                        : 'Rechercher un pays…',
-                    enabled: allowSelection,
-                    strictSelection: widget.disableKeyboardInput,
-                    onSelected: (c) {
-                      setState(() {
-                        if (c == null) {
-                          _country = null;
-                        } else {
-                          _country = c;
-                        }
-                        _event = null;
-                        _eventCtrl.clear();
-                        _eventHasSelectedOption = false;
-                        _circuit = null;
-                        _circuitCtrl.clear();
-                        _circuitHasSelectedOption = false;
-                        _layerIds = <String>{};
-                        _layerSelectionInitialized = false;
-                      });
-                    },
-                  );
-                },
-              ),
+                  },
+                ),
               const SizedBox(height: 12),
               StreamBuilder<List<MarketEvent>>(
                 stream: _country == null
@@ -458,8 +475,6 @@ class _MarketMapPoiSelectorSheetState
                       ? all
                             .where((e) => visibleEventIds.contains(e.id))
                             .toList(growable: false)
-                      : visibleIndexHasError
-                      ? all
                       : const <MarketEvent>[];
 
                   final selectedId = _event?.id;
@@ -687,10 +702,15 @@ class _MarketMapPoiSelectorSheetState
                         Navigator.of(context).pop(selection);
                       }
                     : null,
+                style: FilledButton.styleFrom(
+                  backgroundColor: MasliveTokens.primary,
+                  foregroundColor: Colors.white,
+                ),
                 icon: const Icon(Icons.check_rounded),
                 label: const Text('Appliquer'),
               ),
-            ],
+              ],
+            ),
           ),
         );
       },
