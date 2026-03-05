@@ -2,6 +2,18 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (POI editor menu alignment)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && bash commit_push_build_deploy.sh \"refactor: align CircuitPoiEditorPage POI menu with wizard (GlassPanel + nav + zones parking + import)\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: 🔄 Migrate POI popupEnabled (dry-run)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && node scripts/migrate_poi_popup_enabled.js --dry-run",
