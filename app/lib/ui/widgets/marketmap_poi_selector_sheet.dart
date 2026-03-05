@@ -298,12 +298,12 @@ class _MarketMapPoiSelectorSheetState
     final sheetTheme = baseTheme.copyWith(
       inputDecorationTheme: baseTheme.inputDecorationTheme.copyWith(
         filled: true,
-        fillColor: MasliveTokens.bg,
+        fillColor: MasliveTokens.surface,
       ),
       dropdownMenuTheme: DropdownMenuThemeData(
         inputDecorationTheme: baseTheme.inputDecorationTheme.copyWith(
           filled: true,
-          fillColor: MasliveTokens.bg,
+          fillColor: MasliveTokens.surface,
         ),
       ),
     );
@@ -329,17 +329,19 @@ class _MarketMapPoiSelectorSheetState
 
         return Theme(
           data: sheetTheme,
-          child: Padding(
-            padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: 4,
-              bottom: 16 + bottomPadding,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+          child: ColoredBox(
+            color: MasliveTokens.bg,
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 4,
+                bottom: 16 + bottomPadding,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                 Row(
                   children: [
                     Expanded(
@@ -709,7 +711,8 @@ class _MarketMapPoiSelectorSheetState
                 icon: const Icon(Icons.check_rounded),
                 label: const Text('Appliquer'),
               ),
-              ],
+                ],
+              ),
             ),
           ),
         );

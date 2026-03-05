@@ -93,8 +93,8 @@ class MarketPoi {
 
     return MarketPoi(
       id: doc.id,
-      name: (data['name'] as String?) ?? '',
-      description: data['description'] as String?,
+      name: (data['name'] as String?) ?? (data['title'] as String?) ?? '',
+      description: (data['description'] as String?) ?? (data['desc'] as String?),
       type: data['type'] as String?,
       imageUrl: asString(data['imageUrl'] ?? data['photoUrl'] ?? data['image']),
       address: asString(data['address'] ?? data['adresse'] ?? data['locationLabel']),
@@ -108,7 +108,9 @@ class MarketPoi {
       mapsUrl: asString(data['mapsUrl'] ?? data['googleMapsUrl'] ?? data['mapUrl']),
       metadata: (data['metadata'] is Map)
           ? Map<String, dynamic>.from(data['metadata'] as Map)
-          : null,
+          : (data['meta'] is Map)
+              ? Map<String, dynamic>.from(data['meta'] as Map)
+              : null,
       lat: (data['lat'] as num?)?.toDouble() ?? 0.0,
       lng: (data['lng'] as num?)?.toDouble() ?? 0.0,
       layerId: (data['layerId'] as String?) ?? '',

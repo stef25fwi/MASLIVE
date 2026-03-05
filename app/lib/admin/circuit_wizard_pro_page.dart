@@ -66,6 +66,49 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   static const int _poiLimit = 2000;
   static const int _poiStepIndex = 5;
 
+  static const List<String> _stepLabels = <String>[
+    'Template',
+    'Infos',
+    'Périmètre',
+    'Tracé + Style',
+    'Style Pro',
+    'POI',
+    'Pré-pub',
+    'Publication',
+  ];
+
+  bool _isStepEnabled(int index) {
+    // UX existante: en mode POI-only, on verrouille sur l'étape POI.
+    return widget.poiOnly ? index == _poiStepIndex : true;
+  }
+
+  bool _isStepCompleted(int index) {
+    // UX existante: en mode POI-only, on n'affiche pas de complétion.
+    return widget.poiOnly ? false : index < _currentStep;
+  }
+
+  Widget _buildWizardStepper({bool interactive = true}) {
+    return WizardStepperPills(
+      currentStep: _currentStep,
+      labels: _stepLabels,
+      padding: EdgeInsets.zero,
+      onStepTap: interactive ? (i) => unawaited(_continueToStep(i)) : null,
+      isStepEnabled: _isStepEnabled,
+      isStepCompleted: _isStepCompleted,
+    );
+  }
+
+  Widget _wrapWizardStep(Widget child) {
+    return Column(
+      children: [
+        const SizedBox(height: MasliveTokens.s),
+        _buildWizardStepper(),
+        const SizedBox(height: MasliveTokens.s),
+        Expanded(child: child),
+      ],
+    );
+  }
+
   final CircuitRepository _repository = CircuitRepository();
   final CircuitVersioningService _versioning = CircuitVersioningService();
   final PublishQualityService _qualityService = PublishQualityService();
@@ -898,22 +941,26 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   String _normalizeMapboxStyleUrl(String raw) {
-    final value = raw.trim();
-    if (value.isEmpty) return '';
+    final input = raw.trim();
+    if (input.isEmpty) return '';
+
+    if (input.startsWith('mapbox://styles/')) {
+      return input;
+    }
 
     Uri uri;
     try {
-      uri = Uri.parse(value);
+      uri = Uri.parse(input);
     } catch (_) {
-      return value;
+      return input;
     }
 
     final host = uri.host.toLowerCase();
 
-    // Cas fréquent: URL Mapbox Studio (page HTML) copiée depuis l'UI.
+    // Cas fréquent: URL Mapbox Studio copiée depuis l'UI (page HTML).
     // Ex: https://studio.mapbox.com/styles/{user}/{styleId}/edit
     // => mapbox://styles/{user}/{styleId}
-    if (host == 'studio.mapbox.com') {
+    if (host.contains('mapbox.com')) {
       final seg = uri.pathSegments;
       final stylesIndex = seg.indexOf('styles');
       if (stylesIndex != -1 && seg.length >= stylesIndex + 3) {
@@ -926,11 +973,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     }
 
     // Certains liens finissent par ".html" (HTML, non JSON). On tente d'enlever le suffixe.
-    if (value.toLowerCase().endsWith('.html')) {
-      return value.substring(0, value.length - 5);
+    if (input.toLowerCase().endsWith('.html')) {
+      return input.substring(0, input.length - 5);
     }
 
-    return value;
+    return input;
   }
 
   void _applyStylePreset(String styleUrl) {
@@ -1616,17 +1663,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   @override
   Widget build(BuildContext context) {
-    const stepLabels = <String>[
-      'Template',
-      'Infos',
-      'Périmètre',
-      'Tracé + Style',
-      'Style Pro',
-      'POI',
-      'Pré-pub',
-      'Publication',
-    ];
-
     if (_isLoading) {
       return Scaffold(
         body: SoftBackground(
@@ -1634,11 +1670,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             children: [
               const GlassAppBar(title: 'Chargement…', padding: EdgeInsets.zero),
               const SizedBox(height: MasliveTokens.s),
-              WizardStepperPills(
-                currentStep: _currentStep,
-                labels: stepLabels,
-                padding: EdgeInsets.zero,
-              ),
+              _buildWizardStepper(interactive: false),
               const SizedBox(height: MasliveTokens.s),
               const Expanded(child: Center(child: CircularProgressIndicator())),
             ],
@@ -1654,11 +1686,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             children: [
               const GlassAppBar(title: 'Erreur', padding: EdgeInsets.zero),
               const SizedBox(height: MasliveTokens.s),
-              WizardStepperPills(
-                currentStep: _currentStep,
-                labels: stepLabels,
-                padding: EdgeInsets.zero,
-              ),
+              _buildWizardStepper(interactive: false),
               const SizedBox(height: MasliveTokens.s),
               Expanded(
                 child: Center(
@@ -1701,31 +1729,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       );
     }
 
-    bool isStepEnabled(int index) {
-      // UX existante: en mode POI-only, on verrouille sur l'étape POI.
-      return widget.poiOnly ? index == _poiStepIndex : true;
-    }
-
-    bool isStepCompleted(int index) {
-      // UX existante: en mode POI-only, on n'affiche pas de complétion.
-      return widget.poiOnly ? false : index < _currentStep;
-    }
-
     return Scaffold(
       body: SoftBackground(
         child: Column(
           children: [
-            const GlassAppBar(title: 'Wizard Circuit Pro', padding: EdgeInsets.zero),
-            const SizedBox(height: MasliveTokens.s),
-            WizardStepperPills(
-              currentStep: _currentStep,
-              labels: stepLabels,
+            const GlassAppBar(
+              title: 'Wizard Circuit Pro',
               padding: EdgeInsets.zero,
-              onStepTap: (index) => unawaited(_continueToStep(index)),
-              isStepEnabled: isStepEnabled,
-              isStepCompleted: isStepCompleted,
             ),
-            const SizedBox(height: MasliveTokens.s),
             Expanded(
               child: Stack(
                 children: [
@@ -1759,24 +1770,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       });
                     },
                     children: [
-                      _buildStep0Template(),
-                      _buildStep1Infos(),
-                      _buildStep2Perimeter(),
-                      _buildStep3RouteAndStyleTabbed(),
-                      _buildStep6StylePro(),
-                      _buildStep5POI(),
-                      _buildStep7Validation(),
-                      _buildStep8Publish(),
+                      _wrapWizardStep(_buildStep0Template()),
+                      _wrapWizardStep(_buildStep1Infos()),
+                      _wrapWizardStep(_buildStep2Perimeter()),
+                      _wrapWizardStep(_buildStep3RouteAndStyleTabbed()),
+                      _wrapWizardStep(_buildStep6StylePro()),
+                      _wrapWizardStep(_buildStep5POI()),
+                      _wrapWizardStep(_buildStep7Validation()),
+                      _wrapWizardStep(_buildStep8Publish()),
                     ],
                   ),
-
-                  // Map controls (Apple Maps style): overlay right.
-                  if (_currentStep == 2 || _currentStep == 3)
-                    Positioned(
-                      right: MasliveTokens.m,
-                      top: MasliveTokens.m,
-                      child: _buildCentralMapToolsBar(),
-                    ),
                 ],
               ),
             ),
@@ -1786,9 +1789,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               showPrevious: (!widget.poiOnly && _currentStep > 0),
               onPrevious: (!widget.poiOnly && _currentStep > 0)
                   ? () => _pageController.previousPage(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      )
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    )
                   : null,
               onSave: () => _saveDraft(createSnapshot: true),
               showNext: (!widget.poiOnly && _currentStep < 7),
@@ -1815,6 +1818,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       subtitle: 'Tracez l\'itinéraire et réglez son apparence',
       points: _routePoints,
       controller: _routeEditorController,
+      mapTopRightOverlay: _buildCentralMapToolsBar(isPerimeter: false),
       perimeterOverlay: _perimeterPoints,
       lockMapToPerimeter: true,
       cameraInitialZoom: _perimeterCameraInitialZoom,
@@ -1903,8 +1907,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       ),
                     )
                     .toList(),
-                onChanged: (value) =>
-                    setState(() => _selectedTemplate = value),
+                onChanged: (value) => setState(() => _selectedTemplate = value),
                 decoration: const InputDecoration(
                   labelText: 'Template',
                   border: OutlineInputBorder(),
@@ -2062,7 +2065,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     final bg = selected
                         ? MasliveTokens.primary.withValues(alpha: 0.15)
                         : Colors.white.withValues(alpha: 0.74);
-                    final fg = selected ? MasliveTokens.primary : MasliveTokens.text;
+                    final fg = selected
+                        ? MasliveTokens.primary
+                        : MasliveTokens.text;
 
                     return InkWell(
                       onTap: () => _applyStylePreset(url),
@@ -2076,7 +2081,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                         ),
                         decoration: BoxDecoration(
                           color: bg,
-                          borderRadius: BorderRadius.circular(MasliveTokens.rPill),
+                          borderRadius: BorderRadius.circular(
+                            MasliveTokens.rPill,
+                          ),
                           border: Border.all(
                             color: selected
                                 ? MasliveTokens.primary.withValues(alpha: 0.22)
@@ -2137,13 +2144,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                           : (_perimeterPoints.isNotEmpty
                                 ? _perimeterPoints.first.lat
                                 : 16.241),
-                      initialZoom: (_routePoints.isNotEmpty ||
+                      initialZoom:
+                          (_routePoints.isNotEmpty ||
                               _perimeterPoints.isNotEmpty)
                           ? 13.5
                           : 12.0,
-                      styleUrl: _normalizeMapboxStyleUrl(
-                                _styleUrlController.text,
-                              ).isEmpty
+                      styleUrl:
+                          _normalizeMapboxStyleUrl(
+                            _styleUrlController.text,
+                          ).isEmpty
                           ? null
                           : _normalizeMapboxStyleUrl(_styleUrlController.text),
                     ),
@@ -2190,6 +2199,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       subtitle: 'Tracez la zone de couverture (polygon fermé)',
       points: _perimeterPoints,
       controller: _perimeterEditorController,
+      mapTopRightOverlay: _buildCentralMapToolsBar(isPerimeter: true),
       styleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text).isEmpty
           ? null
           : _normalizeMapboxStyleUrl(_styleUrlController.text),
@@ -2226,13 +2236,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     );
   }
 
-  Widget _buildCentralMapToolsBar() {
-    final isPerimeter = _currentStep == 2;
+  Widget _buildCentralMapToolsBar({required bool isPerimeter}) {
     final controller = isPerimeter
         ? _perimeterEditorController
         : _routeEditorController;
 
-    final isRouteAndStyleStep = !isPerimeter && _currentStep == 3;
+    final isRouteAndStyleStep = !isPerimeter;
 
     Widget content = ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 520),
@@ -2289,8 +2298,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                         side: BorderSide(color: MasliveTokens.borderSoft),
                       ),
                       side: BorderSide(color: MasliveTokens.borderSoft),
-                      selectedColor:
-                          MasliveTokens.primary.withValues(alpha: 0.15),
+                      selectedColor: MasliveTokens.primary.withValues(
+                        alpha: 0.15,
+                      ),
                       onSelected:
                           (_perimeterCircleMode || controller.pointCount < 2)
                           ? null
@@ -2310,8 +2320,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                         side: BorderSide(color: MasliveTokens.borderSoft),
                       ),
                       side: BorderSide(color: MasliveTokens.borderSoft),
-                      selectedColor:
-                          MasliveTokens.primary.withValues(alpha: 0.15),
+                      selectedColor: MasliveTokens.primary.withValues(
+                        alpha: 0.15,
+                      ),
                       onSelected: (v) {
                         if (v) {
                           if (_perimeterCircleCenter != null) {
@@ -2642,7 +2653,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     ),
                   ),
 
-                  if (!isPerimeter && _currentStep == 3) ...[
+                  if (isRouteAndStyleStep) ...[
                     const VerticalDivider(),
                     _buildRouteStyleControls(),
                   ],
@@ -3029,7 +3040,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 toolButton(
                   icon: const Icon(Icons.edit_location_alt_rounded),
                   tooltip: 'Ajouter un POI (coordonnées manuelles)',
-                  onPressed: (_selectedLayer == null || _pois.length >= _poiLimit)
+                  onPressed:
+                      (_selectedLayer == null || _pois.length >= _poiLimit)
                       ? null
                       : () {
                           // Pré-remplissage simple (l'utilisateur peut ajuster).
@@ -3052,7 +3064,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 toolButton(
                   icon: const Icon(Icons.my_location),
                   tooltip: 'Ajouter un POI à la position actuelle',
-                  onPressed: (_selectedLayer == null || _pois.length >= _poiLimit)
+                  onPressed:
+                      (_selectedLayer == null || _pois.length >= _poiLimit)
                       ? null
                       : _addPoiAtCurrentCenter,
                 ),
@@ -3130,8 +3143,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     color: _pois.length >= _poiLimit
                         ? Colors.redAccent
                         : (_pois.length >= (_poiLimit * 0.9)
-                            ? Colors.orange
-                            : MasliveTokens.text),
+                              ? Colors.orange
+                              : MasliveTokens.text),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -3184,10 +3197,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 children: [
                   const Text(
                     'Catégorie: ',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                   ),
                   Expanded(
                     child: Text(
@@ -3219,10 +3229,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 ),
                 subtitle: Text(
                   '${_pois.where((p) => _poiMatchesSelectedLayer(p, _selectedLayer!)).length} POI',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: MasliveTokens.textSoft,
-                  ),
+                  style: TextStyle(fontSize: 12, color: MasliveTokens.textSoft),
                 ),
                 children: [
                   ConstrainedBox(
@@ -3279,12 +3286,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton.icon(
-                        onPressed: _isLoadingMorePois ? null : _loadMorePoisPage,
+                        onPressed: _isLoadingMorePois
+                            ? null
+                            : _loadMorePoisPage,
                         icon: _isLoadingMorePois
                             ? const SizedBox(
                                 width: 14,
                                 height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Icon(Icons.more_horiz),
                         label: const Text('Voir plus'),
@@ -3316,6 +3327,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         physics: _isWizardMapInteracting
             ? const NeverScrollableScrollPhysics()
             : null,
+        padding: const EdgeInsets.only(
+          bottom: kBottomNavigationBarHeight + MasliveTokens.xl,
+        ),
         child: Column(
           children: [
             SizedBox(
@@ -3542,10 +3556,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       _poiEditingPoi = poi;
       _poiInlineError = null;
       _poiInlineAppearanceId =
-        (poi.metadata?[kMasLivePoiAppearanceKey] as String?)
-              ?.trim()
-              .isNotEmpty ==
-            true
+          (poi.metadata?[kMasLivePoiAppearanceKey] as String?)
+                  ?.trim()
+                  .isNotEmpty ==
+              true
           ? (poi.metadata![kMasLivePoiAppearanceKey] as String)
           : _defaultPoiAppearanceId;
       _poiInlineNameController.text = poi.name;
@@ -3558,9 +3572,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             _normalizeColorHex(_selectedLayer?.color) ??
             _defaultLayerColorHex(poi.layerType) ??
             _parkingZoneFillColorHex;
-          _parkingZoneStrokeColorHex =
+        _parkingZoneStrokeColorHex =
             style['strokeColor'] as String? ?? _parkingZoneFillColorHex;
-          _parkingZoneStrokeFollowsFill =
+        _parkingZoneStrokeFollowsFill =
             _parkingZoneStrokeColorHex.toUpperCase() ==
             _parkingZoneFillColorHex.toUpperCase();
         _parkingZoneFillOpacity =
@@ -4167,10 +4181,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           _defaultLayerColorHex('parking') ??
           '#FBBF24';
 
-          final previewStroke =
-            (_parkingZoneStrokeFollowsFill
-              ? previewFill
-              : (_normalizeColorHex(_parkingZoneStrokeColorHex) ?? previewFill));
+      final previewStroke = (_parkingZoneStrokeFollowsFill
+          ? previewFill
+          : (_normalizeColorHex(_parkingZoneStrokeColorHex) ?? previewFill));
 
       final previewPattern = _mapboxFillPatternIdFromStylePattern(
         _parkingZonePattern,
@@ -4235,7 +4248,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       } catch (e) {
         debugPrint('Erreur lors de l\'ajout du point parking: $e');
         if (mounted) {
-          _showTopSnackBar('⚠️ Erreur lors de l\'ajout du point', isError: true);
+          _showTopSnackBar(
+            '⚠️ Erreur lors de l\'ajout du point',
+            isError: true,
+          );
         }
       }
       return;
@@ -4293,7 +4309,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           .set({
             ...poi.toFirestore(),
             'layerId': poi.layerType,
-            'isVisible': true,
+            'isVisible': poi.isVisible,
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
     } catch (e) {
@@ -4425,10 +4441,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         return;
       }
 
-      final strokeHex =
-          _parkingZoneStrokeFollowsFill
-              ? fillHex
-              : (_normalizeColorHex(_parkingZoneStrokeColorHex) ?? fillHex);
+      final strokeHex = _parkingZoneStrokeFollowsFill
+          ? fillHex
+          : (_normalizeColorHex(_parkingZoneStrokeColorHex) ?? fillHex);
 
       final centroid = _centroidOf(_parkingZonePoints);
       final poi = MarketMapPOI(
@@ -4492,10 +4507,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           return;
         }
 
-        final strokeHex =
-            _parkingZoneStrokeFollowsFill
-                ? fillHex
-                : (_normalizeColorHex(_parkingZoneStrokeColorHex) ?? fillHex);
+        final strokeHex = _parkingZoneStrokeFollowsFill
+            ? fillHex
+            : (_normalizeColorHex(_parkingZoneStrokeColorHex) ?? fillHex);
         nextMetadata = <String, dynamic>{
           ...(poi.metadata ?? const <String, dynamic>{}),
           _parkingZoneStyleKey: <String, dynamic>{
@@ -4674,7 +4688,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 const SizedBox(height: 12),
                 FilledButton.tonal(
                   onPressed: _applyParkingZonePresetWhiteBlue,
-                  child: const Text('Preset parking (contour blanc / fond bleu)'),
+                  child: const Text(
+                    'Preset parking (contour blanc / fond bleu)',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -5038,8 +5054,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
-                            color:
-                                report.canPublish ? Colors.green : Colors.orange,
+                            color: report.canPublish
+                                ? Colors.green
+                                : Colors.orange,
                           ),
                         ),
                       ),

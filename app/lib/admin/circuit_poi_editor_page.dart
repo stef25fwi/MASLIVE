@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 
+import 'poi_edit_popup.dart';
 import '../models/market_circuit_models.dart';
 import '../services/circuit_repository.dart';
 import '../ui/map/maslive_map.dart';
@@ -672,88 +673,23 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
   }
 
   Future<void> _editPoi(MarketMapPOI poi) async {
-    final nameController = TextEditingController(text: poi.name);
-    var appearanceId =
-      (poi.metadata?[kMasLivePoiAppearanceKey] as String?)?.trim().isNotEmpty ==
-          true
-        ? (poi.metadata![kMasLivePoiAppearanceKey] as String)
-        : _defaultPoiAppearanceId;
-
-    final confirmed = await showDialog<bool>(
+    final updated = await showModalBottomSheet<MarketMapPOI>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-        title: const Text('Modifier le POI'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Nom du POI',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            InputDecorator(
-              decoration: const InputDecoration(
-                labelText: 'Apparence',
-                border: OutlineInputBorder(),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: appearanceId,
-                  isExpanded: true,
-                  items: [
-                    for (final p in kMasLivePoiAppearancePresets)
-                      DropdownMenuItem(value: p.id, child: Text(p.label)),
-                  ],
-                  onChanged: (v) {
-                    if (v == null) return;
-                    setDialogState(() => appearanceId = v);
-                  },
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Enregistrer'),
-          ),
-        ],
-      ),
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => PoiEditPopup(
+        poi: poi,
+        projectId: widget.projectId,
+        appearancePresets: kMasLivePoiAppearancePresets,
       ),
     );
 
-    if (confirmed != true) return;
-    final nextName = nameController.text.trim();
-    if (nextName.isEmpty) return;
+    if (updated == null) return;
 
     setState(() {
       final idx = _pois.indexWhere((p) => p.id == poi.id);
       if (idx >= 0) {
-        final nextMetadata = <String, dynamic>{
-          ...(poi.metadata ?? const <String, dynamic>{}),
-          kMasLivePoiAppearanceKey: appearanceId,
-        };
-        _pois[idx] = MarketMapPOI(
-          id: poi.id,
-          name: nextName,
-          layerType: poi.layerType,
-          lng: poi.lng,
-          lat: poi.lat,
-          description: poi.description,
-          imageUrl: poi.imageUrl,
-          instagram: poi.instagram,
-          facebook: poi.facebook,
-          metadata: nextMetadata,
-        );
+        _pois[idx] = updated;
       }
     });
     _refreshPoiMarkers();

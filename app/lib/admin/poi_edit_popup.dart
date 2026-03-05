@@ -11,6 +11,7 @@ import '../models/market_circuit_models.dart';
 import '../services/image_management_service.dart';
 import '../services/poi_popup_service.dart';
 import '../services/webp_converter.dart';
+import '../ui/map/maslive_poi_style.dart';
 import '../ui/snack/top_snack_bar.dart';
 
 class PoiEditPopup extends StatefulWidget {
@@ -20,7 +21,16 @@ class PoiEditPopup extends StatefulWidget {
   /// Si null, l'upload est désactivé.
   final String? projectId;
 
-  const PoiEditPopup({super.key, required this.poi, required this.projectId});
+  /// Optionnel: liste de presets d'apparence (persistés dans metadata.appearance).
+  /// Si null ou vide, l'apparence n'est pas éditable dans ce popup.
+  final List<MasLivePoiAppearancePreset>? appearancePresets;
+
+  const PoiEditPopup({
+    super.key,
+    required this.poi,
+    required this.projectId,
+    this.appearancePresets,
+  });
 
   @override
   State<PoiEditPopup> createState() => _PoiEditPopupState();
@@ -29,6 +39,19 @@ class PoiEditPopup extends StatefulWidget {
 class _PoiEditPopupState extends State<PoiEditPopup> {
   final _nameCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
+
+  final _addressCtrl = TextEditingController();
+  final _openingHoursCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _websiteCtrl = TextEditingController();
+  final _instagramCtrl = TextEditingController();
+  final _facebookCtrl = TextEditingController();
+  final _whatsappCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _mapsUrlCtrl = TextEditingController();
+
+  final _latCtrl = TextEditingController();
+  final _lngCtrl = TextEditingController();
 
   final _picker = ImagePicker();
   final _imageService = ImageManagementService.instance;
@@ -51,7 +74,21 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
   double _angleDeg = -1.7;
   double _grain = 0.35;
 
+  String? _appearanceId;
+
   bool _popupEnabled = true;
+  bool _isVisible = true;
+
+  String _textFromOpeningHours(Object? value) {
+    if (value == null) return '';
+    if (value is String) return value;
+    return value.toString();
+  }
+
+  double? _parseDouble(String raw) {
+    final norm = raw.trim().replaceAll(',', '.');
+    return double.tryParse(norm);
+  }
 
   bool get _hasAnyImage {
     if (_selectedFile != null) return true;
@@ -73,9 +110,35 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
     _nameCtrl.text = widget.poi.name;
     _descCtrl.text = widget.poi.description ?? '';
 
+    _addressCtrl.text = widget.poi.address ?? '';
+    _openingHoursCtrl.text = _textFromOpeningHours(widget.poi.openingHours);
+    _phoneCtrl.text = widget.poi.phone ?? '';
+    _websiteCtrl.text = widget.poi.website ?? '';
+    _instagramCtrl.text = widget.poi.instagram ?? '';
+    _facebookCtrl.text = widget.poi.facebook ?? '';
+    _whatsappCtrl.text = widget.poi.whatsapp ?? '';
+    _emailCtrl.text = widget.poi.email ?? '';
+    _mapsUrlCtrl.text = widget.poi.mapsUrl ?? '';
+
+    _latCtrl.text = widget.poi.lat.toStringAsFixed(6);
+    _lngCtrl.text = widget.poi.lng.toStringAsFixed(6);
+
+    _isVisible = widget.poi.isVisible;
+
     _uploadedImageUrl = widget.poi.imageUrl;
 
     final meta = _initialMeta;
+
+    final presets = widget.appearancePresets;
+    if (presets != null && presets.isNotEmpty) {
+      final rawId = meta[kMasLivePoiAppearanceKey];
+      final existing = rawId is String ? rawId.trim() : '';
+      if (existing.isNotEmpty && presets.any((p) => p.id == existing)) {
+        _appearanceId = existing;
+      } else {
+        _appearanceId = presets.first.id;
+      }
+    }
 
     // Back-compat imageUrl: certains POIs stockent l'image dans metadata.image.url
     if ((_uploadedImageUrl ?? '').trim().isEmpty) {
@@ -116,7 +179,58 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
   void dispose() {
     _nameCtrl.dispose();
     _descCtrl.dispose();
+    _addressCtrl.dispose();
+    _openingHoursCtrl.dispose();
+    _phoneCtrl.dispose();
+    _websiteCtrl.dispose();
+    _instagramCtrl.dispose();
+    _facebookCtrl.dispose();
+    _whatsappCtrl.dispose();
+    _emailCtrl.dispose();
+    _mapsUrlCtrl.dispose();
+    _latCtrl.dispose();
+    _lngCtrl.dispose();
     super.dispose();
+  }
+
+  bool _validateInputs() {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) {
+      TopSnackBar.showMessage(
+        context,
+        'Nom requis.',
+        isError: true,
+      );
+      return false;
+    }
+
+    final lat = _parseDouble(_latCtrl.text);
+    final lng = _parseDouble(_lngCtrl.text);
+    if (lat == null || lng == null) {
+      TopSnackBar.showMessage(
+        context,
+        'Lat/Lng requis.',
+        isError: true,
+      );
+      return false;
+    }
+    if (lat < -90 || lat > 90) {
+      TopSnackBar.showMessage(
+        context,
+        'Latitude invalide (entre -90 et 90).',
+        isError: true,
+      );
+      return false;
+    }
+    if (lng < -180 || lng > 180) {
+      TopSnackBar.showMessage(
+        context,
+        'Longitude invalide (entre -180 et 180).',
+        isError: true,
+      );
+      return false;
+    }
+    return true;
   }
 
   String? _poiImagesParentId() {
@@ -505,7 +619,51 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
         ? null
         : _descCtrl.text.trim();
 
+    final nextAddress = _addressCtrl.text.trim().isEmpty
+      ? null
+      : _addressCtrl.text.trim();
+
+    final nextOpeningHours = _openingHoursCtrl.text.trim().isEmpty
+      ? null
+      : _openingHoursCtrl.text.trim();
+
+    final nextPhone = _phoneCtrl.text.trim().isEmpty
+      ? null
+      : _phoneCtrl.text.trim();
+
+    final nextWebsite = _websiteCtrl.text.trim().isEmpty
+      ? null
+      : _websiteCtrl.text.trim();
+
+    final nextInstagram = _instagramCtrl.text.trim().isEmpty
+      ? null
+      : _instagramCtrl.text.trim();
+
+    final nextFacebook = _facebookCtrl.text.trim().isEmpty
+      ? null
+      : _facebookCtrl.text.trim();
+
+    final nextWhatsapp = _whatsappCtrl.text.trim().isEmpty
+      ? null
+      : _whatsappCtrl.text.trim();
+
+    final nextEmail = _emailCtrl.text.trim().isEmpty
+      ? null
+      : _emailCtrl.text.trim();
+
+    final nextMapsUrl = _mapsUrlCtrl.text.trim().isEmpty
+      ? null
+      : _mapsUrlCtrl.text.trim();
+
+    final nextLat = _parseDouble(_latCtrl.text) ?? widget.poi.lat;
+    final nextLng = _parseDouble(_lngCtrl.text) ?? widget.poi.lng;
+
     final meta = _initialMeta;
+
+    final nextAppearanceId = _appearanceId;
+    if (nextAppearanceId != null && nextAppearanceId.trim().isNotEmpty) {
+      meta[kMasLivePoiAppearanceKey] = nextAppearanceId.trim();
+    }
 
     meta['popupEnabled'] = _popupEnabled;
 
@@ -531,18 +689,30 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       id: widget.poi.id,
       name: nextName,
       layerType: widget.poi.layerType,
-      lng: widget.poi.lng,
-      lat: widget.poi.lat,
+      lng: nextLng,
+      lat: nextLat,
+      isVisible: _isVisible,
+      layerId: widget.poi.layerId,
       description: nextDesc,
       imageUrl: nextImageUrl,
-      instagram: widget.poi.instagram,
-      facebook: widget.poi.facebook,
+      address: nextAddress,
+      openingHours: nextOpeningHours,
+      phone: nextPhone,
+      website: nextWebsite,
+      instagram: nextInstagram,
+      facebook: nextFacebook,
+      whatsapp: nextWhatsapp,
+      email: nextEmail,
+      mapsUrl: nextMapsUrl,
       metadata: meta,
     );
   }
 
   Future<void> _save() async {
     if (_isSaving) return;
+
+    if (!mounted) return;
+    if (!_validateInputs()) return;
 
     setState(() => _isSaving = true);
     try {
@@ -714,6 +884,32 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
             ),
             textInputAction: TextInputAction.next,
           ),
+
+          if ((widget.appearancePresets?.isNotEmpty ?? false) && _appearanceId != null) ...[
+            const SizedBox(height: 12),
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Apparence',
+                border: OutlineInputBorder(),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _appearanceId,
+                  isExpanded: true,
+                  items: [
+                    for (final p in widget.appearancePresets!)
+                      DropdownMenuItem(value: p.id, child: Text(p.label)),
+                  ],
+                  onChanged: (_isSaving || _isUploading || _isConverting)
+                      ? null
+                      : (v) {
+                          if (v == null) return;
+                          setState(() => _appearanceId = v);
+                        },
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           TextField(
             controller: _descCtrl,
@@ -722,6 +918,121 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
               border: OutlineInputBorder(),
             ),
             maxLines: 3,
+          ),
+
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _latCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Lat *',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _lngCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Lng *',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            value: _isVisible,
+            onChanged: _isSaving ? null : (v) => setState(() => _isVisible = v),
+            title: const Text('Visible (liste + couche)'),
+          ),
+
+          const SizedBox(height: 12),
+          TextField(
+            controller: _addressCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Adresse (optionnel)',
+              border: OutlineInputBorder(),
+            ),
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _openingHoursCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Horaires (optionnel)',
+              border: OutlineInputBorder(),
+            ),
+            maxLines: 2,
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _phoneCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Téléphone (optionnel)',
+              border: OutlineInputBorder(),
+            ),
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _websiteCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Site web (optionnel)',
+              border: OutlineInputBorder(),
+            ),
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _instagramCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Instagram (optionnel)',
+              border: OutlineInputBorder(),
+            ),
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _facebookCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Facebook (optionnel)',
+              border: OutlineInputBorder(),
+            ),
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _whatsappCtrl,
+            decoration: const InputDecoration(
+              labelText: 'WhatsApp (optionnel)',
+              border: OutlineInputBorder(),
+            ),
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _emailCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Email (optionnel)',
+              border: OutlineInputBorder(),
+            ),
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _mapsUrlCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Lien Google Maps (optionnel)',
+              border: OutlineInputBorder(),
+            ),
           ),
 
           const SizedBox(height: 14),

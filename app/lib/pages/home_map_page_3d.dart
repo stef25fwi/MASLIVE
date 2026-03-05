@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Visibility;
 import 'package:flutter/services.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart'
@@ -65,6 +66,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   static const double _minZoom3dBuildings = 14.5;
   // Offset vertical du menu d'actions pour ne pas chevaucher la boussole
   static const double _actionsMenuTopOffset = 190;
+
+  // Anti-doublon: évite empilement de dialogs sur taps rapides.
+  static const Duration _poiPopupDebounce = Duration(milliseconds: 650);
+  bool _isPoiPopupShowing = false;
+  DateTime? _lastPoiPopupAt;
+  String? _lastPoiPopupId;
 
   // ========== ÉTAT UI ==========
   bool _showActionsMenu = false;
@@ -1450,7 +1457,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       Map<String, dynamic> meta = <String, dynamic>{};
       try {
         final m = d.metadata;
-        if (m is Map) meta = Map<String, dynamic>.from(m);
+        if (m is Map) {
+          meta = Map<String, dynamic>.from(m);
+        } else {
+          final legacy = d.meta;
+          if (legacy is Map) meta = Map<String, dynamic>.from(legacy);
+        }
       } catch (_) {
         // ignore
       }
@@ -1914,6 +1926,13 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       final feature = res.first?.queriedFeature.feature;
       if (feature == null) return;
 
+      final rawFeatureId = feature['id'];
+
+      String? asNonEmptyString(dynamic v) {
+        final s = (v ?? '').toString().trim();
+        return s.isEmpty ? null : s;
+      }
+
       final props =
           (feature['properties'] as Map?)?.cast<String, dynamic>() ??
           const <String, dynamic>{};
@@ -1946,10 +1965,14 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       }
 
       // --- POI normal ---
-      final name = (props['name'] ?? '').toString();
-      final desc = (props['desc'] ?? '').toString();
-      final type = (props['type'] ?? '').toString();
-      final imageUrl = (props['imageUrl'] ?? '').toString();
+        final poiId = asNonEmptyString(props['id']) ?? asNonEmptyString(rawFeatureId);
+
+        final name = (props['name'] ?? props['title'] ?? '').toString();
+        final desc = (props['desc'] ?? props['description'] ?? '').toString();
+        final type = (props['type'] ?? props['layerType'] ?? '').toString();
+
+        // Image URL: supporte aussi meta.image.url (retour admin)
+        String imageUrl = (props['imageUrl'] ?? props['photoUrl'] ?? '').toString();
       final lng = (props['lng'] is num)
           ? (props['lng'] as num).toDouble()
           : null;
@@ -1968,7 +1991,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       final mapsUrl = (props['mapsUrl'] ?? '').toString();
 
       Map<String, dynamic>? meta;
-      final metaRaw = props['meta'];
+      final metaRaw = props['meta'] ?? props['metadata'];
       if (metaRaw is Map) {
         meta = metaRaw.map((k, v) => MapEntry(k.toString(), v));
       } else if (metaRaw is String && metaRaw.trim().isNotEmpty) {
@@ -1982,16 +2005,87 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         }
       }
 
+      // Compléter imageUrl depuis meta.image.url si besoin
+      if (imageUrl.trim().isEmpty && meta != null) {
+        final img = meta['image'];
+        if (img is Map) {
+          imageUrl = (img['url'] ?? img['downloadUrl'] ?? '').toString();
+        }
+      }
+
+      // Détecter si une fiche descriptive existe (signal explicite)
+      final rootPopupEnabled =
+          props['popupEnabled'] ?? props['hasPopup'] ?? props['hasCard'];
+      final hasExplicitPopupFlag =
+          PoiPopupService.parseBool((meta ?? const <String, dynamic>{})['popupEnabled'] ??
+                  rootPopupEnabled) !=
+              null;
+      final hasPolaroidMeta =
+          meta != null && (meta.containsKey('polaroid') || meta.containsKey('image'));
+      final hasAnyCardData =
+          name.trim().isNotEmpty ||
+          desc.trim().isNotEmpty ||
+          imageUrl.trim().isNotEmpty ||
+          address.trim().isNotEmpty ||
+          openingHours.trim().isNotEmpty ||
+          phone.trim().isNotEmpty ||
+          website.trim().isNotEmpty ||
+          instagram.trim().isNotEmpty ||
+          facebook.trim().isNotEmpty ||
+          whatsapp.trim().isNotEmpty ||
+          email.trim().isNotEmpty ||
+          mapsUrl.trim().isNotEmpty;
+      final hasCard = hasExplicitPopupFlag || hasPolaroidMeta || hasAnyCardData;
+
+      if (!hasCard) {
+        if (kDebugMode) {
+          debugPrint(
+            'ℹ️ POI tap: no card detected => skip (id=${poiId ?? "?"}, type=$type, name="$name", metaKeys=${meta?.keys.toList() ?? []})',
+          );
+        }
+        return;
+      }
+
       // Si popup désactivé => POI non cliquable (ex: WC)
       final bool popupEnabled = PoiPopupService.isPopupEnabled(
         type: type,
         meta: meta,
+        rootPopupEnabled: rootPopupEnabled,
+        hasImage: imageUrl.trim().isNotEmpty,
       );
 
-      if (!popupEnabled) return;
+      if (!popupEnabled) {
+        if (kDebugMode) {
+          debugPrint(
+            'ℹ️ POI tap: card exists but popup disabled => skip (id=${poiId ?? "?"}, type=$type, popupEnabledRaw=${(meta ?? const <String, dynamic>{})['popupEnabled'] ?? rootPopupEnabled})',
+          );
+        }
+        return;
+      }
+
+      // Anti-doublon (taps rapides)
+      final now = DateTime.now();
+      final lastAt = _lastPoiPopupAt;
+      if (_isPoiPopupShowing) {
+        if (kDebugMode) {
+          debugPrint('ℹ️ POI tap: popup already showing => ignore (id=${poiId ?? "?"})');
+        }
+        return;
+      }
+      if (lastAt != null && now.difference(lastAt) < _poiPopupDebounce) {
+        if (_lastPoiPopupId != null && poiId != null && _lastPoiPopupId == poiId) {
+          if (kDebugMode) {
+            debugPrint('ℹ️ POI tap: debounced duplicate => ignore (id=$poiId)');
+          }
+          return;
+        }
+      }
+      _lastPoiPopupAt = now;
+      _lastPoiPopupId = poiId;
 
       if (!mounted) return;
-      _showPoiPolaroid(
+      unawaited(
+        _showPoiPolaroid(
         title: name.isEmpty ? 'Point d\'intérêt' : name,
         description: desc,
         category: type,
@@ -2008,14 +2102,21 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         email: email,
         mapsUrl: mapsUrl,
         meta: meta ?? const <String, dynamic>{},
+        ),
       );
+
+      if (kDebugMode) {
+        debugPrint(
+          '✅ POI tap: show polaroid (id=${poiId ?? "?"}, type=$type, hasImage=${imageUrl.trim().isNotEmpty}, name="$name")',
+        );
+      }
     } catch (e) {
       debugPrint('⚠️ Tap POI queryRenderedFeatures error: $e');
     }
   }
 
   /// Affiche un overlay style "polaroïd" pour un POI.
-  void _showPoiPolaroid({
+  Future<void> _showPoiPolaroid({
     required String title,
     required String description,
     required String category,
@@ -2034,7 +2135,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     String email = '',
     String mapsUrl = '',
     Map<String, dynamic> meta = const <String, dynamic>{},
-  }) {
+  }) async {
+    if (_isPoiPopupShowing) return;
+    _isPoiPopupShowing = true;
+
     // Analytics: uniquement si on ouvre réellement la polaroid
     unawaited(
       PoiAnalyticsService.instance.logPoiPolaroidOpen(
@@ -2063,13 +2167,22 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     }
     
     // Afficher le popup Polaroid premium
-    showPolaroidPremiumPopup(
-      context: context,
-      photo: photo,
-      title: title,
-      description: description.isEmpty ? 'Aucune description disponible' : description,
-      usefulInfo: usefulInfo,
-    );
+    try {
+      await showPolaroidPremiumPopup(
+        context: context,
+        photo: photo,
+        title: title,
+        description:
+            description.isEmpty ? 'Aucune description disponible' : description,
+        usefulInfo: usefulInfo,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('⚠️ POI polaroid display error: $e');
+      }
+    } finally {
+      _isPoiPopupShowing = false;
+    }
   }
 
   /// Démarre ou arrête le tracking GPS de la position utilisateur.

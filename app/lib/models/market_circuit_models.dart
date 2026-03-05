@@ -71,10 +71,21 @@ class MarketMapPOI {
   final String layerType; // 'parking', 'wc', 'food', etc.
   final double lng;
   final double lat;
+  final bool isVisible;
+
+  /// ID de la couche (doc dans `layers`). Souvent identique à `layerType`.
+  final String? layerId;
   final String? description;
   final String? imageUrl;
+  final String? address;
+  final Object? openingHours;
+  final String? phone;
+  final String? website;
   final String? instagram;
   final String? facebook;
+  final String? whatsapp;
+  final String? email;
+  final String? mapsUrl;
   final Map<String, dynamic>? metadata;
 
   MarketMapPOI({
@@ -83,10 +94,19 @@ class MarketMapPOI {
     required this.layerType,
     required this.lng,
     required this.lat,
+    this.isVisible = true,
+    this.layerId,
     this.description,
     this.imageUrl,
+    this.address,
+    this.openingHours,
+    this.phone,
+    this.website,
     this.instagram,
     this.facebook,
+    this.whatsapp,
+    this.email,
+    this.mapsUrl,
     this.metadata,
   });
 
@@ -98,16 +118,40 @@ class MarketMapPOI {
 
     String? asString(dynamic v) => v is String ? v : null;
 
+    Object? pick(dynamic a, dynamic b, dynamic c) {
+      if (a != null) return a;
+      if (b != null) return b;
+      return c;
+    }
+
+    final imageUrl = asString(data['imageUrl'] ?? data['photoUrl'] ?? data['image']);
+    final layerType = (data['layerType'] ?? data['type'] ?? data['layerId'] ?? 'visit').toString();
+    final isVisible =
+        (data['isVisible'] as bool?) ?? (data['visible'] as bool?) ?? true;
+
     return MarketMapPOI(
       id: doc.id,
       name: data['name'] ?? '',
-      layerType: data['layerType'] ?? 'visit',
-      lng: data['lng'] ?? 0.0,
-      lat: data['lat'] ?? 0.0,
+      layerType: layerType,
+      lng: (data['lng'] as num?)?.toDouble() ?? 0.0,
+      lat: (data['lat'] as num?)?.toDouble() ?? 0.0,
+      isVisible: isVisible,
+      layerId: asString(data['layerId']),
       description: data['description'],
-      imageUrl: data['imageUrl'],
+      imageUrl: imageUrl,
+      address: asString(data['address'] ?? data['adresse'] ?? data['locationLabel']),
+      openingHours: pick(
+        data['openingHours'],
+        data['hours'],
+        data['horaires'],
+      ),
+      phone: asString(data['phone'] ?? data['tel'] ?? data['telephone']),
+      website: asString(data['website'] ?? data['site']),
       instagram: asString(data['instagram'] ?? meta?['instagram'] ?? meta?['ig']),
       facebook: asString(data['facebook'] ?? meta?['facebook'] ?? meta?['fb']),
+      whatsapp: asString(data['whatsapp']),
+      email: asString(data['email']),
+      mapsUrl: asString(data['mapsUrl'] ?? data['googleMapsUrl'] ?? data['mapUrl']),
       metadata: meta,
     );
   }
@@ -116,12 +160,21 @@ class MarketMapPOI {
     return {
       'name': name,
       'layerType': layerType,
+      'layerId': layerId,
       'lng': lng,
       'lat': lat,
+      'isVisible': isVisible,
       'description': description,
       'imageUrl': imageUrl,
+      'address': address,
+      'openingHours': openingHours,
+      'phone': phone,
+      'website': website,
       'instagram': instagram,
       'facebook': facebook,
+      'whatsapp': whatsapp,
+      'email': email,
+      'mapsUrl': mapsUrl,
       'metadata': metadata,
     };
   }

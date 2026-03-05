@@ -98,6 +98,11 @@ class CircuitMapEditor extends StatefulWidget {
   final CircuitMapEditorController? controller;
   final String? styleUrl;
 
+  /// Overlay optionnel affiché sur la carte (top-right).
+  /// Permet au parent (wizard) d'injecter sa barre d'outils sans qu'elle
+  /// recouvre le header/liste de points quand on scroll.
+  final Widget? mapTopRightOverlay;
+
   /// Réglage bâtiments 3D (Style Pro): visible/masqué + opacité.
   /// Si null, l'éditeur ne touche pas aux bâtiments.
   final bool? buildings3dEnabled;
@@ -181,6 +186,7 @@ class CircuitMapEditor extends StatefulWidget {
     this.showToolbar = true,
     this.controller,
     this.styleUrl,
+    this.mapTopRightOverlay,
     this.buildings3dEnabled,
     this.buildingsOpacity,
 
@@ -1044,11 +1050,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.info_outline,
-                size: 16,
-                color: MasliveTokens.textSoft,
-              ),
+              Icon(Icons.info_outline, size: 16, color: MasliveTokens.textSoft),
               const SizedBox(width: MasliveTokens.xs),
               Expanded(
                 child: Text(
@@ -1104,7 +1106,9 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
             ),
             Divider(height: 1, color: MasliveTokens.borderSoft),
             ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: widget.pointsListMaxHeight),
+              constraints: BoxConstraints(
+                maxHeight: widget.pointsListMaxHeight,
+              ),
               child: ListView.builder(
                 shrinkWrap: true,
                 itemCount: _points.length,
@@ -1115,8 +1119,9 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                   return ListTile(
                     dense: true,
                     selected: isSelected,
-                    selectedTileColor:
-                        MasliveTokens.primary.withValues(alpha: 0.08),
+                    selectedTileColor: MasliveTokens.primary.withValues(
+                      alpha: 0.08,
+                    ),
                     leading: CircleAvatar(
                       radius: 12,
                       backgroundColor: isSelected
@@ -1135,8 +1140,9 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                       '${index + 1}/ $role',
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight:
-                            role == 'Point' ? FontWeight.w600 : FontWeight.bold,
+                        fontWeight: role == 'Point'
+                            ? FontWeight.w600
+                            : FontWeight.bold,
                         color: MasliveTokens.text,
                       ),
                     ),
@@ -1287,6 +1293,13 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
             ),
           ),
         ),
+
+        if (widget.mapTopRightOverlay != null)
+          Positioned(
+            right: 12,
+            top: 12,
+            child: interceptPointersIfNeeded(widget.mapTopRightOverlay!),
+          ),
       ],
     );
   }

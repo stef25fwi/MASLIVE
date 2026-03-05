@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 class MasliveTokens {
   // Colors
   static const Color bg = Color(0xFFF6F7FB);
+  static const Color surface = Colors.white;
   static const Color primary = Color(0xFF0A84FF);
   static const Color success = Color(0xFF34C759);
   static const Color text = Color(0xFF0B0F1A);
