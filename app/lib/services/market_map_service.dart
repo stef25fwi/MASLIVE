@@ -57,53 +57,283 @@ class MarketMapService {
   /// sans avoir besoin d'index composite Firestore (on fait une seule requête
   /// `collectionGroup('circuits')` filtrée sur `isVisible==true`).
   Stream<VisibleCircuitsIndex> watchVisibleCircuitsIndex() {
-    return _db
+    final primary = _db
         .collectionGroup('circuits')
         .where('isVisible', isEqualTo: true)
         .snapshots()
-        .map((snap) {
-          final countryIds = <String>{};
-          final eventIdsByCountry = <String, Set<String>>{};
+        .map(_visibleIndexFromCircuitsGroupSnapshot);
 
-          for (final d in snap.docs) {
-            // IMPORTANT: certains anciens circuits n'ont pas (ou plus) des champs
-            // `countryId`/`eventId` fiables. On dérive donc d'abord depuis le chemin.
-            // Attendu: marketMap/{countryId}/events/{eventId}/circuits/{circuitId}
-            String countryId = '';
-            String eventId = '';
+    final fallback = _watchVisibleCircuitsIndexViaMarketMapPaths();
 
-            final segments = d.reference.path.split('/');
-            final marketMapIdx = segments.indexOf('marketMap');
+    late final StreamController<VisibleCircuitsIndex> controller;
+    StreamSubscription<VisibleCircuitsIndex>? sub;
+    var usedFallback = false;
 
-            // Si ce `circuits` ne vient pas du MarketMap, on l'ignore.
-            if (marketMapIdx == -1) continue;
-
-            final canParseFromPath =
-                segments.length >= marketMapIdx + 6 &&
-                segments[marketMapIdx + 2] == 'events' &&
-                segments[marketMapIdx + 4] == 'circuits';
-
-            if (canParseFromPath) {
-              countryId = segments[marketMapIdx + 1].trim();
-              eventId = segments[marketMapIdx + 3].trim();
+    void listenTo(Stream<VisibleCircuitsIndex> s) {
+      sub = s.listen(
+        controller.add,
+        onError: (error, stackTrace) {
+          // Sur certaines configs de règles/index, le `collectionGroup('circuits')`
+          // peut échouer et bloquer le menu Home (mode dégradé). On bascule sur
+          // une stratégie robuste qui ne regarde que `marketMap/{country}/events/{event}/circuits`.
+          if (!usedFallback && error is FirebaseException) {
+            final code = error.code;
+            if (code == 'permission-denied' || code == 'failed-precondition') {
+              usedFallback = true;
+              sub?.cancel();
+              listenTo(fallback);
+              return;
             }
-
-            if (countryId.isEmpty || eventId.isEmpty) {
-              final data = d.data();
-              countryId = (data['countryId'] ?? '').toString().trim();
-              eventId = (data['eventId'] ?? '').toString().trim();
-            }
-            if (countryId.isEmpty || eventId.isEmpty) continue;
-
-            countryIds.add(countryId);
-            (eventIdsByCountry[countryId] ??= <String>{}).add(eventId);
           }
 
-          return VisibleCircuitsIndex(
-            countryIds: countryIds,
-            eventIdsByCountry: eventIdsByCountry,
+          controller.addError(error, stackTrace);
+        },
+      );
+    }
+
+    controller = StreamController<VisibleCircuitsIndex>(
+      onListen: () {
+        listenTo(primary);
+      },
+      onCancel: () async {
+        await sub?.cancel();
+      },
+    );
+
+    return controller.stream;
+  }
+
+  VisibleCircuitsIndex _visibleIndexFromCircuitsGroupSnapshot(
+    QuerySnapshot<Map<String, dynamic>> snap,
+  ) {
+    final countryIds = <String>{};
+    final eventIdsByCountry = <String, Set<String>>{};
+
+    for (final d in snap.docs) {
+      // IMPORTANT: certains anciens circuits n'ont pas (ou plus) des champs
+      // `countryId`/`eventId` fiables. On dérive donc d'abord depuis le chemin.
+      // Attendu: marketMap/{countryId}/events/{eventId}/circuits/{circuitId}
+      String countryId = '';
+      String eventId = '';
+
+      final segments = d.reference.path.split('/');
+      final marketMapIdx = segments.indexOf('marketMap');
+
+      // Si ce `circuits` ne vient pas du MarketMap, on l'ignore.
+      if (marketMapIdx == -1) continue;
+
+      final canParseFromPath =
+          segments.length >= marketMapIdx + 6 &&
+          segments[marketMapIdx + 2] == 'events' &&
+          segments[marketMapIdx + 4] == 'circuits';
+
+      if (canParseFromPath) {
+        countryId = segments[marketMapIdx + 1].trim();
+        eventId = segments[marketMapIdx + 3].trim();
+      }
+
+      if (countryId.isEmpty || eventId.isEmpty) {
+        final data = d.data();
+        countryId = (data['countryId'] ?? '').toString().trim();
+        eventId = (data['eventId'] ?? '').toString().trim();
+      }
+      if (countryId.isEmpty || eventId.isEmpty) continue;
+
+      countryIds.add(countryId);
+      (eventIdsByCountry[countryId] ??= <String>{}).add(eventId);
+    }
+
+    return VisibleCircuitsIndex(
+      countryIds: countryIds,
+      eventIdsByCountry: eventIdsByCountry,
+    );
+  }
+
+  /// Fallback robuste: construit l'index des circuits visibles en ne scannant que
+  /// l'arborescence `marketMap/{countryId}/events/{eventId}/circuits`.
+  ///
+  /// Cela évite les erreurs de permission possibles avec `collectionGroup('circuits')`
+  /// quand d'autres sous-collections `circuits` existent ailleurs avec des règles plus strictes.
+  Stream<VisibleCircuitsIndex> _watchVisibleCircuitsIndexViaMarketMapPaths() {
+    late final StreamController<VisibleCircuitsIndex> controller;
+
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? countriesSub;
+    final eventsSubs = <String, StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>{};
+    final circuitsSubs = <String, StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>{};
+
+    // Cache: pour chaque (country,event) => hasVisible
+    final hasVisibleByEvent = <String, bool>{};
+
+    void emit() {
+      final countryIds = <String>{};
+      final eventIdsByCountry = <String, Set<String>>{};
+
+      hasVisibleByEvent.forEach((key, hasVisible) {
+        if (!hasVisible) return;
+        final parts = key.split('|');
+        if (parts.length != 2) return;
+        final countryId = parts[0];
+        final eventId = parts[1];
+        if (countryId.isEmpty || eventId.isEmpty) return;
+        countryIds.add(countryId);
+        (eventIdsByCountry[countryId] ??= <String>{}).add(eventId);
+      });
+
+      controller.add(
+        VisibleCircuitsIndex(
+          countryIds: countryIds,
+          eventIdsByCountry: eventIdsByCountry,
+        ),
+      );
+    }
+
+    void trackEventCircuits({required String countryId, required String eventId}) {
+      final key = '$countryId|$eventId';
+      if (circuitsSubs.containsKey(key)) return;
+
+      final sub = _countriesCol
+          .doc(countryId)
+          .collection('events')
+          .doc(eventId)
+          .collection('circuits')
+          .where('isVisible', isEqualTo: true)
+          .limit(1)
+          .snapshots()
+          .listen(
+            (snap) {
+              hasVisibleByEvent[key] = snap.docs.isNotEmpty;
+              emit();
+            },
+            onError: (error, stackTrace) {
+              // En cas de permission, on considère qu'il n'y a pas de circuits visibles.
+              if (error is FirebaseException && error.code == 'permission-denied') {
+                hasVisibleByEvent[key] = false;
+                emit();
+                return;
+              }
+              controller.addError(error, stackTrace);
+            },
           );
-        });
+
+      circuitsSubs[key] = sub;
+    }
+
+    void untrackEventCircuits({required String countryId, required String eventId}) {
+      final key = '$countryId|$eventId';
+      hasVisibleByEvent.remove(key);
+      circuitsSubs.remove(key)?.cancel();
+    }
+
+    void trackCountryEvents(String countryId) {
+      if (eventsSubs.containsKey(countryId)) return;
+
+      eventsSubs[countryId] = _countriesCol
+          .doc(countryId)
+          .collection('events')
+          .snapshots()
+          .listen(
+            (snap) {
+              final currentEventIds = <String>{for (final d in snap.docs) d.id};
+
+              // Ajout des nouveaux.
+              for (final eventId in currentEventIds) {
+                trackEventCircuits(countryId: countryId, eventId: eventId);
+              }
+
+              // Suppression de ceux qui n'existent plus.
+              final toRemove = <String>[];
+              for (final key in hasVisibleByEvent.keys) {
+                final parts = key.split('|');
+                if (parts.length != 2) continue;
+                if (parts[0] != countryId) continue;
+                if (!currentEventIds.contains(parts[1])) {
+                  toRemove.add(key);
+                }
+              }
+              for (final key in toRemove) {
+                final parts = key.split('|');
+                if (parts.length != 2) continue;
+                untrackEventCircuits(countryId: parts[0], eventId: parts[1]);
+              }
+
+              emit();
+            },
+            onError: (error, stackTrace) {
+              if (error is FirebaseException && error.code == 'permission-denied') {
+                // Un pays inaccessible => on le retire de l'index.
+                final toRemove = <String>[];
+                for (final key in hasVisibleByEvent.keys) {
+                  final parts = key.split('|');
+                  if (parts.length != 2) continue;
+                  if (parts[0] == countryId) toRemove.add(key);
+                }
+                for (final k in toRemove) {
+                  final parts = k.split('|');
+                  if (parts.length != 2) continue;
+                  untrackEventCircuits(countryId: parts[0], eventId: parts[1]);
+                }
+                eventsSubs.remove(countryId)?.cancel();
+                emit();
+                return;
+              }
+              controller.addError(error, stackTrace);
+            },
+          );
+    }
+
+    void untrackCountry(String countryId) {
+      eventsSubs.remove(countryId)?.cancel();
+      final keysToRemove = <String>[];
+      for (final key in circuitsSubs.keys) {
+        if (key.startsWith('$countryId|')) keysToRemove.add(key);
+      }
+      for (final key in keysToRemove) {
+        final parts = key.split('|');
+        if (parts.length != 2) continue;
+        untrackEventCircuits(countryId: parts[0], eventId: parts[1]);
+      }
+    }
+
+    controller = StreamController<VisibleCircuitsIndex>(
+      onListen: () {
+        controller.add(const VisibleCircuitsIndex(
+          countryIds: <String>{},
+          eventIdsByCountry: <String, Set<String>>{},
+        ));
+
+        countriesSub = _countriesCol.snapshots().listen(
+          (snap) {
+            final countryIds = <String>{for (final d in snap.docs) d.id};
+
+            for (final id in countryIds) {
+              trackCountryEvents(id);
+            }
+
+            final toRemove = <String>[];
+            for (final existing in eventsSubs.keys) {
+              if (!countryIds.contains(existing)) toRemove.add(existing);
+            }
+            for (final id in toRemove) {
+              untrackCountry(id);
+            }
+
+            emit();
+          },
+          onError: controller.addError,
+        );
+      },
+      onCancel: () async {
+        await countriesSub?.cancel();
+        for (final s in eventsSubs.values) {
+          await s.cancel();
+        }
+        for (final s in circuitsSubs.values) {
+          await s.cancel();
+        }
+      },
+    );
+
+    return controller.stream;
   }
 
   Stream<List<MarketCountry>> watchCountries() {
