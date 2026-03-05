@@ -430,29 +430,8 @@ class CircuitRepository {
           .limit(maxPoisPerProject)
           .get();
 
-      return snap.docs.map((d) {
-        final data = d.data();
-        String layerType =
-            (data['layerType'] ?? data['type'] ?? data['layerId'] ?? 'visit')
-                .toString();
-        final lng = (data['lng'] as num?)?.toDouble() ?? 0.0;
-        final lat = (data['lat'] as num?)?.toDouble() ?? 0.0;
-        final meta = (data['metadata'] is Map)
-            ? Map<String, dynamic>.from(data['metadata'] as Map)
-            : null;
-        return MarketMapPOI(
-          id: d.id,
-          name: (data['name'] ?? '').toString(),
-          layerType: layerType,
-          lng: lng,
-          lat: lat,
-          description: data['description']?.toString(),
-          imageUrl: data['imageUrl']?.toString(),
-          instagram: data['instagram']?.toString(),
-          facebook: data['facebook']?.toString(),
-          metadata: meta,
-        );
-      }).toList();
+      // IMPORTANT: import non-lossy (fiche complète)
+      return snap.docs.map(MarketMapPOI.fromFirestore).toList();
     } catch (_) {
       return const <MarketMapPOI>[];
     }
@@ -1155,11 +1134,8 @@ class CircuitRepository {
           ? 'poi_${poi.layerType}_${poi.lng.toStringAsFixed(5)}_${poi.lat.toStringAsFixed(5)}'
           : poi.id.trim();
       incomingIds.add(id);
-      final data = {
-        ...poi.toFirestore(),
-        'layerId': poi.layerType,
-        'isVisible': true,
-      };
+      final layerId = (poi.layerId ?? poi.layerType).trim();
+      final data = {...poi.toFirestore(), 'layerId': layerId, 'isVisible': poi.isVisible};
       final ref = col.doc(id);
       final old = existing[id]?.data();
       if (!_mapsShallowEqual(old, data)) {
@@ -1263,15 +1239,34 @@ class CircuitRepository {
       final imageUrl = poi.imageUrl?.trim();
       final metadata = poi.metadata;
 
+      final layerId = (poi.layerId ?? poi.layerType).trim();
+
+      // Champs fiche (non destructifs): on n'écrase pas avec null.
+      String? nonEmpty(String? v) {
+        final t = v?.trim();
+        return (t == null || t.isEmpty) ? null : t;
+      }
+
       batch.set(col.doc(id), {
         'name': poi.name,
         'description': poi.description,
+        // Compat viewer: certains écrans lisent `type`.
         'type': poi.layerType,
-        'layerId': poi.layerType,
+        // Filtrage Firestore: `layerId` est la source de vérité.
+        'layerId': layerId,
+        // On conserve aussi `layerType` pour compat admin/drafts.
+        'layerType': poi.layerType,
         'lat': poi.lat,
         'lng': poi.lng,
-        'isVisible': true,
+        'isVisible': poi.isVisible,
         if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
+        if (nonEmpty(poi.address) != null) 'address': nonEmpty(poi.address),
+        if (poi.openingHours != null) 'openingHours': poi.openingHours,
+        if (nonEmpty(poi.phone) != null) 'phone': nonEmpty(poi.phone),
+        if (nonEmpty(poi.website) != null) 'website': nonEmpty(poi.website),
+        if (nonEmpty(poi.whatsapp) != null) 'whatsapp': nonEmpty(poi.whatsapp),
+        if (nonEmpty(poi.email) != null) 'email': nonEmpty(poi.email),
+        if (nonEmpty(poi.mapsUrl) != null) 'mapsUrl': nonEmpty(poi.mapsUrl),
         if (metadata != null) 'metadata': metadata,
         if (instagram != null && instagram.isNotEmpty) 'instagram': instagram,
         if (facebook != null && facebook.isNotEmpty) 'facebook': facebook,

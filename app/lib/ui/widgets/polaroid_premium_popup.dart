@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// ------------------------------------------------------------
 /// PolaroidPremiumPopup (10/10)
@@ -19,6 +20,15 @@ Future<void> showPolaroidPremiumPopup({
   required String title,
   required String description,
   String? usefulInfo,
+
+  // Champs POI (optionnels) pour une fiche descriptive plus riche.
+  String? address,
+  String? openingHours,
+  String? phone,
+  String? website,
+  String? mapsUrl,
+  double? lat,
+  double? lng,
 }) {
   return showDialog(
     context: context,
@@ -29,6 +39,13 @@ Future<void> showPolaroidPremiumPopup({
       title: title,
       description: description,
       usefulInfo: usefulInfo,
+      address: address,
+      openingHours: openingHours,
+      phone: phone,
+      website: website,
+      mapsUrl: mapsUrl,
+      lat: lat,
+      lng: lng,
     ),
   );
 }
@@ -39,11 +56,26 @@ class _PolaroidPremiumDialog extends StatefulWidget {
   final String description;
   final String? usefulInfo;
 
+  final String? address;
+  final String? openingHours;
+  final String? phone;
+  final String? website;
+  final String? mapsUrl;
+  final double? lat;
+  final double? lng;
+
   const _PolaroidPremiumDialog({
     required this.photo,
     required this.title,
     required this.description,
     this.usefulInfo,
+    this.address,
+    this.openingHours,
+    this.phone,
+    this.website,
+    this.mapsUrl,
+    this.lat,
+    this.lng,
   });
 
   @override
@@ -119,6 +151,13 @@ class _PolaroidPremiumDialogState extends State<_PolaroidPremiumDialog>
                     title: widget.title,
                     description: widget.description,
                     usefulInfo: widget.usefulInfo,
+                    address: widget.address,
+                    openingHours: widget.openingHours,
+                    phone: widget.phone,
+                    website: widget.website,
+                    mapsUrl: widget.mapsUrl,
+                    lat: widget.lat,
+                    lng: widget.lng,
                     photoEjectT: _photoEject.value,
                     onClose: _close,
                   ),
@@ -137,6 +176,15 @@ class _PolaroidPremiumCard extends StatelessWidget {
   final String title;
   final String description;
   final String? usefulInfo;
+
+  final String? address;
+  final String? openingHours;
+  final String? phone;
+  final String? website;
+  final String? mapsUrl;
+  final double? lat;
+  final double? lng;
+
   final double photoEjectT; // 0..1
   final VoidCallback onClose;
 
@@ -147,6 +195,13 @@ class _PolaroidPremiumCard extends StatelessWidget {
     required this.photoEjectT,
     required this.onClose,
     this.usefulInfo,
+    this.address,
+    this.openingHours,
+    this.phone,
+    this.website,
+    this.mapsUrl,
+    this.lat,
+    this.lng,
   });
 
   @override
@@ -259,6 +314,14 @@ class _PolaroidPremiumCard extends StatelessWidget {
                     title: title,
                     description: description,
                     usefulInfo: usefulInfo,
+                    address: address,
+                    openingHours: openingHours,
+                    phone: phone,
+                    website: website,
+                    mapsUrl: mapsUrl,
+                    lat: lat,
+                    lng: lng,
+                    onClose: onClose,
                   ),
                 ),
               ],
@@ -335,15 +398,98 @@ class _PolaroidTextArea extends StatelessWidget {
   final String description;
   final String? usefulInfo;
 
+  final String? address;
+  final String? openingHours;
+  final String? phone;
+  final String? website;
+  final String? mapsUrl;
+  final double? lat;
+  final double? lng;
+  final VoidCallback onClose;
+
   const _PolaroidTextArea({
     required this.title,
     required this.description,
     this.usefulInfo,
+    required this.onClose,
+    this.address,
+    this.openingHours,
+    this.phone,
+    this.website,
+    this.mapsUrl,
+    this.lat,
+    this.lng,
   });
+
+  String? _cleanPhone(String? raw) {
+    final s = (raw ?? '').trim();
+    if (s.isEmpty) return null;
+    final cleaned = s.replaceAll(RegExp(r'[^0-9\+]'), '');
+    return cleaned.isEmpty ? null : cleaned;
+  }
+
+  Future<void> _launchTel(BuildContext context, String phone) async {
+    final uri = Uri(scheme: 'tel', path: phone);
+    final ok = await canLaunchUrl(uri);
+    if (!ok) return;
+    await launchUrl(uri);
+  }
+
+  Future<void> _openDirections(BuildContext context) async {
+    final direct = (mapsUrl ?? '').trim();
+    if (direct.isNotEmpty) {
+      final uri = Uri.tryParse(direct);
+      if (uri != null && await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return;
+      }
+    }
+
+    final la = lat;
+    final ln = lng;
+    if (la == null || ln == null) return;
+
+    final uri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=$la,$ln',
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Widget _infoRow(BuildContext context, {required IconData icon, required String text}) {
+    final t = Theme.of(context).textTheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: Colors.black.withValues(alpha: 0.70)),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: t.bodySmall?.copyWith(height: 1.25),
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
+
+    final addr = (address ?? '').trim();
+    final hrs = (openingHours ?? '').trim();
+    final telRaw = (phone ?? '').trim();
+    final telClean = _cleanPhone(telRaw);
+    final site = (website ?? '').trim();
+    final legacyInfo = (usefulInfo ?? '').trim();
+
+    final phoneToCall = telClean;
+    final canCall = phoneToCall != null;
+    final canDirections = (mapsUrl ?? '').trim().isNotEmpty || (lat != null && lng != null);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -370,12 +516,12 @@ class _PolaroidTextArea extends StatelessWidget {
 
         Text(
           description,
-          maxLines: 3,
+          maxLines: 4,
           overflow: TextOverflow.ellipsis,
           style: t.bodyMedium?.copyWith(height: 1.35),
         ),
 
-        if ((usefulInfo ?? '').trim().isNotEmpty) ...[
+        if (addr.isNotEmpty || hrs.isNotEmpty || telRaw.isNotEmpty || site.isNotEmpty || legacyInfo.isNotEmpty) ...[
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(10),
@@ -383,23 +529,55 @@ class _PolaroidTextArea extends StatelessWidget {
               color: Colors.black.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Row(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.info_outline, size: 18, color: Colors.black.withValues(alpha: 0.65)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    usefulInfo!.trim(),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: t.bodySmall?.copyWith(height: 1.3),
-                  ),
-                ),
+                if (addr.isNotEmpty) _infoRow(context, icon: Icons.place, text: addr),
+                if (addr.isNotEmpty && (hrs.isNotEmpty || telRaw.isNotEmpty || site.isNotEmpty || legacyInfo.isNotEmpty))
+                  const SizedBox(height: 6),
+                if (hrs.isNotEmpty) _infoRow(context, icon: Icons.access_time, text: hrs),
+                if (hrs.isNotEmpty && (telRaw.isNotEmpty || site.isNotEmpty || legacyInfo.isNotEmpty))
+                  const SizedBox(height: 6),
+                if (telRaw.isNotEmpty) _infoRow(context, icon: Icons.phone, text: telRaw),
+                if (telRaw.isNotEmpty && (site.isNotEmpty || legacyInfo.isNotEmpty))
+                  const SizedBox(height: 6),
+                if (site.isNotEmpty) _infoRow(context, icon: Icons.public, text: site),
+                if (site.isNotEmpty && legacyInfo.isNotEmpty) const SizedBox(height: 6),
+                if (legacyInfo.isNotEmpty)
+                  _infoRow(context, icon: Icons.info_outline, text: legacyInfo.replaceAll('\n', ' • ')),
               ],
             ),
           ),
         ],
+
+        const Spacer(),
+
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton.tonalIcon(
+                onPressed:
+                    canCall ? () => _launchTel(context, phoneToCall) : null,
+                icon: const Icon(Icons.call),
+                label: const Text('Appeler'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton.tonalIcon(
+                onPressed: canDirections ? () => _openDirections(context) : null,
+                icon: const Icon(Icons.directions),
+                label: const Text('Itinéraire'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            IconButton(
+              onPressed: onClose,
+              icon: const Icon(Icons.close_rounded),
+              tooltip: 'Fermer',
+            ),
+          ],
+        ),
       ],
     );
   }

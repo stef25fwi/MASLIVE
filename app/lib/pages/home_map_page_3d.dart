@@ -21,7 +21,7 @@ import '../ui/widgets/gradient_header.dart';
 import '../ui/widgets/gradient_icon_button.dart';
 import '../ui/widgets/maslive_card.dart';
 import '../ui/widgets/maslive_profile_icon.dart';
-import '../ui/widgets/polaroid_premium_popup.dart';
+import '../ui/widgets/polaroid_poi_sheet.dart';
 import '../services/auth_service.dart';
 import '../services/geolocation_service.dart';
 import '../services/language_service.dart';
@@ -2148,33 +2148,23 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       ),
     );
 
-    // Construire les infos utiles pour le popup
-    final usefulInfoParts = <String>[];
-    if (address.trim().isNotEmpty) usefulInfoParts.add('📍 $address');
-    if (openingHours.trim().isNotEmpty) usefulInfoParts.add('⏰ $openingHours');
-    if (phone.trim().isNotEmpty) usefulInfoParts.add('📞 $phone');
-    if (website.trim().isNotEmpty) usefulInfoParts.add('🌐 $website');
-    
-    final usefulInfo = usefulInfoParts.isEmpty ? null : usefulInfoParts.join('\n');
-    
-    // Préparer la photo (URL ou placeholder)
-    final ImageProvider photo;
-    if (imageUrl != null && imageUrl.trim().isNotEmpty) {
-      photo = NetworkImage(imageUrl);
-    } else {
-      // Placeholder local (pas de dépendance réseau)
-      photo = const AssetImage('assets/images/maslivesmall.png');
-    }
-    
-    // Afficher le popup Polaroid premium
     try {
-      await showPolaroidPremiumPopup(
+      await showPolaroidPoiSheet(
         context: context,
-        photo: photo,
         title: title,
-        description:
-            description.isEmpty ? 'Aucune description disponible' : description,
-        usefulInfo: usefulInfo,
+        description: description.isEmpty
+            ? 'Aucune description disponible'
+            : description,
+        imageUrl: (imageUrl ?? '').trim().isEmpty ? null : imageUrl,
+        hours: openingHours,
+        phone: phone,
+        website: website,
+        whatsapp: whatsapp,
+        email: email,
+        address: address,
+        mapsUrl: mapsUrl,
+        lat: lat,
+        lng: lng,
       );
     } catch (e) {
       if (kDebugMode) {

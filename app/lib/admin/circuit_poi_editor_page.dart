@@ -594,80 +594,33 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
       return;
     }
 
-    final nameController = TextEditingController();
-    var appearanceId = _defaultPoiAppearanceId;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-        title: const Text('Nouveau point d\'intérêt'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Nom du POI',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            InputDecorator(
-              decoration: const InputDecoration(
-                labelText: 'Apparence',
-                border: OutlineInputBorder(),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: appearanceId,
-                  isExpanded: true,
-                  items: [
-                    for (final p in kMasLivePoiAppearancePresets)
-                      DropdownMenuItem(value: p.id, child: Text(p.label)),
-                  ],
-                  onChanged: (v) {
-                    if (v == null) return;
-                    setDialogState(() => appearanceId = v);
-                  },
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Ajouter'),
-          ),
-        ],
-      ),
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    final name = nameController.text.trim().isEmpty
-        ? '${_selectedLayer!.label} (${lng.toStringAsFixed(4)}, ${lat.toStringAsFixed(4)})'
-        : nameController.text.trim();
-
-    final poi = MarketMapPOI(
+    final layerType = _selectedLayer!.type;
+    final defaultName =
+        '${_selectedLayer!.label} (${lng.toStringAsFixed(4)}, ${lat.toStringAsFixed(4)})';
+    final provisional = MarketMapPOI(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: name,
-      layerType: _selectedLayer!.type,
+      name: defaultName,
+      layerType: layerType,
+      layerId: layerType,
       lng: lng,
       lat: lat,
-      description: null,
-      imageUrl: null,
-      metadata: <String, dynamic>{kMasLivePoiAppearanceKey: appearanceId},
+      metadata: <String, dynamic>{kMasLivePoiAppearanceKey: _defaultPoiAppearanceId},
     );
 
+    final created = await showModalBottomSheet<MarketMapPOI>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => PoiEditPopup(
+        poi: provisional,
+        projectId: widget.projectId,
+        appearancePresets: kMasLivePoiAppearancePresets,
+      ),
+    );
+    if (created == null) return;
+
     setState(() {
-      _pois.add(poi);
+      _pois.add(created);
     });
     _refreshPoiMarkers();
   }
