@@ -23,7 +23,7 @@ Future<void> showPolaroidPremiumPopup({
   return showDialog(
     context: context,
     barrierDismissible: true,
-    barrierColor: Colors.black.withOpacity(0.45),
+    barrierColor: Colors.black.withValues(alpha: 0.45),
     builder: (_) => _PolaroidPremiumDialog(
       photo: photo,
       title: title,
@@ -105,7 +105,7 @@ class _PolaroidPremiumDialogState extends State<_PolaroidPremiumDialog>
     return Center(
       child: AnimatedBuilder(
         animation: _c,
-        builder: (_, __) {
+        builder: (context, child) {
           return Opacity(
             opacity: _fade.value,
             child: Transform.translate(
@@ -195,7 +195,7 @@ class _PolaroidPremiumCard extends StatelessWidget {
                   child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-                      color: Colors.black.withOpacity(0.06),
+                      color: Colors.black.withValues(alpha: 0.06),
                       boxShadow: const [
                         BoxShadow(
                           color: Color(0x26000000),
@@ -235,7 +235,7 @@ class _PolaroidPremiumCard extends StatelessWidget {
                                   gradient: RadialGradient(
                                     colors: [
                                       Colors.transparent,
-                                      Colors.black.withOpacity(0.10),
+                                      Colors.black.withValues(alpha: 0.10),
                                     ],
                                     radius: 1.0,
                                     center: Alignment.center,
@@ -309,7 +309,7 @@ class _PhotoWithInstantRevealState extends State<_PhotoWithInstantReveal>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _c,
-      builder: (_, __) {
+      builder: (context, child) {
         final blur = lerpDouble(6.0, 0.0, _t.value)!;
         final fade = lerpDouble(0.75, 1.0, _t.value)!;
 
@@ -364,7 +364,7 @@ class _PolaroidTextArea extends StatelessWidget {
         Container(
           height: 1,
           width: double.infinity,
-          color: Colors.black.withOpacity(0.20),
+          color: Colors.black.withValues(alpha: 0.20),
         ),
         const SizedBox(height: 10),
 
@@ -380,13 +380,13 @@ class _PolaroidTextArea extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.info_outline, size: 18, color: Colors.black.withOpacity(0.65)),
+                Icon(Icons.info_outline, size: 18, color: Colors.black.withValues(alpha: 0.65)),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -424,8 +424,8 @@ class _GlassCloseButton extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.70),
-                border: Border.all(color: Colors.white.withOpacity(0.65)),
+                color: Colors.white.withValues(alpha: 0.70),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.65)),
                 boxShadow: const [
                   BoxShadow(
                     color: Color(0x26000000),
@@ -464,8 +464,8 @@ class _GrainPainter extends CustomPainter {
       final isLight = rnd.nextBool();
       final a = (rnd.nextDouble() * 0.08 + 0.02) * intensity;
       paint.color = isLight
-          ? Colors.white.withOpacity(a)
-          : Colors.black.withOpacity(a);
+          ? Colors.white.withValues(alpha: a)
+          : Colors.black.withValues(alpha: a);
 
       canvas.drawCircle(Offset(x, y), r, paint);
     }

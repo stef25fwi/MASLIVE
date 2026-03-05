@@ -188,6 +188,9 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
         return;
       }
 
+      // Après un await (dialog), vérifier mounted avant toute utilisation de context.
+      if (!mounted) return;
+
       // Lancer l'éditeur natif avec support des filtres système
       final croppedFile = await ImageCropper().cropImage(
         sourcePath: pickedFile.path,
@@ -253,6 +256,8 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       
       // En cas d'erreur, on utilise l'image originale
       await _setSelectedFile(pickedFile);
+
+      if (!mounted) return;
       
       TopSnackBar.showMessage(
         context,
