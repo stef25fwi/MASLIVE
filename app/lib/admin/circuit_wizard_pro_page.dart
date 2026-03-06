@@ -25,7 +25,7 @@ import '../ui_kit/glass/glass_panel.dart';
 import '../ui_kit/layout/soft_background.dart';
 import '../ui_kit/tokens/maslive_tokens.dart';
 import '../ui_kit/wizard/wizard_bottom_bar.dart';
-import '../ui_kit/wizard/wizard_stepper_dots_arrows.dart';
+import '../ui_kit/wizard/wizard_stepper_pills.dart';
 import 'circuit_map_editor.dart';
 import '../route_style_pro/models/route_style_config.dart' as rsp;
 import '../route_style_pro/services/route_snap_service.dart' as snap;
@@ -88,7 +88,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   Widget _buildWizardStepper({bool interactive = true}) {
-    return WizardStepperDotsArrows(
+    return WizardStepperPills(
       currentStep: _currentStep,
       labels: _stepLabels,
       padding: EdgeInsets.zero,
@@ -103,16 +103,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       children: [
         const SizedBox(height: MasliveTokens.s),
         _buildWizardStepper(),
-        const SizedBox(height: MasliveTokens.xs),
-        Text(
-          _stepLabels[_currentStep.clamp(0, _stepLabels.length - 1)],
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-            color: MasliveTokens.textSoft,
-          ),
-        ),
         const SizedBox(height: MasliveTokens.s),
         Expanded(child: child),
       ],
@@ -278,8 +268,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   double? _poiInitialZoom;
 
   bool _isSnappingRoute = false;
-
-  bool _isStepTransitioning = false;
 
   bool _isRefreshingMarketImport = false;
   bool _isEnsuringAllPoisLoaded = false;
@@ -1227,60 +1215,58 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   Future<List<MarketMapLayer>> _loadLayers() async {
-    // Initialiser les 6 couches standard (fallback si projet sans layers).
-    final defaultLayers = <MarketMapLayer>[
-      MarketMapLayer(
-        id: '1',
-        label: 'Tracé Route',
-        type: 'route',
-        isVisible: true,
-        zIndex: 1,
-        color: '#1A73E8',
-      ),
-      MarketMapLayer(
-        id: '2',
-        label: 'Parkings',
-        type: 'parking',
-        isVisible: true,
-        zIndex: 2,
-        color: '#FBBf24',
-      ),
-      MarketMapLayer(
-        id: '3',
-        label: 'Toilettes',
-        type: 'wc',
-        isVisible: true,
-        zIndex: 3,
-        color: '#9333EA',
-      ),
-      MarketMapLayer(
-        id: '4',
-        label: 'Food',
-        type: 'food',
-        isVisible: true,
-        zIndex: 4,
-        color: '#EF4444',
-      ),
-      MarketMapLayer(
-        id: '5',
-        label: 'Assistance',
-        type: 'assistance',
-        isVisible: true,
-        zIndex: 5,
-        color: '#34A853',
-      ),
-      MarketMapLayer(
-        id: '6',
-        label: 'Lieux à visiter',
-        type: 'visit',
-        isVisible: true,
-        zIndex: 6,
-        color: '#F59E0B',
-      ),
-    ];
-
     if (_projectId == null) {
-      return defaultLayers;
+      // Initialiser les 6 couches standard
+      return [
+        MarketMapLayer(
+          id: '1',
+          label: 'Tracé Route',
+          type: 'route',
+          isVisible: true,
+          zIndex: 1,
+          color: '#1A73E8',
+        ),
+        MarketMapLayer(
+          id: '2',
+          label: 'Parkings',
+          type: 'parking',
+          isVisible: true,
+          zIndex: 2,
+          color: '#FBBf24',
+        ),
+        MarketMapLayer(
+          id: '3',
+          label: 'Toilettes',
+          type: 'wc',
+          isVisible: true,
+          zIndex: 3,
+          color: '#9333EA',
+        ),
+        MarketMapLayer(
+          id: '4',
+          label: 'Food',
+          type: 'food',
+          isVisible: true,
+          zIndex: 4,
+          color: '#EF4444',
+        ),
+        MarketMapLayer(
+          id: '5',
+          label: 'Assistance',
+          type: 'assistance',
+          isVisible: true,
+          zIndex: 5,
+          color: '#34A853',
+        ),
+        MarketMapLayer(
+          id: '6',
+          label: 'Lieux à visiter',
+          type: 'visit',
+          isVisible: true,
+          zIndex: 6,
+          color: '#F59E0B',
+        ),
+      ];
     }
 
     final snapshot = await FirebaseFirestore.instance
@@ -1290,13 +1276,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         .orderBy('zIndex')
         .get();
 
-    // Si le projet a été créé via persistance "current-only", `layers` peut
-    // être vide: on retombe sur les couches standard (local).
-    if (snapshot.docs.isEmpty) {
-      return defaultLayers;
-    }
-
-    return snapshot.docs.map((doc) => MarketMapLayer.fromFirestore(doc)).toList();
+    return snapshot.docs
+        .map((doc) => MarketMapLayer.fromFirestore(doc))
+        .toList();
   }
 
   String _normalizePoiLayerType(String raw) {
@@ -1541,8 +1523,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   Future<void> _saveDraft({
     bool createSnapshot = false,
     bool ensureRouteSnapped = true,
-    bool deleteMissingLayers = true,
-    bool deleteMissingPois = true,
   }) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -1571,12 +1551,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       final projectId = _projectId ?? _repository.createProjectId();
       _projectId = projectId;
 
-      // IMPORTANT: le saveDraft sync les POIs (avec suppression des doc absents)
-      // uniquement si demandé. En mode "safe", on upsert sans suppression.
-      if (deleteMissingPois) {
-        // Si la pagination n'a pas tout chargé, on risquerait de supprimer des POIs.
-        await _ensureAllPoisLoadedForPublish();
-      }
+      // IMPORTANT: le saveDraft sync les POIs (avec suppression des doc absents).
+      // Si la pagination n'a pas tout chargé, on risquerait de supprimer des POIs.
+      await _ensureAllPoisLoadedForPublish();
 
       final previousRouteCount = (_draftData['route'] as List?)?.length ?? 0;
       final previousPoiCount = _pois.length;
@@ -1593,8 +1570,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         previousRouteCount: previousRouteCount,
         previousPoiCount: previousPoiCount,
         isNew: isNew,
-        deleteMissingLayers: deleteMissingLayers,
-        deleteMissingPois: deleteMissingPois,
       );
 
       _draftData = currentData;
@@ -1636,88 +1611,35 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     }
   }
 
-  Future<void> _saveCurrentOnlySafe() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-      await _ensureActorContext();
-      if (!_canWriteMapProjects) return;
-
-      final isNew = _projectId == null;
-      final id = await _repository.saveCurrentOnly(
-        projectId: _projectId,
-        actorUid: user.uid,
-        actorRole: _currentUserRole ?? 'creator',
-        groupId: _currentGroupId ?? 'default',
-        currentData: _buildCurrentData(),
-        isNew: isNew,
-      );
-      _projectId = id;
-
-      // Garde la cohérence locale.
-      _draftData = _buildCurrentData();
-    } catch (e) {
-      debugPrint('WizardPro _saveCurrentOnlySafe error: $e');
-    }
-  }
-
-  Future<void> _continueToStep(
-    int step, {
-    bool validate = true,
-    bool createSnapshot = true,
-    bool persist = true,
-    bool ensureRouteSnapped = true,
-  }) async {
+  Future<void> _continueToStep(int step) async {
     if (widget.poiOnly && step != _poiStepIndex) return;
-    if (step == _currentStep) return;
-    if (step < 0 || step > 7) return;
-    if (_isStepTransitioning) return;
-    _isStepTransitioning = true;
     // Valider l'étape courante
-    try {
-      if (validate && _currentStep == 1) {
-        if (_nameController.text.trim().isEmpty) {
-          _showTopSnackBar('❌ Nom requis', isError: true);
-          return;
-        }
+    if (_currentStep == 1) {
+      if (_nameController.text.trim().isEmpty) {
+        _showTopSnackBar('❌ Nom requis', isError: true);
+        return;
       }
+    }
 
     // En quittant l'étape Tracé + Style, on force un snap immédiat et on attend.
     // Objectif: le tracé reste toujours centré sur la route, même si l'utilisateur
     // a posé les points "à la main" et enchaîne rapidement sur l'étape suivante.
     final leavingRouteStep = _currentStep == 3 && step != 3;
-
-    // Important: la navigation arrière doit rester instantanée.
-    // On ne bloque pas le retour sur un snap/sauvegarde potentiellement long.
-      if (persist && _canWriteMapProjects) {
-        try {
-          if (ensureRouteSnapped && leavingRouteStep) {
-            await _ensureRouteSnappedBeforePersist();
-          }
-
-          // Transition d'étape: persiste seulement `current` (rapide, non-destructif).
-          // La synchro layers/pois est réservée à l'action explicite "Sauvegarder".
-          await _saveCurrentOnlySafe();
-        } catch (e) {
-          debugPrint('WizardPro _continueToStep persist error: $e');
-          if (mounted) {
-            _showTopSnackBar(
-              '⚠️ Navigation sans sauvegarde (erreur): $e',
-              isError: true,
-              duration: const Duration(seconds: 6),
-            );
-          }
-        }
-      }
-
-      _pageController.animateToPage(
-        step,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    } finally {
-      _isStepTransitioning = false;
+    if (leavingRouteStep) {
+      await _ensureRouteSnappedBeforePersist();
     }
+
+    if (_canWriteMapProjects) {
+      await _saveDraft(
+        createSnapshot: true,
+        ensureRouteSnapped: !leavingRouteStep,
+      );
+    }
+    _pageController.animateToPage(
+      step,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   Future<void> _ensureRouteSnappedBeforePersist() async {
@@ -1811,39 +1733,22 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       );
     }
 
-    return PopScope(
-      canPop: widget.poiOnly || _currentStep == 0,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        if (widget.poiOnly) return;
-        if (_currentStep <= 0) return;
-        unawaited(_saveCurrentOnlySafe());
-        unawaited(
-          _continueToStep(
-            _currentStep - 1,
-            validate: false,
-            createSnapshot: false,
-            persist: false,
-            ensureRouteSnapped: false,
-          ),
-        );
-      },
-      child: Scaffold(
-        body: SoftBackground(
-          child: Column(
-            children: [
-              const GlassAppBar(
-                title: 'Wizard Circuit Pro',
-                padding: EdgeInsets.zero,
-              ),
-              Expanded(
-                child: Stack(
-                  children: [
-                    PageView(
-                      controller: _pageController,
-                      physics: const NeverScrollableScrollPhysics(),
-                      onPageChanged: (page) {
-                        setState(() => _currentStep = page);
+    return Scaffold(
+      body: SoftBackground(
+        child: Column(
+          children: [
+            const GlassAppBar(
+              title: 'Wizard Circuit Pro',
+              padding: EdgeInsets.zero,
+            ),
+            Expanded(
+              child: Stack(
+                children: [
+                  PageView(
+                    controller: _pageController,
+                    physics: const NeverScrollableScrollPhysics(),
+                    onPageChanged: (page) {
+                      setState(() => _currentStep = page);
 
                       // Auto-ouvrir Style Pro quand on arrive sur l'étape Style Pro (index 4)
                       // pour éviter le clic sur "Ouvrir Style Pro".
@@ -1867,51 +1772,38 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
                         _syncPoiRouteStyleProTimer();
                       });
-                      },
-                      children: [
-                        _wrapWizardStep(_buildStep0Template()),
-                        _wrapWizardStep(_buildStep1Infos()),
-                        _wrapWizardStep(_buildStep2Perimeter()),
-                        _wrapWizardStep(_buildStep3RouteAndStyleTabbed()),
-                        _wrapWizardStep(_buildStep6StylePro()),
-                        _wrapWizardStep(_buildStep5POI()),
-                        _wrapWizardStep(_buildStep7Validation()),
-                        _wrapWizardStep(_buildStep8Publish()),
-                      ],
-                    ),
-                  ],
-                ),
+                    },
+                    children: [
+                      _wrapWizardStep(_buildStep0Template()),
+                      _wrapWizardStep(_buildStep1Infos()),
+                      _wrapWizardStep(_buildStep2Perimeter()),
+                      _wrapWizardStep(_buildStep3RouteAndStyleTabbed()),
+                      _wrapWizardStep(_buildStep6StylePro()),
+                      _wrapWizardStep(_buildStep5POI()),
+                      _wrapWizardStep(_buildStep7Validation()),
+                      _wrapWizardStep(_buildStep8Publish()),
+                    ],
+                  ),
+                ],
               ),
-              WizardBottomBar(
-                outerPadding: EdgeInsets.zero,
-                panelPadding: EdgeInsets.zero,
-                showPrevious: (!widget.poiOnly && _currentStep > 0),
-                onPrevious: (!widget.poiOnly && _currentStep > 0)
-                    ? () {
-                        unawaited(_saveCurrentOnlySafe());
-                        unawaited(
-                          _continueToStep(
-                            _currentStep - 1,
-                            validate: false,
-                            createSnapshot: false,
-                            persist: false,
-                            ensureRouteSnapped: false,
-                          ),
-                        );
-                      }
-                    : null,
-                onSave: () => _saveDraft(
-                  createSnapshot: true,
-                  deleteMissingLayers: false,
-                  deleteMissingPois: false,
-                ),
-                showNext: (!widget.poiOnly && _currentStep < 7),
-                onNext: (!widget.poiOnly && _currentStep < 7)
-                    ? () => _continueToStep(_currentStep + 1)
-                    : null,
-              ),
-            ],
-          ),
+            ),
+            WizardBottomBar(
+              outerPadding: EdgeInsets.zero,
+              panelPadding: EdgeInsets.zero,
+              showPrevious: (!widget.poiOnly && _currentStep > 0),
+              onPrevious: (!widget.poiOnly && _currentStep > 0)
+                  ? () => _pageController.previousPage(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    )
+                  : null,
+              onSave: () => _saveDraft(createSnapshot: true),
+              showNext: (!widget.poiOnly && _currentStep < 7),
+              onNext: (!widget.poiOnly && _currentStep < 7)
+                  ? () => _continueToStep(_currentStep + 1)
+                  : null,
+            ),
+          ],
         ),
       ),
     );
