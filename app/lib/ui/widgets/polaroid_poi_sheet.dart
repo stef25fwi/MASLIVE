@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../ui_kit/tokens/maslive_tokens.dart';
@@ -8,6 +12,7 @@ Future<void> showPolaroidPoiSheet({
   required String title,
   required String description,
   String? imageUrl,
+  Map<String, dynamic>? meta,
   String? hours,
   String? phone,
   String? website,
@@ -27,6 +32,7 @@ Future<void> showPolaroidPoiSheet({
       title: title,
       description: description,
       imageUrl: imageUrl,
+      meta: meta,
       hours: hours,
       phone: phone,
       website: website,
@@ -44,6 +50,7 @@ class PolaroidPoiSheet extends StatelessWidget {
   final String title;
   final String description;
   final String? imageUrl;
+  final Map<String, dynamic>? meta;
   final String? hours;
   final String? phone;
   final String? website;
@@ -62,6 +69,7 @@ class PolaroidPoiSheet extends StatelessWidget {
     required this.title,
     required this.description,
     this.imageUrl,
+    this.meta,
     this.hours,
     this.phone,
     this.website,
@@ -124,6 +132,7 @@ class PolaroidPoiSheet extends StatelessWidget {
                             title: title,
                             description: description,
                             imageUrl: imageUrl,
+                            meta: meta,
                             hours: hours,
                             phone: phone,
                             website: website,
@@ -152,6 +161,7 @@ class PolaroidPoiCard extends StatelessWidget {
   final String title;
   final String description;
   final String? imageUrl;
+  final Map<String, dynamic>? meta;
   final String? hours;
   final String? phone;
   final String? website;
@@ -167,6 +177,7 @@ class PolaroidPoiCard extends StatelessWidget {
     required this.title,
     required this.description,
     this.imageUrl,
+    this.meta,
     this.hours,
     this.phone,
     this.website,
@@ -180,67 +191,84 @@ class PolaroidPoiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final polaroid = meta?['polaroid'];
+    final angleDeg = (polaroid is Map && polaroid['angleDeg'] is num)
+        ? (polaroid['angleDeg'] as num).toDouble()
+        : 0.0;
+    final grain = (polaroid is Map && polaroid['grain'] is num)
+        ? (polaroid['grain'] as num).toDouble()
+        : 0.0;
+    final clampedAngle = angleDeg.clamp(-7.0, 7.0);
+    final clampedGrain = grain.clamp(0.0, 1.0);
+
     return Center(
       child: AspectRatio(
         aspectRatio: 1 / 1.18,
-        child: Card(
-          margin: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(MasliveTokens.rM),
-            side: BorderSide(color: MasliveTokens.borderSoft),
-          ),
-          elevation: 0,
-          color: MasliveTokens.surface,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(MasliveTokens.rM),
-            child: Column(
-              children: [
-                Expanded(
-                  flex: 72,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      MasliveTokens.s,
-                      MasliveTokens.s,
-                      MasliveTokens.s,
-                      MasliveTokens.xs,
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(MasliveTokens.rS),
-                      child: _PhotoArea(imageUrl: imageUrl),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 46,
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(
-                      MasliveTokens.m,
-                      MasliveTokens.s,
-                      MasliveTokens.m,
-                      MasliveTokens.s,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        top: BorderSide(color: MasliveTokens.borderSoft),
+        child: Transform.rotate(
+          angle: (clampedAngle * 3.141592653589793 / 180.0),
+          child: Card(
+            margin: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(MasliveTokens.rM),
+              side: BorderSide(color: MasliveTokens.borderSoft),
+            ),
+            elevation: 0,
+            color: MasliveTokens.surface,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(MasliveTokens.rM),
+              child: Column(
+                children: [
+                  Expanded(
+                    flex: 72,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        MasliveTokens.s,
+                        MasliveTokens.s,
+                        MasliveTokens.s,
+                        MasliveTokens.xs,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(MasliveTokens.rS),
+                        child: _PhotoArea(
+                          imageUrl: imageUrl,
+                          grain: clampedGrain,
+                          seed: title.hashCode,
+                        ),
                       ),
                     ),
-                    child: _InfoArea(
-                      title: title,
-                      description: description,
-                      hours: hours,
-                      phone: phone,
-                      website: website,
-                      whatsapp: whatsapp,
-                      email: email,
-                      address: address,
-                      mapsUrl: mapsUrl,
-                      lat: lat,
-                      lng: lng,
+                  ),
+                  Expanded(
+                    flex: 46,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(
+                        MasliveTokens.m,
+                        MasliveTokens.s,
+                        MasliveTokens.m,
+                        MasliveTokens.s,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: MasliveTokens.borderSoft),
+                        ),
+                      ),
+                      child: _InfoArea(
+                        title: title,
+                        description: description,
+                        hours: hours,
+                        phone: phone,
+                        website: website,
+                        whatsapp: whatsapp,
+                        email: email,
+                        address: address,
+                        mapsUrl: mapsUrl,
+                        lat: lat,
+                        lng: lng,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -249,11 +277,70 @@ class PolaroidPoiCard extends StatelessWidget {
   }
 }
 
-class _PhotoArea extends StatelessWidget {
+class _PhotoArea extends StatefulWidget {
   final String? imageUrl;
-  const _PhotoArea({required this.imageUrl});
+  final double grain;
+  final int seed;
+  const _PhotoArea({required this.imageUrl, required this.grain, required this.seed});
+
+  @override
+  State<_PhotoArea> createState() => _PhotoAreaState();
+}
+
+class _PhotoAreaState extends State<_PhotoArea> {
+  String? _resolvedUrl;
+  bool _resolving = false;
 
   static const String _frameAssetPath = 'assets/images/frame_polaroid.webp';
+
+  @override
+  void initState() {
+    super.initState();
+    _maybeResolveStorageUrl(widget.imageUrl);
+  }
+
+  @override
+  void didUpdateWidget(covariant _PhotoArea oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if ((oldWidget.imageUrl ?? '').trim() != (widget.imageUrl ?? '').trim()) {
+      _maybeResolveStorageUrl(widget.imageUrl);
+    }
+  }
+
+  Future<void> _maybeResolveStorageUrl(String? raw) async {
+    final url = (raw ?? '').trim();
+    if (url.isEmpty) {
+      if (mounted) setState(() => _resolvedUrl = null);
+      return;
+    }
+
+    // URL http(s): OK
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      if (mounted) setState(() => _resolvedUrl = url);
+      return;
+    }
+
+    // URL gs:// (Firebase Storage): tenter une résolution vers downloadURL
+    if (url.startsWith('gs://')) {
+      if (_resolving) return;
+      _resolving = true;
+      try {
+        final ref = FirebaseStorage.instance.refFromURL(url);
+        final downloadUrl = await ref.getDownloadURL();
+        if (!mounted) return;
+        setState(() => _resolvedUrl = downloadUrl);
+      } catch (_) {
+        if (!mounted) return;
+        setState(() => _resolvedUrl = url);
+      } finally {
+        _resolving = false;
+      }
+      return;
+    }
+
+    // Autre format inconnu: fallback (laisse l'UI gérer l'erreur)
+    if (mounted) setState(() => _resolvedUrl = url);
+  }
 
   Widget _buildFrameOverlay() {
     return IgnorePointer(
@@ -275,15 +362,28 @@ class _PhotoArea extends StatelessWidget {
     );
   }
 
+  Widget _buildGrainOverlay() {
+    if (widget.grain <= 0) return const SizedBox.shrink();
+    return IgnorePointer(
+      child: CustomPaint(
+        painter: _PolaroidGrainPainter(
+          seed: widget.seed,
+          intensity: widget.grain,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final url = (imageUrl ?? '').trim();
+    final url = (_resolvedUrl ?? widget.imageUrl ?? '').trim();
     if (url.isEmpty) {
       return Stack(
         fit: StackFit.expand,
         children: [
           const _PhotoFallback(),
           _buildFrameOverlay(),
+          _buildGrainOverlay(),
         ],
       );
     }
@@ -314,8 +414,48 @@ class _PhotoArea extends StatelessWidget {
           },
         ),
         _buildFrameOverlay(),
+        _buildGrainOverlay(),
       ],
     );
+  }
+}
+
+class _PolaroidGrainPainter extends CustomPainter {
+  _PolaroidGrainPainter({required this.seed, required this.intensity});
+
+  final int seed;
+  final double intensity;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Grain très léger: points semi-transparents.
+    // Intensité attendue: 0..1
+    final clamped = intensity.clamp(0.0, 1.0);
+    if (clamped <= 0) return;
+
+    final paint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.05 * clamped)
+      ..strokeWidth = 1.0
+      ..strokeCap = StrokeCap.round;
+
+    // Générateur pseudo-aléatoire déterministe (LCG simple).
+    int s = seed ^ 0x9E3779B9;
+    double next01() {
+      s = (1664525 * s + 1013904223) & 0x7fffffff;
+      return (s / 0x7fffffff);
+    }
+
+    final n = (2200 * clamped).round().clamp(0, 2200);
+    for (int i = 0; i < n; i++) {
+      final x = next01() * size.width;
+      final y = next01() * size.height;
+      canvas.drawPoints(PointMode.points, [Offset(x, y)], paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PolaroidGrainPainter oldDelegate) {
+    return oldDelegate.seed != seed || oldDelegate.intensity != intensity;
   }
 }
 
@@ -457,7 +597,7 @@ class _InfoArea extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final desc = description.trim();
-    final hrs = (hours ?? '').trim();
+    final hrs = _prettyHours((hours ?? '').trim());
     final telRaw = (phone ?? '').trim();
     final site = (website ?? '').trim();
     final wa = (whatsapp ?? '').trim();
@@ -568,6 +708,32 @@ class _InfoArea extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  String _prettyHours(String raw) {
+    final s = raw.trim();
+    if (s.isEmpty) return '';
+    // Éviter d'afficher un JSON brut si openingHours a été jsonEncode.
+    if (!(s.startsWith('{') || s.startsWith('['))) return s;
+    try {
+      final decoded = jsonDecode(s);
+      if (decoded is Map) {
+        final entries = decoded.entries
+            .map((e) => '${e.key}: ${e.value}')
+            .where((line) => line.trim().isNotEmpty)
+            .toList();
+        if (entries.isEmpty) return '';
+        return entries.take(3).join(' · ');
+      }
+      if (decoded is List) {
+        final items = decoded.map((e) => e.toString().trim()).where((t) => t.isNotEmpty).toList();
+        if (items.isEmpty) return '';
+        return items.take(3).join(' · ');
+      }
+    } catch (_) {
+      // ignore
+    }
+    return '';
   }
 }
 

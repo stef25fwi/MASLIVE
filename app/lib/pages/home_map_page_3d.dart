@@ -1428,8 +1428,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       final desc = _descFromPoi(poi);
       final d = (poi as dynamic);
 
-      // Champs “fiche”
-      final imageUrl = (d.imageUrl ?? d.photoUrl ?? d.image ?? '')
+        // Champs “fiche”
+        String imageUrl = (d.imageUrl ?? d.photoUrl ?? d.image ?? '')
           .toString()
           .trim();
       final address = (d.address ?? d.adresse ?? d.locationLabel ?? '')
@@ -1465,6 +1465,15 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         }
       } catch (_) {
         // ignore
+      }
+
+      // Flatten imageUrl depuis meta.image.url si nécessaire.
+      if (imageUrl.isEmpty) {
+        final img = meta['image'];
+        if (img is Map) {
+          final u = (img['url'] ?? img['downloadUrl'] ?? '').toString().trim();
+          if (u.isNotEmpty) imageUrl = u;
+        }
       }
 
       feats.add({
@@ -1923,8 +1932,43 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
       if (res.isEmpty) return;
 
-      final feature = res.first?.queriedFeature.feature;
-      if (feature == null) return;
+      // Sélectionner la meilleure feature:
+      // - prioriser les POIs non-cluster
+      // - fallback cluster si rien d'autre
+      final allFeatures = <Map<String, dynamic>>[];
+      for (final item in res) {
+        final f = item?.queriedFeature.feature;
+        if (f is Map<String, dynamic>) {
+          allFeatures.add(f);
+        }
+      }
+      if (allFeatures.isEmpty) return;
+
+      bool isClusterProps(Map<String, dynamic> props) {
+        return (props['cluster'] == true) || (props['cluster']?.toString() == 'true');
+      }
+
+      Map<String, dynamic> asProps(Map<String, dynamic> feature) {
+        return (feature['properties'] as Map?)?.cast<String, dynamic>() ??
+            const <String, dynamic>{};
+      }
+
+      bool isValidPoiProps(Map<String, dynamic> props) {
+        final type = (props['type'] ?? props['layerType'] ?? '').toString().trim();
+        if (type.isEmpty) return false;
+        return _mmTypes.contains(type);
+      }
+
+      Map<String, dynamic>? bestNonCluster;
+      for (final f in allFeatures) {
+        final props = asProps(f);
+        if (isClusterProps(props)) continue;
+        if (!isValidPoiProps(props)) continue;
+        bestNonCluster = f;
+        break;
+      }
+
+      final feature = bestNonCluster ?? allFeatures.first;
 
       final rawFeatureId = feature['id'];
 
@@ -1933,12 +1977,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         return s.isEmpty ? null : s;
       }
 
-      final props =
+        final props =
           (feature['properties'] as Map?)?.cast<String, dynamic>() ??
           const <String, dynamic>{};
 
       // --- Cluster handling (si cluster:true sur la source) ---
-      final isCluster =
+        final isCluster =
           (props['cluster'] == true) ||
           (props['cluster']?.toString() == 'true');
 
@@ -2002,6 +2046,14 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           }
         } catch (_) {
           // ignore
+        }
+      }
+
+      // Certaines impls peuvent exposer `image` directement dans props.
+      if (meta == null) {
+        final imgRaw = props['image'];
+        if (imgRaw is Map) {
+          meta = <String, dynamic>{'image': imgRaw.map((k, v) => MapEntry(k.toString(), v))};
         }
       }
 
