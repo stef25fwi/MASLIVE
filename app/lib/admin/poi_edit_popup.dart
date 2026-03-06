@@ -173,6 +173,24 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       requireImage: true,
       hasImage: _hasAnyImage,
     );
+
+    // Android peut "perdre" le résultat du picker si l'activité est recréée.
+    // On tente de le récupérer pour éviter l'impression que la galerie "ne marche pas".
+    // ignore: unawaited_futures
+    _recoverLostPickedImageIfAny();
+  }
+
+  Future<void> _recoverLostPickedImageIfAny() async {
+    if (kIsWeb) return;
+    try {
+      final response = await _picker.retrieveLostData();
+      final file = response.file;
+      if (file == null) return;
+      if (!mounted) return;
+      await _setSelectedFile(file);
+    } catch (_) {
+      // ignore
+    }
   }
 
   @override
@@ -540,17 +558,22 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
               ListTile(
                 leading: const Icon(Icons.photo_library_rounded),
                 title: const Text('Galerie'),
-                onTap: () {
+                onTap: () async {
                   Navigator.pop(ctx);
-                  _pickImage(ImageSource.gallery);
+                  // Laisse le temps au bottom sheet de se fermer avant d'ouvrir le picker.
+                  await Future<void>.delayed(const Duration(milliseconds: 200));
+                  if (!mounted) return;
+                  await _pickImage(ImageSource.gallery);
                 },
               ),
               ListTile(
                 leading: const Icon(Icons.camera_alt_rounded),
                 title: const Text('Appareil photo'),
-                onTap: () {
+                onTap: () async {
                   Navigator.pop(ctx);
-                  _pickImage(ImageSource.camera);
+                  await Future<void>.delayed(const Duration(milliseconds: 200));
+                  if (!mounted) return;
+                  await _pickImage(ImageSource.camera);
                 },
               ),
             ],
