@@ -1229,18 +1229,6 @@
       }
     },
     {
-      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (POI pin icon presets)",
-      "type": "shell",
-      "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat(mapbox): POI pin icon preset (red_pin)\"",
-      "problemMatcher": [],
-      "isBackground": false,
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "clear": true
-      }
-    },
-    {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (POI non-lossy)",
       "type": "shell",
       "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat(poi): sync/publish non-lossy + editor unifié + fiche enrichie\"",

@@ -122,23 +122,6 @@ class _MarketMapPoiSelectorSheetState
 
   bool _updatingControllers = false;
 
-  static const TextStyle _menuFieldTextStyle = TextStyle(
-    fontWeight: FontWeight.w800,
-  );
-
-  Widget _menuEntryLabel(String label) {
-    return SizedBox(
-      width: double.infinity,
-      child: Text(
-        label,
-        textAlign: TextAlign.center,
-        style: _menuFieldTextStyle,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-    );
-  }
-
   @override
   void initState() {
     super.initState();
@@ -362,15 +345,11 @@ class _MarketMapPoiSelectorSheetState
                 Row(
                   children: [
                     Expanded(
-                      child: Align(
-                        alignment: Alignment.center,
-                        child: Text(
-                          widget.title,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                          ),
+                      child: Text(
+                        widget.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
                     ),
@@ -389,8 +368,7 @@ class _MarketMapPoiSelectorSheetState
                     padding: EdgeInsets.only(top: 6),
                     child: Text(
                       "Impossible de charger la liste des circuits publiés (mode dégradé).",
-                      textAlign: TextAlign.justify,
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                      style: TextStyle(fontSize: 12),
                     ),
                   ),
                 const SizedBox(height: 8),
@@ -421,8 +399,6 @@ class _MarketMapPoiSelectorSheetState
                         focusNode: _countryFocus,
                         enabled: allowSelection,
                         label: const Text('Pays'),
-                        textStyle: _menuFieldTextStyle,
-                        textAlign: TextAlign.center,
                         enableSearch: true,
                         enableFilter: true,
                         requestFocusOnTap: true,
@@ -432,7 +408,6 @@ class _MarketMapPoiSelectorSheetState
                             DropdownMenuEntry<MarketCountry>(
                               value: c,
                               label: _countryLabel(c),
-                              labelWidget: _menuEntryLabel(_countryLabel(c)),
                             ),
                         ],
                         onSelected: !allowSelection
@@ -522,8 +497,6 @@ class _MarketMapPoiSelectorSheetState
                       focusNode: _eventFocus,
                       enabled: allowSelection && _country != null,
                       label: const Text('Événement'),
-                      textStyle: _menuFieldTextStyle,
-                      textAlign: TextAlign.center,
                       enableSearch: true,
                       enableFilter: true,
                       requestFocusOnTap: true,
@@ -533,7 +506,6 @@ class _MarketMapPoiSelectorSheetState
                           DropdownMenuEntry<MarketEvent>(
                             value: e,
                             label: _eventLabel(e),
-                            labelWidget: _menuEntryLabel(_eventLabel(e)),
                           ),
                       ],
                       onSelected: (!allowSelection || _country == null)
@@ -566,25 +538,15 @@ class _MarketMapPoiSelectorSheetState
 
                   return DropdownButtonFormField<String>(
                     initialValue: value,
-                    alignment: AlignmentDirectional.center,
                     decoration: const InputDecoration(
                       labelText: 'Événement',
                       border: OutlineInputBorder(),
                     ),
-                    style: _menuFieldTextStyle,
                     items: [
                       for (final e in items)
                         DropdownMenuItem(
                           value: e.id,
-                          child: Center(
-                            child: Text(
-                              _eventLabel(e),
-                              textAlign: TextAlign.center,
-                              style: _menuFieldTextStyle,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
+                          child: Text(_eventLabel(e)),
                         ),
                     ],
                     onChanged: (!allowSelection || _country == null)
@@ -629,25 +591,15 @@ class _MarketMapPoiSelectorSheetState
 
                     return DropdownButtonFormField<String>(
                       initialValue: currentValue,
-                      alignment: AlignmentDirectional.center,
                       decoration: const InputDecoration(
                         labelText: 'Circuit',
                         border: OutlineInputBorder(),
                       ),
-                      style: _menuFieldTextStyle,
                       items: [
                         for (final c in items)
                           DropdownMenuItem(
                             value: c.id,
-                            child: Center(
-                              child: Text(
-                                _circuitLabel(c),
-                                textAlign: TextAlign.center,
-                                style: _menuFieldTextStyle,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
+                            child: Text(_circuitLabel(c)),
                           ),
                       ],
                       onChanged:
@@ -701,8 +653,6 @@ class _MarketMapPoiSelectorSheetState
                     focusNode: _circuitFocus,
                     enabled: allowSelection && _country != null && _event != null,
                     label: const Text('Circuit'),
-                    textStyle: _menuFieldTextStyle,
-                    textAlign: TextAlign.center,
                     enableSearch: true,
                     enableFilter: true,
                     requestFocusOnTap: true,
@@ -712,7 +662,6 @@ class _MarketMapPoiSelectorSheetState
                         DropdownMenuEntry<MarketCircuit>(
                           value: c,
                           label: _circuitLabel(c),
-                          labelWidget: _menuEntryLabel(_circuitLabel(c)),
                         ),
                     ],
                     onSelected:

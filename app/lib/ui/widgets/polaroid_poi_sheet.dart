@@ -253,33 +253,24 @@ class _PhotoArea extends StatelessWidget {
   final String? imageUrl;
   const _PhotoArea({required this.imageUrl});
 
-  static const String _frameAssetWebpPath = 'assets/images/frame_polaroid.webp';
-
-  Widget _frameAsset(
-    String assetPath, {
-    required Widget fallback,
-  }) {
-    return Image.asset(
-      assetPath,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
-      errorBuilder: (context, error, stackTrace) => fallback,
-    );
-  }
+  static const String _frameAssetPath = 'assets/images/frame_polaroid.webp';
 
   Widget _buildFrameOverlay() {
-    final borderFallback = DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: MasliveTokens.borderSoft),
-        borderRadius: BorderRadius.circular(MasliveTokens.rS),
-      ),
-    );
-
     return IgnorePointer(
-      child: _frameAsset(
-        _frameAssetWebpPath,
-        fallback: borderFallback,
+      child: Image.asset(
+        _frameAssetPath,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (context, error, stackTrace) {
+          // Fallback "frame" simple si l'asset n'est pas encore présent.
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border.all(color: MasliveTokens.borderSoft),
+              borderRadius: BorderRadius.circular(MasliveTokens.rS),
+            ),
+          );
+        },
       ),
     );
   }

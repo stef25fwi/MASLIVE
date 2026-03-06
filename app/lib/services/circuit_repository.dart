@@ -80,6 +80,69 @@ class CircuitRepository {
 
   String createProjectId() => _projects.doc().id;
 
+  /// Persistance légère: met à jour uniquement le document `map_projects/{projectId}`
+  /// (champ canon `current` + index/compat legacy) sans toucher aux sous-collections
+  /// `layers` et `pois`.
+  ///
+  /// Objectif: transitions d'étapes rapides + zéro risque de suppression liée à la
+  /// pagination POIs.
+  Future<String> saveCurrentOnly({
+    String? projectId,
+    required String actorUid,
+    required String actorRole,
+    required String groupId,
+    required Map<String, dynamic> currentData,
+    bool isNew = false,
+  }) async {
+    final id = (projectId == null || projectId.trim().isEmpty)
+        ? createProjectId()
+        : projectId;
+
+    final projectRef = _projects.doc(id);
+    final now = FieldValue.serverTimestamp();
+
+    final normalizedCurrentData = Map<String, dynamic>.from(currentData);
+
+    final circuitIdCandidate =
+        (normalizedCurrentData['circuitId']?.toString() ?? '').trim();
+    final circuitId = circuitIdCandidate.isEmpty ? id : circuitIdCandidate;
+    if (circuitIdCandidate.isEmpty) {
+      normalizedCurrentData['circuitId'] = circuitId;
+    }
+
+    final payload = <String, dynamic>{
+      'groupId': groupId,
+      'createdBy': actorUid,
+      'status': 'draft',
+      'sourceOfTruth': 'map_projects',
+      'updatedAt': now,
+      'current': normalizedCurrentData,
+
+      // Index logique (recherche)
+      'circuitId': circuitId,
+      'circuitName': (currentData['name'] ?? '').toString(),
+
+      // Compat legacy
+      'name': currentData['name'],
+      'countryId': currentData['countryId'],
+      'eventId': currentData['eventId'],
+      'description': currentData['description'],
+      'styleUrl': currentData['styleUrl'],
+      'route': currentData['route'],
+      'perimeter': currentData['perimeter'],
+      'routeStyle': currentData['routeStyle'],
+      'uid': actorUid,
+    };
+
+    if (isNew) {
+      payload['createdAt'] = now;
+      payload['version'] = 1;
+    }
+
+    await projectRef.set(payload, SetOptions(merge: true));
+    return id;
+  }
+
   Future<DocumentSnapshot<Map<String, dynamic>>> getProject(String projectId) {
     return _projects.doc(projectId).get();
   }
@@ -448,6 +511,8 @@ class CircuitRepository {
     required int previousRouteCount,
     required int previousPoiCount,
     bool isNew = false,
+    bool deleteMissingLayers = true,
+    bool deleteMissingPois = true,
   }) async {
     if (pois.length > maxPoisPerProject) {
       throw StateError(
@@ -568,8 +633,17 @@ class CircuitRepository {
       );
     }
 
-    await _syncLayersBatch(batch: batch, projectId: projectId, layers: layers);
-    await _syncPoisBatch(batch: batch, projectId: projectId, pois: pois);
+    if (deleteMissingLayers) {
+      await _syncLayersBatch(batch: batch, projectId: projectId, layers: layers);
+    } else {
+      await _upsertLayersBatch(batch: batch, projectId: projectId, layers: layers);
+    }
+
+    if (deleteMissingPois) {
+      await _syncPoisBatch(batch: batch, projectId: projectId, pois: pois);
+    } else {
+      await _upsertPoisBatch(batch: batch, projectId: projectId, pois: pois);
+    }
 
     _audit.writeInBatch(
       batch: batch,
@@ -586,6 +660,37 @@ class CircuitRepository {
     );
 
     await batch.commit();
+  }
+
+  Future<void> _upsertLayersBatch({
+    required WriteBatch batch,
+    required String projectId,
+    required List<MarketMapLayer> layers,
+  }) async {
+    final col = _projects.doc(projectId).collection('layers');
+    for (final layer in layers) {
+      final id = layer.id.trim().isEmpty
+          ? 'layer_${layer.zIndex}'
+          : layer.id.trim();
+      final data = layer.toFirestore();
+      batch.set(col.doc(id), data, SetOptions(merge: true));
+    }
+  }
+
+  Future<void> _upsertPoisBatch({
+    required WriteBatch batch,
+    required String projectId,
+    required List<MarketMapPOI> pois,
+  }) async {
+    final col = _projects.doc(projectId).collection('pois');
+    for (final poi in pois) {
+      final id = poi.id.trim().isEmpty
+          ? 'poi_${poi.layerType}_${poi.lng.toStringAsFixed(5)}_${poi.lat.toStringAsFixed(5)}'
+          : poi.id.trim();
+      final layerId = (poi.layerId ?? poi.layerType).trim();
+      final data = {...poi.toFirestore(), 'layerId': layerId, 'isVisible': poi.isVisible};
+      batch.set(col.doc(id), data, SetOptions(merge: true));
+    }
   }
 
   Future<void> publishToMarketMap({
