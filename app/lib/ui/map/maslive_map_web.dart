@@ -67,6 +67,39 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   static const String _patDiag = 'maslive_pat_diag';
   static const String _patCross = 'maslive_pat_cross';
   static const String _patDots = 'maslive_pat_dots';
+  static const String _parkingIconCar = 'maslive_parking_car';
+  static const String _parkingIconMoto = 'maslive_parking_moto';
+  static const String _parkingIconBoth = 'maslive_parking_both';
+
+  static const List<String> _parkingCarBitmap = <String>[
+    '................',
+    '....######......',
+    '...########.....',
+    '..##########....',
+    '.###..##..###...',
+    '##############..',
+    '##############..',
+    '###........###..',
+    '##..........##..',
+    '.##........##...',
+    '..##......##....',
+    '...#......#.....',
+  ];
+
+  static const List<String> _parkingMotoBitmap = <String>[
+    '................',
+    '......##........',
+    '.....####.......',
+    '....######......',
+    '..##########....',
+    '.####.##.####...',
+    '##...####...##..',
+    '##..######..##..',
+    '.##.#....#.##...',
+    '..###....###....',
+    '...#......#.....',
+    '................',
+  ];
 
   MasLivePoiStyle _poiStyle = const MasLivePoiStyle();
 
@@ -790,9 +823,17 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             'filter': [
               'all',
               [
-                '==',
-                ['geometry-type'],
-                'Polygon',
+                'any',
+                [
+                  '==',
+                  ['geometry-type'],
+                  'Polygon',
+                ],
+                [
+                  '==',
+                  ['get', 'isPreviewEdge'],
+                  true,
+                ],
               ],
               [
                 'any',
@@ -985,9 +1026,17 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
               ],
             ],
             'paint': {
-              'circle-radius': 5.0,
-              'circle-color': 'rgba(0,0,0,0)',
-              'circle-stroke-width': 2.0,
+              'circle-radius': 6.0,
+              'circle-color': [
+                'coalesce',
+                ['get', 'fillColor'],
+                '#FFFFFF',
+              ],
+              'circle-stroke-width': [
+                'coalesce',
+                ['get', 'strokeWidth'],
+                2.5,
+              ],
               'circle-stroke-color': [
                 'coalesce',
                 ['get', 'strokeColor'],
@@ -1012,6 +1061,24 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             ['get', 'isPreviewVertex'],
             true,
           ],
+        ]),
+      ]);
+      map.callMethod('setPaintProperty', [
+        _poiPreviewVertexLayerId,
+        'circle-color',
+        js.JsObject.jsify([
+          'coalesce',
+          ['get', 'fillColor'],
+          '#FFFFFF',
+        ]),
+      ]);
+      map.callMethod('setPaintProperty', [
+        _poiPreviewVertexLayerId,
+        'circle-stroke-width',
+        js.JsObject.jsify([
+          'coalesce',
+          ['get', 'strokeWidth'],
+          2.5,
         ]),
       ]);
       map.callMethod('setPaintProperty', [
@@ -1046,10 +1113,28 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
               ],
             ],
             'layout': {
+              'icon-image': [
+                'coalesce',
+                ['get', 'parkingIconId'],
+                _parkingIconBoth,
+              ],
+              'icon-size': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                10,
+                0.85,
+                14,
+                1.0,
+                18,
+                1.15,
+              ],
+              'icon-allow-overlap': true,
+              'icon-ignore-placement': true,
               'text-field': [
                 'coalesce',
                 ['get', 'labelText'],
-                'P',
+                'PARKING',
               ],
               'text-size': [
                 'interpolate',
@@ -1062,7 +1147,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
                 18,
                 22,
               ],
-              'text-anchor': 'center',
+              'text-anchor': 'top',
+              'text-offset': [0, 1.45],
               'text-allow-overlap': true,
               'text-ignore-placement': true,
             },
@@ -1088,6 +1174,29 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             true,
           ],
         ]),
+      ]);
+      map.callMethod('setLayoutProperty', [
+        _poiZoneLabelLayerId,
+        'icon-image',
+        js.JsObject.jsify([
+          'coalesce',
+          ['get', 'parkingIconId'],
+          _parkingIconBoth,
+        ]),
+      ]);
+      map.callMethod('setLayoutProperty', [
+        _poiZoneLabelLayerId,
+        'text-field',
+        js.JsObject.jsify([
+          'coalesce',
+          ['get', 'labelText'],
+          'PARKING',
+        ]),
+      ]);
+      map.callMethod('setLayoutProperty', [
+        _poiZoneLabelLayerId,
+        'text-offset',
+        js.JsObject.jsify([0, 1.45]),
       ]);
     } catch (_) {
       // ignore
@@ -1182,6 +1291,44 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     if (!has(_patDots)) {
       add(_patDots, _buildDotsPatternCanvas());
     }
+    if (!has(_parkingIconCar)) {
+      add(_parkingIconCar, _buildParkingBitmapCanvas(_parkingCarBitmap));
+    }
+    if (!has(_parkingIconMoto)) {
+      add(_parkingIconMoto, _buildParkingBitmapCanvas(_parkingMotoBitmap));
+    }
+    if (!has(_parkingIconBoth)) {
+      add(
+        _parkingIconBoth,
+        _buildParkingBitmapCanvas([
+          for (var i = 0; i < _parkingCarBitmap.length; i++)
+            '${_parkingCarBitmap[i]}..${_parkingMotoBitmap[i]}',
+        ]),
+      );
+    }
+  }
+
+  html.CanvasElement _buildParkingBitmapCanvas(List<String> bitmap) {
+    const scale = 2;
+    final width = bitmap.first.length * scale;
+    final height = bitmap.length * scale;
+    final c = html.CanvasElement(width: width, height: height);
+    final ctx = c.context2D;
+    ctx.clearRect(0, 0, width.toDouble(), height.toDouble());
+    ctx.fillStyle = '#FFFFFF';
+    for (var y = 0; y < bitmap.length; y++) {
+      final row = bitmap[y];
+      for (var x = 0; x < row.length; x++) {
+        if (row[x] != '#') continue;
+        ctx.fillRect(
+          (x * scale).toDouble(),
+          (y * scale).toDouble(),
+          scale.toDouble(),
+          scale.toDouble(),
+        );
+      }
+    }
+    return c;
   }
 
   html.CanvasElement _buildDiagPatternCanvas() {

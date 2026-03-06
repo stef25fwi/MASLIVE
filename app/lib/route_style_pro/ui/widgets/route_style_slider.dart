@@ -24,7 +24,18 @@ class RouteStyleSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final clamped = value.clamp(min, max);
+    final step = divisions != null && divisions! > 0
+        ? (max - min) / divisions!
+        : (decimals > 0 ? 1 / (decimals * 10) : 1.0);
+
+    void nudge(double delta) {
+      final next = (clamped + delta).clamp(min, max);
+      if ((next - clamped).abs() < 0.0000001) return;
+      onChanged(next);
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -42,13 +53,37 @@ class RouteStyleSlider extends StatelessWidget {
             ),
           ],
         ),
-        Slider(
-          value: clamped,
-          min: min,
-          max: max,
-          divisions: divisions,
-          label: '${clamped.toStringAsFixed(decimals)}$unit',
-          onChanged: onChanged,
+        Row(
+          children: [
+            IconButton.outlined(
+              tooltip: 'Diminuer $label',
+              visualDensity: VisualDensity.compact,
+              onPressed: clamped <= min ? null : () => nudge(-step),
+              icon: const Icon(Icons.remove_rounded, size: 18),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Slider(
+                value: clamped,
+                min: min,
+                max: max,
+                divisions: divisions,
+                label: '${clamped.toStringAsFixed(decimals)}$unit',
+                onChanged: onChanged,
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton.outlined(
+              tooltip: 'Augmenter $label',
+              visualDensity: VisualDensity.compact,
+              onPressed: clamped >= max ? null : () => nudge(step),
+              icon: Icon(
+                Icons.add_rounded,
+                size: 18,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ],
         ),
       ],
     );

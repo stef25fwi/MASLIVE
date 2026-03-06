@@ -6,6 +6,7 @@ import 'dart:math' as math;
 import '../services/mapbox_token_service.dart';
 import '../ui/map/maslive_map.dart';
 import '../ui/map/maslive_map_controller.dart';
+import '../ui/widgets/glass_scrollbar.dart';
 import '../ui_kit/glass/glass_panel.dart';
 import '../ui_kit/tokens/maslive_tokens.dart';
 
@@ -237,6 +238,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   bool get _isMapInteracting => _mapPointerCount > 0;
 
   final MasLiveMapController _mapController = MasLiveMapController();
+  final ScrollController _scrollController = ScrollController();
   bool _isMapReady = false;
 
   Timer? _cameraWatchTimer;
@@ -455,6 +457,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     widget.controller?._detach();
     _cameraWatchTimer?.cancel();
     _cameraWatchTimer = null;
+    _scrollController.dispose();
     _mapController.dispose();
     super.dispose();
   }
@@ -849,6 +852,17 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   Widget build(BuildContext context) {
     final w = MediaQuery.sizeOf(context).width;
     final scale = (w / 390.0).clamp(0.85, 1.15);
+    const toolbarSectionStyle = TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w800,
+      color: MasliveTokens.text,
+      letterSpacing: 0.1,
+    );
+    final toolbarHintStyle = TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      color: MasliveTokens.textSoft,
+    );
 
     final header = widget.showHeader
         ? Padding(
@@ -897,7 +911,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
             ),
             child: GlassPanel(
               radius: MasliveTokens.rM,
-              opacity: 0.76,
+              opacity: 0.90,
               padding: const EdgeInsets.symmetric(
                 horizontal: MasliveTokens.s,
                 vertical: MasliveTokens.xs,
@@ -951,19 +965,11 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                         children: [
                           Text(
                             '${_points.length} points',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: MasliveTokens.text,
-                            ),
+                            style: toolbarSectionStyle,
                           ),
                           Text(
                             '${_totalDistance().toStringAsFixed(2)} km',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: MasliveTokens.textSoft,
-                            ),
+                            style: toolbarHintStyle,
                           ),
                         ],
                       ),
@@ -979,39 +985,43 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
       final screenH = MediaQuery.of(context).size.height;
       final mapH = widget.mapHeight ?? (screenH * 0.62).clamp(380.0, 820.0);
 
-      return SingleChildScrollView(
-        physics: _isMapInteracting
-            ? const NeverScrollableScrollPhysics()
-            : null,
-        child: Column(
-          children: [
-            if (widget.showHeader) header,
-            if (_showToolbar && widget.showToolbar) toolbar,
-            SizedBox(
-              height: mapH,
-              child: Listener(
-                behavior: HitTestBehavior.opaque,
-                onPointerDown: (_) {
-                  if (!mounted) return;
-                  setState(() => _mapPointerCount++);
-                },
-                onPointerUp: (_) {
-                  if (!mounted) return;
-                  setState(
-                    () => _mapPointerCount = math.max(0, _mapPointerCount - 1),
-                  );
-                },
-                onPointerCancel: (_) {
-                  if (!mounted) return;
-                  setState(
-                    () => _mapPointerCount = math.max(0, _mapPointerCount - 1),
-                  );
-                },
-                child: _buildMap(),
+      return GlassScrollbar(
+        controller: _scrollController,
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          physics: _isMapInteracting
+              ? const NeverScrollableScrollPhysics()
+              : null,
+          child: Column(
+            children: [
+              if (widget.showHeader) header,
+              if (_showToolbar && widget.showToolbar) toolbar,
+              SizedBox(
+                height: mapH,
+                child: Listener(
+                  behavior: HitTestBehavior.opaque,
+                  onPointerDown: (_) {
+                    if (!mounted) return;
+                    setState(() => _mapPointerCount++);
+                  },
+                  onPointerUp: (_) {
+                    if (!mounted) return;
+                    setState(
+                      () => _mapPointerCount = math.max(0, _mapPointerCount - 1),
+                    );
+                  },
+                  onPointerCancel: (_) {
+                    if (!mounted) return;
+                    setState(
+                      () => _mapPointerCount = math.max(0, _mapPointerCount - 1),
+                    );
+                  },
+                  child: _buildMap(),
+                ),
               ),
-            ),
-            _buildPointsSection(),
-          ],
+              _buildPointsSection(),
+            ],
+          ),
         ),
       );
     }
@@ -1041,7 +1051,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
         ),
         child: GlassPanel(
           radius: MasliveTokens.rM,
-          opacity: 0.74,
+          opacity: 0.82,
           padding: const EdgeInsets.fromLTRB(
             MasliveTokens.m,
             MasliveTokens.s,
@@ -1078,7 +1088,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
       ),
       child: GlassPanel(
         radius: MasliveTokens.rL,
-        opacity: 0.76,
+        opacity: 0.84,
         padding: const EdgeInsets.fromLTRB(
           0,
           MasliveTokens.s,
@@ -1195,6 +1205,10 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
       return PointerInterceptor(child: child);
     }
 
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final overlayTopInset =
+        widget.mapTopRightOverlay != null && screenWidth < 1180 ? 72.0 : 12.0;
+
     final token = MapboxTokenService.getTokenSync();
 
     if (token.isEmpty) {
@@ -1275,7 +1289,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
           child: interceptPointersIfNeeded(
             GlassPanel(
               radius: MasliveTokens.rM,
-              opacity: 0.76,
+              opacity: 0.90,
               padding: const EdgeInsets.symmetric(
                 horizontal: MasliveTokens.m,
                 vertical: MasliveTokens.xs,
@@ -1297,7 +1311,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
         if (widget.mapTopRightOverlay != null)
           Positioned(
             right: 12,
-            top: 12,
+            top: overlayTopInset,
             child: interceptPointersIfNeeded(widget.mapTopRightOverlay!),
           ),
       ],

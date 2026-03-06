@@ -59,6 +59,39 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   static const String _patDiag = 'maslive_pat_diag';
   static const String _patCross = 'maslive_pat_cross';
   static const String _patDots = 'maslive_pat_dots';
+  static const String _parkingIconCar = 'maslive_parking_car';
+  static const String _parkingIconMoto = 'maslive_parking_moto';
+  static const String _parkingIconBoth = 'maslive_parking_both';
+
+  static const List<String> _parkingCarBitmap = <String>[
+    '................',
+    '....######......',
+    '...########.....',
+    '..##########....',
+    '.###..##..###...',
+    '##############..',
+    '##############..',
+    '###........###..',
+    '##..........##..',
+    '.##........##...',
+    '..##......##....',
+    '...#......#.....',
+  ];
+
+  static const List<String> _parkingMotoBitmap = <String>[
+    '................',
+    '......##........',
+    '.....####.......',
+    '....######......',
+    '..##########....',
+    '.####.##.####...',
+    '##...####...##..',
+    '##..######..##..',
+    '.##.#....#.##...',
+    '..###....###....',
+    '...#......#.....',
+    '................',
+  ];
 
   // Route (style layers) pour support segments (Style Pro)
   static const String _routeSourceId = 'maslive_polyline';
@@ -946,9 +979,17 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       await map.style.setStyleLayerProperty(_poiLineLayerId, 'filter', [
         'all',
         [
-          '==',
-          ['geometry-type'],
-          'Polygon',
+          'any',
+          [
+            '==',
+            ['geometry-type'],
+            'Polygon',
+          ],
+          [
+            '==',
+            ['get', 'isPreviewEdge'],
+            true,
+          ],
         ],
         [
           'any',
@@ -1137,10 +1178,10 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         CircleLayer(
           id: _poiPreviewVertexLayerId,
           sourceId: _poiSourceId,
-          circleRadius: 5.0,
-          circleColor: 0x00000000,
+          circleRadius: 6.0,
+          circleColor: 0xFFFFFFFF,
           circleStrokeColor: _poiStyle.circleStrokeColor.toARGB32(),
-          circleStrokeWidth: 2.0,
+          circleStrokeWidth: 2.5,
         ),
       );
       await map.style.setStyleLayerProperty(
@@ -1162,6 +1203,24 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       );
       await map.style.setStyleLayerProperty(
         _poiPreviewVertexLayerId,
+        'circle-color',
+        [
+          'coalesce',
+          ['get', 'fillColor'],
+          0xFFFFFFFF,
+        ],
+      );
+      await map.style.setStyleLayerProperty(
+        _poiPreviewVertexLayerId,
+        'circle-stroke-width',
+        [
+          'coalesce',
+          ['get', 'strokeWidth'],
+          2.5,
+        ],
+      );
+      await map.style.setStyleLayerProperty(
+        _poiPreviewVertexLayerId,
         'circle-stroke-color',
         [
           'coalesce',
@@ -1173,7 +1232,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       // ignore
     }
 
-    // Labels de zones parking ("P"): SymbolLayer, taille dépendante du zoom.
+    // Labels de zones parking: pictogramme + texte, taille dépendante du zoom.
     try {
       await map.style.addLayer(
         SymbolLayer(
@@ -1196,11 +1255,45 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       ]);
       await map.style.setStyleLayerProperty(
         _poiZoneLabelLayerId,
+        'icon-image',
+        [
+          'coalesce',
+          ['get', 'parkingIconId'],
+          _parkingIconBoth,
+        ],
+      );
+      await map.style.setStyleLayerProperty(
+        _poiZoneLabelLayerId,
+        'icon-size',
+        [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          10,
+          0.85,
+          14,
+          1.0,
+          18,
+          1.15,
+        ],
+      );
+      await map.style.setStyleLayerProperty(
+        _poiZoneLabelLayerId,
+        'icon-allow-overlap',
+        true,
+      );
+      await map.style.setStyleLayerProperty(
+        _poiZoneLabelLayerId,
+        'icon-ignore-placement',
+        true,
+      );
+      await map.style.setStyleLayerProperty(
+        _poiZoneLabelLayerId,
         'text-field',
         [
           'coalesce',
           ['get', 'labelText'],
-          'P',
+          'PARKING',
         ],
       );
       await map.style.setStyleLayerProperty(
@@ -1221,7 +1314,12 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       await map.style.setStyleLayerProperty(
         _poiZoneLabelLayerId,
         'text-anchor',
-        'center',
+        'top',
+      );
+      await map.style.setStyleLayerProperty(
+        _poiZoneLabelLayerId,
+        'text-offset',
+        [0, 1.45],
       );
       await map.style.setStyleLayerProperty(
         _poiZoneLabelLayerId,
@@ -1602,10 +1700,58 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       await add(_patDiag, _buildPatternDiagImage());
       await add(_patCross, _buildPatternCrossImage());
       await add(_patDots, _buildPatternDotsImage());
+      await add(_parkingIconCar, _buildParkingBitmapImage(_parkingCarBitmap));
+      await add(
+        _parkingIconMoto,
+        _buildParkingBitmapImage(_parkingMotoBitmap),
+      );
+      await add(
+        _parkingIconBoth,
+        _buildParkingBitmapImage([
+          for (var i = 0; i < _parkingCarBitmap.length; i++)
+            '${_parkingCarBitmap[i]}..${_parkingMotoBitmap[i]}',
+        ]),
+      );
       _patternImagesReady = true;
     } catch (_) {
       // ignore
     }
+  }
+
+  MbxImage _buildParkingBitmapImage(List<String> bitmap) {
+    const scale = 2;
+    final w = bitmap.first.length * scale;
+    final h = bitmap.length * scale;
+    final data = Uint8List(w * h * 4);
+
+    void setPx(int x, int y, int r, int g, int b, int a) {
+      final idx = (y * w + x) * 4;
+      data[idx] = r;
+      data[idx + 1] = g;
+      data[idx + 2] = b;
+      data[idx + 3] = a;
+    }
+
+    for (var y = 0; y < bitmap.length; y++) {
+      final row = bitmap[y];
+      for (var x = 0; x < row.length; x++) {
+        final on = row[x] == '#';
+        for (var dy = 0; dy < scale; dy++) {
+          for (var dx = 0; dx < scale; dx++) {
+            setPx(
+              x * scale + dx,
+              y * scale + dy,
+              255,
+              255,
+              255,
+              on ? 255 : 0,
+            );
+          }
+        }
+      }
+    }
+
+    return MbxImage(width: w, height: h, data: data);
   }
 
   MbxImage _buildPatternDiagImage() {

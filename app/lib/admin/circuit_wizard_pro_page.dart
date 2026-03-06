@@ -101,9 +101,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   Widget _wrapWizardStep(Widget child) {
     return Column(
       children: [
-        const SizedBox(height: MasliveTokens.s),
+        const SizedBox(height: MasliveTokens.m),
         _buildWizardStepper(),
-        const SizedBox(height: MasliveTokens.s),
+        const SizedBox(height: MasliveTokens.m),
         Expanded(child: child),
       ],
     );
@@ -231,9 +231,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   // Parking: style de zone (fond/couleur/texture)
   static const String _parkingZoneStyleKey = 'perimeterStyle';
+  static const String _parkingZoneVehiclesKey = 'vehicleTypes';
   static const double _parkingZoneDefaultFillOpacity = 0.20;
   static const double _parkingZoneDefaultStrokeWidth = 2.0;
   static const double _parkingZoneDefaultPatternOpacity = 0.55;
+  Set<String> _parkingZoneVehicleTypes = <String>{'car', 'moto'};
   String _parkingZoneFillColorHex = '#FBBF24';
   String _parkingZoneStrokeColorHex = '#FBBF24';
   bool _parkingZoneStrokeFollowsFill = true;
@@ -259,6 +261,51 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       _parkingZonePattern = 'none';
       _parkingZonePatternOpacity = _parkingZoneDefaultPatternOpacity;
       _parkingZoneColorController.text = fillHex;
+      _poiInlineError = null;
+    });
+    _refreshPoiMarkers();
+  }
+
+  Set<String> _normalizeParkingVehicleTypes(Iterable<String> raw) {
+    final normalized = raw
+        .map((e) => e.trim().toLowerCase())
+        .where((e) => e == 'car' || e == 'moto')
+        .toSet();
+    return normalized.isEmpty ? <String>{'car', 'moto'} : normalized;
+  }
+
+  Set<String> _parkingZoneVehicleTypesFromMetadata(MarketMapPOI poi) {
+    final meta = poi.metadata;
+    final raw = meta?[_parkingZoneVehiclesKey];
+    if (raw is Iterable) {
+      return _normalizeParkingVehicleTypes(raw.whereType<String>());
+    }
+    return <String>{'car', 'moto'};
+  }
+
+  String _parkingZoneLabelText(Set<String> vehicleTypes) {
+    return 'PARKING';
+  }
+
+  String _parkingZoneSymbolImageId(Set<String> vehicleTypes) {
+    final normalized = _normalizeParkingVehicleTypes(vehicleTypes);
+    if (normalized.length == 2) return 'maslive_parking_both';
+    if (normalized.contains('moto')) return 'maslive_parking_moto';
+    return 'maslive_parking_car';
+  }
+
+  void _toggleParkingZoneVehicleType(String type) {
+    final normalized = type.trim().toLowerCase();
+    if (normalized != 'car' && normalized != 'moto') return;
+    setState(() {
+      final next = <String>{..._parkingZoneVehicleTypes};
+      if (next.contains(normalized)) {
+        if (next.length == 1) return;
+        next.remove(normalized);
+      } else {
+        next.add(normalized);
+      }
+      _parkingZoneVehicleTypes = _normalizeParkingVehicleTypes(next);
       _poiInlineError = null;
     });
     _refreshPoiMarkers();
@@ -2200,15 +2247,31 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         : _routeEditorController;
 
     final isRouteAndStyleStep = !isPerimeter;
+    const toolbarSectionStyle = TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w800,
+      color: MasliveTokens.text,
+      letterSpacing: 0.1,
+    );
+    const toolbarValueStyle = TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      color: MasliveTokens.text,
+    );
+    final toolbarHintStyle = TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      color: MasliveTokens.textSoft,
+    );
 
     Widget content = ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 520),
+      constraints: const BoxConstraints(maxWidth: 620),
       child: GlassPanel(
         radius: MasliveTokens.rM,
-        opacity: 0.76,
+        opacity: 0.92,
         padding: const EdgeInsets.symmetric(
-          horizontal: MasliveTokens.s,
-          vertical: MasliveTokens.xs,
+          horizontal: MasliveTokens.m,
+          vertical: MasliveTokens.s,
         ),
         child: AnimatedBuilder(
           animation: controller,
@@ -2225,6 +2288,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
             return SingleChildScrollView(
               scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 2),
               child: Row(
                 children: [
                   IconButton(
@@ -2232,12 +2296,18 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     onPressed: controller.canUndo ? controller.undo : null,
                     tooltip: 'Annuler',
                   ),
+                  const SizedBox(width: 4),
                   IconButton(
                     icon: const Icon(Icons.redo),
                     onPressed: controller.canRedo ? controller.redo : null,
                     tooltip: 'Rétablir',
                   ),
-                  const VerticalDivider(),
+                  const SizedBox(width: 12),
+                  const SizedBox(
+                    height: 28,
+                    child: VerticalDivider(),
+                  ),
+                  const SizedBox(width: 12),
 
                   if (isPerimeter && !_perimeterCircleMode)
                     IconButton(
@@ -2248,9 +2318,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       tooltip: 'Fermer le polygone',
                     ),
                   if (isPerimeter) ...[
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 8),
                     FilterChip(
                       label: const Text('Boucle fermée'),
+                      labelStyle: toolbarValueStyle,
                       selected: perimeterIsLooped,
                       shape: StadiumBorder(
                         side: BorderSide(color: MasliveTokens.borderSoft),
@@ -2270,9 +2341,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                               }
                             },
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
                     FilterChip(
                       label: const Text('Cercle'),
+                      labelStyle: toolbarValueStyle,
                       selected: _perimeterCircleMode,
                       shape: StadiumBorder(
                         side: BorderSide(color: MasliveTokens.borderSoft),
@@ -2308,7 +2380,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       },
                     ),
                     if (_perimeterCircleMode) ...[
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       IconButton(
                         tooltip: 'Réduire diamètre',
                         icon: const Icon(Icons.remove_circle_outline),
@@ -2326,8 +2398,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       ),
                       Text(
                         'Ø ${_formatMeters(_perimeterCircleDiameterMeters)}',
-                        style: const TextStyle(fontSize: 12),
+                        style: toolbarValueStyle,
                       ),
+                      const SizedBox(width: 4),
                       IconButton(
                         tooltip: 'Augmenter diamètre',
                         icon: const Icon(Icons.add_circle_outline),
@@ -2347,15 +2420,17 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   ],
 
                   if (isPerimeter) ...[
-                    const VerticalDivider(),
+                    const SizedBox(width: 14),
+                    const SizedBox(
+                      height: 28,
+                      child: VerticalDivider(),
+                    ),
+                    const SizedBox(width: 14),
                     const Text(
                       'Caméra',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                      ),
+                      style: toolbarSectionStyle,
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 10),
 
                     IconButton(
                       tooltip: 'Zoom initial -',
@@ -2379,7 +2454,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     ),
                     Text(
                       'Init ${_perimeterCameraInitialZoom.toStringAsFixed(1)}',
-                      style: const TextStyle(fontSize: 12),
+                      style: toolbarValueStyle,
                     ),
                     IconButton(
                       tooltip: 'Zoom initial +',
@@ -2401,7 +2476,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                         });
                       },
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 14),
 
                     IconButton(
                       tooltip: 'Seuil tilt -',
@@ -2418,7 +2493,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     ),
                     Text(
                       'Seuil ${_perimeterCameraPitchZoomThreshold.toStringAsFixed(1)}',
-                      style: const TextStyle(fontSize: 12),
+                      style: toolbarValueStyle,
                     ),
                     IconButton(
                       tooltip: 'Seuil tilt +',
@@ -2433,7 +2508,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                         });
                       },
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 14),
 
                     IconButton(
                       tooltip: 'Pitch -',
@@ -2450,7 +2525,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     ),
                     Text(
                       'Pitch ${_perimeterCameraPitchDegrees.toStringAsFixed(0)}°',
-                      style: const TextStyle(fontSize: 12),
+                      style: toolbarValueStyle,
                     ),
                     IconButton(
                       tooltip: 'Pitch +',
@@ -2465,7 +2540,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                         });
                       },
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 14),
 
                     IconButton(
                       tooltip: 'Zoom max -',
@@ -2487,7 +2562,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     ),
                     Text(
                       'Max ${_perimeterCameraMaxZoom.toStringAsFixed(1)}',
-                      style: const TextStyle(fontSize: 12),
+                      style: toolbarValueStyle,
                     ),
                     IconButton(
                       tooltip: 'Zoom max +',
@@ -2516,6 +2591,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                         : null,
                     tooltip: 'Inverser sens',
                   ),
+                  const SizedBox(width: 4),
                   IconButton(
                     icon: const Icon(Icons.compress_rounded),
                     onPressed: controller.pointCount >= 3
@@ -2525,6 +2601,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   ),
 
                   if (isRouteAndStyleStep) ...[
+                    const SizedBox(width: 8),
                     IconButton(
                       icon: _isSnappingRoute
                           ? const SizedBox(
@@ -2540,7 +2617,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       tooltip: 'Snap sur route (Waze)',
                     ),
 
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 10),
                     ToggleButtons(
                       isSelected: [routeIsLooped, !routeIsLooped],
                       borderRadius: BorderRadius.circular(10),
@@ -2554,14 +2631,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                               }
                             }
                           : null,
-                      children: const [
+                      children: [
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 10),
                           child: Row(
                             children: [
                               Icon(Icons.loop_rounded, size: 18),
                               SizedBox(width: 6),
-                              Text('Boucler', style: TextStyle(fontSize: 12)),
+                              Text('Boucler', style: toolbarValueStyle),
                             ],
                           ),
                         ),
@@ -2571,7 +2648,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                             children: [
                               Icon(Icons.flag_rounded, size: 18),
                               SizedBox(width: 6),
-                              Text('Arrivée', style: TextStyle(fontSize: 12)),
+                              Text('Arrivée', style: toolbarValueStyle),
                             ],
                           ),
                         ),
@@ -2585,34 +2662,38 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                         : null,
                     tooltip: 'Effacer tous',
                   ),
-                  const VerticalDivider(),
+                  const SizedBox(width: 14),
+                  const SizedBox(
+                    height: 28,
+                    child: VerticalDivider(),
+                  ),
+                  const SizedBox(width: 14),
 
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           '${controller.pointCount} points',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: toolbarSectionStyle,
                         ),
                         Text(
                           '${controller.distanceKm.toStringAsFixed(2)} km',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey,
-                          ),
+                          style: toolbarHintStyle,
                         ),
                       ],
                     ),
                   ),
 
                   if (isRouteAndStyleStep) ...[
-                    const VerticalDivider(),
+                    const SizedBox(width: 14),
+                    const SizedBox(
+                      height: 28,
+                      child: VerticalDivider(),
+                    ),
+                    const SizedBox(width: 14),
                     _buildRouteStyleControls(),
                   ],
                 ],
@@ -2732,6 +2813,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   Widget _buildRouteStyleControls() {
     final colorScheme = Theme.of(context).colorScheme;
+    final toolLabelStyle = TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      color: MasliveTokens.textSoft,
+    );
     final colors = <String, String>{
       '#1A73E8': 'Bleu',
       '#34A853': 'Vert',
@@ -2769,11 +2855,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               ),
           ],
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.color_lens, color: colorScheme.onSurface),
+                const SizedBox(width: 6),
+                Text('Couleur', style: toolLabelStyle),
                 const SizedBox(width: 6),
                 Container(
                   width: 12,
@@ -2792,27 +2880,20 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           ),
         ),
 
+        const SizedBox(width: 10),
         SizedBox(
-          width: 140,
-          child: Row(
-            children: [
-              const Text(
-                'L',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-              ),
-              Expanded(
-                child: Slider(
-                  value: _routeWidth.clamp(2.0, 18.0),
-                  min: 2.0,
-                  max: 18.0,
-                  divisions: 16,
-                  label: _routeWidth.toStringAsFixed(0),
-                  onChanged: (v) {
-                    setState(() => _routeWidth = v);
-                  },
-                ),
-              ),
-            ],
+          width: 244,
+          child: _buildCompactToolbarAdjuster(
+            label: 'Largeur',
+            value: _routeWidth,
+            min: 2.0,
+            max: 18.0,
+            divisions: 16,
+            displayValue: _routeWidth.toStringAsFixed(0),
+            labelStyle: toolLabelStyle,
+            onChanged: (v) {
+              setState(() => _routeWidth = v);
+            },
           ),
         ),
 
@@ -2837,7 +2918,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           ),
         ),
         Container(
-          margin: const EdgeInsets.symmetric(horizontal: 2),
+          margin: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
             color: _routeShowDirection
                 ? proBlue.withValues(alpha: 0.10)
@@ -2887,26 +2968,18 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
         if (_routeAnimateDirection)
           SizedBox(
-            width: 160,
-            child: Row(
-              children: [
-                const Text(
-                  'V',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-                Expanded(
-                  child: Slider(
-                    value: _routeAnimationSpeed.clamp(0.5, 5.0),
-                    min: 0.5,
-                    max: 5.0,
-                    divisions: 9,
-                    label: _routeAnimationSpeed.toStringAsFixed(1),
-                    onChanged: (v) {
-                      setState(() => _routeAnimationSpeed = v);
-                    },
-                  ),
-                ),
-              ],
+            width: 260,
+            child: _buildCompactToolbarAdjuster(
+              label: 'Vitesse',
+              value: _routeAnimationSpeed,
+              min: 0.5,
+              max: 5.0,
+              divisions: 9,
+              displayValue: _routeAnimationSpeed.toStringAsFixed(1),
+              labelStyle: toolLabelStyle,
+              onChanged: (v) {
+                setState(() => _routeAnimationSpeed = v);
+              },
             ),
           ),
       ],
@@ -2958,6 +3031,22 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     _ensurePoiInitialCamera();
 
     Widget buildPoiToolsPanel({required List<MarketMapLayer> poiLayers}) {
+      const panelTitleStyle = TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w800,
+        color: MasliveTokens.text,
+      );
+      const panelValueStyle = TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: MasliveTokens.text,
+      );
+      final panelHintStyle = TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: MasliveTokens.textSoft,
+      );
+
       IconButton toolButton({
         required Widget icon,
         required String tooltip,
@@ -2967,30 +3056,41 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           onPressed: onPressed,
           tooltip: tooltip,
           icon: icon,
+          style: IconButton.styleFrom(
+            foregroundColor: MasliveTokens.text,
+            backgroundColor: Colors.white.withValues(alpha: 0.74),
+            disabledBackgroundColor: Colors.white.withValues(alpha: 0.34),
+            disabledForegroundColor: MasliveTokens.textSoft.withValues(
+              alpha: 0.5,
+            ),
+          ),
         );
       }
 
       return GlassPanel(
         radius: MasliveTokens.rL,
-        opacity: 0.78,
-        padding: const EdgeInsets.all(12),
+        opacity: 0.90,
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
-                Icon(Icons.place_outlined, color: MasliveTokens.textSoft),
+                Icon(Icons.place_outlined, color: MasliveTokens.primary),
                 const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
                     'Points d\'intérêt (POI)',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: MasliveTokens.text,
-                    ),
+                    style: panelTitleStyle,
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
                 toolButton(
                   icon: const Icon(Icons.edit_location_alt_rounded),
                   tooltip: 'Ajouter un POI (coordonnées manuelles)',
@@ -2998,7 +3098,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       (_selectedLayer == null || _pois.length >= _poiLimit)
                       ? null
                       : () {
-                          // Pré-remplissage simple (l'utilisateur peut ajuster).
                           double lng;
                           double lat;
                           if (_routePoints.isNotEmpty) {
@@ -3057,7 +3156,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 10),
             if (_selectedLayer?.type == 'parking' && _isDrawingParkingZone)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -3066,13 +3165,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     Expanded(
                       child: Text(
                         'Zone parking: ${_parkingZonePoints.length} points (tap sur la carte)',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: MasliveTokens.text,
-                        ),
+                        style: panelValueStyle,
                       ),
                     ),
+                    TextButton(
+                      onPressed: _parkingZonePoints.isEmpty
+                          ? null
+                          : _removeLastParkingZonePoint,
+                      child: const Text('Retirer le dernier point'),
+                    ),
+                    const SizedBox(width: 6),
                     TextButton(
                       onPressed: _cancelParkingZoneDrawing,
                       child: const Text('Annuler'),
@@ -3093,7 +3195,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   'POI: ${_pois.length}/$_poiLimit',
                   style: TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: _pois.length >= _poiLimit
                         ? Colors.redAccent
                         : (_pois.length >= (_poiLimit * 0.9)
@@ -3121,7 +3223,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 padding: EdgeInsets.only(top: 4),
                 child: Text(
                   'Limite atteinte: supprime des POI pour continuer.',
-                  style: TextStyle(fontSize: 12, color: Colors.redAccent),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.redAccent,
+                  ),
                 ),
               ),
             const SizedBox(height: 10),
@@ -3151,14 +3257,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 children: [
                   const Text(
                     'Catégorie: ',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    style: panelValueStyle,
                   ),
                   Expanded(
                     child: Text(
                       _selectedLayer?.label ?? 'Choisissez une catégorie',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12),
+                      style: panelHintStyle,
                     ),
                   ),
                 ],
@@ -3166,7 +3272,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             else
               const Text(
                 'Aucune couche trouvée. Vérifiez la configuration du projet.',
-                style: TextStyle(fontSize: 12, color: Colors.redAccent),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.redAccent,
+                ),
               ),
             if (_selectedLayer != null) ...[
               const SizedBox(height: 10),
@@ -3175,15 +3285,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 initiallyExpanded: true,
                 title: Text(
                   'POI de la couche: ${_selectedLayer!.label}',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: MasliveTokens.text,
-                  ),
+                  style: panelValueStyle,
                 ),
                 subtitle: Text(
                   '${_pois.where((p) => _poiMatchesSelectedLayer(p, _selectedLayer!)).length} POI',
-                  style: TextStyle(fontSize: 12, color: MasliveTokens.textSoft),
+                  style: panelHintStyle,
                 ),
                 children: [
                   ConstrainedBox(
@@ -3457,6 +3563,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       _poiEditingPoi = null;
       _poiInlineError = null;
       _poiInlineNameController.text = '';
+      _parkingZoneVehicleTypes = <String>{'car', 'moto'};
 
       _parkingZoneFillColorHex = defaultHex;
       _parkingZoneStrokeColorHex = defaultHex;
@@ -3499,6 +3606,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       _poiInlineLngController.text = poi.lng.toStringAsFixed(6);
 
       if (style != null) {
+        _parkingZoneVehicleTypes = _parkingZoneVehicleTypesFromMetadata(poi);
         _parkingZoneFillColorHex =
             style['fillColor'] as String? ??
             _normalizeColorHex(_selectedLayer?.color) ??
@@ -4062,6 +4170,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         // Label “P” au centre pour les zones parking.
         if (poi.layerType == 'parking') {
           final c = _centroidOf(perimeter);
+          final vehicleTypes = _parkingZoneVehicleTypesFromMetadata(poi);
           features.add(<String, dynamic>{
             'type': 'Feature',
             'id': '${poi.id}__zone_label',
@@ -4070,7 +4179,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               'layerId': poi.layerType,
               'title': poi.name,
               'isZoneLabel': true,
-              'labelText': 'P',
+              'labelText': _parkingZoneLabelText(vehicleTypes),
+              'parkingIconId': _parkingZoneSymbolImageId(vehicleTypes),
             },
             'geometry': <String, dynamic>{
               'type': 'Point',
@@ -4116,11 +4226,35 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             'title': 'Point zone parking',
             'isPreview': true,
             'isPreviewVertex': true,
+            'fillColor': '#FFFFFF',
             'strokeColor': previewFill,
+            'strokeWidth': 2.5,
           },
           'geometry': <String, dynamic>{
             'type': 'Point',
             'coordinates': <double>[p.lng, p.lat],
+          },
+        });
+      }
+
+      if (previewParkingZonePoints.length >= 2) {
+        features.add(<String, dynamic>{
+          'type': 'Feature',
+          'id': '__preview_parking_path__',
+          'properties': <String, dynamic>{
+            'poiId': '__preview_parking_path__',
+            'layerId': 'parking',
+            'title': 'Tracé zone parking',
+            'isPreview': true,
+            'isPreviewEdge': true,
+            'strokeColor': previewFill,
+            'strokeWidth': 2.5,
+          },
+          'geometry': <String, dynamic>{
+            'type': 'LineString',
+            'coordinates': [
+              for (final p in previewParkingZonePoints) <double>[p.lng, p.lat],
+            ],
           },
         });
       }
@@ -4173,7 +4307,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         },
       });
 
-      // Label “P” preview au centre.
+      // Label preview au centre.
       final c = _centroidOf(previewParkingZonePoints);
       features.add(<String, dynamic>{
         'type': 'Feature',
@@ -4184,7 +4318,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           'title': 'Zone parking (aperçu)',
           'isPreview': true,
           'isZoneLabel': true,
-          'labelText': 'P',
+          'labelText': _parkingZoneLabelText(_parkingZoneVehicleTypes),
+          'parkingIconId': _parkingZoneSymbolImageId(_parkingZoneVehicleTypes),
         },
         'geometry': <String, dynamic>{
           'type': 'Point',
@@ -4299,6 +4434,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     setState(() {
       _isDrawingParkingZone = true;
       _parkingZonePoints = <LngLat>[];
+      _parkingZoneVehicleTypes = <String>{'car', 'moto'};
 
       _parkingZoneFillColorHex = defaultHex;
       _parkingZoneFillOpacity = _parkingZoneDefaultFillOpacity;
@@ -4315,6 +4451,17 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     setState(() {
       _isDrawingParkingZone = false;
       _parkingZonePoints = <LngLat>[];
+    });
+    _refreshPoiMarkers();
+  }
+
+  void _removeLastParkingZonePoint() {
+    if (_parkingZonePoints.isEmpty) return;
+    setState(() {
+      _parkingZonePoints = _parkingZonePoints.sublist(
+        0,
+        _parkingZonePoints.length - 1,
+      );
     });
     _refreshPoiMarkers();
   }
@@ -4373,6 +4520,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         description: null,
         imageUrl: null,
         metadata: <String, dynamic>{
+          _parkingZoneVehiclesKey: _parkingZoneVehicleTypes.toList()..sort(),
           'perimeter': [
             for (final p in _parkingZonePoints) {'lng': p.lng, 'lat': p.lat},
           ],
@@ -4431,6 +4579,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             : (_normalizeColorHex(_parkingZoneStrokeColorHex) ?? fillHex);
         nextMetadata = <String, dynamic>{
           ...(poi.metadata ?? const <String, dynamic>{}),
+          _parkingZoneVehiclesKey: _parkingZoneVehicleTypes.toList()..sort(),
           _parkingZoneStyleKey: <String, dynamic>{
             'fillColor': fillHex,
             'fillOpacity': _parkingZoneFillOpacity.clamp(0.0, 1.0),
@@ -4564,6 +4713,64 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   ),
                 ),
                 const SizedBox(height: 12),
+                Text(
+                  'Types affichés sur la zone',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    FilterChip(
+                      selected: _parkingZoneVehicleTypes.contains('car'),
+                      onSelected: (_) => _toggleParkingZoneVehicleType('car'),
+                      avatar: Icon(
+                        Icons.directions_car_filled_rounded,
+                        size: 18,
+                        color: _parkingZoneVehicleTypes.contains('car')
+                            ? Colors.white
+                            : MasliveTokens.textSoft,
+                      ),
+                      label: Text(
+                        'Voiture',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: _parkingZoneVehicleTypes.contains('car')
+                              ? Colors.white
+                              : MasliveTokens.text,
+                        ),
+                      ),
+                      selectedColor: MasliveTokens.primary,
+                      checkmarkColor: Colors.white,
+                    ),
+                    FilterChip(
+                      selected: _parkingZoneVehicleTypes.contains('moto'),
+                      onSelected: (_) => _toggleParkingZoneVehicleType('moto'),
+                      avatar: Icon(
+                        Icons.two_wheeler_rounded,
+                        size: 18,
+                        color: _parkingZoneVehicleTypes.contains('moto')
+                            ? Colors.white
+                            : MasliveTokens.textSoft,
+                      ),
+                      label: Text(
+                        'Moto',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: _parkingZoneVehicleTypes.contains('moto')
+                              ? Colors.white
+                              : MasliveTokens.text,
+                        ),
+                      ),
+                      selectedColor: MasliveTokens.primary,
+                      checkmarkColor: Colors.white,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 TextField(
                   controller: _parkingZoneColorController,
                   onChanged: (v) {
@@ -4582,17 +4789,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  'Fond (opacité): ${(100 * _parkingZoneFillOpacity).round()}%',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                Slider(
-                  value: _parkingZoneFillOpacity.clamp(0.0, 1.0),
+                _buildFineAdjustSlider(
+                  label: 'Fond (opacité)',
+                  value: _parkingZoneFillOpacity,
                   min: 0.0,
                   max: 1.0,
                   divisions: 20,
+                  displayValue: '${(100 * _parkingZoneFillOpacity).round()}%',
                   onChanged: (v) {
                     setState(() {
                       _parkingZoneFillOpacity = v;
@@ -4602,17 +4805,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   },
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  'Contour (largeur): ${_parkingZoneStrokeWidth.toStringAsFixed(1)}',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                Slider(
-                  value: _parkingZoneStrokeWidth.clamp(1.0, 10.0),
+                _buildFineAdjustSlider(
+                  label: 'Contour (largeur)',
+                  value: _parkingZoneStrokeWidth,
                   min: 1.0,
                   max: 10.0,
                   divisions: 18,
+                  displayValue: _parkingZoneStrokeWidth.toStringAsFixed(1),
                   onChanged: (v) {
                     setState(() {
                       _parkingZoneStrokeWidth = v;
@@ -4688,17 +4887,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  'Texture intérieure (opacité): ${(100 * _parkingZonePatternOpacity.clamp(0.0, 1.0)).round()}%',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                Slider(
-                  value: _parkingZonePatternOpacity.clamp(0.0, 1.0),
+                _buildFineAdjustSlider(
+                  label: 'Texture intérieure (opacité)',
+                  value: _parkingZonePatternOpacity,
                   min: 0.0,
                   max: 1.0,
                   divisions: 20,
+                  displayValue:
+                      '${(100 * _parkingZonePatternOpacity.clamp(0.0, 1.0)).round()}%',
                   onChanged: _parkingZonePattern == 'none'
                       ? null
                       : (v) {
@@ -4779,6 +4975,132 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     }
 
     await _createPoiAt(lng: lng, lat: lat);
+  }
+
+  Widget _buildFineAdjustSlider({
+    required String label,
+    required double value,
+    required double min,
+    required double max,
+    required int? divisions,
+    required String displayValue,
+    required ValueChanged<double>? onChanged,
+  }) {
+    final clamped = value.clamp(min, max);
+    final step = divisions != null && divisions > 0
+        ? (max - min) / divisions
+        : 1.0;
+
+    void nudge(double delta) {
+      if (onChanged == null) return;
+      final next = (clamped + delta).clamp(min, max);
+      if ((next - clamped).abs() < 0.0000001) return;
+      onChanged(next);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '$label: $displayValue',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            IconButton.outlined(
+              tooltip: 'Diminuer $label',
+              visualDensity: VisualDensity.compact,
+              onPressed: onChanged == null || clamped <= min
+                  ? null
+                  : () => nudge(-step),
+              icon: const Icon(Icons.remove_rounded, size: 18),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Slider(
+                value: clamped,
+                min: min,
+                max: max,
+                divisions: divisions,
+                onChanged: onChanged,
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton.outlined(
+              tooltip: 'Augmenter $label',
+              visualDensity: VisualDensity.compact,
+              onPressed: onChanged == null || clamped >= max
+                  ? null
+                  : () => nudge(step),
+              icon: const Icon(Icons.add_rounded, size: 18),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompactToolbarAdjuster({
+    required String label,
+    required double value,
+    required double min,
+    required double max,
+    required int divisions,
+    required String displayValue,
+    required TextStyle labelStyle,
+    required ValueChanged<double> onChanged,
+  }) {
+    final clamped = value.clamp(min, max);
+    final step = (max - min) / divisions;
+
+    void nudge(double delta) {
+      final next = (clamped + delta).clamp(min, max);
+      if ((next - clamped).abs() < 0.0000001) return;
+      onChanged(next);
+    }
+
+    return Row(
+      children: [
+        Text(label, style: labelStyle),
+        const SizedBox(width: 8),
+        IconButton.outlined(
+          tooltip: 'Diminuer $label',
+          visualDensity: VisualDensity.compact,
+          onPressed: clamped <= min ? null : () => nudge(-step),
+          icon: const Icon(Icons.remove_rounded, size: 16),
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Slider(
+            value: clamped,
+            min: min,
+            max: max,
+            divisions: divisions,
+            label: displayValue,
+            onChanged: onChanged,
+          ),
+        ),
+        const SizedBox(width: 4),
+        IconButton.outlined(
+          tooltip: 'Augmenter $label',
+          visualDensity: VisualDensity.compact,
+          onPressed: clamped >= max ? null : () => nudge(step),
+          icon: const Icon(Icons.add_rounded, size: 16),
+        ),
+        const SizedBox(width: 6),
+        SizedBox(
+          width: 28,
+          child: Text(
+            displayValue,
+            textAlign: TextAlign.right,
+            style: labelStyle,
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildStep7Validation() {

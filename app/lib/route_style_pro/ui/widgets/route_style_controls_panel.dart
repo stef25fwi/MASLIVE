@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../models/route_style_config.dart';
 import '../../models/route_style_preset.dart';
+import '../../../ui/widgets/glass_scrollbar.dart';
 import 'building_opacity_control.dart';
 import 'color_picker_tile.dart';
 import 'route_style_slider.dart';
 import 'toggle_tile.dart';
 
-class RouteStyleControlsPanel extends StatelessWidget {
+class RouteStyleControlsPanel extends StatefulWidget {
   final RouteStyleConfig config;
   final ValueChanged<RouteStyleConfig> onChanged;
 
@@ -28,19 +29,36 @@ class RouteStyleControlsPanel extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final cfg = config.validated();
+  State<RouteStyleControlsPanel> createState() =>
+      _RouteStyleControlsPanelState();
+}
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+class _RouteStyleControlsPanelState extends State<RouteStyleControlsPanel> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cfg = widget.config.validated();
+
+    return GlassScrollbar(
+      controller: _scrollController,
+      child: SingleChildScrollView(
+        controller: _scrollController,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
           Row(
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: onTestAutoRoute,
+                  onPressed: widget.onTestAutoRoute,
                   icon: const Icon(Icons.directions_car),
                   label: const Text('Tester sur un itinéraire auto'),
                 ),
@@ -48,7 +66,7 @@ class RouteStyleControlsPanel extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: onUseMyTrace,
+                  onPressed: widget.onUseMyTrace,
                   icon: const Icon(Icons.timeline),
                   label: const Text('Utiliser mon tracé'),
                 ),
@@ -64,7 +82,7 @@ class RouteStyleControlsPanel extends StatelessWidget {
               ToggleTile(
                 title: 'Mode voiture (snap + style route)',
                 value: cfg.carMode,
-                onChanged: (v) => onChanged(cfg.copyWith(carMode: v)),
+                onChanged: (v) => widget.onChanged(cfg.copyWith(carMode: v)),
               ),
               RouteStyleSlider(
                 label: 'Opacité',
@@ -74,7 +92,7 @@ class RouteStyleControlsPanel extends StatelessWidget {
                 divisions: 16,
                 unit: '',
                 decimals: 2,
-                onChanged: (v) => onChanged(cfg.copyWith(opacity: v)),
+                onChanged: (v) => widget.onChanged(cfg.copyWith(opacity: v)),
               ),
               const SizedBox(height: 6),
               _EnumDropdown<RouteLineCap>(
@@ -82,14 +100,14 @@ class RouteStyleControlsPanel extends StatelessWidget {
                 value: cfg.lineCap,
                 values: RouteLineCap.values,
                 labelFor: (v) => v.name,
-                onChanged: (v) => onChanged(cfg.copyWith(lineCap: v)),
+                onChanged: (v) => widget.onChanged(cfg.copyWith(lineCap: v)),
               ),
               _EnumDropdown<RouteLineJoin>(
                 label: 'Jonctions (join)',
                 value: cfg.lineJoin,
                 values: RouteLineJoin.values,
                 labelFor: (v) => v.name,
-                onChanged: (v) => onChanged(cfg.copyWith(lineJoin: v)),
+                onChanged: (v) => widget.onChanged(cfg.copyWith(lineJoin: v)),
               ),
             ],
           ),
@@ -105,7 +123,7 @@ class RouteStyleControlsPanel extends StatelessWidget {
                 divisions: 18,
                 unit: ' px',
                 decimals: 0,
-                onChanged: (v) => onChanged(cfg.copyWith(mainWidth: v)),
+                onChanged: (v) => widget.onChanged(cfg.copyWith(mainWidth: v)),
               ),
               RouteStyleSlider(
                 label: 'Largeur casing',
@@ -115,7 +133,7 @@ class RouteStyleControlsPanel extends StatelessWidget {
                 divisions: 30,
                 unit: ' px',
                 decimals: 0,
-                onChanged: (v) => onChanged(cfg.copyWith(casingWidth: v)),
+                onChanged: (v) => widget.onChanged(cfg.copyWith(casingWidth: v)),
               ),
               const SizedBox(height: 8),
               RouteStyleSlider(
@@ -126,7 +144,7 @@ class RouteStyleControlsPanel extends StatelessWidget {
                 divisions: 25,
                 unit: '×',
                 decimals: 2,
-                onChanged: (v) => onChanged(cfg.copyWith(widthScale3d: v)),
+                onChanged: (v) => widget.onChanged(cfg.copyWith(widthScale3d: v)),
               ),
               RouteStyleSlider(
                 label: 'Épaisseur (3D)',
@@ -136,7 +154,7 @@ class RouteStyleControlsPanel extends StatelessWidget {
                 divisions: 24,
                 unit: '×',
                 decimals: 2,
-                onChanged: (v) => onChanged(cfg.copyWith(thickness3d: v)),
+                onChanged: (v) => widget.onChanged(cfg.copyWith(thickness3d: v)),
               ),
               RouteStyleSlider(
                 label: 'Hauteur (3D)',
@@ -146,12 +164,12 @@ class RouteStyleControlsPanel extends StatelessWidget {
                 divisions: 40,
                 unit: ' px',
                 decimals: 0,
-                onChanged: (v) => onChanged(cfg.copyWith(elevationPx: v)),
+                onChanged: (v) => widget.onChanged(cfg.copyWith(elevationPx: v)),
               ),
               ToggleTile(
                 title: 'Côtés (faces latérales)',
                 value: cfg.sidesEnabled,
-                onChanged: (v) => onChanged(cfg.copyWith(sidesEnabled: v)),
+                onChanged: (v) => widget.onChanged(cfg.copyWith(sidesEnabled: v)),
               ),
               if (cfg.sidesEnabled)
                 RouteStyleSlider(
@@ -163,24 +181,24 @@ class RouteStyleControlsPanel extends StatelessWidget {
                   unit: '',
                   decimals: 2,
                   onChanged: (v) =>
-                      onChanged(cfg.copyWith(sidesIntensity: v)),
+                      widget.onChanged(cfg.copyWith(sidesIntensity: v)),
                 ),
               ColorPickerTile(
                 title: 'Couleur main',
                 color: cfg.mainColor,
-                onChanged: (c) => onChanged(cfg.copyWith(mainColor: c)),
+                onChanged: (c) => widget.onChanged(cfg.copyWith(mainColor: c)),
               ),
               ColorPickerTile(
                 title: 'Couleur casing',
                 color: cfg.casingColor,
                 onChanged: (c) =>
-                    onChanged(cfg.copyWith(casingColor: c, casingRainbowEnabled: false)),
+                    widget.onChanged(cfg.copyWith(casingColor: c, casingRainbowEnabled: false)),
               ),
 
               ToggleTile(
                 title: 'Rainbow casing',
                 value: cfg.casingRainbowEnabled,
-                onChanged: (v) => onChanged(cfg.copyWith(casingRainbowEnabled: v)),
+                onChanged: (v) => widget.onChanged(cfg.copyWith(casingRainbowEnabled: v)),
               ),
             ],
           ),
@@ -191,7 +209,7 @@ class RouteStyleControlsPanel extends StatelessWidget {
               ToggleTile(
                 title: 'Ombre',
                 value: cfg.shadowEnabled,
-                onChanged: (v) => onChanged(cfg.copyWith(shadowEnabled: v)),
+                onChanged: (v) => widget.onChanged(cfg.copyWith(shadowEnabled: v)),
               ),
               if (cfg.shadowEnabled) ...[
                 RouteStyleSlider(
@@ -201,7 +219,7 @@ class RouteStyleControlsPanel extends StatelessWidget {
                   max: 1,
                   divisions: 20,
                   decimals: 2,
-                  onChanged: (v) => onChanged(cfg.copyWith(shadowOpacity: v)),
+                  onChanged: (v) => widget.onChanged(cfg.copyWith(shadowOpacity: v)),
                 ),
                 RouteStyleSlider(
                   label: 'Blur ombre',
@@ -211,14 +229,14 @@ class RouteStyleControlsPanel extends StatelessWidget {
                   divisions: 20,
                   unit: ' px',
                   decimals: 0,
-                  onChanged: (v) => onChanged(cfg.copyWith(shadowBlur: v)),
+                  onChanged: (v) => widget.onChanged(cfg.copyWith(shadowBlur: v)),
                 ),
               ],
               const Divider(),
               ToggleTile(
                 title: 'Glow',
                 value: cfg.glowEnabled,
-                onChanged: (v) => onChanged(cfg.copyWith(glowEnabled: v)),
+                onChanged: (v) => widget.onChanged(cfg.copyWith(glowEnabled: v)),
               ),
               if (cfg.glowEnabled) ...[
                 RouteStyleSlider(
@@ -228,7 +246,8 @@ class RouteStyleControlsPanel extends StatelessWidget {
                   max: 1,
                   divisions: 20,
                   decimals: 2,
-                  onChanged: (v) => onChanged(cfg.copyWith(glowOpacity: v)),
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(glowOpacity: v)),
                 ),
                 RouteStyleSlider(
                   label: 'Blur glow',
@@ -238,7 +257,8 @@ class RouteStyleControlsPanel extends StatelessWidget {
                   divisions: 40,
                   unit: ' px',
                   decimals: 0,
-                  onChanged: (v) => onChanged(cfg.copyWith(glowBlur: v)),
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(glowBlur: v)),
                 ),
                 RouteStyleSlider(
                   label: 'Largeur glow',
@@ -248,7 +268,8 @@ class RouteStyleControlsPanel extends StatelessWidget {
                   divisions: 30,
                   unit: ' px',
                   decimals: 0,
-                  onChanged: (v) => onChanged(cfg.copyWith(glowWidth: v)),
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(glowWidth: v)),
                 ),
               ],
             ],
@@ -261,12 +282,14 @@ class RouteStyleControlsPanel extends StatelessWidget {
                 title: 'Gradient',
                 subtitle: 'Démo via segments (expression get(color))',
                 value: cfg.gradientEnabled,
-                onChanged: (v) => onChanged(cfg.copyWith(gradientEnabled: v)),
+                onChanged: (v) =>
+                    widget.onChanged(cfg.copyWith(gradientEnabled: v)),
               ),
               ToggleTile(
                 title: 'Rainbow animé',
                 value: cfg.rainbowEnabled,
-                onChanged: (v) => onChanged(cfg.copyWith(rainbowEnabled: v)),
+                onChanged: (v) =>
+                    widget.onChanged(cfg.copyWith(rainbowEnabled: v)),
               ),
               if (cfg.rainbowEnabled) ...[
                 RouteStyleSlider(
@@ -276,7 +299,8 @@ class RouteStyleControlsPanel extends StatelessWidget {
                   max: 1,
                   divisions: 20,
                   decimals: 2,
-                  onChanged: (v) => onChanged(cfg.copyWith(rainbowSaturation: v)),
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(rainbowSaturation: v)),
                 ),
                 RouteStyleSlider(
                   label: 'Vitesse',
@@ -286,12 +310,14 @@ class RouteStyleControlsPanel extends StatelessWidget {
                   divisions: 20,
                   unit: '',
                   decimals: 0,
-                  onChanged: (v) => onChanged(cfg.copyWith(rainbowSpeed: v)),
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(rainbowSpeed: v)),
                 ),
                 ToggleTile(
                   title: 'Direction arrière',
                   value: cfg.rainbowReverse,
-                  onChanged: (v) => onChanged(cfg.copyWith(rainbowReverse: v)),
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(rainbowReverse: v)),
                 ),
               ],
             ],
@@ -304,14 +330,16 @@ class RouteStyleControlsPanel extends StatelessWidget {
                 title: 'Traffic coloring (démo)',
                 subtitle: 'Coloration segmentée vert/orange/rouge',
                 value: cfg.trafficDemoEnabled,
-                onChanged: (v) => onChanged(cfg.copyWith(trafficDemoEnabled: v)),
+                onChanged: (v) =>
+                    widget.onChanged(cfg.copyWith(trafficDemoEnabled: v)),
               ),
               const SizedBox(height: 8),
               ToggleTile(
                 title: 'Vanishing route line',
                 subtitle: 'Partie parcourue translucide (démo)',
                 value: cfg.vanishingEnabled,
-                onChanged: (v) => onChanged(cfg.copyWith(vanishingEnabled: v)),
+                onChanged: (v) =>
+                    widget.onChanged(cfg.copyWith(vanishingEnabled: v)),
               ),
               if (cfg.vanishingEnabled)
                 RouteStyleSlider(
@@ -321,14 +349,16 @@ class RouteStyleControlsPanel extends StatelessWidget {
                   max: 1,
                   divisions: 20,
                   decimals: 2,
-                  onChanged: (v) => onChanged(cfg.copyWith(vanishingProgress: v)),
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(vanishingProgress: v)),
                 ),
               const SizedBox(height: 8),
               ToggleTile(
                 title: 'Alternative routes (démo)',
                 subtitle: 'Structure extensible (pas de routes alternatives réelles)',
                 value: cfg.alternativesEnabled,
-                onChanged: (v) => onChanged(cfg.copyWith(alternativesEnabled: v)),
+                onChanged: (v) =>
+                    widget.onChanged(cfg.copyWith(alternativesEnabled: v)),
               ),
             ],
           ),
@@ -344,7 +374,7 @@ class RouteStyleControlsPanel extends StatelessWidget {
                     ChoiceChip(
                       label: Text(p.label),
                       selected: _looksLikePreset(cfg, p.config),
-                      onSelected: (_) => onChanged(p.config),
+                      onSelected: (_) => widget.onChanged(p.config),
                     ),
                 ],
               ),
@@ -367,7 +397,8 @@ class RouteStyleControlsPanel extends StatelessWidget {
                 divisions: 29,
                 unit: ' m',
                 decimals: 0,
-                onChanged: (v) => onChanged(cfg.copyWith(snapToleranceMeters: v)),
+                onChanged: (v) =>
+                    widget.onChanged(cfg.copyWith(snapToleranceMeters: v)),
               ),
               RouteStyleSlider(
                 label: 'Simplification',
@@ -377,12 +408,14 @@ class RouteStyleControlsPanel extends StatelessWidget {
                 divisions: 20,
                 unit: ' %',
                 decimals: 0,
-                onChanged: (v) => onChanged(cfg.copyWith(simplifyPercent: v)),
+                onChanged: (v) =>
+                    widget.onChanged(cfg.copyWith(simplifyPercent: v)),
               ),
               ToggleTile(
                 title: 'Dash',
                 value: cfg.dashEnabled,
-                onChanged: (v) => onChanged(cfg.copyWith(dashEnabled: v)),
+                onChanged: (v) =>
+                    widget.onChanged(cfg.copyWith(dashEnabled: v)),
               ),
               if (cfg.dashEnabled) ...[
                 RouteStyleSlider(
@@ -392,7 +425,8 @@ class RouteStyleControlsPanel extends StatelessWidget {
                   max: 10,
                   divisions: 19,
                   decimals: 1,
-                  onChanged: (v) => onChanged(cfg.copyWith(dashLength: v)),
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(dashLength: v)),
                 ),
                 RouteStyleSlider(
                   label: 'Dash gap',
@@ -401,14 +435,16 @@ class RouteStyleControlsPanel extends StatelessWidget {
                   max: 10,
                   divisions: 19,
                   decimals: 1,
-                  onChanged: (v) => onChanged(cfg.copyWith(dashGap: v)),
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(dashGap: v)),
                 ),
               ],
               ToggleTile(
                 title: 'Pulse',
                 subtitle: 'Animation opacité glow',
                 value: cfg.pulseEnabled,
-                onChanged: (v) => onChanged(cfg.copyWith(pulseEnabled: v)),
+                onChanged: (v) =>
+                    widget.onChanged(cfg.copyWith(pulseEnabled: v)),
               ),
               if (cfg.pulseEnabled)
                 RouteStyleSlider(
@@ -418,7 +454,8 @@ class RouteStyleControlsPanel extends StatelessWidget {
                   max: 100,
                   divisions: 20,
                   decimals: 0,
-                  onChanged: (v) => onChanged(cfg.copyWith(pulseSpeed: v)),
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(pulseSpeed: v)),
                 ),
             ],
           ),
@@ -428,7 +465,7 @@ class RouteStyleControlsPanel extends StatelessWidget {
           // Contrôle de transparence des immeubles 3D (premium)
           BuildingOpacityControl(
             config: cfg,
-            onChanged: onChanged,
+            onChanged: widget.onChanged,
           ),
 
           const SizedBox(height: 16),
@@ -437,20 +474,21 @@ class RouteStyleControlsPanel extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: onReset,
+                  onPressed: widget.onReset,
                   child: const Text('Réinitialiser'),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
-                  onPressed: onSave,
+                  onPressed: widget.onSave,
                   child: const Text('Appliquer / Enregistrer'),
                 ),
               ),
             ],
           ),
         ],
+      ),
       ),
     );
   }

@@ -97,6 +97,60 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
     return false;
   }
 
+  Widget _buildFineAdjustSlider({
+    required String label,
+    required double value,
+    required double min,
+    required double max,
+    required int divisions,
+    required String displayValue,
+    required ValueChanged<double>? onChanged,
+  }) {
+    final clamped = value.clamp(min, max);
+    final step = (max - min) / divisions;
+
+    void nudge(double delta) {
+      if (onChanged == null) return;
+      final next = (clamped + delta).clamp(min, max);
+      if ((next - clamped).abs() < 0.0000001) return;
+      onChanged(next);
+    }
+
+    return Row(
+      children: [
+        SizedBox(width: 76, child: Text(label)),
+        IconButton.outlined(
+          tooltip: 'Diminuer $label',
+          visualDensity: VisualDensity.compact,
+          onPressed: onChanged == null || clamped <= min
+              ? null
+              : () => nudge(-step),
+          icon: const Icon(Icons.remove_rounded, size: 18),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Slider(
+            value: clamped,
+            min: min,
+            max: max,
+            divisions: divisions,
+            label: displayValue,
+            onChanged: onChanged,
+          ),
+        ),
+        const SizedBox(width: 6),
+        IconButton.outlined(
+          tooltip: 'Augmenter $label',
+          visualDensity: VisualDensity.compact,
+          onPressed: onChanged == null || clamped >= max
+              ? null
+              : () => nudge(step),
+          icon: const Icon(Icons.add_rounded, size: 18),
+        ),
+      ],
+    );
+  }
+
   Map<String, dynamic> get _initialMeta {
     final raw = widget.poi.metadata;
     if (raw == null) return <String, dynamic>{};
@@ -1136,39 +1190,27 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
             ),
           ),
           const SizedBox(height: 6),
-          Row(
-            children: [
-              const SizedBox(width: 76, child: Text('Angle')),
-              Expanded(
-                child: Slider(
-                  value: _angleDeg,
-                  min: -7,
-                  max: 7,
-                  divisions: 28,
-                  label: '${_angleDeg.toStringAsFixed(1)}°',
-                  onChanged: _isSaving
-                      ? null
-                      : (v) => setState(() => _angleDeg = v),
-                ),
-              ),
-            ],
+          _buildFineAdjustSlider(
+            label: 'Angle',
+            value: _angleDeg,
+            min: -7,
+            max: 7,
+            divisions: 28,
+            displayValue: '${_angleDeg.toStringAsFixed(1)}°',
+            onChanged: _isSaving
+                ? null
+                : (v) => setState(() => _angleDeg = v),
           ),
-          Row(
-            children: [
-              const SizedBox(width: 76, child: Text('Grain')),
-              Expanded(
-                child: Slider(
-                  value: _grain,
-                  min: 0,
-                  max: 1,
-                  divisions: 20,
-                  label: _grain.toStringAsFixed(2),
-                  onChanged: _isSaving
-                      ? null
-                      : (v) => setState(() => _grain = v),
-                ),
-              ),
-            ],
+          _buildFineAdjustSlider(
+            label: 'Grain',
+            value: _grain,
+            min: 0,
+            max: 1,
+            divisions: 20,
+            displayValue: _grain.toStringAsFixed(2),
+            onChanged: _isSaving
+                ? null
+                : (v) => setState(() => _grain = v),
           ),
 
           const SizedBox(height: 8),

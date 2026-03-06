@@ -38,6 +38,12 @@ class BuildingOpacityControl extends StatelessWidget {
     final opacity = config.buildingOpacity;
     final routeAlwaysOnTop = config.routeAlwaysOnTop;
 
+    void adjustOpacity(double delta) {
+      final next = (opacity + delta).clamp(0.0, 1.0);
+      if ((next - opacity).abs() < 0.0000001) return;
+      onChanged(config.copyWith(buildingOpacity: next));
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -92,6 +98,15 @@ class BuildingOpacityControl extends StatelessWidget {
           // Slider principal
           Row(
             children: [
+              IconButton.outlined(
+                tooltip: 'Réduire l\'opacité',
+                visualDensity: VisualDensity.compact,
+                onPressed: isEnabled && opacity > 0.0
+                    ? () => adjustOpacity(-0.05)
+                    : null,
+                icon: const Icon(Icons.remove_rounded, size: 18),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: Slider(
                   value: opacity,
@@ -105,6 +120,15 @@ class BuildingOpacityControl extends StatelessWidget {
                       : null,
                   label: '${(opacity * 100).round()}%',
                 ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.outlined(
+                tooltip: 'Augmenter l\'opacité',
+                visualDensity: VisualDensity.compact,
+                onPressed: isEnabled && opacity < 1.0
+                    ? () => adjustOpacity(0.05)
+                    : null,
+                icon: const Icon(Icons.add_rounded, size: 18),
               ),
               const SizedBox(width: 12),
               SizedBox(
