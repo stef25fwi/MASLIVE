@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import 'maslive_map_controller.dart';
@@ -48,6 +50,7 @@ class MasLiveMapNative extends StatefulWidget {
 class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   static const String _poiSourceId = 'src_pois';
   static const String _poiLayerId = 'ly_pois_circle';
+  static const String _poiIconLayerId = 'ly_pois_icon';
   static const String _poiPreviewVertexLayerId = 'ly_pois_preview_vertices';
   static const String _poiZoneLabelLayerId = 'ly_pois_zone_label';
   static const String _poiFillLayerId = 'ly_pois_fill';
@@ -59,6 +62,9 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   static const String _patDiag = 'maslive_pat_diag';
   static const String _patCross = 'maslive_pat_cross';
   static const String _patDots = 'maslive_pat_dots';
+
+  static const String _poiRedPinImageId = 'maslive_poi_pin_red';
+  static const String _poiRedPinAssetPath = 'assets/images/icon-point.webp';
 
   // Route (style layers) pour support segments (Style Pro)
   static const String _routeSourceId = 'maslive_polyline';
@@ -93,6 +99,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   void Function(double lat, double lng)? _onPointAddedCallback;
 
   bool _patternImagesReady = false;
+  bool _iconImagesReady = false;
 
   // Bâtiments 3D (opacité/visibilité) - cache + réapplication après reload style.
   final MapBuildingsStyleServiceNative _buildingsNative =
@@ -667,14 +674,27 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       return expr;
     }
 
-    final circleRadiusExpr = matchAppearanceExpr<double>(
+    // On rend le preset "Pin rouge" via un SymbolLayer (icon), donc on masque
+    // le circle pour cet id.
+    final circleRadiusExpr = <dynamic>[
+      'match',
+      ['get', kMasLivePoiAppearanceKey],
+      for (final p in kMasLivePoiAppearancePresets) ...[
+        p.id,
+        p.id == 'red_pin' ? 0.0 : p.style.circleRadius,
+      ],
       _poiStyle.circleRadius,
-      (s) => s.circleRadius,
-    );
-    final circleStrokeWidthExpr = matchAppearanceExpr<double>(
+    ];
+
+    final circleStrokeWidthExpr = <dynamic>[
+      'match',
+      ['get', kMasLivePoiAppearanceKey],
+      for (final p in kMasLivePoiAppearancePresets) ...[
+        p.id,
+        p.id == 'red_pin' ? 0.0 : p.style.circleStrokeWidth,
+      ],
       _poiStyle.circleStrokeWidth,
-      (s) => s.circleStrokeWidth,
-    );
+    ];
     final circleColorExpr = matchAppearanceExpr<dynamic>(
       ['to-color', defaultFillHex],
       (s) => ['to-color', cssHex(s.circleColor)],
@@ -801,10 +821,16 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     if (!_styleLoaded) return;
 
     await _ensurePoiPatternImages();
+    await _ensurePoiIconImages();
 
     // Remove + add source, puis layer si besoin.
     try {
       await map.style.removeStyleLayer(_poiLayerId);
+    } catch (_) {
+      // ignore
+    }
+    try {
+      await map.style.removeStyleLayer(_poiIconLayerId);
     } catch (_) {
       // ignore
     }
@@ -1130,6 +1156,92 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       // ignore
     }
 
+    // Layer POIs: icons (ex: "Pin rouge")
+    try {
+      await map.style.addLayer(
+        SymbolLayer(
+          id: _poiIconLayerId,
+          sourceId: _poiSourceId,
+        ),
+      );
+      await map.style.setStyleLayerProperty(_poiIconLayerId, 'filter', [
+        'all',
+        [
+          '==',
+          ['geometry-type'],
+          'Point',
+        ],
+        [
+          'any',
+          [
+            '!',
+            ['has', 'isZoneLabel'],
+          ],
+          [
+            '==',
+            ['get', 'isZoneLabel'],
+            false,
+          ],
+        ],
+        [
+          'any',
+          [
+            '!',
+            ['has', 'isPreviewVertex'],
+          ],
+          [
+            '==',
+            ['get', 'isPreviewVertex'],
+            false,
+          ],
+        ],
+      ]);
+      await map.style.setStyleLayerProperty(
+        _poiIconLayerId,
+        'icon-image',
+        [
+          'match',
+          ['get', kMasLivePoiAppearanceKey],
+          'red_pin',
+          _poiRedPinImageId,
+          '',
+        ],
+      );
+      await map.style.setStyleLayerProperty(
+        _poiIconLayerId,
+        'icon-opacity',
+        [
+          'match',
+          ['get', kMasLivePoiAppearanceKey],
+          'red_pin',
+          1,
+          0,
+        ],
+      );
+      await map.style.setStyleLayerProperty(
+        _poiIconLayerId,
+        'icon-size',
+        0.55,
+      );
+      await map.style.setStyleLayerProperty(
+        _poiIconLayerId,
+        'icon-anchor',
+        'bottom',
+      );
+      await map.style.setStyleLayerProperty(
+        _poiIconLayerId,
+        'icon-allow-overlap',
+        true,
+      );
+      await map.style.setStyleLayerProperty(
+        _poiIconLayerId,
+        'icon-ignore-placement',
+        true,
+      );
+    } catch (_) {
+      // ignore
+    }
+
     // Layer séparé: vertices de prévisualisation (zone parking)
     // Important: ne pas l'inclure dans le hit-test POI.
     try {
@@ -1428,6 +1540,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
           });
         }
         _patternImagesReady = false;
+        _iconImagesReady = false;
         await _applyPoisGeoJsonIfReady();
         await _applyPoiStyleIfReady();
 
@@ -1478,6 +1591,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
                   _poiLineLayerDashedId,
                   _poiLineLayerId,
                   _poiZoneLabelLayerId,
+                  _poiIconLayerId,
                   _poiLayerId,
                 ],
                 filter: null,
@@ -1603,6 +1717,66 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       await add(_patCross, _buildPatternCrossImage());
       await add(_patDots, _buildPatternDotsImage());
       _patternImagesReady = true;
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  Future<void> _ensurePoiIconImages() async {
+    if (_iconImagesReady) return;
+    final map = _mapboxMap;
+    if (map == null) return;
+    if (!_styleLoaded) return;
+
+    Future<void> addFromAssetWebp({
+      required String imageId,
+      required String assetPath,
+    }) async {
+      final bd = await rootBundle.load(assetPath);
+      final bytes = bd.buffer.asUint8List();
+
+      final codec = await ui.instantiateImageCodec(bytes);
+      try {
+        final frame = await codec.getNextFrame();
+        final img = frame.image;
+        try {
+          final rgba =
+              await img.toByteData(format: ui.ImageByteFormat.rawRgba);
+          if (rgba == null) return;
+
+          final mbx = MbxImage(
+            width: img.width,
+            height: img.height,
+            data: rgba.buffer.asUint8List(),
+          );
+
+          try {
+            await map.style.addStyleImage(
+              imageId,
+              1.0,
+              mbx,
+              false,
+              const [],
+              const [],
+              null,
+            );
+          } catch (_) {
+            // ignore (déjà présent / style)
+          }
+        } finally {
+          img.dispose();
+        }
+      } finally {
+        codec.dispose();
+      }
+    }
+
+    try {
+      await addFromAssetWebp(
+        imageId: _poiRedPinImageId,
+        assetPath: _poiRedPinAssetPath,
+      );
+      _iconImagesReady = true;
     } catch (_) {
       // ignore
     }

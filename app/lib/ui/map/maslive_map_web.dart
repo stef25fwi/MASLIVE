@@ -9,6 +9,7 @@ import 'dart:js' as js;
 import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'maslive_map_controller.dart';
 import 'maslive_poi_style.dart';
@@ -55,6 +56,7 @@ class MasLiveMapWeb extends StatefulWidget {
 class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   static const String _poiSourceId = 'src_pois';
   static const String _poiLayerId = 'ly_pois_circle';
+  static const String _poiIconLayerId = 'ly_pois_icon';
   static const String _poiPreviewVertexLayerId = 'ly_pois_preview_vertices';
   static const String _poiZoneLabelLayerId = 'ly_pois_zone_label';
   static const String _poiFillLayerId = 'ly_pois_fill';
@@ -67,6 +69,9 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   static const String _patDiag = 'maslive_pat_diag';
   static const String _patCross = 'maslive_pat_cross';
   static const String _patDots = 'maslive_pat_dots';
+
+  static const String _poiRedPinImageId = 'maslive_poi_pin_red';
+  static const String _poiRedPinAssetPath = 'assets/images/icon-point.webp';
 
   MasLivePoiStyle _poiStyle = const MasLivePoiStyle();
 
@@ -506,18 +511,41 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       return expr;
     }
 
-    final circleRadiusExpr = matchAppearanceExpr<double>(
+    const transparent = 'rgba(0,0,0,0)';
+
+    // Note: on personnalise pour que le preset "Pin rouge" soit rendu par un icon,
+    // donc on masque le circle pour cet id.
+    final circleRadiusExpr2 = <dynamic>[
+      'match',
+      ['get', kMasLivePoiAppearanceKey],
+      for (final p in kMasLivePoiAppearancePresets) ...[
+        p.id,
+        p.id == 'red_pin' ? 0.0 : p.style.circleRadius,
+      ],
       _poiStyle.circleRadius,
-      (s) => s.circleRadius,
-    );
-    final circleColorExpr = matchAppearanceExpr<String>(
+    ];
+
+    final circleColorExpr = <dynamic>[
+      'match',
+      ['get', kMasLivePoiAppearanceKey],
+      for (final p in kMasLivePoiAppearancePresets) ...[
+        p.id,
+        p.id == 'red_pin'
+            ? transparent
+            : masLiveColorToCssHex(p.style.circleColor),
+      ],
       defaultFillColor,
-      (s) => masLiveColorToCssHex(s.circleColor),
-    );
-    final circleStrokeWidthExpr = matchAppearanceExpr<double>(
+    ];
+
+    final circleStrokeWidthExpr = <dynamic>[
+      'match',
+      ['get', kMasLivePoiAppearanceKey],
+      for (final p in kMasLivePoiAppearancePresets) ...[
+        p.id,
+        p.id == 'red_pin' ? 0.0 : p.style.circleStrokeWidth,
+      ],
       _poiStyle.circleStrokeWidth,
-      (s) => s.circleStrokeWidth,
-    );
+    ];
     final circleStrokeColorExpr = matchAppearanceExpr<String>(
       defaultStrokeColor,
       (s) => masLiveColorToCssHex(s.circleStrokeColor),
@@ -548,7 +576,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       map.callMethod('setPaintProperty', [
         _poiLayerId,
         'circle-radius',
-        jsValue(circleRadiusExpr),
+        jsValue(circleRadiusExpr2),
       ]);
     } catch (_) {
       // ignore
@@ -670,6 +698,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           await _removeLayerIfExists(map, _poiPatternLayerId);
           await _removeLayerIfExists(map, _poiFillLayerId);
           await _removeLayerIfExists(map, _poiZoneLabelLayerId);
+          await _removeLayerIfExists(map, _poiIconLayerId);
           await _removeLayerIfExists(map, _poiLayerId);
           await _removeSourceIfExists(map, _poiSourceId);
           return;
@@ -702,6 +731,13 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     // Ensure pattern images (style)
     try {
       await _ensurePoiPatternImages(map);
+    } catch (_) {
+      // ignore
+    }
+
+    // Ensure icon images (style)
+    try {
+      await _ensurePoiIconImages(map);
     } catch (_) {
       // ignore
     }
@@ -925,6 +961,72 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         ]);
       }
 
+      // Layer POIs: icons (pour certains presets, ex: red_pin)
+      final iconExisting = map.callMethod('getLayer', [_poiIconLayerId]);
+      if (iconExisting == null) {
+        map.callMethod('addLayer', [
+          js.JsObject.jsify({
+            'id': _poiIconLayerId,
+            'type': 'symbol',
+            'source': _poiSourceId,
+            'filter': [
+              'all',
+              [
+                '==',
+                ['geometry-type'],
+                'Point',
+              ],
+              [
+                'any',
+                [
+                  '!',
+                  ['has', 'isZoneLabel'],
+                ],
+                [
+                  '==',
+                  ['get', 'isZoneLabel'],
+                  false,
+                ],
+              ],
+              [
+                'any',
+                [
+                  '!',
+                  ['has', 'isPreviewVertex'],
+                ],
+                [
+                  '==',
+                  ['get', 'isPreviewVertex'],
+                  false,
+                ],
+              ],
+            ],
+            'layout': {
+              'icon-image': [
+                'match',
+                ['get', kMasLivePoiAppearanceKey],
+                'red_pin',
+                _poiRedPinImageId,
+                '',
+              ],
+              'icon-size': 0.55,
+              'icon-anchor': 'bottom',
+              'icon-allow-overlap': true,
+              'icon-ignore-placement': true,
+            },
+            'paint': {
+              'icon-opacity': [
+                'match',
+                ['get', kMasLivePoiAppearanceKey],
+                'red_pin',
+                1,
+                0,
+              ],
+            },
+          }),
+        ]);
+      }
+
       // Toujours (ré)appliquer le filtre/paint, même si layer déjà existant.
       map.callMethod('setFilter', [
         _poiLayerId,
@@ -1102,6 +1204,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
     try {
       final layerPoint = map.callMethod('getLayer', [_poiLayerId]);
+      final layerIcon = map.callMethod('getLayer', [_poiIconLayerId]);
       final layerLabel = map.callMethod('getLayer', [_poiZoneLabelLayerId]);
       final layerFill = map.callMethod('getLayer', [_poiFillLayerId]);
       final layerPattern = map.callMethod('getLayer', [_poiPatternLayerId]);
@@ -1109,6 +1212,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       final layerDashed = map.callMethod('getLayer', [_poiLineLayerDashedId]);
       final layerDotted = map.callMethod('getLayer', [_poiLineLayerDottedId]);
       if (layerPoint == null &&
+          layerIcon == null &&
           layerLabel == null &&
           layerFill == null &&
           layerPattern == null &&
@@ -1135,6 +1239,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             _poiLineLayerDashedId,
             _poiLineLayerId,
             _poiZoneLabelLayerId,
+            _poiIconLayerId,
             _poiLayerId,
           ],
         }),
@@ -1181,6 +1286,69 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     }
     if (!has(_patDots)) {
       add(_patDots, _buildDotsPatternCanvas());
+    }
+  }
+
+  Future<void> _ensurePoiIconImages(js.JsObject map) async {
+    bool has(String id) {
+      try {
+        final ok = map.callMethod('hasImage', [id]);
+        return ok == true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    Future<void> addFromAssetWebp({
+      required String imageId,
+      required String assetPath,
+    }) async {
+      if (has(imageId)) return;
+
+      final bd = await rootBundle.load(assetPath);
+      final bytes = bd.buffer.asUint8List();
+      final blob = html.Blob(<dynamic>[bytes], 'image/webp');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+
+      try {
+        final img = html.ImageElement(src: url);
+        await img.onLoad.first;
+
+        final w = img.naturalWidth;
+        final h = img.naturalHeight;
+        if (w <= 0 || h <= 0) return;
+
+        final canvas = html.CanvasElement(width: w, height: h);
+        final ctx = canvas.context2D;
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0);
+
+        try {
+          map.callMethod('addImage', [
+            imageId,
+            canvas,
+            js.JsObject.jsify({'pixelRatio': 1}),
+          ]);
+        } catch (_) {
+          // fallback sans options
+          try {
+            map.callMethod('addImage', [imageId, canvas]);
+          } catch (_) {
+            // ignore
+          }
+        }
+      } finally {
+        html.Url.revokeObjectUrl(url);
+      }
+    }
+
+    try {
+      await addFromAssetWebp(
+        imageId: _poiRedPinImageId,
+        assetPath: _poiRedPinAssetPath,
+      );
+    } catch (_) {
+      // ignore
     }
   }
 

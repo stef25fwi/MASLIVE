@@ -545,15 +545,14 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                   _pickImage(ImageSource.gallery);
                 },
               ),
-              if (!kIsWeb)
-                ListTile(
-                  leading: const Icon(Icons.camera_alt_rounded),
-                  title: const Text('Appareil photo'),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _pickImage(ImageSource.camera);
-                  },
-                ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_rounded),
+                title: const Text('Appareil photo'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
             ],
           ),
         );

@@ -253,34 +253,77 @@ class _PhotoArea extends StatelessWidget {
   final String? imageUrl;
   const _PhotoArea({required this.imageUrl});
 
+  static const String _frameAssetWebpPath = 'assets/images/frame_polaroid.webp';
+
+  Widget _frameAsset(
+    String assetPath, {
+    required Widget fallback,
+  }) {
+    return Image.asset(
+      assetPath,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      errorBuilder: (context, error, stackTrace) => fallback,
+    );
+  }
+
+  Widget _buildFrameOverlay() {
+    final borderFallback = DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: MasliveTokens.borderSoft),
+        borderRadius: BorderRadius.circular(MasliveTokens.rS),
+      ),
+    );
+
+    return IgnorePointer(
+      child: _frameAsset(
+        _frameAssetWebpPath,
+        fallback: borderFallback,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final url = (imageUrl ?? '').trim();
     if (url.isEmpty) {
-      return const _PhotoFallback();
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          const _PhotoFallback(),
+          _buildFrameOverlay(),
+        ],
+      );
     }
 
-    return Image.network(
-      url,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
-      errorBuilder: (context, error, stackTrace) => const _PhotoFallback(),
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) return child;
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            color: MasliveTokens.bg,
-          ),
-          child: const Center(
-            child: SizedBox(
-              height: 22,
-              width: 22,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          ),
-        );
-      },
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.network(
+          url,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (context, error, stackTrace) => const _PhotoFallback(),
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return DecoratedBox(
+              decoration: BoxDecoration(
+                color: MasliveTokens.bg,
+              ),
+              child: const Center(
+                child: SizedBox(
+                  height: 22,
+                  width: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            );
+          },
+        ),
+        _buildFrameOverlay(),
+      ],
     );
   }
 }
