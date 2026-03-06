@@ -117,7 +117,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   String? _projectId;
   late PageController _pageController;
   int _currentStep = 0;
-  bool _didAutoOpenStyleProForCurrentVisit = false;
   bool _isLoading = false;
   String? _errorMessage;
   String? _currentUserRole;
@@ -172,6 +171,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   int _poiRouteStyleProAnimTick = 0;
   bool _isRenderingPoiRoute = false;
   String? _lastPoiBuildingsKey;
+  final RouteStyleWizardProController _routeStyleProController =
+      RouteStyleWizardProController();
 
   // Step 4: Layers/POI
   List<MarketMapLayer> _layers = [];
@@ -502,67 +503,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     });
   }
 
-  Future<void> _openRouteStylePro() async {
-    await _ensureActorContext();
-    if (!_canWriteMapProjects) {
-      if (!mounted) return;
-      _showTopSnackBar(
-        '⛔ Accès en écriture réservé aux admins master.',
-        isError: true,
-      );
-      if (!widget.poiOnly) {
-        unawaited(_continueToStep(3));
-      }
-      return;
-    }
-    // Assure un projectId existant avant d'ouvrir le wizard Pro.
-    await _saveDraft();
-
-    final projectId = _projectId;
-    if (!mounted) return;
-    if (projectId == null || projectId.trim().isEmpty) {
-      _showTopSnackBar('❌ Impossible: projet non sauvegardé', isError: true);
-      if (!widget.poiOnly) {
-        unawaited(_continueToStep(3));
-      }
-      return;
-    }
-
-    final result = await Navigator.of(context).pushNamed(
-      '/admin/route-style-pro',
-      arguments: RouteStyleProArgs(
-        projectId: projectId,
-        circuitId: widget.circuitId,
-        initialStyleUrl:
-            _normalizeMapboxStyleUrl(_styleUrlController.text).trim().isEmpty
-            ? null
-            : _normalizeMapboxStyleUrl(_styleUrlController.text).trim(),
-        initialRoute: _routePoints.isNotEmpty
-            ? <rsp.LatLng>[
-                for (final p in _routePoints) (lat: p.lat, lng: p.lng),
-              ]
-            : null,
-      ),
-    );
-
-    await _reloadRouteAndStyleFromFirestore(projectId);
-
-    // Si l'utilisateur revient sur l'étape POI, on veut voir immédiatement
-    // la version “Style Pro” du tracé sur la carte.
-    unawaited(_refreshPoiRouteOverlay());
-    _syncPoiRouteStyleProTimer();
-
-    // UX: pas d'écran intermédiaire "Style Pro".
-    // Au retour, on navigue immédiatement vers l'étape demandée.
-    if (!mounted) return;
-    if (widget.poiOnly) return;
-    if (result is String && result == 'previous') {
-      unawaited(_continueToStep(3));
-    } else {
-      unawaited(_continueToStep(_poiStepIndex));
-    }
-  }
-
   Future<void> _reloadRouteAndStyleFromFirestore(String projectId) async {
     try {
       final doc = await FirebaseFirestore.instance
@@ -649,16 +589,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         ? _poiStepIndex
         : (widget.initialStep ?? 0).clamp(0, 7);
     _pageController = PageController(initialPage: _currentStep);
-
-    // Si on arrive directement sur l'étape Style Pro, on ouvre le wizard pro
-    // immédiatement (pas besoin d'appuyer sur le bouton).
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (_currentStep == 4 && !_didAutoOpenStyleProForCurrentVisit) {
-        _didAutoOpenStyleProForCurrentVisit = true;
-        unawaited(_openRouteStylePro());
-      }
-    });
 
     // Step POI: hit-testing GeoJSON (tap POI => édition, tap carte => ajout)
     _poiMapController.onPoiTap = (poiId) {
@@ -1629,6 +1559,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       await _ensureRouteSnappedBeforePersist();
     }
 
+    final leavingStyleProStep = _currentStep == 4 && step != 4;
+    if (leavingStyleProStep) {
+      await _routeStyleProController.flushPendingChanges();
+      final projectId = _projectId;
+      if (projectId != null && projectId.trim().isNotEmpty) {
+        await _reloadRouteAndStyleFromFirestore(projectId);
+      }
+    }
+
     if (_canWriteMapProjects) {
       await _saveDraft(
         createSnapshot: true,
@@ -1637,6 +1576,36 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     }
     _pageController.animateToPage(
       step,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  Future<void> _goToPreviousStep() async {
+    if (widget.poiOnly || _currentStep <= 0) return;
+
+    final targetStep = _currentStep - 1;
+
+    final leavingStyleProStep = _currentStep == 4;
+    if (leavingStyleProStep) {
+      await _routeStyleProController.flushPendingChanges();
+      final projectId = _projectId;
+      if (projectId != null && projectId.trim().isNotEmpty) {
+        await _reloadRouteAndStyleFromFirestore(projectId);
+      }
+    }
+
+    if (_canWriteMapProjects) {
+      await _saveDraft(
+        createSnapshot: true,
+        ensureRouteSnapped: false,
+      );
+    }
+
+    if (!mounted) return;
+    setState(() => _currentStep = targetStep);
+    await _pageController.animateToPage(
+      targetStep,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
@@ -1750,24 +1719,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     onPageChanged: (page) {
                       setState(() => _currentStep = page);
 
-                      // Auto-ouvrir Style Pro quand on arrive sur l'étape Style Pro (index 4)
-                      // pour éviter le clic sur "Ouvrir Style Pro".
-                      if (_currentStep != 4) {
-                        _didAutoOpenStyleProForCurrentVisit = false;
-                      }
-
                       // Quand on arrive sur l'étape POI, on veut afficher le circuit
                       // (Style Pro si présent) sur la carte immédiatement.
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         if (!mounted) return;
                         if (_currentStep == _poiStepIndex) {
                           unawaited(_refreshPoiRouteOverlay());
-                        }
-
-                        if (_currentStep == 4 &&
-                            !_didAutoOpenStyleProForCurrentVisit) {
-                          _didAutoOpenStyleProForCurrentVisit = true;
-                          unawaited(_openRouteStylePro());
                         }
 
                         _syncPoiRouteStyleProTimer();
@@ -1792,10 +1749,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               panelPadding: EdgeInsets.zero,
               showPrevious: (!widget.poiOnly && _currentStep > 0),
               onPrevious: (!widget.poiOnly && _currentStep > 0)
-                  ? () => _pageController.previousPage(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                    )
+                  ? () => unawaited(_goToPreviousStep())
                   : null,
               onSave: () => _saveDraft(createSnapshot: true),
               showNext: (!widget.poiOnly && _currentStep < 7),
@@ -2960,38 +2914,34 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   Widget _buildStep6StylePro() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          MasliveTokens.m,
-          0,
-          MasliveTokens.m,
-          MasliveTokens.m,
-        ),
-        child: GlassPanel(
-          radius: MasliveTokens.rL,
-          opacity: 0.76,
-          padding: const EdgeInsets.all(MasliveTokens.l),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2.5),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Ouverture du Style Pro…',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: MasliveTokens.textSoft,
-                ),
-              ),
-            ],
-          ),
-        ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        MasliveTokens.m,
+        0,
+        MasliveTokens.m,
+        MasliveTokens.m,
+      ),
+      child: RouteStyleWizardProPage(
+        embedded: true,
+        controller: _routeStyleProController,
+        projectId: _projectId,
+        circuitId: widget.circuitId,
+        initialStyleUrl:
+            _normalizeMapboxStyleUrl(_styleUrlController.text).trim().isEmpty
+            ? null
+            : _normalizeMapboxStyleUrl(_styleUrlController.text).trim(),
+        initialRoute: _routePoints.isNotEmpty
+            ? <rsp.LatLng>[
+                for (final p in _routePoints) (lat: p.lat, lng: p.lng),
+              ]
+            : null,
+        onConfigChanged: (cfg) {
+          _routeStyleProConfig = cfg.validated();
+          if (_currentStep == _poiStepIndex) {
+            unawaited(_refreshPoiRouteOverlay());
+          }
+          _syncPoiRouteStyleProTimer();
+        },
       ),
     );
   }
