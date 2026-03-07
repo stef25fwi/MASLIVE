@@ -191,6 +191,15 @@ class PolaroidPoiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String? effectiveImageUrl = imageUrl;
+    if ((effectiveImageUrl ?? '').trim().isEmpty) {
+      final img = meta?['image'];
+      if (img is Map) {
+        final u = (img['url'] ?? img['downloadUrl'] ?? '').toString().trim();
+        if (u.isNotEmpty) effectiveImageUrl = u;
+      }
+    }
+
     final polaroid = meta?['polaroid'];
     final angleDeg = (polaroid is Map && polaroid['angleDeg'] is num)
         ? (polaroid['angleDeg'] as num).toDouble()
@@ -230,7 +239,7 @@ class PolaroidPoiCard extends StatelessWidget {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(MasliveTokens.rS),
                         child: _PhotoArea(
-                          imageUrl: imageUrl,
+                          imageUrl: effectiveImageUrl,
                           grain: clampedGrain,
                           seed: title.hashCode,
                         ),
