@@ -98,11 +98,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     );
   }
 
-  Widget _wrapWizardStep(Widget child) {
+  Widget _wrapWizardStep(Widget child, {Widget? toolbar}) {
     return Column(
       children: [
         const SizedBox(height: MasliveTokens.m),
         _buildWizardStepper(),
+        if (toolbar != null) ...[const SizedBox(height: MasliveTokens.xs), toolbar],
         const SizedBox(height: MasliveTokens.m),
         Expanded(
           child: Padding(
@@ -1797,8 +1798,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     children: [
                       _wrapWizardStep(_buildStep0Template()),
                       _wrapWizardStep(_buildStep1Infos()),
-                      _wrapWizardStep(_buildStep2Perimeter()),
-                      _wrapWizardStep(_buildStep3RouteAndStyleTabbed()),
+                      _wrapWizardStep(_buildStep2Perimeter(), toolbar: _buildCentralMapToolsBar(isPerimeter: true)),
+                      _wrapWizardStep(_buildStep3RouteAndStyleTabbed(), toolbar: _buildCentralMapToolsBar(isPerimeter: false)),
                       _wrapWizardStep(_buildStep6StylePro()),
                       _wrapWizardStep(_buildStep5POI()),
                       _wrapWizardStep(_buildStep7Validation()),
@@ -1840,7 +1841,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       subtitle: 'Tracez l\'itinéraire et réglez son apparence',
       points: _routePoints,
       controller: _routeEditorController,
-      mapTopRightOverlay: _buildCentralMapToolsBar(isPerimeter: false),
       perimeterOverlay: _perimeterPoints,
       lockMapToPerimeter: true,
       cameraInitialZoom: _perimeterCameraInitialZoom,
@@ -2074,7 +2074,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     (
                       label: 'Perso (stef971fwi)',
                       url:
-                          'mapbox://styles/stef971fwi/cmm3zyr4q00fn01s12idvb2oe',
+                        'mapbox://styles/stef971fwi/cmmgh2oa000rk01qr65il695n',
                     ),
                   ];
 
@@ -2221,7 +2221,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       subtitle: 'Tracez la zone de couverture (polygon fermé)',
       points: _perimeterPoints,
       controller: _perimeterEditorController,
-      mapTopRightOverlay: _buildCentralMapToolsBar(isPerimeter: true),
       styleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text).isEmpty
           ? null
           : _normalizeMapboxStyleUrl(_styleUrlController.text),
@@ -3033,7 +3032,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         MasliveTokens.s,
         0,
         MasliveTokens.s,
-        kBottomNavigationBarHeight + MasliveTokens.s,
+        MasliveTokens.xs,
       ),
       child: RouteStyleWizardProPage(
         embedded: true,

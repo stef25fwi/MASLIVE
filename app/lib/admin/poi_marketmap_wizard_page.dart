@@ -1016,7 +1016,7 @@ class _CircuitStyleSelector extends StatelessWidget {
     {
       'id': 'maslive-pro',
       'name': 'Perso (stef971fwi)',
-      'url': 'mapbox://styles/stef971fwi/cmm3zyr4q00fn01s12idvb2oe',
+      'url': 'mapbox://styles/stef971fwi/cmmgh2oa000rk01qr65il695n',
     },
   ];
 
