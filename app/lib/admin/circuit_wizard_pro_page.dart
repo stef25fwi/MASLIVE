@@ -103,7 +103,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       children: [
         const SizedBox(height: MasliveTokens.m),
         _buildWizardStepper(),
-        if (toolbar != null) ...[const SizedBox(height: MasliveTokens.xs), toolbar],
+        const SizedBox(height: MasliveTokens.xs),
+        _buildWizardStageBand(toolbar: toolbar),
         const SizedBox(height: MasliveTokens.m),
         Expanded(
           child: Padding(
@@ -113,6 +114,756 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         ),
       ],
     );
+  }
+
+  ({String title, String subtitle, IconData icon, Color accent})
+  _currentStepMeta() {
+    switch (_currentStep) {
+      case 0:
+        return (
+          title: 'Point de départ',
+          subtitle:
+              'Choisissez un template pour accélérer le démarrage ou partez d’une base libre.',
+          icon: Icons.auto_awesome_rounded,
+          accent: const Color(0xFF0A84FF),
+        );
+      case 1:
+        return (
+          title: 'Informations maîtresses',
+          subtitle:
+              'Cadrez le circuit avec un nom, un pays, un événement et une description propres.',
+          icon: Icons.badge_rounded,
+          accent: const Color(0xFF14746F),
+        );
+      case 2:
+        return (
+          title: 'Périmètre d’expérience',
+          subtitle:
+              'Définissez la zone visible et les contraintes caméra qui poseront le cadre du circuit.',
+          icon: Icons.crop_free_rounded,
+          accent: const Color(0xFF0A84FF),
+        );
+      case 3:
+        return (
+          title: 'Trajet principal',
+          subtitle:
+              'Tracez l’itinéraire, alignez-le sur la route et verrouillez sa lecture directionnelle.',
+          icon: Icons.route_rounded,
+          accent: const Color(0xFF3B82F6),
+        );
+      case 4:
+        return (
+          title: 'Style Pro',
+          subtitle:
+              'Affinez la carte et le rendu du circuit pour obtenir une signature visuelle cohérente.',
+          icon: Icons.palette_outlined,
+          accent: const Color(0xFF6D28D9),
+        );
+      case 5:
+        return (
+          title: 'POI & zones',
+          subtitle:
+              'Ajoutez les points d’intérêt et structurez les zones parking ou couches éditoriales.',
+          icon: Icons.place_outlined,
+          accent: const Color(0xFFB45309),
+        );
+      case 6:
+        return (
+          title: 'Contrôle qualité',
+          subtitle:
+              'Repérez les blocants de publication et corrigez les points qui réduisent la qualité finale.',
+          icon: Icons.verified_outlined,
+          accent: const Color(0xFFEA580C),
+        );
+      case 7:
+        return (
+          title: 'Publication',
+          subtitle:
+              'Vérifiez l’état final du circuit puis publiez uniquement quand tous les signaux sont au vert.',
+          icon: Icons.rocket_launch_outlined,
+          accent: const Color(0xFF16A34A),
+        );
+      default:
+        return (
+          title: 'Wizard Circuit Pro',
+          subtitle: 'Édition avancée du circuit.',
+          icon: Icons.auto_awesome,
+          accent: MasliveTokens.primary,
+        );
+    }
+  }
+
+  bool _qualityItemOk(String id) {
+    return _qualityReport.items
+        .where((item) => item.id == id)
+        .map((item) => item.ok)
+        .fold(false, (value, element) => value || element);
+  }
+
+  int get _requiredQualityIssueCount =>
+      _qualityReport.items.where((item) => item.required && !item.ok).length;
+
+  int get _optionalQualityIssueCount =>
+      _qualityReport.items.where((item) => !item.required && !item.ok).length;
+
+  int _qualityStepForItem(CheckItem item) {
+    switch (item.id) {
+      case 'perimeterClosed':
+      case 'boundsSane':
+        return 2;
+      case 'routeMinPoints':
+      case 'routeDensity':
+      case 'styleValid':
+        return 3;
+      case 'atLeastOnePoi':
+      case 'layersExist':
+        return 5;
+      default:
+        return 6;
+    }
+  }
+
+  Future<void> _goToFirstQualityIssue() async {
+    final target = _qualityReport.items
+        .where((item) => item.required && !item.ok)
+        .map(_qualityStepForItem)
+        .cast<int?>()
+        .firstWhere((step) => step != null, orElse: () => 6)!;
+    await _continueToStep(target);
+  }
+
+  Widget _buildStageFact({
+    required String label,
+    required String value,
+    required IconData icon,
+    Color? accent,
+  }) {
+    final tint = accent ?? MasliveTokens.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: MasliveTokens.s,
+        vertical: MasliveTokens.xs,
+      ),
+      decoration: BoxDecoration(
+        color: tint.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(MasliveTokens.rS),
+        border: Border.all(color: tint.withValues(alpha: 0.14)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: tint),
+          const SizedBox(width: 8),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: MasliveTokens.textSoft,
+                ),
+              ),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: MasliveTokens.text,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildStageFacts() {
+    final report = _qualityReport;
+    switch (_currentStep) {
+      case 0:
+        return [
+          _buildStageFact(
+            label: 'Mode',
+            value: _selectedTemplate == null
+                ? 'Création libre'
+                : 'Template actif',
+            icon: Icons.dashboard_customize_outlined,
+            accent: const Color(0xFF0A84FF),
+          ),
+          _buildStageFact(
+            label: 'Sélection',
+            value: _selectedTemplate?.name ?? 'Aucun modèle',
+            icon: Icons.layers_outlined,
+            accent: const Color(0xFF0A84FF),
+          ),
+        ];
+      case 1:
+        return [
+          _buildStageFact(
+            label: 'Nom',
+            value: _nameController.text.trim().isEmpty
+                ? 'À renseigner'
+                : _nameController.text.trim(),
+            icon: Icons.edit_note_rounded,
+            accent: const Color(0xFF14746F),
+          ),
+          _buildStageFact(
+            label: 'Pays',
+            value: _countryController.text.trim().isEmpty
+                ? 'Non défini'
+                : _countryController.text.trim(),
+            icon: Icons.flag_outlined,
+            accent: const Color(0xFF14746F),
+          ),
+          if (_eventController.text.trim().isNotEmpty)
+            _buildStageFact(
+              label: 'Événement',
+              value: _eventController.text.trim(),
+              icon: Icons.event_outlined,
+              accent: const Color(0xFF14746F),
+            ),
+        ];
+      case 2:
+        return [
+          _buildStageFact(
+            label: 'Sommets',
+            value: '${_perimeterPoints.length}',
+            icon: Icons.scatter_plot_outlined,
+            accent: const Color(0xFF0A84FF),
+          ),
+          _buildStageFact(
+            label: 'Mode',
+            value: _perimeterCircleMode ? 'Cercle' : 'Polygone',
+            icon: Icons.crop_square_rounded,
+            accent: const Color(0xFF0A84FF),
+          ),
+          _buildStageFact(
+            label: 'Statut',
+            value: _qualityItemOk('perimeterClosed') ? 'Fermé' : 'À fermer',
+            icon: _qualityItemOk('perimeterClosed')
+                ? Icons.check_circle_outline
+                : Icons.warning_amber_rounded,
+            accent: _qualityItemOk('perimeterClosed')
+                ? MasliveTokens.success
+                : const Color(0xFFEA580C),
+          ),
+        ];
+      case 3:
+        return [
+          _buildStageFact(
+            label: 'Points',
+            value: '${_routePoints.length}',
+            icon: Icons.timeline_rounded,
+            accent: const Color(0xFF3B82F6),
+          ),
+          _buildStageFact(
+            label: 'Distance',
+            value: '${_routeEditorController.distanceKm.toStringAsFixed(2)} km',
+            icon: Icons.straighten_rounded,
+            accent: const Color(0xFF3B82F6),
+          ),
+          _buildStageFact(
+            label: 'Style',
+            value: '${_routeWidth.toStringAsFixed(0)} px',
+            icon: Icons.brush_outlined,
+            accent: const Color(0xFF3B82F6),
+          ),
+        ];
+      case 4:
+        return [
+          _buildStageFact(
+            label: 'Style URL',
+            value:
+                _normalizeMapboxStyleUrl(
+                  _styleUrlController.text,
+                ).trim().isEmpty
+                ? 'Preset local'
+                : 'Mapbox actif',
+            icon: Icons.map_outlined,
+            accent: const Color(0xFF6D28D9),
+          ),
+          _buildStageFact(
+            label: 'Route Style Pro',
+            value: _routeStyleProConfig == null ? 'À charger' : 'Synchronisé',
+            icon: Icons.auto_graph_outlined,
+            accent: const Color(0xFF6D28D9),
+          ),
+        ];
+      case 5:
+        return [
+          _buildStageFact(
+            label: 'POI',
+            value: '${_pois.length}/$_poiLimit',
+            icon: Icons.place_outlined,
+            accent: const Color(0xFFB45309),
+          ),
+          _buildStageFact(
+            label: 'Couche',
+            value: _selectedLayer?.label ?? 'Aucune',
+            icon: Icons.layers_outlined,
+            accent: const Color(0xFFB45309),
+          ),
+          _buildStageFact(
+            label: 'Parking',
+            value: (_isDrawingParkingZone || _isEditingParkingZonePerimeter)
+                ? 'Édition en cours'
+                : 'Stable',
+            icon: Icons.local_parking_outlined,
+            accent: const Color(0xFFB45309),
+          ),
+        ];
+      case 6:
+        return [
+          _buildStageFact(
+            label: 'Score',
+            value: '${report.score}/100',
+            icon: Icons.insights_outlined,
+            accent: report.canPublish
+                ? MasliveTokens.success
+                : const Color(0xFFEA580C),
+          ),
+          _buildStageFact(
+            label: 'Blocants',
+            value: '$_requiredQualityIssueCount',
+            icon: Icons.error_outline,
+            accent: _requiredQualityIssueCount == 0
+                ? MasliveTokens.success
+                : const Color(0xFFDC2626),
+          ),
+          _buildStageFact(
+            label: 'Améliorations',
+            value: '$_optionalQualityIssueCount',
+            icon: Icons.tune_rounded,
+            accent: const Color(0xFFEA580C),
+          ),
+        ];
+      case 7:
+        return [
+          _buildStageFact(
+            label: 'Publication',
+            value: report.canPublish ? 'Prête' : 'Bloquée',
+            icon: report.canPublish
+                ? Icons.check_circle_outline
+                : Icons.pause_circle_outline,
+            accent: report.canPublish
+                ? MasliveTokens.success
+                : const Color(0xFFEA580C),
+          ),
+          _buildStageFact(
+            label: 'POI chargés',
+            value: _hasMorePois || _isLoadingMorePois ? 'Partiels' : 'Complets',
+            icon: Icons.inventory_2_outlined,
+            accent: _hasMorePois || _isLoadingMorePois
+                ? const Color(0xFFEA580C)
+                : MasliveTokens.success,
+          ),
+          _buildStageFact(
+            label: 'Score',
+            value: '${report.score}/100',
+            icon: Icons.verified_outlined,
+            accent: report.canPublish
+                ? MasliveTokens.success
+                : const Color(0xFFEA580C),
+          ),
+        ];
+      default:
+        return const <Widget>[];
+    }
+  }
+
+  List<Widget> _buildStageActions(bool compact) {
+    final report = _qualityReport;
+    final actions = <Widget>[];
+
+    Widget wrapAction(Widget child) {
+      if (!compact) return child;
+      return SizedBox(width: double.infinity, child: child);
+    }
+
+    switch (_currentStep) {
+      case 0:
+        actions.add(
+          wrapAction(
+            FilledButton.tonalIcon(
+              onPressed: _selectedTemplate == null
+                  ? null
+                  : () => _applyTemplate(_selectedTemplate!),
+              icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+              label: const Text('Appliquer le modèle'),
+            ),
+          ),
+        );
+        actions.add(
+          wrapAction(
+            OutlinedButton.icon(
+              onPressed: _showDraftHistory,
+              icon: const Icon(Icons.history, size: 18),
+              label: const Text('Historique'),
+            ),
+          ),
+        );
+        break;
+      case 1:
+        actions.add(
+          wrapAction(
+            FilledButton.tonalIcon(
+              onPressed: _nameController.text.trim().isEmpty
+                  ? null
+                  : () => unawaited(_continueToStep(2)),
+              icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+              label: const Text('Passer au périmètre'),
+            ),
+          ),
+        );
+        break;
+      case 2:
+        actions.add(
+          wrapAction(
+            OutlinedButton.icon(
+              onPressed: (!_perimeterCircleMode && _perimeterPoints.length >= 2)
+                  ? _perimeterEditorController.closePath
+                  : null,
+              icon: const Icon(Icons.loop_rounded, size: 18),
+              label: const Text('Fermer le périmètre'),
+            ),
+          ),
+        );
+        actions.add(
+          wrapAction(
+            FilledButton.tonalIcon(
+              onPressed: _qualityItemOk('perimeterClosed')
+                  ? () => unawaited(_continueToStep(3))
+                  : null,
+              icon: const Icon(Icons.route_rounded, size: 18),
+              label: const Text('Passer au tracé'),
+            ),
+          ),
+        );
+        break;
+      case 3:
+        actions.add(
+          wrapAction(
+            OutlinedButton.icon(
+              onPressed: (!_isSnappingRoute && _routePoints.length >= 2)
+                  ? _snapRouteToRoads
+                  : null,
+              icon: const Icon(Icons.alt_route_rounded, size: 18),
+              label: const Text('Snap sur route'),
+            ),
+          ),
+        );
+        actions.add(
+          wrapAction(
+            FilledButton.tonalIcon(
+              onPressed: _qualityItemOk('routeMinPoints')
+                  ? () => unawaited(_continueToStep(4))
+                  : null,
+              icon: const Icon(Icons.palette_outlined, size: 18),
+              label: const Text('Passer au style pro'),
+            ),
+          ),
+        );
+        break;
+      case 4:
+        actions.add(
+          wrapAction(
+            FilledButton.tonalIcon(
+              onPressed: () => unawaited(_continueToStep(5)),
+              icon: const Icon(Icons.place_outlined, size: 18),
+              label: const Text('Passer aux POI'),
+            ),
+          ),
+        );
+        break;
+      case 5:
+        actions.add(
+          wrapAction(
+            OutlinedButton.icon(
+              onPressed:
+                  (_selectedLayer == null ||
+                      _pois.length >= _poiLimit ||
+                      _isDrawingParkingZone ||
+                      _isEditingParkingZonePerimeter)
+                  ? null
+                  : _addPoiAtCurrentCenter,
+              icon: const Icon(Icons.my_location, size: 18),
+              label: const Text('Ajouter un POI ici'),
+            ),
+          ),
+        );
+        actions.add(
+          wrapAction(
+            FilledButton.tonalIcon(
+              onPressed: () => unawaited(_continueToStep(6)),
+              icon: const Icon(Icons.verified_outlined, size: 18),
+              label: const Text('Lancer la pré-pub'),
+            ),
+          ),
+        );
+        break;
+      case 6:
+        actions.add(
+          wrapAction(
+            FilledButton.tonalIcon(
+              onPressed: _requiredQualityIssueCount > 0
+                  ? () => unawaited(_goToFirstQualityIssue())
+                  : () => unawaited(_continueToStep(7)),
+              icon: Icon(
+                _requiredQualityIssueCount > 0
+                    ? Icons.build_circle_outlined
+                    : Icons.rocket_launch_outlined,
+                size: 18,
+              ),
+              label: Text(
+                _requiredQualityIssueCount > 0
+                    ? 'Corriger le premier blocant'
+                    : 'Passer à la publication',
+              ),
+            ),
+          ),
+        );
+        break;
+      case 7:
+        actions.add(
+          wrapAction(
+            FilledButton.tonalIcon(
+              onPressed: (report.canPublish && !_isEnsuringAllPoisLoaded)
+                  ? _publishCircuit
+                  : null,
+              icon: const Icon(Icons.cloud_upload_outlined, size: 18),
+              label: const Text('Publier maintenant'),
+            ),
+          ),
+        );
+        if (_hasMorePois || _isLoadingMorePois) {
+          actions.add(
+            wrapAction(
+              OutlinedButton.icon(
+                onPressed: _isEnsuringAllPoisLoaded
+                    ? null
+                    : _ensureAllPoisLoadedForPublish,
+                icon: const Icon(Icons.download_for_offline_outlined, size: 18),
+                label: const Text('Charger tous les POI'),
+              ),
+            ),
+          );
+        }
+        break;
+    }
+    return actions;
+  }
+
+  Widget _buildWizardStageBand({Widget? toolbar}) {
+    final meta = _currentStepMeta();
+    final compact = MediaQuery.sizeOf(context).width < 920;
+    final actions = _buildStageActions(compact);
+    final facts = _buildStageFacts();
+    final report = _qualityReport;
+
+    final summaryCard = Container(
+      padding: const EdgeInsets.all(MasliveTokens.s),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(MasliveTokens.rM),
+        border: Border.all(color: MasliveTokens.borderSoft),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Pilotage',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: MasliveTokens.text,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(spacing: 8, runSpacing: 8, children: facts),
+          if (_currentStep >= 6) ...[
+            const SizedBox(height: 10),
+            Text(
+              report.canPublish
+                  ? 'Tous les critères requis sont validés.'
+                  : '$_requiredQualityIssueCount blocant(s) requis avant publication.',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: report.canPublish
+                    ? MasliveTokens.success
+                    : const Color(0xFFDC2626),
+              ),
+            ),
+          ],
+          if (actions.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(spacing: 8, runSpacing: 8, children: actions),
+          ],
+        ],
+      ),
+    );
+
+    return Column(
+      children: [
+        GlassPanel(
+          radius: MasliveTokens.rL,
+          opacity: 0.9,
+          padding: const EdgeInsets.all(MasliveTokens.m),
+          child: compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: meta.accent.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(
+                              MasliveTokens.rM,
+                            ),
+                          ),
+                          child: Icon(meta.icon, color: meta.accent, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Étape ${_currentStep + 1}/${_stepLabels.length}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: meta.accent,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                meta.title,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: MasliveTokens.text,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                meta.subtitle,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: MasliveTokens.textSoft,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    summaryCard,
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: meta.accent.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(
+                                    MasliveTokens.rM,
+                                  ),
+                                ),
+                                child: Icon(
+                                  meta.icon,
+                                  color: meta.accent,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Étape ${_currentStep + 1}/${_stepLabels.length}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: meta.accent,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    meta.title,
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w800,
+                                      color: MasliveTokens.text,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            meta.subtitle,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: MasliveTokens.textSoft,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    SizedBox(width: 420, child: summaryCard),
+                  ],
+                ),
+        ),
+        if (toolbar != null) ...[
+          const SizedBox(height: MasliveTokens.s),
+          toolbar,
+        ],
+      ],
+    );
+  }
+
+  double _responsiveWizardMapHeight(BuildContext context) {
+    final viewport = MediaQuery.sizeOf(context);
+    final shortestSide = math.min(viewport.width, viewport.height);
+
+    if (shortestSide < 600) {
+      return (viewport.height * 0.42).clamp(320.0, 520.0);
+    }
+    if (shortestSide < 960) {
+      return (viewport.height * 0.48).clamp(420.0, 640.0);
+    }
+    return 720.0;
+  }
+
+  double _responsiveWizardPointsListMaxHeight(BuildContext context) {
+    final shortestSide = math.min(
+      MediaQuery.sizeOf(context).width,
+      MediaQuery.sizeOf(context).height,
+    );
+    return shortestSide < 600 ? 96.0 : 120.0;
   }
 
   final CircuitRepository _repository = CircuitRepository();
@@ -169,6 +920,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   bool _routeShowDirection = true;
   bool _routeAnimateDirection = false;
   double _routeAnimationSpeed = 1.0;
+  bool _perimeterCameraAdvancedExpanded = false;
+  bool _routeStyleAdvancedExpanded = false;
 
   // Style Pro (RouteStyleConfig) chargé depuis Firestore (map_projects.routeStylePro)
   rsp.RouteStyleConfig? _routeStyleProConfig;
@@ -256,7 +1009,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   double _parkingZonePatternOpacity = _parkingZoneDefaultPatternOpacity;
   final TextEditingController _parkingZoneColorController =
       TextEditingController(text: '#FBBF24');
-    final TextEditingController _parkingZoneStrokeColorController =
+  final TextEditingController _parkingZoneStrokeColorController =
       TextEditingController(text: '#FBBF24');
 
   void _applyParkingZonePresetWhiteBlue() {
@@ -1664,10 +2417,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     }
 
     if (_canWriteMapProjects) {
-      await _saveDraft(
-        createSnapshot: true,
-        ensureRouteSnapped: false,
-      );
+      await _saveDraft(createSnapshot: true, ensureRouteSnapped: false);
     }
 
     if (!mounted) return;
@@ -1801,8 +2551,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     children: [
                       _wrapWizardStep(_buildStep0Template()),
                       _wrapWizardStep(_buildStep1Infos()),
-                      _wrapWizardStep(_buildStep2Perimeter(), toolbar: _buildCentralMapToolsBar(isPerimeter: true)),
-                      _wrapWizardStep(_buildStep3RouteAndStyleTabbed(), toolbar: _buildCentralMapToolsBar(isPerimeter: false)),
+                      _wrapWizardStep(
+                        _buildStep2Perimeter(),
+                        toolbar: _buildCentralMapToolsBar(isPerimeter: true),
+                      ),
+                      _wrapWizardStep(
+                        _buildStep3RouteAndStyleTabbed(),
+                        toolbar: _buildCentralMapToolsBar(isPerimeter: false),
+                      ),
                       _wrapWizardStep(_buildStep6StylePro()),
                       _wrapWizardStep(_buildStep5POI()),
                       _wrapWizardStep(_buildStep7Validation()),
@@ -1839,6 +2595,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   Widget _buildStep3RouteAndStyleUnified() {
     final proCfg = _routeStyleProConfig?.validated();
+    final viewport = MediaQuery.sizeOf(context);
+    final mapHeight =
+        (_responsiveWizardMapHeight(context) +
+                (viewport.width < 920 ? 72.0 : 56.0))
+            .clamp(380.0, 780.0);
     return CircuitMapEditor(
       title: 'Tracé + Style',
       subtitle: 'Tracez l\'itinéraire et réglez son apparence',
@@ -1856,8 +2617,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       buildings3dEnabled: proCfg?.buildings3dEnabled,
       buildingsOpacity: proCfg?.buildingOpacity,
       showToolbar: false,
+      showHeader: false,
       allowVerticalScroll: true,
-      mapHeight: 720,
+      mapHeight: mapHeight,
       onPointsChanged: (points) {
         final previousCount = _routePoints.length;
         setState(() {
@@ -1888,6 +2650,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   Widget _buildStep0Template() {
+    final compactActions = MediaQuery.sizeOf(context).width < 520;
     return GlassScrollbar(
       child: SingleChildScrollView(
         physics: _isWizardMapInteracting
@@ -1939,21 +2702,44 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 ),
               ),
               const SizedBox(height: MasliveTokens.s),
-              Row(
+              Wrap(
+                spacing: MasliveTokens.s,
+                runSpacing: MasliveTokens.s,
                 children: [
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.auto_awesome),
-                    onPressed: _selectedTemplate == null
-                        ? null
-                        : () => _applyTemplate(_selectedTemplate!),
-                    label: const Text('Appliquer le modèle'),
-                  ),
-                  const SizedBox(width: MasliveTokens.s),
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.history),
-                    onPressed: _showDraftHistory,
-                    label: const Text('Historique'),
-                  ),
+                  if (compactActions)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.auto_awesome),
+                        onPressed: _selectedTemplate == null
+                            ? null
+                            : () => _applyTemplate(_selectedTemplate!),
+                        label: const Text('Appliquer le modèle'),
+                      ),
+                    )
+                  else
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.auto_awesome),
+                      onPressed: _selectedTemplate == null
+                          ? null
+                          : () => _applyTemplate(_selectedTemplate!),
+                      label: const Text('Appliquer le modèle'),
+                    ),
+                  if (compactActions)
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.history),
+                        onPressed: _showDraftHistory,
+                        label: const Text('Historique'),
+                      ),
+                    )
+                  else
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.history),
+                      onPressed: _showDraftHistory,
+                      label: const Text('Historique'),
+                    ),
                 ],
               ),
             ],
@@ -2077,7 +2863,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     (
                       label: 'Perso (stef971fwi)',
                       url:
-                        'mapbox://styles/stef971fwi/cmmgh2oa000rk01qr65il695n',
+                          'mapbox://styles/stef971fwi/cmmgh2oa000rk01qr65il695n',
                     ),
                   ];
 
@@ -2219,6 +3005,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   Widget _buildStep2Perimeter() {
     final proCfg = _routeStyleProConfig?.validated();
+    final mapHeight = _responsiveWizardMapHeight(context);
+    final pointsListMaxHeight = _responsiveWizardPointsListMaxHeight(context);
     return CircuitMapEditor(
       title: 'Définir le périmètre',
       subtitle: 'Tracez la zone de couverture (polygon fermé)',
@@ -2253,8 +3041,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       showToolbar: false,
       showHeader: false,
       allowVerticalScroll: true,
-      mapHeight: 720,
-      pointsListMaxHeight: 120,
+      mapHeight: mapHeight,
+      pointsListMaxHeight: pointsListMaxHeight,
       onPointsChanged: (points) {
         setState(() {
           _perimeterPoints = points;
@@ -2268,6 +3056,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final controller = isPerimeter
         ? _perimeterEditorController
         : _routeEditorController;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final toolbarMaxWidth = screenWidth >= 1180
+        ? 780.0
+        : screenWidth >= 720
+        ? 700.0
+        : double.infinity;
 
     final isRouteAndStyleStep = !isPerimeter;
     const toolbarSectionStyle = TextStyle(
@@ -2288,7 +3082,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     );
 
     Widget content = ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 620),
+      constraints: BoxConstraints(maxWidth: toolbarMaxWidth),
       child: GlassPanel(
         radius: MasliveTokens.rM,
         opacity: 0.92,
@@ -2299,6 +3093,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         child: AnimatedBuilder(
           animation: controller,
           builder: (context, _) {
+            final colorScheme = Theme.of(context).colorScheme;
             final routeIsLooped =
                 !isPerimeter &&
                 _routePoints.length >= 2 &&
@@ -2309,438 +3104,694 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 _perimeterPoints.length >= 2 &&
                 _perimeterPoints.first == _perimeterPoints.last;
 
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.undo),
-                    onPressed: controller.canUndo ? controller.undo : null,
-                    tooltip: 'Annuler',
+            Widget toolbarActionButton({
+              required IconData icon,
+              required String tooltip,
+              required VoidCallback? onPressed,
+              bool active = false,
+              Color? accent,
+              Widget? child,
+            }) {
+              final tint = accent ?? MasliveTokens.primary;
+              return IconButton.filledTonal(
+                tooltip: tooltip,
+                onPressed: onPressed,
+                style: IconButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  foregroundColor: active ? tint : MasliveTokens.text,
+                  backgroundColor: active
+                      ? tint.withValues(alpha: 0.16)
+                      : Colors.white.withValues(alpha: 0.82),
+                  disabledBackgroundColor: Colors.white.withValues(alpha: 0.34),
+                  disabledForegroundColor: MasliveTokens.textSoft.withValues(
+                    alpha: 0.5,
                   ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    icon: const Icon(Icons.redo),
-                    onPressed: controller.canRedo ? controller.redo : null,
-                    tooltip: 'Rétablir',
-                  ),
-                  const SizedBox(width: 12),
-                  const SizedBox(
-                    height: 28,
-                    child: VerticalDivider(),
-                  ),
-                  const SizedBox(width: 12),
+                ),
+                icon: child ?? Icon(icon, size: 18),
+              );
+            }
 
-                  if (isPerimeter && !_perimeterCircleMode)
-                    IconButton(
-                      icon: const Icon(Icons.loop_rounded),
-                      onPressed: controller.pointCount >= 2
-                          ? controller.closePath
-                          : null,
-                      tooltip: 'Fermer le polygone',
-                    ),
-                  if (isPerimeter) ...[
-                    const SizedBox(width: 8),
-                    FilterChip(
-                      label: const Text('Boucle fermée'),
-                      labelStyle: toolbarValueStyle,
-                      selected: perimeterIsLooped,
-                      shape: StadiumBorder(
-                        side: BorderSide(color: MasliveTokens.borderSoft),
-                      ),
-                      side: BorderSide(color: MasliveTokens.borderSoft),
-                      selectedColor: MasliveTokens.primary.withValues(
-                        alpha: 0.15,
-                      ),
-                      onSelected:
-                          (_perimeterCircleMode || controller.pointCount < 2)
-                          ? null
-                          : (v) {
-                              if (v) {
-                                controller.closePath();
-                              } else {
-                                controller.openPath();
-                              }
-                            },
-                    ),
-                    const SizedBox(width: 12),
-                    FilterChip(
-                      label: const Text('Cercle'),
-                      labelStyle: toolbarValueStyle,
-                      selected: _perimeterCircleMode,
-                      shape: StadiumBorder(
-                        side: BorderSide(color: MasliveTokens.borderSoft),
-                      ),
-                      side: BorderSide(color: MasliveTokens.borderSoft),
-                      selectedColor: MasliveTokens.primary.withValues(
-                        alpha: 0.15,
-                      ),
-                      onSelected: (v) {
-                        if (v) {
-                          if (_perimeterCircleCenter != null) {
-                            _applyPerimeterCircle();
-                            return;
-                          }
-                          if (_perimeterPoints.isNotEmpty) {
-                            _applyPerimeterCircle(
-                              center: _perimeterPoints.first,
-                            );
-                            return;
-                          }
-                          setState(() {
-                            _perimeterCircleMode = true;
-                            _perimeterPoints = [];
-                          });
-                          _showTopSnackBar(
-                            '🧭 Tape sur la carte pour poser le centre du cercle.',
-                          );
-                        } else {
-                          setState(() {
-                            _perimeterCircleMode = false;
-                          });
-                        }
-                      },
-                    ),
-                    if (_perimeterCircleMode) ...[
-                      const SizedBox(width: 12),
-                      FilterChip(
-                        label: const Text('Centre verrouille'),
-                        labelStyle: toolbarValueStyle,
-                        selected: _perimeterCircleCenterLocked,
-                        shape: StadiumBorder(
-                          side: BorderSide(color: MasliveTokens.borderSoft),
-                        ),
-                        side: BorderSide(color: MasliveTokens.borderSoft),
-                        selectedColor: MasliveTokens.primary.withValues(
-                          alpha: 0.15,
-                        ),
-                        onSelected: _perimeterCircleCenter == null
-                            ? null
-                            : (value) {
-                                setState(() {
-                                  _perimeterCircleCenterLocked = value;
-                                });
-                              },
-                      ),
-                      const SizedBox(width: 12),
-                      IconButton(
-                        tooltip: 'Réduire diamètre',
-                        icon: const Icon(Icons.remove_circle_outline),
-                        onPressed: () {
-                          final next = (_perimeterCircleDiameterMeters - 200.0)
-                              .clamp(200.0, 20000.0);
-                          if (_perimeterCircleCenter != null) {
-                            _applyPerimeterCircle(diameterMeters: next);
-                          } else {
-                            setState(
-                              () => _perimeterCircleDiameterMeters = next,
-                            );
-                          }
-                        },
-                      ),
-                      Text(
-                        'Ø ${_formatMeters(_perimeterCircleDiameterMeters)}',
-                        style: toolbarValueStyle,
-                      ),
-                      const SizedBox(width: 4),
-                      IconButton(
-                        tooltip: 'Augmenter diamètre',
-                        icon: const Icon(Icons.add_circle_outline),
-                        onPressed: () {
-                          final next = (_perimeterCircleDiameterMeters + 200.0)
-                              .clamp(200.0, 20000.0);
-                          if (_perimeterCircleCenter != null) {
-                            _applyPerimeterCircle(diameterMeters: next);
-                          } else {
-                            setState(
-                              () => _perimeterCircleDiameterMeters = next,
-                            );
-                          }
-                        },
-                      ),
+            Widget toolbarMetric({
+              required String label,
+              required String value,
+              IconData? icon,
+              Color? accent,
+            }) {
+              final tint = accent ?? MasliveTokens.primary;
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MasliveTokens.s,
+                  vertical: MasliveTokens.xs,
+                ),
+                decoration: BoxDecoration(
+                  color: tint.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(MasliveTokens.rS),
+                  border: Border.all(color: tint.withValues(alpha: 0.14)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (icon != null) ...[
+                      Icon(icon, size: 15, color: tint),
+                      const SizedBox(width: 6),
                     ],
-                  ],
-
-                  if (isPerimeter) ...[
-                    const SizedBox(width: 14),
-                    const SizedBox(
-                      height: 28,
-                      child: VerticalDivider(),
-                    ),
-                    const SizedBox(width: 14),
-                    const Text(
-                      'Caméra',
-                      style: toolbarSectionStyle,
-                    ),
-                    const SizedBox(width: 10),
-
-                    IconButton(
-                      tooltip: 'Zoom initial -',
-                      icon: const Icon(Icons.zoom_out),
-                      onPressed: () {
-                        setState(() {
-                          _perimeterCameraInitialZoom =
-                              (_perimeterCameraInitialZoom - 0.5).clamp(
-                                0.0,
-                                22.0,
-                              );
-                          _perimeterCameraMaxZoom = _perimeterCameraMaxZoom
-                              .clamp(_perimeterCameraInitialZoom, 22.0);
-                          _perimeterCameraPitchZoomThreshold =
-                              _perimeterCameraPitchZoomThreshold.clamp(
-                                0.0,
-                                _perimeterCameraMaxZoom,
-                              );
-                        });
-                      },
-                    ),
-                    Text(
-                      'Init ${_perimeterCameraInitialZoom.toStringAsFixed(1)}',
-                      style: toolbarValueStyle,
-                    ),
-                    IconButton(
-                      tooltip: 'Zoom initial +',
-                      icon: const Icon(Icons.zoom_in),
-                      onPressed: () {
-                        setState(() {
-                          _perimeterCameraInitialZoom =
-                              (_perimeterCameraInitialZoom + 0.5).clamp(
-                                0.0,
-                                22.0,
-                              );
-                          _perimeterCameraMaxZoom = _perimeterCameraMaxZoom
-                              .clamp(_perimeterCameraInitialZoom, 22.0);
-                          _perimeterCameraPitchZoomThreshold =
-                              _perimeterCameraPitchZoomThreshold.clamp(
-                                0.0,
-                                _perimeterCameraMaxZoom,
-                              );
-                        });
-                      },
-                    ),
-                    const SizedBox(width: 14),
-
-                    IconButton(
-                      tooltip: 'Seuil tilt -',
-                      icon: const Icon(Icons.expand_more),
-                      onPressed: () {
-                        setState(() {
-                          _perimeterCameraPitchZoomThreshold =
-                              (_perimeterCameraPitchZoomThreshold - 0.5).clamp(
-                                0.0,
-                                _perimeterCameraMaxZoom,
-                              );
-                        });
-                      },
-                    ),
-                    Text(
-                      'Seuil ${_perimeterCameraPitchZoomThreshold.toStringAsFixed(1)}',
-                      style: toolbarValueStyle,
-                    ),
-                    IconButton(
-                      tooltip: 'Seuil tilt +',
-                      icon: const Icon(Icons.expand_less),
-                      onPressed: () {
-                        setState(() {
-                          _perimeterCameraPitchZoomThreshold =
-                              (_perimeterCameraPitchZoomThreshold + 0.5).clamp(
-                                0.0,
-                                _perimeterCameraMaxZoom,
-                              );
-                        });
-                      },
-                    ),
-                    const SizedBox(width: 14),
-
-                    IconButton(
-                      tooltip: 'Pitch -',
-                      icon: const Icon(Icons.threed_rotation),
-                      onPressed: () {
-                        setState(() {
-                          _perimeterCameraPitchDegrees =
-                              (_perimeterCameraPitchDegrees - 5.0).clamp(
-                                0.0,
-                                60.0,
-                              );
-                        });
-                      },
-                    ),
-                    Text(
-                      'Pitch ${_perimeterCameraPitchDegrees.toStringAsFixed(0)}°',
-                      style: toolbarValueStyle,
-                    ),
-                    IconButton(
-                      tooltip: 'Pitch +',
-                      icon: const Icon(Icons.rotate_right),
-                      onPressed: () {
-                        setState(() {
-                          _perimeterCameraPitchDegrees =
-                              (_perimeterCameraPitchDegrees + 5.0).clamp(
-                                0.0,
-                                60.0,
-                              );
-                        });
-                      },
-                    ),
-                    const SizedBox(width: 14),
-
-                    IconButton(
-                      tooltip: 'Zoom max -',
-                      icon: const Icon(Icons.remove_circle_outline),
-                      onPressed: () {
-                        setState(() {
-                          _perimeterCameraMaxZoom =
-                              (_perimeterCameraMaxZoom - 0.5).clamp(
-                                _perimeterCameraInitialZoom,
-                                22.0,
-                              );
-                          _perimeterCameraPitchZoomThreshold =
-                              _perimeterCameraPitchZoomThreshold.clamp(
-                                0.0,
-                                _perimeterCameraMaxZoom,
-                              );
-                        });
-                      },
-                    ),
-                    Text(
-                      'Max ${_perimeterCameraMaxZoom.toStringAsFixed(1)}',
-                      style: toolbarValueStyle,
-                    ),
-                    IconButton(
-                      tooltip: 'Zoom max +',
-                      icon: const Icon(Icons.add_circle_outline),
-                      onPressed: () {
-                        setState(() {
-                          _perimeterCameraMaxZoom =
-                              (_perimeterCameraMaxZoom + 0.5).clamp(
-                                _perimeterCameraInitialZoom,
-                                22.0,
-                              );
-                          _perimeterCameraPitchZoomThreshold =
-                              _perimeterCameraPitchZoomThreshold.clamp(
-                                0.0,
-                                _perimeterCameraMaxZoom,
-                              );
-                        });
-                      },
-                    ),
-                  ],
-
-                  IconButton(
-                    icon: const Icon(Icons.flip_to_back),
-                    onPressed: controller.pointCount >= 2
-                        ? controller.reversePath
-                        : null,
-                    tooltip: 'Inverser sens',
-                  ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    icon: const Icon(Icons.compress_rounded),
-                    onPressed: controller.pointCount >= 3
-                        ? controller.simplifyTrack
-                        : null,
-                    tooltip: 'Simplifier tracé',
-                  ),
-
-                  if (isRouteAndStyleStep) ...[
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: _isSnappingRoute
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.alt_route_rounded),
-                      onPressed:
-                          (!_isSnappingRoute && controller.pointCount >= 2)
-                          ? _snapRouteToRoads
-                          : null,
-                      tooltip: 'Snap sur route (Waze)',
-                    ),
-
-                    const SizedBox(width: 10),
-                    ToggleButtons(
-                      isSelected: [routeIsLooped, !routeIsLooped],
-                      borderRadius: BorderRadius.circular(10),
-                      constraints: const BoxConstraints(minHeight: 36),
-                      onPressed: controller.pointCount >= 2
-                          ? (index) {
-                              if (index == 0) {
-                                controller.closePath();
-                              } else {
-                                controller.openPath();
-                              }
-                            }
-                          : null,
-                      children: [
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 10),
-                          child: Row(
-                            children: [
-                              Icon(Icons.loop_rounded, size: 18),
-                              SizedBox(width: 6),
-                              Text('Boucler', style: toolbarValueStyle),
-                            ],
-                          ),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 10),
-                          child: Row(
-                            children: [
-                              Icon(Icons.flag_rounded, size: 18),
-                              SizedBox(width: 6),
-                              Text('Arrivée', style: toolbarValueStyle),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  IconButton(
-                    icon: const Icon(Icons.delete_sweep),
-                    onPressed: controller.pointCount > 0
-                        ? controller.clearAll
-                        : null,
-                    tooltip: 'Effacer tous',
-                  ),
-                  const SizedBox(width: 14),
-                  const SizedBox(
-                    height: 28,
-                    child: VerticalDivider(),
-                  ),
-                  const SizedBox(width: 14),
-
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Column(
+                    Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          '${controller.pointCount} points',
-                          style: toolbarSectionStyle,
+                        Text(label, style: toolbarHintStyle),
+                        Text(value, style: toolbarSectionStyle),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            Widget toolbarSection({
+              required String title,
+              required IconData icon,
+              required List<Widget> children,
+              Color? accent,
+              bool compact = false,
+            }) {
+              final tint = accent ?? MasliveTokens.primary;
+              return Container(
+                constraints: const BoxConstraints(minHeight: 84),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MasliveTokens.s,
+                  vertical: MasliveTokens.s,
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.94),
+                      tint.withValues(alpha: 0.05),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(MasliveTokens.rM),
+                  border: Border.all(color: tint.withValues(alpha: 0.12)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: tint.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Icon(icon, size: 14, color: tint),
                         ),
-                        Text(
-                          '${controller.distanceKm.toStringAsFixed(2)} km',
-                          style: toolbarHintStyle,
+                        const SizedBox(width: 8),
+                        Text(title, style: toolbarSectionStyle),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    compact
+                        ? Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: children,
+                          )
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: children,
+                          ),
+                  ],
+                ),
+              );
+            }
+
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final compactToolbar = constraints.maxWidth < 560;
+                final sections = <Widget>[
+                  toolbarSection(
+                    title: 'Historique',
+                    icon: Icons.history_rounded,
+                    accent: colorScheme.secondary,
+                    compact: compactToolbar,
+                    children: [
+                      toolbarActionButton(
+                        icon: Icons.undo_rounded,
+                        tooltip: 'Annuler',
+                        onPressed: controller.canUndo ? controller.undo : null,
+                        accent: colorScheme.secondary,
+                      ),
+                      const SizedBox(width: 8),
+                      toolbarActionButton(
+                        icon: Icons.redo_rounded,
+                        tooltip: 'Rétablir',
+                        onPressed: controller.canRedo ? controller.redo : null,
+                        accent: colorScheme.secondary,
+                      ),
+                    ],
+                  ),
+                  if (isPerimeter)
+                    toolbarSection(
+                      title: 'Forme',
+                      icon: Icons.gesture_rounded,
+                      accent: MasliveTokens.primary,
+                      compact: compactToolbar,
+                      children: [
+                        if (!_perimeterCircleMode) ...[
+                          toolbarActionButton(
+                            icon: Icons.loop_rounded,
+                            tooltip: 'Fermer le polygone',
+                            onPressed: controller.pointCount >= 2
+                                ? controller.closePath
+                                : null,
+                            active: perimeterIsLooped,
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        FilterChip(
+                          label: const Text('Boucle fermée'),
+                          labelStyle: toolbarValueStyle,
+                          selected: perimeterIsLooped,
+                          shape: StadiumBorder(
+                            side: BorderSide(color: MasliveTokens.borderSoft),
+                          ),
+                          side: BorderSide(color: MasliveTokens.borderSoft),
+                          selectedColor: MasliveTokens.primary.withValues(
+                            alpha: 0.15,
+                          ),
+                          onSelected:
+                              (_perimeterCircleMode ||
+                                  controller.pointCount < 2)
+                              ? null
+                              : (v) {
+                                  if (v) {
+                                    controller.closePath();
+                                  } else {
+                                    controller.openPath();
+                                  }
+                                },
+                        ),
+                        const SizedBox(width: 8),
+                        FilterChip(
+                          label: const Text('Cercle'),
+                          labelStyle: toolbarValueStyle,
+                          selected: _perimeterCircleMode,
+                          shape: StadiumBorder(
+                            side: BorderSide(color: MasliveTokens.borderSoft),
+                          ),
+                          side: BorderSide(color: MasliveTokens.borderSoft),
+                          selectedColor: MasliveTokens.primary.withValues(
+                            alpha: 0.15,
+                          ),
+                          onSelected: (v) {
+                            if (v) {
+                              if (_perimeterCircleCenter != null) {
+                                _applyPerimeterCircle();
+                                return;
+                              }
+                              if (_perimeterPoints.isNotEmpty) {
+                                _applyPerimeterCircle(
+                                  center: _perimeterPoints.first,
+                                );
+                                return;
+                              }
+                              setState(() {
+                                _perimeterCircleMode = true;
+                                _perimeterPoints = [];
+                              });
+                              _showTopSnackBar(
+                                '🧭 Tape sur la carte pour poser le centre du cercle.',
+                              );
+                            } else {
+                              setState(() {
+                                _perimeterCircleMode = false;
+                              });
+                            }
+                          },
+                        ),
+                        if (_perimeterCircleMode) ...[
+                          const SizedBox(width: 8),
+                          FilterChip(
+                            label: const Text('Centre verrouille'),
+                            labelStyle: toolbarValueStyle,
+                            selected: _perimeterCircleCenterLocked,
+                            shape: StadiumBorder(
+                              side: BorderSide(color: MasliveTokens.borderSoft),
+                            ),
+                            side: BorderSide(color: MasliveTokens.borderSoft),
+                            selectedColor: MasliveTokens.primary.withValues(
+                              alpha: 0.15,
+                            ),
+                            onSelected: _perimeterCircleCenter == null
+                                ? null
+                                : (value) {
+                                    setState(() {
+                                      _perimeterCircleCenterLocked = value;
+                                    });
+                                  },
+                          ),
+                          const SizedBox(width: 8),
+                          toolbarMetric(
+                            label: 'Diamètre',
+                            value: _formatMeters(
+                              _perimeterCircleDiameterMeters,
+                            ),
+                            icon: Icons.radio_button_checked,
+                          ),
+                          const SizedBox(width: 8),
+                          toolbarActionButton(
+                            icon: Icons.remove_circle_outline,
+                            tooltip: 'Réduire diamètre',
+                            onPressed: () {
+                              final next =
+                                  (_perimeterCircleDiameterMeters - 200.0)
+                                      .clamp(200.0, 20000.0);
+                              if (_perimeterCircleCenter != null) {
+                                _applyPerimeterCircle(diameterMeters: next);
+                              } else {
+                                setState(
+                                  () => _perimeterCircleDiameterMeters = next,
+                                );
+                              }
+                            },
+                          ),
+                          const SizedBox(width: 6),
+                          toolbarActionButton(
+                            icon: Icons.add_circle_outline,
+                            tooltip: 'Augmenter diamètre',
+                            onPressed: () {
+                              final next =
+                                  (_perimeterCircleDiameterMeters + 200.0)
+                                      .clamp(200.0, 20000.0);
+                              if (_perimeterCircleCenter != null) {
+                                _applyPerimeterCircle(diameterMeters: next);
+                              } else {
+                                setState(
+                                  () => _perimeterCircleDiameterMeters = next,
+                                );
+                              }
+                            },
+                          ),
+                        ],
+                      ],
+                    ),
+                  if (isPerimeter)
+                    toolbarSection(
+                      title: 'Caméra',
+                      icon: Icons.videocam_outlined,
+                      accent: colorScheme.tertiary,
+                      compact: compactToolbar,
+                      children: [
+                        toolbarMetric(
+                          label: 'Init',
+                          value: _perimeterCameraInitialZoom.toStringAsFixed(1),
+                          icon: Icons.center_focus_strong,
+                          accent: colorScheme.tertiary,
+                        ),
+                        const SizedBox(width: 6),
+                        toolbarActionButton(
+                          icon: Icons.zoom_out,
+                          tooltip: 'Zoom initial -',
+                          onPressed: () {
+                            setState(() {
+                              _perimeterCameraInitialZoom =
+                                  (_perimeterCameraInitialZoom - 0.5).clamp(
+                                    0.0,
+                                    22.0,
+                                  );
+                              _perimeterCameraMaxZoom = _perimeterCameraMaxZoom
+                                  .clamp(_perimeterCameraInitialZoom, 22.0);
+                              _perimeterCameraPitchZoomThreshold =
+                                  _perimeterCameraPitchZoomThreshold.clamp(
+                                    0.0,
+                                    _perimeterCameraMaxZoom,
+                                  );
+                            });
+                          },
+                          accent: colorScheme.tertiary,
+                        ),
+                        const SizedBox(width: 4),
+                        toolbarActionButton(
+                          icon: Icons.zoom_in,
+                          tooltip: 'Zoom initial +',
+                          onPressed: () {
+                            setState(() {
+                              _perimeterCameraInitialZoom =
+                                  (_perimeterCameraInitialZoom + 0.5).clamp(
+                                    0.0,
+                                    22.0,
+                                  );
+                              _perimeterCameraMaxZoom = _perimeterCameraMaxZoom
+                                  .clamp(_perimeterCameraInitialZoom, 22.0);
+                              _perimeterCameraPitchZoomThreshold =
+                                  _perimeterCameraPitchZoomThreshold.clamp(
+                                    0.0,
+                                    _perimeterCameraMaxZoom,
+                                  );
+                            });
+                          },
+                          accent: colorScheme.tertiary,
+                        ),
+                        const SizedBox(width: 8),
+                        toolbarMetric(
+                          label: 'Max',
+                          value: _perimeterCameraMaxZoom.toStringAsFixed(1),
+                          icon: Icons.zoom_in_map,
+                          accent: colorScheme.tertiary,
+                        ),
+                        const SizedBox(width: 6),
+                        toolbarActionButton(
+                          icon: Icons.remove_circle_outline,
+                          tooltip: 'Zoom max -',
+                          onPressed: () {
+                            setState(() {
+                              _perimeterCameraMaxZoom =
+                                  (_perimeterCameraMaxZoom - 0.5).clamp(
+                                    _perimeterCameraInitialZoom,
+                                    22.0,
+                                  );
+                              _perimeterCameraPitchZoomThreshold =
+                                  _perimeterCameraPitchZoomThreshold.clamp(
+                                    0.0,
+                                    _perimeterCameraMaxZoom,
+                                  );
+                            });
+                          },
+                          accent: colorScheme.tertiary,
+                        ),
+                        const SizedBox(width: 4),
+                        toolbarActionButton(
+                          icon: Icons.add_circle_outline,
+                          tooltip: 'Zoom max +',
+                          onPressed: () {
+                            setState(() {
+                              _perimeterCameraMaxZoom =
+                                  (_perimeterCameraMaxZoom + 0.5).clamp(
+                                    _perimeterCameraInitialZoom,
+                                    22.0,
+                                  );
+                              _perimeterCameraPitchZoomThreshold =
+                                  _perimeterCameraPitchZoomThreshold.clamp(
+                                    0.0,
+                                    _perimeterCameraMaxZoom,
+                                  );
+                            });
+                          },
+                          accent: colorScheme.tertiary,
+                        ),
+                        const SizedBox(width: 8),
+                        FilterChip(
+                          label: Text(
+                            _perimeterCameraAdvancedExpanded
+                                ? 'Perspective ouverte'
+                                : 'Perspective avancée',
+                          ),
+                          selected: _perimeterCameraAdvancedExpanded,
+                          labelStyle: toolbarValueStyle,
+                          shape: StadiumBorder(
+                            side: BorderSide(
+                              color: colorScheme.tertiary.withValues(
+                                alpha: 0.25,
+                              ),
+                            ),
+                          ),
+                          side: BorderSide(
+                            color: colorScheme.tertiary.withValues(alpha: 0.25),
+                          ),
+                          selectedColor: colorScheme.tertiary.withValues(
+                            alpha: 0.14,
+                          ),
+                          onSelected: (value) {
+                            setState(() {
+                              _perimeterCameraAdvancedExpanded = value;
+                            });
+                          },
+                        ),
+                        if (_perimeterCameraAdvancedExpanded) ...[
+                          const SizedBox(width: 8),
+                          toolbarMetric(
+                            label: 'Seuil',
+                            value: _perimeterCameraPitchZoomThreshold
+                                .toStringAsFixed(1),
+                            icon: Icons.tune,
+                            accent: colorScheme.tertiary,
+                          ),
+                          const SizedBox(width: 6),
+                          toolbarActionButton(
+                            icon: Icons.expand_more,
+                            tooltip: 'Seuil tilt -',
+                            onPressed: () {
+                              setState(() {
+                                _perimeterCameraPitchZoomThreshold =
+                                    (_perimeterCameraPitchZoomThreshold - 0.5)
+                                        .clamp(0.0, _perimeterCameraMaxZoom);
+                              });
+                            },
+                            accent: colorScheme.tertiary,
+                          ),
+                          const SizedBox(width: 4),
+                          toolbarActionButton(
+                            icon: Icons.expand_less,
+                            tooltip: 'Seuil tilt +',
+                            onPressed: () {
+                              setState(() {
+                                _perimeterCameraPitchZoomThreshold =
+                                    (_perimeterCameraPitchZoomThreshold + 0.5)
+                                        .clamp(0.0, _perimeterCameraMaxZoom);
+                              });
+                            },
+                            accent: colorScheme.tertiary,
+                          ),
+                          const SizedBox(width: 8),
+                          toolbarMetric(
+                            label: 'Pitch',
+                            value:
+                                '${_perimeterCameraPitchDegrees.toStringAsFixed(0)}°',
+                            icon: Icons.threed_rotation,
+                            accent: colorScheme.tertiary,
+                          ),
+                          const SizedBox(width: 6),
+                          toolbarActionButton(
+                            icon: Icons.remove,
+                            tooltip: 'Pitch -',
+                            onPressed: () {
+                              setState(() {
+                                _perimeterCameraPitchDegrees =
+                                    (_perimeterCameraPitchDegrees - 5.0).clamp(
+                                      0.0,
+                                      60.0,
+                                    );
+                              });
+                            },
+                            accent: colorScheme.tertiary,
+                          ),
+                          const SizedBox(width: 4),
+                          toolbarActionButton(
+                            icon: Icons.add,
+                            tooltip: 'Pitch +',
+                            onPressed: () {
+                              setState(() {
+                                _perimeterCameraPitchDegrees =
+                                    (_perimeterCameraPitchDegrees + 5.0).clamp(
+                                      0.0,
+                                      60.0,
+                                    );
+                              });
+                            },
+                            accent: colorScheme.tertiary,
+                          ),
+                        ],
+                      ],
+                    ),
+                  toolbarSection(
+                    title: 'Édition',
+                    icon: Icons.auto_fix_high_rounded,
+                    accent: Colors.deepPurple,
+                    compact: compactToolbar,
+                    children: [
+                      toolbarActionButton(
+                        icon: Icons.flip_to_back,
+                        tooltip: 'Inverser sens',
+                        onPressed: controller.pointCount >= 2
+                            ? controller.reversePath
+                            : null,
+                        accent: Colors.deepPurple,
+                      ),
+                      const SizedBox(width: 8),
+                      toolbarActionButton(
+                        icon: Icons.compress_rounded,
+                        tooltip: 'Simplifier tracé',
+                        onPressed: controller.pointCount >= 3
+                            ? controller.simplifyTrack
+                            : null,
+                        accent: Colors.deepPurple,
+                      ),
+                      const SizedBox(width: 8),
+                      toolbarActionButton(
+                        icon: Icons.delete_sweep,
+                        tooltip: 'Effacer tous',
+                        onPressed: controller.pointCount > 0
+                            ? controller.clearAll
+                            : null,
+                        accent: Colors.redAccent,
+                      ),
+                    ],
+                  ),
+                  if (isRouteAndStyleStep)
+                    toolbarSection(
+                      title: 'Trajet',
+                      icon: Icons.route_rounded,
+                      accent: colorScheme.secondary,
+                      compact: compactToolbar,
+                      children: [
+                        toolbarActionButton(
+                          icon: Icons.alt_route_rounded,
+                          tooltip: 'Snap sur route (Waze)',
+                          onPressed:
+                              (!_isSnappingRoute && controller.pointCount >= 2)
+                              ? _snapRouteToRoads
+                              : null,
+                          active: _isSnappingRoute,
+                          accent: colorScheme.secondary,
+                          child: _isSnappingRoute
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.72),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: colorScheme.secondary.withValues(
+                                alpha: 0.18,
+                              ),
+                            ),
+                          ),
+                          child: ToggleButtons(
+                            isSelected: [routeIsLooped, !routeIsLooped],
+                            borderRadius: BorderRadius.circular(10),
+                            constraints: const BoxConstraints(minHeight: 38),
+                            onPressed: controller.pointCount >= 2
+                                ? (index) {
+                                    if (index == 0) {
+                                      controller.closePath();
+                                    } else {
+                                      controller.openPath();
+                                    }
+                                  }
+                                : null,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.loop_rounded, size: 18),
+                                    const SizedBox(width: 6),
+                                    Text('Boucler', style: toolbarValueStyle),
+                                  ],
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.flag_rounded, size: 18),
+                                    const SizedBox(width: 6),
+                                    Text('Arrivée', style: toolbarValueStyle),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
+                  toolbarSection(
+                    title: 'Lecture',
+                    icon: Icons.analytics_outlined,
+                    accent: MasliveTokens.success,
+                    compact: compactToolbar,
+                    children: [
+                      toolbarMetric(
+                        label: 'Points',
+                        value: '${controller.pointCount}',
+                        icon: Icons.scatter_plot_outlined,
+                        accent: MasliveTokens.success,
+                      ),
+                      const SizedBox(width: 8),
+                      toolbarMetric(
+                        label: 'Distance',
+                        value: '${controller.distanceKm.toStringAsFixed(2)} km',
+                        icon: Icons.straighten_rounded,
+                        accent: MasliveTokens.success,
+                      ),
+                    ],
                   ),
-
-                  if (isRouteAndStyleStep) ...[
-                    const SizedBox(width: 14),
-                    const SizedBox(
-                      height: 28,
-                      child: VerticalDivider(),
+                  if (isRouteAndStyleStep)
+                    toolbarSection(
+                      title: 'Style itinéraire',
+                      icon: Icons.palette_outlined,
+                      accent: colorScheme.primary,
+                      compact: compactToolbar,
+                      children: [
+                        _buildRouteStyleControls(compact: compactToolbar),
+                      ],
                     ),
-                    const SizedBox(width: 14),
-                    _buildRouteStyleControls(),
-                  ],
-                ],
-              ),
+                ];
+
+                if (compactToolbar) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (var i = 0; i < sections.length; i++) ...[
+                          sections[i],
+                          if (i < sections.length - 1)
+                            const SizedBox(height: 10),
+                        ],
+                      ],
+                    ),
+                  );
+                }
+
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Row(
+                    children: [
+                      for (var i = 0; i < sections.length; i++) ...[
+                        sections[i],
+                        if (i < sections.length - 1) const SizedBox(width: 10),
+                      ],
+                    ],
+                  ),
+                );
+              },
             );
           },
         ),
@@ -2854,7 +3905,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     }
   }
 
-  Widget _buildRouteStyleControls() {
+  Widget _buildRouteStyleControls({bool compact = false}) {
     final colorScheme = Theme.of(context).colorScheme;
     final toolLabelStyle = TextStyle(
       fontSize: 12,
@@ -2869,163 +3920,212 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     };
     const proBlue = Color(0xFF1A73E8);
 
-    return Row(
-      children: [
-        PopupMenuButton<String>(
-          tooltip: 'Couleur du tracé',
-          initialValue: _routeColorHex,
-          onSelected: (hex) {
-            setState(() => _routeColorHex = hex);
-          },
-          itemBuilder: (context) => [
-            for (final e in colors.entries)
-              PopupMenuItem<String>(
-                value: e.key,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : 520.0;
+        final sliderWidth = compact
+            ? (availableWidth < 236
+                  ? availableWidth
+                  : (availableWidth > 320 ? 320.0 : availableWidth))
+            : 244.0;
+        final speedWidth = compact
+            ? (availableWidth < 236
+                  ? availableWidth
+                  : (availableWidth > 340 ? 340.0 : availableWidth))
+            : 260.0;
+
+        return Wrap(
+          spacing: compact ? 8 : 10,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            PopupMenuButton<String>(
+              tooltip: 'Couleur du tracé',
+              initialValue: _routeColorHex,
+              onSelected: (hex) {
+                setState(() => _routeColorHex = hex);
+              },
+              itemBuilder: (context) => [
+                for (final e in colors.entries)
+                  PopupMenuItem<String>(
+                    value: e.key,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 14,
+                          height: 14,
+                          decoration: BoxDecoration(
+                            color: _parseHexColor(e.key, fallback: Colors.blue),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(e.value),
+                      ],
+                    ),
+                  ),
+              ],
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.72),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: colorScheme.outline.withValues(alpha: 0.35),
+                  ),
+                ),
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    Icon(Icons.color_lens, color: colorScheme.onSurface),
+                    const SizedBox(width: 6),
+                    Text('Couleur', style: toolLabelStyle),
+                    const SizedBox(width: 6),
                     Container(
-                      width: 14,
-                      height: 14,
+                      width: 12,
+                      height: 12,
                       decoration: BoxDecoration(
-                        color: _parseHexColor(e.key, fallback: Colors.blue),
+                        color: _parseHexColor(
+                          _routeColorHex,
+                          fallback: colorScheme.primary,
+                        ),
                         shape: BoxShape.circle,
+                        border: Border.all(
+                          color: colorScheme.outline,
+                          width: 1,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Text(e.value),
                   ],
                 ),
               ),
-          ],
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.color_lens, color: colorScheme.onSurface),
-                const SizedBox(width: 6),
-                Text('Couleur', style: toolLabelStyle),
-                const SizedBox(width: 6),
-                Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: _parseHexColor(
-                      _routeColorHex,
-                      fallback: colorScheme.primary,
-                    ),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: colorScheme.outline, width: 1),
-                  ),
+            ),
+            SizedBox(
+              width: sliderWidth,
+              child: _buildCompactToolbarAdjuster(
+                label: 'Largeur',
+                value: _routeWidth,
+                min: 2.0,
+                max: 18.0,
+                divisions: 16,
+                displayValue: _routeWidth.toStringAsFixed(0),
+                labelStyle: toolLabelStyle,
+                onChanged: (v) {
+                  setState(() => _routeWidth = v);
+                },
+              ),
+            ),
+            IconButton(
+              tooltip: 'Itinéraire routier',
+              onPressed: () => setState(() => _routeRoadLike = !_routeRoadLike),
+              icon: Icon(
+                Icons.route,
+                color: _routeRoadLike ? proBlue : colorScheme.onSurfaceVariant,
+              ),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                color: _routeShowDirection
+                    ? proBlue.withValues(alpha: 0.10)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _routeShowDirection
+                      ? proBlue.withValues(alpha: 0.35)
+                      : colorScheme.outline.withValues(alpha: 0.50),
                 ),
-              ],
+              ),
+              child: IconButton(
+                tooltip: 'Sens (flèches)',
+                onPressed: () {
+                  setState(() {
+                    _routeShowDirection = !_routeShowDirection;
+                    if (!_routeShowDirection) {
+                      _routeAnimateDirection = false;
+                    }
+                  });
+                },
+                icon: Icon(
+                  Icons.navigation,
+                  color: _routeShowDirection
+                      ? proBlue
+                      : colorScheme.onSurfaceVariant,
+                ),
+              ),
             ),
-          ),
-        ),
-
-        const SizedBox(width: 10),
-        SizedBox(
-          width: 244,
-          child: _buildCompactToolbarAdjuster(
-            label: 'Largeur',
-            value: _routeWidth,
-            min: 2.0,
-            max: 18.0,
-            divisions: 16,
-            displayValue: _routeWidth.toStringAsFixed(0),
-            labelStyle: toolLabelStyle,
-            onChanged: (v) {
-              setState(() => _routeWidth = v);
-            },
-          ),
-        ),
-
-        IconButton(
-          tooltip: 'Itinéraire routier',
-          onPressed: () => setState(() => _routeRoadLike = !_routeRoadLike),
-          icon: Icon(
-            Icons.route,
-            color: _routeRoadLike ? proBlue : colorScheme.onSurfaceVariant,
-          ),
-        ),
-        IconButton(
-          tooltip: 'Ombre 3D',
-          onPressed: _routeRoadLike
-              ? () => setState(() => _routeShadow3d = !_routeShadow3d)
-              : null,
-          icon: Icon(
-            Icons.layers,
-            color: (_routeRoadLike && _routeShadow3d)
-                ? colorScheme.onSurface
-                : colorScheme.onSurfaceVariant,
-          ),
-        ),
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            color: _routeShowDirection
-                ? proBlue.withValues(alpha: 0.10)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: _routeShowDirection
-                  ? proBlue.withValues(alpha: 0.35)
-                  : colorScheme.outline.withValues(alpha: 0.50),
-            ),
-          ),
-          child: IconButton(
-            tooltip: 'Sens (flèches)',
-            onPressed: () {
-              setState(() {
-                _routeShowDirection = !_routeShowDirection;
-                // Si on coupe l'affichage des flèches, on coupe aussi l'animation.
-                if (!_routeShowDirection) {
-                  _routeAnimateDirection = false;
-                }
-              });
-            },
-            icon: Icon(
-              Icons.navigation,
-              color: _routeShowDirection
-                  ? proBlue
-                  : colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-        IconButton(
-          tooltip: 'Animation sens de marche',
-          onPressed: _routeShowDirection
-              ? () => setState(
-                  () => _routeAnimateDirection = !_routeAnimateDirection,
-                )
-              : null,
-          icon: Icon(
-            _routeAnimateDirection
-                ? Icons.pause_circle_filled
-                : Icons.play_circle_filled,
-            color: _routeAnimateDirection
-                ? proBlue
-                : colorScheme.onSurfaceVariant,
-          ),
-        ),
-
-        if (_routeAnimateDirection)
-          SizedBox(
-            width: 260,
-            child: _buildCompactToolbarAdjuster(
-              label: 'Vitesse',
-              value: _routeAnimationSpeed,
-              min: 0.5,
-              max: 5.0,
-              divisions: 9,
-              displayValue: _routeAnimationSpeed.toStringAsFixed(1),
-              labelStyle: toolLabelStyle,
-              onChanged: (v) {
-                setState(() => _routeAnimationSpeed = v);
+            FilterChip(
+              label: Text(
+                _routeStyleAdvancedExpanded
+                    ? 'Style avancé ouvert'
+                    : 'Style avancé',
+                style: toolLabelStyle,
+              ),
+              selected: _routeStyleAdvancedExpanded,
+              shape: StadiumBorder(
+                side: BorderSide(color: proBlue.withValues(alpha: 0.24)),
+              ),
+              side: BorderSide(color: proBlue.withValues(alpha: 0.24)),
+              selectedColor: proBlue.withValues(alpha: 0.12),
+              onSelected: (value) {
+                setState(() {
+                  _routeStyleAdvancedExpanded = value;
+                });
               },
             ),
-          ),
-      ],
+            if (_routeStyleAdvancedExpanded)
+              IconButton(
+                tooltip: 'Ombre 3D',
+                onPressed: _routeRoadLike
+                    ? () => setState(() => _routeShadow3d = !_routeShadow3d)
+                    : null,
+                icon: Icon(
+                  Icons.layers,
+                  color: (_routeRoadLike && _routeShadow3d)
+                      ? colorScheme.onSurface
+                      : colorScheme.onSurfaceVariant,
+                ),
+              ),
+            if (_routeStyleAdvancedExpanded)
+              IconButton(
+                tooltip: 'Animation sens de marche',
+                onPressed: _routeShowDirection
+                    ? () => setState(
+                        () => _routeAnimateDirection = !_routeAnimateDirection,
+                      )
+                    : null,
+                icon: Icon(
+                  _routeAnimateDirection
+                      ? Icons.pause_circle_filled
+                      : Icons.play_circle_filled,
+                  color: _routeAnimateDirection
+                      ? proBlue
+                      : colorScheme.onSurfaceVariant,
+                ),
+              ),
+            if (_routeStyleAdvancedExpanded && _routeAnimateDirection)
+              SizedBox(
+                width: speedWidth,
+                child: _buildCompactToolbarAdjuster(
+                  label: 'Vitesse',
+                  value: _routeAnimationSpeed,
+                  min: 0.5,
+                  max: 5.0,
+                  divisions: 9,
+                  displayValue: _routeAnimationSpeed.toStringAsFixed(1),
+                  labelStyle: toolLabelStyle,
+                  onChanged: (v) {
+                    setState(() => _routeAnimationSpeed = v);
+                  },
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -3089,6 +4189,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   Widget _buildStep5POI() {
     _ensurePoiInitialCamera();
     const poiStepHorizontalPadding = 12.0;
+    final compactPoiLayout = MediaQuery.sizeOf(context).width < 520;
 
     Widget buildPoiToolsPanel({required List<MarketMapLayer> poiLayers}) {
       final parkingLayerSelected = _selectedLayer?.type == 'parking';
@@ -3126,13 +4227,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             children: [
               Row(
                 children: [
-                  Icon(Icons.local_parking_rounded, color: MasliveTokens.primary),
+                  Icon(
+                    Icons.local_parking_rounded,
+                    color: MasliveTokens.primary,
+                  ),
                   const SizedBox(width: 8),
                   const Expanded(
-                    child: Text(
-                      'Zone parking',
-                      style: panelTitleStyle,
-                    ),
+                    child: Text('Zone parking', style: panelTitleStyle),
                   ),
                   DecoratedBox(
                     decoration: BoxDecoration(
@@ -3193,7 +4294,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                             : MasliveTokens.textSoft,
                       ),
                       label: Text(
-                        canFinishParkingZone ? 'Zone prête' : 'Minimum 3 points',
+                        canFinishParkingZone
+                            ? 'Zone prête'
+                            : 'Minimum 3 points',
                       ),
                     ),
                   ],
@@ -3363,7 +4466,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               buildParkingWorkflowCard(),
             ],
             const SizedBox(height: 10),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
                   'POI: ${_pois.length}/$_poiLimit',
@@ -3429,10 +4535,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             if (poiLayers.isNotEmpty)
               Row(
                 children: [
-                  const Text(
-                    'Catégorie: ',
-                    style: panelValueStyle,
-                  ),
+                  const Text('Catégorie: ', style: panelValueStyle),
                   Expanded(
                     child: Text(
                       _selectedLayer?.label ?? 'Choisissez une catégorie',
@@ -3474,43 +4577,162 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                         for (final poi in _pois.where(
                           (p) => _poiMatchesSelectedLayer(p, _selectedLayer!),
                         ))
-                          ListTile(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.place_outlined, size: 18),
-                            onTap: () => _poiSelection.select(poi),
-                            title: Text(
-                              poi.name,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: MasliveTokens.text,
-                              ),
-                            ),
-                            subtitle: Text(
-                              '${poi.lng.toStringAsFixed(5)}, ${poi.lat.toStringAsFixed(5)}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: MasliveTokens.textSoft,
-                              ),
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  tooltip: 'Modifier',
-                                  icon: const Icon(Icons.edit, size: 18),
-                                  onPressed: () => _editPoi(poi),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(
+                                  MasliveTokens.rS,
                                 ),
-                                IconButton(
-                                  tooltip: 'Supprimer',
-                                  icon: const Icon(
-                                    Icons.delete_outline,
-                                    size: 18,
+                                onTap: () => _poiSelection.select(poi),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 4,
                                   ),
-                                  onPressed: () => _deletePoi(poi),
+                                  child: compactPoiLayout
+                                      ? Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                const Padding(
+                                                  padding: EdgeInsets.only(
+                                                    top: 2,
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.place_outlined,
+                                                    size: 18,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        poi.name,
+                                                        maxLines: 2,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: const TextStyle(
+                                                          fontSize: 13,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          color: MasliveTokens
+                                                              .text,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 2),
+                                                      Text(
+                                                        '${poi.lng.toStringAsFixed(5)}, ${poi.lat.toStringAsFixed(5)}',
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          color: MasliveTokens
+                                                              .textSoft,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                left: 26,
+                                              ),
+                                              child: Wrap(
+                                                spacing: 6,
+                                                runSpacing: 6,
+                                                children: [
+                                                  TextButton.icon(
+                                                    onPressed: () =>
+                                                        _editPoi(poi),
+                                                    icon: const Icon(
+                                                      Icons.edit,
+                                                      size: 16,
+                                                    ),
+                                                    label: const Text(
+                                                      'Modifier',
+                                                    ),
+                                                  ),
+                                                  TextButton.icon(
+                                                    onPressed: () =>
+                                                        _deletePoi(poi),
+                                                    icon: const Icon(
+                                                      Icons.delete_outline,
+                                                      size: 16,
+                                                    ),
+                                                    label: const Text(
+                                                      'Supprimer',
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.place_outlined,
+                                              size: 18,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    poi.name,
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: const TextStyle(
+                                                      fontSize: 13,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: MasliveTokens.text,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    '${poi.lng.toStringAsFixed(5)}, ${poi.lat.toStringAsFixed(5)}',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      color: MasliveTokens
+                                                          .textSoft,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            IconButton(
+                                              tooltip: 'Modifier',
+                                              icon: const Icon(
+                                                Icons.edit,
+                                                size: 18,
+                                              ),
+                                              onPressed: () => _editPoi(poi),
+                                            ),
+                                            IconButton(
+                                              tooltip: 'Supprimer',
+                                              icon: const Icon(
+                                                Icons.delete_outline,
+                                                size: 18,
+                                              ),
+                                              onPressed: () => _deletePoi(poi),
+                                            ),
+                                          ],
+                                        ),
                                 ),
-                              ],
+                              ),
                             ),
                           ),
                       ],
@@ -3587,7 +4809,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                               _styleUrlController.text,
                             ).isEmpty
                             ? null
-                            : _normalizeMapboxStyleUrl(_styleUrlController.text),
+                            : _normalizeMapboxStyleUrl(
+                                _styleUrlController.text,
+                              ),
                         onMapReady: (ctrl) async {
                           final cfg = _routeStyleProConfig?.validated();
                           if (cfg != null) {
@@ -3802,8 +5026,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             _parkingZoneStrokeColorHex.toUpperCase() ==
             _parkingZoneFillColorHex.toUpperCase();
         _parkingZoneColorSaturation =
-          (style['colorSaturation'] as num?)?.toDouble() ??
-          _parkingZoneDefaultColorSaturation;
+            (style['colorSaturation'] as num?)?.toDouble() ??
+            _parkingZoneDefaultColorSaturation;
         _parkingZoneFillOpacity =
             (style['fillOpacity'] as num?)?.toDouble() ??
             _parkingZoneFillOpacity;
@@ -3862,7 +5086,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       layerId: layerType,
       lng: lng,
       lat: lat,
-      metadata: <String, dynamic>{kMasLivePoiAppearanceKey: _defaultPoiAppearanceId},
+      metadata: <String, dynamic>{
+        kMasLivePoiAppearanceKey: _defaultPoiAppearanceId,
+      },
     );
 
     final created = await showModalBottomSheet<MarketMapPOI>(
@@ -3893,15 +5119,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
     final layer = _selectedLayer!;
     final poisForLayer = _pois
-      .where(
-        (p) =>
-          _poiMatchesSelectedLayer(p, layer) &&
-          !(_isEditingParkingZonePerimeter && _poiEditingPoi?.id == p.id),
-      )
+        .where(
+          (p) =>
+              _poiMatchesSelectedLayer(p, layer) &&
+              !(_isEditingParkingZonePerimeter && _poiEditingPoi?.id == p.id),
+        )
         .toList();
 
     final previewParkingZonePoints =
-      ((_isDrawingParkingZone || _isEditingParkingZonePerimeter) &&
+        ((_isDrawingParkingZone || _isEditingParkingZonePerimeter) &&
             layer.type == 'parking' &&
             _parkingZonePoints.isNotEmpty)
         ? _parkingZonePoints
@@ -4267,8 +5493,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final strokeColor =
         _normalizeColorHex(style?['strokeColor']?.toString()) ?? fillColor;
     final colorSaturation =
-      (style?['colorSaturation'] as num?)?.toDouble() ??
-      _parkingZoneDefaultColorSaturation;
+        (style?['colorSaturation'] as num?)?.toDouble() ??
+        _parkingZoneDefaultColorSaturation;
     final fillOpacity =
         (style?['fillOpacity'] as num?)?.toDouble() ??
         _parkingZoneDefaultFillOpacity;
@@ -4314,7 +5540,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         colorSaturation,
       ),
       'strokeColor': _applyParkingColorSaturationToHex(
-        raw['strokeColor'] as String? ?? (raw['fillColor'] as String? ?? '#FBBF24'),
+        raw['strokeColor'] as String? ??
+            (raw['fillColor'] as String? ?? '#FBBF24'),
         colorSaturation,
       ),
     };
@@ -4950,14 +6177,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         isEdit &&
         editingPoi != null &&
         _poiPerimeterFromMetadata(editingPoi) != null;
-      final editZonePerimeter = editingPoi == null
+    final editZonePerimeter = editingPoi == null
         ? null
         : _poiPerimeterFromMetadata(editingPoi);
-      final displayedPerimeterCount = isCreateZone
+    final displayedPerimeterCount = isCreateZone
         ? _parkingZonePoints.length
         : (_isEditingParkingZonePerimeter
-            ? _parkingZonePoints.length
-            : (editZonePerimeter?.length ?? 0));
+              ? _parkingZonePoints.length
+              : (editZonePerimeter?.length ?? 0));
 
     final title = isEdit ? 'Modifier la zone parking' : 'Nouvelle zone parking';
 
@@ -5024,9 +6251,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   Align(
                     alignment: Alignment.centerLeft,
                     child: FilledButton.tonalIcon(
-                      onPressed: () => _startParkingZonePerimeterEditing(
-                        editingPoi,
-                      ),
+                      onPressed: () =>
+                          _startParkingZonePerimeterEditing(editingPoi),
                       icon: const Icon(Icons.draw_rounded, size: 18),
                       label: const Text('Modifier le périmètre sur la carte'),
                     ),
@@ -5547,6 +6773,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   Widget _buildStep7Validation() {
     final report = _qualityReport;
+    final compactValidation = MediaQuery.sizeOf(context).width < 520;
     return GlassScrollbar(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(
@@ -5608,36 +6835,109 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               child: Column(
                 children: [
                   for (final item in report.items)
-                    ListTile(
-                      dense: true,
-                      contentPadding: const EdgeInsets.symmetric(
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: MasliveTokens.s,
-                        vertical: 2,
+                        vertical: 6,
                       ),
-                      leading: Icon(
-                        item.ok ? Icons.check_circle : Icons.error_outline,
-                        color: item.ok ? Colors.green : Colors.redAccent,
-                      ),
-                      title: Text(
-                        item.label,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: MasliveTokens.text,
-                        ),
-                      ),
-                      subtitle: (!item.ok && item.hint != null)
-                          ? Text(
-                              item.hint!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: MasliveTokens.textSoft,
-                              ),
+                      child: compactValidation
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(
+                                      item.ok
+                                          ? Icons.check_circle
+                                          : Icons.error_outline,
+                                      color: item.ok
+                                          ? Colors.green
+                                          : Colors.redAccent,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        item.label,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: MasliveTokens.text,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (!item.ok && item.hint != null) ...[
+                                  const SizedBox(height: 4),
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 34),
+                                    child: Text(
+                                      item.hint!,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: MasliveTokens.textSoft,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 6),
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 34),
+                                  child: Chip(
+                                    label: Text(
+                                      item.required ? 'Requis' : 'Optionnel',
+                                    ),
+                                  ),
+                                ),
+                              ],
                             )
-                          : null,
-                      trailing: item.required
-                          ? const Chip(label: Text('Requis'))
-                          : const Chip(label: Text('Optionnel')),
+                          : Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  item.ok
+                                      ? Icons.check_circle
+                                      : Icons.error_outline,
+                                  color: item.ok
+                                      ? Colors.green
+                                      : Colors.redAccent,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.label,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: MasliveTokens.text,
+                                        ),
+                                      ),
+                                      if (!item.ok && item.hint != null) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          item.hint!,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: MasliveTokens.textSoft,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Chip(
+                                  label: Text(
+                                    item.required ? 'Requis' : 'Optionnel',
+                                  ),
+                                ),
+                              ],
+                            ),
                     ),
                 ],
               ),
