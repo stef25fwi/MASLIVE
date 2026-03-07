@@ -30,6 +30,41 @@ class WizardBottomBar extends StatelessWidget {
     this.panelPadding = const EdgeInsets.all(MasliveTokens.s),
   });
 
+  Widget _buildCenteredLabel(String text) {
+    return Center(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          softWrap: false,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSaveLabel(double iconSize) {
+    return Center(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.save, size: iconSize, color: Colors.white),
+            const SizedBox(width: 8),
+            const Text(
+              'Sauvegarder',
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              softWrap: false,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final w = MediaQuery.sizeOf(context).width;
@@ -55,6 +90,7 @@ class WizardBottomBar extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
+                flex: 4,
                 child: SizedBox(
                   height: buttonHeight,
                   child: showPrevious
@@ -70,19 +106,14 @@ class WizardBottomBar extends StatelessWidget {
                             ),
                           ),
                           onPressed: onPrevious,
-                          child: const Text(
-                            'Précédent',
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.fade,
-                            softWrap: false,
-                          ),
+                          child: _buildCenteredLabel('Précédent'),
                         )
                       : const SizedBox.shrink(),
                 ),
               ),
               const SizedBox(width: MasliveTokens.s),
               Expanded(
+                flex: 5,
                 child: SizedBox(
                   height: buttonHeight,
                   child: FilledButton(
@@ -95,30 +126,13 @@ class WizardBottomBar extends StatelessWidget {
                       ),
                     ),
                     onPressed: onSave,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.save,
-                          size: saveIconSize,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Sauvegarder',
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.fade,
-                          softWrap: false,
-                        ),
-                      ],
-                    ),
+                    child: _buildSaveLabel(saveIconSize),
                   ),
                 ),
               ),
               const SizedBox(width: MasliveTokens.s),
               Expanded(
+                flex: 4,
                 child: SizedBox(
                   height: buttonHeight,
                   child: showNext
@@ -132,13 +146,7 @@ class WizardBottomBar extends StatelessWidget {
                             ),
                           ),
                           onPressed: onNext,
-                          child: const Text(
-                            'Suivant',
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.fade,
-                            softWrap: false,
-                          ),
+                          child: _buildCenteredLabel('Suivant'),
                         )
                       : const SizedBox.shrink(),
                 ),

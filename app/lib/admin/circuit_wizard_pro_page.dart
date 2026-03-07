@@ -227,6 +227,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   // Parking: création de zone (polygone)
   bool _isDrawingParkingZone = false;
+  bool _isEditingParkingZonePerimeter = false;
   List<LngLat> _parkingZonePoints = <LngLat>[];
 
   // Parking: style de zone (fond/couleur/texture)
@@ -645,7 +646,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     };
     _poiMapController.onMapTap = (lat, lng) {
       // Note: signature controller = (lat, lng), handler = (lng, lat)
-      if (_isDrawingParkingZone) {
+      if (_isDrawingParkingZone || _isEditingParkingZonePerimeter) {
         unawaited(_onMapTapForPoi(lng, lat));
         return;
       }
@@ -3033,7 +3034,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
     Widget buildPoiToolsPanel({required List<MarketMapLayer> poiLayers}) {
       final parkingLayerSelected = _selectedLayer?.type == 'parking';
-      final parkingDrawingActive = parkingLayerSelected && _isDrawingParkingZone;
+      final parkingDrawingActive =
+          parkingLayerSelected &&
+          (_isDrawingParkingZone || _isEditingParkingZonePerimeter);
       final canFinishParkingZone = _parkingZonePoints.length >= 3;
 
       const panelTitleStyle = TextStyle(
@@ -3597,6 +3600,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                                     _poiSelection.clear();
                                     setState(() {
                                       _isDrawingParkingZone = false;
+                                      _isEditingParkingZonePerimeter = false;
                                       _parkingZonePoints = <LngLat>[];
                                       _poiInlineEditorMode =
                                           _PoiInlineEditorMode.none;
@@ -3704,6 +3708,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final style = isZone ? _parkingZoneStyleFromMetadata(poi) : null;
 
     setState(() {
+      _isEditingParkingZonePerimeter = false;
+      _parkingZonePoints = <LngLat>[];
       _poiInlineEditorMode = _PoiInlineEditorMode.edit;
       _poiEditingPoi = poi;
       _poiInlineError = null;
@@ -3755,6 +3761,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   void _closePoiInlineEditor({bool keepSelection = true}) {
     setState(() {
+      _isEditingParkingZonePerimeter = false;
+      _parkingZonePoints = <LngLat>[];
       _poiInlineEditorMode = _PoiInlineEditorMode.none;
       _poiEditingPoi = null;
       _poiInlineError = null;
@@ -3816,11 +3824,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
     final layer = _selectedLayer!;
     final poisForLayer = _pois
-        .where((p) => _poiMatchesSelectedLayer(p, layer))
+      .where(
+        (p) =>
+          _poiMatchesSelectedLayer(p, layer) &&
+          !(_isEditingParkingZonePerimeter && _poiEditingPoi?.id == p.id),
+      )
         .toList();
 
     final previewParkingZonePoints =
-        (_isDrawingParkingZone &&
+      ((_isDrawingParkingZone || _isEditingParkingZonePerimeter) &&
             layer.type == 'parking' &&
             _parkingZonePoints.isNotEmpty)
         ? _parkingZonePoints
@@ -4445,7 +4457,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   Future<void> _onMapTapForPoi(double lng, double lat) async {
-    if (_isDrawingParkingZone && _selectedLayer?.type == 'parking') {
+    if ((_isDrawingParkingZone || _isEditingParkingZonePerimeter) &&
+        _selectedLayer?.type == 'parking') {
       setState(() {
         _parkingZonePoints = <LngLat>[
           ..._parkingZonePoints,
@@ -4535,6 +4548,24 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     }
   }
 
+  Future<void> _deletePoiDraft(MarketMapPOI poi) async {
+    final projectId = _projectId;
+    if (projectId == null || projectId.trim().isEmpty) return;
+
+    final docId = _draftPoiDocId(poi);
+    try {
+      await FirebaseFirestore.instance
+          .collection('map_projects')
+          .doc(projectId)
+          .collection('pois')
+          .doc(docId)
+          .delete();
+    } on FirebaseException catch (e) {
+      if (e.code == 'not-found') return;
+      rethrow;
+    }
+  }
+
   void _startParkingZoneDrawing() {
     if (_selectedLayer?.type != 'parking') return;
     _poiSelection.clear();
@@ -4546,6 +4577,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         _parkingZoneFillColorHex;
     setState(() {
       _isDrawingParkingZone = true;
+      _isEditingParkingZonePerimeter = false;
       _parkingZonePoints = <LngLat>[];
       _parkingZoneVehicleTypes = <String>{'car', 'moto'};
 
@@ -4563,7 +4595,32 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   void _cancelParkingZoneDrawing() {
     setState(() {
       _isDrawingParkingZone = false;
+      _isEditingParkingZonePerimeter = false;
       _parkingZonePoints = <LngLat>[];
+    });
+    _refreshPoiMarkers();
+  }
+
+  void _startParkingZonePerimeterEditing(MarketMapPOI poi) {
+    final perimeter = _poiPerimeterFromMetadata(poi);
+    if (perimeter == null || perimeter.length < 3) return;
+
+    _poiSelection.select(poi);
+    setState(() {
+      _isDrawingParkingZone = false;
+      _isEditingParkingZonePerimeter = true;
+      _parkingZonePoints = List<LngLat>.from(perimeter);
+      _poiInlineError = null;
+    });
+    _refreshPoiMarkers();
+    _scrollPoiBottomSectionIntoView();
+  }
+
+  void _cancelParkingZonePerimeterEditing() {
+    setState(() {
+      _isEditingParkingZonePerimeter = false;
+      _parkingZonePoints = <LngLat>[];
+      _poiInlineError = null;
     });
     _refreshPoiMarkers();
   }
@@ -4673,9 +4730,21 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
       final perimeter = _poiPerimeterFromMetadata(poi);
       final isZone = perimeter != null;
+      final zonePerimeter = _isEditingParkingZonePerimeter
+          ? _parkingZonePoints
+          : (perimeter ?? const <LngLat>[]);
 
       Map<String, dynamic>? nextMetadata = poi.metadata;
+      var nextLng = poi.lng;
+      var nextLat = poi.lat;
       if (isZone) {
+        if (zonePerimeter.length < 3) {
+          setState(
+            () => _poiInlineError = 'Périmètre incomplet (min. 3 points).',
+          );
+          return;
+        }
+
         final fillHex =
             _normalizeColorHex(_parkingZoneColorController.text) ??
             _normalizeColorHex(_parkingZoneFillColorHex);
@@ -4690,9 +4759,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         final strokeHex = _parkingZoneStrokeFollowsFill
             ? fillHex
             : (_normalizeColorHex(_parkingZoneStrokeColorHex) ?? fillHex);
+        final centroid = _centroidOf(zonePerimeter);
+        nextLng = centroid.lng;
+        nextLat = centroid.lat;
         nextMetadata = <String, dynamic>{
           ...(poi.metadata ?? const <String, dynamic>{}),
           _parkingZoneVehiclesKey: _parkingZoneVehicleTypes.toList()..sort(),
+          'perimeter': [
+            for (final p in zonePerimeter) {'lng': p.lng, 'lat': p.lat},
+          ],
           _parkingZoneStyleKey: <String, dynamic>{
             'fillColor': fillHex,
             'fillOpacity': _parkingZoneFillOpacity.clamp(0.0, 1.0),
@@ -4718,8 +4793,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             name: nextName,
             layerType: poi.layerType,
             layerId: poi.layerId,
-            lng: poi.lng,
-            lat: poi.lat,
+            lng: nextLng,
+            lat: nextLat,
             isVisible: poi.isVisible,
             description: poi.description,
             imageUrl: poi.imageUrl,
@@ -4738,6 +4813,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           _poiSelection.select(updated);
           unawaited(_persistPoiDraftUpdate(updated));
         }
+        _isDrawingParkingZone = false;
+        _isEditingParkingZonePerimeter = false;
+        _parkingZonePoints = <LngLat>[];
         _poiInlineEditorMode = _PoiInlineEditorMode.none;
         _poiEditingPoi = null;
         _poiInlineError = null;
@@ -4758,6 +4836,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         isEdit &&
         editingPoi != null &&
         _poiPerimeterFromMetadata(editingPoi) != null;
+      final editZonePerimeter = editingPoi == null
+        ? null
+        : _poiPerimeterFromMetadata(editingPoi);
+      final displayedPerimeterCount = isCreateZone
+        ? _parkingZonePoints.length
+        : (_isEditingParkingZonePerimeter
+            ? _parkingZonePoints.length
+            : (editZonePerimeter?.length ?? 0));
 
     final title = isEdit ? 'Modifier la zone parking' : 'Nouvelle zone parking';
 
@@ -4792,6 +4878,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     onPressed: () {
                       if (isCreateZone) {
                         _cancelParkingZoneDrawing();
+                      } else if (_isEditingParkingZonePerimeter) {
+                        _cancelParkingZonePerimeterEditing();
                       }
                       _closePoiInlineEditor();
                     },
@@ -4807,14 +4895,46 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   border: OutlineInputBorder(),
                 ),
               ),
-              if (isCreateZone) ...[
+              if (isCreateZone || isEditZone) ...[
                 const SizedBox(height: 12),
                 Text(
-                  'Périmètre: ${_parkingZonePoints.length} points',
+                  'Périmètre: $displayedPerimeterCount points',
                   style: Theme.of(
                     context,
                   ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
+              ],
+              if (isEditZone) ...[
+                const SizedBox(height: 10),
+                if (!_isEditingParkingZonePerimeter)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilledButton.tonalIcon(
+                      onPressed: () => _startParkingZonePerimeterEditing(
+                        editingPoi,
+                      ),
+                      icon: const Icon(Icons.draw_rounded, size: 18),
+                      label: const Text('Modifier le périmètre sur la carte'),
+                    ),
+                  )
+                else
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _parkingZonePoints.isEmpty
+                            ? null
+                            : _removeLastParkingZonePoint,
+                        icon: const Icon(Icons.undo_rounded, size: 18),
+                        label: const Text('Retirer le dernier point'),
+                      ),
+                      TextButton(
+                        onPressed: _cancelParkingZonePerimeterEditing,
+                        child: const Text('Annuler le contour'),
+                      ),
+                    ],
+                  ),
               ],
 
               if (isCreateZone || isEditZone) ...[
@@ -5038,6 +5158,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       onPressed: () {
                         if (isCreateZone) {
                           _cancelParkingZoneDrawing();
+                        } else if (_isEditingParkingZonePerimeter) {
+                          _cancelParkingZonePerimeterEditing();
                         }
                         _closePoiInlineEditor();
                       },
@@ -5060,29 +5182,64 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     );
   }
 
-  void _deletePoi(MarketMapPOI poi) {
+  Future<void> _deletePoi(MarketMapPOI poi) async {
+    final removedIndex = _pois.indexWhere((p) => p.id == poi.id);
+    if (removedIndex < 0) return;
+
+    final removedPoi = _pois[removedIndex];
+    final shouldClearSelection = _poiSelection.selectedPoi?.id == poi.id;
+    final shouldCloseInlineEditor = _poiEditingPoi?.id == poi.id;
+
     setState(() {
       _pois.removeWhere((p) => p.id == poi.id);
     });
-    if (_poiSelection.selectedPoi?.id == poi.id) {
+
+    if (shouldCloseInlineEditor) {
+      _closePoiInlineEditor(keepSelection: false);
+    }
+    if (shouldClearSelection) {
       _poiSelection.clear();
     }
-    _refreshPoiMarkers();
+    await _refreshPoiMarkers();
+
+    try {
+      await _deletePoiDraft(poi);
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        final safeIndex = removedIndex.clamp(0, _pois.length);
+        _pois.insert(safeIndex, removedPoi);
+      });
+      await _refreshPoiMarkers();
+
+      _showTopSnackBar(
+        '⚠️ Suppression locale effectuée, mais Firestore a refusé: $e',
+        isError: true,
+        duration: const Duration(seconds: 6),
+      );
+    }
   }
 
   Future<void> _addPoiAtCurrentCenter() async {
-    // Version simple : on réutilise le premier point du tracé ou du périmètre
+    final cameraCenter = await _poiMapController.getCameraCenter();
+
     double lng;
     double lat;
 
-    if (_routePoints.isNotEmpty) {
+    if (cameraCenter != null) {
+      lng = cameraCenter.lng;
+      lat = cameraCenter.lat;
+    } else if (_poiInitialLng != null && _poiInitialLat != null) {
+      lng = _poiInitialLng!;
+      lat = _poiInitialLat!;
+    } else if (_routePoints.isNotEmpty) {
       lng = _routePoints.first.lng;
       lat = _routePoints.first.lat;
     } else if (_perimeterPoints.isNotEmpty) {
       lng = _perimeterPoints.first.lng;
       lat = _perimeterPoints.first.lat;
     } else {
-      // Fallback: centre par défaut
       lng = -61.533;
       lat = 16.241;
     }
