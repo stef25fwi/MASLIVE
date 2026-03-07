@@ -1874,13 +1874,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             ? const NeverScrollableScrollPhysics()
             : null,
         padding: const EdgeInsets.fromLTRB(
-          MasliveTokens.m,
+          MasliveTokens.s,
           0,
-          MasliveTokens.m,
+          MasliveTokens.s,
           MasliveTokens.xl,
         ),
         child: GlassPanel(
-          padding: const EdgeInsets.all(MasliveTokens.l),
+          padding: const EdgeInsets.all(MasliveTokens.m),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -1950,13 +1950,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             ? const NeverScrollableScrollPhysics()
             : null,
         padding: const EdgeInsets.fromLTRB(
-          MasliveTokens.m,
+          MasliveTokens.s,
           0,
-          MasliveTokens.m,
+          MasliveTokens.s,
           MasliveTokens.xl,
         ),
         child: GlassPanel(
-          padding: const EdgeInsets.all(MasliveTokens.l),
+          padding: const EdgeInsets.all(MasliveTokens.m),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -2989,9 +2989,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   Widget _buildStep6StylePro() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        MasliveTokens.m,
+        MasliveTokens.s,
         0,
-        MasliveTokens.m,
+        MasliveTokens.s,
         MasliveTokens.m,
       ),
       child: RouteStyleWizardProPage(
@@ -3029,6 +3029,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   Widget _buildStep5POI() {
     _ensurePoiInitialCamera();
+    const poiStepHorizontalPadding = 12.0;
 
     Widget buildPoiToolsPanel({required List<MarketMapLayer> poiLayers}) {
       const panelTitleStyle = TextStyle(
@@ -3379,6 +3380,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final poiLayers = _layers.where((l) => l.type != 'route').toList();
 
     final viewportHeight = MediaQuery.sizeOf(context).height;
+    final mapViewportHeight = (viewportHeight - 168).clamp(520.0, 760.0);
 
     return ChangeNotifierProvider<PoiSelectionController>.value(
       value: _poiSelection,
@@ -3387,73 +3389,79 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         physics: _isWizardMapInteracting
             ? const NeverScrollableScrollPhysics()
             : null,
-        padding: const EdgeInsets.only(
-          bottom: kBottomNavigationBarHeight + MasliveTokens.xl,
+        padding: const EdgeInsets.fromLTRB(
+          poiStepHorizontalPadding,
+          0,
+          poiStepHorizontalPadding,
+          kBottomNavigationBarHeight + MasliveTokens.xl,
         ),
         child: Column(
           children: [
             SizedBox(
-              height: viewportHeight,
+              height: mapViewportHeight,
               child: Stack(
                 children: [
                   _wrapWizardMapToBlockScroll(
-                    MasLiveMap(
-                      controller: _poiMapController,
-                      initialLng: _poiInitialLng ?? -61.533,
-                      initialLat: _poiInitialLat ?? 16.241,
-                      initialZoom: _poiInitialZoom ?? 12.0,
-                      styleUrl:
-                          _normalizeMapboxStyleUrl(
-                            _styleUrlController.text,
-                          ).isEmpty
-                          ? null
-                          : _normalizeMapboxStyleUrl(_styleUrlController.text),
-                      onMapReady: (ctrl) async {
-                        final cfg = _routeStyleProConfig?.validated();
-                        if (cfg != null) {
-                          await ctrl.setBuildings3d(
-                            enabled: cfg.buildings3dEnabled,
-                            opacity: cfg.buildingOpacity,
-                          );
-                        }
-
-                        // Restrictions périmètre (après l'étape "Périmètre")
-                        // - empêche de pan en dehors du périmètre
-                        // - applique le zoom max configuré
-                        final perim = _perimeterPoints;
-                        final isClosed =
-                            perim.length >= 3 && perim.first == perim.last;
-                        if (isClosed) {
-                          var west = perim.first.lng;
-                          var east = perim.first.lng;
-                          var south = perim.first.lat;
-                          var north = perim.first.lat;
-                          for (final p in perim) {
-                            if (p.lng < west) west = p.lng;
-                            if (p.lng > east) east = p.lng;
-                            if (p.lat < south) south = p.lat;
-                            if (p.lat > north) north = p.lat;
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(MasliveTokens.rXL),
+                      child: MasLiveMap(
+                        controller: _poiMapController,
+                        initialLng: _poiInitialLng ?? -61.533,
+                        initialLat: _poiInitialLat ?? 16.241,
+                        initialZoom: _poiInitialZoom ?? 12.0,
+                        styleUrl:
+                            _normalizeMapboxStyleUrl(
+                              _styleUrlController.text,
+                            ).isEmpty
+                            ? null
+                            : _normalizeMapboxStyleUrl(_styleUrlController.text),
+                        onMapReady: (ctrl) async {
+                          final cfg = _routeStyleProConfig?.validated();
+                          if (cfg != null) {
+                            await ctrl.setBuildings3d(
+                              enabled: cfg.buildings3dEnabled,
+                              opacity: cfg.buildingOpacity,
+                            );
                           }
-                          await ctrl.setZoomRange(
-                            maxZoom: _perimeterCameraMaxZoom,
-                          );
-                          await ctrl.setMaxBounds(
-                            west: west,
-                            south: south,
-                            east: east,
-                            north: north,
-                          );
-                        } else {
-                          await ctrl.setZoomRange(
-                            maxZoom: _perimeterCameraMaxZoom,
-                          );
-                          await ctrl.setMaxBounds();
-                        }
 
-                        await _refreshPoiMarkers();
-                        await _refreshPoiRouteOverlay();
-                        _syncPoiRouteStyleProTimer();
-                      },
+                          // Restrictions périmètre (après l'étape "Périmètre")
+                          // - empêche de pan en dehors du périmètre
+                          // - applique le zoom max configuré
+                          final perim = _perimeterPoints;
+                          final isClosed =
+                              perim.length >= 3 && perim.first == perim.last;
+                          if (isClosed) {
+                            var west = perim.first.lng;
+                            var east = perim.first.lng;
+                            var south = perim.first.lat;
+                            var north = perim.first.lat;
+                            for (final p in perim) {
+                              if (p.lng < west) west = p.lng;
+                              if (p.lng > east) east = p.lng;
+                              if (p.lat < south) south = p.lat;
+                              if (p.lat > north) north = p.lat;
+                            }
+                            await ctrl.setZoomRange(
+                              maxZoom: _perimeterCameraMaxZoom,
+                            );
+                            await ctrl.setMaxBounds(
+                              west: west,
+                              south: south,
+                              east: east,
+                              north: north,
+                            );
+                          } else {
+                            await ctrl.setZoomRange(
+                              maxZoom: _perimeterCameraMaxZoom,
+                            );
+                            await ctrl.setMaxBounds();
+                          }
+
+                          await _refreshPoiMarkers();
+                          await _refreshPoiRouteOverlay();
+                          _syncPoiRouteStyleProTimer();
+                        },
+                      ),
                     ),
                   ),
 
@@ -3462,7 +3470,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       alignment: Alignment.topRight,
                       child: interceptPointersIfNeeded(
                         HomeVerticalNavMenu(
-                          margin: const EdgeInsets.only(right: 0, top: 12),
+                          margin: const EdgeInsets.only(right: 12, top: 12),
                           horizontalPadding: 6,
                           verticalPadding: 10,
                           items: [
@@ -3501,11 +3509,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 ],
               ),
             ),
-
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-              child: buildPoiToolsPanel(poiLayers: poiLayers),
-            ),
+            const SizedBox(height: 12),
+            buildPoiToolsPanel(poiLayers: poiLayers),
 
             Consumer<PoiSelectionController>(
               builder: (context, selection, _) {
@@ -4651,7 +4656,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final primaryLabel = isEdit ? 'Enregistrer' : 'Ajouter la zone';
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
+      padding: const EdgeInsets.fromLTRB(0, 12, 0, 18),
       child: Material(
         color: bg,
         elevation: 0,
@@ -5108,9 +5113,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     return GlassScrollbar(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(
-          MasliveTokens.l,
           MasliveTokens.m,
-          MasliveTokens.l,
+          MasliveTokens.m,
+          MasliveTokens.m,
           MasliveTokens.xl,
         ),
         child: Column(
@@ -5211,9 +5216,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     return GlassScrollbar(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(
-          MasliveTokens.l,
           MasliveTokens.m,
-          MasliveTokens.l,
+          MasliveTokens.m,
+          MasliveTokens.m,
           MasliveTokens.xl,
         ),
         child: Column(

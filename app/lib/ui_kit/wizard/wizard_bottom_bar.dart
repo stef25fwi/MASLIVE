@@ -35,7 +35,13 @@ class WizardBottomBar extends StatelessWidget {
     final w = MediaQuery.sizeOf(context).width;
     final scale = (w / 390.0).clamp(0.85, 1.15);
     final buttonHeight = 52.0 * scale;
-    final buttonFontSize = 16.0 * scale;
+    final buttonFontSize = 14.5 * scale;
+    final buttonTextStyle = TextStyle(
+      fontSize: buttonFontSize,
+      fontWeight: FontWeight.w800,
+      height: 1.0,
+      letterSpacing: 0.1,
+    );
     final saveIconSize = 20.0 * scale;
 
     return SafeArea(
@@ -58,16 +64,19 @@ class WizardBottomBar extends StatelessWidget {
                             side: BorderSide(
                               color: MasliveTokens.primary.withValues(alpha: 0.28),
                             ),
-                            textStyle: TextStyle(
-                              fontSize: buttonFontSize,
-                              fontWeight: FontWeight.w700,
-                            ),
+                            textStyle: buttonTextStyle,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(MasliveTokens.rPill),
                             ),
                           ),
                           onPressed: onPrevious,
-                          child: const Text('Précédent'),
+                          child: const Text(
+                            'Précédent',
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.fade,
+                            softWrap: false,
+                          ),
                         )
                       : const SizedBox.shrink(),
                 ),
@@ -76,21 +85,35 @@ class WizardBottomBar extends StatelessWidget {
               Expanded(
                 child: SizedBox(
                   height: buttonHeight,
-                  child: FilledButton.icon(
+                  child: FilledButton(
                     style: FilledButton.styleFrom(
                       backgroundColor: MasliveTokens.text,
                       foregroundColor: Colors.white,
-                      textStyle: TextStyle(
-                        fontSize: buttonFontSize,
-                        fontWeight: FontWeight.w800,
-                      ),
+                      textStyle: buttonTextStyle,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(MasliveTokens.rPill),
                       ),
                     ),
-                    icon: Icon(Icons.save, size: saveIconSize, color: Colors.white),
                     onPressed: onSave,
-                    label: const Text('Sauvegarder'),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.save,
+                          size: saveIconSize,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Sauvegarder',
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.fade,
+                          softWrap: false,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -103,16 +126,19 @@ class WizardBottomBar extends StatelessWidget {
                           style: FilledButton.styleFrom(
                             backgroundColor: MasliveTokens.primary,
                             foregroundColor: Colors.white,
-                            textStyle: TextStyle(
-                              fontSize: buttonFontSize,
-                              fontWeight: FontWeight.w800,
-                            ),
+                            textStyle: buttonTextStyle,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(MasliveTokens.rPill),
                             ),
                           ),
                           onPressed: onNext,
-                          child: const Text('Suivant'),
+                          child: const Text(
+                            'Suivant',
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.fade,
+                            softWrap: false,
+                          ),
                         )
                       : const SizedBox.shrink(),
                 ),
