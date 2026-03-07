@@ -2208,6 +2208,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
             ? 'Aucune description disponible'
             : description,
         imageUrl: (imageUrl ?? '').trim().isEmpty ? null : imageUrl,
+        meta: meta,
         hours: openingHours,
         phone: phone,
         website: website,
