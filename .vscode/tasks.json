@@ -1229,6 +1229,18 @@
       }
     },
     {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (style-pro casing 3d)",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat(style-pro): add 3d casing thickness + harden preview style + improve parking tool\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (POI non-lossy)",
       "type": "shell",
       "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat(poi): sync/publish non-lossy + editor unifié + fiche enrichie\"",

@@ -3032,6 +3032,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     const poiStepHorizontalPadding = 12.0;
 
     Widget buildPoiToolsPanel({required List<MarketMapLayer> poiLayers}) {
+      final parkingLayerSelected = _selectedLayer?.type == 'parking';
+      final parkingDrawingActive = parkingLayerSelected && _isDrawingParkingZone;
+      final canFinishParkingZone = _parkingZonePoints.length >= 3;
+
       const panelTitleStyle = TextStyle(
         fontSize: 15,
         fontWeight: FontWeight.w800,
@@ -3047,6 +3051,134 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         fontWeight: FontWeight.w600,
         color: MasliveTokens.textSoft,
       );
+
+      Widget buildParkingWorkflowCard() {
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.72),
+            borderRadius: BorderRadius.circular(MasliveTokens.rL),
+            border: Border.all(color: MasliveTokens.borderSoft),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.local_parking_rounded, color: MasliveTokens.primary),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Zone parking',
+                      style: panelTitleStyle,
+                    ),
+                  ),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: parkingDrawingActive
+                          ? MasliveTokens.primary.withValues(alpha: 0.14)
+                          : Colors.white.withValues(alpha: 0.82),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: parkingDrawingActive
+                            ? MasliveTokens.primary.withValues(alpha: 0.28)
+                            : MasliveTokens.borderSoft,
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      child: Text(
+                        parkingDrawingActive ? 'Dessin actif' : 'Prêt',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: parkingDrawingActive
+                              ? MasliveTokens.primary
+                              : MasliveTokens.textSoft,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                parkingDrawingActive
+                    ? 'Touchez la carte pour poser les sommets de la zone. Il faut au moins 3 points pour créer le parking.'
+                    : 'Créez une zone parking polygonale directement sur la carte, puis ajustez son apparence et ses pictogrammes.',
+                style: panelHintStyle,
+              ),
+              const SizedBox(height: 12),
+              if (parkingDrawingActive) ...[
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    Chip(
+                      avatar: const Icon(Icons.timeline_rounded, size: 16),
+                      label: Text('${_parkingZonePoints.length} points'),
+                    ),
+                    Chip(
+                      avatar: Icon(
+                        canFinishParkingZone
+                            ? Icons.check_circle_rounded
+                            : Icons.info_outline_rounded,
+                        size: 16,
+                        color: canFinishParkingZone
+                            ? Colors.green
+                            : MasliveTokens.textSoft,
+                      ),
+                      label: Text(
+                        canFinishParkingZone ? 'Zone prête' : 'Minimum 3 points',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.end,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _parkingZonePoints.isEmpty
+                          ? null
+                          : _removeLastParkingZonePoint,
+                      icon: const Icon(Icons.undo_rounded, size: 18),
+                      label: const Text('Retirer le dernier point'),
+                    ),
+                    TextButton(
+                      onPressed: _cancelParkingZoneDrawing,
+                      child: const Text('Annuler'),
+                    ),
+                    FilledButton.tonalIcon(
+                      onPressed: canFinishParkingZone
+                          ? _finishParkingZoneDrawing
+                          : null,
+                      icon: const Icon(Icons.check_rounded, size: 18),
+                      label: const Text('Créer la zone'),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: FilledButton.tonalIcon(
+                    onPressed: (_pois.length >= _poiLimit)
+                        ? null
+                        : _startParkingZoneDrawing,
+                    icon: const Icon(Icons.crop_square_rounded, size: 18),
+                    label: const Text('Démarrer une zone parking'),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      }
 
       IconButton toolButton({
         required Widget icon,
@@ -3096,7 +3228,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   icon: const Icon(Icons.edit_location_alt_rounded),
                   tooltip: 'Ajouter un POI (coordonnées manuelles)',
                   onPressed:
-                      (_selectedLayer == null || _pois.length >= _poiLimit)
+                      (_selectedLayer == null ||
+                          _pois.length >= _poiLimit ||
+                          parkingDrawingActive)
                       ? null
                       : () {
                           double lng;
@@ -3119,11 +3253,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   icon: const Icon(Icons.my_location),
                   tooltip: 'Ajouter un POI à la position actuelle',
                   onPressed:
-                      (_selectedLayer == null || _pois.length >= _poiLimit)
+                      (_selectedLayer == null ||
+                          _pois.length >= _poiLimit ||
+                          parkingDrawingActive)
                       ? null
                       : _addPoiAtCurrentCenter,
                 ),
-                if (_selectedLayer?.type == 'parking')
+                if (parkingLayerSelected)
                   toolButton(
                     icon: Icon(
                       _isDrawingParkingZone
@@ -3157,39 +3293,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 ),
               ],
             ),
+            if (parkingLayerSelected) ...[
+              const SizedBox(height: 12),
+              buildParkingWorkflowCard(),
+            ],
             const SizedBox(height: 10),
-            if (_selectedLayer?.type == 'parking' && _isDrawingParkingZone)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Zone parking: ${_parkingZonePoints.length} points (tap sur la carte)',
-                        style: panelValueStyle,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: _parkingZonePoints.isEmpty
-                          ? null
-                          : _removeLastParkingZonePoint,
-                      child: const Text('Retirer le dernier point'),
-                    ),
-                    const SizedBox(width: 6),
-                    TextButton(
-                      onPressed: _cancelParkingZoneDrawing,
-                      child: const Text('Annuler'),
-                    ),
-                    const SizedBox(width: 6),
-                    FilledButton.tonal(
-                      onPressed: _parkingZonePoints.length < 3
-                          ? null
-                          : _finishParkingZoneDrawing,
-                      child: const Text('Créer la zone'),
-                    ),
-                  ],
-                ),
-              ),
             Row(
               children: [
                 Text(

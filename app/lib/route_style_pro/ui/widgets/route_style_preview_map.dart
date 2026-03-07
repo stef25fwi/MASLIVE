@@ -48,6 +48,14 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
   Timer? _animTimer;
   int _animTick = 0;
 
+  String? _normalizePreviewStyleUrl(String? raw) {
+    final value = (raw ?? '').trim();
+    if (value.isEmpty) return null;
+    if (value.startsWith('mapbox://styles/')) return value;
+    if (value.startsWith('https://api.mapbox.com/styles/v1/')) return value;
+    return null;
+  }
+
   static const _srcRoute = 'rsp_route';
   static const _srcSegments = 'rsp_segments';
 
@@ -201,6 +209,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
 
     final widthScale = cfg.widthScale3d;
     final casingWidth = cfg.casingWidth * widthScale;
+    final casingWidth3d = casingWidth * cfg.casingThickness3d;
     final glowWidth = cfg.glowWidth * widthScale;
     final elevationPx = cfg.elevationPx;
     final thickness3d = cfg.thickness3d;
@@ -248,7 +257,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     final shadowBlur = cfg.shadowBlur * thickness3d;
     await _setLayerProps(_layerShadow, {
       'line-opacity': shadowOpacity,
-      'line-width': math.max(1.0, casingWidth),
+      'line-width': math.max(1.0, casingWidth3d),
       'line-blur': shadowBlur,
     });
 
@@ -261,7 +270,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     }
     await _setLayerProps(_layerGlow, {
       'line-opacity': glowOpacity,
-      'line-width': math.max(1.0, casingWidth + glowWidth),
+      'line-width': math.max(1.0, casingWidth3d + glowWidth),
       'line-blur': cfg.glowBlur,
       'line-color': _argbInt(cfg.mainColor),
     });
@@ -270,7 +279,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     final casingOpacity = (cfg.casingWidth <= 0) ? 0.0 : cfg.opacity;
     await _setLayerProps(_layerCasing, {
       'line-opacity': casingOpacity,
-      'line-width': math.max(0.0, casingWidth),
+      'line-width': math.max(0.0, casingWidth3d),
       'line-color': ['get', 'casingColor'],
     });
 
@@ -347,6 +356,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     final widthScale = cfg.widthScale3d;
     final mainWidth = cfg.mainWidth * widthScale;
     final casingWidth = cfg.casingWidth * widthScale;
+    final casingWidth3d = casingWidth * cfg.casingThickness3d;
     final glowWidth = cfg.glowWidth * widthScale;
 
     // Segments (rainbow/traffic/vanishing): FC GeoJSON avec propriétés color/width/opacity.
@@ -406,7 +416,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       shadowBlur: cfg.shadowBlur,
 
       casingColor: cfg.casingColor,
-      casingWidth: cfg.casingWidth > 0 ? casingWidth : null,
+      casingWidth: cfg.casingWidth > 0 ? casingWidth3d : null,
       casingRainbowEnabled: cfg.casingRainbowEnabled,
 
       glowEnabled: cfg.glowEnabled,
@@ -678,9 +688,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveStyleUrl = (widget.styleUrl ?? '').trim().isEmpty
-        ? null
-        : widget.styleUrl!.trim();
+    final effectiveStyleUrl = _normalizePreviewStyleUrl(widget.styleUrl);
 
     if (kIsWeb) {
       final initial = widget.route.isNotEmpty

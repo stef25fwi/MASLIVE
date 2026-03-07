@@ -1,7 +1,7 @@
 import 'dart:ui' show Color;
 
 /// Version du schéma JSON stocké.
-const int kRouteStyleSchemaVersion = 5;
+const int kRouteStyleSchemaVersion = 6;
 
 /// Représentation simple (lat, lng) pour les services.
 typedef LatLng = ({double lat, double lng});
@@ -48,6 +48,11 @@ class RouteStyleConfig {
     /// sans remplacer le réglage de "Largeur".
     /// 0.6..1.8
     final double thickness3d;
+
+    /// Multiplicateur spécifique au casing dans le rendu 3D.
+    /// Permet d'épaissir ou d'affiner le contour indépendamment de la largeur 3D globale.
+    /// 0.5..2.5
+    final double casingThickness3d;
 
     /// Hauteur simulée au-dessus du "sol" (Mapbox): appliquée via line-translate (px).
     /// 0..40
@@ -133,6 +138,7 @@ class RouteStyleConfig {
     this.opacity = 1.0,
     this.widthScale3d = 1.0,
     this.thickness3d = 1.0,
+    this.casingThickness3d = 1.0,
     this.elevationPx = 0.0,
     this.sidesEnabled = false,
     this.sidesIntensity = 0.70,
@@ -184,6 +190,7 @@ class RouteStyleConfig {
     double? opacity,
     double? widthScale3d,
     double? thickness3d,
+    double? casingThickness3d,
     double? elevationPx,
     bool? sidesEnabled,
     double? sidesIntensity,
@@ -227,6 +234,7 @@ class RouteStyleConfig {
       opacity: opacity ?? this.opacity,
       widthScale3d: widthScale3d ?? this.widthScale3d,
       thickness3d: thickness3d ?? this.thickness3d,
+      casingThickness3d: casingThickness3d ?? this.casingThickness3d,
       elevationPx: elevationPx ?? this.elevationPx,
     sidesEnabled: sidesEnabled ?? this.sidesEnabled,
     sidesIntensity: sidesIntensity ?? this.sidesIntensity,
@@ -276,6 +284,7 @@ class RouteStyleConfig {
       opacity: clamp(opacity, 0, 1),
       widthScale3d: clamp(widthScale3d, 0.5, 3.0),
       thickness3d: clamp(thickness3d, 0.6, 1.8),
+      casingThickness3d: clamp(casingThickness3d, 0.5, 2.5),
       elevationPx: clamp(elevationPx, 0, 40),
     sidesEnabled: sidesEnabled,
     sidesIntensity: clamp(sidesIntensity, 0, 1),
@@ -322,6 +331,7 @@ class RouteStyleConfig {
       'opacity': opacity,
       'widthScale3d': widthScale3d,
       'thickness3d': thickness3d,
+      'casingThickness3d': casingThickness3d,
       'elevationPx': elevationPx,
     'sidesEnabled': sidesEnabled,
     'sidesIntensity': sidesIntensity,
@@ -399,6 +409,9 @@ class RouteStyleConfig {
           : 1.0,
         thickness3d: (json['thickness3d'] is num)
           ? (json['thickness3d'] as num).toDouble()
+          : 1.0,
+        casingThickness3d: (json['casingThickness3d'] is num)
+          ? (json['casingThickness3d'] as num).toDouble()
           : 1.0,
       elevationPx: (json['elevationPx'] is num)
           ? (json['elevationPx'] as num).toDouble()

@@ -85,6 +85,14 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
 
   static const int _wizardCurrentStep = 4; // Style Pro
 
+  String? _normalizePreviewStyleUrl(String? raw) {
+    final value = (raw ?? '').trim();
+    if (value.isEmpty) return null;
+    if (value.startsWith('mapbox://styles/')) return value;
+    if (value.startsWith('https://api.mapbox.com/styles/v1/')) return value;
+    return null;
+  }
+
   Widget _buildWizardHeader() {
     return WizardStepperPills(
       currentStep: _wizardCurrentStep,
@@ -119,12 +127,12 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
 
     if ((routeChanged || styleChanged) && !_hasUnsavedChanges && !_busy) {
       final nextRoute = widget.initialRoute;
-      final nextStyleUrl = (widget.initialStyleUrl ?? '').trim();
+      final nextStyleUrl = _normalizePreviewStyleUrl(widget.initialStyleUrl);
       setState(() {
         if (nextRoute != null) {
           _route = nextRoute;
         }
-        _baseStyleUrl = nextStyleUrl.isEmpty ? _baseStyleUrl : nextStyleUrl;
+        _baseStyleUrl = nextStyleUrl;
       });
     }
   }
@@ -212,24 +220,22 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
       final cfg = (remote ?? local ?? const RouteStyleConfig()).validated();
 
       final initialRoute = widget.initialRoute;
-      final initialStyleUrl = (widget.initialStyleUrl ?? '').trim();
+      final initialStyleUrl = _normalizePreviewStyleUrl(widget.initialStyleUrl);
       List<LatLng> route;
       String? styleUrl;
       if (initialRoute != null) {
         route = initialRoute;
-        styleUrl = initialStyleUrl.isEmpty ? null : initialStyleUrl;
+        styleUrl = initialStyleUrl;
         if (styleUrl == null && (_projectId ?? '').trim().isNotEmpty) {
           styleUrl = await _loadProjectStyleUrl(_projectId!);
         }
       } else if ((_projectId ?? '').trim().isNotEmpty) {
         final loaded = await _loadProjectRouteAndStyle(_projectId!);
         route = loaded.route;
-        styleUrl = (initialStyleUrl.isNotEmpty)
-            ? initialStyleUrl
-            : loaded.styleUrl;
+        styleUrl = initialStyleUrl ?? loaded.styleUrl;
       } else {
         route = _defaultTestRoute();
-        styleUrl = initialStyleUrl.isEmpty ? null : initialStyleUrl;
+        styleUrl = initialStyleUrl;
       }
 
       if (!mounted) return;
@@ -237,7 +243,7 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
         _config = cfg;
         _renderConfig = cfg;
         _route = route;
-        _baseStyleUrl = (styleUrl ?? '').trim().isEmpty ? null : styleUrl;
+        _baseStyleUrl = _normalizePreviewStyleUrl(styleUrl);
         _loading = false;
       });
       widget.onConfigChanged?.call(cfg);
@@ -261,7 +267,7 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
     final raw = (current != null && current['route'] is List)
         ? current['route']
         : data?['route'];
-    final styleUrl = (data?['styleUrl'] as String?)?.trim();
+    final styleUrl = _normalizePreviewStyleUrl(data?['styleUrl'] as String?);
     if (raw is! List) return (route: const <LatLng>[], styleUrl: styleUrl);
 
     final out = <LatLng>[];
@@ -283,8 +289,7 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
         .doc(projectId)
         .get();
     final data = doc.data();
-    final styleUrl = (data?['styleUrl'] as String?)?.trim();
-    return (styleUrl ?? '').isEmpty ? null : styleUrl;
+    return _normalizePreviewStyleUrl(data?['styleUrl'] as String?);
   }
 
   List<LatLng> _defaultTestRoute() {
@@ -365,8 +370,7 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
       if (!mounted) return;
       setState(() {
         _route = loaded.route;
-        final styleUrl = (loaded.styleUrl ?? '').trim();
-        _baseStyleUrl = styleUrl.isEmpty ? null : styleUrl;
+        _baseStyleUrl = _normalizePreviewStyleUrl(loaded.styleUrl);
       });
     } finally {
       if (mounted) setState(() => _busy = false);

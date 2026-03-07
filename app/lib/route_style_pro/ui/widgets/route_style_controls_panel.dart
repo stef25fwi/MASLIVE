@@ -157,6 +157,17 @@ class _RouteStyleControlsPanelState extends State<RouteStyleControlsPanel> {
                 onChanged: (v) => widget.onChanged(cfg.copyWith(thickness3d: v)),
               ),
               RouteStyleSlider(
+                label: 'Épaisseur casing (3D)',
+                value: cfg.casingThickness3d,
+                min: 0.5,
+                max: 2.5,
+                divisions: 20,
+                unit: '×',
+                decimals: 2,
+                onChanged: (v) =>
+                    widget.onChanged(cfg.copyWith(casingThickness3d: v)),
+              ),
+              RouteStyleSlider(
                 label: 'Hauteur (3D)',
                 value: cfg.elevationPx,
                 min: 0,
@@ -501,6 +512,7 @@ class _RouteStyleControlsPanelState extends State<RouteStyleControlsPanel> {
         aa.casingWidth == bb.casingWidth &&
       aa.widthScale3d == bb.widthScale3d &&
       aa.thickness3d == bb.thickness3d &&
+      aa.casingThickness3d == bb.casingThickness3d &&
       aa.elevationPx == bb.elevationPx &&
         aa.mainColor.toARGB32() == bb.mainColor.toARGB32() &&
         aa.casingColor.toARGB32() == bb.casingColor.toARGB32() &&
