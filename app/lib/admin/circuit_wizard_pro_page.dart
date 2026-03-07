@@ -247,6 +247,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   double _parkingZonePatternOpacity = _parkingZoneDefaultPatternOpacity;
   final TextEditingController _parkingZoneColorController =
       TextEditingController(text: '#FBBF24');
+    final TextEditingController _parkingZoneStrokeColorController =
+      TextEditingController(text: '#FBBF24');
 
   void _applyParkingZonePresetWhiteBlue() {
     // Preset demandé: contour blanc, intérieur bleu.
@@ -262,6 +264,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       _parkingZonePattern = 'none';
       _parkingZonePatternOpacity = _parkingZoneDefaultPatternOpacity;
       _parkingZoneColorController.text = fillHex;
+      _parkingZoneStrokeColorController.text = strokeHex;
       _poiInlineError = null;
     });
     _refreshPoiMarkers();
@@ -887,6 +890,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     _poiInlineLatController.dispose();
     _poiInlineLngController.dispose();
     _parkingZoneColorController.dispose();
+    _parkingZoneStrokeColorController.dispose();
     _nameController.dispose();
     _countryController.dispose();
     _eventController.dispose();
@@ -3691,6 +3695,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       _parkingZonePattern = 'none';
       _parkingZonePatternOpacity = _parkingZoneDefaultPatternOpacity;
       _parkingZoneColorController.text = defaultHex;
+      _parkingZoneStrokeColorHex = defaultHex;
+      _parkingZoneStrokeColorController.text = defaultHex;
 
       // Pour une zone, lat/lng servent de centre (centroid approx.)
       final centroid = _centroidOf(perimeterPoints);
@@ -3754,6 +3760,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             (style['patternOpacity'] as num?)?.toDouble() ??
             _parkingZonePatternOpacity;
         _parkingZoneColorController.text = _parkingZoneFillColorHex;
+        _parkingZoneStrokeColorController.text = _parkingZoneStrokeColorHex;
       }
     });
     _scrollPoiBottomSectionIntoView();
@@ -4588,6 +4595,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       _parkingZonePattern = 'none';
       _parkingZonePatternOpacity = _parkingZoneDefaultPatternOpacity;
       _parkingZoneColorController.text = defaultHex;
+      _parkingZoneStrokeColorHex = defaultHex;
+      _parkingZoneStrokeFollowsFill = true;
+      _parkingZoneStrokeColorController.text = defaultHex;
     });
     _refreshPoiMarkers();
   }
@@ -5011,14 +5021,55 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       _parkingZoneFillColorHex = v;
                       if (_parkingZoneStrokeFollowsFill) {
                         _parkingZoneStrokeColorHex = v;
+                        _parkingZoneStrokeColorController.text = v;
                       }
                       _poiInlineError = null;
                     });
                     _refreshPoiMarkers();
                   },
                   decoration: const InputDecoration(
-                    labelText: 'Couleur (hex, ex: #FBBF24)',
+                    labelText: 'Couleur fond (hex, ex: #FBBF24)',
                     border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: _parkingZoneStrokeFollowsFill,
+                  onChanged: (value) {
+                    setState(() {
+                      _parkingZoneStrokeFollowsFill = value;
+                      if (value) {
+                        _parkingZoneStrokeColorHex = _parkingZoneFillColorHex;
+                        _parkingZoneStrokeColorController.text =
+                            _parkingZoneFillColorHex;
+                      }
+                      _poiInlineError = null;
+                    });
+                    _refreshPoiMarkers();
+                  },
+                  title: const Text('Contour suit le fond'),
+                  subtitle: const Text(
+                    'Désactivez pour choisir une couleur de contour séparée.',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _parkingZoneStrokeColorController,
+                  enabled: !_parkingZoneStrokeFollowsFill,
+                  onChanged: (v) {
+                    setState(() {
+                      _parkingZoneStrokeColorHex = v;
+                      _poiInlineError = null;
+                    });
+                    _refreshPoiMarkers();
+                  },
+                  decoration: InputDecoration(
+                    labelText: 'Couleur contour (hex, ex: #FFFFFF)',
+                    border: const OutlineInputBorder(),
+                    helperText: _parkingZoneStrokeFollowsFill
+                        ? 'Le contour reprend actuellement la couleur du fond.'
+                        : null,
                   ),
                 ),
                 const SizedBox(height: 12),
