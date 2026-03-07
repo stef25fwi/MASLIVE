@@ -8,6 +8,7 @@ import '../models/market_circuit.dart';
 import '../models/market_country.dart';
 import '../models/market_event.dart';
 import '../models/market_layer.dart';
+import '../models/market_circuit_models.dart';
 import '../services/market_map_service.dart';
 import '../services/circuit_search_service.dart';
 import '../utils/country_flag.dart';
@@ -15,6 +16,7 @@ import '../ui/snack/top_snack_bar.dart';
 import '../ui/widgets/country_autocomplete_field.dart';
 import '../ui/widgets/glass_scrollbar.dart';
 import 'circuit_wizard_pro_page.dart';
+import 'poi_edit_popup.dart';
 
 const _emptyVisibleCircuitsIndex = VisibleCircuitsIndex(
   countryIds: <String>{},
@@ -1258,7 +1260,7 @@ class _LayerPoisPage extends StatefulWidget {
 class _LayerPoisPageState extends State<_LayerPoisPage> {
   final _db = FirebaseFirestore.instance;
 
-  static const _types = <String>['market', 'visit', 'food', 'wc', 'parking', 'assistance'];
+  String get _imagesProjectId => 'marketmap_${widget.countryId}_${widget.eventId}_${widget.circuitId}';
 
   String _norm(String? value) {
     return (value ?? '').trim().toLowerCase();
@@ -1286,166 +1288,76 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
       .collection('pois');
 
   Future<void> _createOrEditPoi({String? poiId, Map<String, dynamic>? existing}) async {
-    final nameCtrl = TextEditingController(text: (existing?['name'] ?? '').toString());
-    final descCtrl = TextEditingController(text: (existing?['description'] ?? '').toString());
-    final instagramCtrl = TextEditingController(text: (existing?['instagram'] ?? '').toString());
-    final facebookCtrl = TextEditingController(text: (existing?['facebook'] ?? '').toString());
-    final latCtrl = TextEditingController(
-      text: existing?['lat'] != null ? (existing!['lat'] as num).toString() : '',
-    );
-    final lngCtrl = TextEditingController(
-      text: existing?['lng'] != null ? (existing!['lng'] as num).toString() : '',
-    );
+    final isNew = poiId == null;
+    final resolvedId = poiId ?? _poisCol.doc().id;
 
-    String type = (existing?['type'] ?? _types.first).toString();
-    bool isVisible = (existing?['isVisible'] as bool?) ?? true;
-
-    double? parseDouble(String input) {
-      final v = input.trim().replaceAll(',', '.');
-      return double.tryParse(v);
+    String? asString(dynamic v) => v is String ? v : (v?.toString());
+    double asDouble(dynamic v, double fallback) {
+      if (v is num) return v.toDouble();
+      if (v is String) return double.tryParse(v.trim().replaceAll(',', '.')) ?? fallback;
+      return fallback;
     }
 
-    final ok = await showDialog<bool>(
+    final existingMeta = (existing?['metadata'] is Map)
+      ? Map<String, dynamic>.from(existing?['metadata'] as Map)
+      : null;
+
+    final initialMeta = isNew
+      ? <String, dynamic>{'__coordsUnset': true}
+      : existingMeta;
+
+    final initialPoi = MarketMapPOI(
+      id: resolvedId,
+      name: asString(existing?['name'])?.trim().isNotEmpty == true
+          ? asString(existing?['name'])!.trim()
+          : 'Nouveau POI',
+      layerType: widget.layer.type,
+      lng: asDouble(existing?['lng'], 0.0),
+      lat: asDouble(existing?['lat'], 0.0),
+      isVisible: (existing?['isVisible'] as bool?) ?? true,
+      layerId: widget.layer.id,
+      description: asString(existing?['description']),
+      imageUrl: asString(existing?['imageUrl'] ?? existing?['photoUrl'] ?? existing?['image']),
+      address: asString(existing?['address'] ?? existing?['adresse'] ?? existing?['locationLabel']),
+      openingHours: existing?['openingHours'] ?? existing?['hours'] ?? existing?['horaires'],
+      phone: asString(existing?['phone'] ?? existing?['tel'] ?? existing?['telephone']),
+      website: asString(existing?['website'] ?? existing?['site']),
+      instagram: asString(existing?['instagram']),
+      facebook: asString(existing?['facebook']),
+      whatsapp: asString(existing?['whatsapp']),
+      email: asString(existing?['email']),
+      mapsUrl: asString(existing?['mapsUrl'] ?? existing?['googleMapsUrl'] ?? existing?['mapUrl']),
+      metadata: initialMeta,
+    );
+
+    final updated = await showModalBottomSheet<MarketMapPOI>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(poiId == null ? 'Ajouter un POI' : 'Modifier le POI'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Nom *',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                key: ValueKey('type-$type'),
-                initialValue: type,
-                items: [
-                  for (final t in _types) DropdownMenuItem(value: t, child: Text(t)),
-                ],
-                onChanged: (v) => type = v ?? type,
-                decoration: const InputDecoration(
-                  labelText: 'Type',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: descCtrl,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: instagramCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Instagram',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: facebookCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Facebook',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: latCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Lat *',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: lngCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Lng *',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: isVisible,
-                onChanged: (v) => isVisible = v,
-                title: const Text('Visible (liste + couche)'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Enregistrer'),
-          ),
-        ],
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => PoiEditPopup(
+        poi: initialPoi,
+        projectId: _imagesProjectId,
       ),
     );
 
-    if (ok != true) return;
-
-    final name = nameCtrl.text.trim();
-    final lat = parseDouble(latCtrl.text);
-    final lng = parseDouble(lngCtrl.text);
-
-    if (name.isEmpty || lat == null || lng == null) {
-      if (!mounted) return;
-      TopSnackBar.show(
-        context,
-        const SnackBar(content: Text('Nom/Lat/Lng requis.')),
-      );
-      return;
-    }
+    if (updated == null) return;
 
     final user = FirebaseAuth.instance.currentUser;
     final now = FieldValue.serverTimestamp();
 
     final data = <String, dynamic>{
-      'name': name,
-      'description': descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-      'instagram': instagramCtrl.text.trim().isEmpty ? null : instagramCtrl.text.trim(),
-      'facebook': facebookCtrl.text.trim().isEmpty ? null : facebookCtrl.text.trim(),
-      'type': type,
+      ...updated.toFirestore(),
+      // Normalisation: dans cette page on édite les POI d'UNE couche.
       'layerType': widget.layer.type,
-      'lat': lat,
-      'lng': lng,
       'layerId': widget.layer.id,
-      'isVisible': isVisible,
+      // Back-compat: plusieurs lecteurs historiques utilisent `type`.
+      'type': widget.layer.type,
       'updatedAt': now,
-      if (poiId == null) 'createdAt': now,
-      if (poiId == null) 'createdByUid': user?.uid,
+      if (isNew) 'createdAt': now,
+      if (isNew) 'createdByUid': user?.uid,
     };
 
-    if (poiId == null) {
-      await _poisCol.add(data);
-    } else {
-      await _poisCol.doc(poiId).set(data, SetOptions(merge: true));
-    }
+    await _poisCol.doc(resolvedId).set(data, SetOptions(merge: true));
   }
 
   Future<void> _deletePoi(String poiId) async {

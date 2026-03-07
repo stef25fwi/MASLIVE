@@ -183,6 +183,13 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
 
     final meta = _initialMeta;
 
+    // Pour certains flows de création, on veut forcer l'utilisateur à saisir des coordonnées.
+    // Signal interne (non persisté) : __coordsUnset.
+    if (meta['__coordsUnset'] == true) {
+      _latCtrl.text = '';
+      _lngCtrl.text = '';
+    }
+
     final presets = widget.appearancePresets;
     if (presets != null && presets.isNotEmpty) {
       final rawId = meta[kMasLivePoiAppearanceKey];
@@ -713,6 +720,9 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
     final nextLng = _parseDouble(_lngCtrl.text) ?? widget.poi.lng;
 
     final meta = _initialMeta;
+
+    // Nettoyage des flags internes (non destinés à Firestore).
+    meta.remove('__coordsUnset');
 
     final nextAppearanceId = _appearanceId;
     if (nextAppearanceId != null && nextAppearanceId.trim().isNotEmpty) {
