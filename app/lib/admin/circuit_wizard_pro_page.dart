@@ -104,7 +104,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         const SizedBox(height: MasliveTokens.m),
         _buildWizardStepper(),
         const SizedBox(height: MasliveTokens.m),
-        Expanded(child: child),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: MasliveTokens.s),
+            child: child,
+          ),
+        ),
       ],
     );
   }
@@ -146,6 +151,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   // Step 2: Option périmètre cercle (centre + diamètre)
   bool _perimeterCircleMode = false;
   LngLat? _perimeterCircleCenter;
+  bool _perimeterCircleCenterLocked = false;
   double _perimeterCircleDiameterMeters = 1200.0;
 
   // Step 2 (périmètre): contraintes caméra
@@ -753,6 +759,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 'lng': _perimeterCircleCenter!.lng,
                 'lat': _perimeterCircleCenter!.lat,
               },
+        'centerLocked': _perimeterCircleCenterLocked,
         'diameterMeters': _perimeterCircleDiameterMeters,
       },
       'perimeterMapCamera': {
@@ -1072,6 +1079,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             final enabled = (m['enabled'] as bool?) ?? false;
             if (enabled) {
               _perimeterCircleMode = true;
+              _perimeterCircleCenterLocked =
+                  (m['centerLocked'] as bool?) ?? false;
 
               final center = m['center'];
               if (center is Map) {
@@ -1098,6 +1107,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   center: _perimeterCircleCenter!,
                   diameterMeters: _perimeterCircleDiameterMeters,
                 );
+              }
+              if (_perimeterCircleCenter == null) {
+                _perimeterCircleCenterLocked = false;
               }
             }
           }
@@ -1882,7 +1894,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           MasliveTokens.s,
           0,
           MasliveTokens.s,
-          MasliveTokens.xl,
+          kBottomNavigationBarHeight + MasliveTokens.l,
         ),
         child: GlassPanel(
           padding: const EdgeInsets.all(MasliveTokens.m),
@@ -1958,7 +1970,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           MasliveTokens.s,
           0,
           MasliveTokens.s,
-          MasliveTokens.xl,
+          kBottomNavigationBarHeight + MasliveTokens.l,
         ),
         child: GlassPanel(
           padding: const EdgeInsets.all(MasliveTokens.m),
@@ -2226,6 +2238,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       editingEnabled: true,
       onPointAddedOverride: _perimeterCircleMode
           ? (p) {
+              if (_perimeterCircleCenterLocked &&
+                  _perimeterCircleCenter != null) {
+                return;
+              }
               _applyPerimeterCircle(center: p);
             }
           : null,
@@ -2385,6 +2401,26 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       },
                     ),
                     if (_perimeterCircleMode) ...[
+                      const SizedBox(width: 12),
+                      FilterChip(
+                        label: const Text('Centre verrouille'),
+                        labelStyle: toolbarValueStyle,
+                        selected: _perimeterCircleCenterLocked,
+                        shape: StadiumBorder(
+                          side: BorderSide(color: MasliveTokens.borderSoft),
+                        ),
+                        side: BorderSide(color: MasliveTokens.borderSoft),
+                        selectedColor: MasliveTokens.primary.withValues(
+                          alpha: 0.15,
+                        ),
+                        onSelected: _perimeterCircleCenter == null
+                            ? null
+                            : (value) {
+                                setState(() {
+                                  _perimeterCircleCenterLocked = value;
+                                });
+                              },
+                      ),
                       const SizedBox(width: 12),
                       IconButton(
                         tooltip: 'Réduire diamètre',
@@ -2997,7 +3033,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         MasliveTokens.s,
         0,
         MasliveTokens.s,
-        MasliveTokens.m,
+        kBottomNavigationBarHeight + MasliveTokens.s,
       ),
       child: RouteStyleWizardProPage(
         embedded: true,
@@ -5432,7 +5468,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           MasliveTokens.m,
           MasliveTokens.m,
           MasliveTokens.m,
-          MasliveTokens.xl,
+          kBottomNavigationBarHeight + MasliveTokens.l,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -5535,7 +5571,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           MasliveTokens.m,
           MasliveTokens.m,
           MasliveTokens.m,
-          MasliveTokens.xl,
+          kBottomNavigationBarHeight + MasliveTokens.l,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
