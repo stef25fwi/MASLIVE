@@ -65,6 +65,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   static const int _poiPageSize = 100;
   static const int _poiLimit = 2000;
   static const int _poiStepIndex = 5;
+  static const double _wizardMapHeightMultiplier = 2.0;
+  static const double _wizardScrollRailWidth = 56.0;
 
   static const List<String> _stepLabels = <String>[
     'Template',
@@ -113,6 +115,188 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildWizardScrollRail() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: _wizardScrollCanScroll,
+      builder: (context, canScroll, _) {
+        return ValueListenableBuilder<double>(
+          valueListenable: _wizardScrollProgress,
+          builder: (context, progress, __) {
+            final theme = Theme.of(context);
+            const thumbHeight = 96.0;
+            final trackColor = Colors.black.withValues(alpha: 0.10);
+            final fillColor = MasliveTokens.primary.withValues(alpha: 0.18);
+            final thumbColor = canScroll
+                ? MasliveTokens.primary
+                : theme.disabledColor.withValues(alpha: 0.35);
+
+            Widget railButton({
+              required IconData icon,
+              required VoidCallback? onTap,
+            }) {
+              return SizedBox(
+                width: 40,
+                height: 40,
+                child: IconButton(
+                  onPressed: onTap,
+                  icon: Icon(icon, size: 22),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.white.withValues(alpha: 0.88),
+                    foregroundColor: onTap == null
+                        ? theme.disabledColor
+                        : MasliveTokens.primary,
+                    side: BorderSide(
+                      color: MasliveTokens.primary.withValues(alpha: 0.16),
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
+              child: Column(
+                children: [
+                  railButton(
+                    icon: Icons.keyboard_arrow_up_rounded,
+                    onTap: canScroll ? () => _nudgeActiveStepScroll(-1) : null,
+                  ),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final trackHeight = constraints.maxHeight;
+                        final effectiveThumbHeight =
+                            math.min(thumbHeight, trackHeight);
+                        final top = trackHeight <= effectiveThumbHeight
+                            ? 0.0
+                            : (trackHeight - effectiveThumbHeight) * progress;
+
+                        return GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTapDown: !canScroll
+                              ? null
+                              : (details) {
+                                  final fraction =
+                                      details.localPosition.dy / trackHeight;
+                                  unawaited(
+                                    _animateActiveStepToFraction(fraction),
+                                  );
+                                },
+                          onVerticalDragUpdate: !canScroll
+                              ? null
+                              : (details) {
+                                  final fraction =
+                                      details.localPosition.dy / trackHeight;
+                                  unawaited(
+                                    _jumpActiveStepToFraction(fraction),
+                                  );
+                                },
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.82),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: MasliveTokens.primary.withValues(
+                                  alpha: 0.16,
+                                ),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.08),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 10,
+                              ),
+                              child: Stack(
+                                children: [
+                                  Positioned.fill(
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: trackColor,
+                                        borderRadius: BorderRadius.circular(999),
+                                      ),
+                                    ),
+                                  ),
+                                  if (canScroll)
+                                    Positioned(
+                                      left: 0,
+                                      right: 0,
+                                      bottom: 0,
+                                      height: trackHeight * progress,
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          color: fillColor,
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                        ),
+                                      ),
+                                    ),
+                                  Positioned(
+                                    left: 0,
+                                    right: 0,
+                                    top: top,
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: thumbColor,
+                                        borderRadius:
+                                            BorderRadius.circular(999),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: thumbColor.withValues(
+                                              alpha: 0.28,
+                                            ),
+                                            blurRadius: 16,
+                                            offset: const Offset(0, 8),
+                                          ),
+                                        ],
+                                      ),
+                                      child: SizedBox(
+                                        height: effectiveThumbHeight,
+                                        child: Center(
+                                          child: RotatedBox(
+                                            quarterTurns: 1,
+                                            child: Text(
+                                              '${(progress * 100).round()}%',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w900,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  railButton(
+                    icon: Icons.keyboard_arrow_down_rounded,
+                    onTap: canScroll ? () => _nudgeActiveStepScroll(1) : null,
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -858,6 +1042,29 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     return 720.0;
   }
 
+  double _expandedWizardMapHeight(BuildContext context) {
+    return (_responsiveWizardMapHeight(context) * _wizardMapHeightMultiplier)
+        .clamp(640.0, 1440.0);
+  }
+
+  double _expandedWizardRouteMapHeight(BuildContext context) {
+    final viewport = MediaQuery.sizeOf(context);
+    final base =
+        _responsiveWizardMapHeight(context) +
+        (viewport.width < 920 ? 72.0 : 56.0);
+    return (base * _wizardMapHeightMultiplier).clamp(760.0, 1560.0);
+  }
+
+  double _expandedWizardPoiMapHeight(BuildContext context) {
+    final viewportHeight = MediaQuery.sizeOf(context).height;
+    final base = (viewportHeight - 168).clamp(520.0, 760.0);
+    return (base * _wizardMapHeightMultiplier).clamp(1040.0, 1520.0);
+  }
+
+  double _embeddedStyleProPreviewHeight(BuildContext context) {
+    return (320.0 * _wizardMapHeightMultiplier).clamp(640.0, 960.0);
+  }
+
   double _responsiveWizardPointsListMaxHeight(BuildContext context) {
     final shortestSide = math.min(
       MediaQuery.sizeOf(context).width,
@@ -944,6 +1151,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   final MasLiveMapControllerPoi _poiMapController = MasLiveMapControllerPoi();
   final PoiSelectionController _poiSelection = PoiSelectionController();
   final ScrollController _poiStepScrollController = ScrollController();
+  final ScrollController _templateStepScrollController = ScrollController();
+  final ScrollController _infosStepScrollController = ScrollController();
+  final ScrollController _perimeterStepScrollController = ScrollController();
+  final ScrollController _routeStepScrollController = ScrollController();
+  final ScrollController _validationStepScrollController = ScrollController();
+  final ScrollController _publishStepScrollController = ScrollController();
+  final ValueNotifier<double> _wizardScrollProgress = ValueNotifier<double>(0);
+  final ValueNotifier<bool> _wizardScrollCanScroll = ValueNotifier<bool>(false);
 
   String _defaultPoiAppearanceId = kMasLivePoiAppearancePresets.first.id;
   String _poiInlineAppearanceId = kMasLivePoiAppearancePresets.first.id;
@@ -1404,6 +1619,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         : (widget.initialStep ?? 0).clamp(0, 7);
     _pageController = PageController(initialPage: _currentStep);
 
+    for (final controller in _wizardStepScrollControllers) {
+      controller.addListener(_syncWizardScrollRailState);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _syncWizardScrollRailState();
+    });
+
     // Step POI: hit-testing GeoJSON (tap POI => édition, tap carte => ajout)
     _poiMapController.onPoiTap = (poiId) {
       final idx = _pois.indexWhere((p) => p.id == poiId);
@@ -1649,7 +1872,18 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     _poiMapController.dispose();
     _poiSelection.removeListener(_onPoiSelectionChanged);
     _poiSelection.dispose();
+    for (final controller in _wizardStepScrollControllers) {
+      controller.removeListener(_syncWizardScrollRailState);
+    }
     _poiStepScrollController.dispose();
+    _templateStepScrollController.dispose();
+    _infosStepScrollController.dispose();
+    _perimeterStepScrollController.dispose();
+    _routeStepScrollController.dispose();
+    _validationStepScrollController.dispose();
+    _publishStepScrollController.dispose();
+    _wizardScrollProgress.dispose();
+    _wizardScrollCanScroll.dispose();
     _poiInlineNameController.dispose();
     _poiInlineLatController.dispose();
     _poiInlineLngController.dispose();
@@ -1662,6 +1896,101 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     _styleUrlController.dispose();
     _styleUrlDebounce?.cancel();
     super.dispose();
+  }
+
+  List<ScrollController> get _wizardStepScrollControllers => <ScrollController>[
+    _templateStepScrollController,
+    _infosStepScrollController,
+    _perimeterStepScrollController,
+    _routeStepScrollController,
+    _poiStepScrollController,
+    _validationStepScrollController,
+    _publishStepScrollController,
+  ];
+
+  ScrollController? get _activeStepScrollController {
+    switch (_currentStep) {
+      case 0:
+        return _templateStepScrollController;
+      case 1:
+        return _infosStepScrollController;
+      case 2:
+        return _perimeterStepScrollController;
+      case 3:
+        return _routeStepScrollController;
+      case 5:
+        return _poiStepScrollController;
+      case 6:
+        return _validationStepScrollController;
+      case 7:
+        return _publishStepScrollController;
+      default:
+        return null;
+    }
+  }
+
+  void _syncWizardScrollRailState() {
+    final controller = _activeStepScrollController;
+    if (controller == null || !controller.hasClients) {
+      if (_wizardScrollCanScroll.value != false) {
+        _wizardScrollCanScroll.value = false;
+      }
+      if (_wizardScrollProgress.value != 0) {
+        _wizardScrollProgress.value = 0;
+      }
+      return;
+    }
+
+    final maxScroll = controller.position.maxScrollExtent;
+    final canScroll = maxScroll > 0;
+    final progress = canScroll
+        ? (controller.offset / maxScroll).clamp(0.0, 1.0)
+        : 0.0;
+
+    if (_wizardScrollCanScroll.value != canScroll) {
+      _wizardScrollCanScroll.value = canScroll;
+    }
+    if ((_wizardScrollProgress.value - progress).abs() > 0.001) {
+      _wizardScrollProgress.value = progress;
+    }
+  }
+
+  Future<void> _jumpActiveStepToFraction(double fraction) async {
+    final controller = _activeStepScrollController;
+    if (controller == null || !controller.hasClients) return;
+    final maxScroll = controller.position.maxScrollExtent;
+    if (maxScroll <= 0) return;
+    final target = (maxScroll * fraction.clamp(0.0, 1.0)).clamp(0.0, maxScroll);
+    controller.jumpTo(target);
+    _syncWizardScrollRailState();
+  }
+
+  Future<void> _animateActiveStepToFraction(double fraction) async {
+    final controller = _activeStepScrollController;
+    if (controller == null || !controller.hasClients) return;
+    final maxScroll = controller.position.maxScrollExtent;
+    if (maxScroll <= 0) return;
+    final target = (maxScroll * fraction.clamp(0.0, 1.0)).clamp(0.0, maxScroll);
+    await controller.animateTo(
+      target,
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+    );
+    _syncWizardScrollRailState();
+  }
+
+  Future<void> _nudgeActiveStepScroll(int direction) async {
+    final controller = _activeStepScrollController;
+    if (controller == null || !controller.hasClients) return;
+    final step = math.max(controller.position.viewportDimension * 0.72, 240.0);
+    final target = (controller.offset + (direction * step))
+        .clamp(0.0, controller.position.maxScrollExtent);
+    await controller.animateTo(
+      target,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
+    _syncWizardScrollRailState();
   }
 
   void _onStyleUrlChanged(String _) {
@@ -2529,41 +2858,50 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               padding: EdgeInsets.zero,
             ),
             Expanded(
-              child: Stack(
+              child: Row(
                 children: [
-                  PageView(
-                    controller: _pageController,
-                    physics: const NeverScrollableScrollPhysics(),
-                    onPageChanged: (page) {
-                      setState(() => _currentStep = page);
+                  SizedBox(
+                    width: _wizardScrollRailWidth,
+                    child: _buildWizardScrollRail(),
+                  ),
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        PageView(
+                          controller: _pageController,
+                          physics: const NeverScrollableScrollPhysics(),
+                          onPageChanged: (page) {
+                            setState(() => _currentStep = page);
 
-                      // Quand on arrive sur l'étape POI, on veut afficher le circuit
-                      // (Style Pro si présent) sur la carte immédiatement.
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (!mounted) return;
-                        if (_currentStep == _poiStepIndex) {
-                          unawaited(_refreshPoiRouteOverlay());
-                        }
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (!mounted) return;
+                              if (_currentStep == _poiStepIndex) {
+                                unawaited(_refreshPoiRouteOverlay());
+                              }
 
-                        _syncPoiRouteStyleProTimer();
-                      });
-                    },
-                    children: [
-                      _wrapWizardStep(_buildStep0Template()),
-                      _wrapWizardStep(_buildStep1Infos()),
-                      _wrapWizardStep(
-                        _buildStep2Perimeter(),
-                        toolbar: _buildCentralMapToolsBar(isPerimeter: true),
-                      ),
-                      _wrapWizardStep(
-                        _buildStep3RouteAndStyleTabbed(),
-                        toolbar: _buildCentralMapToolsBar(isPerimeter: false),
-                      ),
-                      _wrapWizardStep(_buildStep6StylePro()),
-                      _wrapWizardStep(_buildStep5POI()),
-                      _wrapWizardStep(_buildStep7Validation()),
-                      _wrapWizardStep(_buildStep8Publish()),
-                    ],
+                              _syncPoiRouteStyleProTimer();
+                              _syncWizardScrollRailState();
+                            });
+                          },
+                          children: [
+                            _wrapWizardStep(_buildStep0Template()),
+                            _wrapWizardStep(_buildStep1Infos()),
+                            _wrapWizardStep(
+                              _buildStep2Perimeter(),
+                              toolbar: _buildCentralMapToolsBar(isPerimeter: true),
+                            ),
+                            _wrapWizardStep(
+                              _buildStep3RouteAndStyleTabbed(),
+                              toolbar: _buildCentralMapToolsBar(isPerimeter: false),
+                            ),
+                            _wrapWizardStep(_buildStep6StylePro()),
+                            _wrapWizardStep(_buildStep5POI()),
+                            _wrapWizardStep(_buildStep7Validation()),
+                            _wrapWizardStep(_buildStep8Publish()),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -2595,11 +2933,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   Widget _buildStep3RouteAndStyleUnified() {
     final proCfg = _routeStyleProConfig?.validated();
-    final viewport = MediaQuery.sizeOf(context);
-    final mapHeight =
-        (_responsiveWizardMapHeight(context) +
-                (viewport.width < 920 ? 72.0 : 56.0))
-            .clamp(380.0, 780.0);
+    final mapHeight = _expandedWizardRouteMapHeight(context);
     return CircuitMapEditor(
       title: 'Tracé + Style',
       subtitle: 'Tracez l\'itinéraire et réglez son apparence',
@@ -2620,6 +2954,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       showHeader: false,
       allowVerticalScroll: true,
       mapHeight: mapHeight,
+      externalScrollController: _routeStepScrollController,
       onPointsChanged: (points) {
         final previousCount = _routePoints.length;
         setState(() {
@@ -2652,7 +2987,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   Widget _buildStep0Template() {
     final compactActions = MediaQuery.sizeOf(context).width < 520;
     return GlassScrollbar(
+      controller: _templateStepScrollController,
       child: SingleChildScrollView(
+        controller: _templateStepScrollController,
         physics: _isWizardMapInteracting
             ? const NeverScrollableScrollPhysics()
             : null,
@@ -2751,7 +3088,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   Widget _buildStep1Infos() {
     return GlassScrollbar(
+      controller: _infosStepScrollController,
       child: SingleChildScrollView(
+        controller: _infosStepScrollController,
         physics: _isWizardMapInteracting
             ? const NeverScrollableScrollPhysics()
             : null,
@@ -3005,7 +3344,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   Widget _buildStep2Perimeter() {
     final proCfg = _routeStyleProConfig?.validated();
-    final mapHeight = _responsiveWizardMapHeight(context);
+    final mapHeight = _expandedWizardMapHeight(context);
     final pointsListMaxHeight = _responsiveWizardPointsListMaxHeight(context);
     return CircuitMapEditor(
       title: 'Définir le périmètre',
@@ -3042,6 +3381,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       showHeader: false,
       allowVerticalScroll: true,
       mapHeight: mapHeight,
+      externalScrollController: _perimeterStepScrollController,
       pointsListMaxHeight: pointsListMaxHeight,
       onPointsChanged: (points) {
         setState(() {
@@ -4151,6 +4491,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 for (final p in _routePoints) (lat: p.lat, lng: p.lng),
               ]
             : null,
+        embeddedPreviewHeight: _embeddedStyleProPreviewHeight(context),
         onConfigChanged: (cfg) {
           _routeStyleProConfig = cfg.validated();
           if (_currentStep == _poiStepIndex) {
@@ -4774,24 +5115,25 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
     final poiLayers = _layers.where((l) => l.type != 'route').toList();
 
-    final viewportHeight = MediaQuery.sizeOf(context).height;
-    final mapViewportHeight = (viewportHeight - 168).clamp(520.0, 760.0);
+    final mapViewportHeight = _expandedWizardPoiMapHeight(context);
 
     return ChangeNotifierProvider<PoiSelectionController>.value(
       value: _poiSelection,
-      child: SingleChildScrollView(
+      child: GlassScrollbar(
         controller: _poiStepScrollController,
-        physics: _isWizardMapInteracting
-            ? const NeverScrollableScrollPhysics()
-            : null,
-        padding: const EdgeInsets.fromLTRB(
-          poiStepHorizontalPadding,
-          0,
-          poiStepHorizontalPadding,
-          kBottomNavigationBarHeight + MasliveTokens.xl,
-        ),
-        child: Column(
-          children: [
+        child: SingleChildScrollView(
+          controller: _poiStepScrollController,
+          physics: _isWizardMapInteracting
+              ? const NeverScrollableScrollPhysics()
+              : null,
+          padding: const EdgeInsets.fromLTRB(
+            poiStepHorizontalPadding,
+            0,
+            poiStepHorizontalPadding,
+            kBottomNavigationBarHeight + MasliveTokens.xl,
+          ),
+          child: Column(
+            children: [
             SizedBox(
               height: mapViewportHeight,
               child: Stack(
@@ -4933,7 +5275,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 );
               },
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -6775,7 +7118,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final report = _qualityReport;
     final compactValidation = MediaQuery.sizeOf(context).width < 520;
     return GlassScrollbar(
+      controller: _validationStepScrollController,
       child: SingleChildScrollView(
+        controller: _validationStepScrollController,
         padding: const EdgeInsets.fromLTRB(
           MasliveTokens.m,
           MasliveTokens.m,
@@ -6951,7 +7296,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   Widget _buildStep8Publish() {
     final report = _qualityReport;
     return GlassScrollbar(
+      controller: _publishStepScrollController,
       child: SingleChildScrollView(
+        controller: _publishStepScrollController,
         padding: const EdgeInsets.fromLTRB(
           MasliveTokens.m,
           MasliveTokens.m,

@@ -6,6 +6,7 @@ import '../../models/market_event.dart';
 import '../../models/market_layer.dart';
 import '../../services/market_map_service.dart';
 import '../../ui_kit/tokens/maslive_tokens.dart';
+import '../../utils/country_flag.dart';
 import 'country_autocomplete_field.dart';
 
 class MarketMapPoiSelection {
@@ -279,6 +280,60 @@ class _MarketMapPoiSelectorSheetState
     return name.isNotEmpty ? name : c.id;
   }
 
+  String _countrySortKey(MarketCountry c) {
+    final name = _countryLabel(c).trim().toLowerCase();
+    return name.isNotEmpty ? name : c.id.trim().toLowerCase();
+  }
+
+  String _countryIso2(MarketCountry c) {
+    return guessIso2FromMarketMapCountry(
+      id: c.id,
+      slug: c.slug,
+      name: c.name,
+    );
+  }
+
+  TextStyle _countryTextStyle(BuildContext context) {
+    return Theme.of(context).textTheme.titleMedium?.copyWith(
+          fontSize: 17,
+          fontWeight: FontWeight.w800,
+          color: Theme.of(context).colorScheme.onSurface,
+        ) ??
+        const TextStyle(
+          fontSize: 17,
+          fontWeight: FontWeight.w800,
+        );
+  }
+
+  Widget _countryOptionLabel(BuildContext context, MarketCountry c) {
+    final iso2 = _countryIso2(c);
+    final flag = countryFlagEmojiFromIso2(iso2);
+    final label = _countryLabel(c);
+    final textStyle = _countryTextStyle(context);
+
+    return Row(
+      children: [
+        SizedBox(
+          width: 28,
+          child: Text(
+            flag.isEmpty ? '  ' : flag,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 18),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: textStyle,
+          ),
+        ),
+      ],
+    );
+  }
+
   String _eventLabel(MarketEvent e) {
     final name = e.name.trim();
     return name.isNotEmpty ? name : e.id;
@@ -379,50 +434,48 @@ class _MarketMapPoiSelectorSheetState
                     final items = canFilterByVisibleIndex
                         ? all
                             .where((c) => visibleCountryIds.contains(c.id))
-                            .toList(growable: false)
-                        : const <MarketCountry>[];
+                            .toList(growable: true)
+                        : <MarketCountry>[];
+                    items.sort(
+                      (a, b) => _countrySortKey(a).compareTo(_countrySortKey(b)),
+                    );
 
                     if (widget.disableKeyboardInput) {
-                      MarketCountry? initialSelection;
                       final selectedId = _country?.id;
-                      if (selectedId != null) {
-                        for (final c in items) {
-                          if (c.id == selectedId) {
-                            initialSelection = c;
-                            break;
-                          }
-                        }
-                      }
+                      final currentValue = items.any((c) => c.id == selectedId)
+                          ? selectedId
+                          : null;
 
-                      return DropdownMenu<MarketCountry>(
-                        controller: _countryCtrl,
-                        focusNode: _countryFocus,
-                        enabled: allowSelection,
-                        label: const Text('Pays'),
-                        enableSearch: true,
-                        enableFilter: true,
-                        requestFocusOnTap: true,
-                        initialSelection: initialSelection,
-                        dropdownMenuEntries: [
+                      return DropdownButtonFormField<String>(
+                        initialValue: currentValue,
+                        isExpanded: true,
+                        menuMaxHeight: 420,
+                        decoration: const InputDecoration(
+                          labelText: 'Pays',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 16,
+                          ),
+                        ),
+                        items: [
                           for (final c in items)
-                            DropdownMenuEntry<MarketCountry>(
-                              value: c,
-                              label: _countryLabel(c),
+                            DropdownMenuItem<String>(
+                              value: c.id,
+                              child: _countryOptionLabel(context, c),
                             ),
                         ],
-                        onSelected: !allowSelection
+                        onChanged: !allowSelection
                             ? null
-                            : (c) {
+                            : (id) {
+                                if (id == null) return;
+                                final selected = items.firstWhere(
+                                  (c) => c.id == id,
+                                );
                                 setState(() {
-                                  _country = c;
-                                  _countryHasSelectedOption = c != null;
-                                  _updatingControllers = true;
-                                  if (c == null) {
-                                    _countryCtrl.clear();
-                                  } else {
-                                    _countryCtrl.text = _countryLabel(c);
-                                  }
-                                  _updatingControllers = false;
+                                  _country = selected;
+                                  _countryHasSelectedOption = true;
+                                  _countryCtrl.text = _countryLabel(selected);
 
                                   _event = null;
                                   _eventCtrl.clear();

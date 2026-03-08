@@ -40,6 +40,7 @@ class RouteStyleWizardProPage extends StatefulWidget {
   final bool embedded;
   final RouteStyleWizardProController? controller;
   final ValueChanged<RouteStyleConfig>? onConfigChanged;
+  final double? embeddedPreviewHeight;
 
   const RouteStyleWizardProPage({
     super.key,
@@ -50,6 +51,7 @@ class RouteStyleWizardProPage extends StatefulWidget {
     this.embedded = false,
     this.controller,
     this.onConfigChanged,
+    this.embeddedPreviewHeight,
   });
 
   @override
@@ -483,7 +485,10 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
 
                     return Column(
                       children: [
-                        SizedBox(height: 320, child: map),
+                        SizedBox(
+                          height: widget.embeddedPreviewHeight ?? 320,
+                          child: map,
+                        ),
                         const Divider(height: 1),
                         Expanded(child: panel),
                       ],

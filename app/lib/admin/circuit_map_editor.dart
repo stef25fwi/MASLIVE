@@ -126,6 +126,10 @@ class CircuitMapEditor extends StatefulWidget {
   /// Si null, une valeur par défaut basée sur la taille d'écran est utilisée.
   final double? mapHeight;
 
+  /// Contrôleur de scroll externe optionnel.
+  /// Permet au parent de piloter le scroll de l'éditeur (rail latéral, etc.).
+  final ScrollController? externalScrollController;
+
   /// Périmètre (polygon) affiché en surcouche, même en mode polyline.
   /// Typiquement: afficher le périmètre défini à l'étape précédente.
   final List<LngLat> perimeterOverlay;
@@ -209,6 +213,7 @@ class CircuitMapEditor extends StatefulWidget {
 
     this.allowVerticalScroll = false,
     this.mapHeight,
+    this.externalScrollController,
 
     this.polylineColor = const Color(0xFF0A84FF),
     this.polylineWidth = 4.0,
@@ -240,6 +245,9 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   final MasLiveMapController _mapController = MasLiveMapController();
   final ScrollController _scrollController = ScrollController();
   bool _isMapReady = false;
+
+  ScrollController get _effectiveScrollController =>
+      widget.externalScrollController ?? _scrollController;
 
   Timer? _cameraWatchTimer;
   double? _lastAppliedPitch;
@@ -457,7 +465,9 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     widget.controller?._detach();
     _cameraWatchTimer?.cancel();
     _cameraWatchTimer = null;
-    _scrollController.dispose();
+    if (widget.externalScrollController == null) {
+      _scrollController.dispose();
+    }
     _mapController.dispose();
     super.dispose();
   }
@@ -984,11 +994,12 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     if (widget.allowVerticalScroll) {
       final screenH = MediaQuery.of(context).size.height;
       final mapH = widget.mapHeight ?? (screenH * 0.62).clamp(380.0, 820.0);
+      final scrollController = _effectiveScrollController;
 
       return GlassScrollbar(
-        controller: _scrollController,
+        controller: scrollController,
         child: SingleChildScrollView(
-          controller: _scrollController,
+          controller: scrollController,
           physics: _isMapInteracting
               ? const NeverScrollableScrollPhysics()
               : null,

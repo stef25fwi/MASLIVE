@@ -1050,6 +1050,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       context,
       service: _getMarketMapService(),
       initial: _marketPoiSelection.enabled ? _marketPoiSelection : null,
+      disableKeyboardInput: true,
     );
     if (selection == null || !mounted) return;
 
