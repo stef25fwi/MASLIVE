@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
+import '../../route_style_pro/models/route_style_config.dart' as rsp;
 import '../../route_style_pro/services/map_buildings_style_service_native.dart';
 import '../../route_style_pro/services/route_style_pro_projection.dart';
 
@@ -98,6 +99,8 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
   final List<_PoiItem> _visiblePois = <_PoiItem>[];
 
   Map<String, dynamic>? _lastCircuitDocData;
+  Timer? _routeStyleProTimer;
+  int _routeStyleProAnimTick = 0;
 
   // Firestore refs
   CollectionReference<Map<String, dynamic>> get _circuitsCol => _db
@@ -137,6 +140,7 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
     _subCircuitDoc?.cancel();
     _subLayers?.cancel();
     _subPois?.cancel();
+    _routeStyleProTimer?.cancel();
     _subCircuitDoc = null;
     _subLayers = null;
     _subPois = null;
@@ -165,7 +169,9 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
     await _applyDataIfReady();
   }
 
-  Future<void> _applyBuildingsStyleFromCircuitDoc(Map<String, dynamic> d) async {
+  Future<void> _applyBuildingsStyleFromCircuitDoc(
+    Map<String, dynamic> d,
+  ) async {
     if (!_styleLoaded) return;
     final proCfg = tryParseRouteStylePro(d['routeStylePro']);
     if (proCfg == null) return;
@@ -302,26 +308,27 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
 
     final proCfg = tryParseRouteStylePro(d['routeStylePro']);
     if (proCfg != null) {
-      final widthScale = proCfg.widthScale3d;
-      final mainWidth = proCfg.mainWidth * widthScale;
-      final casingWidth = proCfg.casingWidth * widthScale;
-      final translate = (proCfg.elevationPx > 0)
-          ? <double>[0.0, -proCfg.elevationPx]
+      final cfg = proCfg.validated();
+      final mainWidth = cfg.effectiveRenderedMainWidth;
+      final casingWidth = cfg.effectiveRenderedCasingWidth;
+      final translate = (cfg.effectiveElevationPx > 0)
+          ? <double>[0.0, -cfg.effectiveElevationPx]
           : null;
 
-      final join = proCfg.lineJoin.name;
-      final cap = proCfg.lineCap.name;
-      final dash = proCfg.dashEnabled
-          ? <double>[proCfg.dashLength, proCfg.dashGap]
+      final join = cfg.lineJoin.name;
+      final cap = cfg.lineCap.name;
+      final dash = cfg.dashEnabled
+          ? <double>[cfg.dashLength, cfg.dashGap]
           : <double>[1.0, 0.0];
 
-      _routeCasingWantedVisible = casingWidth > mainWidth + 0.5;
+      _routeCasingWantedVisible =
+          cfg.shouldRenderRoadLike && casingWidth > mainWidth + 0.5;
 
       await safeSet(_routeLayerId, 'line-join', join);
       await safeSet(_routeLayerId, 'line-cap', cap);
-      await safeSet(_routeLayerId, 'line-opacity', proCfg.opacity);
+      await safeSet(_routeLayerId, 'line-opacity', cfg.opacity);
       await safeSet(_routeLayerId, 'line-width', mainWidth);
-      await safeSet(_routeLayerId, 'line-color', proCfg.mainColor.toARGB32());
+      await safeSet(_routeLayerId, 'line-color', cfg.mainColor.toARGB32());
       await safeSet(_routeLayerId, 'line-dasharray', dash);
       await safeSet(_routeLayerId, 'line-translate', translate);
       await safeSet(
@@ -332,12 +339,16 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
 
       await safeSet(_routeCasingLayerId, 'line-join', join);
       await safeSet(_routeCasingLayerId, 'line-cap', cap);
-      await safeSet(_routeCasingLayerId, 'line-opacity', proCfg.opacity);
+      await safeSet(
+        _routeCasingLayerId,
+        'line-opacity',
+        cfg.effectiveCasingWidth > 0 ? cfg.opacity : 0.0,
+      );
       await safeSet(_routeCasingLayerId, 'line-width', casingWidth);
       await safeSet(
         _routeCasingLayerId,
         'line-color',
-        proCfg.casingColor.toARGB32(),
+        cfg.casingColor.toARGB32(),
       );
       await safeSet(_routeCasingLayerId, 'line-dasharray', dash);
       await safeSet(_routeCasingLayerId, 'line-translate', translate);
@@ -346,6 +357,74 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
         'line-translate-anchor',
         translate != null ? 'map' : null,
       );
+
+      final mainBaseWidthExpr = <dynamic>[
+        'coalesce',
+        ['get', 'width'],
+        mainWidth,
+      ];
+      final mainWidthExpr = <dynamic>[
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        10,
+        <dynamic>['*', mainBaseWidthExpr, 0.30],
+        12,
+        <dynamic>['*', mainBaseWidthExpr, 0.50],
+        14,
+        <dynamic>['*', mainBaseWidthExpr, 0.80],
+        16,
+        mainBaseWidthExpr,
+        22,
+        mainBaseWidthExpr,
+      ];
+      final casingBaseWidthExpr = <dynamic>[
+        'coalesce',
+        ['get', 'casingWidth'],
+        casingWidth,
+      ];
+      final casingWidthExpr = <dynamic>[
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        10,
+        <dynamic>['*', casingBaseWidthExpr, 0.30],
+        12,
+        <dynamic>['*', casingBaseWidthExpr, 0.50],
+        14,
+        <dynamic>['*', casingBaseWidthExpr, 0.80],
+        16,
+        casingBaseWidthExpr,
+        22,
+        casingBaseWidthExpr,
+      ];
+      final opacityExpr = <dynamic>[
+        'coalesce',
+        ['get', 'opacity'],
+        cfg.opacity,
+      ];
+
+      await safeSet(_routeLayerId, 'line-color', [
+        'to-color',
+        [
+          'coalesce',
+          ['get', 'color'],
+          _toHexRgba(cfg.mainColor, opacity: cfg.opacity),
+        ],
+      ]);
+      await safeSet(_routeLayerId, 'line-width', mainWidthExpr);
+      await safeSet(_routeLayerId, 'line-opacity', opacityExpr);
+
+      await safeSet(_routeCasingLayerId, 'line-color', [
+        'to-color',
+        [
+          'coalesce',
+          ['get', 'casingColor'],
+          _toHexRgb(cfg.casingColor),
+        ],
+      ]);
+      await safeSet(_routeCasingLayerId, 'line-width', casingWidthExpr);
+      await safeSet(_routeCasingLayerId, 'line-opacity', opacityExpr);
 
       if (mounted) setState(() {});
       return;
@@ -412,10 +491,12 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
       if (!snap.exists) return;
       final d = snap.data() ?? <String, dynamic>{};
       _lastCircuitDocData = d;
+      _routeStyleProAnimTick = 0;
       _routeGeoJsonString =
           _buildRouteGeoJsonFromCircuitDoc(d) ?? _emptyFeatureCollection();
       await _applyRouteStyleFromCircuitDoc(d);
       await _applyBuildingsStyleFromCircuitDoc(d);
+      _syncRouteStyleProTimer();
       await _applyDataIfReady();
     });
 
@@ -616,31 +697,250 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
   static String _emptyFeatureCollection() =>
       jsonEncode({'type': 'FeatureCollection', 'features': []});
 
-  String? _buildRouteGeoJsonFromCircuitDoc(Map<String, dynamic> data) {
+  String? _buildRouteGeoJsonFromCircuitDoc(
+    Map<String, dynamic> data, {
+    int animTick = 0,
+  }) {
+    final points = _parseRoutePointsFromCircuitDoc(data);
+    if (points.length < 2) return null;
+
+    final proCfg = tryParseRouteStylePro(data['routeStylePro']);
+    if (proCfg == null) {
+      return _buildLegacyRouteFeatureCollection(points);
+    }
+
+    return _buildRouteStyleProFeatureCollection(
+      points,
+      proCfg.validated(),
+      animTick: animTick,
+    );
+  }
+
+  List<(double, double)> _parseRoutePointsFromCircuitDoc(
+    Map<String, dynamic> data,
+  ) {
     final raw =
         data['route'] ??
         data['routePoints'] ??
         data['routeGeometry'] ??
         data['waypoints'];
-    if (raw == null || raw is! List) return null;
+    if (raw == null || raw is! List) return const <(double, double)>[];
 
-    final coords = <List<double>>[];
+    final points = <(double, double)>[];
     for (final it in raw) {
       final p = _parseRoutePoint(it);
-      if (p != null) coords.add([p.$1, p.$2]);
+      if (p != null) points.add(p);
     }
-    if (coords.length < 2) return null;
+    return points;
+  }
 
+  String _buildLegacyRouteFeatureCollection(List<(double, double)> points) {
     return jsonEncode({
       'type': 'FeatureCollection',
       'features': [
         {
           'type': 'Feature',
           'id': 'route',
-          'geometry': {'type': 'LineString', 'coordinates': coords},
+          'geometry': {
+            'type': 'LineString',
+            'coordinates': [
+              for (final p in points) [p.$1, p.$2],
+            ],
+          },
           'properties': <String, dynamic>{},
         },
       ],
+    });
+  }
+
+  String _buildRouteStyleProFeatureCollection(
+    List<(double, double)> points,
+    rsp.RouteStyleConfig cfg, {
+    required int animTick,
+  }) {
+    final segmentsForMain =
+        cfg.rainbowEnabled || cfg.trafficDemoEnabled || cfg.vanishingEnabled;
+    final needsSegmentedSource =
+        segmentsForMain || cfg.effectiveCasingRainbowEnabled;
+
+    return needsSegmentedSource
+        ? _buildSegmentedRouteFeatureCollection(points, cfg, animTick: animTick)
+        : _buildSolidRouteFeatureCollection(points, cfg);
+  }
+
+  String _buildSegmentedRouteFeatureCollection(
+    List<(double, double)> points,
+    rsp.RouteStyleConfig cfg, {
+    required int animTick,
+  }) {
+    const maxSeg = 60;
+    final step = math.max(1, ((points.length - 1) / maxSeg).ceil());
+    final features = <Map<String, dynamic>>[];
+    int segIndex = 0;
+
+    for (int i = 0; i < points.length - 1; i += step) {
+      final a = points[i];
+      final b = points[math.min(i + step, points.length - 1)];
+      final t = segIndex / math.max(1, ((points.length - 1) / step).floor());
+      final opacity = cfg.vanishingEnabled
+          ? (t <= cfg.vanishingProgress ? 0.25 : cfg.opacity)
+          : cfg.opacity;
+
+      features.add({
+        'type': 'Feature',
+        'properties': {
+          'color': _toHexRgba(
+            _segmentColor(cfg, segIndex, animTick),
+            opacity: opacity,
+          ),
+          'casingColor': _toHexRgb(
+            _segmentCasingColor(cfg, segIndex, animTick),
+          ),
+          'width': cfg.effectiveRenderedMainWidth,
+          'casingWidth': cfg.effectiveRenderedCasingWidth,
+          'opacity': opacity,
+        },
+        'geometry': {
+          'type': 'LineString',
+          'coordinates': [
+            [a.$1, a.$2],
+            [b.$1, b.$2],
+          ],
+        },
+      });
+      segIndex++;
+    }
+
+    return jsonEncode({'type': 'FeatureCollection', 'features': features});
+  }
+
+  String _buildSolidRouteFeatureCollection(
+    List<(double, double)> points,
+    rsp.RouteStyleConfig cfg,
+  ) {
+    return jsonEncode({
+      'type': 'FeatureCollection',
+      'features': [
+        {
+          'type': 'Feature',
+          'id': 'route',
+          'geometry': {
+            'type': 'LineString',
+            'coordinates': [
+              for (final p in points) [p.$1, p.$2],
+            ],
+          },
+          'properties': {
+            'color': _toHexRgba(cfg.mainColor, opacity: cfg.opacity),
+            'casingColor': _toHexRgb(cfg.casingColor),
+            'width': cfg.effectiveRenderedMainWidth,
+            'casingWidth': cfg.effectiveRenderedCasingWidth,
+            'opacity': cfg.opacity,
+          },
+        },
+      ],
+    });
+  }
+
+  Color _segmentColor(rsp.RouteStyleConfig cfg, int index, int animTick) {
+    if (cfg.trafficDemoEnabled) {
+      const traffic = [Color(0xFF22C55E), Color(0xFFF59E0B), Color(0xFFEF4444)];
+      return traffic[index % traffic.length];
+    }
+
+    if (cfg.rainbowEnabled) {
+      final shift = animTick % 360;
+      final dir = cfg.rainbowReverse ? -1 : 1;
+      final hue = (shift + dir * index * 14) % 360;
+      return _hsvToColor(hue.toDouble(), cfg.rainbowSaturation, 1.0);
+    }
+
+    return cfg.mainColor;
+  }
+
+  Color _segmentCasingColor(rsp.RouteStyleConfig cfg, int index, int animTick) {
+    if (!cfg.effectiveCasingRainbowEnabled) return cfg.casingColor;
+    final shift = animTick % 360;
+    final dir = cfg.rainbowReverse ? -1 : 1;
+    final hue = (shift + dir * index * 14) % 360;
+    return _hsvToColor(hue.toDouble(), cfg.rainbowSaturation, 1.0);
+  }
+
+  Color _hsvToColor(double h, double s, double v) {
+    final hh = (h % 360) / 60.0;
+    final c = v * s;
+    final x = c * (1 - ((hh % 2) - 1).abs());
+    final m = v - c;
+
+    double r1 = 0, g1 = 0, b1 = 0;
+    if (hh >= 0 && hh < 1) {
+      r1 = c;
+      g1 = x;
+    } else if (hh < 2) {
+      r1 = x;
+      g1 = c;
+    } else if (hh < 3) {
+      g1 = c;
+      b1 = x;
+    } else if (hh < 4) {
+      g1 = x;
+      b1 = c;
+    } else if (hh < 5) {
+      r1 = x;
+      b1 = c;
+    } else {
+      r1 = c;
+      b1 = x;
+    }
+
+    final r = ((r1 + m) * 255).round().clamp(0, 255);
+    final g = ((g1 + m) * 255).round().clamp(0, 255);
+    final b = ((b1 + m) * 255).round().clamp(0, 255);
+    return Color.fromARGB(255, r, g, b);
+  }
+
+  String _toHexRgba(Color c, {required double opacity}) {
+    final a = opacity.clamp(0.0, 1.0);
+    final r = ((c.r * 255).round()).clamp(0, 255);
+    final g = ((c.g * 255).round()).clamp(0, 255);
+    final b = ((c.b * 255).round()).clamp(0, 255);
+    return 'rgba($r,$g,$b,${a.toStringAsFixed(3)})';
+  }
+
+  String _toHexRgb(Color c) {
+    final v = c.toARGB32().toRadixString(16).padLeft(8, '0');
+    return '#${v.substring(2, 8)}';
+  }
+
+  void _syncRouteStyleProTimer() {
+    final raw = _lastCircuitDocData;
+    final proCfg = raw == null
+        ? null
+        : tryParseRouteStylePro(raw['routeStylePro']);
+    final cfg = proCfg?.validated();
+    final needsAnim =
+        cfg != null &&
+        (cfg.rainbowEnabled || cfg.effectiveCasingRainbowEnabled);
+
+    if (!needsAnim) {
+      _routeStyleProTimer?.cancel();
+      _routeStyleProTimer = null;
+      return;
+    }
+
+    final periodMs = (110 - (cfg.rainbowSpeed * 0.8)).clamp(25, 110).round();
+    _routeStyleProTimer?.cancel();
+    _routeStyleProTimer = Timer.periodic(Duration(milliseconds: periodMs), (_) {
+      final data = _lastCircuitDocData;
+      if (data == null) return;
+      _routeStyleProAnimTick++;
+      _routeGeoJsonString =
+          _buildRouteGeoJsonFromCircuitDoc(
+            data,
+            animTick: _routeStyleProAnimTick,
+          ) ??
+          _emptyFeatureCollection();
+      unawaited(_applyDataIfReady());
     });
   }
 

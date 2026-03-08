@@ -281,14 +281,14 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         prefs.getBool(_prefsKeyDidAutoOpenActionsMenuOnce) ?? false;
     if (!mounted) return;
 
-      // Ouvrir le menu et afficher la tooltip à chaque lancement
-      final showTooltip = true;
+    // Ouvrir le menu et afficher la tooltip à chaque lancement
+    final showTooltip = true;
 
-      if (!didAutoOpen) {
-        // Marquer le premier lancement automatique si jamais
-        await prefs.setBool(_prefsKeyDidAutoOpenActionsMenuOnce, true);
-        if (!mounted) return;
-      }
+    if (!didAutoOpen) {
+      // Marquer le premier lancement automatique si jamais
+      await prefs.setBool(_prefsKeyDidAutoOpenActionsMenuOnce, true);
+      if (!mounted) return;
+    }
 
     setState(() {
       _showActionsMenu = true;
@@ -558,16 +558,16 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       if (pro != null) {
         final cfg = pro.validated();
 
-        final widthScale = cfg.widthScale3d;
-        final mainWidth = cfg.mainWidth * widthScale;
-        final casingWidth = cfg.casingWidth * widthScale;
-        final glowWidth = cfg.glowWidth * widthScale;
+        final mainWidth = cfg.effectiveRenderedMainWidth;
+        final casingWidth = cfg.effectiveRenderedCasingWidth;
+        final glowWidth = cfg.glowWidth * cfg.effectiveWidthScale3d;
 
         final segmentsForMain =
             cfg.rainbowEnabled ||
             cfg.trafficDemoEnabled ||
             cfg.vanishingEnabled;
-        final needSegmentsSource = segmentsForMain || cfg.casingRainbowEnabled;
+        final needSegmentsSource =
+            segmentsForMain || cfg.effectiveCasingRainbowEnabled;
         final segmentsGeoJson = needSegmentsSource
             ? _buildRouteStyleProSegmentsGeoJson(
                 pts,
@@ -576,8 +576,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
               )
             : null;
 
-        final shouldRoadLike =
-            (cfg.casingWidth > 0) || cfg.shadowEnabled || cfg.glowEnabled;
+        final shouldRoadLike = cfg.shouldRenderRoadLike;
 
         await _mapController.setPolyline(
           points: pts,
@@ -585,7 +584,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           width: mainWidth,
           show: true,
           roadLike: shouldRoadLike,
-          shadow3d: cfg.shadowEnabled,
+          shadow3d: cfg.effectiveShadowEnabled,
           shadowOpacity: cfg.shadowOpacity,
           shadowBlur: cfg.shadowBlur,
           showDirection: false,
@@ -594,18 +593,18 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
           opacity: cfg.opacity,
           casingColor: cfg.casingColor,
-          casingWidth: cfg.casingWidth > 0 ? casingWidth : null,
-          casingRainbowEnabled: cfg.casingRainbowEnabled,
+          casingWidth: cfg.effectiveCasingWidth > 0 ? casingWidth : null,
+          casingRainbowEnabled: cfg.effectiveCasingRainbowEnabled,
 
-          glowEnabled: cfg.glowEnabled,
+          glowEnabled: cfg.effectiveGlowEnabled,
           glowColor: cfg.mainColor,
           glowWidth: glowWidth,
-          glowOpacity: cfg.glowOpacity,
+          glowOpacity: cfg.effectiveGlowEnabled ? cfg.glowOpacity : 0.0,
           glowBlur: cfg.glowBlur,
 
           thickness3d: cfg.thickness3d,
-          elevationPx: cfg.elevationPx,
-          sidesEnabled: cfg.sidesEnabled,
+          elevationPx: cfg.effectiveElevationPx,
+          sidesEnabled: cfg.effectiveSidesEnabled,
           sidesIntensity: cfg.sidesIntensity,
 
           dashArray: cfg.dashEnabled
@@ -669,7 +668,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       return jsonEncode({'type': 'FeatureCollection', 'features': []});
     }
 
-    final width = cfg.mainWidth * cfg.widthScale3d;
+    final width = cfg.effectiveRenderedMainWidth;
 
     // Limite le nombre de segments (perf)
     const maxSeg = 60;
@@ -744,7 +743,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     int index,
     int animTick,
   ) {
-    if (!cfg.casingRainbowEnabled) return cfg.casingColor;
+    if (!cfg.effectiveCasingRainbowEnabled) return cfg.casingColor;
     final shift = (animTick % 360);
     final dir = cfg.rainbowReverse ? -1 : 1;
     final hue = (shift + dir * index * 14) % 360;

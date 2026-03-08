@@ -6,7 +6,69 @@ import 'package:masslive/route_style_pro/models/route_style_preset.dart';
 import 'package:masslive/route_style_pro/ui/widgets/route_style_controls_panel.dart';
 
 void main() {
-  testWidgets('RouteStyleControlsPanel presets chips apply config on tap', (tester) async {
+  testWidgets('RouteStyleControlsPanel exposes rainbow casing toggle', (
+    tester,
+  ) async {
+    RouteStyleConfig? last;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: RouteStyleControlsPanel(
+            config: const RouteStyleConfig(),
+            onChanged: (cfg) => last = cfg,
+            onTestAutoRoute: () {},
+            onUseMyTrace: () {},
+            onSave: () {},
+            onReset: () {},
+          ),
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(find.text('Rainbow casing'), 200);
+
+    expect(find.text('Rainbow casing'), findsOneWidget);
+
+    await tester.tap(find.text('Rainbow casing'));
+    await tester.pump();
+
+    expect(last, isNotNull);
+    expect(last!.casingRainbowEnabled, isTrue);
+  });
+
+  testWidgets('RouteStyleControlsPanel exposes fit-to-road toggle', (
+    tester,
+  ) async {
+    RouteStyleConfig? last;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: RouteStyleControlsPanel(
+            config: const RouteStyleConfig(),
+            onChanged: (cfg) => last = cfg,
+            onTestAutoRoute: () {},
+            onUseMyTrace: () {},
+            onSave: () {},
+            onReset: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Respecter la largeur de la route'), findsOneWidget);
+
+    await tester.tap(find.text('Respecter la largeur de la route'));
+    await tester.pump();
+
+    expect(last, isNotNull);
+    expect(last!.fitToRoadWidth, isTrue);
+  });
+
+  testWidgets('RouteStyleControlsPanel presets chips apply config on tap', (
+    tester,
+  ) async {
     RouteStyleConfig? last;
 
     await tester.pumpWidget(
@@ -42,7 +104,10 @@ void main() {
     await tester.pump();
 
     final applied = last!.validated();
-    expect(applied.mainColor.toARGB32(), RouteStylePresets.neon.config.mainColor.toARGB32());
+    expect(
+      applied.mainColor.toARGB32(),
+      RouteStylePresets.neon.config.mainColor.toARGB32(),
+    );
     expect(applied.glowEnabled, isTrue);
 
     // Tap sur "Minimal" => casingWidth doit pouvoir rester à 0

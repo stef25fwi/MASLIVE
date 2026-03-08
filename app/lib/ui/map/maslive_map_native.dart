@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:image/image.dart' as img;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import 'maslive_map_controller.dart';
@@ -48,6 +50,7 @@ class MasLiveMapNative extends StatefulWidget {
 class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   static const String _poiSourceId = 'src_pois';
   static const String _poiLayerId = 'ly_pois_circle';
+  static const String _poiIconLayerId = 'ly_pois_icon_point';
   static const String _poiPreviewVertexLayerId = 'ly_pois_preview_vertices';
   static const String _poiZoneBadgeLayerId = 'ly_pois_zone_badge';
   static const String _poiZoneLabelLayerId = 'ly_pois_zone_label';
@@ -66,6 +69,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   static const String _parkingBadgeSm = 'maslive_parking_badge_sm';
   static const String _parkingBadgeMd = 'maslive_parking_badge_md';
   static const String _parkingBadgeLg = 'maslive_parking_badge_lg';
+  static const String _poiIconPointId = 'maslive_poi_icon_point';
 
   static const List<String> _parkingCarBitmap = <String>[
     '................',
@@ -785,6 +789,12 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       // ignore
     }
 
+    try {
+      await map.style.setStyleLayerProperty(_poiIconLayerId, 'icon-size', 0.55);
+    } catch (_) {
+      // ignore
+    }
+
     // Zones (Polygon)
     try {
       await map.style.setStyleLayerProperty(
@@ -842,6 +852,11 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     // Remove + add source, puis layer si besoin.
     try {
       await map.style.removeStyleLayer(_poiLayerId);
+    } catch (_) {
+      // ignore
+    }
+    try {
+      await map.style.removeStyleLayer(_poiIconLayerId);
     } catch (_) {
       // ignore
     }
@@ -1175,7 +1190,80 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
             false,
           ],
         ],
+        [
+          'any',
+          [
+            '!',
+            ['has', kMasLivePoiAppearanceKey],
+          ],
+          [
+            '!=',
+            ['get', kMasLivePoiAppearanceKey],
+            'icon_point',
+          ],
+        ],
       ]);
+    } catch (_) {
+      // ignore
+    }
+
+    try {
+      await map.style.addLayer(
+        SymbolLayer(id: _poiIconLayerId, sourceId: _poiSourceId),
+      );
+      await map.style.setStyleLayerProperty(_poiIconLayerId, 'filter', [
+        'all',
+        [
+          '==',
+          ['geometry-type'],
+          'Point',
+        ],
+        [
+          '==',
+          ['get', kMasLivePoiAppearanceKey],
+          'icon_point',
+        ],
+        [
+          'any',
+          [
+            '!',
+            ['has', 'isZoneLabel'],
+          ],
+          [
+            '==',
+            ['get', 'isZoneLabel'],
+            false,
+          ],
+        ],
+        [
+          'any',
+          [
+            '!',
+            ['has', 'isPreviewVertex'],
+          ],
+          [
+            '==',
+            ['get', 'isPreviewVertex'],
+            false,
+          ],
+        ],
+      ]);
+      await map.style.setStyleLayerProperty(
+        _poiIconLayerId,
+        'icon-image',
+        _poiIconPointId,
+      );
+      await map.style.setStyleLayerProperty(_poiIconLayerId, 'icon-size', 0.55);
+      await map.style.setStyleLayerProperty(
+        _poiIconLayerId,
+        'icon-allow-overlap',
+        true,
+      );
+      await map.style.setStyleLayerProperty(
+        _poiIconLayerId,
+        'icon-ignore-placement',
+        true,
+      );
     } catch (_) {
       // ignore
     }
@@ -1630,6 +1718,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
                   _poiLineLayerDashedId,
                   _poiLineLayerId,
                   _poiZoneLabelLayerId,
+                  _poiIconLayerId,
                   _poiLayerId,
                 ],
                 filter: null,
@@ -1775,9 +1864,30 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         _parkingBadgeLg,
         _buildParkingBadgeImage(width: 228, height: 56),
       );
+      final pointIcon = await _buildAssetImage('assets/images/icon-point.webp');
+      if (pointIcon != null) {
+        await add(_poiIconPointId, pointIcon);
+      }
       _patternImagesReady = true;
     } catch (_) {
       // ignore
+    }
+  }
+
+  Future<MbxImage?> _buildAssetImage(String assetPath) async {
+    try {
+      final data = await rootBundle.load(assetPath);
+      final decoded = img.decodeImage(data.buffer.asUint8List());
+      if (decoded == null) return null;
+      final rgbaImage = decoded.convert(numChannels: 4);
+      final rgba = rgbaImage.getBytes(order: img.ChannelOrder.rgba);
+      return MbxImage(
+        width: rgbaImage.width,
+        height: rgbaImage.height,
+        data: Uint8List.fromList(rgba),
+      );
+    } catch (_) {
+      return null;
     }
   }
 
@@ -2008,6 +2118,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     required double opacity,
     required double casingWidth,
     required int casingColor,
+    required bool casingRainbowEnabled,
     String? lineCap,
     String? lineJoin,
   }) async {
@@ -2062,7 +2173,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       await _tryAddRouteLayer(
         LineLayer(
           id: _layerRouteCasing,
-          sourceId: _routeSourceId,
+          sourceId: casingRainbowEnabled ? _segmentsSourceId : _routeSourceId,
           lineColor: casingColor,
           lineOpacity: opacity,
           lineWidth: casingWidth,
@@ -2132,6 +2243,8 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     required double fallbackWidth,
     required double fallbackOpacity,
     required Color fallbackColor,
+    required Color fallbackCasingColor,
+    required bool casingRainbowEnabled,
     required bool sidesEnabled,
     required double sidesIntensity,
   }) async {
@@ -2217,6 +2330,36 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
           layerId,
           'line-opacity',
           fallbackOpacity,
+        );
+      } catch (_) {}
+    }
+
+    if (roadLike && casingRainbowEnabled) {
+      final casingColorExpr = [
+        'coalesce',
+        [
+          'to-color',
+          ['get', 'casingColor'],
+        ],
+        fallbackCasingColor.toARGB32(),
+      ];
+      final casingOpacityExpr = [
+        'coalesce',
+        ['get', 'opacity'],
+        fallbackOpacity,
+      ];
+      try {
+        await map.style.setStyleLayerProperty(
+          _layerRouteCasing,
+          'line-color',
+          casingColorExpr,
+        );
+      } catch (_) {}
+      try {
+        await map.style.setStyleLayerProperty(
+          _layerRouteCasing,
+          'line-opacity',
+          casingOpacityExpr,
         );
       } catch (_) {}
     }
@@ -2339,6 +2482,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       opacity: opacity,
       casingWidth: casingWidth,
       casingColor: casingColor,
+      casingRainbowEnabled: options.casingRainbowEnabled ?? false,
       lineCap: options.lineCap,
       lineJoin: options.lineJoin,
     );
@@ -2515,6 +2659,8 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       fallbackWidth: width,
       fallbackOpacity: opacity,
       fallbackColor: color,
+      fallbackCasingColor: options.casingColor ?? const Color(0xFF000000),
+      casingRainbowEnabled: options.casingRainbowEnabled ?? false,
       sidesEnabled: sidesEnabled,
       sidesIntensity: sidesIntensity,
     );

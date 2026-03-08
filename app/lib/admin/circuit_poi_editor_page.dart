@@ -110,7 +110,8 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
     final groupId = ((data['groupId'] as String?) ?? 'default').trim();
     final isAdmin = (data['isAdmin'] as bool?) ?? false;
 
-    final canWrite = isAdmin ||
+    final canWrite =
+        isAdmin ||
         role == 'admin' ||
         role == 'admin_master' ||
         role == 'superAdmin' ||
@@ -148,8 +149,10 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
 
       _draftData = Map<String, dynamic>.from(current);
 
-      _nameController.text = (current['name'] ?? widget.circuitName ?? '').toString();
-      _countryController.text = (current['countryId'] ?? widget.countryId).toString();
+      _nameController.text = (current['name'] ?? widget.circuitName ?? '')
+          .toString();
+      _countryController.text = (current['countryId'] ?? widget.countryId)
+          .toString();
       _eventController.text = (current['eventId'] ?? widget.eventId).toString();
       _descriptionController.text = (current['description'] ?? '').toString();
       _styleUrlController.text = (current['styleUrl'] ?? '').toString();
@@ -158,7 +161,10 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
       if (perimeterData != null) {
         _perimeterPoints = perimeterData.map((p) {
           final m = p as Map<String, dynamic>;
-          return (lng: (m['lng'] as num).toDouble(), lat: (m['lat'] as num).toDouble());
+          return (
+            lng: (m['lng'] as num).toDouble(),
+            lat: (m['lat'] as num).toDouble(),
+          );
         }).toList();
       }
 
@@ -166,7 +172,10 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
       if (routeData != null) {
         _routePoints = routeData.map((p) {
           final m = p as Map<String, dynamic>;
-          return (lng: (m['lng'] as num).toDouble(), lat: (m['lat'] as num).toDouble());
+          return (
+            lng: (m['lng'] as num).toDouble(),
+            lat: (m['lat'] as num).toDouble(),
+          );
         }).toList();
       }
 
@@ -188,7 +197,8 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
     } catch (e) {
       setState(() {
         if (e is FirebaseException) {
-          _errorMessage = 'Erreur chargement (${e.code}): ${e.message ?? e.toString()}';
+          _errorMessage =
+              'Erreur chargement (${e.code}): ${e.message ?? e.toString()}';
         } else {
           _errorMessage = 'Erreur chargement: $e';
         }
@@ -258,7 +268,9 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
       ];
     }
 
-    return snapshot.docs.map((doc) => MarketMapLayer.fromFirestore(doc)).toList();
+    return snapshot.docs
+        .map((doc) => MarketMapLayer.fromFirestore(doc))
+        .toList();
   }
 
   String _normalizePoiLayerType(String raw) {
@@ -269,16 +281,21 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
   }
 
   bool _poiMatchesSelectedLayer(MarketMapPOI poi, MarketMapLayer layer) {
-    return _normalizePoiLayerType(poi.layerType) == _normalizePoiLayerType(layer.type);
+    return _normalizePoiLayerType(poi.layerType) ==
+        _normalizePoiLayerType(layer.type);
   }
 
-  Future<void> _migrateLegacyPoiTypesToVisit({required String projectId}) async {
+  Future<void> _migrateLegacyPoiTypesToVisit({
+    required String projectId,
+  }) async {
     if (!_canWriteMapProjects) return;
 
     final db = FirebaseFirestore.instance;
     final col = db.collection('map_projects').doc(projectId).collection('pois');
 
-    final snap = await col.where('layerType', whereIn: const ['tour', 'visiter']).get();
+    final snap = await col
+        .where('layerType', whereIn: const ['tour', 'visiter'])
+        .get();
     if (snap.docs.isEmpty) return;
 
     WriteBatch batch = db.batch();
@@ -315,14 +332,30 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
       debugPrint('PoiEditor migrate POI types error: $e');
     }
 
-    const defaults = <({String type, String label, String color, int preferredZ})>[
-      (type: 'route', label: 'Tracé Route', color: '#1A73E8', preferredZ: 1),
-      (type: 'parking', label: 'Parkings', color: '#FBBF24', preferredZ: 2),
-      (type: 'wc', label: 'Toilettes', color: '#9333EA', preferredZ: 3),
-      (type: 'food', label: 'Food', color: '#EF4444', preferredZ: 4),
-      (type: 'assistance', label: 'Assistance', color: '#34A853', preferredZ: 5),
-      (type: 'visit', label: 'Lieux à visiter', color: '#F59E0B', preferredZ: 6),
-    ];
+    const defaults =
+        <({String type, String label, String color, int preferredZ})>[
+          (
+            type: 'route',
+            label: 'Tracé Route',
+            color: '#1A73E8',
+            preferredZ: 1,
+          ),
+          (type: 'parking', label: 'Parkings', color: '#FBBF24', preferredZ: 2),
+          (type: 'wc', label: 'Toilettes', color: '#9333EA', preferredZ: 3),
+          (type: 'food', label: 'Food', color: '#EF4444', preferredZ: 4),
+          (
+            type: 'assistance',
+            label: 'Assistance',
+            color: '#34A853',
+            preferredZ: 5,
+          ),
+          (
+            type: 'visit',
+            label: 'Lieux à visiter',
+            color: '#F59E0B',
+            preferredZ: 6,
+          ),
+        ];
 
     bool hasExactLayerType(String t) {
       final norm = t.trim().toLowerCase();
@@ -372,7 +405,10 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
     }
 
     final db = FirebaseFirestore.instance;
-    final layersCol = db.collection('map_projects').doc(projectId).collection('layers');
+    final layersCol = db
+        .collection('map_projects')
+        .doc(projectId)
+        .collection('layers');
     WriteBatch? batch;
     int writes = 0;
 
@@ -439,7 +475,9 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
         startAfter: _poisLastDoc,
       );
 
-      final incoming = page.docs.map((doc) => MarketMapPOI.fromFirestore(doc)).toList();
+      final incoming = page.docs
+          .map((doc) => MarketMapPOI.fromFirestore(doc))
+          .toList();
       final existingIds = _pois.map((p) => p.id).toSet();
       _pois.addAll(incoming.where((p) => !existingIds.contains(p.id)));
 
@@ -472,9 +510,13 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
       'eventId': _eventController.text.trim(),
       'description': _descriptionController.text.trim(),
       'styleUrl': _styleUrlController.text.trim(),
-      'perimeter': _perimeterPoints.map((p) => {'lng': p.lng, 'lat': p.lat}).toList(),
+      'perimeter': _perimeterPoints
+          .map((p) => {'lng': p.lng, 'lat': p.lat})
+          .toList(),
       'route': _routePoints.map((p) => {'lng': p.lng, 'lat': p.lat}).toList(),
-      'routeStyle': Map<String, dynamic>.from((_draftData['routeStyle'] as Map?) ?? const <String, dynamic>{}),
+      'routeStyle': Map<String, dynamic>.from(
+        (_draftData['routeStyle'] as Map?) ?? const <String, dynamic>{},
+      ),
     };
   }
 
@@ -553,8 +595,12 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
     }
 
     final layer = _selectedLayer!;
-    final poisForLayer = _pois.where((p) => _poiMatchesSelectedLayer(p, layer)).toList();
-    await _poiMapController.setPoisGeoJson(_buildPoisFeatureCollection(poisForLayer));
+    final poisForLayer = _pois
+        .where((p) => _poiMatchesSelectedLayer(p, layer))
+        .toList();
+    await _poiMapController.setPoisGeoJson(
+      _buildPoisFeatureCollection(poisForLayer),
+    );
   }
 
   Map<String, dynamic> _buildPoisFeatureCollection(List<MarketMapPOI> pois) {
@@ -570,7 +616,8 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
               'layerId': poi.layerType,
               'title': poi.name,
               if (poi.metadata?[kMasLivePoiAppearanceKey] is String)
-                kMasLivePoiAppearanceKey: poi.metadata![kMasLivePoiAppearanceKey],
+                kMasLivePoiAppearanceKey:
+                    poi.metadata![kMasLivePoiAppearanceKey],
             },
             'geometry': <String, dynamic>{
               'type': 'Point',
@@ -588,7 +635,9 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
         TopSnackBar.show(
           context,
 
-          const SnackBar(content: Text('❌ Limite atteinte: 2000 POI maximum par projet')),
+          const SnackBar(
+            content: Text('❌ Limite atteinte: 2000 POI maximum par projet'),
+          ),
         );
       }
       return;
@@ -604,7 +653,9 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
       layerId: layerType,
       lng: lng,
       lat: lat,
-      metadata: <String, dynamic>{kMasLivePoiAppearanceKey: _defaultPoiAppearanceId},
+      metadata: <String, dynamic>{
+        kMasLivePoiAppearanceKey: _defaultPoiAppearanceId,
+      },
     );
 
     final created = await showModalBottomSheet<MarketMapPOI>(
@@ -706,12 +757,20 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
           controller: _poiMapController,
           initialLng: _routePoints.isNotEmpty
               ? _routePoints.first.lng
-              : (_perimeterPoints.isNotEmpty ? _perimeterPoints.first.lng : -61.533),
+              : (_perimeterPoints.isNotEmpty
+                    ? _perimeterPoints.first.lng
+                    : -61.533),
           initialLat: _routePoints.isNotEmpty
               ? _routePoints.first.lat
-              : (_perimeterPoints.isNotEmpty ? _perimeterPoints.first.lat : 16.241),
-          initialZoom: _routePoints.isNotEmpty || _perimeterPoints.isNotEmpty ? 14.0 : 12.0,
-          styleUrl: _styleUrlController.text.trim().isEmpty ? null : _styleUrlController.text.trim(),
+              : (_perimeterPoints.isNotEmpty
+                    ? _perimeterPoints.first.lat
+                    : 16.241),
+          initialZoom: _routePoints.isNotEmpty || _perimeterPoints.isNotEmpty
+              ? 14.0
+              : 12.0,
+          styleUrl: _styleUrlController.text.trim().isEmpty
+              ? null
+              : _styleUrlController.text.trim(),
           onMapReady: (ctrl) async {
             _refreshPoiMarkers();
           },
@@ -733,18 +792,26 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.place_outlined, color: Colors.blueGrey),
+                        const Icon(
+                          Icons.place_outlined,
+                          color: Colors.blueGrey,
+                        ),
                         const SizedBox(width: 8),
                         const Expanded(
                           child: Text(
                             'Points d\'intérêt (POI)',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         IconButton(
                           icon: const Icon(Icons.my_location),
                           tooltip: 'Ajouter un POI à la position actuelle',
-                          onPressed: (_selectedLayer == null || _pois.length >= _poiLimit)
+                          onPressed:
+                              (_selectedLayer == null ||
+                                  _pois.length >= _poiLimit)
                               ? null
                               : _addPoiAtCurrentCenter,
                         ),
@@ -766,19 +833,23 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
                             color: _pois.length >= _poiLimit
                                 ? Colors.redAccent
                                 : (_pois.length >= (_poiLimit * 0.9)
-                                    ? Colors.orange
-                                    : Colors.black87),
+                                      ? Colors.orange
+                                      : Colors.black87),
                           ),
                         ),
                         const SizedBox(width: 8),
                         if (_hasMorePois || _isLoadingMorePois)
                           TextButton.icon(
-                            onPressed: _isLoadingMorePois ? null : _loadMorePoisPage,
+                            onPressed: _isLoadingMorePois
+                                ? null
+                                : _loadMorePoisPage,
                             icon: _isLoadingMorePois
                                 ? const SizedBox(
                                     width: 14,
                                     height: 14,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
                                   )
                                 : const Icon(Icons.expand_more, size: 16),
                             label: const Text('Charger +100'),
@@ -790,7 +861,10 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
                         padding: EdgeInsets.only(top: 4),
                         child: Text(
                           'Limite atteinte: supprime des POI pour continuer.',
-                          style: TextStyle(fontSize: 12, color: Colors.redAccent),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.redAccent,
+                          ),
                         ),
                       ),
                     const SizedBox(height: 10),
@@ -807,7 +881,7 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
                             for (final p in kMasLivePoiAppearancePresets)
                               DropdownMenuItem(
                                 value: p.id,
-                                child: Text(p.label),
+                                child: buildMasLivePoiAppearanceMenuItem(p),
                               ),
                           ],
                           onChanged: (v) {
@@ -823,11 +897,15 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
                         children: [
                           const Text(
                             'Catégorie: ',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                           Expanded(
                             child: Text(
-                              _selectedLayer?.label ?? 'Choisissez une catégorie',
+                              _selectedLayer?.label ??
+                                  'Choisissez une catégorie',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(fontSize: 12),
@@ -847,7 +925,10 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
                         initiallyExpanded: true,
                         title: Text(
                           'POI de la couche: ${_selectedLayer!.label}',
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         subtitle: Text(
                           '${_pois.where((p) => _poiMatchesSelectedLayer(p, _selectedLayer!)).length} POI',
@@ -860,15 +941,24 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
                               shrinkWrap: true,
                               children: [
                                 for (final poi in _pois.where(
-                                  (p) => _poiMatchesSelectedLayer(p, _selectedLayer!),
+                                  (p) => _poiMatchesSelectedLayer(
+                                    p,
+                                    _selectedLayer!,
+                                  ),
                                 ))
                                   ListTile(
                                     dense: true,
                                     contentPadding: EdgeInsets.zero,
-                                    leading: const Icon(Icons.place_outlined, size: 18),
+                                    leading: const Icon(
+                                      Icons.place_outlined,
+                                      size: 18,
+                                    ),
                                     title: Text(
                                       poi.name,
-                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                     subtitle: Text(
                                       '${poi.lng.toStringAsFixed(5)}, ${poi.lat.toStringAsFixed(5)}',
@@ -879,12 +969,18 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
                                       children: [
                                         IconButton(
                                           tooltip: 'Modifier',
-                                          icon: const Icon(Icons.edit, size: 18),
+                                          icon: const Icon(
+                                            Icons.edit,
+                                            size: 18,
+                                          ),
                                           onPressed: () => _editPoi(poi),
                                         ),
                                         IconButton(
                                           tooltip: 'Supprimer',
-                                          icon: const Icon(Icons.delete_outline, size: 18),
+                                          icon: const Icon(
+                                            Icons.delete_outline,
+                                            size: 18,
+                                          ),
                                           onPressed: () => _deletePoi(poi),
                                         ),
                                       ],
@@ -897,12 +993,16 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
                             Align(
                               alignment: Alignment.centerRight,
                               child: TextButton.icon(
-                                onPressed: _isLoadingMorePois ? null : _loadMorePoisPage,
+                                onPressed: _isLoadingMorePois
+                                    ? null
+                                    : _loadMorePoisPage,
                                 icon: _isLoadingMorePois
                                     ? const SizedBox(
                                         width: 14,
                                         height: 14,
-                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
                                       )
                                     : const Icon(Icons.more_horiz),
                                 label: const Text('Voir plus'),
@@ -946,7 +1046,10 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
                             child: Container(
                               width: 52,
                               height: 44,
-                              margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: (_selectedLayer?.type == layer.type)
                                     ? Colors.blue.withValues(alpha: 0.12)
@@ -955,7 +1058,9 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
                               ),
                               child: Icon(
                                 _getLayerIcon(layer.type),
-                                color: (_selectedLayer?.type == layer.type) ? Colors.blueGrey : Colors.grey,
+                                color: (_selectedLayer?.type == layer.type)
+                                    ? Colors.blueGrey
+                                    : Colors.grey,
                               ),
                             ),
                           ),
@@ -989,8 +1094,8 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : (_errorMessage != null)
-              ? Center(child: Text(_errorMessage!))
-              : _buildPoiEditor(),
+          ? Center(child: Text(_errorMessage!))
+          : _buildPoiEditor(),
     );
   }
 }

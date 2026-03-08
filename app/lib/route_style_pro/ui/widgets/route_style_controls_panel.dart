@@ -11,6 +11,7 @@ import 'toggle_tile.dart';
 class RouteStyleControlsPanel extends StatefulWidget {
   final RouteStyleConfig config;
   final ValueChanged<RouteStyleConfig> onChanged;
+  final EdgeInsetsGeometry contentPadding;
 
   final VoidCallback onTestAutoRoute;
   final VoidCallback onUseMyTrace;
@@ -22,6 +23,7 @@ class RouteStyleControlsPanel extends StatefulWidget {
     super.key,
     required this.config,
     required this.onChanged,
+    this.contentPadding = const EdgeInsets.all(16),
     required this.onTestAutoRoute,
     required this.onUseMyTrace,
     required this.onSave,
@@ -50,456 +52,496 @@ class _RouteStyleControlsPanelState extends State<RouteStyleControlsPanel> {
       controller: _scrollController,
       child: SingleChildScrollView(
         controller: _scrollController,
-        padding: const EdgeInsets.all(16),
+        padding: widget.contentPadding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: widget.onTestAutoRoute,
-                  icon: const Icon(Icons.directions_car),
-                  label: const Text('Tester sur un itinéraire auto'),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: widget.onTestAutoRoute,
+                    icon: const Icon(Icons.directions_car),
+                    label: const Text('Tester sur un itinéraire auto'),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: widget.onUseMyTrace,
-                  icon: const Icon(Icons.timeline),
-                  label: const Text('Utiliser mon tracé'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          ExpansionTile(
-            title: const Text('Base', style: TextStyle(fontWeight: FontWeight.bold)),
-            initiallyExpanded: true,
-            children: [
-              ToggleTile(
-                title: 'Mode voiture (snap + style route)',
-                value: cfg.carMode,
-                onChanged: (v) => widget.onChanged(cfg.copyWith(carMode: v)),
-              ),
-              RouteStyleSlider(
-                label: 'Opacité',
-                value: cfg.opacity,
-                min: 0.2,
-                max: 1.0,
-                divisions: 16,
-                unit: '',
-                decimals: 2,
-                onChanged: (v) => widget.onChanged(cfg.copyWith(opacity: v)),
-              ),
-              const SizedBox(height: 6),
-              _EnumDropdown<RouteLineCap>(
-                label: 'Arrondis (cap)',
-                value: cfg.lineCap,
-                values: RouteLineCap.values,
-                labelFor: (v) => v.name,
-                onChanged: (v) => widget.onChanged(cfg.copyWith(lineCap: v)),
-              ),
-              _EnumDropdown<RouteLineJoin>(
-                label: 'Jonctions (join)',
-                value: cfg.lineJoin,
-                values: RouteLineJoin.values,
-                labelFor: (v) => v.name,
-                onChanged: (v) => widget.onChanged(cfg.copyWith(lineJoin: v)),
-              ),
-            ],
-          ),
-
-          ExpansionTile(
-            title: const Text('Waze-like', style: TextStyle(fontWeight: FontWeight.bold)),
-            children: [
-              RouteStyleSlider(
-                label: 'Largeur main',
-                value: cfg.mainWidth,
-                min: 2,
-                max: 20,
-                divisions: 18,
-                unit: ' px',
-                decimals: 0,
-                onChanged: (v) => widget.onChanged(cfg.copyWith(mainWidth: v)),
-              ),
-              RouteStyleSlider(
-                label: 'Largeur casing',
-                value: cfg.casingWidth,
-                min: 0,
-                max: 30,
-                divisions: 30,
-                unit: ' px',
-                decimals: 0,
-                onChanged: (v) => widget.onChanged(cfg.copyWith(casingWidth: v)),
-              ),
-              const SizedBox(height: 8),
-              RouteStyleSlider(
-                label: 'Échelle largeur (×)',
-                value: cfg.widthScale3d,
-                min: 0.5,
-                max: 3.0,
-                divisions: 25,
-                unit: '×',
-                decimals: 2,
-                onChanged: (v) => widget.onChanged(cfg.copyWith(widthScale3d: v)),
-              ),
-              RouteStyleSlider(
-                label: 'Épaisseur (3D)',
-                value: cfg.thickness3d,
-                min: 0.6,
-                max: 1.8,
-                divisions: 24,
-                unit: '×',
-                decimals: 2,
-                onChanged: (v) => widget.onChanged(cfg.copyWith(thickness3d: v)),
-              ),
-              RouteStyleSlider(
-                label: 'Épaisseur casing (3D)',
-                value: cfg.casingThickness3d,
-                min: 0.5,
-                max: 2.5,
-                divisions: 20,
-                unit: '×',
-                decimals: 2,
-                onChanged: (v) =>
-                    widget.onChanged(cfg.copyWith(casingThickness3d: v)),
-              ),
-              RouteStyleSlider(
-                label: 'Hauteur (3D)',
-                value: cfg.elevationPx,
-                min: 0,
-                max: 40,
-                divisions: 40,
-                unit: ' px',
-                decimals: 0,
-                onChanged: (v) => widget.onChanged(cfg.copyWith(elevationPx: v)),
-              ),
-              ToggleTile(
-                title: 'Côtés (faces latérales)',
-                value: cfg.sidesEnabled,
-                onChanged: (v) => widget.onChanged(cfg.copyWith(sidesEnabled: v)),
-              ),
-              if (cfg.sidesEnabled)
-                RouteStyleSlider(
-                  label: 'Intensité côtés',
-                  value: cfg.sidesIntensity,
-                  min: 0,
-                  max: 1.0,
-                  divisions: 20,
-                  unit: '',
-                  decimals: 2,
-                  onChanged: (v) =>
-                      widget.onChanged(cfg.copyWith(sidesIntensity: v)),
-                ),
-              ColorPickerTile(
-                title: 'Couleur main',
-                color: cfg.mainColor,
-                onChanged: (c) => widget.onChanged(cfg.copyWith(mainColor: c)),
-              ),
-              ColorPickerTile(
-                title: 'Couleur casing',
-                color: cfg.casingColor,
-                onChanged: (c) =>
-                    widget.onChanged(cfg.copyWith(casingColor: c, casingRainbowEnabled: false)),
-              ),
-
-              ToggleTile(
-                title: 'Rainbow casing',
-                value: cfg.casingRainbowEnabled,
-                onChanged: (v) => widget.onChanged(cfg.copyWith(casingRainbowEnabled: v)),
-              ),
-            ],
-          ),
-
-          ExpansionTile(
-            title: const Text('Glow / Ombre', style: TextStyle(fontWeight: FontWeight.bold)),
-            children: [
-              ToggleTile(
-                title: 'Ombre',
-                value: cfg.shadowEnabled,
-                onChanged: (v) => widget.onChanged(cfg.copyWith(shadowEnabled: v)),
-              ),
-              if (cfg.shadowEnabled) ...[
-                RouteStyleSlider(
-                  label: 'Opacité ombre',
-                  value: cfg.shadowOpacity,
-                  min: 0,
-                  max: 1,
-                  divisions: 20,
-                  decimals: 2,
-                  onChanged: (v) => widget.onChanged(cfg.copyWith(shadowOpacity: v)),
-                ),
-                RouteStyleSlider(
-                  label: 'Blur ombre',
-                  value: cfg.shadowBlur,
-                  min: 0,
-                  max: 20,
-                  divisions: 20,
-                  unit: ' px',
-                  decimals: 0,
-                  onChanged: (v) => widget.onChanged(cfg.copyWith(shadowBlur: v)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: widget.onUseMyTrace,
+                    icon: const Icon(Icons.timeline),
+                    label: const Text('Utiliser mon tracé'),
+                  ),
                 ),
               ],
-              const Divider(),
-              ToggleTile(
-                title: 'Glow',
-                value: cfg.glowEnabled,
-                onChanged: (v) => widget.onChanged(cfg.copyWith(glowEnabled: v)),
+            ),
+            const SizedBox(height: 12),
+
+            ExpansionTile(
+              title: const Text(
+                'Base',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              if (cfg.glowEnabled) ...[
-                RouteStyleSlider(
-                  label: 'Opacité glow',
-                  value: cfg.glowOpacity,
-                  min: 0,
-                  max: 1,
-                  divisions: 20,
-                  decimals: 2,
+              initiallyExpanded: true,
+              children: [
+                ToggleTile(
+                  title: 'Mode voiture (snap + style route)',
+                  value: cfg.carMode,
+                  onChanged: (v) => widget.onChanged(cfg.copyWith(carMode: v)),
+                ),
+                ToggleTile(
+                  title: 'Respecter la largeur de la route',
+                  subtitle:
+                      'Mode strict: resserre le tracé, limite le casing et coupe les effets qui débordent de la chaussée.',
+                  value: cfg.fitToRoadWidth,
                   onChanged: (v) =>
-                      widget.onChanged(cfg.copyWith(glowOpacity: v)),
+                      widget.onChanged(cfg.copyWith(fitToRoadWidth: v)),
                 ),
                 RouteStyleSlider(
-                  label: 'Blur glow',
-                  value: cfg.glowBlur,
-                  min: 0,
-                  max: 40,
-                  divisions: 40,
+                  label: 'Opacité',
+                  value: cfg.opacity,
+                  min: 0.2,
+                  max: 1.0,
+                  divisions: 16,
+                  unit: '',
+                  decimals: 2,
+                  onChanged: (v) => widget.onChanged(cfg.copyWith(opacity: v)),
+                ),
+                const SizedBox(height: 6),
+                _EnumDropdown<RouteLineCap>(
+                  label: 'Arrondis (cap)',
+                  value: cfg.lineCap,
+                  values: RouteLineCap.values,
+                  labelFor: (v) => v.name,
+                  onChanged: (v) => widget.onChanged(cfg.copyWith(lineCap: v)),
+                ),
+                _EnumDropdown<RouteLineJoin>(
+                  label: 'Jonctions (join)',
+                  value: cfg.lineJoin,
+                  values: RouteLineJoin.values,
+                  labelFor: (v) => v.name,
+                  onChanged: (v) => widget.onChanged(cfg.copyWith(lineJoin: v)),
+                ),
+              ],
+            ),
+
+            ExpansionTile(
+              title: const Text(
+                'Waze-like',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              children: [
+                RouteStyleSlider(
+                  label: 'Largeur main',
+                  value: cfg.mainWidth,
+                  min: 2,
+                  max: 20,
+                  divisions: 18,
                   unit: ' px',
                   decimals: 0,
                   onChanged: (v) =>
-                      widget.onChanged(cfg.copyWith(glowBlur: v)),
+                      widget.onChanged(cfg.copyWith(mainWidth: v)),
                 ),
                 RouteStyleSlider(
-                  label: 'Largeur glow',
-                  value: cfg.glowWidth,
+                  label: 'Largeur casing',
+                  value: cfg.casingWidth,
                   min: 0,
                   max: 30,
                   divisions: 30,
                   unit: ' px',
                   decimals: 0,
                   onChanged: (v) =>
-                      widget.onChanged(cfg.copyWith(glowWidth: v)),
+                      widget.onChanged(cfg.copyWith(casingWidth: v)),
                 ),
-              ],
-            ],
-          ),
-
-          ExpansionTile(
-            title: const Text('Gradient & Rainbow', style: TextStyle(fontWeight: FontWeight.bold)),
-            children: [
-              ToggleTile(
-                title: 'Gradient',
-                subtitle: 'Démo via segments (expression get(color))',
-                value: cfg.gradientEnabled,
-                onChanged: (v) =>
-                    widget.onChanged(cfg.copyWith(gradientEnabled: v)),
-              ),
-              ToggleTile(
-                title: 'Rainbow animé',
-                value: cfg.rainbowEnabled,
-                onChanged: (v) =>
-                    widget.onChanged(cfg.copyWith(rainbowEnabled: v)),
-              ),
-              if (cfg.rainbowEnabled) ...[
+                const SizedBox(height: 8),
                 RouteStyleSlider(
-                  label: 'Saturation',
-                  value: cfg.rainbowSaturation,
-                  min: 0,
-                  max: 1,
-                  divisions: 20,
+                  label: 'Échelle largeur (×)',
+                  value: cfg.widthScale3d,
+                  min: 0.5,
+                  max: 3.0,
+                  divisions: 25,
+                  unit: '×',
                   decimals: 2,
                   onChanged: (v) =>
-                      widget.onChanged(cfg.copyWith(rainbowSaturation: v)),
+                      widget.onChanged(cfg.copyWith(widthScale3d: v)),
                 ),
                 RouteStyleSlider(
-                  label: 'Vitesse',
-                  value: cfg.rainbowSpeed,
-                  min: 0,
-                  max: 100,
+                  label: 'Épaisseur (3D)',
+                  value: cfg.thickness3d,
+                  min: 0.6,
+                  max: 1.8,
+                  divisions: 24,
+                  unit: '×',
+                  decimals: 2,
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(thickness3d: v)),
+                ),
+                RouteStyleSlider(
+                  label: 'Épaisseur casing (3D)',
+                  value: cfg.casingThickness3d,
+                  min: 0.5,
+                  max: 2.5,
                   divisions: 20,
-                  unit: '',
+                  unit: '×',
+                  decimals: 2,
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(casingThickness3d: v)),
+                ),
+                RouteStyleSlider(
+                  label: 'Hauteur (3D)',
+                  value: cfg.elevationPx,
+                  min: 0,
+                  max: 40,
+                  divisions: 40,
+                  unit: ' px',
                   decimals: 0,
                   onChanged: (v) =>
-                      widget.onChanged(cfg.copyWith(rainbowSpeed: v)),
+                      widget.onChanged(cfg.copyWith(elevationPx: v)),
                 ),
                 ToggleTile(
-                  title: 'Direction arrière',
-                  value: cfg.rainbowReverse,
+                  title: 'Côtés (faces latérales)',
+                  value: cfg.sidesEnabled,
                   onChanged: (v) =>
-                      widget.onChanged(cfg.copyWith(rainbowReverse: v)),
+                      widget.onChanged(cfg.copyWith(sidesEnabled: v)),
+                ),
+                if (cfg.sidesEnabled)
+                  RouteStyleSlider(
+                    label: 'Intensité côtés',
+                    value: cfg.sidesIntensity,
+                    min: 0,
+                    max: 1.0,
+                    divisions: 20,
+                    unit: '',
+                    decimals: 2,
+                    onChanged: (v) =>
+                        widget.onChanged(cfg.copyWith(sidesIntensity: v)),
+                  ),
+                ColorPickerTile(
+                  title: 'Couleur main',
+                  color: cfg.mainColor,
+                  onChanged: (c) =>
+                      widget.onChanged(cfg.copyWith(mainColor: c)),
+                ),
+                ColorPickerTile(
+                  title: 'Couleur casing',
+                  color: cfg.casingColor,
+                  onChanged: (c) => widget.onChanged(
+                    cfg.copyWith(casingColor: c, casingRainbowEnabled: false),
+                  ),
+                ),
+
+                ToggleTile(
+                  title: 'Rainbow casing',
+                  value: cfg.casingRainbowEnabled,
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(casingRainbowEnabled: v)),
                 ),
               ],
-            ],
-          ),
+            ),
 
-          ExpansionTile(
-            title: const Text('Traffic / Segments', style: TextStyle(fontWeight: FontWeight.bold)),
-            children: [
-              ToggleTile(
-                title: 'Traffic coloring (démo)',
-                subtitle: 'Coloration segmentée vert/orange/rouge',
-                value: cfg.trafficDemoEnabled,
-                onChanged: (v) =>
-                    widget.onChanged(cfg.copyWith(trafficDemoEnabled: v)),
+            ExpansionTile(
+              title: const Text(
+                'Glow / Ombre',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 8),
-              ToggleTile(
-                title: 'Vanishing route line',
-                subtitle: 'Partie parcourue translucide (démo)',
-                value: cfg.vanishingEnabled,
-                onChanged: (v) =>
-                    widget.onChanged(cfg.copyWith(vanishingEnabled: v)),
-              ),
-              if (cfg.vanishingEnabled)
-                RouteStyleSlider(
-                  label: 'Progression',
-                  value: cfg.vanishingProgress,
-                  min: 0,
-                  max: 1,
-                  divisions: 20,
-                  decimals: 2,
+              children: [
+                ToggleTile(
+                  title: 'Ombre',
+                  value: cfg.shadowEnabled,
                   onChanged: (v) =>
-                      widget.onChanged(cfg.copyWith(vanishingProgress: v)),
+                      widget.onChanged(cfg.copyWith(shadowEnabled: v)),
                 ),
-              const SizedBox(height: 8),
-              ToggleTile(
-                title: 'Alternative routes (démo)',
-                subtitle: 'Structure extensible (pas de routes alternatives réelles)',
-                value: cfg.alternativesEnabled,
-                onChanged: (v) =>
-                    widget.onChanged(cfg.copyWith(alternativesEnabled: v)),
-              ),
-            ],
-          ),
-
-          ExpansionTile(
-            title: const Text('Presets', style: TextStyle(fontWeight: FontWeight.bold)),
-            children: [
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final p in RouteStylePresets.all)
-                    ChoiceChip(
-                      label: Text(p.label),
-                      selected: _looksLikePreset(cfg, p.config),
-                      onSelected: (_) => widget.onChanged(p.config),
-                    ),
+                if (cfg.shadowEnabled) ...[
+                  RouteStyleSlider(
+                    label: 'Opacité ombre',
+                    value: cfg.shadowOpacity,
+                    min: 0,
+                    max: 1,
+                    divisions: 20,
+                    decimals: 2,
+                    onChanged: (v) =>
+                        widget.onChanged(cfg.copyWith(shadowOpacity: v)),
+                  ),
+                  RouteStyleSlider(
+                    label: 'Blur ombre',
+                    value: cfg.shadowBlur,
+                    min: 0,
+                    max: 20,
+                    divisions: 20,
+                    unit: ' px',
+                    decimals: 0,
+                    onChanged: (v) =>
+                        widget.onChanged(cfg.copyWith(shadowBlur: v)),
+                  ),
                 ],
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Astuce: les presets remplacent la config courante.',
-                style: TextStyle(fontSize: 12, color: Colors.black54),
-              ),
-            ],
-          ),
-
-          ExpansionTile(
-            title: const Text('Snap & Qualité', style: TextStyle(fontWeight: FontWeight.bold)),
-            children: [
-              RouteStyleSlider(
-                label: 'Tolérance snap',
-                value: cfg.snapToleranceMeters,
-                min: 5,
-                max: 150,
-                divisions: 29,
-                unit: ' m',
-                decimals: 0,
-                onChanged: (v) =>
-                    widget.onChanged(cfg.copyWith(snapToleranceMeters: v)),
-              ),
-              RouteStyleSlider(
-                label: 'Simplification',
-                value: cfg.simplifyPercent,
-                min: 0,
-                max: 100,
-                divisions: 20,
-                unit: ' %',
-                decimals: 0,
-                onChanged: (v) =>
-                    widget.onChanged(cfg.copyWith(simplifyPercent: v)),
-              ),
-              ToggleTile(
-                title: 'Dash',
-                value: cfg.dashEnabled,
-                onChanged: (v) =>
-                    widget.onChanged(cfg.copyWith(dashEnabled: v)),
-              ),
-              if (cfg.dashEnabled) ...[
-                RouteStyleSlider(
-                  label: 'Dash length',
-                  value: cfg.dashLength,
-                  min: 0.5,
-                  max: 10,
-                  divisions: 19,
-                  decimals: 1,
+                const Divider(),
+                ToggleTile(
+                  title: 'Glow',
+                  value: cfg.glowEnabled,
                   onChanged: (v) =>
-                      widget.onChanged(cfg.copyWith(dashLength: v)),
+                      widget.onChanged(cfg.copyWith(glowEnabled: v)),
                 ),
-                RouteStyleSlider(
-                  label: 'Dash gap',
-                  value: cfg.dashGap,
-                  min: 0.5,
-                  max: 10,
-                  divisions: 19,
-                  decimals: 1,
+                if (cfg.glowEnabled) ...[
+                  RouteStyleSlider(
+                    label: 'Opacité glow',
+                    value: cfg.glowOpacity,
+                    min: 0,
+                    max: 1,
+                    divisions: 20,
+                    decimals: 2,
+                    onChanged: (v) =>
+                        widget.onChanged(cfg.copyWith(glowOpacity: v)),
+                  ),
+                  RouteStyleSlider(
+                    label: 'Blur glow',
+                    value: cfg.glowBlur,
+                    min: 0,
+                    max: 40,
+                    divisions: 40,
+                    unit: ' px',
+                    decimals: 0,
+                    onChanged: (v) =>
+                        widget.onChanged(cfg.copyWith(glowBlur: v)),
+                  ),
+                  RouteStyleSlider(
+                    label: 'Largeur glow',
+                    value: cfg.glowWidth,
+                    min: 0,
+                    max: 30,
+                    divisions: 30,
+                    unit: ' px',
+                    decimals: 0,
+                    onChanged: (v) =>
+                        widget.onChanged(cfg.copyWith(glowWidth: v)),
+                  ),
+                ],
+              ],
+            ),
+
+            ExpansionTile(
+              title: const Text(
+                'Gradient & Rainbow',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              children: [
+                ToggleTile(
+                  title: 'Gradient',
+                  subtitle: 'Démo via segments (expression get(color))',
+                  value: cfg.gradientEnabled,
                   onChanged: (v) =>
-                      widget.onChanged(cfg.copyWith(dashGap: v)),
+                      widget.onChanged(cfg.copyWith(gradientEnabled: v)),
+                ),
+                ToggleTile(
+                  title: 'Rainbow animé',
+                  value: cfg.rainbowEnabled,
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(rainbowEnabled: v)),
+                ),
+                if (cfg.rainbowEnabled) ...[
+                  RouteStyleSlider(
+                    label: 'Saturation',
+                    value: cfg.rainbowSaturation,
+                    min: 0,
+                    max: 1,
+                    divisions: 20,
+                    decimals: 2,
+                    onChanged: (v) =>
+                        widget.onChanged(cfg.copyWith(rainbowSaturation: v)),
+                  ),
+                  RouteStyleSlider(
+                    label: 'Vitesse',
+                    value: cfg.rainbowSpeed,
+                    min: 0,
+                    max: 100,
+                    divisions: 20,
+                    unit: '',
+                    decimals: 0,
+                    onChanged: (v) =>
+                        widget.onChanged(cfg.copyWith(rainbowSpeed: v)),
+                  ),
+                  ToggleTile(
+                    title: 'Direction arrière',
+                    value: cfg.rainbowReverse,
+                    onChanged: (v) =>
+                        widget.onChanged(cfg.copyWith(rainbowReverse: v)),
+                  ),
+                ],
+              ],
+            ),
+
+            ExpansionTile(
+              title: const Text(
+                'Traffic / Segments',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              children: [
+                ToggleTile(
+                  title: 'Traffic coloring (démo)',
+                  subtitle: 'Coloration segmentée vert/orange/rouge',
+                  value: cfg.trafficDemoEnabled,
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(trafficDemoEnabled: v)),
+                ),
+                const SizedBox(height: 8),
+                ToggleTile(
+                  title: 'Vanishing route line',
+                  subtitle: 'Partie parcourue translucide (démo)',
+                  value: cfg.vanishingEnabled,
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(vanishingEnabled: v)),
+                ),
+                if (cfg.vanishingEnabled)
+                  RouteStyleSlider(
+                    label: 'Progression',
+                    value: cfg.vanishingProgress,
+                    min: 0,
+                    max: 1,
+                    divisions: 20,
+                    decimals: 2,
+                    onChanged: (v) =>
+                        widget.onChanged(cfg.copyWith(vanishingProgress: v)),
+                  ),
+                const SizedBox(height: 8),
+                ToggleTile(
+                  title: 'Alternative routes (démo)',
+                  subtitle:
+                      'Structure extensible (pas de routes alternatives réelles)',
+                  value: cfg.alternativesEnabled,
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(alternativesEnabled: v)),
                 ),
               ],
-              ToggleTile(
-                title: 'Pulse',
-                subtitle: 'Animation opacité glow',
-                value: cfg.pulseEnabled,
-                onChanged: (v) =>
-                    widget.onChanged(cfg.copyWith(pulseEnabled: v)),
+            ),
+
+            ExpansionTile(
+              title: const Text(
+                'Presets',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              if (cfg.pulseEnabled)
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final p in RouteStylePresets.all)
+                      ChoiceChip(
+                        label: Text(p.label),
+                        selected: _looksLikePreset(cfg, p.config),
+                        onSelected: (_) => widget.onChanged(p.config),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Astuce: les presets remplacent la config courante.',
+                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                ),
+              ],
+            ),
+
+            ExpansionTile(
+              title: const Text(
+                'Snap & Qualité',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              children: [
                 RouteStyleSlider(
-                  label: 'Vitesse pulse',
-                  value: cfg.pulseSpeed,
+                  label: 'Tolérance snap',
+                  value: cfg.snapToleranceMeters,
+                  min: 5,
+                  max: 150,
+                  divisions: 29,
+                  unit: ' m',
+                  decimals: 0,
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(snapToleranceMeters: v)),
+                ),
+                RouteStyleSlider(
+                  label: 'Simplification',
+                  value: cfg.simplifyPercent,
                   min: 0,
                   max: 100,
                   divisions: 20,
+                  unit: ' %',
                   decimals: 0,
                   onChanged: (v) =>
-                      widget.onChanged(cfg.copyWith(pulseSpeed: v)),
+                      widget.onChanged(cfg.copyWith(simplifyPercent: v)),
                 ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          // Contrôle de transparence des immeubles 3D (premium)
-          BuildingOpacityControl(
-            config: cfg,
-            onChanged: widget.onChanged,
-          ),
-
-          const SizedBox(height: 16),
-
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: widget.onReset,
-                  child: const Text('Réinitialiser'),
+                ToggleTile(
+                  title: 'Dash',
+                  value: cfg.dashEnabled,
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(dashEnabled: v)),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: widget.onSave,
-                  child: const Text('Appliquer / Enregistrer'),
+                if (cfg.dashEnabled) ...[
+                  RouteStyleSlider(
+                    label: 'Dash length',
+                    value: cfg.dashLength,
+                    min: 0.5,
+                    max: 10,
+                    divisions: 19,
+                    decimals: 1,
+                    onChanged: (v) =>
+                        widget.onChanged(cfg.copyWith(dashLength: v)),
+                  ),
+                  RouteStyleSlider(
+                    label: 'Dash gap',
+                    value: cfg.dashGap,
+                    min: 0.5,
+                    max: 10,
+                    divisions: 19,
+                    decimals: 1,
+                    onChanged: (v) =>
+                        widget.onChanged(cfg.copyWith(dashGap: v)),
+                  ),
+                ],
+                ToggleTile(
+                  title: 'Pulse',
+                  subtitle: 'Animation opacité glow',
+                  value: cfg.pulseEnabled,
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(pulseEnabled: v)),
                 ),
-              ),
-            ],
-          ),
-        ],
-      ),
+                if (cfg.pulseEnabled)
+                  RouteStyleSlider(
+                    label: 'Vitesse pulse',
+                    value: cfg.pulseSpeed,
+                    min: 0,
+                    max: 100,
+                    divisions: 20,
+                    decimals: 0,
+                    onChanged: (v) =>
+                        widget.onChanged(cfg.copyWith(pulseSpeed: v)),
+                  ),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            // Contrôle de transparence des immeubles 3D (premium)
+            BuildingOpacityControl(config: cfg, onChanged: widget.onChanged),
+
+            const SizedBox(height: 16),
+
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: widget.onReset,
+                    child: const Text('Réinitialiser'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: widget.onSave,
+                    child: const Text('Appliquer / Enregistrer'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -510,10 +552,11 @@ class _RouteStyleControlsPanelState extends State<RouteStyleControlsPanel> {
     final bb = b.validated();
     return aa.mainWidth == bb.mainWidth &&
         aa.casingWidth == bb.casingWidth &&
-      aa.widthScale3d == bb.widthScale3d &&
-      aa.thickness3d == bb.thickness3d &&
-      aa.casingThickness3d == bb.casingThickness3d &&
-      aa.elevationPx == bb.elevationPx &&
+        aa.fitToRoadWidth == bb.fitToRoadWidth &&
+        aa.widthScale3d == bb.widthScale3d &&
+        aa.thickness3d == bb.thickness3d &&
+        aa.casingThickness3d == bb.casingThickness3d &&
+        aa.elevationPx == bb.elevationPx &&
         aa.mainColor.toARGB32() == bb.mainColor.toARGB32() &&
         aa.casingColor.toARGB32() == bb.casingColor.toARGB32() &&
         aa.glowEnabled == bb.glowEnabled &&
@@ -548,10 +591,7 @@ class _EnumDropdown<T> extends StatelessWidget {
             value: value,
             items: [
               for (final v in values)
-                DropdownMenuItem<T>(
-                  value: v,
-                  child: Text(labelFor(v)),
-                ),
+                DropdownMenuItem<T>(value: v, child: Text(labelFor(v))),
             ],
             onChanged: (v) {
               if (v == null) return;

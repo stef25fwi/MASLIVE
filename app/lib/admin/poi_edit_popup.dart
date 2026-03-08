@@ -258,22 +258,14 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
   bool _validateInputs() {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
-      TopSnackBar.showMessage(
-        context,
-        'Nom requis.',
-        isError: true,
-      );
+      TopSnackBar.showMessage(context, 'Nom requis.', isError: true);
       return false;
     }
 
     final lat = _parseDouble(_latCtrl.text);
     final lng = _parseDouble(_lngCtrl.text);
     if (lat == null || lng == null) {
-      TopSnackBar.showMessage(
-        context,
-        'Lat/Lng requis.',
-        isError: true,
-      );
+      TopSnackBar.showMessage(context, 'Lat/Lng requis.', isError: true);
       return false;
     }
     if (lat < -90 || lat > 90) {
@@ -313,7 +305,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       );
       if (file == null) return;
       if (!mounted) return;
-      
+
       // Proposer l'édition avec les outils système natifs
       await _editImageWithSystemTools(file);
     } catch (e) {
@@ -416,7 +408,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
 
       // Convertir CroppedFile en XFile
       final editedFile = XFile(croppedFile.path);
-      
+
       if (!mounted) return;
       await _setSelectedFile(editedFile);
 
@@ -429,12 +421,12 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       }
     } catch (e) {
       if (!mounted) return;
-      
+
       // En cas d'erreur, on utilise l'image originale
       await _setSelectedFile(pickedFile);
 
       if (!mounted) return;
-      
+
       TopSnackBar.showMessage(
         context,
         '⚠️ Édition impossible, photo originale utilisée: $e',
@@ -552,10 +544,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
           return;
         }
 
-        final webpBytes = await convertBytesToWebp(
-          originalBytes,
-          quality: 88,
-        );
+        final webpBytes = await convertBytesToWebp(originalBytes, quality: 88);
 
         final webpFile = XFile.fromData(
           webpBytes,
@@ -628,7 +617,9 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
 
     final parentId = _poiImagesParentId();
     if (parentId == null) {
-      throw StateError('Projet non initialisé. Sauvegarde le brouillon avant l\'upload.');
+      throw StateError(
+        'Projet non initialisé. Sauvegarde le brouillon avant l\'upload.',
+      );
     }
 
     setState(() {
@@ -641,7 +632,9 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
         file: _selectedFile!,
         contentType: img.ImageContentType.placePhoto,
         parentId: parentId,
-        altText: _nameCtrl.text.trim().isEmpty ? widget.poi.name : _nameCtrl.text.trim(),
+        altText: _nameCtrl.text.trim().isEmpty
+            ? widget.poi.name
+            : _nameCtrl.text.trim(),
         onProgress: (p) {
           if (!mounted) return;
           setState(() => _uploadProgress = p);
@@ -656,11 +649,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       });
 
       if (mounted) {
-        TopSnackBar.showMessage(
-          context,
-          '✅ Photo uploadée',
-          isError: false,
-        );
+        TopSnackBar.showMessage(context, '✅ Photo uploadée', isError: false);
       }
     } finally {
       if (mounted) {
@@ -682,40 +671,40 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
         : _descCtrl.text.trim();
 
     final nextAddress = _addressCtrl.text.trim().isEmpty
-      ? null
-      : _addressCtrl.text.trim();
+        ? null
+        : _addressCtrl.text.trim();
 
     final nextOpeningHours = _openingHoursCtrl.text.trim().isEmpty
-      ? null
-      : _openingHoursCtrl.text.trim();
+        ? null
+        : _openingHoursCtrl.text.trim();
 
     final nextPhone = _phoneCtrl.text.trim().isEmpty
-      ? null
-      : _phoneCtrl.text.trim();
+        ? null
+        : _phoneCtrl.text.trim();
 
     final nextWebsite = _websiteCtrl.text.trim().isEmpty
-      ? null
-      : _websiteCtrl.text.trim();
+        ? null
+        : _websiteCtrl.text.trim();
 
     final nextInstagram = _instagramCtrl.text.trim().isEmpty
-      ? null
-      : _instagramCtrl.text.trim();
+        ? null
+        : _instagramCtrl.text.trim();
 
     final nextFacebook = _facebookCtrl.text.trim().isEmpty
-      ? null
-      : _facebookCtrl.text.trim();
+        ? null
+        : _facebookCtrl.text.trim();
 
     final nextWhatsapp = _whatsappCtrl.text.trim().isEmpty
-      ? null
-      : _whatsappCtrl.text.trim();
+        ? null
+        : _whatsappCtrl.text.trim();
 
     final nextEmail = _emailCtrl.text.trim().isEmpty
-      ? null
-      : _emailCtrl.text.trim();
+        ? null
+        : _emailCtrl.text.trim();
 
     final nextMapsUrl = _mapsUrlCtrl.text.trim().isEmpty
-      ? null
-      : _mapsUrlCtrl.text.trim();
+        ? null
+        : _mapsUrlCtrl.text.trim();
 
     final nextLat = _parseDouble(_latCtrl.text) ?? widget.poi.lat;
     final nextLng = _parseDouble(_lngCtrl.text) ?? widget.poi.lng;
@@ -747,8 +736,8 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
     final nextImageUrl = (_uploadedImageUrl?.trim().isNotEmpty ?? false)
         ? _uploadedImageUrl!.trim()
         : ((widget.poi.imageUrl?.trim().isNotEmpty ?? false)
-            ? widget.poi.imageUrl!.trim()
-            : null);
+              ? widget.poi.imageUrl!.trim()
+              : null);
 
     return MarketMapPOI(
       id: widget.poi.id,
@@ -840,7 +829,9 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  _nameCtrl.text.trim().isEmpty ? widget.poi.name : _nameCtrl.text.trim(),
+                  _nameCtrl.text.trim().isEmpty
+                      ? widget.poi.name
+                      : _nameCtrl.text.trim(),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleSmall?.copyWith(
@@ -868,7 +859,9 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
   Widget _buildImagePreview() {
     final selected = _selectedFile;
     final previewBytes = _selectedPreviewBytes;
-    final url = (_uploadedImageUrl ?? '').trim().isNotEmpty ? _uploadedImageUrl! : null;
+    final url = (_uploadedImageUrl ?? '').trim().isNotEmpty
+        ? _uploadedImageUrl!
+        : null;
 
     Widget image;
     if (selected != null) {
@@ -931,7 +924,10 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(MasliveTokens.rM),
-          borderSide: const BorderSide(color: MasliveTokens.primary, width: 1.4),
+          borderSide: const BorderSide(
+            color: MasliveTokens.primary,
+            width: 1.4,
+          ),
         ),
       ),
       switchTheme: SwitchThemeData(
@@ -978,324 +974,356 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Éditer le POI',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-                ),
-              ),
-              IconButton(
-                tooltip: 'Fermer',
-                onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.close_rounded),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Éditer le POI',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Fermer',
+                        onPressed: _isSaving
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
 
-          TextField(
-            controller: _nameCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Nom',
-              border: OutlineInputBorder(),
-            ),
-            textInputAction: TextInputAction.next,
-          ),
+                  TextField(
+                    controller: _nameCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Nom',
+                      border: OutlineInputBorder(),
+                    ),
+                    textInputAction: TextInputAction.next,
+                  ),
 
-          if ((widget.appearancePresets?.isNotEmpty ?? false) && _appearanceId != null) ...[
-            const SizedBox(height: 12),
-            InputDecorator(
-              decoration: const InputDecoration(
-                labelText: 'Apparence',
-                border: OutlineInputBorder(),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _appearanceId,
-                  isExpanded: true,
-                  items: [
-                    for (final p in widget.appearancePresets!)
-                      DropdownMenuItem(value: p.id, child: Text(p.label)),
+                  if ((widget.appearancePresets?.isNotEmpty ?? false) &&
+                      _appearanceId != null) ...[
+                    const SizedBox(height: 12),
+                    InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Apparence',
+                        border: OutlineInputBorder(),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _appearanceId,
+                          isExpanded: true,
+                          items: [
+                            for (final p in widget.appearancePresets!)
+                              DropdownMenuItem(
+                                value: p.id,
+                                child: buildMasLivePoiAppearanceMenuItem(p),
+                              ),
+                          ],
+                          onChanged:
+                              (_isSaving || _isUploading || _isConverting)
+                              ? null
+                              : (v) {
+                                  if (v == null) return;
+                                  setState(() => _appearanceId = v);
+                                },
+                        ),
+                      ),
+                    ),
                   ],
-                  onChanged: (_isSaving || _isUploading || _isConverting)
-                      ? null
-                      : (v) {
-                          if (v == null) return;
-                          setState(() => _appearanceId = v);
-                        },
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 12),
-          TextField(
-            controller: _descCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Description (optionnel)',
-              border: OutlineInputBorder(),
-            ),
-            maxLines: 3,
-          ),
-
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _latCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Lat *',
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _descCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Description (optionnel)',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 3,
                   ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _lngCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Lng *',
-                    border: OutlineInputBorder(),
+
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _latCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Lat *',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _lngCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Lng *',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            value: _isVisible,
-            onChanged: _isSaving ? null : (v) => setState(() => _isVisible = v),
-            title: const Text('Visible (liste + couche)'),
-          ),
+                  const SizedBox(height: 8),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: _isVisible,
+                    onChanged: _isSaving
+                        ? null
+                        : (v) => setState(() => _isVisible = v),
+                    title: const Text('Visible (liste + couche)'),
+                  ),
 
-          const SizedBox(height: 12),
-          TextField(
-            controller: _addressCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Adresse (optionnel)',
-              border: OutlineInputBorder(),
-            ),
-            textInputAction: TextInputAction.next,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _openingHoursCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Horaires (optionnel)',
-              border: OutlineInputBorder(),
-            ),
-            maxLines: 2,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _phoneCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Téléphone (optionnel)',
-              border: OutlineInputBorder(),
-            ),
-            textInputAction: TextInputAction.next,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _websiteCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Site web (optionnel)',
-              border: OutlineInputBorder(),
-            ),
-            textInputAction: TextInputAction.next,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _instagramCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Instagram (optionnel)',
-              border: OutlineInputBorder(),
-            ),
-            textInputAction: TextInputAction.next,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _facebookCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Facebook (optionnel)',
-              border: OutlineInputBorder(),
-            ),
-            textInputAction: TextInputAction.next,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _whatsappCtrl,
-            decoration: const InputDecoration(
-              labelText: 'WhatsApp (optionnel)',
-              border: OutlineInputBorder(),
-            ),
-            textInputAction: TextInputAction.next,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _emailCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Email (optionnel)',
-              border: OutlineInputBorder(),
-            ),
-            textInputAction: TextInputAction.next,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _mapsUrlCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Lien Google Maps (optionnel)',
-              border: OutlineInputBorder(),
-            ),
-          ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _addressCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Adresse (optionnel)',
+                      border: OutlineInputBorder(),
+                    ),
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _openingHoursCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Horaires (optionnel)',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _phoneCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Téléphone (optionnel)',
+                      border: OutlineInputBorder(),
+                    ),
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _websiteCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Site web (optionnel)',
+                      border: OutlineInputBorder(),
+                    ),
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _instagramCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Instagram (optionnel)',
+                      border: OutlineInputBorder(),
+                    ),
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _facebookCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Facebook (optionnel)',
+                      border: OutlineInputBorder(),
+                    ),
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _whatsappCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'WhatsApp (optionnel)',
+                      border: OutlineInputBorder(),
+                    ),
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _emailCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Email (optionnel)',
+                      border: OutlineInputBorder(),
+                    ),
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _mapsUrlCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Lien Google Maps (optionnel)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
 
-          const SizedBox(height: 14),
-          _buildImagePreview(),
+                  const SizedBox(height: 14),
+                  _buildImagePreview(),
 
-          const SizedBox(height: 12),
-          FilledButton.tonalIcon(
-            onPressed: (!canUpload || _isSaving || _isConverting) ? null : _showSourcePicker,
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: MasliveTokens.text,
-            ),
-            icon: const Icon(Icons.add_a_photo_rounded),
-            label: Text(
-              (_selectedFile != null) ? 'Changer la photo' : 'Ajouter une photo',
-            ),
-          ),
-          if (!kIsWeb) ...[
-            const SizedBox(height: 6),
-            Text(
-              'Vous pourrez éditer la photo avec les filtres et outils système après sélection.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontStyle: FontStyle.italic,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
-            ),
-          ],
+                  const SizedBox(height: 12),
+                  FilledButton.tonalIcon(
+                    onPressed: (!canUpload || _isSaving || _isConverting)
+                        ? null
+                        : _showSourcePicker,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: MasliveTokens.text,
+                    ),
+                    icon: const Icon(Icons.add_a_photo_rounded),
+                    label: Text(
+                      (_selectedFile != null)
+                          ? 'Changer la photo'
+                          : 'Ajouter une photo',
+                    ),
+                  ),
+                  if (!kIsWeb) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Vous pourrez éditer la photo avec les filtres et outils système après sélection.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontStyle: FontStyle.italic,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
 
-          if (_selectedFile != null) ...[
-            const SizedBox(height: 6),
-            SwitchListTile.adaptive(
-              value: _convertToWebp,
-              onChanged: (_isSaving || _isUploading || _isConverting)
-                  ? null
-                  : _toggleConvertToWebp,
-              title: const Text('Convertir en WebP'),
-              subtitle: const Text('Réduit la taille et accélère le chargement.'),
-              contentPadding: EdgeInsets.zero,
-            ),
-          ],
+                  if (_selectedFile != null) ...[
+                    const SizedBox(height: 6),
+                    SwitchListTile.adaptive(
+                      value: _convertToWebp,
+                      onChanged: (_isSaving || _isUploading || _isConverting)
+                          ? null
+                          : _toggleConvertToWebp,
+                      title: const Text('Convertir en WebP'),
+                      subtitle: const Text(
+                        'Réduit la taille et accélère le chargement.',
+                      ),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ],
 
-          if (!canUpload) ...[
-            const SizedBox(height: 6),
-            Text(
-              'Astuce: enregistre d\'abord le brouillon du projet pour activer l\'upload photo.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
+                  if (!canUpload) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Astuce: enregistre d\'abord le brouillon du projet pour activer l\'upload photo.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
 
-          if (_selectedFile != null) ...[
-            const SizedBox(height: 8),
-            FilledButton.icon(
-              onPressed: (!canUpload || _isSaving || _isUploading || _isConverting)
-                  ? null
-                  : _uploadSelectedImageIfNeeded,
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: MasliveTokens.text,
-              ),
-              icon: const Icon(Icons.cloud_upload_rounded),
-              label: const Text('Uploader'),
-            ),
-          ],
+                  if (_selectedFile != null) ...[
+                    const SizedBox(height: 8),
+                    FilledButton.icon(
+                      onPressed:
+                          (!canUpload ||
+                              _isSaving ||
+                              _isUploading ||
+                              _isConverting)
+                          ? null
+                          : _uploadSelectedImageIfNeeded,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: MasliveTokens.text,
+                      ),
+                      icon: const Icon(Icons.cloud_upload_rounded),
+                      label: const Text('Uploader'),
+                    ),
+                  ],
 
-          if (_isConverting) ...[
-            const SizedBox(height: 8),
-            const LinearProgressIndicator(),
-            const SizedBox(height: 4),
-            Text(
-              'Conversion en WebP…',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
+                  if (_isConverting) ...[
+                    const SizedBox(height: 8),
+                    const LinearProgressIndicator(),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Conversion en WebP…',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
 
-          if (_isUploading) ...[
-            const SizedBox(height: 10),
-            LinearProgressIndicator(value: _uploadProgress == 0 ? null : _uploadProgress),
-            const SizedBox(height: 4),
-            Text(
-              'Upload ${(100 * _uploadProgress).toStringAsFixed(0)}%',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
+                  if (_isUploading) ...[
+                    const SizedBox(height: 10),
+                    LinearProgressIndicator(
+                      value: _uploadProgress == 0 ? null : _uploadProgress,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Upload ${(100 * _uploadProgress).toStringAsFixed(0)}%',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
 
-          const SizedBox(height: 8),
-          SwitchListTile.adaptive(
-            value: _popupEnabled,
-            onChanged: (_isSaving || _isUploading || _isConverting || !_hasAnyImage)
-                ? null
-                : (v) => setState(() => _popupEnabled = v),
-            title: const Text('Popup'),
-            subtitle: Text(
-              _hasAnyImage
-                  ? 'Le POI est cliquable et ouvre la fiche photo.'
-                  : 'Ajoute une photo pour activer la fiche photo.',
-            ),
-            contentPadding: EdgeInsets.zero,
-          ),
+                  const SizedBox(height: 8),
+                  SwitchListTile.adaptive(
+                    value: _popupEnabled,
+                    onChanged:
+                        (_isSaving ||
+                            _isUploading ||
+                            _isConverting ||
+                            !_hasAnyImage)
+                        ? null
+                        : (v) => setState(() => _popupEnabled = v),
+                    title: const Text('Popup'),
+                    subtitle: Text(
+                      _hasAnyImage
+                          ? 'Le POI est cliquable et ouvre la fiche photo.'
+                          : 'Ajoute une photo pour activer la fiche photo.',
+                    ),
+                    contentPadding: EdgeInsets.zero,
+                  ),
 
-          const SizedBox(height: 12),
-          Text(
-            'Effet polaroid',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 6),
-          _buildFineAdjustSlider(
-            label: 'Angle',
-            value: _angleDeg,
-            min: -7,
-            max: 7,
-            divisions: 28,
-            displayValue: '${_angleDeg.toStringAsFixed(1)}°',
-            onChanged: _isSaving
-                ? null
-                : (v) => setState(() => _angleDeg = v),
-          ),
-          _buildFineAdjustSlider(
-            label: 'Grain',
-            value: _grain,
-            min: 0,
-            max: 1,
-            divisions: 20,
-            displayValue: _grain.toStringAsFixed(2),
-            onChanged: _isSaving
-                ? null
-                : (v) => setState(() => _grain = v),
-          ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Effet polaroid',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  _buildFineAdjustSlider(
+                    label: 'Angle',
+                    value: _angleDeg,
+                    min: -7,
+                    max: 7,
+                    divisions: 28,
+                    displayValue: '${_angleDeg.toStringAsFixed(1)}°',
+                    onChanged: _isSaving
+                        ? null
+                        : (v) => setState(() => _angleDeg = v),
+                  ),
+                  _buildFineAdjustSlider(
+                    label: 'Grain',
+                    value: _grain,
+                    min: 0,
+                    max: 1,
+                    divisions: 20,
+                    displayValue: _grain.toStringAsFixed(2),
+                    onChanged: _isSaving
+                        ? null
+                        : (v) => setState(() => _grain = v),
+                  ),
 
-          const SizedBox(height: 8),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: MasliveTokens.primary,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: (_isSaving || _isUploading || _isConverting) ? null : _save,
-            child: Text(_isSaving ? 'Enregistrement…' : 'Enregistrer'),
-          ),
-          const SizedBox(height: 8),
+                  const SizedBox(height: 8),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: MasliveTokens.primary,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: (_isSaving || _isUploading || _isConverting)
+                        ? null
+                        : _save,
+                    child: Text(_isSaving ? 'Enregistrement…' : 'Enregistrer'),
+                  ),
+                  const SizedBox(height: 8),
                 ],
               ),
             ),

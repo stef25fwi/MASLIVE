@@ -59,16 +59,13 @@ Map<String, dynamic> projectProToLegacyStyle(
 
   // Compat minimale (utilisée par DefaultMap/Home, etc.)
   out['color'] = colorToHexRgb(cfg.mainColor);
-  out['width'] = cfg.mainWidth * cfg.widthScale3d;
+  out['width'] = cfg.effectiveRenderedMainWidth;
 
   // Heuristiques: si la config Pro a une "casing" significative, on active un rendu roadLike
   // (les consommateurs legacy n'ont pas de double-stroke explicite).
-  final preservedRoadLike = (out['roadLike'] is bool)
-      ? out['roadLike'] as bool
-      : null;
-  out['roadLike'] = preservedRoadLike ?? (cfg.casingWidth > cfg.mainWidth);
+  out['roadLike'] = cfg.shouldRenderRoadLike;
 
-  out['shadow3d'] = cfg.shadowEnabled;
+  out['shadow3d'] = cfg.effectiveShadowEnabled;
 
   // Animation direction (legacy) ~ pulse
   out['animateDirection'] = cfg.pulseEnabled;

@@ -97,21 +97,20 @@ class RouteStylePersistence {
         mergedLegacy.addAll(Map<String, dynamic>.from(existingRouteStyleRaw));
       }
 
-      final preservedRoadLike = (mergedLegacy['roadLike'] is bool)
-          ? mergedLegacy['roadLike'] as bool
-          : true;
       final preservedShowDirection = (mergedLegacy['showDirection'] is bool)
           ? mergedLegacy['showDirection'] as bool
           : true;
 
-      mergedLegacy['roadLike'] = preservedRoadLike;
+      mergedLegacy['roadLike'] = config.shouldRenderRoadLike;
       mergedLegacy['showDirection'] = preservedShowDirection;
       mergedLegacy['color'] = _toHexRgb(config.mainColor);
-        mergedLegacy['width'] = config.mainWidth * config.widthScale3d;
-      mergedLegacy['shadow3d'] = config.shadowEnabled;
+      mergedLegacy['width'] = config.effectiveRenderedMainWidth;
+      mergedLegacy['shadow3d'] = config.effectiveShadowEnabled;
       mergedLegacy['animateDirection'] = config.pulseEnabled;
-      mergedLegacy['animationSpeed'] =
-          (config.pulseSpeed / 25.0).clamp(0.5, 5.0);
+      mergedLegacy['animationSpeed'] = (config.pulseSpeed / 25.0).clamp(
+        0.5,
+        5.0,
+      );
 
       final payload = <String, dynamic>{
         'routeStylePro': config.toJson(),
@@ -145,9 +144,18 @@ class RouteStylePersistence {
   }
 
   String _toHexRgb(Color c) {
-    final r = ((c.r * 255).round()).clamp(0, 255).toRadixString(16).padLeft(2, '0');
-    final g = ((c.g * 255).round()).clamp(0, 255).toRadixString(16).padLeft(2, '0');
-    final b = ((c.b * 255).round()).clamp(0, 255).toRadixString(16).padLeft(2, '0');
+    final r = ((c.r * 255).round())
+        .clamp(0, 255)
+        .toRadixString(16)
+        .padLeft(2, '0');
+    final g = ((c.g * 255).round())
+        .clamp(0, 255)
+        .toRadixString(16)
+        .padLeft(2, '0');
+    final b = ((c.b * 255).round())
+        .clamp(0, 255)
+        .toRadixString(16)
+        .padLeft(2, '0');
     return '#${r.toUpperCase()}${g.toUpperCase()}${b.toUpperCase()}';
   }
 }

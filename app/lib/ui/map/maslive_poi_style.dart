@@ -25,11 +25,17 @@ class MasLivePoiAppearancePreset {
   final String id;
   final String label;
   final MasLivePoiStyle style;
+  final String? assetPath;
+  final String? mapIconId;
+  final double iconSize;
 
   const MasLivePoiAppearancePreset({
     required this.id,
     required this.label,
     required this.style,
+    this.assetPath,
+    this.mapIconId,
+    this.iconSize = 1.0,
   });
 }
 
@@ -57,7 +63,56 @@ const List<MasLivePoiAppearancePreset> kMasLivePoiAppearancePresets = [
       circleStrokeColor: Color(0xFFFFFFFF),
     ),
   ),
+  MasLivePoiAppearancePreset(
+    id: 'icon_point',
+    label: 'Icône point',
+    style: MasLivePoiStyle(
+      circleRadius: 7.0,
+      circleColor: Color(0xFF0A84FF),
+      circleStrokeWidth: 2.0,
+      circleStrokeColor: Color(0xFFFFFFFF),
+    ),
+    assetPath: 'assets/images/icon-point.webp',
+    mapIconId: 'maslive_poi_icon_point',
+    iconSize: 0.55,
+  ),
 ];
+
+Widget buildMasLivePoiAppearanceMenuItem(
+  MasLivePoiAppearancePreset preset, {
+  double previewSize = 22,
+}) {
+  final preview = preset.assetPath != null
+      ? ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Image.asset(
+            preset.assetPath!,
+            width: previewSize,
+            height: previewSize,
+            fit: BoxFit.contain,
+          ),
+        )
+      : Container(
+          width: previewSize,
+          height: previewSize,
+          decoration: BoxDecoration(
+            color: preset.style.circleColor,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: preset.style.circleStrokeColor,
+              width: preset.style.circleStrokeWidth,
+            ),
+          ),
+        );
+
+  return Row(
+    children: [
+      preview,
+      const SizedBox(width: 10),
+      Expanded(child: Text(preset.label)),
+    ],
+  );
+}
 
 String masLiveColorToCssHex(Color color) {
   int to8(double v) => (v * 255.0).round().clamp(0, 255);

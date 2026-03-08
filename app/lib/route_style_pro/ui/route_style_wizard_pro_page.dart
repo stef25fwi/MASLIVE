@@ -354,7 +354,12 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
     final end = (_route.length >= 2) ? _route.last : _defaultTestRoute().last;
 
     setState(() => _route = [start, end]);
-    await _applySnapIfNeeded(label: 'Itinéraire auto');
+    if (_config.carMode) {
+      await _applySnapIfNeeded(label: 'Itinéraire auto');
+      return;
+    }
+
+    _snack('Mode voiture désactivé: segment direct conservé');
   }
 
   Future<void> _useMyTrace() async {
@@ -467,6 +472,9 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
                     final panel = RouteStyleControlsPanel(
                       config: _config,
                       onChanged: _onConfigChanged,
+                      contentPadding: isWide
+                          ? const EdgeInsets.all(16)
+                          : const EdgeInsets.fromLTRB(6, 16, 16, 6),
                       onTestAutoRoute: _busy ? () {} : _testAutoRoute,
                       onUseMyTrace: _busy ? () {} : _useMyTrace,
                       onSave: _busy ? () {} : _save,

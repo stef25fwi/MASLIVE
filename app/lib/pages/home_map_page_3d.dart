@@ -170,7 +170,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
     // Synchroniser l'état de tracking avec le service
     _isTracking = _geo.isTracking;
-    
+
     // Initialiser le drapeau de langue dès initState (pas de délai)
     _updateLanguageFlag();
 
@@ -463,8 +463,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     return cfg.mainColor;
   }
 
-  static Color _segmentCasingColor(RouteStyleConfig cfg, int index, int animTick) {
-    if (!cfg.casingRainbowEnabled) return cfg.casingColor;
+  static Color _segmentCasingColor(
+    RouteStyleConfig cfg,
+    int index,
+    int animTick,
+  ) {
+    if (!cfg.effectiveCasingRainbowEnabled) return cfg.casingColor;
     final shift = (animTick % 360);
     final dir = cfg.rainbowReverse ? -1 : 1;
     final hue = (shift + dir * index * 14) % 360;
@@ -478,7 +482,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   }) {
     if (pts.length < 2) return _emptyRouteFeatureCollection();
 
-    final width = cfg.mainWidth * cfg.widthScale3d;
+    final width = cfg.effectiveRenderedMainWidth;
 
     // Limite segments (perf)
     const maxSeg = 60;
@@ -528,7 +532,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     RouteStyleConfig cfg,
   ) {
     if (pts.length < 2) return _emptyRouteFeatureCollection();
-    final width = cfg.mainWidth * cfg.widthScale3d;
+    final width = cfg.effectiveRenderedMainWidth;
     return _routeFeatureCollection([
       {
         'type': 'Feature',
@@ -550,7 +554,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   void _syncMarketRouteAnimTimer(RouteStyleConfig cfg) {
     final needsAnim =
-        cfg.pulseEnabled || cfg.rainbowEnabled || cfg.casingRainbowEnabled;
+        cfg.pulseEnabled ||
+        cfg.rainbowEnabled ||
+        cfg.effectiveCasingRainbowEnabled;
     if (!needsAnim) {
       _routeAnimTimer?.cancel();
       _routeAnimTimer = null;
@@ -558,7 +564,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     }
 
     final periodMs =
-      ((cfg.rainbowEnabled || cfg.casingRainbowEnabled)
+        ((cfg.rainbowEnabled || cfg.effectiveCasingRainbowEnabled)
                 ? (110 - (cfg.rainbowSpeed * 0.8)).clamp(25, 110)
                 : (160 - (cfg.pulseSpeed * 1.0)).clamp(40, 160))
             .round();
@@ -762,12 +768,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
     final c = cfg.validated();
 
-    final widthScale = c.widthScale3d;
-    final casingWidth = c.casingWidth * widthScale;
-    final glowWidth = c.glowWidth * widthScale;
-    final elevationPx = c.elevationPx;
+    final width = c.effectiveRenderedMainWidth;
+    final casingWidth = c.effectiveRenderedCasingWidth;
+    final glowWidth = c.glowWidth * c.effectiveWidthScale3d;
+    final elevationPx = c.effectiveElevationPx;
     final thickness3d = c.thickness3d;
-    final sidesEnabled = c.sidesEnabled;
+    final sidesEnabled = c.effectiveSidesEnabled;
     final sidesIntensity = c.sidesIntensity.clamp(0.0, 1.0);
 
     await _ensureMarketRouteGeoJsonRuntime();
@@ -786,10 +792,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     ]);
 
     final useSegments =
-      c.rainbowEnabled ||
-      c.trafficDemoEnabled ||
-      c.vanishingEnabled ||
-      c.casingRainbowEnabled;
+        c.rainbowEnabled ||
+        c.trafficDemoEnabled ||
+        c.vanishingEnabled ||
+        c.effectiveCasingRainbowEnabled;
     final segmentsFc = useSegments
         ? _buildSegmentsFeatureCollection(
             pts,
@@ -874,23 +880,43 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     final sideOpacityFactor = (0.55 * sidesIntensity).clamp(0.0, 1.0);
     await safeSet(_mmRouteLayerSideLId, 'line-color', ['get', 'color']);
     await safeSet(_mmRouteLayerSideRId, 'line-color', ['get', 'color']);
-    await safeSet(_mmRouteLayerSideLId, 'line-width', ['+', ['get', 'width'], 2]);
-    await safeSet(_mmRouteLayerSideRId, 'line-width', ['+', ['get', 'width'], 2]);
+    await safeSet(_mmRouteLayerSideLId, 'line-width', [
+      '+',
+      ['get', 'width'],
+      2,
+    ]);
+    await safeSet(_mmRouteLayerSideRId, 'line-width', [
+      '+',
+      ['get', 'width'],
+      2,
+    ]);
     await safeSet(
       _mmRouteLayerSideLId,
       'line-opacity',
-      sidesEnabled ? ['*', ['get', 'opacity'], sideOpacityFactor] : 0.0,
+      sidesEnabled
+          ? [
+              '*',
+              ['get', 'opacity'],
+              sideOpacityFactor,
+            ]
+          : 0.0,
     );
     await safeSet(
       _mmRouteLayerSideRId,
       'line-opacity',
-      sidesEnabled ? ['*', ['get', 'opacity'], sideOpacityFactor] : 0.0,
+      sidesEnabled
+          ? [
+              '*',
+              ['get', 'opacity'],
+              sideOpacityFactor,
+            ]
+          : 0.0,
     );
     await safeSet(_mmRouteLayerSideLId, 'line-blur', 0.0);
     await safeSet(_mmRouteLayerSideRId, 'line-blur', 0.0);
 
     // Shadow
-    final shadowOpacity = c.shadowEnabled
+    final shadowOpacity = c.effectiveShadowEnabled
         ? (c.shadowOpacity * c.opacity).clamp(0.0, 1.0)
         : 0.0;
     await safeSet(_mmRouteLayerShadowId, 'line-opacity', shadowOpacity);
@@ -906,8 +932,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     );
 
     // Glow (+ pulse)
-    double glowOpacity = c.glowEnabled ? c.glowOpacity : 0.0;
-    if (c.glowEnabled && c.pulseEnabled) {
+    double glowOpacity = c.effectiveGlowEnabled ? c.glowOpacity : 0.0;
+    if (c.effectiveGlowEnabled && c.pulseEnabled) {
       final phase = ((animTick ?? _routeAnimTick) % 60) / 60.0;
       final wave = 0.5 + 0.5 * sin(2 * pi * phase);
       glowOpacity = (0.20 + wave * (c.glowOpacity - 0.20)).clamp(0.0, 1.0);
@@ -916,13 +942,13 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     await safeSet(
       _mmRouteLayerGlowId,
       'line-width',
-      max(1.0, casingWidth + glowWidth),
+      max(1.0, width + glowWidth),
     );
     await safeSet(_mmRouteLayerGlowId, 'line-blur', c.glowBlur);
     await safeSet(_mmRouteLayerGlowId, 'line-color', c.mainColor.toARGB32());
 
     // Casing
-    final casingOpacity = (c.casingWidth <= 0) ? 0.0 : c.opacity;
+    final casingOpacity = (c.effectiveCasingWidth <= 0) ? 0.0 : c.opacity;
     await safeSet(_mmRouteLayerCasingId, 'line-opacity', casingOpacity);
     await safeSet(_mmRouteLayerCasingId, 'line-width', max(0.0, casingWidth));
     await safeSet(_mmRouteLayerCasingId, 'line-color', ['get', 'casingColor']);
@@ -1428,8 +1454,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       final desc = _descFromPoi(poi);
       final d = (poi as dynamic);
 
-        // Champs “fiche”
-        String imageUrl = (d.imageUrl ?? d.photoUrl ?? d.image ?? '')
+      // Champs “fiche”
+      String imageUrl = (d.imageUrl ?? d.photoUrl ?? d.image ?? '')
           .toString()
           .trim();
       final address = (d.address ?? d.adresse ?? d.locationLabel ?? '')
@@ -1945,7 +1971,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       if (allFeatures.isEmpty) return;
 
       bool isClusterProps(Map<String, dynamic> props) {
-        return (props['cluster'] == true) || (props['cluster']?.toString() == 'true');
+        return (props['cluster'] == true) ||
+            (props['cluster']?.toString() == 'true');
       }
 
       Map<String, dynamic> asProps(Map<String, dynamic> feature) {
@@ -1954,7 +1981,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       }
 
       bool isValidPoiProps(Map<String, dynamic> props) {
-        final type = (props['type'] ?? props['layerType'] ?? '').toString().trim();
+        final type = (props['type'] ?? props['layerType'] ?? '')
+            .toString()
+            .trim();
         if (type.isEmpty) return false;
         return _mmTypes.contains(type);
       }
@@ -1977,12 +2006,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         return s.isEmpty ? null : s;
       }
 
-        final props =
+      final props =
           (feature['properties'] as Map?)?.cast<String, dynamic>() ??
           const <String, dynamic>{};
 
       // --- Cluster handling (si cluster:true sur la source) ---
-        final isCluster =
+      final isCluster =
           (props['cluster'] == true) ||
           (props['cluster']?.toString() == 'true');
 
@@ -2009,14 +2038,16 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       }
 
       // --- POI normal ---
-        final poiId = asNonEmptyString(props['id']) ?? asNonEmptyString(rawFeatureId);
+      final poiId =
+          asNonEmptyString(props['id']) ?? asNonEmptyString(rawFeatureId);
 
-        final name = (props['name'] ?? props['title'] ?? '').toString();
-        final desc = (props['desc'] ?? props['description'] ?? '').toString();
-        final type = (props['type'] ?? props['layerType'] ?? '').toString();
+      final name = (props['name'] ?? props['title'] ?? '').toString();
+      final desc = (props['desc'] ?? props['description'] ?? '').toString();
+      final type = (props['type'] ?? props['layerType'] ?? '').toString();
 
-        // Image URL: supporte aussi meta.image.url (retour admin)
-        String imageUrl = (props['imageUrl'] ?? props['photoUrl'] ?? '').toString();
+      // Image URL: supporte aussi meta.image.url (retour admin)
+      String imageUrl = (props['imageUrl'] ?? props['photoUrl'] ?? '')
+          .toString();
       final lng = (props['lng'] is num)
           ? (props['lng'] as num).toDouble()
           : null;
@@ -2053,7 +2084,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       if (meta == null) {
         final imgRaw = props['image'];
         if (imgRaw is Map) {
-          meta = <String, dynamic>{'image': imgRaw.map((k, v) => MapEntry(k.toString(), v))};
+          meta = <String, dynamic>{
+            'image': imgRaw.map((k, v) => MapEntry(k.toString(), v)),
+          };
         }
       }
 
@@ -2069,11 +2102,14 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       final rootPopupEnabled =
           props['popupEnabled'] ?? props['hasPopup'] ?? props['hasCard'];
       final hasExplicitPopupFlag =
-          PoiPopupService.parseBool((meta ?? const <String, dynamic>{})['popupEnabled'] ??
-                  rootPopupEnabled) !=
-              null;
+          PoiPopupService.parseBool(
+            (meta ?? const <String, dynamic>{})['popupEnabled'] ??
+                rootPopupEnabled,
+          ) !=
+          null;
       final hasPolaroidMeta =
-          meta != null && (meta.containsKey('polaroid') || meta.containsKey('image'));
+          meta != null &&
+          (meta.containsKey('polaroid') || meta.containsKey('image'));
       final hasAnyCardData =
           name.trim().isNotEmpty ||
           desc.trim().isNotEmpty ||
@@ -2120,12 +2156,16 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       final lastAt = _lastPoiPopupAt;
       if (_isPoiPopupShowing) {
         if (kDebugMode) {
-          debugPrint('ℹ️ POI tap: popup already showing => ignore (id=${poiId ?? "?"})');
+          debugPrint(
+            'ℹ️ POI tap: popup already showing => ignore (id=${poiId ?? "?"})',
+          );
         }
         return;
       }
       if (lastAt != null && now.difference(lastAt) < _poiPopupDebounce) {
-        if (_lastPoiPopupId != null && poiId != null && _lastPoiPopupId == poiId) {
+        if (_lastPoiPopupId != null &&
+            poiId != null &&
+            _lastPoiPopupId == poiId) {
           if (kDebugMode) {
             debugPrint('ℹ️ POI tap: debounced duplicate => ignore (id=$poiId)');
           }
@@ -2138,22 +2178,22 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       if (!mounted) return;
       unawaited(
         _showPoiPolaroid(
-        title: name.isEmpty ? 'Point d\'intérêt' : name,
-        description: desc,
-        category: type,
-        imageUrl: imageUrl.isEmpty ? null : imageUrl,
-        lng: lng,
-        lat: lat,
-        address: address,
-        openingHours: openingHours,
-        phone: phone,
-        website: website,
-        instagram: instagram,
-        facebook: facebook,
-        whatsapp: whatsapp,
-        email: email,
-        mapsUrl: mapsUrl,
-        meta: meta ?? const <String, dynamic>{},
+          title: name.isEmpty ? 'Point d\'intérêt' : name,
+          description: desc,
+          category: type,
+          imageUrl: imageUrl.isEmpty ? null : imageUrl,
+          lng: lng,
+          lat: lat,
+          address: address,
+          openingHours: openingHours,
+          phone: phone,
+          website: website,
+          instagram: instagram,
+          facebook: facebook,
+          whatsapp: whatsapp,
+          email: email,
+          mapsUrl: mapsUrl,
+          meta: meta ?? const <String, dynamic>{},
         ),
       );
 

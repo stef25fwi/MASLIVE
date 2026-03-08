@@ -1489,6 +1489,7 @@
         const opacity = _clampNumber(opts.opacity, 0.0, 1.0, 1.0);
         const casingWidthOpt = Number(opts.casingWidth || 0);
         const casingColorOpt = String(opts.casingColor || 'rgba(0,0,0,0.45)');
+        const casingRainbowEnabled = _parseBool(opts.casingRainbowEnabled, false);
         const glowEnabled = _parseBool(opts.glowEnabled, false);
         const glowWidth = Number(opts.glowWidth || 0);
         const glowOpacity = _clampNumber(opts.glowOpacity, 0.0, 1.0, 0.0);
@@ -1721,18 +1722,26 @@
             }
           }
 
+          const casingSource = (segmentsFc && casingRainbowEnabled) ? segmentsSourceId : sourceId;
+          const casingLineColor = (segmentsFc && casingRainbowEnabled)
+            ? ['coalesce', ['to-color', ['get', 'casingColor']], casingColorOpt]
+            : casingColorOpt;
+          const casingLineOpacity = (segmentsFc && casingRainbowEnabled)
+            ? ['coalesce', ['get', 'opacity'], opacity]
+            : opacity;
+
           map.addLayer({
             id: 'maslive_polyline_casing',
             type: 'line',
-            source: sourceId,
+            source: casingSource,
             layout: {
               'line-cap': lineCap,
               'line-join': lineJoin,
             },
             paint: {
               'line-width': scaledWidthExpr(casingWidth),
-              'line-color': casingColorOpt,
-              'line-opacity': opacity,
+              'line-color': casingLineColor,
+              'line-opacity': casingLineOpacity,
               ...(lineTranslate ? { 'line-translate': lineTranslate, 'line-translate-anchor': 'map' } : {}),
             },
           });

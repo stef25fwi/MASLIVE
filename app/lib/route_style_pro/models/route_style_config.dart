@@ -1,7 +1,7 @@
 import 'dart:ui' show Color;
 
 /// Version du schéma JSON stocké.
-const int kRouteStyleSchemaVersion = 6;
+const int kRouteStyleSchemaVersion = 7;
 
 /// Représentation simple (lat, lng) pour les services.
 typedef LatLng = ({double lat, double lng});
@@ -17,13 +17,19 @@ enum RouteLineJoin { round, bevel, miter }
 /// - Validation/clamp des valeurs
 /// - Compatible UI (sliders / toggles)
 class RouteStyleConfig {
+  static const double kRoadWidthModeMaxMainWidth = 5.0;
+  static const double kRoadWidthModeMaxWidthScale3d = 0.85;
+  static const double kRoadWidthModeMaxCasingExtra = 0.9;
+
   final int schemaVersion;
 
   // A) Géométrie / comportement
   final bool carMode;
+  final bool fitToRoadWidth;
   final double snapToleranceMeters;
   final RouteLineCap lineCap;
   final RouteLineJoin lineJoin;
+
   /// 0..100 (0 = pas de simplification)
   final double simplifyPercent;
 
@@ -36,48 +42,54 @@ class RouteStyleConfig {
   /// Si true, la couleur du casing est un dégradé "rainbow" par segments
   /// (au lieu d'une couleur fixe).
   final bool casingRainbowEnabled;
+
   /// 0..1
   final double opacity;
 
-    // B2) 3D (visuel)
-    /// Multiplicateur appliqué aux largeurs (main/casing/glow) pour donner un rendu plus "épais".
-    /// 0.5..3.0
-    final double widthScale3d;
+  // B2) 3D (visuel)
+  /// Multiplicateur appliqué aux largeurs (main/casing/glow) pour donner un rendu plus "épais".
+  /// 0.5..3.0
+  final double widthScale3d;
 
-    /// Facteur de relief (ruban 3D): accentue surtout l'ombre (largeur/blur/offset)
-    /// sans remplacer le réglage de "Largeur".
-    /// 0.6..1.8
-    final double thickness3d;
+  /// Facteur de relief (ruban 3D): accentue surtout l'ombre (largeur/blur/offset)
+  /// sans remplacer le réglage de "Largeur".
+  /// 0.6..1.8
+  final double thickness3d;
 
-    /// Multiplicateur spécifique au casing dans le rendu 3D.
-    /// Permet d'épaissir ou d'affiner le contour indépendamment de la largeur 3D globale.
-    /// 0.5..2.5
-    final double casingThickness3d;
+  /// Multiplicateur spécifique au casing dans le rendu 3D.
+  /// Permet d'épaissir ou d'affiner le contour indépendamment de la largeur 3D globale.
+  /// 0.5..2.5
+  final double casingThickness3d;
 
-    /// Hauteur simulée au-dessus du "sol" (Mapbox): appliquée via line-translate (px).
-    /// 0..40
-    final double elevationPx;
+  /// Hauteur simulée au-dessus du "sol" (Mapbox): appliquée via line-translate (px).
+  /// 0..40
+  final double elevationPx;
 
-    // B3) Faces latérales (côtés)
-    /// Active/désactive l'affichage des faces latérales (côtés) du ruban 3D.
-    final bool sidesEnabled;
+  // B3) Faces latérales (côtés)
+  /// Active/désactive l'affichage des faces latérales (côtés) du ruban 3D.
+  final bool sidesEnabled;
 
-    /// Intensité des côtés (principalement opacité).
-    /// 0..1
-    final double sidesIntensity;
+  /// Intensité des côtés (principalement opacité).
+  /// 0..1
+  final double sidesIntensity;
 
   // C) Ombre / Glow
   final bool shadowEnabled;
+
   /// 0..1
   final double shadowOpacity;
+
   /// en pixels style (effet simple)
   final double shadowBlur;
 
   final bool glowEnabled;
+
   /// 0..1
   final double glowOpacity;
+
   /// blur style
   final double glowBlur;
+
   /// largeur additionnelle (px)
   final double glowWidth;
 
@@ -87,14 +99,17 @@ class RouteStyleConfig {
   final double dashGap;
 
   final bool pulseEnabled;
+
   /// 0..100 (UI)
   final double pulseSpeed;
 
   // E) Gradient + Rainbow animé
   final bool gradientEnabled;
   final bool rainbowEnabled;
+
   /// 0..1
   final double rainbowSaturation;
+
   /// 0..100
   final double rainbowSpeed;
   final bool rainbowReverse;
@@ -104,6 +119,7 @@ class RouteStyleConfig {
 
   // G) Route avancée
   final bool vanishingEnabled;
+
   /// 0..1
   final double vanishingProgress;
 
@@ -112,6 +128,7 @@ class RouteStyleConfig {
   // H) Immeubles 3D (environnement)
   /// Active/désactive les bâtiments 3D sur la carte
   final bool buildings3dEnabled;
+
   /// Transparence des immeubles 3D (0=invisible, 1=opaque)
   /// 0..1
   final double buildingOpacity;
@@ -125,6 +142,7 @@ class RouteStyleConfig {
     this.schemaVersion = kRouteStyleSchemaVersion,
     // A
     this.carMode = true,
+    this.fitToRoadWidth = false,
     this.snapToleranceMeters = 35.0,
     this.lineCap = RouteLineCap.round,
     this.lineJoin = RouteLineJoin.round,
@@ -175,9 +193,59 @@ class RouteStyleConfig {
     this.routeAlwaysOnTop = false,
   });
 
+  bool get roadEffectsEnabled => carMode;
+
+  bool get roadWidthModeEnabled => roadEffectsEnabled && fitToRoadWidth;
+
+  double get effectiveWidthScale3d => roadWidthModeEnabled
+      ? widthScale3d.clamp(0.5, kRoadWidthModeMaxWidthScale3d)
+      : widthScale3d;
+
+  double get effectiveMainWidth => roadWidthModeEnabled
+      ? mainWidth.clamp(2.0, kRoadWidthModeMaxMainWidth)
+      : mainWidth;
+
+  double get effectiveRenderedMainWidth =>
+      effectiveMainWidth * effectiveWidthScale3d;
+
+  bool get shouldRenderRoadLike =>
+      roadEffectsEnabled &&
+      (effectiveCasingWidth > 0 ||
+          effectiveShadowEnabled ||
+          effectiveGlowEnabled ||
+          effectiveSidesEnabled ||
+          effectiveElevationPx > 0);
+
+  bool get effectiveShadowEnabled =>
+      roadEffectsEnabled && shadowEnabled && !roadWidthModeEnabled;
+
+  bool get effectiveGlowEnabled =>
+      roadEffectsEnabled && glowEnabled && !roadWidthModeEnabled;
+
+  bool get effectiveSidesEnabled =>
+      roadEffectsEnabled && sidesEnabled && !roadWidthModeEnabled;
+
+  bool get effectiveCasingRainbowEnabled =>
+      roadEffectsEnabled && casingRainbowEnabled;
+
+  double get effectiveCasingWidth {
+    if (!roadEffectsEnabled) return 0.0;
+    if (!roadWidthModeEnabled) return casingWidth;
+
+    final maxAllowed = effectiveMainWidth + kRoadWidthModeMaxCasingExtra;
+    return casingWidth.clamp(0.0, maxAllowed);
+  }
+
+  double get effectiveRenderedCasingWidth =>
+      effectiveCasingWidth * effectiveWidthScale3d;
+
+  double get effectiveElevationPx =>
+      roadEffectsEnabled && !roadWidthModeEnabled ? elevationPx : 0.0;
+
   RouteStyleConfig copyWith({
     int? schemaVersion,
     bool? carMode,
+    bool? fitToRoadWidth,
     double? snapToleranceMeters,
     RouteLineCap? lineCap,
     RouteLineJoin? lineJoin,
@@ -222,6 +290,7 @@ class RouteStyleConfig {
     return RouteStyleConfig(
       schemaVersion: schemaVersion ?? this.schemaVersion,
       carMode: carMode ?? this.carMode,
+      fitToRoadWidth: fitToRoadWidth ?? this.fitToRoadWidth,
       snapToleranceMeters: snapToleranceMeters ?? this.snapToleranceMeters,
       lineCap: lineCap ?? this.lineCap,
       lineJoin: lineJoin ?? this.lineJoin,
@@ -236,8 +305,8 @@ class RouteStyleConfig {
       thickness3d: thickness3d ?? this.thickness3d,
       casingThickness3d: casingThickness3d ?? this.casingThickness3d,
       elevationPx: elevationPx ?? this.elevationPx,
-    sidesEnabled: sidesEnabled ?? this.sidesEnabled,
-    sidesIntensity: sidesIntensity ?? this.sidesIntensity,
+      sidesEnabled: sidesEnabled ?? this.sidesEnabled,
+      sidesIntensity: sidesIntensity ?? this.sidesIntensity,
       shadowEnabled: shadowEnabled ?? this.shadowEnabled,
       shadowOpacity: shadowOpacity ?? this.shadowOpacity,
       shadowBlur: shadowBlur ?? this.shadowBlur,
@@ -272,12 +341,13 @@ class RouteStyleConfig {
     return RouteStyleConfig(
       schemaVersion: schemaVersion,
       carMode: carMode,
+      fitToRoadWidth: fitToRoadWidth,
       snapToleranceMeters: clamp(snapToleranceMeters, 5, 150),
       lineCap: lineCap,
       lineJoin: lineJoin,
       simplifyPercent: clamp(simplifyPercent, 0, 100),
       mainWidth: clamp(mainWidth, 2, 20),
-            casingWidth: clamp(casingWidth, 0, 30),
+      casingWidth: clamp(casingWidth, 0, 30),
       mainColor: mainColor,
       casingColor: casingColor,
       casingRainbowEnabled: casingRainbowEnabled,
@@ -286,8 +356,8 @@ class RouteStyleConfig {
       thickness3d: clamp(thickness3d, 0.6, 1.8),
       casingThickness3d: clamp(casingThickness3d, 0.5, 2.5),
       elevationPx: clamp(elevationPx, 0, 40),
-    sidesEnabled: sidesEnabled,
-    sidesIntensity: clamp(sidesIntensity, 0, 1),
+      sidesEnabled: sidesEnabled,
+      sidesIntensity: clamp(sidesIntensity, 0, 1),
       shadowEnabled: shadowEnabled,
       shadowOpacity: clamp(shadowOpacity, 0, 1),
       shadowBlur: clamp(shadowBlur, 0, 20),
@@ -319,6 +389,7 @@ class RouteStyleConfig {
     return {
       'schemaVersion': schemaVersion,
       'carMode': carMode,
+      'fitToRoadWidth': fitToRoadWidth,
       'snapToleranceMeters': snapToleranceMeters,
       'lineCap': lineCap.name,
       'lineJoin': lineJoin.name,
@@ -333,8 +404,8 @@ class RouteStyleConfig {
       'thickness3d': thickness3d,
       'casingThickness3d': casingThickness3d,
       'elevationPx': elevationPx,
-    'sidesEnabled': sidesEnabled,
-    'sidesIntensity': sidesIntensity,
+      'sidesEnabled': sidesEnabled,
+      'sidesIntensity': sidesIntensity,
       'shadowEnabled': shadowEnabled,
       'shadowOpacity': shadowOpacity,
       'shadowBlur': shadowBlur,
@@ -382,6 +453,9 @@ class RouteStyleConfig {
           ? (json['schemaVersion'] as num).toInt()
           : kRouteStyleSchemaVersion,
       carMode: json['carMode'] is bool ? json['carMode'] as bool : true,
+      fitToRoadWidth: json['fitToRoadWidth'] is bool
+          ? json['fitToRoadWidth'] as bool
+          : false,
       snapToleranceMeters: (json['snapToleranceMeters'] is num)
           ? (json['snapToleranceMeters'] as num).toDouble()
           : 35.0,
@@ -390,72 +464,84 @@ class RouteStyleConfig {
       simplifyPercent: (json['simplifyPercent'] is num)
           ? (json['simplifyPercent'] as num).toDouble()
           : 15.0,
-      mainWidth:
-          (json['mainWidth'] is num) ? (json['mainWidth'] as num).toDouble() : 7.0,
+      mainWidth: (json['mainWidth'] is num)
+          ? (json['mainWidth'] as num).toDouble()
+          : 7.0,
       casingWidth: (json['casingWidth'] is num)
           ? (json['casingWidth'] as num).toDouble()
           : 11.0,
-      mainColor: _colorFromHexArgb(json['mainColor'] as String?) ??
+      mainColor:
+          _colorFromHexArgb(json['mainColor'] as String?) ??
           const Color(0xFF1A73E8),
-      casingColor: _colorFromHexArgb(json['casingColor'] as String?) ??
+      casingColor:
+          _colorFromHexArgb(json['casingColor'] as String?) ??
           const Color(0xFF0B1B2B),
-        casingRainbowEnabled: json['casingRainbowEnabled'] is bool
+      casingRainbowEnabled: json['casingRainbowEnabled'] is bool
           ? json['casingRainbowEnabled'] as bool
           : false,
-      opacity:
-          (json['opacity'] is num) ? (json['opacity'] as num).toDouble() : 1.0,
+      opacity: (json['opacity'] is num)
+          ? (json['opacity'] as num).toDouble()
+          : 1.0,
       widthScale3d: (json['widthScale3d'] is num)
           ? (json['widthScale3d'] as num).toDouble()
           : 1.0,
-        thickness3d: (json['thickness3d'] is num)
+      thickness3d: (json['thickness3d'] is num)
           ? (json['thickness3d'] as num).toDouble()
           : 1.0,
-        casingThickness3d: (json['casingThickness3d'] is num)
+      casingThickness3d: (json['casingThickness3d'] is num)
           ? (json['casingThickness3d'] as num).toDouble()
           : 1.0,
       elevationPx: (json['elevationPx'] is num)
           ? (json['elevationPx'] as num).toDouble()
           : 0.0,
-      sidesEnabled:
-          json['sidesEnabled'] is bool ? json['sidesEnabled'] as bool : false,
+      sidesEnabled: json['sidesEnabled'] is bool
+          ? json['sidesEnabled'] as bool
+          : false,
       sidesIntensity: (json['sidesIntensity'] is num)
           ? (json['sidesIntensity'] as num).toDouble()
           : 0.70,
-      shadowEnabled:
-          json['shadowEnabled'] is bool ? json['shadowEnabled'] as bool : true,
+      shadowEnabled: json['shadowEnabled'] is bool
+          ? json['shadowEnabled'] as bool
+          : true,
       shadowOpacity: (json['shadowOpacity'] is num)
           ? (json['shadowOpacity'] as num).toDouble()
           : 0.40,
       shadowBlur: (json['shadowBlur'] is num)
           ? (json['shadowBlur'] as num).toDouble()
           : 2.0,
-      glowEnabled:
-          json['glowEnabled'] is bool ? json['glowEnabled'] as bool : true,
+      glowEnabled: json['glowEnabled'] is bool
+          ? json['glowEnabled'] as bool
+          : true,
       glowOpacity: (json['glowOpacity'] is num)
           ? (json['glowOpacity'] as num).toDouble()
           : 0.55,
-      glowBlur:
-          (json['glowBlur'] is num) ? (json['glowBlur'] as num).toDouble() : 6.0,
+      glowBlur: (json['glowBlur'] is num)
+          ? (json['glowBlur'] as num).toDouble()
+          : 6.0,
       glowWidth: (json['glowWidth'] is num)
           ? (json['glowWidth'] as num).toDouble()
           : 6.0,
-      dashEnabled:
-          json['dashEnabled'] is bool ? json['dashEnabled'] as bool : false,
+      dashEnabled: json['dashEnabled'] is bool
+          ? json['dashEnabled'] as bool
+          : false,
       dashLength: (json['dashLength'] is num)
           ? (json['dashLength'] as num).toDouble()
           : 2.0,
-      dashGap:
-          (json['dashGap'] is num) ? (json['dashGap'] as num).toDouble() : 1.0,
-      pulseEnabled:
-          json['pulseEnabled'] is bool ? json['pulseEnabled'] as bool : false,
+      dashGap: (json['dashGap'] is num)
+          ? (json['dashGap'] as num).toDouble()
+          : 1.0,
+      pulseEnabled: json['pulseEnabled'] is bool
+          ? json['pulseEnabled'] as bool
+          : false,
       pulseSpeed: (json['pulseSpeed'] is num)
           ? (json['pulseSpeed'] as num).toDouble()
           : 35.0,
       gradientEnabled: json['gradientEnabled'] is bool
           ? json['gradientEnabled'] as bool
           : false,
-      rainbowEnabled:
-          json['rainbowEnabled'] is bool ? json['rainbowEnabled'] as bool : false,
+      rainbowEnabled: json['rainbowEnabled'] is bool
+          ? json['rainbowEnabled'] as bool
+          : false,
       rainbowSaturation: (json['rainbowSaturation'] is num)
           ? (json['rainbowSaturation'] as num).toDouble()
           : 1.0,
@@ -483,7 +569,7 @@ class RouteStyleConfig {
       buildingOpacity: (json['buildingOpacity'] is num)
           ? (json['buildingOpacity'] as num).toDouble()
           : 0.60,
-        routeAlwaysOnTop: json['routeAlwaysOnTop'] is bool
+      routeAlwaysOnTop: json['routeAlwaysOnTop'] is bool
           ? json['routeAlwaysOnTop'] as bool
           : false,
     );
@@ -492,10 +578,22 @@ class RouteStyleConfig {
   }
 
   static String _colorToHexArgb(Color c) {
-    final a = ((c.a * 255).round()).clamp(0, 255).toRadixString(16).padLeft(2, '0');
-    final r = ((c.r * 255).round()).clamp(0, 255).toRadixString(16).padLeft(2, '0');
-    final g = ((c.g * 255).round()).clamp(0, 255).toRadixString(16).padLeft(2, '0');
-    final b = ((c.b * 255).round()).clamp(0, 255).toRadixString(16).padLeft(2, '0');
+    final a = ((c.a * 255).round())
+        .clamp(0, 255)
+        .toRadixString(16)
+        .padLeft(2, '0');
+    final r = ((c.r * 255).round())
+        .clamp(0, 255)
+        .toRadixString(16)
+        .padLeft(2, '0');
+    final g = ((c.g * 255).round())
+        .clamp(0, 255)
+        .toRadixString(16)
+        .padLeft(2, '0');
+    final b = ((c.b * 255).round())
+        .clamp(0, 255)
+        .toRadixString(16)
+        .padLeft(2, '0');
     return '#${a.toUpperCase()}${r.toUpperCase()}${g.toUpperCase()}${b.toUpperCase()}';
   }
 

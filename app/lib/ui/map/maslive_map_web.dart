@@ -56,6 +56,7 @@ class MasLiveMapWeb extends StatefulWidget {
 class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   static const String _poiSourceId = 'src_pois';
   static const String _poiLayerId = 'ly_pois_circle';
+  static const String _poiIconLayerId = 'ly_pois_icon_point';
   static const String _poiPreviewVertexLayerId = 'ly_pois_preview_vertices';
   static const String _poiZoneBadgeLayerId = 'ly_pois_zone_badge';
   static const String _poiZoneLabelLayerId = 'ly_pois_zone_label';
@@ -75,6 +76,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   static const String _parkingBadgeSm = 'maslive_parking_badge_sm';
   static const String _parkingBadgeMd = 'maslive_parking_badge_md';
   static const String _parkingBadgeLg = 'maslive_parking_badge_lg';
+  static const String _poiIconPointId = 'maslive_poi_icon_point';
 
   static const List<String> _parkingCarBitmap = <String>[
     '................',
@@ -619,6 +621,19 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       // ignore
     }
 
+    try {
+      final iconLayer = map.callMethod('getLayer', [_poiIconLayerId]);
+      if (iconLayer != null) {
+        map.callMethod('setLayoutProperty', [
+          _poiIconLayerId,
+          'icon-size',
+          0.55,
+        ]);
+      }
+    } catch (_) {
+      // ignore
+    }
+
     // Zones (Polygon): fill + outline
     try {
       final fillLayer = map.callMethod('getLayer', [_poiFillLayerId]);
@@ -709,6 +724,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           await _removeLayerIfExists(map, _poiFillLayerId);
           await _removeLayerIfExists(map, _poiZoneBadgeLayerId);
           await _removeLayerIfExists(map, _poiZoneLabelLayerId);
+          await _removeLayerIfExists(map, _poiIconLayerId);
           await _removeLayerIfExists(map, _poiLayerId);
           await _removeSourceIfExists(map, _poiSourceId);
           return;
@@ -959,6 +975,18 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
                   false,
                 ],
               ],
+              [
+                'any',
+                [
+                  '!',
+                  ['has', kMasLivePoiAppearanceKey],
+                ],
+                [
+                  '!=',
+                  ['get', kMasLivePoiAppearanceKey],
+                  'icon_point',
+                ],
+              ],
             ],
             'paint': {
               'circle-radius': _poiStyle.circleRadius,
@@ -1006,8 +1034,74 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
               false,
             ],
           ],
+          [
+            'any',
+            [
+              '!',
+              ['has', kMasLivePoiAppearanceKey],
+            ],
+            [
+              '!=',
+              ['get', kMasLivePoiAppearanceKey],
+              'icon_point',
+            ],
+          ],
         ]),
       ]);
+
+      final existingIcon = map.callMethod('getLayer', [_poiIconLayerId]);
+      if (existingIcon == null) {
+        map.callMethod('addLayer', [
+          js.JsObject.jsify({
+            'id': _poiIconLayerId,
+            'type': 'symbol',
+            'source': _poiSourceId,
+            'filter': [
+              'all',
+              [
+                '==',
+                ['geometry-type'],
+                'Point',
+              ],
+              [
+                '==',
+                ['get', kMasLivePoiAppearanceKey],
+                'icon_point',
+              ],
+              [
+                'any',
+                [
+                  '!',
+                  ['has', 'isZoneLabel'],
+                ],
+                [
+                  '==',
+                  ['get', 'isZoneLabel'],
+                  false,
+                ],
+              ],
+              [
+                'any',
+                [
+                  '!',
+                  ['has', 'isPreviewVertex'],
+                ],
+                [
+                  '==',
+                  ['get', 'isPreviewVertex'],
+                  false,
+                ],
+              ],
+            ],
+            'layout': {
+              'icon-image': _poiIconPointId,
+              'icon-size': 0.55,
+              'icon-allow-overlap': true,
+              'icon-ignore-placement': true,
+            },
+          }),
+        ]);
+      }
 
       // Points de prévisualisation (vertices) pour zone parking.
       // Layer séparé pour rester visible sans intercepter le hit-test POI.
@@ -1316,6 +1410,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
     try {
       final layerPoint = map.callMethod('getLayer', [_poiLayerId]);
+      final layerPointIcon = map.callMethod('getLayer', [_poiIconLayerId]);
       final layerLabel = map.callMethod('getLayer', [_poiZoneLabelLayerId]);
       final layerFill = map.callMethod('getLayer', [_poiFillLayerId]);
       final layerPattern = map.callMethod('getLayer', [_poiPatternLayerId]);
@@ -1323,6 +1418,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       final layerDashed = map.callMethod('getLayer', [_poiLineLayerDashedId]);
       final layerDotted = map.callMethod('getLayer', [_poiLineLayerDottedId]);
       if (layerPoint == null &&
+          layerPointIcon == null &&
           layerLabel == null &&
           layerFill == null &&
           layerPattern == null &&
@@ -1349,6 +1445,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             _poiLineLayerDashedId,
             _poiLineLayerId,
             _poiZoneLabelLayerId,
+            _poiIconLayerId,
             _poiLayerId,
           ],
         }),
@@ -1419,6 +1516,15 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     }
     if (!has(_parkingBadgeLg)) {
       add(_parkingBadgeLg, _buildParkingBadgeCanvas(width: 228, height: 56));
+    }
+    if (!has(_poiIconPointId)) {
+      try {
+        final img = html.ImageElement(src: 'assets/images/icon-point.webp');
+        await img.onLoad.first;
+        map.callMethod('addImage', [_poiIconPointId, img]);
+      } catch (_) {
+        // ignore
+      }
     }
   }
 

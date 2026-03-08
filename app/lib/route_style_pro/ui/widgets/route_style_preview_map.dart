@@ -96,7 +96,9 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
   void _syncTimers() {
     final cfg = widget.config;
     final needsAnim =
-        cfg.pulseEnabled || cfg.rainbowEnabled || cfg.casingRainbowEnabled;
+        cfg.pulseEnabled ||
+        cfg.rainbowEnabled ||
+        cfg.effectiveCasingRainbowEnabled;
     if (!needsAnim) {
       _animTimer?.cancel();
       _animTimer = null;
@@ -105,7 +107,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
 
     // Periodic update (throttlé)
     final periodMs =
-      ((cfg.rainbowEnabled || cfg.casingRainbowEnabled)
+        ((cfg.rainbowEnabled || cfg.effectiveCasingRainbowEnabled)
                 ? (110 - (cfg.rainbowSpeed * 0.8)).clamp(25, 110)
                 : (160 - (cfg.pulseSpeed * 1.0)).clamp(40, 160))
             .round();
@@ -207,11 +209,10 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       }
     }
 
-    final widthScale = cfg.widthScale3d;
-    final casingWidth = cfg.casingWidth * widthScale;
+    final casingWidth = cfg.effectiveRenderedCasingWidth;
     final casingWidth3d = casingWidth * cfg.casingThickness3d;
-    final glowWidth = cfg.glowWidth * widthScale;
-    final elevationPx = cfg.elevationPx;
+    final glowWidth = cfg.glowWidth * cfg.effectiveWidthScale3d;
+    final elevationPx = cfg.effectiveElevationPx;
     final thickness3d = cfg.thickness3d;
 
     // Update route source (ligne principale)
@@ -234,10 +235,10 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
 
     // Section segments (rainbow/traffic/vanishing)
     final useSegments =
-      cfg.rainbowEnabled ||
-      cfg.trafficDemoEnabled ||
-      cfg.vanishingEnabled ||
-      cfg.casingRainbowEnabled;
+        cfg.rainbowEnabled ||
+        cfg.trafficDemoEnabled ||
+        cfg.vanishingEnabled ||
+        cfg.effectiveCasingRainbowEnabled;
     final segmentsFc = useSegments
         ? _buildSegmentsFeatureCollection(
             pts,
@@ -251,7 +252,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     await _applyLineCaps(cfg);
 
     // Shadow
-    final shadowOpacity = cfg.shadowEnabled
+    final shadowOpacity = cfg.effectiveShadowEnabled
         ? (cfg.shadowOpacity * cfg.opacity).clamp(0.0, 1.0)
         : 0.0;
     final shadowBlur = cfg.shadowBlur * thickness3d;
@@ -262,8 +263,8 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     });
 
     // Glow (avec pulse optionnel)
-    double glowOpacity = cfg.glowEnabled ? cfg.glowOpacity : 0.0;
-    if (cfg.glowEnabled && cfg.pulseEnabled) {
+    double glowOpacity = cfg.effectiveGlowEnabled ? cfg.glowOpacity : 0.0;
+    if (cfg.effectiveGlowEnabled && cfg.pulseEnabled) {
       final phase = ((animTick ?? _animTick) % 60) / 60.0;
       final wave = 0.5 + 0.5 * math.sin(2 * math.pi * phase);
       glowOpacity = (0.20 + wave * (cfg.glowOpacity - 0.20)).clamp(0.0, 1.0);
@@ -276,7 +277,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     });
 
     // Casing
-    final casingOpacity = (cfg.casingWidth <= 0) ? 0.0 : cfg.opacity;
+    final casingOpacity = (cfg.effectiveCasingWidth <= 0) ? 0.0 : cfg.opacity;
     await _setLayerProps(_layerCasing, {
       'line-opacity': casingOpacity,
       'line-width': math.max(0.0, casingWidth3d),
@@ -353,16 +354,16 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       return;
     }
 
-    final widthScale = cfg.widthScale3d;
-    final mainWidth = cfg.mainWidth * widthScale;
-    final casingWidth = cfg.casingWidth * widthScale;
+    final mainWidth = cfg.effectiveRenderedMainWidth;
+    final casingWidth = cfg.effectiveRenderedCasingWidth;
     final casingWidth3d = casingWidth * cfg.casingThickness3d;
-    final glowWidth = cfg.glowWidth * widthScale;
+    final glowWidth = cfg.glowWidth * cfg.effectiveWidthScale3d;
 
     // Segments (rainbow/traffic/vanishing): FC GeoJSON avec propriétés color/width/opacity.
     final segmentsForMain =
-      cfg.rainbowEnabled || cfg.trafficDemoEnabled || cfg.vanishingEnabled;
-    final needSegmentsSource = segmentsForMain || cfg.casingRainbowEnabled;
+        cfg.rainbowEnabled || cfg.trafficDemoEnabled || cfg.vanishingEnabled;
+    final needSegmentsSource =
+        segmentsForMain || cfg.effectiveCasingRainbowEnabled;
     final segmentsGeoJson = needSegmentsSource
         ? _buildSegmentsFeatureCollection(
             widget.route,
@@ -397,8 +398,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       RouteLineCap.square => 'square',
     };
 
-    final shouldRoadLike =
-        (cfg.casingWidth > 0) || cfg.shadowEnabled || cfg.glowEnabled;
+    final shouldRoadLike = cfg.shouldRenderRoadLike;
 
     await _webController.setPolyline(
       points: [for (final p in widget.route) MapPoint(p.lng, p.lat)],
@@ -406,7 +406,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       width: mainWidth,
       show: true,
       roadLike: shouldRoadLike,
-      shadow3d: cfg.shadowEnabled,
+      shadow3d: cfg.effectiveShadowEnabled,
       showDirection: false,
       animateDirection: cfg.pulseEnabled,
       animationSpeed: (cfg.pulseSpeed / 25.0).clamp(0.5, 5.0),
@@ -416,18 +416,18 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       shadowBlur: cfg.shadowBlur,
 
       casingColor: cfg.casingColor,
-      casingWidth: cfg.casingWidth > 0 ? casingWidth3d : null,
-      casingRainbowEnabled: cfg.casingRainbowEnabled,
+      casingWidth: cfg.effectiveCasingWidth > 0 ? casingWidth3d : null,
+      casingRainbowEnabled: cfg.effectiveCasingRainbowEnabled,
 
-      glowEnabled: cfg.glowEnabled,
+      glowEnabled: cfg.effectiveGlowEnabled,
       glowColor: cfg.mainColor,
       glowWidth: glowWidth,
-      glowOpacity: cfg.glowOpacity,
+      glowOpacity: cfg.effectiveGlowEnabled ? cfg.glowOpacity : 0.0,
       glowBlur: cfg.glowBlur,
 
       thickness3d: cfg.thickness3d,
 
-      elevationPx: cfg.elevationPx,
+      elevationPx: cfg.effectiveElevationPx,
 
       routeAlwaysOnTop: cfg.routeAlwaysOnTop,
 
@@ -534,7 +534,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
   }) {
     if (pts.length < 2) return _emptyFeatureCollection();
 
-    final width = cfg.mainWidth * cfg.widthScale3d;
+    final width = cfg.effectiveRenderedMainWidth;
 
     // Limite le nombre de segments (perf)
     final maxSeg = 60;
@@ -581,7 +581,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
 
   String _buildSolidFeatureCollection(List<LatLng> pts, RouteStyleConfig cfg) {
     if (pts.length < 2) return _emptyFeatureCollection();
-    final width = cfg.mainWidth * cfg.widthScale3d;
+    final width = cfg.effectiveRenderedMainWidth;
     return _featureCollection([
       {
         'type': 'Feature',
@@ -623,7 +623,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
   }
 
   Color _segmentCasingColor(RouteStyleConfig cfg, int index, int animTick) {
-    if (!cfg.casingRainbowEnabled) return cfg.casingColor;
+    if (!cfg.effectiveCasingRainbowEnabled) return cfg.casingColor;
     final shift = (animTick % 360);
     final dir = cfg.rainbowReverse ? -1 : 1;
     final hue = (shift + dir * index * 14) % 360;

@@ -2,12 +2,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:masslive/route_style_pro/models/route_style_config.dart';
 import 'package:masslive/route_style_pro/models/route_style_preset.dart';
+import 'package:masslive/route_style_pro/services/route_style_pro_projection.dart';
 
 void main() {
   group('RouteStyleConfig', () {
     test('toJson/fromJson roundtrip (stable values)', () {
       final cfg = const RouteStyleConfig(
         carMode: true,
+        fitToRoadWidth: true,
         snapToleranceMeters: 42,
         mainWidth: 9,
         casingWidth: 0,
@@ -26,6 +28,7 @@ void main() {
 
       expect(decoded.schemaVersion, cfg.schemaVersion);
       expect(decoded.carMode, cfg.carMode);
+      expect(decoded.fitToRoadWidth, cfg.fitToRoadWidth);
       expect(decoded.snapToleranceMeters, cfg.snapToleranceMeters);
       expect(decoded.mainWidth, cfg.mainWidth);
       expect(decoded.casingWidth, cfg.casingWidth);
@@ -70,6 +73,69 @@ void main() {
       expect(cfg.dashGap, inInclusiveRange(0.5, 10.0));
       expect(cfg.simplifyPercent, inInclusiveRange(0.0, 100.0));
     });
+
+    test('car mode off disables road-like derived effects', () {
+      final cfg = const RouteStyleConfig(
+        carMode: false,
+        casingWidth: 14,
+        shadowEnabled: true,
+        glowEnabled: true,
+        sidesEnabled: true,
+        casingRainbowEnabled: true,
+        elevationPx: 10,
+      ).validated();
+
+      expect(cfg.roadEffectsEnabled, isFalse);
+      expect(cfg.shouldRenderRoadLike, isFalse);
+      expect(cfg.effectiveShadowEnabled, isFalse);
+      expect(cfg.effectiveGlowEnabled, isFalse);
+      expect(cfg.effectiveSidesEnabled, isFalse);
+      expect(cfg.effectiveCasingRainbowEnabled, isFalse);
+      expect(cfg.effectiveCasingWidth, 0.0);
+      expect(cfg.effectiveElevationPx, 0.0);
+    });
+
+    test('legacy projection follows car mode toggle', () {
+      final cfg = const RouteStyleConfig(
+        carMode: false,
+        casingWidth: 16,
+        shadowEnabled: true,
+      ).validated();
+
+      final projected = projectProToLegacyStyle(
+        cfg,
+        base: <String, dynamic>{'roadLike': true, 'showDirection': true},
+      );
+
+      expect(projected['roadLike'], isFalse);
+      expect(projected['shadow3d'], isFalse);
+      expect(projected['showDirection'], isTrue);
+    });
+
+    test(
+      'fit to road width clamps rendered width and disables overflow effects',
+      () {
+        final cfg = const RouteStyleConfig(
+          carMode: true,
+          fitToRoadWidth: true,
+          mainWidth: 18,
+          casingWidth: 20,
+          widthScale3d: 2.4,
+          glowEnabled: true,
+          shadowEnabled: true,
+          sidesEnabled: true,
+          elevationPx: 12,
+        ).validated();
+
+        expect(cfg.roadWidthModeEnabled, isTrue);
+        expect(cfg.effectiveRenderedMainWidth, lessThanOrEqualTo(4.25));
+        expect(cfg.effectiveRenderedCasingWidth, lessThanOrEqualTo(5.015));
+        expect(cfg.effectiveGlowEnabled, isFalse);
+        expect(cfg.effectiveShadowEnabled, isFalse);
+        expect(cfg.effectiveSidesEnabled, isFalse);
+        expect(cfg.effectiveElevationPx, 0.0);
+      },
+    );
   });
 
   group('RouteStylePresets', () {

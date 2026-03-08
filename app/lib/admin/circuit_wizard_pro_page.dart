@@ -1238,42 +1238,42 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   static const String _parkingZoneLabelPresetDefault = 'default';
   static const String _parkingZoneLabelPresetWideBlue =
       'wide_blue_badge_white_outline';
-  static const double _parkingZoneDefaultFillOpacity = 0.20;
-  static const double _parkingZoneDefaultStrokeWidth = 2.0;
+  static const String _parkingZoneDefaultFillHex = '#0A84FF';
+  static const String _parkingZoneDefaultStrokeHex = '#FFFFFF';
+  static const double _parkingZoneDefaultFillOpacity = 0.88;
+  static const double _parkingZoneDefaultStrokeWidth = 4.0;
   static const double _parkingZoneDefaultPatternOpacity = 0.55;
   static const double _parkingZoneDefaultColorSaturation = 1.0;
   Set<String> _parkingZoneVehicleTypes = <String>{'car', 'moto'};
-  String _parkingZoneFillColorHex = '#FBBF24';
-  String _parkingZoneStrokeColorHex = '#FBBF24';
-  bool _parkingZoneStrokeFollowsFill = true;
+  String _parkingZoneFillColorHex = _parkingZoneDefaultFillHex;
+  String _parkingZoneStrokeColorHex = _parkingZoneDefaultStrokeHex;
+  bool _parkingZoneStrokeFollowsFill = false;
   double _parkingZoneColorSaturation = _parkingZoneDefaultColorSaturation;
   double _parkingZoneFillOpacity = _parkingZoneDefaultFillOpacity;
   double _parkingZoneStrokeWidth = _parkingZoneDefaultStrokeWidth;
-  String _parkingZoneLabelPreset = _parkingZoneLabelPresetDefault;
+  String _parkingZoneLabelPreset = _parkingZoneLabelPresetWideBlue;
   String _parkingZoneStrokeDash = 'solid'; // solid|dashed|dotted
   String _parkingZonePattern = 'none'; // none|diag|cross|dots
   double _parkingZonePatternOpacity = _parkingZoneDefaultPatternOpacity;
   final TextEditingController _parkingZoneColorController =
-      TextEditingController(text: '#FBBF24');
+      TextEditingController(text: _parkingZoneDefaultFillHex);
   final TextEditingController _parkingZoneStrokeColorController =
-      TextEditingController(text: '#FBBF24');
+      TextEditingController(text: _parkingZoneDefaultStrokeHex);
 
   void _applyParkingZonePresetWhiteBlue() {
-    const fillHex = '#0A84FF';
-    const strokeHex = '#FFFFFF';
     setState(() {
-      _parkingZoneFillColorHex = fillHex;
-      _parkingZoneStrokeColorHex = strokeHex;
+      _parkingZoneFillColorHex = _parkingZoneDefaultFillHex;
+      _parkingZoneStrokeColorHex = _parkingZoneDefaultStrokeHex;
       _parkingZoneStrokeFollowsFill = false;
       _parkingZoneColorSaturation = _parkingZoneDefaultColorSaturation;
-      _parkingZoneFillOpacity = 0.88;
-      _parkingZoneStrokeWidth = 4.0;
+      _parkingZoneFillOpacity = _parkingZoneDefaultFillOpacity;
+      _parkingZoneStrokeWidth = _parkingZoneDefaultStrokeWidth;
       _parkingZoneLabelPreset = _parkingZoneLabelPresetWideBlue;
       _parkingZoneStrokeDash = 'solid';
       _parkingZonePattern = 'none';
       _parkingZonePatternOpacity = _parkingZoneDefaultPatternOpacity;
-      _parkingZoneColorController.text = fillHex;
-      _parkingZoneStrokeColorController.text = strokeHex;
+      _parkingZoneColorController.text = _parkingZoneDefaultFillHex;
+      _parkingZoneStrokeColorController.text = _parkingZoneDefaultStrokeHex;
       _poiInlineError = null;
     });
     _refreshPoiMarkers();
@@ -1786,10 +1786,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final role = ((data['role'] as String?) ?? 'creator').trim();
     final groupId = ((data['groupId'] as String?) ?? 'default').trim();
     final isAdmin = (data['isAdmin'] as bool?) ?? false;
-
     final canWrite =
         isAdmin ||
-        role == 'admin' ||
         role == 'admin_master' ||
         role == 'superAdmin' ||
         role == 'super-admin' ||
@@ -1797,20 +1795,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
     _currentUserRole = role;
     _currentGroupId = groupId;
-
-    if (mounted && canWrite != _canWriteMapProjects) {
-      setState(() => _canWriteMapProjects = canWrite);
-    } else {
-      _canWriteMapProjects = canWrite;
-    }
+    _canWriteMapProjects = canWrite;
   }
 
   Map<String, dynamic> _buildCurrentData() {
     final proCfg = _routeStyleProConfig?.validated();
 
     final routeStyle = <String, dynamic>{
-      'color': _routeColorHex,
-      'width': _routeWidth,
       'roadLike': _routeRoadLike,
       'shadow3d': _routeShadow3d,
       'showDirection': _routeShowDirection,
@@ -1825,8 +1816,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     //   (ex: Home/Default map qui lit `style.color/width/...`).
     if (proCfg != null) {
       routeStyle['color'] = _toHexRgb(proCfg.mainColor);
-      routeStyle['width'] = proCfg.mainWidth * proCfg.widthScale3d;
-      routeStyle['shadow3d'] = proCfg.shadowEnabled;
+      routeStyle['width'] = proCfg.effectiveRenderedMainWidth;
+      routeStyle['shadow3d'] = proCfg.effectiveShadowEnabled;
       routeStyle['animateDirection'] = proCfg.pulseEnabled;
       routeStyle['animationSpeed'] = (proCfg.pulseSpeed / 25.0).clamp(0.5, 5.0);
     }
@@ -2428,7 +2419,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           type: 'parking',
           isVisible: true,
           zIndex: 2,
-          color: '#FBBf24',
+          color: _parkingZoneDefaultFillHex,
         ),
         MarketMapLayer(
           id: '3',
@@ -2548,7 +2539,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             color: '#1A73E8',
             preferredZ: 1,
           ),
-          (type: 'parking', label: 'Parkings', color: '#FBBF24', preferredZ: 2),
+          (
+            type: 'parking',
+            label: 'Parkings',
+            color: _parkingZoneDefaultFillHex,
+            preferredZ: 2,
+          ),
           (type: 'wc', label: 'Toilettes', color: '#9333EA', preferredZ: 3),
           (type: 'food', label: 'Food', color: '#EF4444', preferredZ: 4),
           (
@@ -4596,7 +4592,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       child: SingleChildScrollView(
         controller: _styleProStepScrollController,
         padding: const EdgeInsets.fromLTRB(
-          MasliveTokens.s,
+          0,
           0,
           MasliveTokens.s,
           kBottomNavigationBarHeight + MasliveTokens.m,
@@ -4604,7 +4600,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildWizardScrollableHeader(padding: EdgeInsets.zero),
+            _buildWizardScrollableHeader(
+              padding: const EdgeInsets.only(left: MasliveTokens.s),
+            ),
             SizedBox(
               height: styleProViewportHeight,
               child: RouteStyleWizardProPage(
@@ -4999,7 +4997,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   isExpanded: true,
                   items: [
                     for (final p in kMasLivePoiAppearancePresets)
-                      DropdownMenuItem(value: p.id, child: Text(p.label)),
+                      DropdownMenuItem(
+                        value: p.id,
+                        child: buildMasLivePoiAppearanceMenuItem(p),
+                      ),
                   ],
                   onChanged: (v) {
                     if (v == null) return;
@@ -5443,11 +5444,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   void _openPoiCreateZoneSection({required List<LngLat> perimeterPoints}) {
     _poiSelection.clear();
 
-    final defaultHex =
-        _normalizeColorHex(_selectedLayer?.color) ??
-        _defaultLayerColorHex('parking') ??
-        _parkingZoneFillColorHex;
-
     setState(() {
       _poiInlineEditorMode = _PoiInlineEditorMode.createZone;
       _poiEditingPoi = null;
@@ -5455,19 +5451,18 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       _poiInlineNameController.text = '';
       _parkingZoneVehicleTypes = <String>{'car', 'moto'};
 
-      _parkingZoneFillColorHex = defaultHex;
-      _parkingZoneStrokeColorHex = defaultHex;
-      _parkingZoneStrokeFollowsFill = true;
+      _parkingZoneFillColorHex = _parkingZoneDefaultFillHex;
+      _parkingZoneStrokeColorHex = _parkingZoneDefaultStrokeHex;
+      _parkingZoneStrokeFollowsFill = false;
       _parkingZoneColorSaturation = _parkingZoneDefaultColorSaturation;
       _parkingZoneFillOpacity = _parkingZoneDefaultFillOpacity;
       _parkingZoneStrokeWidth = _parkingZoneDefaultStrokeWidth;
-      _parkingZoneLabelPreset = _parkingZoneLabelPresetDefault;
+      _parkingZoneLabelPreset = _parkingZoneLabelPresetWideBlue;
       _parkingZoneStrokeDash = 'solid';
       _parkingZonePattern = 'none';
       _parkingZonePatternOpacity = _parkingZoneDefaultPatternOpacity;
-      _parkingZoneColorController.text = defaultHex;
-      _parkingZoneStrokeColorHex = defaultHex;
-      _parkingZoneStrokeColorController.text = defaultHex;
+      _parkingZoneColorController.text = _parkingZoneDefaultFillHex;
+      _parkingZoneStrokeColorController.text = _parkingZoneDefaultStrokeHex;
 
       // Pour une zone, lat/lng servent de centre (centroid approx.)
       final centroid = _centroidOf(perimeterPoints);
@@ -5636,7 +5631,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         mounted &&
         _currentStep == _poiStepIndex &&
         cfg != null &&
-        (cfg.rainbowEnabled || cfg.casingRainbowEnabled);
+        (cfg.rainbowEnabled || cfg.effectiveCasingRainbowEnabled);
 
     if (!needsAnim) {
       _poiRouteStyleProTimer?.cancel();
@@ -5694,16 +5689,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           );
         }
 
-        final widthScale = cfg.widthScale3d;
-        final mainWidth = cfg.mainWidth * widthScale;
-        final casingWidth = cfg.casingWidth * widthScale;
-        final glowWidth = cfg.glowWidth * widthScale;
+        final mainWidth = cfg.effectiveRenderedMainWidth;
+        final casingWidth = cfg.effectiveRenderedCasingWidth;
+        final glowWidth = cfg.glowWidth * cfg.effectiveWidthScale3d;
 
         final segmentsForMain =
             cfg.rainbowEnabled ||
             cfg.trafficDemoEnabled ||
             cfg.vanishingEnabled;
-        final needSegmentsSource = segmentsForMain || cfg.casingRainbowEnabled;
+        final needSegmentsSource =
+            segmentsForMain || cfg.effectiveCasingRainbowEnabled;
         final segmentsGeoJson = needSegmentsSource
             ? _buildRouteStyleProSegmentsGeoJson(
                 route,
@@ -5712,8 +5707,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               )
             : null;
 
-        final shouldRoadLike =
-            (cfg.casingWidth > 0) || cfg.shadowEnabled || cfg.glowEnabled;
+        final shouldRoadLike = cfg.shouldRenderRoadLike;
 
         await _poiMapController.setPolyline(
           points: mapPoints,
@@ -5721,7 +5715,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           width: mainWidth,
           show: true,
           roadLike: shouldRoadLike,
-          shadow3d: cfg.shadowEnabled,
+          shadow3d: cfg.effectiveShadowEnabled,
           shadowOpacity: cfg.shadowOpacity,
           shadowBlur: cfg.shadowBlur,
           showDirection: false,
@@ -5730,18 +5724,18 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
           opacity: cfg.opacity,
           casingColor: cfg.casingColor,
-          casingWidth: cfg.casingWidth > 0 ? casingWidth : null,
-          casingRainbowEnabled: cfg.casingRainbowEnabled,
+          casingWidth: cfg.effectiveCasingWidth > 0 ? casingWidth : null,
+          casingRainbowEnabled: cfg.effectiveCasingRainbowEnabled,
 
-          glowEnabled: cfg.glowEnabled,
+          glowEnabled: cfg.effectiveGlowEnabled,
           glowColor: cfg.mainColor,
           glowWidth: glowWidth,
-          glowOpacity: cfg.glowOpacity,
+          glowOpacity: cfg.effectiveGlowEnabled ? cfg.glowOpacity : 0.0,
           glowBlur: cfg.glowBlur,
 
           thickness3d: cfg.thickness3d,
-          elevationPx: cfg.elevationPx,
-          sidesEnabled: cfg.sidesEnabled,
+          elevationPx: cfg.effectiveElevationPx,
+          sidesEnabled: cfg.effectiveSidesEnabled,
           sidesIntensity: cfg.sidesIntensity,
 
           dashArray: cfg.dashEnabled
@@ -5787,7 +5781,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }) {
     if (pts.length < 2) return _emptyFeatureCollection();
 
-    final width = cfg.mainWidth * cfg.widthScale3d;
+    final width = cfg.effectiveRenderedMainWidth;
 
     // Limite le nombre de segments (perf)
     const maxSeg = 60;
@@ -5861,7 +5855,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     int index,
     int animTick,
   ) {
-    if (!cfg.casingRainbowEnabled) return cfg.casingColor;
+    if (!cfg.effectiveCasingRainbowEnabled) return cfg.casingColor;
     final shift = (animTick % 360);
     final dir = cfg.rainbowReverse ? -1 : 1;
     final hue = (shift + dir * index * 14) % 360;
@@ -5976,11 +5970,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final styleRaw = meta?[_parkingZoneStyleKey];
     final style = (styleRaw is Map) ? styleRaw.cast<String, dynamic>() : null;
 
-    final layerHex = _defaultLayerColorHex(poi.layerType) ?? '#FBBF24';
+    final layerHex =
+        _defaultLayerColorHex(poi.layerType) ?? _parkingZoneDefaultFillHex;
+    final labelPreset = _parkingZoneLabelPresetFromStyle(style);
     final fillColor =
         _normalizeColorHex(style?['fillColor']?.toString()) ?? layerHex;
     final strokeColor =
-        _normalizeColorHex(style?['strokeColor']?.toString()) ?? fillColor;
+        _normalizeColorHex(style?['strokeColor']?.toString()) ??
+        (labelPreset == _parkingZoneLabelPresetWideBlue
+            ? _parkingZoneDefaultStrokeHex
+            : fillColor);
     final colorSaturation =
         (style?['colorSaturation'] as num?)?.toDouble() ??
         _parkingZoneDefaultColorSaturation;
@@ -6013,6 +6012,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       'strokeDash': dash,
       'pattern': pattern,
       'patternOpacity': patternOpacity.clamp(0.0, 1.0),
+      _parkingZoneLabelPresetKey: labelPreset,
     };
   }
 
@@ -6025,12 +6025,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     return <String, dynamic>{
       ...raw,
       'fillColor': _applyParkingColorSaturationToHex(
-        raw['fillColor'] as String? ?? '#FBBF24',
+        raw['fillColor'] as String? ?? _parkingZoneDefaultFillHex,
         colorSaturation,
       ),
       'strokeColor': _applyParkingColorSaturationToHex(
         raw['strokeColor'] as String? ??
-            (raw['fillColor'] as String? ?? '#FBBF24'),
+            (raw['fillColor'] as String? ?? _parkingZoneDefaultFillHex),
         colorSaturation,
       ),
     };
@@ -6158,9 +6158,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         previewParkingZonePoints.isNotEmpty) {
       final previewBaseFill =
           _normalizeColorHex(_parkingZoneFillColorHex) ??
-          _normalizeColorHex(_selectedLayer?.color) ??
-          _defaultLayerColorHex('parking') ??
-          '#FBBF24';
+          _parkingZoneDefaultFillHex;
       final previewBaseStroke = _parkingZoneStrokeFollowsFill
           ? previewBaseFill
           : (_normalizeColorHex(_parkingZoneStrokeColorHex) ?? previewBaseFill);
@@ -6227,9 +6225,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
       final previewBaseFill =
           _normalizeColorHex(_parkingZoneFillColorHex) ??
-          _normalizeColorHex(_selectedLayer?.color) ??
-          _defaultLayerColorHex('parking') ??
-          '#FBBF24';
+          _parkingZoneDefaultFillHex;
       final previewFill = _applyParkingColorSaturationToHex(
         previewBaseFill,
         _parkingZoneColorSaturation,
@@ -6422,27 +6418,24 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     _poiSelection.clear();
     _closePoiInlineEditor(keepSelection: false);
 
-    final defaultHex =
-        _normalizeColorHex(_selectedLayer?.color) ??
-        _defaultLayerColorHex('parking') ??
-        _parkingZoneFillColorHex;
     setState(() {
       _isDrawingParkingZone = true;
       _isEditingParkingZonePerimeter = false;
       _parkingZonePoints = <LngLat>[];
       _parkingZoneVehicleTypes = <String>{'car', 'moto'};
 
-      _parkingZoneFillColorHex = defaultHex;
+      _parkingZoneFillColorHex = _parkingZoneDefaultFillHex;
       _parkingZoneColorSaturation = _parkingZoneDefaultColorSaturation;
       _parkingZoneFillOpacity = _parkingZoneDefaultFillOpacity;
       _parkingZoneStrokeWidth = _parkingZoneDefaultStrokeWidth;
+      _parkingZoneLabelPreset = _parkingZoneLabelPresetWideBlue;
       _parkingZoneStrokeDash = 'solid';
       _parkingZonePattern = 'none';
       _parkingZonePatternOpacity = _parkingZoneDefaultPatternOpacity;
-      _parkingZoneColorController.text = defaultHex;
-      _parkingZoneStrokeColorHex = defaultHex;
-      _parkingZoneStrokeFollowsFill = true;
-      _parkingZoneStrokeColorController.text = defaultHex;
+      _parkingZoneColorController.text = _parkingZoneDefaultFillHex;
+      _parkingZoneStrokeColorHex = _parkingZoneDefaultStrokeHex;
+      _parkingZoneStrokeFollowsFill = false;
+      _parkingZoneStrokeColorController.text = _parkingZoneDefaultStrokeHex;
     });
     _refreshPoiMarkers();
   }
@@ -6524,7 +6517,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       if (fillHex == null) {
         setState(
           () => _poiInlineError =
-              'Couleur invalide (attendu: #RRGGBB, ex: #FBBF24).',
+              'Couleur invalide (attendu: #RRGGBB, ex: $_parkingZoneDefaultFillHex).',
         );
         return;
       }
@@ -6608,7 +6601,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         if (fillHex == null) {
           setState(
             () => _poiInlineError =
-                'Couleur invalide (attendu: #RRGGBB, ex: #FBBF24).',
+                'Couleur invalide (attendu: #RRGGBB, ex: $_parkingZoneDefaultFillHex).',
           );
           return;
         }
@@ -6874,7 +6867,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     _refreshPoiMarkers();
                   },
                   decoration: const InputDecoration(
-                    labelText: 'Couleur fond (hex, ex: #FBBF24)',
+                    labelText: 'Couleur fond (hex, ex: #0A84FF)',
                     border: OutlineInputBorder(),
                   ),
                 ),
