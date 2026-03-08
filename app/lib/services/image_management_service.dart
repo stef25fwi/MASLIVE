@@ -80,10 +80,20 @@ class ImageManagementService {
     );
 
     // 6. Sauvegarder dans Firestore
-    await _firestore
-        .collection(_collectionName)
-        .doc(imageId)
-        .set(imageAsset.toMap());
+    try {
+      await _firestore
+          .collection(_collectionName)
+          .doc(imageId)
+          .set(imageAsset.toMap());
+    } on FirebaseException catch (e) {
+      // Le fichier est deja uploadé sur Storage. Si la collection technique
+      // image_assets est protégée par des règles plus strictes, on ne bloque
+      // pas le flux POI: l'URL Storage reste utilisable pour la fiche.
+      if (e.code != 'permission-denied') rethrow;
+      developer.log(
+        '⚠️ [ImageManagement] image_assets refusé, upload Storage conservé: $imageId (${e.code})',
+      );
+    }
 
     developer.log('✅ [ImageManagement] Image uploadée: $imageId');
     onProgress?.call(1.0);

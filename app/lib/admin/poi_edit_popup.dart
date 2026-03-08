@@ -13,6 +13,7 @@ import '../services/poi_popup_service.dart';
 import '../services/webp_converter.dart';
 import '../ui/map/maslive_poi_style.dart';
 import '../ui/snack/top_snack_bar.dart';
+import '../ui_kit/tokens/maslive_tokens.dart';
 
 class PoiEditPopup extends StatefulWidget {
   final MarketMapPOI poi;
@@ -911,18 +912,72 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
   Widget build(BuildContext context) {
     final viewInsets = MediaQuery.viewInsetsOf(context);
     final canUpload = _poiImagesParentId() != null;
-
-    return SingleChildScrollView(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 14,
-        bottom: 16 + viewInsets.bottom,
+    final baseTheme = Theme.of(context);
+    final popupTheme = baseTheme.copyWith(
+      inputDecorationTheme: baseTheme.inputDecorationTheme.copyWith(
+        filled: true,
+        fillColor: Colors.white.withValues(alpha: 0.96),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(MasliveTokens.rM),
+          borderSide: BorderSide(color: MasliveTokens.borderSoft),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(MasliveTokens.rM),
+          borderSide: BorderSide(color: MasliveTokens.borderSoft),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(MasliveTokens.rM),
+          borderSide: const BorderSide(color: MasliveTokens.primary, width: 1.4),
+        ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return Colors.white;
+          return Colors.white.withValues(alpha: 0.92);
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return MasliveTokens.primary.withValues(alpha: 0.78);
+          }
+          return Colors.black.withValues(alpha: 0.14);
+        }),
+      ),
+    );
+
+    return Theme(
+      data: popupTheme,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(color: MasliveTokens.bg),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 14,
+            bottom: 16 + viewInsets.bottom,
+          ),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.82),
+              borderRadius: BorderRadius.circular(MasliveTokens.rXL),
+              border: Border.all(color: MasliveTokens.borderSoft),
+              boxShadow: [
+                BoxShadow(
+                  color: MasliveTokens.shadow,
+                  blurRadius: 22,
+                  offset: const Offset(0, 12),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(MasliveTokens.m),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
           Row(
             children: [
               const Expanded(
@@ -1105,6 +1160,10 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
           const SizedBox(height: 12),
           FilledButton.tonalIcon(
             onPressed: (!canUpload || _isSaving || _isConverting) ? null : _showSourcePicker,
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: MasliveTokens.text,
+            ),
             icon: const Icon(Icons.add_a_photo_rounded),
             label: Text(
               (_selectedFile != null) ? 'Changer la photo' : 'Ajouter une photo',
@@ -1150,6 +1209,10 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
               onPressed: (!canUpload || _isSaving || _isUploading || _isConverting)
                   ? null
                   : _uploadSelectedImageIfNeeded,
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: MasliveTokens.text,
+              ),
               icon: const Icon(Icons.cloud_upload_rounded),
               label: const Text('Uploader'),
             ),
@@ -1225,11 +1288,19 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
 
           const SizedBox(height: 8),
           FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: MasliveTokens.primary,
+              foregroundColor: Colors.white,
+            ),
             onPressed: (_isSaving || _isUploading || _isConverting) ? null : _save,
             child: Text(_isSaving ? 'Enregistrement…' : 'Enregistrer'),
           ),
           const SizedBox(height: 8),
-        ],
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
