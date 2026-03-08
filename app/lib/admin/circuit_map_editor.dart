@@ -130,6 +130,10 @@ class CircuitMapEditor extends StatefulWidget {
   /// Permet au parent de piloter le scroll de l'éditeur (rail latéral, etc.).
   final ScrollController? externalScrollController;
 
+  /// Contenu optionnel affiché au-dessus de la carte dans le flux scrollable.
+  /// Utilisé par le wizard pour inclure son bandeau et ses outils dans la page.
+  final Widget? topContent;
+
   /// Périmètre (polygon) affiché en surcouche, même en mode polyline.
   /// Typiquement: afficher le périmètre défini à l'étape précédente.
   final List<LngLat> perimeterOverlay;
@@ -214,6 +218,7 @@ class CircuitMapEditor extends StatefulWidget {
     this.allowVerticalScroll = false,
     this.mapHeight,
     this.externalScrollController,
+    this.topContent,
 
     this.polylineColor = const Color(0xFF0A84FF),
     this.polylineWidth = 4.0,
@@ -1005,6 +1010,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
               : null,
           child: Column(
             children: [
+              if (widget.topContent != null) widget.topContent!,
               if (widget.showHeader) header,
               if (_showToolbar && widget.showToolbar) toolbar,
               SizedBox(
@@ -1018,13 +1024,15 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                   onPointerUp: (_) {
                     if (!mounted) return;
                     setState(
-                      () => _mapPointerCount = math.max(0, _mapPointerCount - 1),
+                      () =>
+                          _mapPointerCount = math.max(0, _mapPointerCount - 1),
                     );
                   },
                   onPointerCancel: (_) {
                     if (!mounted) return;
                     setState(
-                      () => _mapPointerCount = math.max(0, _mapPointerCount - 1),
+                      () =>
+                          _mapPointerCount = math.max(0, _mapPointerCount - 1),
                     );
                   },
                   child: _buildMap(),

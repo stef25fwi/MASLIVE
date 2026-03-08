@@ -16,6 +16,10 @@ service firebase.storage {
       return hasUserDoc() && (
         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin == true
         || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin_master'
+        || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'superAdmin'
+        || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'super-admin'
+        || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'superadmin'
       );
     }
 

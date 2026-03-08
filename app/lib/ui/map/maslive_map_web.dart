@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:js_interop';
+import 'dart:math' as math;
 // ignore: deprecated_member_use
 import 'dart:html' as html;
 // ignore: deprecated_member_use
@@ -56,6 +57,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   static const String _poiSourceId = 'src_pois';
   static const String _poiLayerId = 'ly_pois_circle';
   static const String _poiPreviewVertexLayerId = 'ly_pois_preview_vertices';
+  static const String _poiZoneBadgeLayerId = 'ly_pois_zone_badge';
   static const String _poiZoneLabelLayerId = 'ly_pois_zone_label';
   static const String _poiFillLayerId = 'ly_pois_fill';
   static const String _poiPatternLayerId = 'ly_pois_pattern';
@@ -70,6 +72,9 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   static const String _parkingIconCar = 'maslive_parking_car';
   static const String _parkingIconMoto = 'maslive_parking_moto';
   static const String _parkingIconBoth = 'maslive_parking_both';
+  static const String _parkingBadgeSm = 'maslive_parking_badge_sm';
+  static const String _parkingBadgeMd = 'maslive_parking_badge_md';
+  static const String _parkingBadgeLg = 'maslive_parking_badge_lg';
 
   static const List<String> _parkingCarBitmap = <String>[
     '................',
@@ -702,6 +707,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           await _removeLayerIfExists(map, _poiLineLayerId);
           await _removeLayerIfExists(map, _poiPatternLayerId);
           await _removeLayerIfExists(map, _poiFillLayerId);
+          await _removeLayerIfExists(map, _poiZoneBadgeLayerId);
           await _removeLayerIfExists(map, _poiZoneLabelLayerId);
           await _removeLayerIfExists(map, _poiLayerId);
           await _removeSourceIfExists(map, _poiSourceId);
@@ -1091,7 +1097,38 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         ]),
       ]);
 
-      // Labels de zones parking ("P") : symbol layer, taille dépendante du zoom.
+      final badgeExisting = map.callMethod('getLayer', [_poiZoneBadgeLayerId]);
+      if (badgeExisting == null) {
+        map.callMethod('addLayer', [
+          js.JsObject.jsify({
+            'id': _poiZoneBadgeLayerId,
+            'type': 'symbol',
+            'source': _poiSourceId,
+            'filter': [
+              'all',
+              [
+                '==',
+                ['geometry-type'],
+                'Point',
+              ],
+              [
+                '==',
+                ['get', 'isZoneLabel'],
+                true,
+              ],
+              ['has', 'parkingBadgeId'],
+            ],
+            'layout': {
+              'icon-image': ['get', 'parkingBadgeId'],
+              'icon-size': 1.0,
+              'icon-allow-overlap': true,
+              'icon-ignore-placement': true,
+            },
+          }),
+        ]);
+      }
+
+      // Labels de zones parking: badge optionnel + pictogrammes + texte.
       final labelExisting = map.callMethod('getLayer', [_poiZoneLabelLayerId]);
       if (labelExisting == null) {
         map.callMethod('addLayer', [
@@ -1119,15 +1156,9 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
                 _parkingIconBoth,
               ],
               'icon-size': [
-                'interpolate',
-                ['linear'],
-                ['zoom'],
-                10,
-                0.85,
-                14,
+                'coalesce',
+                ['get', 'parkingIconScale'],
                 1.0,
-                18,
-                1.15,
               ],
               'icon-allow-overlap': true,
               'icon-ignore-placement': true,
@@ -1137,28 +1168,63 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
                 'PARKING',
               ],
               'text-size': [
-                'interpolate',
-                ['linear'],
-                ['zoom'],
-                10,
-                12,
-                14,
+                'coalesce',
+                ['get', 'labelTextSize'],
                 16,
-                18,
-                22,
               ],
-              'text-anchor': 'top',
-              'text-offset': [0, 1.45],
+              'text-anchor': [
+                'case',
+                ['has', 'parkingBadgeId'],
+                'center',
+                'top',
+              ],
+              'text-offset': [
+                'case',
+                ['has', 'parkingBadgeId'],
+                [
+                  'literal',
+                  [0, 0],
+                ],
+                [
+                  'literal',
+                  [0, 1.45],
+                ],
+              ],
+              'text-font': [
+                'literal',
+                ['Open Sans Bold', 'Arial Unicode MS Bold'],
+              ],
+              'text-letter-spacing': 0.04,
               'text-allow-overlap': true,
               'text-ignore-placement': true,
             },
-            'paint': {
-              'text-color': '#FFFFFF',
-            },
+            'paint': {'text-color': '#FFFFFF'},
           }),
         ]);
       }
 
+      map.callMethod('setFilter', [
+        _poiZoneBadgeLayerId,
+        js.JsObject.jsify([
+          'all',
+          [
+            '==',
+            ['geometry-type'],
+            'Point',
+          ],
+          [
+            '==',
+            ['get', 'isZoneLabel'],
+            true,
+          ],
+          ['has', 'parkingBadgeId'],
+        ]),
+      ]);
+      map.callMethod('setLayoutProperty', [
+        _poiZoneBadgeLayerId,
+        'icon-image',
+        js.JsObject.jsify(['get', 'parkingBadgeId']),
+      ]);
       map.callMethod('setFilter', [
         _poiZoneLabelLayerId,
         js.JsObject.jsify([
@@ -1186,6 +1252,15 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       ]);
       map.callMethod('setLayoutProperty', [
         _poiZoneLabelLayerId,
+        'icon-size',
+        js.JsObject.jsify([
+          'coalesce',
+          ['get', 'parkingIconScale'],
+          1.0,
+        ]),
+      ]);
+      map.callMethod('setLayoutProperty', [
+        _poiZoneLabelLayerId,
         'text-field',
         js.JsObject.jsify([
           'coalesce',
@@ -1195,8 +1270,38 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       ]);
       map.callMethod('setLayoutProperty', [
         _poiZoneLabelLayerId,
+        'text-size',
+        js.JsObject.jsify([
+          'coalesce',
+          ['get', 'labelTextSize'],
+          16,
+        ]),
+      ]);
+      map.callMethod('setLayoutProperty', [
+        _poiZoneLabelLayerId,
+        'text-anchor',
+        js.JsObject.jsify([
+          'case',
+          ['has', 'parkingBadgeId'],
+          'center',
+          'top',
+        ]),
+      ]);
+      map.callMethod('setLayoutProperty', [
+        _poiZoneLabelLayerId,
         'text-offset',
-        js.JsObject.jsify([0, 1.45]),
+        js.JsObject.jsify([
+          'case',
+          ['has', 'parkingBadgeId'],
+          [
+            'literal',
+            [0, 0],
+          ],
+          [
+            'literal',
+            [0, 1.45],
+          ],
+        ]),
       ]);
     } catch (_) {
       // ignore
@@ -1306,6 +1411,51 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         ]),
       );
     }
+    if (!has(_parkingBadgeSm)) {
+      add(_parkingBadgeSm, _buildParkingBadgeCanvas(width: 152, height: 42));
+    }
+    if (!has(_parkingBadgeMd)) {
+      add(_parkingBadgeMd, _buildParkingBadgeCanvas(width: 188, height: 48));
+    }
+    if (!has(_parkingBadgeLg)) {
+      add(_parkingBadgeLg, _buildParkingBadgeCanvas(width: 228, height: 56));
+    }
+  }
+
+  html.CanvasElement _buildParkingBadgeCanvas({
+    required int width,
+    required int height,
+  }) {
+    final c = html.CanvasElement(width: width, height: height);
+    final ctx = c.context2D;
+    final radius = height / 2;
+
+    void roundedRect(num inset, String color) {
+      final x = inset.toDouble();
+      final y = inset.toDouble();
+      final w = width - (inset * 2);
+      final h = height - (inset * 2);
+      final r = math.max(0.0, radius - inset);
+      ctx
+        ..beginPath()
+        ..moveTo(x + r, y)
+        ..lineTo(x + w - r, y)
+        ..quadraticCurveTo(x + w, y, x + w, y + r)
+        ..lineTo(x + w, y + h - r)
+        ..quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+        ..lineTo(x + r, y + h)
+        ..quadraticCurveTo(x, y + h, x, y + h - r)
+        ..lineTo(x, y + r)
+        ..quadraticCurveTo(x, y, x + r, y)
+        ..closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+
+    ctx.clearRect(0, 0, width.toDouble(), height.toDouble());
+    roundedRect(0, '#FFFFFF');
+    roundedRect(4, '#0A84FF');
+    return c;
   }
 
   html.CanvasElement _buildParkingBitmapCanvas(List<String> bitmap) {

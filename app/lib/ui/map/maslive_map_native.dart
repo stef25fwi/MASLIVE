@@ -49,6 +49,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   static const String _poiSourceId = 'src_pois';
   static const String _poiLayerId = 'ly_pois_circle';
   static const String _poiPreviewVertexLayerId = 'ly_pois_preview_vertices';
+  static const String _poiZoneBadgeLayerId = 'ly_pois_zone_badge';
   static const String _poiZoneLabelLayerId = 'ly_pois_zone_label';
   static const String _poiFillLayerId = 'ly_pois_fill';
   static const String _poiPatternLayerId = 'ly_pois_pattern';
@@ -62,6 +63,9 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   static const String _parkingIconCar = 'maslive_parking_car';
   static const String _parkingIconMoto = 'maslive_parking_moto';
   static const String _parkingIconBoth = 'maslive_parking_both';
+  static const String _parkingBadgeSm = 'maslive_parking_badge_sm';
+  static const String _parkingBadgeMd = 'maslive_parking_badge_md';
+  static const String _parkingBadgeLg = 'maslive_parking_badge_lg';
 
   static const List<String> _parkingCarBitmap = <String>[
     '................',
@@ -708,14 +712,14 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       _poiStyle.circleStrokeWidth,
       (s) => s.circleStrokeWidth,
     );
-    final circleColorExpr = matchAppearanceExpr<dynamic>(
-      ['to-color', defaultFillHex],
-      (s) => ['to-color', cssHex(s.circleColor)],
-    );
-    final circleStrokeColorExpr = matchAppearanceExpr<dynamic>(
-      ['to-color', defaultStrokeHex],
-      (s) => ['to-color', cssHex(s.circleStrokeColor)],
-    );
+    final circleColorExpr = matchAppearanceExpr<dynamic>([
+      'to-color',
+      defaultFillHex,
+    ], (s) => ['to-color', cssHex(s.circleColor)]);
+    final circleStrokeColorExpr = matchAppearanceExpr<dynamic>([
+      'to-color',
+      defaultStrokeHex,
+    ], (s) => ['to-color', cssHex(s.circleStrokeColor)]);
 
     final fillColorExpr = <dynamic>[
       'coalesce',
@@ -843,6 +847,11 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     }
     try {
       await map.style.removeStyleLayer(_poiPreviewVertexLayerId);
+    } catch (_) {
+      // ignore
+    }
+    try {
+      await map.style.removeStyleLayer(_poiZoneBadgeLayerId);
     } catch (_) {
       // ignore
     }
@@ -1232,13 +1241,53 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       // ignore
     }
 
-    // Labels de zones parking: pictogramme + texte, taille dépendante du zoom.
+    // Badge de fond pour le preset parking blanc/bleu.
     try {
       await map.style.addLayer(
-        SymbolLayer(
-          id: _poiZoneLabelLayerId,
-          sourceId: _poiSourceId,
-        ),
+        SymbolLayer(id: _poiZoneBadgeLayerId, sourceId: _poiSourceId),
+      );
+      await map.style.setStyleLayerProperty(_poiZoneBadgeLayerId, 'filter', [
+        'all',
+        [
+          '==',
+          ['geometry-type'],
+          'Point',
+        ],
+        [
+          '==',
+          ['get', 'isZoneLabel'],
+          true,
+        ],
+        ['has', 'parkingBadgeId'],
+      ]);
+      await map.style.setStyleLayerProperty(
+        _poiZoneBadgeLayerId,
+        'icon-image',
+        ['get', 'parkingBadgeId'],
+      );
+      await map.style.setStyleLayerProperty(
+        _poiZoneBadgeLayerId,
+        'icon-size',
+        1.0,
+      );
+      await map.style.setStyleLayerProperty(
+        _poiZoneBadgeLayerId,
+        'icon-allow-overlap',
+        true,
+      );
+      await map.style.setStyleLayerProperty(
+        _poiZoneBadgeLayerId,
+        'icon-ignore-placement',
+        true,
+      );
+    } catch (_) {
+      // ignore
+    }
+
+    // Labels de zones parking: badge optionnel + pictogramme + texte.
+    try {
+      await map.style.addLayer(
+        SymbolLayer(id: _poiZoneLabelLayerId, sourceId: _poiSourceId),
       );
       await map.style.setStyleLayerProperty(_poiZoneLabelLayerId, 'filter', [
         'all',
@@ -1262,21 +1311,11 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
           _parkingIconBoth,
         ],
       );
-      await map.style.setStyleLayerProperty(
-        _poiZoneLabelLayerId,
-        'icon-size',
-        [
-          'interpolate',
-          ['linear'],
-          ['zoom'],
-          10,
-          0.85,
-          14,
-          1.0,
-          18,
-          1.15,
-        ],
-      );
+      await map.style.setStyleLayerProperty(_poiZoneLabelLayerId, 'icon-size', [
+        'coalesce',
+        ['get', 'parkingIconScale'],
+        1.0,
+      ]);
       await map.style.setStyleLayerProperty(
         _poiZoneLabelLayerId,
         'icon-allow-overlap',
@@ -1296,30 +1335,45 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
           'PARKING',
         ],
       );
+      await map.style.setStyleLayerProperty(_poiZoneLabelLayerId, 'text-size', [
+        'coalesce',
+        ['get', 'labelTextSize'],
+        16,
+      ]);
       await map.style.setStyleLayerProperty(
         _poiZoneLabelLayerId,
-        'text-size',
+        'text-anchor',
         [
-          'interpolate',
-          ['linear'],
-          ['zoom'],
-          10,
-          12,
-          14,
-          16,
-          18,
-          22,
+          'case',
+          ['has', 'parkingBadgeId'],
+          'center',
+          'top',
         ],
       );
       await map.style.setStyleLayerProperty(
         _poiZoneLabelLayerId,
-        'text-anchor',
-        'top',
+        'text-offset',
+        [
+          'case',
+          ['has', 'parkingBadgeId'],
+          [
+            'literal',
+            [0, 0],
+          ],
+          [
+            'literal',
+            [0, 1.45],
+          ],
+        ],
       );
+      await map.style.setStyleLayerProperty(_poiZoneLabelLayerId, 'text-font', [
+        'literal',
+        ['DIN Offc Pro Bold', 'Arial Unicode MS Bold'],
+      ]);
       await map.style.setStyleLayerProperty(
         _poiZoneLabelLayerId,
-        'text-offset',
-        [0, 1.45],
+        'text-letter-spacing',
+        0.04,
       );
       await map.style.setStyleLayerProperty(
         _poiZoneLabelLayerId,
@@ -1701,10 +1755,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       await add(_patCross, _buildPatternCrossImage());
       await add(_patDots, _buildPatternDotsImage());
       await add(_parkingIconCar, _buildParkingBitmapImage(_parkingCarBitmap));
-      await add(
-        _parkingIconMoto,
-        _buildParkingBitmapImage(_parkingMotoBitmap),
-      );
+      await add(_parkingIconMoto, _buildParkingBitmapImage(_parkingMotoBitmap));
       await add(
         _parkingIconBoth,
         _buildParkingBitmapImage([
@@ -1712,10 +1763,64 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
             '${_parkingCarBitmap[i]}..${_parkingMotoBitmap[i]}',
         ]),
       );
+      await add(
+        _parkingBadgeSm,
+        _buildParkingBadgeImage(width: 152, height: 42),
+      );
+      await add(
+        _parkingBadgeMd,
+        _buildParkingBadgeImage(width: 188, height: 48),
+      );
+      await add(
+        _parkingBadgeLg,
+        _buildParkingBadgeImage(width: 228, height: 56),
+      );
       _patternImagesReady = true;
     } catch (_) {
       // ignore
     }
+  }
+
+  MbxImage _buildParkingBadgeImage({required int width, required int height}) {
+    final data = Uint8List(width * height * 4);
+
+    void setPx(int x, int y, int r, int g, int b, int a) {
+      final idx = (y * width + x) * 4;
+      data[idx] = r;
+      data[idx + 1] = g;
+      data[idx + 2] = b;
+      data[idx + 3] = a;
+    }
+
+    bool insideRoundedRect(int x, int y, int inset) {
+      final left = inset;
+      final top = inset;
+      final right = width - inset - 1;
+      final bottom = height - inset - 1;
+      final radius = (height / 2 - inset).floor();
+      if (x < left || x > right || y < top || y > bottom) return false;
+      if (x >= left + radius && x <= right - radius) return true;
+      if (y >= top + radius && y <= bottom - radius) return true;
+
+      final cx = x < left + radius ? left + radius : right - radius;
+      final cy = y < top + radius ? top + radius : bottom - radius;
+      final dx = x - cx;
+      final dy = y - cy;
+      return dx * dx + dy * dy <= radius * radius;
+    }
+
+    for (var y = 0; y < height; y++) {
+      for (var x = 0; x < width; x++) {
+        if (insideRoundedRect(x, y, 0)) {
+          setPx(x, y, 255, 255, 255, 255);
+        }
+        if (insideRoundedRect(x, y, 4)) {
+          setPx(x, y, 10, 132, 255, 255);
+        }
+      }
+    }
+
+    return MbxImage(width: width, height: height, data: data);
   }
 
   MbxImage _buildParkingBitmapImage(List<String> bitmap) {
@@ -1738,14 +1843,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         final on = row[x] == '#';
         for (var dy = 0; dy < scale; dy++) {
           for (var dx = 0; dx < scale; dx++) {
-            setPx(
-              x * scale + dx,
-              y * scale + dy,
-              255,
-              255,
-              255,
-              on ? 255 : 0,
-            );
+            setPx(x * scale + dx, y * scale + dy, 255, 255, 255, on ? 255 : 0);
           }
         }
       }

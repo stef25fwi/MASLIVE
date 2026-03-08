@@ -100,13 +100,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     );
   }
 
-  Widget _wrapWizardStep(Widget child, {Widget? toolbar}) {
+  Widget _wrapWizardStep(Widget child) {
     return Column(
       children: [
         const SizedBox(height: MasliveTokens.m),
         _buildWizardStepper(),
-        const SizedBox(height: MasliveTokens.xs),
-        _buildWizardStageBand(toolbar: toolbar),
         const SizedBox(height: MasliveTokens.m),
         Expanded(
           child: Padding(
@@ -115,6 +113,27 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildWizardScrollableHeader({
+    Widget? toolbar,
+    EdgeInsetsGeometry padding = const EdgeInsets.fromLTRB(
+      MasliveTokens.s,
+      0,
+      MasliveTokens.s,
+      0,
+    ),
+  }) {
+    return Padding(
+      padding: padding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildWizardStageBand(toolbar: toolbar),
+          const SizedBox(height: MasliveTokens.m),
+        ],
+      ),
     );
   }
 
@@ -169,8 +188,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         final trackHeight = constraints.maxHeight;
-                        final effectiveThumbHeight =
-                            math.min(thumbHeight, trackHeight);
+                        final effectiveThumbHeight = math.min(
+                          thumbHeight,
+                          trackHeight,
+                        );
                         final top = trackHeight <= effectiveThumbHeight
                             ? 0.0
                             : (trackHeight - effectiveThumbHeight) * progress;
@@ -223,7 +244,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                                     child: DecoratedBox(
                                       decoration: BoxDecoration(
                                         color: trackColor,
-                                        borderRadius: BorderRadius.circular(999),
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -236,8 +259,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                                       child: DecoratedBox(
                                         decoration: BoxDecoration(
                                           color: fillColor,
-                                          borderRadius:
-                                              BorderRadius.circular(999),
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -248,8 +272,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                                     child: DecoratedBox(
                                       decoration: BoxDecoration(
                                         color: thumbColor,
-                                        borderRadius:
-                                            BorderRadius.circular(999),
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
                                         boxShadow: [
                                           BoxShadow(
                                             color: thumbColor.withValues(
@@ -1155,6 +1180,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   final ScrollController _infosStepScrollController = ScrollController();
   final ScrollController _perimeterStepScrollController = ScrollController();
   final ScrollController _routeStepScrollController = ScrollController();
+  final ScrollController _styleProStepScrollController = ScrollController();
   final ScrollController _validationStepScrollController = ScrollController();
   final ScrollController _publishStepScrollController = ScrollController();
   final ValueNotifier<double> _wizardScrollProgress = ValueNotifier<double>(0);
@@ -1208,6 +1234,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   // Parking: style de zone (fond/couleur/texture)
   static const String _parkingZoneStyleKey = 'perimeterStyle';
   static const String _parkingZoneVehiclesKey = 'vehicleTypes';
+  static const String _parkingZoneLabelPresetKey = 'labelPreset';
+  static const String _parkingZoneLabelPresetDefault = 'default';
+  static const String _parkingZoneLabelPresetWideBlue =
+      'wide_blue_badge_white_outline';
   static const double _parkingZoneDefaultFillOpacity = 0.20;
   static const double _parkingZoneDefaultStrokeWidth = 2.0;
   static const double _parkingZoneDefaultPatternOpacity = 0.55;
@@ -1219,6 +1249,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   double _parkingZoneColorSaturation = _parkingZoneDefaultColorSaturation;
   double _parkingZoneFillOpacity = _parkingZoneDefaultFillOpacity;
   double _parkingZoneStrokeWidth = _parkingZoneDefaultStrokeWidth;
+  String _parkingZoneLabelPreset = _parkingZoneLabelPresetDefault;
   String _parkingZoneStrokeDash = 'solid'; // solid|dashed|dotted
   String _parkingZonePattern = 'none'; // none|diag|cross|dots
   double _parkingZonePatternOpacity = _parkingZoneDefaultPatternOpacity;
@@ -1228,7 +1259,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       TextEditingController(text: '#FBBF24');
 
   void _applyParkingZonePresetWhiteBlue() {
-    // Preset demandé: contour blanc, intérieur bleu.
     const fillHex = '#0A84FF';
     const strokeHex = '#FFFFFF';
     setState(() {
@@ -1236,8 +1266,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       _parkingZoneStrokeColorHex = strokeHex;
       _parkingZoneStrokeFollowsFill = false;
       _parkingZoneColorSaturation = _parkingZoneDefaultColorSaturation;
-      _parkingZoneFillOpacity = 0.30;
-      _parkingZoneStrokeWidth = _parkingZoneDefaultStrokeWidth;
+      _parkingZoneFillOpacity = 0.88;
+      _parkingZoneStrokeWidth = 4.0;
+      _parkingZoneLabelPreset = _parkingZoneLabelPresetWideBlue;
       _parkingZoneStrokeDash = 'solid';
       _parkingZonePattern = 'none';
       _parkingZonePatternOpacity = _parkingZoneDefaultPatternOpacity;
@@ -1267,6 +1298,85 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   String _parkingZoneLabelText(Set<String> vehicleTypes) {
     return 'PARKING';
+  }
+
+  String _parkingZoneLabelPresetFromStyle(Map<String, dynamic>? style) {
+    final raw = style?[_parkingZoneLabelPresetKey] as String?;
+    if (raw == _parkingZoneLabelPresetWideBlue) {
+      return _parkingZoneLabelPresetWideBlue;
+    }
+    return _parkingZoneLabelPresetDefault;
+  }
+
+  double _parkingZoneDistanceMeters(LngLat a, LngLat b) {
+    const earthRadius = 6371000.0;
+    final lat1 = a.lat * math.pi / 180.0;
+    final lat2 = b.lat * math.pi / 180.0;
+    final dLat = (b.lat - a.lat) * math.pi / 180.0;
+    final dLng = (b.lng - a.lng) * math.pi / 180.0;
+    final sinLat = math.sin(dLat / 2);
+    final sinLng = math.sin(dLng / 2);
+    final h =
+        sinLat * sinLat + math.cos(lat1) * math.cos(lat2) * sinLng * sinLng;
+    return 2 * earthRadius * math.asin(math.min(1.0, math.sqrt(h)));
+  }
+
+  double _parkingZoneMaxSpanMeters(List<LngLat> perimeter) {
+    if (perimeter.length < 2) return 0.0;
+    var west = perimeter.first.lng;
+    var east = perimeter.first.lng;
+    var south = perimeter.first.lat;
+    var north = perimeter.first.lat;
+    for (final point in perimeter.skip(1)) {
+      west = math.min(west, point.lng);
+      east = math.max(east, point.lng);
+      south = math.min(south, point.lat);
+      north = math.max(north, point.lat);
+    }
+    final centerLat = (south + north) / 2;
+    final centerLng = (west + east) / 2;
+    final width = _parkingZoneDistanceMeters(
+      (lng: west, lat: centerLat),
+      (lng: east, lat: centerLat),
+    );
+    final height = _parkingZoneDistanceMeters(
+      (lng: centerLng, lat: south),
+      (lng: centerLng, lat: north),
+    );
+    return math.max(width, height);
+  }
+
+  String? _parkingZoneBadgeIdForPerimeter(
+    List<LngLat> perimeter,
+    String labelPreset,
+  ) {
+    if (labelPreset != _parkingZoneLabelPresetWideBlue) return null;
+    final span = _parkingZoneMaxSpanMeters(perimeter);
+    if (span >= 120) return 'maslive_parking_badge_lg';
+    if (span >= 60) return 'maslive_parking_badge_md';
+    return 'maslive_parking_badge_sm';
+  }
+
+  double _parkingZoneLabelTextSizeForPerimeter(
+    List<LngLat> perimeter,
+    String labelPreset,
+  ) {
+    if (labelPreset != _parkingZoneLabelPresetWideBlue) return 16.0;
+    final span = _parkingZoneMaxSpanMeters(perimeter);
+    if (span >= 120) return 17.0;
+    if (span >= 60) return 15.0;
+    return 13.0;
+  }
+
+  double _parkingZoneIconScaleForPerimeter(
+    List<LngLat> perimeter,
+    String labelPreset,
+  ) {
+    if (labelPreset != _parkingZoneLabelPresetWideBlue) return 1.0;
+    final span = _parkingZoneMaxSpanMeters(perimeter);
+    if (span >= 120) return 1.0;
+    if (span >= 60) return 0.92;
+    return 0.84;
   }
 
   String _parkingZoneSymbolImageId(Set<String> vehicleTypes) {
@@ -1884,6 +1994,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     _publishStepScrollController.dispose();
     _wizardScrollProgress.dispose();
     _wizardScrollCanScroll.dispose();
+    _styleProStepScrollController.dispose();
     _poiInlineNameController.dispose();
     _poiInlineLatController.dispose();
     _poiInlineLngController.dispose();
@@ -1903,6 +2014,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     _infosStepScrollController,
     _perimeterStepScrollController,
     _routeStepScrollController,
+    _styleProStepScrollController,
     _poiStepScrollController,
     _validationStepScrollController,
     _publishStepScrollController,
@@ -1918,6 +2030,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         return _perimeterStepScrollController;
       case 3:
         return _routeStepScrollController;
+      case 4:
+        return _styleProStepScrollController;
       case 5:
         return _poiStepScrollController;
       case 6:
@@ -1983,8 +2097,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final controller = _activeStepScrollController;
     if (controller == null || !controller.hasClients) return;
     final step = math.max(controller.position.viewportDimension * 0.72, 240.0);
-    final target = (controller.offset + (direction * step))
-        .clamp(0.0, controller.position.maxScrollExtent);
+    final target = (controller.offset + (direction * step)).clamp(
+      0.0,
+      controller.position.maxScrollExtent,
+    );
     await controller.animateTo(
       target,
       duration: const Duration(milliseconds: 220),
@@ -2886,14 +3002,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                           children: [
                             _wrapWizardStep(_buildStep0Template()),
                             _wrapWizardStep(_buildStep1Infos()),
-                            _wrapWizardStep(
-                              _buildStep2Perimeter(),
-                              toolbar: _buildCentralMapToolsBar(isPerimeter: true),
-                            ),
-                            _wrapWizardStep(
-                              _buildStep3RouteAndStyleTabbed(),
-                              toolbar: _buildCentralMapToolsBar(isPerimeter: false),
-                            ),
+                            _wrapWizardStep(_buildStep2Perimeter()),
+                            _wrapWizardStep(_buildStep3RouteAndStyleTabbed()),
                             _wrapWizardStep(_buildStep6StylePro()),
                             _wrapWizardStep(_buildStep5POI()),
                             _wrapWizardStep(_buildStep7Validation()),
@@ -2955,6 +3065,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       allowVerticalScroll: true,
       mapHeight: mapHeight,
       externalScrollController: _routeStepScrollController,
+      topContent: _buildWizardScrollableHeader(
+        toolbar: _buildCentralMapToolsBar(isPerimeter: false),
+      ),
       onPointsChanged: (points) {
         final previousCount = _routePoints.length;
         setState(() {
@@ -3004,6 +3117,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              _buildWizardScrollableHeader(padding: EdgeInsets.zero),
               const Text(
                 'Choisir un modèle (optionnel)',
                 style: TextStyle(
@@ -3105,6 +3219,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              _buildWizardScrollableHeader(padding: EdgeInsets.zero),
               const Text(
                 'Informations de base',
                 style: TextStyle(
@@ -3382,6 +3497,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       allowVerticalScroll: true,
       mapHeight: mapHeight,
       externalScrollController: _perimeterStepScrollController,
+      topContent: _buildWizardScrollableHeader(
+        toolbar: _buildCentralMapToolsBar(isPerimeter: true),
+      ),
       pointsListMaxHeight: pointsListMaxHeight,
       onPointsChanged: (points) {
         setState(() {
@@ -4470,35 +4588,53 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   Widget _buildStep6StylePro() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        MasliveTokens.s,
-        0,
-        MasliveTokens.s,
-        MasliveTokens.xs,
-      ),
-      child: RouteStyleWizardProPage(
-        embedded: true,
-        controller: _routeStyleProController,
-        projectId: _projectId,
-        circuitId: widget.circuitId,
-        initialStyleUrl:
-            _normalizeMapboxStyleUrl(_styleUrlController.text).trim().isEmpty
-            ? null
-            : _normalizeMapboxStyleUrl(_styleUrlController.text).trim(),
-        initialRoute: _routePoints.isNotEmpty
-            ? <rsp.LatLng>[
-                for (final p in _routePoints) (lat: p.lat, lng: p.lng),
-              ]
-            : null,
-        embeddedPreviewHeight: _embeddedStyleProPreviewHeight(context),
-        onConfigChanged: (cfg) {
-          _routeStyleProConfig = cfg.validated();
-          if (_currentStep == _poiStepIndex) {
-            unawaited(_refreshPoiRouteOverlay());
-          }
-          _syncPoiRouteStyleProTimer();
-        },
+    final media = MediaQuery.sizeOf(context);
+    final styleProViewportHeight = (media.height - 220).clamp(760.0, 1180.0);
+
+    return GlassScrollbar(
+      controller: _styleProStepScrollController,
+      child: SingleChildScrollView(
+        controller: _styleProStepScrollController,
+        padding: const EdgeInsets.fromLTRB(
+          MasliveTokens.s,
+          0,
+          MasliveTokens.s,
+          kBottomNavigationBarHeight + MasliveTokens.m,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildWizardScrollableHeader(padding: EdgeInsets.zero),
+            SizedBox(
+              height: styleProViewportHeight,
+              child: RouteStyleWizardProPage(
+                embedded: true,
+                controller: _routeStyleProController,
+                projectId: _projectId,
+                circuitId: widget.circuitId,
+                initialStyleUrl:
+                    _normalizeMapboxStyleUrl(
+                      _styleUrlController.text,
+                    ).trim().isEmpty
+                    ? null
+                    : _normalizeMapboxStyleUrl(_styleUrlController.text).trim(),
+                initialRoute: _routePoints.isNotEmpty
+                    ? <rsp.LatLng>[
+                        for (final p in _routePoints) (lat: p.lat, lng: p.lng),
+                      ]
+                    : null,
+                embeddedPreviewHeight: _embeddedStyleProPreviewHeight(context),
+                onConfigChanged: (cfg) {
+                  _routeStyleProConfig = cfg.validated();
+                  if (_currentStep == _poiStepIndex) {
+                    unawaited(_refreshPoiRouteOverlay());
+                  }
+                  _syncPoiRouteStyleProTimer();
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -5134,147 +5270,155 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           ),
           child: Column(
             children: [
-            SizedBox(
-              height: mapViewportHeight,
-              child: Stack(
-                children: [
-                  _wrapWizardMapToBlockScroll(
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(MasliveTokens.rXL),
-                      child: MasLiveMap(
-                        controller: _poiMapController,
-                        initialLng: _poiInitialLng ?? -61.533,
-                        initialLat: _poiInitialLat ?? 16.241,
-                        initialZoom: _poiInitialZoom ?? 12.0,
-                        styleUrl:
-                            _normalizeMapboxStyleUrl(
-                              _styleUrlController.text,
-                            ).isEmpty
-                            ? null
-                            : _normalizeMapboxStyleUrl(
+              _buildWizardScrollableHeader(
+                padding: const EdgeInsets.only(bottom: MasliveTokens.m),
+              ),
+              SizedBox(
+                height: mapViewportHeight,
+                child: Stack(
+                  children: [
+                    _wrapWizardMapToBlockScroll(
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(MasliveTokens.rXL),
+                        child: MasLiveMap(
+                          controller: _poiMapController,
+                          initialLng: _poiInitialLng ?? -61.533,
+                          initialLat: _poiInitialLat ?? 16.241,
+                          initialZoom: _poiInitialZoom ?? 12.0,
+                          styleUrl:
+                              _normalizeMapboxStyleUrl(
                                 _styleUrlController.text,
-                              ),
-                        onMapReady: (ctrl) async {
-                          final cfg = _routeStyleProConfig?.validated();
-                          if (cfg != null) {
-                            await ctrl.setBuildings3d(
-                              enabled: cfg.buildings3dEnabled,
-                              opacity: cfg.buildingOpacity,
-                            );
-                          }
-
-                          // Restrictions périmètre (après l'étape "Périmètre")
-                          // - empêche de pan en dehors du périmètre
-                          // - applique le zoom max configuré
-                          final perim = _perimeterPoints;
-                          final isClosed =
-                              perim.length >= 3 && perim.first == perim.last;
-                          if (isClosed) {
-                            var west = perim.first.lng;
-                            var east = perim.first.lng;
-                            var south = perim.first.lat;
-                            var north = perim.first.lat;
-                            for (final p in perim) {
-                              if (p.lng < west) west = p.lng;
-                              if (p.lng > east) east = p.lng;
-                              if (p.lat < south) south = p.lat;
-                              if (p.lat > north) north = p.lat;
+                              ).isEmpty
+                              ? null
+                              : _normalizeMapboxStyleUrl(
+                                  _styleUrlController.text,
+                                ),
+                          onMapReady: (ctrl) async {
+                            final cfg = _routeStyleProConfig?.validated();
+                            if (cfg != null) {
+                              await ctrl.setBuildings3d(
+                                enabled: cfg.buildings3dEnabled,
+                                opacity: cfg.buildingOpacity,
+                              );
                             }
-                            await ctrl.setZoomRange(
-                              maxZoom: _perimeterCameraMaxZoom,
-                            );
-                            await ctrl.setMaxBounds(
-                              west: west,
-                              south: south,
-                              east: east,
-                              north: north,
-                            );
-                          } else {
-                            await ctrl.setZoomRange(
-                              maxZoom: _perimeterCameraMaxZoom,
-                            );
-                            await ctrl.setMaxBounds();
-                          }
 
-                          await _refreshPoiMarkers();
-                          await _refreshPoiRouteOverlay();
-                          _syncPoiRouteStyleProTimer();
-                        },
-                      ),
-                    ),
-                  ),
+                            // Restrictions périmètre (après l'étape "Périmètre")
+                            // - empêche de pan en dehors du périmètre
+                            // - applique le zoom max configuré
+                            final perim = _perimeterPoints;
+                            final isClosed =
+                                perim.length >= 3 && perim.first == perim.last;
+                            if (isClosed) {
+                              var west = perim.first.lng;
+                              var east = perim.first.lng;
+                              var south = perim.first.lat;
+                              var north = perim.first.lat;
+                              for (final p in perim) {
+                                if (p.lng < west) west = p.lng;
+                                if (p.lng > east) east = p.lng;
+                                if (p.lat < south) south = p.lat;
+                                if (p.lat > north) north = p.lat;
+                              }
+                              await ctrl.setZoomRange(
+                                maxZoom: _perimeterCameraMaxZoom,
+                              );
+                              await ctrl.setMaxBounds(
+                                west: west,
+                                south: south,
+                                east: east,
+                                north: north,
+                              );
+                            } else {
+                              await ctrl.setZoomRange(
+                                maxZoom: _perimeterCameraMaxZoom,
+                              );
+                              await ctrl.setMaxBounds();
+                            }
 
-                  if (poiLayers.isNotEmpty)
-                    Align(
-                      alignment: Alignment.topRight,
-                      child: interceptPointersIfNeeded(
-                        HomeVerticalNavMenu(
-                          margin: const EdgeInsets.only(right: 12, top: 12),
-                          horizontalPadding: 6,
-                          verticalPadding: 10,
-                          items: [
-                            for (final layer in poiLayers)
-                              (() {
-                                final v = _poiNavVisualForLayerType(layer.type);
-                                return HomeVerticalNavItem(
-                                  label: layer.label,
-                                  icon: v.icon,
-                                  iconWidget: v.iconWidget,
-                                  fullBleed: v.fullBleed,
-                                  tintOnSelected: v.tintOnSelected,
-                                  showBorder: v.showBorder,
-                                  selected: _selectedLayer?.type == layer.type,
-                                  onTap: () {
-                                    _poiSelection.clear();
-                                    setState(() {
-                                      _isDrawingParkingZone = false;
-                                      _isEditingParkingZonePerimeter = false;
-                                      _parkingZonePoints = <LngLat>[];
-                                      _poiInlineEditorMode =
-                                          _PoiInlineEditorMode.none;
-                                      _poiEditingPoi = null;
-                                      _poiInlineError = null;
-                                      _selectedLayer = layer;
-                                    });
-                                    _refreshPoiMarkers();
-                                  },
-                                );
-                              })(),
-                          ],
+                            await _refreshPoiMarkers();
+                            await _refreshPoiRouteOverlay();
+                            _syncPoiRouteStyleProTimer();
+                          },
                         ),
                       ),
                     ),
 
-                  // Fin Stack carte
-                ],
+                    if (poiLayers.isNotEmpty)
+                      Align(
+                        alignment: Alignment.topRight,
+                        child: interceptPointersIfNeeded(
+                          HomeVerticalNavMenu(
+                            margin: const EdgeInsets.only(right: 12, top: 12),
+                            horizontalPadding: 6,
+                            verticalPadding: 10,
+                            items: [
+                              for (final layer in poiLayers)
+                                (() {
+                                  final v = _poiNavVisualForLayerType(
+                                    layer.type,
+                                  );
+                                  return HomeVerticalNavItem(
+                                    label: layer.label,
+                                    icon: v.icon,
+                                    iconWidget: v.iconWidget,
+                                    fullBleed: v.fullBleed,
+                                    tintOnSelected: v.tintOnSelected,
+                                    showBorder: v.showBorder,
+                                    selected:
+                                        _selectedLayer?.type == layer.type,
+                                    onTap: () {
+                                      _poiSelection.clear();
+                                      setState(() {
+                                        _isDrawingParkingZone = false;
+                                        _isEditingParkingZonePerimeter = false;
+                                        _parkingZonePoints = <LngLat>[];
+                                        _poiInlineEditorMode =
+                                            _PoiInlineEditorMode.none;
+                                        _poiEditingPoi = null;
+                                        _poiInlineError = null;
+                                        _selectedLayer = layer;
+                                      });
+                                      _refreshPoiMarkers();
+                                    },
+                                  );
+                                })(),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                    // Fin Stack carte
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            buildPoiToolsPanel(poiLayers: poiLayers),
+              const SizedBox(height: 12),
+              buildPoiToolsPanel(poiLayers: poiLayers),
 
-            Consumer<PoiSelectionController>(
-              builder: (context, selection, _) {
-                final selected = selection.selectedPoi;
-                if (_poiInlineEditorMode != _PoiInlineEditorMode.none) {
-                  return _buildPoiInlineEditorSection();
-                }
+              Consumer<PoiSelectionController>(
+                builder: (context, selection, _) {
+                  final selected = selection.selectedPoi;
+                  if (_poiInlineEditorMode != _PoiInlineEditorMode.none) {
+                    return _buildPoiInlineEditorSection();
+                  }
 
-                return PoiInlinePopup(
-                  selectedPoi: selected,
-                  onClose: selection.clear,
-                  onEdit: selected == null ? () {} : () => _editPoi(selected),
-                  onDelete: selected == null
-                      ? () {}
-                      : () => _deletePoi(selected),
-                  categoryLabel: (poi) {
-                    final match = _layers
-                        .where((l) => l.type == poi.layerType)
-                        .toList();
-                    return match.isNotEmpty ? match.first.label : poi.layerType;
-                  },
-                );
-              },
-            ),
+                  return PoiInlinePopup(
+                    selectedPoi: selected,
+                    onClose: selection.clear,
+                    onEdit: selected == null ? () {} : () => _editPoi(selected),
+                    onDelete: selected == null
+                        ? () {}
+                        : () => _deletePoi(selected),
+                    categoryLabel: (poi) {
+                      final match = _layers
+                          .where((l) => l.type == poi.layerType)
+                          .toList();
+                      return match.isNotEmpty
+                          ? match.first.label
+                          : poi.layerType;
+                    },
+                  );
+                },
+              ),
             ],
           ),
         ),
@@ -5317,6 +5461,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       _parkingZoneColorSaturation = _parkingZoneDefaultColorSaturation;
       _parkingZoneFillOpacity = _parkingZoneDefaultFillOpacity;
       _parkingZoneStrokeWidth = _parkingZoneDefaultStrokeWidth;
+      _parkingZoneLabelPreset = _parkingZoneLabelPresetDefault;
       _parkingZoneStrokeDash = 'solid';
       _parkingZonePattern = 'none';
       _parkingZonePatternOpacity = _parkingZoneDefaultPatternOpacity;
@@ -5377,6 +5522,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         _parkingZoneStrokeWidth =
             (style['strokeWidth'] as num?)?.toDouble() ??
             _parkingZoneStrokeWidth;
+        _parkingZoneLabelPreset = _parkingZoneLabelPresetFromStyle(style);
         _parkingZoneStrokeDash =
             (style['strokeDash'] as String?)?.trim().isNotEmpty == true
             ? (style['strokeDash'] as String).trim()
@@ -5958,6 +6104,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         if (poi.layerType == 'parking') {
           final c = _centroidOf(perimeter);
           final vehicleTypes = _parkingZoneVehicleTypesFromMetadata(poi);
+          final labelPreset = _parkingZoneLabelPresetFromStyle(style);
+          final badgeId = _parkingZoneBadgeIdForPerimeter(
+            perimeter,
+            labelPreset,
+          );
           features.add(<String, dynamic>{
             'type': 'Feature',
             'id': '${poi.id}__zone_label',
@@ -5967,7 +6118,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               'title': poi.name,
               'isZoneLabel': true,
               'labelText': _parkingZoneLabelText(vehicleTypes),
+              'labelTextSize': _parkingZoneLabelTextSizeForPerimeter(
+                perimeter,
+                labelPreset,
+              ),
               'parkingIconId': _parkingZoneSymbolImageId(vehicleTypes),
+              'parkingIconScale': _parkingZoneIconScaleForPerimeter(
+                perimeter,
+                labelPreset,
+              ),
+              if (badgeId != null) 'parkingBadgeId': badgeId,
             },
             'geometry': <String, dynamic>{
               'type': 'Point',
@@ -6112,6 +6272,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
       // Label preview au centre.
       final c = _centroidOf(previewParkingZonePoints);
+      final badgeId = _parkingZoneBadgeIdForPerimeter(
+        previewParkingZonePoints,
+        _parkingZoneLabelPreset,
+      );
       features.add(<String, dynamic>{
         'type': 'Feature',
         'id': '__preview_parking_zone_label__',
@@ -6122,7 +6286,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           'isPreview': true,
           'isZoneLabel': true,
           'labelText': _parkingZoneLabelText(_parkingZoneVehicleTypes),
+          'labelTextSize': _parkingZoneLabelTextSizeForPerimeter(
+            previewParkingZonePoints,
+            _parkingZoneLabelPreset,
+          ),
           'parkingIconId': _parkingZoneSymbolImageId(_parkingZoneVehicleTypes),
+          'parkingIconScale': _parkingZoneIconScaleForPerimeter(
+            previewParkingZonePoints,
+            _parkingZoneLabelPreset,
+          ),
+          if (badgeId != null) 'parkingBadgeId': badgeId,
         },
         'geometry': <String, dynamic>{
           'type': 'Point',
@@ -6382,6 +6555,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             'fillOpacity': _parkingZoneFillOpacity.clamp(0.0, 1.0),
             'strokeColor': strokeHex,
             'strokeWidth': _parkingZoneStrokeWidth,
+            _parkingZoneLabelPresetKey: _parkingZoneLabelPreset,
             'strokeDash': _parkingZoneStrokeDash,
             'pattern': _parkingZonePattern,
             'patternOpacity': _parkingZonePatternOpacity.clamp(0.0, 1.0),
@@ -6457,6 +6631,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             'fillOpacity': _parkingZoneFillOpacity.clamp(0.0, 1.0),
             'strokeColor': strokeHex,
             'strokeWidth': _parkingZoneStrokeWidth,
+            _parkingZoneLabelPresetKey: _parkingZoneLabelPreset,
             'strokeDash': _parkingZoneStrokeDash,
             'pattern': _parkingZonePattern,
             'patternOpacity': _parkingZonePatternOpacity.clamp(0.0, 1.0),
@@ -6624,9 +6799,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 const SizedBox(height: 12),
                 FilledButton.tonal(
                   onPressed: _applyParkingZonePresetWhiteBlue,
-                  child: const Text(
-                    'Preset parking (contour blanc / fond bleu)',
-                  ),
+                  child: const Text('Preset badge parking blanc/bleu'),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -7123,13 +7296,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         controller: _validationStepScrollController,
         padding: const EdgeInsets.fromLTRB(
           MasliveTokens.m,
-          MasliveTokens.m,
+          0,
           MasliveTokens.m,
           kBottomNavigationBarHeight + MasliveTokens.l,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            _buildWizardScrollableHeader(
+              padding: const EdgeInsets.only(bottom: MasliveTokens.m),
+            ),
             GlassPanel(
               radius: MasliveTokens.rL,
               opacity: 0.78,
@@ -7301,13 +7477,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         controller: _publishStepScrollController,
         padding: const EdgeInsets.fromLTRB(
           MasliveTokens.m,
-          MasliveTokens.m,
+          0,
           MasliveTokens.m,
           kBottomNavigationBarHeight + MasliveTokens.l,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            _buildWizardScrollableHeader(
+              padding: const EdgeInsets.only(bottom: MasliveTokens.m),
+            ),
             GlassPanel(
               radius: MasliveTokens.rL,
               opacity: 0.78,
