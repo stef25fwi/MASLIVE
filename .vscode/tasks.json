@@ -60,7 +60,7 @@
     {
       "label": "MASLIVE: Flutter test (poi popup/type)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE/app && ../.flutter_sdk/bin/flutter test test/poi_normalizer_test.dart test/poi_popup_service_test.dart",
+      "command": "cd /workspaces/MASLIVE/app && ../.flutter_sdk/bin/flutter test test/poi_normalizer_test.dart test/poi_popup_service_test.dart test/polaroid_poi_sheet_test.dart",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
