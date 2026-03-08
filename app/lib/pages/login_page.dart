@@ -59,16 +59,24 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      await Navigator.push(
+      final result = await Navigator.push<bool>(
         context,
         MaterialPageRoute(builder: (_) => AuthActionRunner(action: action)),
       );
 
       if (!mounted) return;
 
+      if (result == false) {
+        return;
+      }
+
       final session = SessionScope.of(context);
       if (session.isSignedIn) {
         Navigator.of(context).pushReplacementNamed('/account-ui');
+      } else {
+        setState(() {
+          _error = 'Connexion échouée, veuillez réessayer.';
+        });
       }
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());

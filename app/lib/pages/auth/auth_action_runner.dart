@@ -16,6 +16,7 @@ class AuthActionRunner extends StatefulWidget {
 
 class _AuthActionRunnerState extends State<AuthActionRunner> {
   String? _error;
+  bool _running = true;
 
   @override
   void initState() {
@@ -24,6 +25,11 @@ class _AuthActionRunnerState extends State<AuthActionRunner> {
   }
 
   Future<void> _run() async {
+    setState(() {
+      _running = true;
+      _error = null;
+    });
+
     try {
       switch (widget.action) {
         case AuthAction.apple:
@@ -44,9 +50,13 @@ class _AuthActionRunnerState extends State<AuthActionRunner> {
       }
 
       if (!mounted) return;
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _running = false;
+      });
     }
   }
 
@@ -114,7 +124,7 @@ class _AuthActionRunnerState extends State<AuthActionRunner> {
     return Scaffold(
       backgroundColor: const Color(0xFF0B0B10),
       body: Center(
-        child: _error == null
+        child: (_running && _error == null)
             ? Column(
                 mainAxisSize: MainAxisSize.min,
                 children: const [
@@ -125,9 +135,31 @@ class _AuthActionRunnerState extends State<AuthActionRunner> {
               )
             : Padding(
                 padding: const EdgeInsets.all(18),
-                child: Text(
-                  _error!,
-                  style: const TextStyle(color: Colors.white70),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _error ?? 'Erreur de connexion',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        OutlinedButton(
+                          onPressed: _run,
+                          child: const Text('Réessayer'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Retour'),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
       ),

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'dart:math';
 import '../models/user_profile_model.dart';
@@ -199,60 +200,127 @@ class AuthService {
   }
 
   Future<UserCredential> signInWithGoogle() async {
-    final googleUser = await GoogleSignIn().signIn();
-    if (googleUser == null) {
-      throw Exception('Connexion Google annulée');
-    }
+    try {
+      final googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        throw const AuthException('Connexion Google annulée');
+      }
 
-    final googleAuth = await googleUser.authentication;
-    final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
-    );
-
-    final result = await _auth.signInWithCredential(credential);
-    final user = result.user;
-    if (user != null && user.email != null) {
-      await createOrUpdateUserProfile(
-        userId: user.uid,
-        email: user.email!,
-        displayName: user.displayName,
-        photoUrl: user.photoURL,
-        role: UserRole.user,
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
       );
+
+      final result = await _auth.signInWithCredential(credential);
+      await _syncSocialUserProfile(result.user);
+      return result;
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(_mapFirebaseAuthError(e));
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw AuthException('Erreur Google: $e');
     }
-    return result;
   }
 
   Future<UserCredential> signInWithApple() async {
-    final rawNonce = _generateNonce();
-    final nonce = _sha256ofString(rawNonce);
+    try {
+      if (!kIsWeb) {
+        final available = await SignInWithApple.isAvailable();
+        if (!available) {
+          throw const AuthException(
+            'Apple Sign-In n\'est pas disponible sur cet appareil.',
+          );
+        }
+      }
 
-    final appleCredential = await SignInWithApple.getAppleIDCredential(
-      scopes: [
-        AppleIDAuthorizationScopes.email,
-        AppleIDAuthorizationScopes.fullName,
-      ],
-      nonce: nonce,
-    );
+      final rawNonce = _generateNonce();
+      final nonce = _sha256ofString(rawNonce);
 
-    final oauthCredential = OAuthProvider('apple.com').credential(
-      idToken: appleCredential.identityToken,
-      rawNonce: rawNonce,
-    );
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: nonce,
+      );
 
-    final result = await _auth.signInWithCredential(oauthCredential);
-    final user = result.user;
-    if (user != null && user.email != null) {
-      await createOrUpdateUserProfile(
-        userId: user.uid,
-        email: user.email!,
-        displayName: user.displayName,
-        photoUrl: user.photoURL,
-        role: UserRole.user,
+      if (appleCredential.identityToken == null) {
+        throw const AuthException('Token Apple invalide ou manquant.');
+      }
+
+      final oauthCredential = OAuthProvider('apple.com').credential(
+        idToken: appleCredential.identityToken,
+        rawNonce: rawNonce,
+      );
+
+      final result = await _auth.signInWithCredential(oauthCredential);
+      await _syncSocialUserProfile(result.user);
+      return result;
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(_mapFirebaseAuthError(e));
+    } on SignInWithAppleAuthorizationException catch (e) {
+      switch (e.code) {
+        case AuthorizationErrorCode.canceled:
+          throw const AuthException('Connexion Apple annulée');
+        case AuthorizationErrorCode.failed:
+          throw const AuthException('La connexion Apple a échoué');
+        case AuthorizationErrorCode.invalidResponse:
+          throw const AuthException('Réponse Apple invalide');
+        case AuthorizationErrorCode.notHandled:
+          throw const AuthException('Connexion Apple non prise en charge');
+        case AuthorizationErrorCode.notInteractive:
+          throw const AuthException(
+            'Connexion Apple indisponible dans ce contexte',
+          );
+        case AuthorizationErrorCode.unknown:
+          throw AuthException('Erreur Apple inconnue: ${e.message}');
+      }
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw AuthException('Erreur Apple: $e');
+    }
+  }
+
+  Future<void> _syncSocialUserProfile(User? user) async {
+    if (user == null) return;
+
+    final existing = await getUserProfile(user.uid);
+    if (existing != null) return;
+
+    final email = user.email;
+    if (email == null || email.isEmpty) {
+      throw const AuthException(
+        'Impossible de créer le profil: email manquant pour ce compte social.',
       );
     }
-    return result;
+
+    await createOrUpdateUserProfile(
+      userId: user.uid,
+      email: email,
+      displayName: user.displayName,
+      photoUrl: user.photoURL,
+      role: UserRole.user,
+    );
+  }
+
+  String _mapFirebaseAuthError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'account-exists-with-different-credential':
+        return 'Ce compte existe déjà avec une autre méthode de connexion.';
+      case 'invalid-credential':
+        return 'Identifiants invalides. Réessayez.';
+      case 'operation-not-allowed':
+        return 'Méthode de connexion non activée côté Firebase.';
+      case 'user-disabled':
+        return 'Ce compte a été désactivé.';
+      case 'user-not-found':
+        return 'Aucun compte trouvé pour cet utilisateur.';
+      case 'network-request-failed':
+        return 'Problème réseau. Vérifiez votre connexion.';
+      default:
+        return e.message ?? 'Erreur d\'authentification.';
+    }
   }
 
   String _generateNonce([int length = 32]) {
@@ -346,4 +414,12 @@ class AuthService {
       rethrow;
     }
   }
+}
+
+class AuthException implements Exception {
+  const AuthException(this.message);
+  final String message;
+
+  @override
+  String toString() => message;
 }
