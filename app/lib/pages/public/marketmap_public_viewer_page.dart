@@ -10,6 +10,8 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import '../../route_style_pro/models/route_style_config.dart' as rsp;
 import '../../route_style_pro/services/map_buildings_style_service_native.dart';
 import '../../route_style_pro/services/route_style_pro_projection.dart';
+import '../../services/poi_popup_service.dart';
+import '../../ui/widgets/polaroid_poi_sheet.dart';
 
 /// ===============================
 /// MarketMap Public Viewer (Mobile)
@@ -484,6 +486,7 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
       }
     }
 
+    await _applyPerimeterConstraintFromCircuitDoc(data);
     await _moveCameraToCircuit(data);
 
     // Circuit doc stream (route)
@@ -494,6 +497,7 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
       _routeStyleProAnimTick = 0;
       _routeGeoJsonString =
           _buildRouteGeoJsonFromCircuitDoc(d) ?? _emptyFeatureCollection();
+        await _applyPerimeterConstraintFromCircuitDoc(d);
       await _applyRouteStyleFromCircuitDoc(d);
       await _applyBuildingsStyleFromCircuitDoc(d);
       _syncRouteStyleProTimer();
@@ -547,7 +551,20 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
             final layerId = (d['layerId'] ?? d['layerType'] ?? '').toString();
             final name = (d['name'] ?? d['title'] ?? '').toString();
             final desc = (d['description'] ?? d['desc'] ?? '').toString();
-            final imageUrl = (d['imageUrl'] ?? '').toString();
+            final meta = (d['metadata'] is Map)
+                ? Map<String, dynamic>.from(d['metadata'] as Map)
+                : const <String, dynamic>{};
+
+            String imageUrl = (d['imageUrl'] ?? '').toString().trim();
+            if (imageUrl.isEmpty) {
+              final img = meta['image'];
+              if (img is Map) {
+                final resolved = (img['url'] ?? img['downloadUrl'] ?? '')
+                    .toString()
+                    .trim();
+                if (resolved.isNotEmpty) imageUrl = resolved;
+              }
+            }
 
             pois.add(
               _PoiItem(
@@ -558,6 +575,21 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
                 imageUrl: imageUrl,
                 lng: coord.$1,
                 lat: coord.$2,
+                type: (d['layerType'] ?? d['type'] ?? '').toString(),
+                metadata: meta,
+                popupEnabledRoot: d['popupEnabled'],
+                hours: (d['openingHours'] ?? d['hours'] ?? d['horaires'])
+                    ?.toString(),
+                phone: (d['phone'] ?? d['tel'] ?? d['telephone'])?.toString(),
+                website: (d['website'] ?? d['site'])?.toString(),
+                whatsapp: d['whatsapp']?.toString(),
+                email: d['email']?.toString(),
+                address:
+                    (d['address'] ?? d['adresse'] ?? d['locationLabel'])
+                        ?.toString(),
+                mapsUrl:
+                    (d['mapsUrl'] ?? d['googleMapsUrl'] ?? d['mapUrl'])
+                        ?.toString(),
               ),
             );
 
@@ -608,7 +640,19 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
       }
     }
 
-    final zoom = (data['initialZoom'] as num?)?.toDouble() ?? 13.5;
+    final perimeterMapCamera = data['perimeterMapCamera'];
+    final zoom = ((perimeterMapCamera is Map)
+            ? (perimeterMapCamera['initialZoom'] as num?)
+            : null)
+        ?.toDouble() ??
+        (data['initialZoom'] as num?)?.toDouble() ??
+        13.5;
+
+    final pitch = ((perimeterMapCamera is Map)
+            ? (perimeterMapCamera['pitchDegrees'] as num?)
+            : null)
+        ?.toDouble() ??
+        45.0;
 
     if (lat != null && lng != null) {
       try {
@@ -616,13 +660,84 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
           CameraOptions(
             center: Point(coordinates: Position(lng, lat)),
             zoom: zoom,
-            pitch: 45.0,
+            pitch: pitch,
           ),
         );
       } catch (_) {
         // ignore
       }
     }
+  }
+
+  Future<void> _applyPerimeterConstraintFromCircuitDoc(
+    Map<String, dynamic> data,
+  ) async {
+    final map = _map;
+    if (map == null) return;
+
+    final perimeterLocked = (data['perimeterLocked'] as bool?) ?? false;
+    final perimeterPts = _parsePerimeterPointsFromCircuitDoc(data);
+    final bounds = _boundsFromPositions(perimeterPts);
+
+    if (!perimeterLocked || bounds == null) {
+      try {
+        await map.setBounds(CameraBoundsOptions());
+      } catch (_) {
+        // ignore
+      }
+      return;
+    }
+
+    final cam = data['perimeterMapCamera'];
+    final maxZoom = (cam is Map ? cam['maxZoom'] : null) as num?;
+    try {
+      await map.setBounds(
+        CameraBoundsOptions(
+          bounds: bounds,
+          maxZoom: maxZoom?.toDouble(),
+        ),
+      );
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  List<Position> _parsePerimeterPointsFromCircuitDoc(Map<String, dynamic> data) {
+    final raw = data['perimeter'];
+    if (raw is! List) return const <Position>[];
+
+    final pts = <Position>[];
+    for (final it in raw) {
+      if (it is! Map) continue;
+      final lat = it['lat'];
+      final lng = it['lng'];
+      if (lat is! num || lng is! num) continue;
+      pts.add(Position(lng.toDouble(), lat.toDouble()));
+    }
+    return pts;
+  }
+
+  CoordinateBounds? _boundsFromPositions(List<Position> pts) {
+    if (pts.length < 3) return null;
+    double west = pts.first.lng.toDouble();
+    double east = pts.first.lng.toDouble();
+    double south = pts.first.lat.toDouble();
+    double north = pts.first.lat.toDouble();
+
+    for (final p in pts) {
+      final lng = p.lng.toDouble();
+      final lat = p.lat.toDouble();
+      if (lng < west) west = lng;
+      if (lng > east) east = lng;
+      if (lat < south) south = lat;
+      if (lat > north) north = lat;
+    }
+
+    return CoordinateBounds(
+      southwest: Point(coordinates: Position(west, south)),
+      northeast: Point(coordinates: Position(east, north)),
+      infiniteBounds: false,
+    );
   }
 
   // -----------------------------
@@ -1057,61 +1172,31 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
 
     if (!mounted) return;
     final poi = best;
-    final uiLayer = _uiLayersById[poi.layerId];
-    showModalBottomSheet(
+    final hasImage = poi.imageUrl.trim().isNotEmpty || poi.hasImageInMetadata;
+    final popupEnabled = PoiPopupService.isPopupEnabled(
+      type: poi.type,
+      meta: poi.metadata,
+      rootPopupEnabled: poi.popupEnabledRoot,
+      requireImage: true,
+      hasImage: hasImage,
+    );
+    if (!popupEnabled) return;
+
+    await showPolaroidPoiSheet(
       context: context,
-      showDragHandle: true,
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              poi.name.isEmpty ? 'Point d’intérêt' : poi.name,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 6),
-            if (uiLayer != null)
-              Text(
-                uiLayer.label,
-                style: TextStyle(color: Colors.grey.shade700),
-              ),
-            if (poi.desc.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Text(poi.desc),
-            ],
-            if (poi.imageUrl.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  poi.imageUrl,
-                  height: 160,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      height: 160,
-                      color: Colors.black.withValues(alpha: 0.04),
-                      alignment: Alignment.center,
-                      child: const Text('Image indisponible'),
-                    );
-                  },
-                ),
-              ),
-            ],
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Fermer'),
-              ),
-            ),
-          ],
-        ),
-      ),
+      title: poi.name.isEmpty ? 'Point d’intérêt' : poi.name,
+      description: poi.desc,
+      imageUrl: poi.imageUrl,
+      meta: poi.metadata,
+      hours: poi.hours,
+      phone: poi.phone,
+      website: poi.website,
+      whatsapp: poi.whatsapp,
+      email: poi.email,
+      address: poi.address,
+      mapsUrl: poi.mapsUrl,
+      lat: poi.lat,
+      lng: poi.lng,
     );
   }
 
@@ -1379,6 +1464,16 @@ class _PoiItem {
   final String imageUrl;
   final double lng;
   final double lat;
+  final String type;
+  final Map<String, dynamic> metadata;
+  final dynamic popupEnabledRoot;
+  final String? hours;
+  final String? phone;
+  final String? website;
+  final String? whatsapp;
+  final String? email;
+  final String? address;
+  final String? mapsUrl;
 
   const _PoiItem({
     required this.id,
@@ -1388,5 +1483,22 @@ class _PoiItem {
     required this.imageUrl,
     required this.lng,
     required this.lat,
+    required this.type,
+    required this.metadata,
+    this.popupEnabledRoot,
+    this.hours,
+    this.phone,
+    this.website,
+    this.whatsapp,
+    this.email,
+    this.address,
+    this.mapsUrl,
   });
+
+  bool get hasImageInMetadata {
+    final img = metadata['image'];
+    if (img is! Map) return false;
+    final url = (img['url'] ?? img['downloadUrl'] ?? '').toString().trim();
+    return url.isNotEmpty;
+  }
 }

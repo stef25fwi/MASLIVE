@@ -194,7 +194,9 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
     final presets = widget.appearancePresets;
     if (presets != null && presets.isNotEmpty) {
       final rawId = meta[kMasLivePoiAppearanceKey];
-      final existing = rawId is String ? rawId.trim() : '';
+      final existing = rawId is String
+          ? normalizeMasLivePoiAppearanceId(rawId)
+          : '';
       if (existing.isNotEmpty && presets.any((p) => p.id == existing)) {
         _appearanceId = existing;
       } else {
@@ -716,7 +718,9 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
 
     final nextAppearanceId = _appearanceId;
     if (nextAppearanceId != null && nextAppearanceId.trim().isNotEmpty) {
-      meta[kMasLivePoiAppearanceKey] = nextAppearanceId.trim();
+      meta[kMasLivePoiAppearanceKey] = normalizeMasLivePoiAppearanceId(
+        nextAppearanceId,
+      );
     }
 
     meta['popupEnabled'] = _popupEnabled;
@@ -1313,15 +1317,37 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                   ),
 
                   const SizedBox(height: 8),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: MasliveTokens.primary,
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: (_isSaving || _isUploading || _isConverting)
-                        ? null
-                        : _save,
-                    child: Text(_isSaving ? 'Enregistrement…' : 'Enregistrer'),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: (_isSaving || _isUploading || _isConverting)
+                              ? null
+                              : _save,
+                          child: Text(
+                            _isSaving ? 'Enregistrement…' : 'Enregistrer',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: MasliveTokens.primary,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: (_isSaving || _isUploading || _isConverting)
+                              ? null
+                              : _save,
+                          icon: const Icon(Icons.check_circle_rounded),
+                          label: Text(
+                            _isSaving
+                                ? 'Enregistrement…'
+                                : 'Enregistrer et quitter',
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                 ],

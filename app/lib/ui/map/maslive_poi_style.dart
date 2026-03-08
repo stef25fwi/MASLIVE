@@ -19,6 +19,29 @@ class MasLivePoiStyle {
 ///
 /// Exemple: `{ "appearance": "blue_dot" }`
 const String kMasLivePoiAppearanceKey = 'appearance';
+const String kMasLivePoiAppearanceIconPointId = 'icon_point';
+
+const Set<String> kMasLivePoiAppearanceIconPointAliases = {
+  'icon_point',
+  'point.webp',
+  'point_webp',
+  'point',
+};
+
+String normalizeMasLivePoiAppearanceId(String? rawId) {
+  final id = (rawId ?? '').trim();
+  if (id.isEmpty) return '';
+  if (kMasLivePoiAppearanceIconPointAliases.contains(id)) {
+    return kMasLivePoiAppearanceIconPointId;
+  }
+  return id;
+}
+
+bool isMasLivePoiIconPointAppearance(String? rawId) {
+  final id = (rawId ?? '').trim();
+  if (id.isEmpty) return false;
+  return kMasLivePoiAppearanceIconPointAliases.contains(id);
+}
 
 @immutable
 class MasLivePoiAppearancePreset {

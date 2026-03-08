@@ -1,3 +1,4 @@
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
@@ -67,6 +68,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   static const int _poiStepIndex = 5;
   static const double _wizardMapHeightMultiplier = 2.0;
   static const double _wizardScrollRailWidth = 56.0;
+  static const double _wizardStepHorizontalPadding = 4.0;
+  static const double _perimeterCameraPitchMaxDegrees = 80.0;
 
   static const List<String> _stepLabels = <String>[
     'Template',
@@ -119,9 +122,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   Widget _buildWizardScrollableHeader({
     Widget? toolbar,
     EdgeInsetsGeometry padding = const EdgeInsets.fromLTRB(
-      MasliveTokens.s,
+      _wizardStepHorizontalPadding,
       0,
-      MasliveTokens.s,
+      _wizardStepHorizontalPadding,
       0,
     ),
   }) {
@@ -1907,34 +1910,131 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
     final selected = await showDialog<CircuitDraftVersion>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Historique des versions'),
-        content: SizedBox(
-          width: 520,
-          child: drafts.isEmpty
-              ? const Text('Aucune version disponible')
-              : ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: drafts.length,
-                  itemBuilder: (_, index) {
-                    final d = drafts[index];
-                    return ListTile(
-                      title: Text('Version ${d.version}'),
-                      subtitle: Text(
-                        d.createdAt?.toLocal().toString() ?? 'Date inconnue',
+      builder: (ctx) {
+        CircuitDraftVersion? picked = drafts.isNotEmpty ? drafts.first : null;
+        Future<Map<String, dynamic>?> snapshotFuture =
+            picked == null
+            ? Future<Map<String, dynamic>?>.value(null)
+          : _loadDraftSnapshot(projectId: _projectId!, draftId: picked.id);
+
+        return StatefulBuilder(
+          builder: (context, setLocal) {
+            return AlertDialog(
+              title: const Text('Historique des versions'),
+              content: SizedBox(
+                width: 560,
+                child: drafts.isEmpty
+                    ? const Text('Aucune version disponible')
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          DropdownButtonFormField<CircuitDraftVersion>(
+                            value: picked,
+                            decoration: const InputDecoration(
+                              labelText: 'Version',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            items: drafts
+                                .map(
+                                  (d) => DropdownMenuItem<CircuitDraftVersion>(
+                                    value: d,
+                                    child: Text(
+                                      'V${d.version} - ${_formatHistoryDate(d.createdAt)}',
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              setLocal(() {
+                                picked = value;
+                                snapshotFuture = value == null
+                                    ? Future<Map<String, dynamic>?>.value(null)
+                                    : _loadDraftSnapshot(
+                                        projectId: _projectId!,
+                                        draftId: value.id,
+                                      );
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          FutureBuilder<Map<String, dynamic>?>(
+                            future: snapshotFuture,
+                            builder: (context, snap) {
+                              if (snap.connectionState != ConnectionState.done) {
+                                return const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                              }
+
+                              final snapshot = snap.data;
+                              if (snapshot == null) {
+                                return const Text(
+                                  'Impossible de charger les détails de cette version.',
+                                );
+                              }
+
+                              final changes = _buildHistoryChangeSummary(
+                                oldSnapshot: snapshot,
+                              );
+                              return Container(
+                                constraints: const BoxConstraints(maxHeight: 280),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: MasliveTokens.borderSoft,
+                                  ),
+                                ),
+                                child: changes.isEmpty
+                                    ? const Padding(
+                                        padding: EdgeInsets.all(12),
+                                        child: Text(
+                                          'Aucune modification détectée avec le brouillon actuel.',
+                                        ),
+                                      )
+                                    : ListView.separated(
+                                        shrinkWrap: true,
+                                        itemCount: changes.length,
+                                        separatorBuilder: (_, __) => Divider(
+                                          height: 1,
+                                          color: MasliveTokens.borderSoft,
+                                        ),
+                                        itemBuilder: (_, index) => ListTile(
+                                          dense: true,
+                                          leading: const Icon(
+                                            Icons.subdirectory_arrow_right,
+                                            size: 18,
+                                          ),
+                                          title: Text(changes[index]),
+                                        ),
+                                      ),
+                              );
+                            },
+                          ),
+                        ],
                       ),
-                      onTap: () => Navigator.pop(ctx, d),
-                    );
-                  },
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Fermer'),
                 ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Fermer'),
-          ),
-        ],
-      ),
+                FilledButton.icon(
+                  onPressed: picked == null
+                      ? null
+                      : () => Navigator.pop(ctx, picked),
+                  icon: const Icon(Icons.restore_rounded),
+                  label: const Text('Restaurer'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
 
     if (selected == null) return;
@@ -1960,6 +2060,82 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     await _loadDraftOrInitialize();
     if (!mounted) return;
     _showTopSnackBar('✅ Version ${selected.version} restaurée');
+  }
+
+  String _formatHistoryDate(DateTime? date) {
+    if (date == null) return 'date inconnue';
+    final local = date.toLocal();
+    final dd = local.day.toString().padLeft(2, '0');
+    final mm = local.month.toString().padLeft(2, '0');
+    final hh = local.hour.toString().padLeft(2, '0');
+    final mn = local.minute.toString().padLeft(2, '0');
+    return '$dd/$mm/${local.year} $hh:$mn';
+  }
+
+  Future<Map<String, dynamic>?> _loadDraftSnapshot({
+    required String projectId,
+    required String draftId,
+  }) async {
+    final snap = await FirebaseFirestore.instance
+        .collection('map_projects')
+        .doc(projectId)
+        .collection('drafts')
+        .doc(draftId)
+        .get();
+    if (!snap.exists) return null;
+    final data = snap.data() ?? const <String, dynamic>{};
+    final raw = data['dataSnapshot'];
+    if (raw is! Map) return null;
+    return Map<String, dynamic>.from(raw);
+  }
+
+  List<String> _buildHistoryChangeSummary({
+    required Map<String, dynamic> oldSnapshot,
+  }) {
+    final current = _buildCurrentData();
+    final lines = <String>[];
+
+    void compareText(String key, String label) {
+      final oldValue = (oldSnapshot[key] ?? '').toString().trim();
+      final newValue = (current[key] ?? '').toString().trim();
+      if (oldValue != newValue) {
+        lines.add('$label: "$oldValue" -> "$newValue"');
+      }
+    }
+
+    void compareCount(String key, String label) {
+      final oldList = oldSnapshot[key];
+      final newList = current[key];
+      final oldCount = oldList is List ? oldList.length : 0;
+      final newCount = newList is List ? newList.length : 0;
+      if (oldCount != newCount) {
+        lines.add('$label: $oldCount -> $newCount');
+      }
+    }
+
+    compareText('name', 'Nom');
+    compareText('description', 'Description');
+    compareText('countryId', 'Pays');
+    compareText('eventId', 'Événement');
+    compareText('styleUrl', 'Style URL');
+    compareCount('route', 'Points tracé');
+    compareCount('perimeter', 'Points périmètre');
+
+    final oldLayers = (oldSnapshot['layers'] is List)
+        ? (oldSnapshot['layers'] as List).length
+        : 0;
+    if (oldLayers != _layers.length) {
+      lines.add('Couches: $oldLayers -> ${_layers.length}');
+    }
+
+    final oldPois = (oldSnapshot['pois'] is List)
+        ? (oldSnapshot['pois'] as List).length
+        : 0;
+    if (oldPois != _pois.length) {
+      lines.add('POIs: $oldPois -> ${_pois.length}');
+    }
+
+    return lines;
   }
 
   @override
@@ -2335,7 +2511,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 );
             _perimeterCameraPitchDegrees = _perimeterCameraPitchDegrees.clamp(
               0.0,
-              60.0,
+              _perimeterCameraPitchMaxDegrees,
             );
           }
 
@@ -3097,15 +3273,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final compactActions = MediaQuery.sizeOf(context).width < 520;
     return GlassScrollbar(
       controller: _templateStepScrollController,
+      scrollbarOrientation: ScrollbarOrientation.left,
       child: SingleChildScrollView(
         controller: _templateStepScrollController,
         physics: _isWizardMapInteracting
             ? const NeverScrollableScrollPhysics()
             : null,
         padding: const EdgeInsets.fromLTRB(
-          MasliveTokens.s,
+          _wizardStepHorizontalPadding,
           0,
-          MasliveTokens.s,
+          _wizardStepHorizontalPadding,
           kBottomNavigationBarHeight + MasliveTokens.l,
         ),
         child: GlassPanel(
@@ -3199,15 +3376,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   Widget _buildStep1Infos() {
     return GlassScrollbar(
       controller: _infosStepScrollController,
+      scrollbarOrientation: ScrollbarOrientation.left,
       child: SingleChildScrollView(
         controller: _infosStepScrollController,
         physics: _isWizardMapInteracting
             ? const NeverScrollableScrollPhysics()
             : null,
         padding: const EdgeInsets.fromLTRB(
-          MasliveTokens.s,
+          _wizardStepHorizontalPadding,
           0,
-          MasliveTokens.s,
+          _wizardStepHorizontalPadding,
           kBottomNavigationBarHeight + MasliveTokens.l,
         ),
         child: GlassPanel(
@@ -3222,6 +3400,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: MasliveTokens.text,
+                ),
+              ),
+              const SizedBox(height: MasliveTokens.s),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.history),
+                  onPressed: _showDraftHistory,
+                  label: const Text('Historique des modifications'),
                 ),
               ),
               const SizedBox(height: MasliveTokens.l),
@@ -3541,7 +3728,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         radius: MasliveTokens.rM,
         opacity: 0.92,
         padding: const EdgeInsets.symmetric(
-          horizontal: MasliveTokens.m,
+          horizontal: MasliveTokens.s,
           vertical: MasliveTokens.s,
         ),
         child: AnimatedBuilder(
@@ -3594,7 +3781,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               final tint = accent ?? MasliveTokens.primary;
               return Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: MasliveTokens.s,
+                  horizontal: MasliveTokens.xs,
                   vertical: MasliveTokens.xs,
                 ),
                 decoration: BoxDecoration(
@@ -3633,7 +3820,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               return Container(
                 constraints: const BoxConstraints(minHeight: 84),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: MasliveTokens.s,
+                  horizontal: MasliveTokens.xs,
                   vertical: MasliveTokens.s,
                 ),
                 decoration: BoxDecoration(
@@ -4046,7 +4233,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                                 _perimeterCameraPitchDegrees =
                                     (_perimeterCameraPitchDegrees - 5.0).clamp(
                                       0.0,
-                                      60.0,
+                                      _perimeterCameraPitchMaxDegrees,
                                     );
                               });
                             },
@@ -4061,7 +4248,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                                 _perimeterCameraPitchDegrees =
                                     (_perimeterCameraPitchDegrees + 5.0).clamp(
                                       0.0,
-                                      60.0,
+                                      _perimeterCameraPitchMaxDegrees,
                                     );
                               });
                             },
@@ -4219,7 +4406,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
                 if (compactToolbar) {
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -4235,7 +4422,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
                 return SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 0),
                   child: Row(
                     children: [
                       for (var i = 0; i < sections.length; i++) ...[
@@ -4264,6 +4451,66 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       showSnackBar: true,
       expectedSeq: null,
     );
+  }
+
+  Future<void> _addPointsAndSnapRoute() async {
+    if (_isSnappingRoute || _routePoints.length < 2) return;
+
+    final densified = _densifyRoutePoints(
+      _routePoints,
+      maxSegmentMeters: 45.0,
+    );
+    final addedCount = densified.length - _routePoints.length;
+
+    if (addedCount > 0) {
+      setState(() {
+        _routePoints = densified;
+      });
+    }
+
+    await _snapRouteToRoadsInternal(
+      persist: true,
+      showSnackBar: false,
+      expectedSeq: null,
+    );
+
+    if (!mounted) return;
+    _showTopSnackBar(
+      '✅ Points ajoutés: +$addedCount, tracé recalé sur la route.',
+    );
+  }
+
+  List<LngLat> _densifyRoutePoints(
+    List<LngLat> input, {
+    required double maxSegmentMeters,
+  }) {
+    if (input.length < 2) return input;
+    final out = <LngLat>[];
+
+    for (var i = 0; i < input.length - 1; i++) {
+      final start = input[i];
+      final end = input[i + 1];
+      out.add(start);
+
+      final distance = _parkingZoneDistanceMeters(start, end);
+      final inserts = math.max(
+        0,
+        (distance / maxSegmentMeters).ceil() - 1,
+      );
+
+      for (var j = 1; j <= inserts; j++) {
+        final t = j / (inserts + 1);
+        out.add(
+          (
+            lng: start.lng + (end.lng - start.lng) * t,
+            lat: start.lat + (end.lat - start.lat) * t,
+          ),
+        );
+      }
+    }
+
+    out.add(input.last);
+    return out;
   }
 
   void _scheduleContinuousRouteSnap() {
@@ -4589,20 +4836,38 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
     return GlassScrollbar(
       controller: _styleProStepScrollController,
+      scrollbarOrientation: ScrollbarOrientation.left,
       child: SingleChildScrollView(
         controller: _styleProStepScrollController,
         padding: const EdgeInsets.fromLTRB(
+          _wizardStepHorizontalPadding,
           0,
-          0,
-          MasliveTokens.s,
+          _wizardStepHorizontalPadding,
           kBottomNavigationBarHeight + MasliveTokens.m,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildWizardScrollableHeader(
-              padding: const EdgeInsets.only(left: MasliveTokens.s),
+              padding: const EdgeInsets.only(left: _wizardStepHorizontalPadding),
             ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: (!_isSnappingRoute && _routePoints.length >= 2)
+                    ? _addPointsAndSnapRoute
+                    : null,
+                icon: _isSnappingRoute
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.add_road_rounded),
+                label: const Text('Ajouter des points'),
+              ),
+            ),
+            const SizedBox(height: MasliveTokens.s),
             SizedBox(
               height: styleProViewportHeight,
               child: RouteStyleWizardProPage(
@@ -4663,7 +4928,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   Widget _buildStep5POI() {
     _ensurePoiInitialCamera();
-    const poiStepHorizontalPadding = 12.0;
+    const poiStepHorizontalPadding = _wizardStepHorizontalPadding;
     final compactPoiLayout = MediaQuery.sizeOf(context).width < 520;
 
     Widget buildPoiToolsPanel({required List<MarketMapLayer> poiLayers}) {
@@ -5258,6 +5523,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       value: _poiSelection,
       child: GlassScrollbar(
         controller: _poiStepScrollController,
+        scrollbarOrientation: ScrollbarOrientation.left,
         child: SingleChildScrollView(
           controller: _poiStepScrollController,
           physics: _isWizardMapInteracting
@@ -5486,11 +5752,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       _poiEditingPoi = poi;
       _poiInlineError = null;
       _poiInlineAppearanceId =
-          (poi.metadata?[kMasLivePoiAppearanceKey] as String?)
-                  ?.trim()
-                  .isNotEmpty ==
-              true
-          ? (poi.metadata![kMasLivePoiAppearanceKey] as String)
+          normalizeMasLivePoiAppearanceId(
+                (poi.metadata?[kMasLivePoiAppearanceKey] as String?),
+              ).isNotEmpty
+          ? normalizeMasLivePoiAppearanceId(
+              (poi.metadata?[kMasLivePoiAppearanceKey] as String?),
+            )
           : _defaultPoiAppearanceId;
       _poiInlineNameController.text = poi.name;
       _poiInlineLatController.text = poi.lat.toStringAsFixed(6);
@@ -6633,7 +6900,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       } else {
         nextMetadata = <String, dynamic>{
           ...(poi.metadata ?? const <String, dynamic>{}),
-          kMasLivePoiAppearanceKey: _poiInlineAppearanceId,
+          kMasLivePoiAppearanceKey: normalizeMasLivePoiAppearanceId(
+            _poiInlineAppearanceId,
+          ),
         };
       }
 
@@ -7285,12 +7554,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final compactValidation = MediaQuery.sizeOf(context).width < 520;
     return GlassScrollbar(
       controller: _validationStepScrollController,
+      scrollbarOrientation: ScrollbarOrientation.left,
       child: SingleChildScrollView(
         controller: _validationStepScrollController,
         padding: const EdgeInsets.fromLTRB(
-          MasliveTokens.m,
+          _wizardStepHorizontalPadding,
           0,
-          MasliveTokens.m,
+          _wizardStepHorizontalPadding,
           kBottomNavigationBarHeight + MasliveTokens.l,
         ),
         child: Column(
@@ -7466,12 +7736,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final report = _qualityReport;
     return GlassScrollbar(
       controller: _publishStepScrollController,
+      scrollbarOrientation: ScrollbarOrientation.left,
       child: SingleChildScrollView(
         controller: _publishStepScrollController,
         padding: const EdgeInsets.fromLTRB(
-          MasliveTokens.m,
+          _wizardStepHorizontalPadding,
           0,
-          MasliveTokens.m,
+          _wizardStepHorizontalPadding,
           kBottomNavigationBarHeight + MasliveTokens.l,
         ),
         child: Column(

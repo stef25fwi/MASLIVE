@@ -9,6 +9,7 @@ class GlassScrollbar extends StatelessWidget {
     this.thumbVisibility = true,
     this.thickness = 8.0,
     this.radius = const Radius.circular(8),
+    this.scrollbarOrientation = ScrollbarOrientation.right,
   });
 
   final Widget child;
@@ -16,6 +17,7 @@ class GlassScrollbar extends StatelessWidget {
   final bool thumbVisibility;
   final double thickness;
   final Radius radius;
+  final ScrollbarOrientation scrollbarOrientation;
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +53,11 @@ class GlassScrollbar extends StatelessWidget {
         mainAxisMargin: 4.0,
         minThumbLength: 48.0,
       ),
-      child: Scrollbar(controller: controller, child: child),
+      child: Scrollbar(
+        controller: controller,
+        scrollbarOrientation: scrollbarOrientation,
+        child: child,
+      ),
     );
   }
 }

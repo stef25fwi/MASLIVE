@@ -982,9 +982,27 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
                   ['has', kMasLivePoiAppearanceKey],
                 ],
                 [
-                  '!=',
-                  ['get', kMasLivePoiAppearanceKey],
-                  'icon_point',
+                  'all',
+                  [
+                    '!=',
+                    ['get', kMasLivePoiAppearanceKey],
+                    kMasLivePoiAppearanceIconPointId,
+                  ],
+                  [
+                    '!=',
+                    ['get', kMasLivePoiAppearanceKey],
+                    'point.webp',
+                  ],
+                  [
+                    '!=',
+                    ['get', kMasLivePoiAppearanceKey],
+                    'point_webp',
+                  ],
+                  [
+                    '!=',
+                    ['get', kMasLivePoiAppearanceKey],
+                    'point',
+                  ],
                 ],
               ],
             ],
@@ -1041,9 +1059,27 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
               ['has', kMasLivePoiAppearanceKey],
             ],
             [
-              '!=',
-              ['get', kMasLivePoiAppearanceKey],
-              'icon_point',
+              'all',
+              [
+                '!=',
+                ['get', kMasLivePoiAppearanceKey],
+                kMasLivePoiAppearanceIconPointId,
+              ],
+              [
+                '!=',
+                ['get', kMasLivePoiAppearanceKey],
+                'point.webp',
+              ],
+              [
+                '!=',
+                ['get', kMasLivePoiAppearanceKey],
+                'point_webp',
+              ],
+              [
+                '!=',
+                ['get', kMasLivePoiAppearanceKey],
+                'point',
+              ],
             ],
           ],
         ]),
@@ -1064,9 +1100,27 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
                 'Point',
               ],
               [
-                '==',
-                ['get', kMasLivePoiAppearanceKey],
-                'icon_point',
+                'any',
+                [
+                  '==',
+                  ['get', kMasLivePoiAppearanceKey],
+                  kMasLivePoiAppearanceIconPointId,
+                ],
+                [
+                  '==',
+                  ['get', kMasLivePoiAppearanceKey],
+                  'point.webp',
+                ],
+                [
+                  '==',
+                  ['get', kMasLivePoiAppearanceKey],
+                  'point_webp',
+                ],
+                [
+                  '==',
+                  ['get', kMasLivePoiAppearanceKey],
+                  'point',
+                ],
               ],
               [
                 'any',

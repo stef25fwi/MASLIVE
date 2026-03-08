@@ -2098,6 +2098,14 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         }
       }
 
+      final hasImageInMeta = (() {
+        if (meta == null) return false;
+        final img = meta['image'];
+        if (img is! Map) return false;
+        final u = (img['url'] ?? img['downloadUrl'] ?? '').toString().trim();
+        return u.isNotEmpty;
+      })();
+
       // Détecter si une fiche descriptive existe (signal explicite)
       final rootPopupEnabled =
           props['popupEnabled'] ?? props['hasPopup'] ?? props['hasCard'];
@@ -2139,7 +2147,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         type: type,
         meta: meta,
         rootPopupEnabled: rootPopupEnabled,
-        hasImage: imageUrl.trim().isNotEmpty,
+        requireImage: true,
+        hasImage: imageUrl.trim().isNotEmpty || hasImageInMeta,
       );
 
       if (!popupEnabled) {
