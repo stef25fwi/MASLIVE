@@ -341,6 +341,12 @@ class _PhotoAreaState extends State<_PhotoArea> {
       return;
     }
 
+    // Asset Flutter local (ex: assets/splash/wom2.png): ne pas tenter Firebase Storage
+    if (url.startsWith('assets/') || url.startsWith('/assets/')) {
+      if (mounted) setState(() => _resolvedUrl = url);
+      return;
+    }
+
     // URL gs:// (Firebase Storage): tenter une résolution vers downloadURL
     if (url.startsWith('gs://')) {
       if (_resolving) return;
@@ -418,28 +424,37 @@ class _PhotoAreaState extends State<_PhotoArea> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Image.network(
-          url,
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-          errorBuilder: (context, error, stackTrace) => const _PhotoFallback(),
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return DecoratedBox(
-              decoration: BoxDecoration(
-                color: MasliveTokens.bg,
-              ),
-              child: const Center(
-                child: SizedBox(
-                  height: 22,
-                  width: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+        if (url.startsWith('assets/') || url.startsWith('/assets/'))
+          Image.asset(
+            url.startsWith('/assets/') ? url.substring(1) : url,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            errorBuilder: (context, error, stackTrace) => const _PhotoFallback(),
+          )
+        else
+          Image.network(
+            url,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            errorBuilder: (context, error, stackTrace) => const _PhotoFallback(),
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return DecoratedBox(
+                decoration: BoxDecoration(
+                  color: MasliveTokens.bg,
                 ),
-              ),
-            );
-          },
-        ),
+                child: const Center(
+                  child: SizedBox(
+                    height: 22,
+                    width: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              );
+            },
+          ),
         _buildFrameOverlay(),
         _buildGrainOverlay(),
       ],

@@ -547,6 +547,76 @@
   };
 
   /**
+   * Déplace les couches du circuit au-dessus des bâtiments 3D
+   * @param {mapboxgl.Map} map - Instance de la carte (optionnel)
+   * @returns {boolean} - true si succès, false sinon
+   */
+  window.mapboxBridge.moveRouteLayersAboveBuildings = function(map) {
+    const mapInstance = map || window.MapboxBridge.map;
+    if (!mapInstance) {
+      console.warn('[RouteAlwaysOnTop] No map instance');
+      return false;
+    }
+
+    try {
+      const style = mapInstance.getStyle();
+      if (!style || !style.layers) {
+        console.warn('[RouteAlwaysOnTop] Style has no layers');
+        return false;
+      }
+
+      // Trouver la première couche de bâtiments 3D (fill-extrusion)
+      const buildingLayer = style.layers.find(l => l.type === 'fill-extrusion');
+      if (!buildingLayer) {
+        console.log('[RouteAlwaysOnTop] No building layer found, skipping');
+        return true; // Pas d'erreur, juste rien à faire
+      }
+
+      // IDs des couches de circuit à déplacer (ordre d'empilement: du fond vers le haut)
+      const routeLayerIds = [
+        'maslive_polyline_shadow',
+        'maslive_polyline_side_l',
+        'maslive_polyline_side_r',
+        'maslive_polyline_glow',
+        'maslive_polyline_casing',
+        'maslive_polyline_core',
+        'maslive_polyline_center',
+        'maslive_polyline_layer',
+        'maslive_polyline_arrows',
+      ];
+
+      let movedCount = 0;
+      
+      // Déplacer chaque couche du circuit au-dessus de la couche de bâtiments
+      for (const layerId of routeLayerIds) {
+        if (mapInstance.getLayer(layerId)) {
+          try {
+            // moveLayer(id, beforeId) - si beforeId est omis, déplace en haut
+            // On le met juste avant la première couche de symboles/labels pour garder les labels visibles
+            const firstSymbolLayer = style.layers.find(l => l.type === 'symbol');
+            if (firstSymbolLayer) {
+              mapInstance.moveLayer(layerId, firstSymbolLayer.id);
+            } else {
+              mapInstance.moveLayer(layerId); // Mettre tout en haut
+            }
+            movedCount++;
+          } catch (e) {
+            console.warn(`[RouteAlwaysOnTop] Could not move layer ${layerId}:`, e.message);
+          }
+        }
+      }
+
+      if (movedCount > 0) {
+        console.log(`[RouteAlwaysOnTop] Moved ${movedCount} route layers above buildings`);
+      }
+      return true;
+    } catch (e) {
+      console.error('[RouteAlwaysOnTop] moveRouteLayersAboveBuildings error:', e);
+      return false;
+    }
+  };
+
+  /**
    * Centre la carte sur une position
    * @param {number} lng - Longitude
    * @param {number} lat - Latitude

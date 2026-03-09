@@ -349,6 +349,11 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           true,
           optionsJson,
         );
+
+        // Si routeAlwaysOnTop est activé, déplacer les couches du circuit au-dessus des bâtiments
+        if (poly.options.routeAlwaysOnTop == true) {
+          await _moveRouteLayersAboveBuildings();
+        }
       } catch (e) {
         debugPrint('⚠️ reapply polyline error: $e');
       }
@@ -437,6 +442,20 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       }
     } catch (e) {
       debugPrint('⚠️ setBuildings3d error: $e');
+    }
+  }
+
+  Future<void> _moveRouteLayersAboveBuildings() async {
+    final map = _getMapForThisContainer();
+    if (map == null) return;
+
+    try {
+      final bridge = js.context['mapboxBridge'];
+      if (bridge is! js.JsObject) return;
+
+      bridge.callMethod('moveRouteLayersAboveBuildings', [map]);
+    } catch (e) {
+      debugPrint('⚠️ moveRouteLayersAboveBuildings error: $e');
     }
   }
 
@@ -1837,6 +1856,11 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           show,
           optionsJson,
         );
+
+        // Si routeAlwaysOnTop est activé, déplacer les couches du circuit au-dessus des bâtiments
+        if (options.routeAlwaysOnTop == true) {
+          await _moveRouteLayersAboveBuildings();
+        }
       } catch (e) {
         debugPrint('⚠️ setPolyline error: $e');
       }

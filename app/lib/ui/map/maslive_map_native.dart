@@ -405,6 +405,11 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
           width: width,
           options: options,
         );
+
+        // Si routeAlwaysOnTop est activé, déplacer les couches du circuit au-dessus des bâtiments
+        if (options.routeAlwaysOnTop == true) {
+          await _moveRouteLayersAboveBuildings();
+        }
         return;
       } else {
         _pendingPolyline = null;
@@ -662,6 +667,58 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     await _buildingsNative.setBuildingsEnabled(enabled);
     if (enabled) {
       await _buildingsNative.setBuildingsOpacity(opacity);
+    }
+  }
+
+  Future<void> _moveRouteLayersAboveBuildings() async {
+    final map = _mapboxMap;
+    if (map == null || !_styleLoaded) return;
+
+    try {
+      // IDs des couches de circuit à déplacer (ordre d'empilement: du fond vers le haut)
+      const routeLayerIds = [
+        _layerRouteShadow,
+        _layerRouteSideL,
+        _layerRouteSideR,
+        _layerRouteCasing,
+        _layerRouteCore,
+        _layerRoutePlain,
+      ];
+
+      // Trouver la première couche de bâtiments 3D
+      final buildingLayerId = await _buildingsNative.findBuildingLayer();
+      if (buildingLayerId == null || buildingLayerId.trim().isEmpty) {
+        debugPrint('[RouteAlwaysOnTop] No building layer found, skipping');
+        return;
+      }
+
+      // Déplacer chaque couche du circuit au-dessus de la couche de bâtiments
+      int movedCount = 0;
+      for (final layerId in routeLayerIds) {
+        try {
+          // Note: l'API moveStyleLayer peut ne pas être disponible sur toutes les versions
+          // du SDK Mapbox Maps Flutter. On utilise une approche dynamique.
+          final dynamic style = map.style;
+          if (style != null) {
+            // Vérifier si la couche existe avant de la déplacer
+            final layerExists = await style.styleLayerExists(layerId);
+            if (layerExists == true) {
+              // moveStyleLayer(layerId, layerPosition)
+              // Pour mettre au-dessus, on peut essayer de le mettre en dernier
+              await style.moveStyleLayer(layerId, null);
+              movedCount++;
+            }
+          }
+        } catch (e) {
+          debugPrint('[RouteAlwaysOnTop] Could not move layer $layerId: $e');
+        }
+      }
+
+      if (movedCount > 0) {
+        debugPrint('[RouteAlwaysOnTop] Moved $movedCount route layers above buildings');
+      }
+    } catch (e) {
+      debugPrint('[RouteAlwaysOnTop] moveRouteLayersAboveBuildings error: $e');
     }
   }
 
@@ -1612,6 +1669,11 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
             width: poly.width,
             options: poly.options,
           );
+
+          // Si routeAlwaysOnTop est activé, déplacer les couches du circuit au-dessus des bâtiments
+          if (poly.options.routeAlwaysOnTop == true) {
+            await _moveRouteLayersAboveBuildings();
+          }
         }
       } else {
         _pendingPolyline = null;

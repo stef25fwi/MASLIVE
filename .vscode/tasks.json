@@ -14,6 +14,17 @@
       }
     },
     {
+      "label": "MASLIVE: ➕ Create food test POI (maslive test)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && node scripts/add_food_test_poi.js --event-name='maslive test'",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: 🔄 Migrate POI popupEnabled (dry-run)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && node scripts/migrate_poi_popup_enabled.js --dry-run",
