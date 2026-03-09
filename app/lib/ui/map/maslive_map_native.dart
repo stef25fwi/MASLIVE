@@ -1287,8 +1287,8 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
           id: _poiPreviewVertexLayerId,
           sourceId: _poiSourceId,
           circleRadius: 6.0,
-          circleColor: 0xFFFFFFFF,
-          circleStrokeColor: _poiStyle.circleStrokeColor.toARGB32(),
+          circleColor: const Color(0xFFFFFFFF),
+          circleStrokeColor: _poiStyle.circleStrokeColor,
           circleStrokeWidth: 2.5,
         ),
       );

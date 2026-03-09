@@ -473,8 +473,8 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
                       config: _config,
                       onChanged: _onConfigChanged,
                       contentPadding: isWide
-                          ? const EdgeInsets.all(16)
-                          : const EdgeInsets.fromLTRB(6, 16, 16, 6),
+                          ? const EdgeInsets.fromLTRB(16, 16, 16, 0)
+                          : const EdgeInsets.fromLTRB(6, 16, 16, 0),
                       onTestAutoRoute: _busy ? () {} : _testAutoRoute,
                       onUseMyTrace: _busy ? () {} : _useMyTrace,
                       onSave: _busy ? () {} : _save,
