@@ -4,10 +4,10 @@ set -e
 cd /workspaces/MASLIVE
 
 echo "📝 Git add..."
-git add app/lib/pages/home_map_page_web.dart
+git add app/lib/pages/default_map_page.dart app/lib/ui/map/maslive_map_web.dart
 
 echo "📝 Git commit..."
-git commit -m "fix: syntax error in home_map_page_web.dart (Future.delayed callback)"
+git commit -m "fix(web-map): repair home map container sizing"
 
 echo "📤 Git push..."
 git push origin main

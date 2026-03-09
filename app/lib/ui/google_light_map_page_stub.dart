@@ -10,8 +10,8 @@ class GoogleLightMapPage extends StatelessWidget {
       appBar: AppBar(title: const Text('Page déplacée')),
       body: const Center(
         child: Text(
-          'Cette page a été déplacée vers le dossier legacy.\n'
-          'Utilisez HomeMapPage3D ou HomeMapPageWeb à la place.',
+          'Google Light Map n\'est pas disponible sur cette plateforme.\n'
+          'Utilisez DefaultMapPage sur le web ou HomeMapPage3D sur mobile.',
           textAlign: TextAlign.center,
         ),
       ),

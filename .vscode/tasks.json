@@ -193,7 +193,7 @@
     {
       "label": "MASLIVE: Git commit + push (P1 start: MasLiveMap replaces MapboxWebView pages)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE && git add app/lib/pages/home_web_page.dart app/lib/pages/mapbox_web_map_page.dart .vscode/tasks.json && git commit -m \"chore(web): migrate MapboxWebView pages to MasLiveMap\" && git push origin main",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/pages/mapbox_web_map_page.dart .vscode/tasks.json && git commit -m \"chore(web): migrate MapboxWebView pages to MasLiveMap\" && git push origin main",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -1125,7 +1125,7 @@
     {
       "label": "MASLIVE: Git commit + push (nav icons)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE && git add app/lib/pages/default_map_page.dart app/lib/pages/home_map_page_3d.dart app/lib/pages/home_map_page_web.dart && git commit -m \"ui(map): move language to vertical nav + parking icon asset\" && git push origin main",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/pages/default_map_page.dart app/lib/pages/home_map_page_3d.dart && git commit -m \"ui(map): move language to vertical nav + parking icon asset\" && git push origin main",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -1136,7 +1136,7 @@
     {
       "label": "MASLIVE: Git commit + push (vertical nav contrast)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE && git add app/lib/pages/default_map_page.dart app/lib/pages/home_map_page_3d.dart app/lib/pages/home_map_page_web.dart && git commit -m \"ui(map): invert selected nav icon contrast\" && git push origin main",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/pages/default_map_page.dart app/lib/pages/home_map_page_3d.dart && git commit -m \"ui(map): invert selected nav icon contrast\" && git push origin main",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -1147,7 +1147,7 @@
     {
       "label": "MASLIVE: Git commit + push (fix map nav build)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE && git add app/lib/pages/default_map_page.dart app/lib/pages/home_map_page_3d.dart app/lib/pages/home_map_page_web.dart && git commit -m \"fix(map): repair vertical nav + cleanup language helpers\" && git push origin main",
+      "command": "cd /workspaces/MASLIVE && git add app/lib/pages/default_map_page.dart app/lib/pages/home_map_page_3d.dart && git commit -m \"fix(map): repair vertical nav + cleanup language helpers\" && git push origin main",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -1656,7 +1656,7 @@
     {
       "label": "MASLIVE: Git commit + push (home nav refine)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE && git restore app/assets/images/3DFC6E2F-38AD-4594-90FC-F5F8E5CED72A.png || true && git add app/lib/pages/home_map_page_3d.dart app/lib/pages/home_map_page_web.dart \"app/assets/images/icon wc parking.png\" .vscode/tasks.json && git commit -m \"ui(home): refine vertical nav (icons, delay, no snackbars)\" && git pull --rebase origin main && git push origin main",
+      "command": "cd /workspaces/MASLIVE && git restore app/assets/images/3DFC6E2F-38AD-4594-90FC-F5F8E5CED72A.png || true && git add app/lib/pages/home_map_page_3d.dart \"app/assets/images/icon wc parking.png\" .vscode/tasks.json && git commit -m \"ui(home): refine vertical nav (icons, delay, no snackbars)\" && git pull --rebase origin main && git push origin main",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -1895,6 +1895,21 @@
         "clear": true
       }
     },
+      {
+        "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (POI persistence + web map cleanup)",
+        "type": "shell",
+        "command": "set -euo pipefail\ncd /workspaces/MASLIVE\n\nEMAIL=$(git config --get user.email || true)\nNAME=$(git config --get user.name || true)\nif [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi\nif [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi\n\ngit add .vscode/tasks.json app/lib/admin/circuit_poi_editor_page.dart app/lib/models/market_circuit_models.dart app/lib/pages/home_map_page_web.dart app/lib/pages/home_web_page.dart app/lib/ui/google_light_map_page_stub.dart app/lib/ui/map/maslive_map_web.dart clean_and_run_web.sh fix_and_deploy.sh\n\nif git diff --cached --quiet; then\n  echo \"ℹ️ Rien à committer pour POI persistence + web map cleanup\"\nelse\n  git commit -m \"fix(poi+web): persist edited photos and clean web map legacy paths\"\nfi\n\ngit push origin main\n\ncd /workspaces/MASLIVE/app\n{ [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true\nTOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}}\nif [ -z \"$TOKEN\" ]; then\n  echo \"❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).\"\n  exit 1\nfi\n/workspaces/MASLIVE/.flutter_sdk/bin/flutter pub get\n/workspaces/MASLIVE/.flutter_sdk/bin/flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\"\ncd /workspaces/MASLIVE\nfirebase deploy --only hosting,functions,firestore:rules,firestore:indexes",
+        "problemMatcher": [],
+        "isBackground": false,
+        "group": {
+          "kind": "build"
+        },
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated",
+          "clear": true
+        }
+      },
     {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (parking controle)",
       "type": "shell",

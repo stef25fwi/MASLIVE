@@ -2185,6 +2185,7 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
 
   late final String _viewType;
   html.DivElement? _containerEl;
+  Size? _lastKnownSize;
   StreamSubscription<html.MessageEvent>? _messageSub;
   bool _didInit = false;
   bool _didReceiveErrorFromJs = false;
@@ -2267,6 +2268,27 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
     return false;
   }
 
+  void _applyContainerSize(Size size) {
+    if (!size.width.isFinite || !size.height.isFinite) return;
+    if (size.width <= 0 || size.height <= 0) return;
+    _lastKnownSize = size;
+
+    final el = _containerEl;
+    if (el == null) return;
+
+    final widthPx = '${size.width}px';
+    final heightPx = '${size.height}px';
+    if (el.style.width != widthPx) {
+      el.style.width = widthPx;
+    }
+    if (el.style.height != heightPx) {
+      el.style.height = heightPx;
+    }
+    el.style.minWidth = widthPx;
+    el.style.minHeight = heightPx;
+    el.style.display = 'block';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -2339,7 +2361,13 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
       container.id = widget.containerId;
       container.style.width = '100%';
       container.style.height = '100%';
+      container.style.display = 'block';
       _containerEl = container;
+
+      final knownSize = _lastKnownSize;
+      if (knownSize != null) {
+        _applyContainerSize(knownSize);
+      }
 
       // L'élément doit être réellement monté dans le DOM avant init Mapbox.
       // requestAnimationFrame donne une chance au layout/attach de se faire.
@@ -2420,6 +2448,10 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
         try {
           final rect = el.getBoundingClientRect();
           if (rect.width <= 0 || rect.height <= 0) {
+            final knownSize = _lastKnownSize;
+            if (knownSize != null) {
+              _applyContainerSize(knownSize);
+            }
             // Layout pas prêt: on attend sans "consommer" une tentative d'init JS.
             Future.delayed(const Duration(milliseconds: 80), _tryInit);
             return;
@@ -2534,7 +2566,33 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
 
   @override
   Widget build(BuildContext context) {
-    return HtmlElementView(viewType: _viewType);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final height = constraints.maxHeight;
+        if (width.isFinite && height.isFinite && width > 0 && height > 0) {
+          final size = Size(width, height);
+          if (_lastKnownSize != size) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              _applyContainerSize(size);
+              if (!_didInit) {
+                _tryInit();
+              }
+            });
+          }
+          return SizedBox(
+            width: width,
+            height: height,
+            child: HtmlElementView(viewType: _viewType),
+          );
+        }
+
+        return const SizedBox.expand(
+          child: ColoredBox(color: Colors.transparent),
+        );
+      },
+    );
   }
 }
 

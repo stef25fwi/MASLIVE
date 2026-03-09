@@ -124,7 +124,15 @@ class MarketMapPOI {
       return c;
     }
 
-    final imageUrl = asString(data['imageUrl'] ?? data['photoUrl'] ?? data['image']);
+    String? imageUrl = asString(
+      data['imageUrl'] ?? data['photoUrl'] ?? data['image'],
+    );
+    if ((imageUrl ?? '').trim().isEmpty) {
+      final imageMeta = meta?['image'];
+      if (imageMeta is Map) {
+        imageUrl = asString(imageMeta['url'] ?? imageMeta['downloadUrl']);
+      }
+    }
     final layerType = (data['layerType'] ?? data['type'] ?? data['layerId'] ?? 'visit').toString();
     final isVisible =
         (data['isVisible'] as bool?) ?? (data['visible'] as bool?) ?? true;

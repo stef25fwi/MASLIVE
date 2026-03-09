@@ -520,6 +520,18 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
     };
   }
 
+  void _showWriteDenied() {
+    if (!mounted) return;
+    TopSnackBar.show(
+      context,
+      const SnackBar(
+        content: Text(
+          '⛔ Upload photo et édition POI réservés aux admins master/superadmins.',
+        ),
+      ),
+    );
+  }
+
   Future<void> _saveDraft() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -629,6 +641,12 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
   }
 
   Future<void> _onMapTapForPoi(double lng, double lat) async {
+    await _ensureActorContext();
+    if (!_canWriteMapProjects) {
+      _showWriteDenied();
+      return;
+    }
+
     if (_selectedLayer == null) return;
     if (_pois.length >= _poiLimit) {
       if (mounted) {
@@ -674,9 +692,47 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
       _pois.add(created);
     });
     _refreshPoiMarkers();
+
+    await _persistPoiUpdate(created);
+  }
+
+  Future<void> _persistPoiUpdate(MarketMapPOI poi) async {
+    await _ensureActorContext();
+    if (!_canWriteMapProjects) return;
+
+    final layerId = (poi.layerId ?? poi.layerType).trim();
+    final docId = poi.id.trim().isEmpty
+        ? 'poi_${poi.layerType}_${poi.lng.toStringAsFixed(5)}_${poi.lat.toStringAsFixed(5)}'
+        : poi.id.trim();
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('map_projects')
+          .doc(widget.projectId)
+          .collection('pois')
+          .doc(docId)
+          .set({
+            ...poi.toFirestore(),
+            'layerId': layerId,
+            'isVisible': poi.isVisible,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+    } catch (e) {
+      if (!mounted) return;
+      TopSnackBar.show(
+        context,
+        SnackBar(content: Text('⚠️ POI modifié localement mais non persisté: $e')),
+      );
+    }
   }
 
   Future<void> _editPoi(MarketMapPOI poi) async {
+    await _ensureActorContext();
+    if (!_canWriteMapProjects) {
+      _showWriteDenied();
+      return;
+    }
+
     final updated = await showModalBottomSheet<MarketMapPOI>(
       context: context,
       isScrollControlled: true,
@@ -697,6 +753,8 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
       }
     });
     _refreshPoiMarkers();
+
+    await _persistPoiUpdate(updated);
   }
 
   void _deletePoi(MarketMapPOI poi) {
@@ -810,7 +868,8 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
                           icon: const Icon(Icons.my_location),
                           tooltip: 'Ajouter un POI à la position actuelle',
                           onPressed:
-                              (_selectedLayer == null ||
+                            (!_canWriteMapProjects ||
+                              _selectedLayer == null ||
                                   _pois.length >= _poiLimit)
                               ? null
                               : _addPoiAtCurrentCenter,

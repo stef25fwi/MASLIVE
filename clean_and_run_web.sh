@@ -18,7 +18,7 @@ flutter pub get
 
 echo ""
 echo "🚀 Lancement de l'app web avec Mapbox GL JS..."
-echo "   → HomeWebPage sera utilisée sur le web"
+echo "   → DefaultMapPage sera utilisée sur le web"
 echo "   → Carte Mapbox GL JS avec token via --dart-define"
 echo ""
 
