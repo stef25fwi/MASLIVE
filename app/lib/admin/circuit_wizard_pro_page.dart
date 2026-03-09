@@ -4301,65 +4301,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       ],
                     ),
                   toolbarSection(
-                    title: 'Bâtiments 3D',
-                    icon: Icons.apartment_rounded,
-                    accent: const Color(0xFF9C27B0),
-                    compact: compactToolbar,
-                    children: [
-                      toolbarToggleButton(
-                        label: '3D',
-                        tooltip: 'Activer/désactiver immeubles 3D',
-                        isActive: _routeStyleProConfig?.buildings3dEnabled ?? true,
-                        onPressed: () {
-                          setState(() {
-                            final current = _routeStyleProConfig ?? const rsp.RouteStyleConfig();
-                            _routeStyleProConfig = current.copyWith(
-                              buildings3dEnabled: !(current.buildings3dEnabled),
-                            );
-                          });
-                        },
-                        accent: const Color(0xFF9C27B0),
-                      ),
-                      const SizedBox(width: 8),
-                      toolbarMetric(
-                        label: 'Opacité',
-                        value: '${((_routeStyleProConfig?.buildingOpacity ?? 0.6) * 100).round()}%',
-                        icon: Icons.opacity_rounded,
-                        accent: const Color(0xFF9C27B0),
-                      ),
-                      const SizedBox(width: 6),
-                      toolbarActionButton(
-                        icon: Icons.remove_circle_outline,
-                        tooltip: 'Réduire opacité',
-                        onPressed: () {
-                          setState(() {
-                            final current = _routeStyleProConfig ?? const rsp.RouteStyleConfig();
-                            final newOpacity = (current.buildingOpacity - 0.1).clamp(0.0, 1.0);
-                            _routeStyleProConfig = current.copyWith(
-                              buildingOpacity: newOpacity,
-                            );
-                          });
-                        },
-                        accent: const Color(0xFF9C27B0),
-                      ),
-                      const SizedBox(width: 4),
-                      toolbarActionButton(
-                        icon: Icons.add_circle_outline,
-                        tooltip: 'Augmenter opacité',
-                        onPressed: () {
-                          setState(() {
-                            final current = _routeStyleProConfig ?? const rsp.RouteStyleConfig();
-                            final newOpacity = (current.buildingOpacity + 0.1).clamp(0.0, 1.0);
-                            _routeStyleProConfig = current.copyWith(
-                              buildingOpacity: newOpacity,
-                            );
-                          });
-                        },
-                        accent: const Color(0xFF9C27B0),
-                      ),
-                    ],
-                  ),
-                  toolbarSection(
                     title: 'Espaces verts',
                     icon: Icons.park_rounded,
                     accent: const Color(0xFF4CAF50),
@@ -6114,6 +6055,20 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     _isRenderingPoiRoute = true;
 
     try {
+      final pro = _routeStyleProConfig;
+      if (pro != null) {
+        final cfg = pro.validated();
+        final buildingsKey =
+            '${cfg.buildings3dEnabled ? 1 : 0}:${cfg.buildingOpacity.toStringAsFixed(3)}';
+        if (_lastPoiBuildingsKey != buildingsKey) {
+          _lastPoiBuildingsKey = buildingsKey;
+          await _poiMapController.setBuildings3d(
+            enabled: cfg.buildings3dEnabled,
+            opacity: cfg.buildingOpacity,
+          );
+        }
+      }
+
       final route = _routePoints;
       if (route.length < 2) {
         await _poiMapController.setPolyline(points: const [], show: false);
@@ -6124,21 +6079,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         for (final p in route) MapPoint(p.lng, p.lat),
       ];
 
-      final pro = _routeStyleProConfig;
       if (pro != null) {
         final cfg = pro.validated();
-
-        final buildingsKey =
-            '${cfg.buildings3dEnabled ? 1 : 0}:${cfg.buildingOpacity.toStringAsFixed(3)}';
-        if (_lastPoiBuildingsKey != buildingsKey) {
-          _lastPoiBuildingsKey = buildingsKey;
-          unawaited(
-            _poiMapController.setBuildings3d(
-              enabled: cfg.buildings3dEnabled,
-              opacity: cfg.buildingOpacity,
-            ),
-          );
-        }
 
         final mainWidth = cfg.effectiveRenderedMainWidth;
         final casingWidth = cfg.effectiveRenderedCasingWidth;

@@ -53,10 +53,13 @@ class GlassScrollbar extends StatelessWidget {
         mainAxisMargin: 4.0,
         minThumbLength: 48.0,
       ),
-      child: Scrollbar(
-        controller: controller,
-        scrollbarOrientation: scrollbarOrientation,
-        child: child,
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+        child: Scrollbar(
+          controller: controller,
+          scrollbarOrientation: scrollbarOrientation,
+          child: child,
+        ),
       ),
     );
   }
