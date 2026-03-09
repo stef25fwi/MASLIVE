@@ -1617,6 +1617,17 @@
       }
     },
     {
+      "label": "MASLIVE: Firebase deploy (force, log)",
+      "type": "shell",
+      "command": "bash -lc 'rm -f /tmp/maslive_firebase_force_deploy.log && cd /workspaces/MASLIVE && set +e; firebase deploy --force --only hosting,functions,firestore:rules,firestore:indexes > /tmp/maslive_firebase_force_deploy.log 2>&1; code=$?; echo EXIT_CODE=$code >> /tmp/maslive_firebase_force_deploy.log; exit $code'",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (Token Mapbox)",
       "type": "shell",
       "command": "bash /workspaces/MASLIVE/git_commit_push_build_deploy.sh \"fix: unblock splash + home V3\"",
