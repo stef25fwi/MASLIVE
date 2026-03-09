@@ -1528,8 +1528,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           'email': email,
           'mapsUrl': mapsUrl,
 
-          // meta brute (si utile côté UI)
-          'meta': meta,
+          // meta: explicitly JSON encode to ensure it survives Mapbox serialization
+          'meta': meta.isNotEmpty ? jsonEncode(meta) : '',
         },
       });
     }
@@ -2068,15 +2068,21 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       Map<String, dynamic>? meta;
       final metaRaw = props['meta'] ?? props['metadata'];
       if (metaRaw is Map) {
-        meta = metaRaw.map((k, v) => MapEntry(k.toString(), v));
+        try {
+          meta = Map<String, dynamic>.from(metaRaw);
+        } catch (_) {
+          meta = metaRaw.map((k, v) => MapEntry(k.toString(), v));
+        }
       } else if (metaRaw is String && metaRaw.trim().isNotEmpty) {
         try {
           final decoded = jsonDecode(metaRaw);
           if (decoded is Map) {
-            meta = decoded.map((k, v) => MapEntry(k.toString(), v));
+            meta = Map<String, dynamic>.from(decoded);
           }
-        } catch (_) {
-          // ignore
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('⚠️ Failed to parse meta JSON: $metaRaw');
+          }
         }
       }
 
@@ -2084,9 +2090,15 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       if (meta == null) {
         final imgRaw = props['image'];
         if (imgRaw is Map) {
-          meta = <String, dynamic>{
-            'image': imgRaw.map((k, v) => MapEntry(k.toString(), v)),
-          };
+          try {
+            meta = <String, dynamic>{
+              'image': Map<String, dynamic>.from(imgRaw),
+            };
+          } catch (_) {
+            meta = <String, dynamic>{
+              'image': imgRaw.map((k, v) => MapEntry(k.toString(), v)),
+            };
+          }
         }
       }
 
@@ -2094,7 +2106,13 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       if (imageUrl.trim().isEmpty && meta != null) {
         final img = meta['image'];
         if (img is Map) {
-          imageUrl = (img['url'] ?? img['downloadUrl'] ?? '').toString();
+          final url = (img['url'] ?? img['downloadUrl'] ?? '').toString().trim();
+          if (url.isNotEmpty) {
+            imageUrl = url;
+            if (kDebugMode) {
+              debugPrint('ℹ️ POI imageUrl completed from meta.image.url');
+            }
+          }
         }
       }
 
@@ -2136,7 +2154,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       if (!hasCard) {
         if (kDebugMode) {
           debugPrint(
-            'ℹ️ POI tap: no card detected => skip (id=${poiId ?? "?"}, type=$type, name="$name", metaKeys=${meta?.keys.toList() ?? []})',
+            'ℹ️ POI tap: no card detected => skip (id=${poiId ?? "?"}, type=$type, name="$name", hasImage=$imageUrl, hasAnyCardData=$hasAnyCardData, metaKeys=${meta?.keys.toList() ?? []})',
           );
         }
         return;
@@ -2239,6 +2257,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   }) async {
     if (_isPoiPopupShowing) return;
     _isPoiPopupShowing = true;
+
+    if (kDebugMode) {
+      debugPrint(
+        '📍 POI Polaroid: opening sheet (title=$title, imageUrl=${(imageUrl ?? "").isEmpty ? "empty" : "present"}, metaKeys=${meta.keys.toList()}, metaImage=${(meta['image'] as Map?)?.keys.toList() ?? []})',
+      );
+    }
 
     // Analytics: uniquement si on ouvre réellement la polaroid
     unawaited(

@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -653,6 +653,12 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       if (mounted) {
         TopSnackBar.showMessage(context, '✅ Photo uploadée', isError: false);
       }
+    } catch (e) {
+      if (!mounted) return;
+      if (kDebugMode) {
+        debugPrint('⚠️ Image upload error: $e');
+      }
+      throw StateError('Upload échoué: ${_extractErrorMessage(e)}');
     } finally {
       if (mounted) {
         setState(() {
@@ -661,6 +667,23 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
         });
       }
     }
+  }
+
+  String _extractErrorMessage(Object error) {
+    final msg = error.toString();
+    if (msg.contains('Permission denied')) {
+      return 'Permissions insuffisantes';
+    }
+    if (msg.contains('Storage quota')) {
+      return 'Quota de stockage dépassé';
+    }
+    if (msg.contains('Network')) {
+      return 'Erreur réseau';
+    }
+    if (msg.contains('timeout')) {
+      return 'Délai d\'upload dépassé';
+    }
+    return msg.length > 100 ? '${msg.substring(0, 100)}...' : msg;
   }
 
   MarketMapPOI _buildUpdatedPoi() {

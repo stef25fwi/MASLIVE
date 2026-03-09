@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -196,7 +197,12 @@ class PolaroidPoiCard extends StatelessWidget {
       final img = meta?['image'];
       if (img is Map) {
         final u = (img['url'] ?? img['downloadUrl'] ?? '').toString().trim();
-        if (u.isNotEmpty) effectiveImageUrl = u;
+        if (u.isNotEmpty) {
+          effectiveImageUrl = u;
+          if (kDebugMode) {
+            debugPrint('ℹ️ PolaroidPoiCard: imageUrl completed from meta.image.url');
+          }
+        }
       }
     }
 
@@ -209,6 +215,12 @@ class PolaroidPoiCard extends StatelessWidget {
         : 0.0;
     final clampedAngle = angleDeg.clamp(-7.0, 7.0);
     final clampedGrain = grain.clamp(0.0, 1.0);
+
+    if (kDebugMode) {
+      debugPrint(
+        '✅ PolaroidPoiCard: title=$title, imageUrl=${(effectiveImageUrl ?? "").isEmpty ? "empty" : "present"}, polaroidAngle=$angleDeg, grain=$grain, metaKeys=${meta?.keys.toList() ?? []}',
+      );
+    }
 
     return Center(
       child: AspectRatio(
@@ -359,10 +371,16 @@ class _PhotoAreaState extends State<_PhotoArea> {
         width: double.infinity,
         height: double.infinity,
         errorBuilder: (context, error, stackTrace) {
+          if (kDebugMode) {
+            debugPrint('⚠️ Frame asset load error: $error');
+          }
           // Fallback "frame" simple si l'asset n'est pas encore présent.
           return DecoratedBox(
             decoration: BoxDecoration(
-              border: Border.all(color: MasliveTokens.borderSoft),
+              border: Border.all(
+                color: MasliveTokens.borderSoft,
+                width: 8.0,
+              ),
               borderRadius: BorderRadius.circular(MasliveTokens.rS),
             ),
           );
