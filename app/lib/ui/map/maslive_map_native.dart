@@ -1221,12 +1221,27 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
           [
             '==',
             ['get', kMasLivePoiAppearanceKey],
+            'icon-point.wbp',
+          ],
+          [
+            '==',
+            ['get', kMasLivePoiAppearanceKey],
             'point.webp',
           ],
           [
             '==',
             ['get', kMasLivePoiAppearanceKey],
+            'point.wbp',
+          ],
+          [
+            '==',
+            ['get', kMasLivePoiAppearanceKey],
             'point_webp',
+          ],
+          [
+            '==',
+            ['get', kMasLivePoiAppearanceKey],
+            'point_wbp',
           ],
           [
             '==',

@@ -24,8 +24,11 @@ const String kMasLivePoiAppearanceIconPointId = 'icon_point';
 const Set<String> kMasLivePoiAppearanceIconPointAliases = {
   'icon_point',
   'icon-point.webp',
+  'icon-point.wbp',
   'point.webp',
+  'point.wbp',
   'point_webp',
+  'point_wbp',
   'point',
 };
 
