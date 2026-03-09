@@ -783,6 +783,24 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       case 4:
         actions.add(
           wrapAction(
+            OutlinedButton.icon(
+              onPressed: () => unawaited(_goToPreviousStep()),
+              icon: const Icon(Icons.arrow_back_rounded, size: 18),
+              label: const Text('Retour au trace principal'),
+            ),
+          ),
+        );
+        actions.add(
+          wrapAction(
+            OutlinedButton.icon(
+              onPressed: _showDraftHistory,
+              icon: const Icon(Icons.history, size: 18),
+              label: const Text('Historique'),
+            ),
+          ),
+        );
+        actions.add(
+          wrapAction(
             FilledButton.tonalIcon(
               onPressed: () => unawaited(_continueToStep(5)),
               icon: const Icon(Icons.place_outlined, size: 18),
@@ -3047,6 +3065,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   Future<void> _ensureRouteSnappedBeforePersist() async {
+    if (_routeStyleProConfig?.validated().freeDrawEnabled ?? false) {
+      return;
+    }
+
     if (_routePoints.length < 2) return;
 
     // Si un snap est déjà en cours, on attend un peu qu'il se termine.
@@ -4593,6 +4615,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       });
     }
 
+    if (_routeStyleProConfig?.validated().freeDrawEnabled ?? false) {
+      if (!mounted) return;
+      _showTopSnackBar(
+        '✅ Points ajoutés: +$addedCount, tracé libre conservé sans correction.',
+      );
+      return;
+    }
+
     await _snapRouteToRoadsInternal(
       persist: true,
       showSnackBar: false,
@@ -4639,6 +4669,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   void _scheduleContinuousRouteSnap() {
+    if (_routeStyleProConfig?.validated().freeDrawEnabled ?? false) return;
     if (_routePoints.length < 2) return;
 
     _routeSnapDebounce?.cancel();
@@ -4674,6 +4705,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     required bool showSnackBar,
     required int? expectedSeq,
   }) async {
+    if (_routeStyleProConfig?.validated().freeDrawEnabled ?? false) {
+      if (showSnackBar && mounted) {
+        _showTopSnackBar(
+          'ℹ️ Tracé libre actif: correction de trajectoire désactivée.',
+        );
+      }
+      return;
+    }
+
     if (_routePoints.length < 2) return;
     if (_isSnappingRoute) return;
 

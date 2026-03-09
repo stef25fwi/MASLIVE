@@ -321,6 +321,11 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
   }
 
   Future<void> _applySnapIfNeeded({required String label}) async {
+    if (_config.freeDrawEnabled) {
+      _snack('Tracé libre actif: aucune correction de trajectoire appliquée');
+      return;
+    }
+
     if (_route.length < 2) {
       _snack('Ajoutez au moins 2 points pour snap');
       return;
@@ -354,12 +359,16 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
     final end = (_route.length >= 2) ? _route.last : _defaultTestRoute().last;
 
     setState(() => _route = [start, end]);
-    if (_config.carMode) {
+    if (_config.carMode && !_config.freeDrawEnabled) {
       await _applySnapIfNeeded(label: 'Itinéraire auto');
       return;
     }
 
-    _snack('Mode voiture désactivé: segment direct conservé');
+    _snack(
+      _config.freeDrawEnabled
+          ? 'Tracé libre actif: segment direct conservé'
+          : 'Mode voiture désactivé: segment direct conservé',
+    );
   }
 
   Future<void> _useMyTrace() async {
@@ -383,9 +392,12 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
       if (mounted) setState(() => _busy = false);
     }
 
-    if (_config.carMode) {
+    if (_config.carMode && !_config.freeDrawEnabled) {
       await _applySnapIfNeeded(label: 'Snap sur route');
+      return;
     }
+
+    _snack('Tracé libre actif: votre tracé est conservé sans correction');
   }
 
   Future<void> _save() async {

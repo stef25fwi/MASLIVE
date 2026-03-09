@@ -1,7 +1,7 @@
 import 'dart:ui' show Color;
 
 /// Version du schéma JSON stocké.
-const int kRouteStyleSchemaVersion = 7;
+const int kRouteStyleSchemaVersion = 8;
 
 /// Représentation simple (lat, lng) pour les services.
 typedef LatLng = ({double lat, double lng});
@@ -25,6 +25,7 @@ class RouteStyleConfig {
 
   // A) Géométrie / comportement
   final bool carMode;
+    final bool freeDrawEnabled;
   final bool fitToRoadWidth;
   final double snapToleranceMeters;
   final RouteLineCap lineCap;
@@ -146,6 +147,7 @@ class RouteStyleConfig {
     this.schemaVersion = kRouteStyleSchemaVersion,
     // A
     this.carMode = true,
+    this.freeDrawEnabled = false,
     this.fitToRoadWidth = false,
     this.snapToleranceMeters = 35.0,
     this.lineCap = RouteLineCap.round,
@@ -251,6 +253,7 @@ class RouteStyleConfig {
   RouteStyleConfig copyWith({
     int? schemaVersion,
     bool? carMode,
+    bool? freeDrawEnabled,
     bool? fitToRoadWidth,
     double? snapToleranceMeters,
     RouteLineCap? lineCap,
@@ -295,6 +298,7 @@ class RouteStyleConfig {
     return RouteStyleConfig(
       schemaVersion: schemaVersion ?? this.schemaVersion,
       carMode: carMode ?? this.carMode,
+    freeDrawEnabled: freeDrawEnabled ?? this.freeDrawEnabled,
       fitToRoadWidth: fitToRoadWidth ?? this.fitToRoadWidth,
       snapToleranceMeters: snapToleranceMeters ?? this.snapToleranceMeters,
       lineCap: lineCap ?? this.lineCap,
@@ -347,6 +351,7 @@ class RouteStyleConfig {
     return RouteStyleConfig(
       schemaVersion: schemaVersion,
       carMode: carMode,
+    freeDrawEnabled: freeDrawEnabled,
       fitToRoadWidth: fitToRoadWidth,
       snapToleranceMeters: clamp(snapToleranceMeters, 5, 150),
       lineCap: lineCap,
@@ -396,6 +401,7 @@ class RouteStyleConfig {
     return {
       'schemaVersion': schemaVersion,
       'carMode': carMode,
+    'freeDrawEnabled': freeDrawEnabled,
       'fitToRoadWidth': fitToRoadWidth,
       'snapToleranceMeters': snapToleranceMeters,
       'lineCap': lineCap.name,
@@ -461,6 +467,9 @@ class RouteStyleConfig {
           ? (json['schemaVersion'] as num).toInt()
           : kRouteStyleSchemaVersion,
       carMode: json['carMode'] is bool ? json['carMode'] as bool : true,
+      freeDrawEnabled: json['freeDrawEnabled'] is bool
+          ? json['freeDrawEnabled'] as bool
+          : false,
       fitToRoadWidth: json['fitToRoadWidth'] is bool
           ? json['fitToRoadWidth'] as bool
           : false,

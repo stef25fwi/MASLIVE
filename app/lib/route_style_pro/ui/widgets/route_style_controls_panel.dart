@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../../models/route_style_config.dart';
@@ -88,6 +90,14 @@ class _RouteStyleControlsPanelState extends State<RouteStyleControlsPanel> {
                   title: 'Mode voiture (snap + style route)',
                   value: cfg.carMode,
                   onChanged: (v) => widget.onChanged(cfg.copyWith(carMode: v)),
+                ),
+                ToggleTile(
+                  title: 'Tracé libre',
+                  subtitle:
+                      'Conserve le circuit tel que dessiné, sans correction automatique de trajectoire.',
+                  value: cfg.freeDrawEnabled,
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(freeDrawEnabled: v)),
                 ),
                 ToggleTile(
                   title: 'Respecter la largeur de la route',
@@ -547,20 +557,10 @@ class _RouteStyleControlsPanelState extends State<RouteStyleControlsPanel> {
   }
 
   bool _looksLikePreset(RouteStyleConfig a, RouteStyleConfig b) {
-    // Heuristique simple (évite d'avoir un state presetId)
-    final aa = a.validated();
-    final bb = b.validated();
-    return aa.mainWidth == bb.mainWidth &&
-        aa.casingWidth == bb.casingWidth &&
-        aa.fitToRoadWidth == bb.fitToRoadWidth &&
-        aa.widthScale3d == bb.widthScale3d &&
-        aa.thickness3d == bb.thickness3d &&
-        aa.casingThickness3d == bb.casingThickness3d &&
-        aa.elevationPx == bb.elevationPx &&
-        aa.mainColor.toARGB32() == bb.mainColor.toARGB32() &&
-        aa.casingColor.toARGB32() == bb.casingColor.toARGB32() &&
-        aa.glowEnabled == bb.glowEnabled &&
-        aa.rainbowEnabled == bb.rainbowEnabled;
+    // Comparaison exacte de la config normalisée pour éviter qu'un preset
+    // apparaisse sélectionné alors que d'autres champs divergent encore.
+    return jsonEncode(a.validated().toJson()) ==
+        jsonEncode(b.validated().toJson());
   }
 }
 
