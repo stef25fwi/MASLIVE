@@ -36,6 +36,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
 
   String? _lastWebBoundsKey;
   String? _lastWebBuildingsKey;
+  int? _lastParkColorValue;
 
   // Mobile: MapboxMaps
   MapboxMap? _map;
@@ -441,13 +442,20 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
 
     // Bâtiments 3D (opacity + enabled) : ne réapplique que si valeur a changé.
     final buildingsKey =
-        '${cfg.buildings3dEnabled ? 1 : 0}:${cfg.buildingOpacity.toStringAsFixed(3)}';
+        '${ cfg.buildings3dEnabled ? 1 : 0}:${cfg.buildingOpacity.toStringAsFixed(3)}';
     if (_lastWebBuildingsKey != buildingsKey) {
       _lastWebBuildingsKey = buildingsKey;
       await _webController.setBuildings3d(
         enabled: cfg.buildings3dEnabled,
         opacity: cfg.buildingOpacity,
       );
+    }
+
+    // Couleur des parcs : applique si changée
+    final parkColorValue = cfg.parkColor?.value;
+    if (_lastParkColorValue != parkColorValue) {
+      _lastParkColorValue = parkColorValue;
+      await _webController.setParkColor(cfg.parkColor);
     }
 
     if (_lastWebBoundsKey != boundsKey) {

@@ -440,6 +440,31 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     }
   }
 
+  Future<void> _applyParkColor(Color? color) async {
+    final map = _getMapForThisContainer();
+    if (map == null) return;
+
+    try {
+      final bridge = js.context['mapboxBridge'];
+      if (bridge is! js.JsObject) return;
+
+      if (color == null) {
+        // Réinitialiser à la couleur par défaut (pas d'action pour l'instant)
+        return;
+      }
+
+      // Convertir la couleur en hex
+      final r = (color.r * 255).round().toRadixString(16).padLeft(2, '0');
+      final g = (color.g * 255).round().toRadixString(16).padLeft(2, '0');
+      final b = (color.b * 255).round().toRadixString(16).padLeft(2, '0');
+      final colorHex = '#$r$g$b';
+
+      bridge.callMethod('setParkColor', [colorHex, map]);
+    } catch (e) {
+      debugPrint('⚠️ setParkColor error: $e');
+    }
+  }
+
   void _scheduleResize() {
     if (!_isMapReady) return;
     _pendingResize?.cancel();
@@ -1854,6 +1879,11 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       _lastBuildings3dEnabled = enabled;
       _lastBuildings3dOpacity = opacity;
       await _applyBuildings3d(enabled: enabled, opacity: opacity);
+    };
+
+    controller.setParkColorImpl = (color) async {
+      if (!_isMapReady) return;
+      await _applyParkColor(color);
     };
 
     controller

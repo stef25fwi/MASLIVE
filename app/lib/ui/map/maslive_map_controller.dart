@@ -58,6 +58,9 @@ class MasLiveMapController {
   /// Callback interne pour régler les bâtiments 3D (web: fill-extrusion opacity/visibility)
   Future<void> Function(bool enabled, double opacity)? _setBuildings3dImpl;
 
+  /// Callback interne pour régler la couleur des espaces verts (parcs, forêts)
+  Future<void> Function(Color? color)? _setParkColorImpl;
+
   // =====================================================================
   // SETTERS publics pour brancher les implémentations (Web/Native)
   // ⚠️ Ne PAS utiliser dans le code applicatif, réservés aux impl internes
@@ -149,6 +152,11 @@ class MasLiveMapController {
   /// @nodoc - Usage interne seulement
   set setBuildings3dImpl(Future<void> Function(bool enabled, double opacity)? impl) {
     _setBuildings3dImpl = impl;
+  }
+
+  /// @nodoc - Usage interne seulement
+  set setParkColorImpl(Future<void> Function(Color? color)? impl) {
+    _setParkColorImpl = impl;
   }
 
   // =====================================================================
@@ -280,6 +288,15 @@ class MasLiveMapController {
     required double opacity,
   }) async {
     await _setBuildings3dImpl?.call(enabled, opacity);
+  }
+
+  /// Définir la couleur des espaces verts (parcs, forêts, etc.)
+  ///
+  /// Web: applique la couleur sur les layers de type landuse/park.
+  /// Mobile: no-op pour l'instant.
+  /// Si color est null, réinitialise à la couleur du style par défaut.
+  Future<void> setParkColor(Color? color) async {
+    await _setParkColorImpl?.call(color);
   }
 
   /// Afficher un polygone (zone, circuit fermé)

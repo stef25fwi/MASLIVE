@@ -109,6 +109,9 @@ class CircuitMapEditor extends StatefulWidget {
   final bool? buildings3dEnabled;
   final double? buildingsOpacity;
 
+  /// Couleur personnalisée des espaces verts (parcs, forêts)
+  final Color? parkColor;
+
   /// Afficher (ou non) le header interne (titre + sous-titre).
   /// Utile quand la page parente affiche déjà le titre sous l'AppBar.
   final bool showHeader;
@@ -198,6 +201,7 @@ class CircuitMapEditor extends StatefulWidget {
     this.mapTopRightOverlay,
     this.buildings3dEnabled,
     this.buildingsOpacity,
+    this.parkColor,
 
     this.showHeader = true,
     this.pointsListMaxHeight = 180,
@@ -367,6 +371,10 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     await _mapController.setBuildings3d(enabled: enabled, opacity: opacity);
   }
 
+  Future<void> _applyParkColorIfNeeded() async {
+    await _mapController.setParkColor(widget.parkColor);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -422,6 +430,11 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
         oldWidget.buildingsOpacity != widget.buildingsOpacity;
     if (buildingsChanged && _isMapReady) {
       unawaited(_applyBuildings3dIfNeeded());
+    }
+
+    final parkColorChanged = oldWidget.parkColor != widget.parkColor;
+    if (parkColorChanged && _isMapReady) {
+      unawaited(_applyParkColorIfNeeded());
     }
 
     if (oldWidget.controller != widget.controller) {
@@ -1300,6 +1313,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
             _syncCameraWatch();
             await _renderOnMap();
             await _applyBuildings3dIfNeeded();
+            await _applyParkColorIfNeeded();
           },
         ),
         Positioned(

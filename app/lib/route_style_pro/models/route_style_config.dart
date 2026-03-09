@@ -138,6 +138,10 @@ class RouteStyleConfig {
   /// (Utile sur certains styles/pitches où les bâtiments masquent le tracé.)
   final bool routeAlwaysOnTop;
 
+  // J) Couleur des espaces verts (parcs, forêts, etc.)
+  /// Couleur personnalisée pour les zones de verdure sur la carte (null = défaut du style)
+  final Color? parkColor;
+
   const RouteStyleConfig({
     this.schemaVersion = kRouteStyleSchemaVersion,
     // A
@@ -191,6 +195,8 @@ class RouteStyleConfig {
     this.buildingOpacity = 0.60,
     // I
     this.routeAlwaysOnTop = false,
+    // J
+    this.parkColor,
   });
 
   bool get roadEffectsEnabled => carMode;
@@ -285,8 +291,7 @@ class RouteStyleConfig {
     bool? alternativesEnabled,
     bool? buildings3dEnabled,
     double? buildingOpacity,
-    bool? routeAlwaysOnTop,
-  }) {
+    bool? routeAlwaysOnTop,    Color? parkColor,  }) {
     return RouteStyleConfig(
       schemaVersion: schemaVersion ?? this.schemaVersion,
       carMode: carMode ?? this.carMode,
@@ -331,6 +336,7 @@ class RouteStyleConfig {
       buildings3dEnabled: buildings3dEnabled ?? this.buildings3dEnabled,
       buildingOpacity: buildingOpacity ?? this.buildingOpacity,
       routeAlwaysOnTop: routeAlwaysOnTop ?? this.routeAlwaysOnTop,
+      parkColor: parkColor ?? this.parkColor,
     ).validated();
   }
 
@@ -382,6 +388,7 @@ class RouteStyleConfig {
       buildings3dEnabled: buildings3dEnabled,
       buildingOpacity: clamp(buildingOpacity, 0, 1),
       routeAlwaysOnTop: routeAlwaysOnTop,
+      parkColor: parkColor,
     );
   }
 
@@ -430,6 +437,7 @@ class RouteStyleConfig {
       'buildings3dEnabled': buildings3dEnabled,
       'buildingOpacity': buildingOpacity,
       'routeAlwaysOnTop': routeAlwaysOnTop,
+      if (parkColor != null) 'parkColor': parkColor!.value,
     };
   }
 
@@ -572,6 +580,9 @@ class RouteStyleConfig {
       routeAlwaysOnTop: json['routeAlwaysOnTop'] is bool
           ? json['routeAlwaysOnTop'] as bool
           : false,
+      parkColor: json['parkColor'] is int
+          ? Color(json['parkColor'] as int)
+          : null,
     );
 
     return cfg.validated();

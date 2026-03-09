@@ -3232,6 +3232,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           : _normalizeMapboxStyleUrl(_styleUrlController.text),
       buildings3dEnabled: proCfg?.buildings3dEnabled,
       buildingsOpacity: proCfg?.buildingOpacity,
+      parkColor: proCfg?.parkColor,
       showToolbar: false,
       showHeader: false,
       allowVerticalScroll: true,
@@ -3654,6 +3655,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           : _normalizeMapboxStyleUrl(_styleUrlController.text),
       buildings3dEnabled: proCfg?.buildings3dEnabled,
       buildingsOpacity: proCfg?.buildingOpacity,
+      parkColor: proCfg?.parkColor,
 
       // Verrouillage + caméra (périmètre)
       lockMapToPerimeter: true,
@@ -3805,6 +3807,47 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       ],
                     ),
                   ],
+                ),
+              );
+            }
+
+            Widget toolbarToggleButton({
+              required String label,
+              required String tooltip,
+              required bool isActive,
+              required VoidCallback onPressed,
+              Color? accent,
+            }) {
+              final tint = accent ?? MasliveTokens.primary;
+              return Tooltip(
+                message: tooltip,
+                child: InkWell(
+                  onTap: onPressed,
+                  borderRadius: BorderRadius.circular(MasliveTokens.rS),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? tint.withValues(alpha: 0.16)
+                          : Colors.white.withValues(alpha: 0.82),
+                      borderRadius: BorderRadius.circular(MasliveTokens.rS),
+                      border: Border.all(
+                        color: isActive
+                            ? tint.withValues(alpha: 0.35)
+                            : colorScheme.outline.withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: Text(
+                      label,
+                      style: toolbarValueStyle.copyWith(
+                        color: isActive ? tint : MasliveTokens.text,
+                        fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ),
               );
             }
@@ -4257,6 +4300,147 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                         ],
                       ],
                     ),
+                  toolbarSection(
+                    title: 'Bâtiments 3D',
+                    icon: Icons.apartment_rounded,
+                    accent: const Color(0xFF9C27B0),
+                    compact: compactToolbar,
+                    children: [
+                      toolbarToggleButton(
+                        label: '3D',
+                        tooltip: 'Activer/désactiver immeubles 3D',
+                        isActive: _routeStyleProConfig?.buildings3dEnabled ?? true,
+                        onPressed: () {
+                          setState(() {
+                            final current = _routeStyleProConfig ?? const rsp.RouteStyleConfig();
+                            _routeStyleProConfig = current.copyWith(
+                              buildings3dEnabled: !(current.buildings3dEnabled),
+                            );
+                          });
+                        },
+                        accent: const Color(0xFF9C27B0),
+                      ),
+                      const SizedBox(width: 8),
+                      toolbarMetric(
+                        label: 'Opacité',
+                        value: '${((_routeStyleProConfig?.buildingOpacity ?? 0.6) * 100).round()}%',
+                        icon: Icons.opacity_rounded,
+                        accent: const Color(0xFF9C27B0),
+                      ),
+                      const SizedBox(width: 6),
+                      toolbarActionButton(
+                        icon: Icons.remove_circle_outline,
+                        tooltip: 'Réduire opacité',
+                        onPressed: () {
+                          setState(() {
+                            final current = _routeStyleProConfig ?? const rsp.RouteStyleConfig();
+                            final newOpacity = (current.buildingOpacity - 0.1).clamp(0.0, 1.0);
+                            _routeStyleProConfig = current.copyWith(
+                              buildingOpacity: newOpacity,
+                            );
+                          });
+                        },
+                        accent: const Color(0xFF9C27B0),
+                      ),
+                      const SizedBox(width: 4),
+                      toolbarActionButton(
+                        icon: Icons.add_circle_outline,
+                        tooltip: 'Augmenter opacité',
+                        onPressed: () {
+                          setState(() {
+                            final current = _routeStyleProConfig ?? const rsp.RouteStyleConfig();
+                            final newOpacity = (current.buildingOpacity + 0.1).clamp(0.0, 1.0);
+                            _routeStyleProConfig = current.copyWith(
+                              buildingOpacity: newOpacity,
+                            );
+                          });
+                        },
+                        accent: const Color(0xFF9C27B0),
+                      ),
+                    ],
+                  ),
+                  toolbarSection(
+                    title: 'Espaces verts',
+                    icon: Icons.park_rounded,
+                    accent: const Color(0xFF4CAF50),
+                    compact: compactToolbar,
+                    children: [
+                      toolbarToggleButton(
+                        label: _routeStyleProConfig?.parkColor != null ? 'Custom' : 'Défaut',
+                        tooltip: 'Activer/désactiver couleur personnalisée',
+                        isActive: _routeStyleProConfig?.parkColor != null,
+                        onPressed: () {
+                          setState(() {
+                            final current = _routeStyleProConfig ?? const rsp.RouteStyleConfig();
+                            _routeStyleProConfig = current.copyWith(
+                              parkColor: current.parkColor == null
+                                  ? const Color(0xFF7CB342) // Vert par défaut
+                                  : null,
+                            );
+                          });
+                        },
+                        accent: const Color(0xFF4CAF50),
+                      ),
+                      if (_routeStyleProConfig?.parkColor != null) ...[
+                        const SizedBox(width: 8),
+                        toolbarActionButton(
+                          icon: Icons.brightness_1,
+                          tooltip: 'Vert clair',
+                          onPressed: () {
+                            setState(() {
+                              final current = _routeStyleProConfig ?? const rsp.RouteStyleConfig();
+                              _routeStyleProConfig = current.copyWith(
+                                parkColor: const Color(0xFF9CCC65),
+                              );
+                            });
+                          },
+                          accent: const Color(0xFF9CCC65),
+                        ),
+                        const SizedBox(width: 4),
+                        toolbarActionButton(
+                          icon: Icons.brightness_1,
+                          tooltip: 'Vert normal',
+                          onPressed: () {
+                            setState(() {
+                              final current = _routeStyleProConfig ?? const rsp.RouteStyleConfig();
+                              _routeStyleProConfig = current.copyWith(
+                                parkColor: const Color(0xFF7CB342),
+                              );
+                            });
+                          },
+                          accent: const Color(0xFF7CB342),
+                        ),
+                        const SizedBox(width: 4),
+                        toolbarActionButton(
+                          icon: Icons.brightness_1,
+                          tooltip: 'Vert foncé',
+                          onPressed: () {
+                            setState(() {
+                              final current = _routeStyleProConfig ?? const rsp.RouteStyleConfig();
+                              _routeStyleProConfig = current.copyWith(
+                                parkColor: const Color(0xFF558B2F),
+                              );
+                            });
+                          },
+                          accent: const Color(0xFF558B2F),
+                        ),
+                        const SizedBox(width: 4),
+                        toolbarActionButton(
+                          icon: Icons.brightness_1,
+                          tooltip: 'Forêt',
+                          onPressed: () {
+                            setState(() {
+                              final current = _routeStyleProConfig ?? const rsp.RouteStyleConfig();
+                              _routeStyleProConfig = current.copyWith(
+                                parkColor: const Color(0xFF33691E),
+                              );
+                            });
+                          },
+                          accent: const Color(0xFF33691E),
+                        ),
+                      ],
+                    ],
+                  ),
                   toolbarSection(
                     title: 'Édition',
                     icon: Icons.auto_fix_high_rounded,
