@@ -4968,7 +4968,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           _wizardStepHorizontalPadding,
           0,
           _wizardStepHorizontalPadding,
-          kBottomNavigationBarHeight + MasliveTokens.m,
+          0,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
