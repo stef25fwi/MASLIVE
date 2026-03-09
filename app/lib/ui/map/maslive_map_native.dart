@@ -1190,36 +1190,6 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
             false,
           ],
         ],
-        [
-          'any',
-          [
-            '!',
-            ['has', kMasLivePoiAppearanceKey],
-          ],
-          [
-            'all',
-            [
-              '!=',
-              ['get', kMasLivePoiAppearanceKey],
-              kMasLivePoiAppearanceIconPointId,
-            ],
-            [
-              '!=',
-              ['get', kMasLivePoiAppearanceKey],
-              'point.webp',
-            ],
-            [
-              '!=',
-              ['get', kMasLivePoiAppearanceKey],
-              'point_webp',
-            ],
-            [
-              '!=',
-              ['get', kMasLivePoiAppearanceKey],
-              'point',
-            ],
-          ],
-        ],
       ]);
     } catch (_) {
       // ignore
@@ -1242,6 +1212,11 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
             '==',
             ['get', kMasLivePoiAppearanceKey],
             kMasLivePoiAppearanceIconPointId,
+          ],
+          [
+            '==',
+            ['get', kMasLivePoiAppearanceKey],
+            'icon-point.webp',
           ],
           [
             '==',
@@ -1903,10 +1878,16 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       final pointIcon = await _buildAssetImage('assets/images/icon-point.webp');
       if (pointIcon != null) {
         await add(_poiIconPointId, pointIcon);
+      } else {
+        debugPrint(
+          '⚠️ Impossible de décoder assets/images/icon-point.webp pour Mapbox natif.',
+        );
       }
       _patternImagesReady = true;
-    } catch (_) {
-      // ignore
+    } catch (e) {
+      debugPrint(
+        '⚠️ Impossible de charger l\'image POI icon-point.webp pour Mapbox natif: $e',
+      );
     }
   }
 

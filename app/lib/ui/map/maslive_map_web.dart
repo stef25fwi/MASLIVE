@@ -1000,36 +1000,6 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
                   false,
                 ],
               ],
-              [
-                'any',
-                [
-                  '!',
-                  ['has', kMasLivePoiAppearanceKey],
-                ],
-                [
-                  'all',
-                  [
-                    '!=',
-                    ['get', kMasLivePoiAppearanceKey],
-                    kMasLivePoiAppearanceIconPointId,
-                  ],
-                  [
-                    '!=',
-                    ['get', kMasLivePoiAppearanceKey],
-                    'point.webp',
-                  ],
-                  [
-                    '!=',
-                    ['get', kMasLivePoiAppearanceKey],
-                    'point_webp',
-                  ],
-                  [
-                    '!=',
-                    ['get', kMasLivePoiAppearanceKey],
-                    'point',
-                  ],
-                ],
-              ],
             ],
             'paint': {
               'circle-radius': _poiStyle.circleRadius,
@@ -1077,36 +1047,6 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
               false,
             ],
           ],
-          [
-            'any',
-            [
-              '!',
-              ['has', kMasLivePoiAppearanceKey],
-            ],
-            [
-              'all',
-              [
-                '!=',
-                ['get', kMasLivePoiAppearanceKey],
-                kMasLivePoiAppearanceIconPointId,
-              ],
-              [
-                '!=',
-                ['get', kMasLivePoiAppearanceKey],
-                'point.webp',
-              ],
-              [
-                '!=',
-                ['get', kMasLivePoiAppearanceKey],
-                'point_webp',
-              ],
-              [
-                '!=',
-                ['get', kMasLivePoiAppearanceKey],
-                'point',
-              ],
-            ],
-          ],
         ]),
       ]);
 
@@ -1134,6 +1074,11 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
                 [
                   '==',
                   ['get', kMasLivePoiAppearanceKey],
+                  'icon-point.webp',
+                ],
+                [
+                  '==',
+                  ['get', kMasLivePoiAppearanceKey],
                   'point.webp',
                 ],
                 [
@@ -1143,6 +1088,11 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
                 ],
                 [
                   '==',
+                  'icon-point.webp',
+                ],
+                [
+                  '==',
+                  ['get', kMasLivePoiAppearanceKey],
                   ['get', kMasLivePoiAppearanceKey],
                   'point',
                 ],
@@ -1601,8 +1551,10 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         final img = html.ImageElement(src: 'assets/images/icon-point.webp');
         await img.onLoad.first;
         map.callMethod('addImage', [_poiIconPointId, img]);
-      } catch (_) {
-        // ignore
+      } catch (e) {
+        debugPrint(
+          '⚠️ Impossible de charger l\'image POI icon-point.webp pour Mapbox web: $e',
+        );
       }
     }
   }
