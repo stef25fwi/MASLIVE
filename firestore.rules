@@ -112,6 +112,60 @@ service cloud.firestore {
         || userGroupId() == groupId;
     }
 
+    // ========== HELPERS MEDIA MARKETPLACE ==========
+    function isPhotographerOwner(photographerId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/photographers/$(photographerId))
+        && get(/databases/$(database)/documents/photographers/$(photographerId)).data.ownerUid == request.auth.uid;
+    }
+
+    function canManagePhotographerProfile(photographerId) {
+      return isMasterAdmin() || isPhotographerOwner(photographerId);
+    }
+
+    function isGalleryVisible(data) {
+      return data.status == 'published' && data.visibility in ['public', 'unlisted'];
+    }
+
+    function isPhotoVisible(data) {
+      return data.isPublished == true
+        && data.lifecycleStatus == 'published'
+        && data.moderationStatus == 'approved'
+        && data.visibility in ['public', 'unlisted'];
+    }
+
+    function isPackVisible(data) {
+      return data.isActive == true;
+    }
+
+    function hasOwnedPhotographerUidInList(data, fieldName) {
+      return isSignedIn()
+        && (fieldName in data)
+        && (data[fieldName] is list)
+        && data[fieldName].hasAny([request.auth.uid]);
+    }
+
+    function isMarketplaceOrderBuyer(data) {
+      return isSignedIn() && data.buyerUid == request.auth.uid;
+    }
+
+    function canReadMarketplaceOrder(data) {
+      return isMasterAdmin()
+        || isMarketplaceOrderBuyer(data)
+        || hasOwnedPhotographerUidInList(data, 'photographerOwnerUids');
+    }
+
+    function canReadEntitlement(data) {
+      return isMasterAdmin()
+        || (isSignedIn() && data.buyerUid == request.auth.uid)
+        || (('photographerId' in data) && isPhotographerOwner(data.photographerId));
+    }
+
+    function canReadPayoutEntry(data) {
+      return isMasterAdmin()
+        || (('photographerId' in data) && isPhotographerOwner(data.photographerId));
+    }
+
     // Autorise l'écriture dans `marketMap` si et seulement si l'écriture est
     // rattachée à un projet `map_projects/{projectId}` du groupe de l'admin.
     // (Le chemin marketMap ne porte pas le groupId, on contrôle via sourceProjectId)
@@ -1072,6 +1126,146 @@ service cloud.firestore {
     // Écrit par ImageManagementService lors d'un upload (variants + metadata).
     match /image_assets/{imageId} {
       allow read: if isSignedIn();
+      allow create, update, delete: if isSignedIn() && isMasterAdmin();
+    }
+
+    // ========== MODULE: MEDIA MARKETPLACE ==========
+    match /photographers/{photographerId} {
+      allow read: if isSignedIn() && (
+        isMasterAdmin()
+        || isPhotographerOwner(photographerId)
+        || resource.data.status == 'approved'
+      );
+
+      allow create: if isSignedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.photographerId == photographerId;
+
+      allow update: if canManagePhotographerProfile(photographerId)
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.photographerId == resource.data.photographerId;
+
+      allow delete: if canManagePhotographerProfile(photographerId);
+    }
+
+    match /photographer_plans/{planId} {
+      allow read: if true;
+      allow create, update, delete: if isMasterAdmin();
+    }
+
+    match /photographer_subscriptions/{subscriptionId} {
+      allow read: if isSignedIn() && (
+        isMasterAdmin()
+        || resource.data.ownerUid == request.auth.uid
+        || isPhotographerOwner(resource.data.photographerId)
+      );
+
+      allow create, update, delete: if isMasterAdmin();
+    }
+
+    match /media_galleries/{galleryId} {
+      allow read: if isSignedIn() && (
+        isMasterAdmin()
+        || isPhotographerOwner(resource.data.photographerId)
+        || isGalleryVisible(resource.data)
+      );
+
+      allow create: if isSignedIn()
+        && isPhotographerOwner(request.resource.data.photographerId)
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.galleryId == galleryId;
+
+      allow update: if canManagePhotographerProfile(resource.data.photographerId)
+        && request.resource.data.photographerId == resource.data.photographerId
+        && request.resource.data.ownerUid == resource.data.ownerUid;
+
+      allow delete: if canManagePhotographerProfile(resource.data.photographerId);
+    }
+
+    match /media_photos/{photoId} {
+      allow read: if isSignedIn() && (
+        isMasterAdmin()
+        || isPhotographerOwner(resource.data.photographerId)
+        || isPhotoVisible(resource.data)
+      );
+
+      allow create: if isSignedIn()
+        && isPhotographerOwner(request.resource.data.photographerId)
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.photoId == photoId;
+
+      allow update: if canManagePhotographerProfile(resource.data.photographerId)
+        && request.resource.data.photographerId == resource.data.photographerId
+        && request.resource.data.ownerUid == resource.data.ownerUid;
+
+      allow delete: if canManagePhotographerProfile(resource.data.photographerId);
+    }
+
+    match /media_packs/{packId} {
+      allow read: if isSignedIn() && (
+        isMasterAdmin()
+        || isPhotographerOwner(resource.data.photographerId)
+        || isPackVisible(resource.data)
+      );
+
+      allow create: if isSignedIn()
+        && isPhotographerOwner(request.resource.data.photographerId)
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.packId == packId;
+
+      allow update: if canManagePhotographerProfile(resource.data.photographerId)
+        && request.resource.data.photographerId == resource.data.photographerId
+        && request.resource.data.ownerUid == resource.data.ownerUid;
+
+      allow delete: if canManagePhotographerProfile(resource.data.photographerId);
+    }
+
+    match /carts/{uid} {
+      allow read, create, update, delete: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /orders/{orderId} {
+      allow read: if isSignedIn() && canReadMarketplaceOrder(resource.data);
+
+      allow create: if isSignedIn()
+        && request.resource.data.buyerUid == request.auth.uid
+        && request.resource.data.orderId == orderId
+        && request.resource.data.paymentStatus == 'pending';
+
+      allow update: if isSignedIn() && (
+        isMasterAdmin()
+        || (isMarketplaceOrderBuyer(resource.data)
+            && request.resource.data.buyerUid == resource.data.buyerUid
+            && request.resource.data.photographerIds == resource.data.photographerIds
+            && request.resource.data.photographerOwnerUids == resource.data.photographerOwnerUids
+            && request.resource.data.items == resource.data.items
+            && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+              'updatedAt'
+            ]))
+      );
+
+      allow delete: if isMasterAdmin();
+    }
+
+    match /media_entitlements/{entitlementId} {
+      allow read: if isSignedIn() && canReadEntitlement(resource.data);
+      allow create, update, delete: if isMasterAdmin();
+    }
+
+    match /payout_ledger/{ledgerId} {
+      allow read: if isSignedIn() && canReadPayoutEntry(resource.data);
+      allow create, update, delete: if isMasterAdmin();
+    }
+
+    match /media_download_logs/{logId} {
+      allow read: if isSignedIn() && (
+        isMasterAdmin() || resource.data.buyerUid == request.auth.uid
+      );
+      allow create, update, delete: if false;
+    }
+
+    match /admin_moderation_queue/{queueId} {
+      allow read: if isSignedIn() && isMasterAdmin();
       allow create, update, delete: if isSignedIn() && isMasterAdmin();
     }
 

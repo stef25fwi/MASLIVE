@@ -389,6 +389,18 @@
         "clear": true
       }
     },
+    {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (media marketplace, log)",
+      "type": "shell",
+      "command": "bash -lc 'rm -f /tmp/maslive_media_marketplace_deploy.log && cd /workspaces/MASLIVE && set +e; bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat(media-marketplace): add marketplace flow and remove legacy checkout\" > /tmp/maslive_media_marketplace_deploy.log 2>&1; code=$?; echo EXIT_CODE=$code >> /tmp/maslive_media_marketplace_deploy.log; exit $code'",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
     /* {
       "label": "MASLIVE: PATCH (temp) circuit_poi_editor SnackBars top",
       "type": "shell",

@@ -2449,6 +2449,23 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     await _applyMarketPoiSelection(selection, resetPoiFilter: true);
   }
 
+  void _openMarketplaceForSelectedEvent() {
+    final eventId = _marketPoiSelection.event?.id;
+    final eventName = _marketPoiSelection.event?.name;
+    final circuitName = _marketPoiSelection.circuit?.name;
+    Navigator.pushNamed(
+      context,
+      '/media-marketplace',
+      arguments: <String, dynamic>{
+        if (eventId != null && eventId.trim().isNotEmpty) 'eventId': eventId,
+        if (eventName != null && eventName.trim().isNotEmpty)
+          'eventName': eventName,
+        if (circuitName != null && circuitName.trim().isNotEmpty)
+          'circuitName': circuitName,
+      },
+    );
+  }
+
   /// Ferme automatiquement le menu de navigation après un délai.
   void _closeNavWithDelay() {
     Future.delayed(_navCloseDelay, () {
@@ -2814,6 +2831,14 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                           ),
                         );
                       },
+                    ),
+                    const SizedBox(width: 10),
+                    MasliveGradientIconButton(
+                      icon: Icons.photo_library_outlined,
+                      tooltip: _marketPoiSelection.event != null
+                          ? 'Médias de l’événement'
+                          : 'Marché des médias',
+                      onTap: _openMarketplaceForSelectedEvent,
                     ),
                     const SizedBox(width: 10),
                     MasliveGradientIconButton(

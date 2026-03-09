@@ -303,6 +303,130 @@
         {"fieldPath": "action", "order": "ASCENDING"},
         {"fieldPath": "at", "order": "DESCENDING"}
       ]
+    },
+    {
+      "collectionGroup": "photographer_plans",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "isActive", "order": "ASCENDING"},
+        {"fieldPath": "monthlyPrice", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "photographer_subscriptions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "photographerId", "order": "ASCENDING"},
+        {"fieldPath": "status", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "media_galleries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "eventId", "order": "ASCENDING"},
+        {"fieldPath": "publishedAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "media_galleries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "photographerId", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "media_photos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "galleryId", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "media_photos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "galleryId", "order": "ASCENDING"},
+        {"fieldPath": "isPublished", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "media_packs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "galleryId", "order": "ASCENDING"},
+        {"fieldPath": "sortOrder", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "media_packs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "galleryId", "order": "ASCENDING"},
+        {"fieldPath": "isActive", "order": "ASCENDING"},
+        {"fieldPath": "sortOrder", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "buyerUid", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "photographerIds", "arrayConfig": "CONTAINS"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "media_entitlements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "buyerUid", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "media_entitlements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "buyerUid", "order": "ASCENDING"},
+        {"fieldPath": "assetId", "order": "ASCENDING"},
+        {"fieldPath": "assetType", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "payout_ledger",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "photographerId", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "admin_moderation_queue",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "status", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "admin_moderation_queue",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "photographerId", "order": "ASCENDING"},
+        {"fieldPath": "status", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
     }
   ],
   "fieldOverrides": [

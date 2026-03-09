@@ -38,6 +38,16 @@ service firebase.storage {
     function isGroupAdmin(groupId) {
       return hasUserDoc() && userRole() == 'group' && userGroupId() == groupId;
     }
+
+    function isPhotographerOwner(photographerId) {
+      return isAuthenticated()
+        && firestore.exists(/databases/(default)/documents/photographers/$(photographerId))
+        && firestore.get(/databases/(default)/documents/photographers/$(photographerId)).data.ownerUid == request.auth.uid;
+    }
+
+    function canManageMarketplaceMedia(photographerId) {
+      return isMasterAdmin() || isPhotographerOwner(photographerId);
+    }
     
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
@@ -107,6 +117,16 @@ service firebase.storage {
                       isValidImageType() &&
                       isValidImageSize();
       allow delete: if isMasterAdmin();
+    }
+
+    // ✅ Média marketplace photographes
+    // Chemin: photographers/{photographerId}/events/{eventId}/galleries/{galleryId}/...
+    match /photographers/{photographerId}/events/{eventId}/galleries/{galleryId}/{allPaths=**} {
+      allow read: if isAuthenticated() && canManageMarketplaceMedia(photographerId);
+      allow write: if canManageMarketplaceMedia(photographerId) &&
+                      isValidImageType() &&
+                      request.resource.size < 25 * 1024 * 1024;
+      allow delete: if canManageMarketplaceMedia(photographerId);
     }
     
     // ✅ Tout refuser par défaut

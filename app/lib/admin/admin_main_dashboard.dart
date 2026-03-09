@@ -5,7 +5,6 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/app_user.dart';
 import '../services/auth_claims_service.dart';
@@ -27,6 +26,7 @@ import '../pages/storex_shop_page.dart';
 import 'admin_moderation_page.dart';
 import 'commerce_analytics_page.dart';
 import 'user_profile_preview_page.dart';
+import '../features/media_marketplace/presentation/pages/media_marketplace_pages.dart';
 import '../pages/superadmin_articles_page.dart';
 import '../commerce_module_single_file.dart';
 import 'admin_groups_page.dart';
@@ -321,6 +321,38 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                             context,
                             MaterialPageRoute(
                               builder: (_) => const AdminOrdersPage(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDashboardCard(
+                          title: 'Marché des médias',
+                          subtitle: 'Catalogue et navigation des médias',
+                          icon: Icons.photo_library,
+                          color: Colors.deepOrange,
+                          onTap: () => Navigator.pushNamed(
+                            context,
+                            '/media-marketplace',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildDashboardCard(
+                          title: 'Modération des médias',
+                          subtitle: 'File de validation des médias',
+                          icon: Icons.perm_media,
+                          color: Colors.brown,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminModerationQueuePage(),
                             ),
                           ),
                         ),
@@ -1516,41 +1548,21 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                     }
 
                     setState(() {
-                      status = 'Création d\'une commande de test...';
+                      status = 'Flow legacy média supprimé';
                     });
 
-                    final functionsInstance = FirebaseFunctions.instanceFor(
-                      region: 'europe-west1',
-                    );
-                    final callable = functionsInstance.httpsCallable(
-                      'createCheckoutSessionForOrder',
-                    );
-
                     setState(() {
-                      status = 'Appel de createCheckoutSessionForOrder...';
-                    });
-
-                    final response = await callable
-                        .call({
-                          'orderId':
-                              'test_${DateTime.now().millisecondsSinceEpoch}',
-                        })
-                        .timeout(
-                          const Duration(seconds: 10),
-                          onTimeout: () => throw TimeoutException(
-                            'Le test a dépassé le délai (10s)',
-                          ),
-                        );
-
-                    setState(() {
-                      status = 'Test terminé avec succès';
+                      status = 'Information de migration affichée';
                       result =
-                          '''✓ Connexion Stripe établie
+                          '''Le test createCheckoutSessionForOrder a été supprimé.
 
-Réponse reçue:
-${response.data.toString()}
+Le checkout média doit désormais passer par:
+- createMediaMarketplaceCheckout
+- carts/{uid}
+- orders/{orderId}
+- media_entitlements/{entitlementId}
 
-La Cloud Function a réussi à communiquer avec Stripe.''';
+Le fallback legacy users/{uid}/orders n'est plus traité par le webhook.''';
                       isLoading = false;
                     });
                   } catch (e) {

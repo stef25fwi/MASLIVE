@@ -22,6 +22,7 @@ class AccountUiPage extends StatefulWidget {
 class _AccountUiPageState extends State<AccountUiPage> {
   bool _isAdmin = false;
   bool _hasBusiness = false;
+  bool _hasPhotographerProfile = false;
   bool _canSubmitCommerce = false;
 
   @override
@@ -29,6 +30,7 @@ class _AccountUiPageState extends State<AccountUiPage> {
     super.initState();
     _checkAdminStatus();
     _checkBusinessStatus();
+    _checkPhotographerStatus();
     _checkCommercePermissions();
   }
 
@@ -66,6 +68,22 @@ class _AccountUiPageState extends State<AccountUiPage> {
     }
   }
 
+  Future<void> _checkPhotographerStatus() async {
+    try {
+      final user = AuthService.instance.currentUser;
+      if (user == null) return;
+      final snap = await FirebaseFirestore.instance
+          .collection('photographers')
+          .where('ownerUid', isEqualTo: user.uid)
+          .limit(1)
+          .get();
+      if (!mounted) return;
+      setState(() => _hasPhotographerProfile = snap.docs.isNotEmpty);
+    } catch (_) {
+      // ignore silent failures for optional tile
+    }
+  }
+
   Future<void> _checkCommercePermissions() async {
     try {
       final canSubmit = await CommerceService.instance.canSubmitCommerce();
@@ -86,7 +104,7 @@ class _AccountUiPageState extends State<AccountUiPage> {
       return;
     }
     try {
-      Navigator.pushNamed(context, t.route!);
+      Navigator.pushNamed(context, t.route!, arguments: t.arguments);
     } catch (_) {
       ScaffoldMessenger.of(
         context,
@@ -115,6 +133,26 @@ class _AccountUiPageState extends State<AccountUiPage> {
         route: '/purchase-history',
       ),
       _AccountTileData(
+        icon: Icons.photo_library_outlined,
+        title: 'Marché des médias',
+        subtitle: 'Parcourir les galeries et packs photo',
+        route: '/media-marketplace',
+      ),
+      _AccountTileData(
+        icon: Icons.shopping_cart_outlined,
+        title: 'Panier médias',
+        subtitle: 'Finaliser mes achats photo',
+        route: '/media-marketplace',
+        arguments: <String, dynamic>{'initialTab': 'cart'},
+      ),
+      _AccountTileData(
+        icon: Icons.download_outlined,
+        title: 'Mes téléchargements',
+        subtitle: 'Accéder à mes médias achetés',
+        route: '/media-marketplace',
+        arguments: <String, dynamic>{'initialTab': 'downloads'},
+      ),
+      _AccountTileData(
         icon: Icons.notifications_none_rounded,
         title: l10n.manageAlerts,
         subtitle: l10n.manageAlerts,
@@ -141,6 +179,24 @@ class _AccountUiPageState extends State<AccountUiPage> {
         subtitle: 'Demande + paiements Stripe',
         route: '/business',
       ));
+    }
+
+    if (_hasPhotographerProfile) {
+      tiles.insertAll(3, <_AccountTileData>[
+        _AccountTileData(
+          icon: Icons.camera_alt_outlined,
+          title: 'Espace photographe',
+          subtitle: 'Gérer mes galeries, ventes et stats',
+          route: '/media-marketplace',
+          arguments: <String, dynamic>{'initialTab': 'photographer'},
+        ),
+        _AccountTileData(
+          icon: Icons.workspace_premium_outlined,
+          title: 'Abonnement photographe',
+          subtitle: 'Gérer ma formule marché des médias',
+          route: '/media-marketplace/subscription',
+        ),
+      ]);
     }
 
     return Scaffold(
@@ -382,11 +438,13 @@ class _AccountTileData {
   final String title;
   final String subtitle;
   final String? route;
+  final Object? arguments;
 
   const _AccountTileData({
     required this.icon,
     required this.title,
     required this.subtitle,
     this.route,
+    this.arguments,
   });
 }

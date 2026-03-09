@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 
+import '../features/media_marketplace/presentation/pages/media_downloads_page.dart';
 import '../widgets/rainbow_header.dart';
 import '../ui/widgets/honeycomb_background.dart';
 import '../ui/widgets/maslive_card.dart';
@@ -90,7 +91,7 @@ class _PurchaseHistoryPageState extends State<PurchaseHistoryPage>
                     ),
                     tabs: const [
                       Tab(text: 'Commandes'),
-                      Tab(text: 'Achats Photos'),
+                      Tab(text: 'Téléchargements médias'),
                     ],
                   ),
                 ),
@@ -315,143 +316,9 @@ class _OrdersTab extends StatelessWidget {
 class _PurchasesTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-
-    if (userId == null) {
-      return const Center(child: Text('Veuillez vous connecter'));
-    }
-
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .collection('purchases')
-          .orderBy('purchasedAt', descending: true)
-          .limit(100)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return Center(child: Text('Erreur: ${snapshot.error}'));
-        }
-
-        final purchases = snapshot.data?.docs ?? [];
-
-        if (purchases.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.photo_library_outlined,
-                  size: 64,
-                  color: Colors.grey[400],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Aucune photo achetée',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Vos photos achetées apparaîtront ici',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return GridView.builder(
-          padding: const EdgeInsets.all(16),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 0.75,
-          ),
-          itemCount: purchases.length,
-          itemBuilder: (context, index) {
-            final purchase = purchases[index].data() as Map<String, dynamic>;
-            final thumbnailUrl = purchase['thumbnailUrl'] ?? purchase['url'];
-            final purchasedAt = (purchase['purchasedAt'] as Timestamp?)
-                ?.toDate();
-            final price = purchase['price'] ?? 0.0;
-
-            return MasliveCard(
-              radius: 12,
-              padding: EdgeInsets.zero,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(12),
-                      ),
-                      child: thumbnailUrl != null
-                          ? Image.network(
-                              thumbnailUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  Container(
-                                    color: Colors.grey[300],
-                                    child: const Icon(
-                                      Icons.broken_image,
-                                      size: 48,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                            )
-                          : Container(
-                              color: Colors.grey[300],
-                              child: const Icon(
-                                Icons.image,
-                                size: 48,
-                                color: Colors.grey,
-                              ),
-                            ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (purchasedAt != null)
-                          Text(
-                            DateFormat('dd/MM/yyyy').format(purchasedAt),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${price.toStringAsFixed(2)}€',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: MasliveTheme.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+    return const MediaDownloadsPage(
+      embedded: true,
+      showContextHeader: false,
     );
   }
 }

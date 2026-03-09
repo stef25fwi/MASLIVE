@@ -68,6 +68,7 @@ import 'pages/commerce/my_submissions_page.dart';
 import 'admin/admin_moderation_page.dart';
 import 'admin/commerce_analytics_page.dart';
 import 'route_style_pro/ui/route_style_wizard_pro_page.dart';
+import 'features/media_marketplace/presentation/pages/media_marketplace_pages.dart';
 import 'pages/group/admin_group_dashboard_page.dart';
 import 'pages/group/tracker_group_profile_page.dart';
 import 'pages/group/group_map_live_page.dart';
@@ -387,6 +388,53 @@ class MasLiveApp extends StatelessWidget {
                   const AdminRouteGuard(child: AdminModerationPage()),
               '/admin/commerce-analytics': (_) =>
                   const AdminRouteGuard(child: CommerceAnalyticsPage()),
+              '/media-marketplace': (ctx) {
+                final args = ModalRoute.of(ctx)?.settings.arguments;
+                int initialTabIndex = 0;
+                if (args is Map) {
+                  final eventId = args['eventId'] as String?;
+                  final eventName = args['eventName'] as String?;
+                  final circuitName = args['circuitName'] as String?;
+                  final photographerId = args['photographerId'] as String?;
+                  final ownerUid = args['ownerUid'] as String?;
+                  final initialTab = args['initialTab'];
+                  if (initialTab is int) {
+                    initialTabIndex = initialTab;
+                  } else if (initialTab is String) {
+                    switch (initialTab) {
+                      case 'cart':
+                        initialTabIndex = 1;
+                        break;
+                      case 'downloads':
+                        initialTabIndex = 2;
+                        break;
+                      case 'photographer':
+                        initialTabIndex = 3;
+                        break;
+                      default:
+                        initialTabIndex = 0;
+                    }
+                  }
+                  return MediaMarketplaceEntryPage(
+                    eventId: eventId,
+                    eventName: eventName,
+                    circuitName: circuitName,
+                    photographerId: photographerId,
+                    ownerUid: ownerUid,
+                    initialTabIndex: initialTabIndex,
+                  );
+                }
+                return const MediaMarketplaceEntryPage();
+              },
+              '/media-marketplace/cart': (_) => const MediaCartPage(),
+              '/media-marketplace/downloads': (_) =>
+                  const MediaDownloadsPage(),
+              '/media-marketplace/photographer': (_) =>
+                  const PhotographerDashboardPage(),
+              '/media-marketplace/subscription': (_) =>
+                  const PhotographerSubscriptionPage(),
+              '/admin/media-marketplace/moderation': (_) =>
+                  const AdminRouteGuard(child: AdminModerationQueuePage()),
 
               // Public (mobile): viewer MarketMap
               '/public/marketmap': (ctx) {

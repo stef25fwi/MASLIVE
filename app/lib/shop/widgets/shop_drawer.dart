@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../../pages/media_shop_page.dart';
 import '../../models/group_product.dart';
 import '../../widgets/language_switcher.dart';
 import '../../l10n/app_localizations.dart' as l10n;
@@ -89,9 +88,7 @@ class ShopDrawer extends StatelessWidget {
               InkWell(
                 onTap: () {
                   Navigator.of(context).pop();
-                  Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => const MediaShopPage(),
-                  ));
+                  Navigator.of(context).pushNamed('/media-marketplace');
                 },
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
@@ -128,7 +125,7 @@ class ShopDrawer extends StatelessWidget {
                       const SizedBox(width: 12),
                       const Expanded(
                         child: Text(
-                          'Media Shop',
+                          'Marché des médias',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,

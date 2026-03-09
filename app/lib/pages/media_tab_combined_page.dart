@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../features/media_marketplace/presentation/pages/media_marketplace_entry_page.dart';
 import 'media_gallery_maslive_instagram_page.dart';
-import 'media_shop_page.dart';
 
 /// Page combinée "Médias" :
 /// - Onglet 1 : Galerie Instagram MAS'LIVE (lecture seule)
@@ -31,7 +31,7 @@ class MediaTabCombinedPage extends StatelessWidget {
         body: const TabBarView(
           children: [
             MediaGalleryMasliveInstagramPage(),
-            MediaShopPage(),
+            MediaMarketplaceEntryPage(),
           ],
         ),
       ),

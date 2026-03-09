@@ -360,6 +360,23 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
                   Text('Pays: ${selected.countryName}'),
                   Text('Événement: ${selected.eventName}'),
                   Text('Circuit: ${selected.circuitName}'),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.pushNamed(
+                        context,
+                        '/media-marketplace',
+                        arguments: <String, dynamic>{
+                          'eventId': selected.eventId,
+                          'eventName': selected.eventName,
+                          'circuitName': selected.circuitName,
+                        },
+                      ),
+                      icon: const Icon(Icons.photo_library_outlined),
+                      label: const Text('Ouvrir les médias de l’événement'),
+                    ),
+                  ),
                 ],
               ),
             const SizedBox(height: 8),

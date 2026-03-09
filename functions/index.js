@@ -12,8 +12,11 @@ const { defineSecret } = require("firebase-functions/params");
 const {
   onDocumentCreated,
   onDocumentUpdated,
+  onDocumentDeleted,
 } = require("firebase-functions/v2/firestore");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
+const createMediaMarketplaceStripe = require("./src/media-marketplace-stripe");
+const createMediaMarketplaceMedia = require("./src/media-marketplace-media");
 
 const STRIPE_SECRET_KEY = defineSecret("STRIPE_SECRET_KEY");
 const STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET");
@@ -212,6 +215,36 @@ setGlobalOptions({ region: "us-east1" });
 
 admin.initializeApp();
 const db = admin.firestore();
+const mediaMarketplaceStripe = createMediaMarketplaceStripe({
+  admin,
+  db,
+  onCall,
+  HttpsError,
+  STRIPE_SECRET_KEY,
+  getStripe,
+  isAllowedRedirectUrl,
+});
+const mediaMarketplaceMedia = createMediaMarketplaceMedia({
+  admin,
+  db,
+  onCall,
+  HttpsError,
+  onDocumentCreated,
+  onDocumentUpdated,
+  onDocumentDeleted,
+});
+
+exports.createMediaMarketplaceCheckout =
+  mediaMarketplaceStripe.createMediaMarketplaceCheckout;
+exports.createPhotographerSubscriptionCheckoutSession =
+  mediaMarketplaceStripe.createPhotographerSubscriptionCheckoutSession;
+exports.getMediaDownloadUrl = mediaMarketplaceMedia.getMediaDownloadUrl;
+exports.syncMediaPhotoOnCreate = mediaMarketplaceMedia.syncMediaPhotoOnCreate;
+exports.syncMediaPhotoOnUpdate = mediaMarketplaceMedia.syncMediaPhotoOnUpdate;
+exports.syncMediaPhotoOnDelete = mediaMarketplaceMedia.syncMediaPhotoOnDelete;
+exports.syncMediaPackOnCreate = mediaMarketplaceMedia.syncMediaPackOnCreate;
+exports.syncMediaPackOnUpdate = mediaMarketplaceMedia.syncMediaPackOnUpdate;
+exports.syncMediaPackOnDelete = mediaMarketplaceMedia.syncMediaPackOnDelete;
 
 function assertNumber(n, name) {
   if (typeof n !== "number" || Number.isNaN(n) || !Number.isFinite(n)) {
@@ -1695,153 +1728,6 @@ exports.revokeUserCategory = onCall(
 );
 
 /**
- * createCheckoutSessionForOrder
- * Crée une Stripe Checkout Session pour une commande en attente
- * { orderId: string }
- * Returns: { checkoutUrl: string }
- */
-exports.createCheckoutSessionForOrder = onCall(
-  {
-    region: "us-east1",
-    cpu: 0.083,
-    memory: "256MiB",
-    timeoutSeconds: 30,
-    secrets: [STRIPE_SECRET_KEY],
-  },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Authentication required");
-    }
-
-    const { orderId } = request.data || {};
-    const uid = request.auth.uid;
-
-    if (!orderId || typeof orderId !== "string") {
-      throw new HttpsError("invalid-argument", "orderId is required");
-    }
-
-    // 1. Récupère la commande depuis Firestore
-    const orderRef = db.collection("users").doc(uid).collection("orders").doc(orderId);
-    const orderSnap = await orderRef.get();
-
-    if (!orderSnap.exists) {
-      throw new HttpsError("not-found", `Order ${orderId} not found`);
-    }
-
-    const orderData = orderSnap.data();
-
-    // Idempotence: si une session existe déjà sur la commande, la réutiliser.
-    if (orderData?.stripeSessionUrl && typeof orderData.stripeSessionUrl === "string") {
-      return { checkoutUrl: orderData.stripeSessionUrl };
-    }
-
-    if (orderData.status !== "pending") {
-      throw new HttpsError(
-        "failed-precondition",
-        `Order ${orderId} is not in pending status (current: ${orderData.status})`
-      );
-    }
-
-    // IMPORTANT: Ne jamais faire confiance aux montants venant de users/{uid}/orders.
-    // On recalcule les prix depuis la source de vérité (photos).
-
-    // 2. Prépare les line_items pour Stripe
-    const items = orderData.items || [];
-    if (items.length === 0) {
-      throw new HttpsError("invalid-argument", "Order has no items");
-    }
-
-    // Recalcul prix photo depuis /photos
-    const photoIds = items
-      .map((it) => it.photoId)
-      .filter((v) => typeof v === "string" && v.trim().length > 0);
-    const photosById = await fetchPhotosById(photoIds);
-
-    const validatedItems = items.map((item) => {
-      const photoId = typeof item.photoId === "string" ? item.photoId.trim() : "";
-      if (!photoId) {
-        throw new HttpsError("failed-precondition", "Missing photoId in order item");
-      }
-
-      const photo = photosById.get(photoId);
-      if (!photo) {
-        throw new HttpsError("failed-precondition", `Photo not found: ${photoId}`);
-      }
-      if (photo.isActive === false) {
-        throw new HttpsError("failed-precondition", `Photo inactive: ${photoId}`);
-      }
-      if (looksLikeNonEmptyString(photo.moderationStatus) && String(photo.moderationStatus).toLowerCase() !== "approved") {
-        throw new HttpsError("failed-precondition", `Photo not approved: ${photoId}`);
-      }
-
-      const priceCents = assertPositiveCents(photo.priceCents, "photo.priceCents");
-      return {
-        ...item,
-        priceCents,
-        eventName: looksLikeNonEmptyString(photo.eventName) ? photo.eventName : (item.eventName || ""),
-        groupName: looksLikeNonEmptyString(photo.groupName) ? photo.groupName : (item.groupName || ""),
-        photographerName: looksLikeNonEmptyString(photo.photographerName) ? photo.photographerName : (item.photographerName || ""),
-      };
-    });
-
-    // Discount venant du client: on ne l'applique pas sans une politique côté serveur.
-    const discountCents = 0;
-
-    const lineItems = validatedItems.map((item) => ({
-      price_data: {
-        currency: "eur",
-        product_data: {
-          name: `Photo - ${item.eventName || "Événement"}`,
-          description: `${item.groupName || "Groupe"} • ${item.photographerName || "Photographe"}`,
-          metadata: {
-            photoId: item.photoId,
-            eventName: item.eventName || "",
-            groupName: item.groupName || "",
-          },
-        },
-        unit_amount: item.priceCents, // Prix en centimes
-      },
-      quantity: 1,
-    }));
-
-    // 3. Crée une Checkout Session Stripe
-    try {
-      const stripeClient = getStripe();
-      const session = await stripeClient.checkout.sessions.create(
-        {
-        mode: "payment",
-        line_items: lineItems,
-        success_url: `https://maslive.web.app/success?orderId=${orderId}`,
-        cancel_url: `https://maslive.web.app/cancel?orderId=${orderId}`,
-        metadata: {
-          orderId,
-          userId: uid,
-          itemCount: validatedItems.length,
-          totalCents: validatedItems.reduce((sum, it) => sum + toSafeInt(it.priceCents, 0), 0) - discountCents,
-        },
-        customer_email: request.auth.token.email || undefined,
-        },
-        { idempotencyKey: `users_${uid}_order_${orderId}` }
-      );
-
-      // 4. Sauvegarde le sessionId dans la commande
-      await orderRef.update({
-        stripeSessionId: session.id,
-        stripeSessionUrl: session.url,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      return { checkoutUrl: session.url };
-    } catch (error) {
-      console.error("Stripe error:", error);
-      throw new HttpsError(
-        "internal",
-        `Failed to create checkout session: ${error.message}`
-      );
-    }
-  }
-);
-
 /**
  * createCheckoutSession (HTTP)
  * Achat unique (photos/articles) via Stripe Checkout.
@@ -2035,219 +1921,6 @@ exports.createSubscriptionCheckoutSession = onRequest(
     } catch (e) {
       console.error("createSubscriptionCheckoutSession error", e);
       return res.status(500).json({ error: String(e?.message || e) });
-    }
-  }
-);
-
-/**
- * createMediaShopCheckout
- * Crée une Checkout Session Stripe pour le Media Shop (photos vendues)
- * { userId: string }
- * Returns: { checkoutUrl: string }
- */
-exports.createMediaShopCheckout = onCall(
-  {
-    region: "us-east1",
-    cpu: 0.083,
-    memory: "256MiB",
-    timeoutSeconds: 30,
-    secrets: [STRIPE_SECRET_KEY],
-  },
-  async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Authentication required");
-    }
-
-    const uid = request.auth.uid;
-    const { userId } = request.data;
-
-    // Sécurité: l'utilisateur ne peut créer une commande que pour lui-même
-    if (uid !== userId) {
-      throw new HttpsError(
-        "permission-denied",
-        "You can only create orders for yourself"
-      );
-    }
-
-    // 1. Récupère le panier de l'utilisateur depuis Firestore
-    const cartRef = db.collection("users").doc(uid).collection("cart");
-    const cartSnap = await cartRef.get();
-
-    if (cartSnap.empty) {
-      throw new HttpsError("failed-precondition", "Cart is empty");
-    }
-
-    const cartItems = [];
-    cartSnap.forEach((doc) => {
-      cartItems.push({ id: doc.id, ...doc.data() });
-    });
-
-    // IMPORTANT: Ne jamais faire confiance aux montants venant de users/{uid}/cart.
-    // On supporte 2 types d'items:
-    // - Storex (produits): productId présent -> prix depuis products
-    // - Media Shop (photos): photoId ou id -> prix depuis photos
-    const storexProductIds = cartItems
-      .map((it) => (typeof it.productId === "string" ? it.productId.trim() : ""))
-      .filter(Boolean);
-    const photosIds = cartItems
-      .map((it) => (typeof it.photoId === "string" ? it.photoId.trim() : ""))
-      .filter(Boolean);
-
-    const productsById = await fetchStorexProductsById(storexProductIds);
-    const photosById = await fetchPhotosById(photosIds);
-
-    // 2. Crée la commande dans Firestore
-    const orderRef = db.collection("users").doc(uid).collection("orders").doc();
-    const orderId = orderRef.id;
-
-    const items = cartItems.map((item) => {
-      const productId = typeof item.productId === "string" ? item.productId.trim() : "";
-      const qty = clamp(toSafeInt(item.quantity, 1), 1, 99);
-
-      // Storex product item
-      if (productId) {
-        const product = productsById.get(productId);
-        if (!product) {
-          throw new HttpsError("failed-precondition", `Product not found: ${productId}`);
-        }
-        if (product.isActive === false) {
-          throw new HttpsError("failed-precondition", `Product inactive: ${productId}`);
-        }
-        if (looksLikeNonEmptyString(product.moderationStatus) && String(product.moderationStatus).toLowerCase() !== "approved") {
-          throw new HttpsError("failed-precondition", `Product not approved: ${productId}`);
-        }
-
-        const priceCents = assertPositiveCents(product.priceCents, "product.priceCents");
-        return {
-          productId,
-          priceCents,
-          thumbPath: looksLikeNonEmptyString(product.imageUrl) ? product.imageUrl : (item.imageUrl || ""),
-          fullPath: "",
-          eventName: "",
-          groupName: item.groupId || "",
-          photographerName: "",
-          photographerId: null,
-          title: looksLikeNonEmptyString(product.title) ? product.title : (item.title || ""),
-          size: item.size || "",
-          color: item.color || "",
-          quantity: qty,
-        };
-      }
-
-      // Media Shop photo item
-      const photoId = typeof item.photoId === "string" && item.photoId.trim().length > 0
-        ? item.photoId.trim()
-        : item.id;
-      const photo = photosById.get(photoId);
-      if (!photo) {
-        throw new HttpsError("failed-precondition", `Photo not found: ${photoId}`);
-      }
-      if (photo.isActive === false) {
-        throw new HttpsError("failed-precondition", `Photo inactive: ${photoId}`);
-      }
-      if (looksLikeNonEmptyString(photo.moderationStatus) && String(photo.moderationStatus).toLowerCase() !== "approved") {
-        throw new HttpsError("failed-precondition", `Photo not approved: ${photoId}`);
-      }
-
-      const priceCents = assertPositiveCents(photo.priceCents, "photo.priceCents");
-      return {
-        photoId,
-        priceCents,
-        thumbPath: looksLikeNonEmptyString(photo.thumbPath) ? photo.thumbPath : (item.imageUrl || item.thumbPath || ""),
-        thumbUrl: looksLikeNonEmptyString(photo.thumbUrl) ? photo.thumbUrl : (item.thumbUrl || ""),
-        fullPath: looksLikeNonEmptyString(photo.fullPath) ? photo.fullPath : (item.fullPath || ""),
-        eventName: looksLikeNonEmptyString(photo.eventName) ? photo.eventName : (item.eventName || ""),
-        groupName: looksLikeNonEmptyString(photo.groupName) ? photo.groupName : (item.groupName || ""),
-        photographerName: looksLikeNonEmptyString(photo.photographerName) ? photo.photographerName : (item.photographerName || ""),
-        photographerId: item.photographerId || null,
-        title: looksLikeNonEmptyString(photo.title) ? photo.title : (item.title || ""),
-        size: item.size || "",
-        color: item.color || "",
-        quantity: qty,
-      };
-    });
-
-    const totalCents = items.reduce((sum, item) => {
-      return sum + (toSafeInt(item.priceCents, 0) * (toSafeInt(item.quantity, 1)));
-    }, 0);
-
-    const orderData = {
-      userId: uid,
-      items,
-      totalCents,
-      discountCents: 0,
-      discountPercent: 0,
-      discountRule: null,
-      status: "pending",
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
-
-    await orderRef.set(orderData);
-
-    // 3. Crée les line_items pour Stripe
-    const lineItems = items.map((item) => {
-      // Privilégier thumbUrl (URL publique HTTPS) pour Stripe, sinon omettre l'image
-      const imageUrl = looksLikeNonEmptyString(item.thumbUrl) ? item.thumbUrl : null;
-      const images = imageUrl && imageUrl.startsWith("https://") ? [imageUrl] : [];
-
-      return {
-        price_data: {
-          currency: "eur",
-          product_data: {
-            name: item.title || `Photo ${item.photoId || "?"}`,
-            description: `${item.eventName || ""} ${item.groupName || ""}`.trim(),
-            images,
-            metadata: {
-              photoId: item.photoId || "",
-              eventName: item.eventName || "",
-              groupName: item.groupName || "",
-            },
-          },
-          unit_amount: item.priceCents,
-        },
-        quantity: item.quantity || 1,
-      };
-    });
-
-    // 4. Crée une Checkout Session Stripe
-    try {
-      const stripeClient = getStripe();
-      const session = await stripeClient.checkout.sessions.create(
-        {
-          mode: "payment",
-          line_items: lineItems,
-          success_url: `https://maslive.web.app/success?orderId=${orderId}`,
-          cancel_url: `https://maslive.web.app/cancel?orderId=${orderId}`,
-          metadata: {
-            orderId,
-            userId: uid,
-            itemCount: items.length,
-            totalCents,
-          },
-          customer_email: request.auth.token.email || undefined,
-        },
-        { idempotencyKey: `mediaShop_${uid}_${orderId}` }
-      );
-
-      // 5. Met à jour la commande avec le sessionId
-      await orderRef.update({
-        stripeSessionId: session.id,
-        stripeSessionUrl: session.url,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      // 6. NE PAS vider le panier ici : attendre la confirmation de paiement (webhook checkout.session.completed)
-      // pour éviter la perte du panier si l'utilisateur annule ou échoue.
-      // Le panier sera vidé par handleCheckoutSessionCompleted() après paiement confirmé.
-
-      return { checkoutUrl: session.url };
-    } catch (error) {
-      console.error("Stripe error:", error);
-      throw new HttpsError(
-        "internal",
-        `Failed to create checkout session: ${error.message}`
-      );
     }
   }
 );
@@ -2527,6 +2200,10 @@ exports.stripeWebhook = onRequest(
 async function handleCheckoutSessionCompleted(session) {
   console.log("Processing checkout.session.completed:", session.id);
 
+  if (await mediaMarketplaceStripe.handleMarketplaceCheckoutSessionCompleted(session)) {
+    return;
+  }
+
   // Supporte 2 modèles:
   // - Nouveau modèle simple: /orders/{orderId}
   // - Modèle existant Media Shop: /users/{uid}/orders/{orderId}
@@ -2649,155 +2326,18 @@ async function handleCheckoutSessionCompleted(session) {
     return;
   }
 
-  // 2) Fallback vers modèle existant users/{uid}/orders/{orderId}
-  if (!uid || typeof uid !== "string") {
-    console.warn("Missing uid/userId in session metadata for users orders");
-    return;
-  }
-
-  const userOrderRef = db.collection("users").doc(uid).collection("orders").doc(orderId);
-  const userOrderSnap = await userOrderRef.get();
-  if (!userOrderSnap.exists) {
-    console.warn(`Order ${orderId} not found (root nor user ${uid})`);
-    return;
-  }
-
-  const order = userOrderSnap.data() || {};
-
-  await userOrderRef.update({
-    status: "paid",
-    paidAt: admin.firestore.FieldValue.serverTimestamp(),
+  console.warn("Legacy checkout session ignored because users/{uid}/orders fallback was removed", {
+    orderId,
+    uid: typeof uid === "string" ? uid : null,
     stripeSessionId: session.id,
-    stripePaymentIntentId: session.payment_intent,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
-
-  const items = order.items || [];
-  const batch = db.batch();
-
-  for (const item of items) {
-    const photoId = item.photoId;
-    if (!photoId) continue;
-
-    const purchaseRef = db.collection("users").doc(uid).collection("purchases").doc(photoId);
-    batch.set(purchaseRef, {
-      photoId,
-      orderId,
-      priceCents: item.priceCents || 0,
-      purchasedAt: admin.firestore.FieldValue.serverTimestamp(),
-      eventName: item.eventName || "",
-      groupName: item.groupName || "",
-      photographerName: item.photographerName || "",
-      photographerId: item.photographerId || null,
-      thumbnailUrl: item.thumbPath || null,
-      fullPath: item.fullPath || null,
-      stripeSessionId: session.id,
-    });
-  }
-
-  await batch.commit();
-
-  // Décrémenter le stock des produits achetés (transaction Firestore)
-  try {
-    const productsToDecrement = items
-      .filter((item) => item.productId && typeof item.productId === "string")
-      .map((item) => ({
-        productId: item.productId,
-        quantity: Number(item.quantity || 1),
-      }))
-      .filter((p) => p.quantity > 0);
-
-    if (productsToDecrement.length > 0) {
-      await db.runTransaction(async (transaction) => {
-        // Lire tous les produits concernés
-        const productRefs = {};
-        const productDocs = {};
-        for (const { productId } of productsToDecrement) {
-          // Lire dans /products (source de vérité)
-          const rootRef = db.collection("products").doc(productId);
-          const rootSnap = await transaction.get(rootRef);
-          productRefs[productId] = rootRef;
-          productDocs[productId] = rootSnap.exists ? rootSnap.data() : null;
-
-          // Lire aussi miroir /shops/{shopId}/products si shopId présent
-          if (order.shopId) {
-            const shopRef = db
-              .collection("shops")
-              .doc(order.shopId)
-              .collection("products")
-              .doc(productId);
-            const shopSnap = await transaction.get(shopRef);
-            productRefs[`${productId}_shop`] = shopRef;
-            if (shopSnap.exists) {
-              productDocs[`${productId}_shop`] = shopSnap.data();
-            }
-          }
-        }
-
-        // Calculer nouveaux stocks et appliquer les updates
-        for (const { productId, quantity } of productsToDecrement) {
-          const product = productDocs[productId];
-          if (!product) {
-            console.warn(`Product ${productId} not found, skipping stock decrement`);
-            continue;
-          }
-
-          const currentStock = Number(product.stock || 0);
-          const newStock = Math.max(0, currentStock - quantity); // Empêcher stock négatif
-
-          const updateData = {
-            stock: newStock,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          };
-
-          // Auto-update stockStatus si alertQty présent
-          const alertQty = Number(product.alertQty || 0);
-          if (alertQty > 0) {
-            if (newStock === 0) {
-              updateData.stockStatus = "out_of_stock";
-            } else if (newStock <= alertQty) {
-              updateData.stockStatus = "low_stock";
-            } else {
-              updateData.stockStatus = "in_stock";
-            }
-          }
-
-          // Update /products (root)
-          transaction.update(productRefs[productId], updateData);
-
-          // Update /shops/{shopId}/products (miroir)
-          if (productRefs[`${productId}_shop`]) {
-            transaction.update(productRefs[`${productId}_shop`], updateData);
-          }
-
-          console.log(
-            `Stock decremented for product ${productId}: ${currentStock} -> ${newStock} (-${quantity})`
-          );
-        }
-      });
-    }
-  } catch (stockErr) {
-    console.error(`Failed to decrement stock for order ${orderId}:`, stockErr);
-    // Ne pas bloquer le paiement si le stock échoue (ordre déjà marqué payé)
-  }
-
-  // Vider le panier de l'utilisateur après paiement confirmé
-  try {
-    const cartSnap = await db.collection("users").doc(uid).collection("cart").get();
-    if (!cartSnap.empty) {
-      const cartBatch = db.batch();
-      cartSnap.forEach((doc) => cartBatch.delete(doc.ref));
-      await cartBatch.commit();
-      console.log(`Cart cleared for user ${uid} after successful payment`);
-    }
-  } catch (err) {
-    console.error(`Failed to clear cart for user ${uid}:`, err);
-  }
-
-  console.log(`User order ${orderId} marked as paid, ${items.length} purchases created`);
 }
 
 async function handleCustomerSubscriptionUpdated(subscription) {
+  if (await mediaMarketplaceStripe.handleMarketplaceCustomerSubscriptionUpdated(subscription)) {
+    return;
+  }
+
   const subscriptionId = subscription?.id;
   const uid = subscription?.metadata?.uid;
 
@@ -2831,6 +2371,10 @@ async function handleCustomerSubscriptionUpdated(subscription) {
 }
 
 async function handleCustomerSubscriptionDeleted(subscription) {
+  if (await mediaMarketplaceStripe.handleMarketplaceCustomerSubscriptionDeleted(subscription)) {
+    return;
+  }
+
   const subscriptionId = subscription?.id;
   const uid = subscription?.metadata?.uid;
 
@@ -2859,6 +2403,10 @@ async function handleCustomerSubscriptionDeleted(subscription) {
 }
 
 async function handleInvoicePaid(invoice) {
+  if (await mediaMarketplaceStripe.handleMarketplaceInvoicePaid(invoice)) {
+    return;
+  }
+
   const subscriptionId = invoice?.subscription;
   if (!subscriptionId) return;
   const uid = await findUserIdByStripeSubscriptionId(subscriptionId);
@@ -2880,6 +2428,10 @@ async function handleInvoicePaid(invoice) {
 }
 
 async function handleInvoicePaymentFailed(invoice) {
+  if (await mediaMarketplaceStripe.handleMarketplaceInvoicePaymentFailed(invoice)) {
+    return;
+  }
+
   const subscriptionId = invoice?.subscription;
   if (!subscriptionId) return;
   const uid = await findUserIdByStripeSubscriptionId(subscriptionId);
