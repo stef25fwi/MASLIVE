@@ -2903,7 +2903,7 @@ class _ActionItem extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    ?iconWidget,
+                    if (iconWidget != null) iconWidget!,
                     if (icon != null)
                       Center(
                         child: Icon(

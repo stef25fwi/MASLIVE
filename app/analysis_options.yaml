@@ -2,12 +2,11 @@ include: package:flutter_lints/flutter.yaml
 
 analyzer:
   errors:
-    # Traiter les dépréciations comme warnings (pas erreurs bloquantes)
     deprecated_member_use: warning
-    # Traiter les unused imports en warning
     unused_import: warning
-    # Détecter les null safety violations
     invalid_null_aware_operator: error
+    # use_null_aware_elements est un diagnostic SDK (pas un lint rule) — géré ici
+    use_null_aware_elements: ignore
   exclude:
     - _archive/**
     - tooling/**

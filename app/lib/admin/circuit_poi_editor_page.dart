@@ -677,6 +677,7 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
     );
 
     if (!mounted) return;
+    // ignore: use_build_context_synchronously
     final created = await showModalBottomSheet<MarketMapPOI>(
       context: context,
       isScrollControlled: true,
@@ -736,6 +737,7 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
     }
 
     if (!mounted) return;
+    // ignore: use_build_context_synchronously
     final updated = await showModalBottomSheet<MarketMapPOI>(
       context: context,
       isScrollControlled: true,
