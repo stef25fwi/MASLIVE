@@ -146,7 +146,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       builder: (context, canScroll, _) {
         return ValueListenableBuilder<double>(
           valueListenable: _wizardScrollProgress,
-          builder: (context, progress, __) {
+          builder: (context, progress, child) {
             final theme = Theme.of(context);
             const thumbHeight = 96.0;
             final trackColor = Colors.black.withValues(alpha: 0.10);
@@ -2017,11 +2017,11 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                                     : ListView.separated(
                                         shrinkWrap: true,
                                         itemCount: changes.length,
-                                        separatorBuilder: (_, __) => Divider(
+                                        separatorBuilder: (context, index) => Divider(
                                           height: 1,
                                           color: MasliveTokens.borderSoft,
                                         ),
-                                        itemBuilder: (_, index) => ListTile(
+                                        itemBuilder: (context, index) => ListTile(
                                           dense: true,
                                           leading: const Icon(
                                             Icons.subdirectory_arrow_right,

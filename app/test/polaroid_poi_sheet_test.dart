@@ -6,7 +6,7 @@ import 'package:masslive/ui/widgets/polaroid_poi_sheet.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  Finder _frameImageFinder() {
+  Finder frameImageFinder() {
     return find.byWidgetPredicate((w) {
       if (w is! Image) return false;
       final img = w.image;
@@ -31,7 +31,7 @@ void main() {
       ),
     );
 
-    expect(_frameImageFinder(), findsWidgets);
+    expect(frameImageFinder(), findsWidgets);
   });
 
   testWidgets('PolaroidPoiCard prend la photo depuis meta.image.url', (tester) async {
@@ -54,7 +54,7 @@ void main() {
     );
 
     // Le frame est toujours présent.
-    expect(_frameImageFinder(), findsWidgets);
+    expect(frameImageFinder(), findsWidgets);
 
     // Et la zone photo tente bien un NetworkImage avec l'URL provenant de meta.
     final networkImages = find.byWidgetPredicate((w) {

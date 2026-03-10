@@ -676,6 +676,8 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
       },
     );
 
+    if (!mounted) return;
+    // ignore: use_build_context_synchronously
     final created = await showModalBottomSheet<MarketMapPOI>(
       context: context,
       isScrollControlled: true,
@@ -687,6 +689,7 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
       ),
     );
     if (created == null) return;
+    if (!mounted) return;
 
     setState(() {
       _pois.add(created);
@@ -733,6 +736,8 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
       return;
     }
 
+    if (!mounted) return;
+    // ignore: use_build_context_synchronously
     final updated = await showModalBottomSheet<MarketMapPOI>(
       context: context,
       isScrollControlled: true,
@@ -745,6 +750,7 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
     );
 
     if (updated == null) return;
+    if (!mounted) return;
 
     setState(() {
       final idx = _pois.indexWhere((p) => p.id == poi.id);

@@ -7,6 +7,9 @@
 .buildlog/
 .history
 
+# Keep Flutter app lockfile versioned for reproducible pub resolution
+!app/pubspec.lock
+
 # Python virtual environments (local)
 .venv/
 venv/

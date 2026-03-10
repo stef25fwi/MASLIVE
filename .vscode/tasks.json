@@ -91,6 +91,39 @@
       }
     },
     {
+      "label": "MASLIVE: Git commit (analyzer lint fixes)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add app/analysis_options.yaml app/pubspec.yaml app/pubspec.lock && if git diff --cached --quiet; then echo '⚠️ Rien à committer'; exit 0; fi && git commit -m \"fix(analyzer): apply safe lint fixes after build stack upgrade\" && echo '✅ Commit créé. Push manuel recommandé: git push origin chore/analyzer-stack-hardening'",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: � Merge analyzer-stack-hardening → main",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git fetch origin && git checkout main && git pull origin main && git merge --no-ff chore/analyzer-stack-hardening -m \"merge: chore/analyzer-stack-hardening into main\" && git push origin main && echo '✅ Merge OK → main'",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: �🚀 Commit + Push (analyzer hardening)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add app/analysis_options.yaml app/pubspec.yaml app/pubspec.lock app/lib app/test .vscode/tasks.json && if git diff --cached --quiet; then echo '⚠️ Rien à committer'; else git commit -m \"chore(analyzer): restore null-aware diagnostics and harden commit task\" && echo '✅ Commit OK'; fi && git push origin chore/analyzer-stack-hardening && echo '✅ Push OK'",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git commit + push (home map selector filter)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add app/lib/ui/widgets/marketmap_poi_selector_sheet.dart && if git diff --cached --quiet; then echo '⚠️ Rien à committer (home map selector filter)'; exit 0; fi && git commit -m \"fix(home): filter pays sans circuits + UI menu\" && git push origin main",

@@ -91,19 +91,22 @@ class MediaCounterService {
       return data['isActive'] == true;
     }).length;
 
-    final storageUsedBytes = photosSnapshot.docs.fold<int>(0, (sum, doc) {
+    final storageUsedBytes = photosSnapshot.docs.fold<int>(0, (total, doc) {
       final size = doc.data()['sizeBytes'];
-      return sum + (size is num ? size.toInt() : 0);
+      return total + (size is num ? size.toInt() : 0);
     });
 
-    final totalRevenueGross = payoutSnapshot.docs.fold<double>(0, (sum, doc) {
+    final totalRevenueGross = payoutSnapshot.docs.fold<double>(
+      0,
+      (total, doc) {
       final amount = doc.data()['grossAmount'];
-      return sum + (amount is num ? amount.toDouble() : 0);
-    });
+      return total + (amount is num ? amount.toDouble() : 0);
+    },
+    );
 
-    final totalRevenueNet = payoutSnapshot.docs.fold<double>(0, (sum, doc) {
+    final totalRevenueNet = payoutSnapshot.docs.fold<double>(0, (total, doc) {
       final amount = doc.data()['netAmount'];
-      return sum + (amount is num ? amount.toDouble() : 0);
+      return total + (amount is num ? amount.toDouble() : 0);
     });
 
     await _photographerRepository.updateCounters(

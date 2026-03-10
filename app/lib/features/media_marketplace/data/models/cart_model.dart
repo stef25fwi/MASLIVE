@@ -28,9 +28,10 @@ class CartModel {
     required this.updatedAt,
   });
 
-  int get itemCount => items.fold<int>(0, (sum, item) => sum + item.quantity);
+  int get itemCount => items.fold<int>(0, (acc, item) => acc + item.quantity);
 
-  double get subtotal => items.fold<double>(0, (sum, item) => sum + item.totalPrice);
+  double get subtotal =>
+      items.fold<double>(0, (total, item) => total + item.totalPrice);
 
   factory CartModel.fromMap(Map<String, dynamic> map, {String? uid}) {
     return CartModel(
