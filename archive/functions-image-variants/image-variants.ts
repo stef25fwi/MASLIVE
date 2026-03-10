@@ -1,7 +1,12 @@
+// @ts-nocheck
 /**
- * Cloud Function pour génération automatique de variantes d'images
- * Triggered lorsqu'une image est uploadée dans Storage
- * Génère automatiquement: thumbnail, small, medium, large
+ * ARCHIVE (non deploye)
+ * Ancienne Cloud Function de generation de variantes d'images.
+ *
+ * Ce module etait en firebase-functions/v1, non exporte par functions/index.js,
+ * et la dependance runtime "sharp" n'etait pas declaree dans functions/package.json.
+ *
+ * Conserve ici pour reference/migration future vers Gen2.
  */
 
 /// <reference path="./sharp.d.ts" />
@@ -37,7 +42,7 @@ const variants: ImageVariant[] = [
 ];
 
 /**
- * Fonction déclenchée lors de l'upload d'une image
+ * Fonction declenchee lors de l'upload d'une image
  */
 export const generateImageVariants = functions
   .region('us-east1')
@@ -57,13 +62,13 @@ export const generateImageVariants = functions
       return null;
     }
 
-    // Vérifier si c'est une image
+    // Verifier si c'est une image
     if (!contentType || !contentType.startsWith('image/')) {
       console.log('⏭️  [ImageVariants] Pas une image, skip');
       return null;
     }
 
-    // Vérifier si c'est déjà une variante (éviter boucle infinie)
+    // Verifier si c'est deja une variante (eviter boucle infinie)
     const fileName = path.basename(filePath);
     if (
       fileName.includes('thumbnail') ||
@@ -72,11 +77,11 @@ export const generateImageVariants = functions
       fileName.includes('large') ||
       fileName.includes('xlarge')
     ) {
-      console.log('⏭️  [ImageVariants] Déjà une variante, skip');
+      console.log('⏭️  [ImageVariants] Deja une variante, skip');
       return null;
     }
 
-    // Vérifier si c'est un original
+    // Verifier si c'est un original
     if (!fileName.includes('original')) {
       console.log('⏭️  [ImageVariants] Pas un original, skip');
       return null;
@@ -88,23 +93,23 @@ export const generateImageVariants = functions
     const tempLocalDir = path.dirname(tempLocalFile);
 
     try {
-      // Créer répertoire temporaire
+      // Creer repertoire temporaire
       if (!fs.existsSync(tempLocalDir)) {
         fs.mkdirSync(tempLocalDir, { recursive: true });
       }
 
-      // Télécharger l'image originale
-      console.log('⬇️  [ImageVariants] Téléchargement original...');
+      // Telecharger l'image originale
+      console.log('⬇️  [ImageVariants] Telechargement original...');
       await bucket.file(filePath).download({ destination: tempLocalFile });
-      console.log('✅ [ImageVariants] Original téléchargé');
+      console.log('✅ [ImageVariants] Original telecharge');
 
-      // Lire métadonnées de l'image
+      // Lire metadonnees de l'image
       const imageMetadata = await sharp(tempLocalFile).metadata();
       console.log(
         `📐 [ImageVariants] Dimensions: ${imageMetadata.width}x${imageMetadata.height}`
       );
 
-      // Générer toutes les variantes
+      // Generer toutes les variantes
       const variantPromises = variants.map((variant) =>
         generateVariant(
           tempLocalFile,
@@ -117,11 +122,11 @@ export const generateImageVariants = functions
 
       const variantUrls = await Promise.all(variantPromises);
 
-      // Récupérer URL de l'original
+      // Recuperer URL de l'original
       const originalFile = bucket.file(filePath);
       const [originalUrl] = await originalFile.getSignedUrl({
         action: 'read',
-        expires: '03-01-2500', // Date très lointaine
+        expires: '03-01-2500', // Date tres lointaine
       });
 
       // Construire structure variants
@@ -135,10 +140,10 @@ export const generateImageVariants = functions
         }
       });
 
-      // Mettre à jour Firestore si nécessaire
+      // Mettre a jour Firestore si necessaire
       await updateFirestoreWithVariants(filePath, variantsData, imageMetadata);
 
-      console.log('✅ [ImageVariants] Toutes variantes générées');
+      console.log('✅ [ImageVariants] Toutes variantes generees');
 
       // Nettoyer fichiers temporaires
       fs.unlinkSync(tempLocalFile);
@@ -151,7 +156,7 @@ export const generateImageVariants = functions
   });
 
 /**
- * Générer une variante d'image
+ * Generer une variante d'image
  */
 async function generateVariant(
   originalPath: string,
@@ -163,18 +168,18 @@ async function generateVariant(
   const { name, maxDimension, quality } = variant;
 
   try {
-    console.log(`🔄 [ImageVariants] Génération ${name}...`);
+    console.log(`🔄 [ImageVariants] Generation ${name}...`);
 
-    // Vérifier si redimensionnement nécessaire
+    // Verifier si redimensionnement necessaire
     const width = imageMetadata.width || 0;
     const height = imageMetadata.height || 0;
 
     if (width <= maxDimension && height <= maxDimension) {
-      console.log(`⏭️  [ImageVariants] ${name}: pas de redimensionnement nécessaire`);
+      console.log(`⏭️  [ImageVariants] ${name}: pas de redimensionnement necessaire`);
       return null;
     }
 
-    // Créer fichier temporaire pour variante
+    // Creer fichier temporaire pour variante
     const tempVariantPath = path.join(os.tmpdir(), `${name}.jpg`);
 
     // Redimensionner et optimiser
@@ -206,7 +211,7 @@ async function generateVariant(
       expires: '03-01-2500',
     });
 
-    console.log(`✅ [ImageVariants] ${name} créé`);
+    console.log(`✅ [ImageVariants] ${name} cree`);
 
     // Nettoyer fichier temporaire
     fs.unlinkSync(tempVariantPath);
@@ -219,7 +224,7 @@ async function generateVariant(
 }
 
 /**
- * Mettre à jour Firestore avec les URLs des variantes
+ * Mettre a jour Firestore avec les URLs des variantes
  */
 async function updateFirestoreWithVariants(
   filePath: string,
@@ -238,9 +243,9 @@ async function updateFirestoreWithVariants(
     }
 
     const imageId = pathParts[imagesIndex + 1];
-    console.log(`🔄 [ImageVariants] Mise à jour Firestore: ${imageId}`);
+    console.log(`🔄 [ImageVariants] Mise a jour Firestore: ${imageId}`);
 
-    // Mettre à jour document image_assets
+    // Mettre a jour document image_assets
     await firestore.collection('image_assets').doc(imageId).update({
       variants: variants,
       'metadata.width': imageMetadata.width,
@@ -250,7 +255,7 @@ async function updateFirestoreWithVariants(
       updatedAt: admin.firestore.Timestamp.now(),
     });
 
-    console.log('✅ [ImageVariants] Firestore mis à jour');
+    console.log('✅ [ImageVariants] Firestore mis a jour');
   } catch (error) {
     console.error('⚠️  [ImageVariants] Erreur Firestore:', error);
     // Ne pas throw, c'est optionnel
@@ -258,12 +263,12 @@ async function updateFirestoreWithVariants(
 }
 
 /**
- * Fonction callable pour regénérer variantes manuellement
+ * Fonction callable pour regenerer variantes manuellement
  */
 export const regenerateImageVariants = functions
   .region('us-east1')
   .https.onCall(async (data, context) => {
-    // Vérifier authentification
+    // Verifier authentification
     if (!context.auth) {
       throw new functions.https.HttpsError(
         'unauthenticated',
@@ -281,7 +286,7 @@ export const regenerateImageVariants = functions
     }
 
     try {
-      // Récupérer document image
+      // Recuperer document image
       const imageDoc = await firestore
         .collection('image_assets')
         .doc(imageId)
@@ -301,9 +306,9 @@ export const regenerateImageVariants = functions
         );
       }
 
-      // TODO: Télécharger original et regénérer variantes
+      // TODO: Telecharger original et regenerer variantes
 
-      return { success: true, message: 'Variantes regénérées' };
+      return { success: true, message: 'Variantes regenerees' };
     } catch (error) {
       console.error('❌ [RegenerateVariants] Erreur:', error);
       throw new functions.https.HttpsError('internal', 'Regeneration failed');
@@ -317,7 +322,7 @@ export const cleanupDeletedImages = functions
   .region('us-east1')
   .pubsub.schedule('every 24 hours')
   .onRun(async (context: functions.EventContext) => {
-    console.log('🧹 [Cleanup] Début nettoyage images supprimées');
+    console.log('🧹 [Cleanup] Debut nettoyage images supprimees');
 
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - 30); // 30 jours
@@ -329,7 +334,7 @@ export const cleanupDeletedImages = functions
         .where('updatedAt', '<', admin.firestore.Timestamp.fromDate(cutoffDate))
         .get();
 
-      console.log(`🗑️  [Cleanup] ${snapshot.size} images à supprimer`);
+      console.log(`🗑️  [Cleanup] ${snapshot.size} images a supprimer`);
 
       const deletePromises = snapshot.docs.map(async (doc) => {
         const imageData = doc.data();
@@ -345,7 +350,7 @@ export const cleanupDeletedImages = functions
               if (pathMatch) {
                 const filePath = decodeURIComponent(pathMatch[1]);
                 await storage.bucket().file(filePath).delete();
-                console.log(`✅ [Cleanup] Supprimé: ${filePath}`);
+                console.log(`✅ [Cleanup] Supprime: ${filePath}`);
               }
             } catch (error) {
               console.error(`⚠️  [Cleanup] Erreur suppression Storage:`, error);
@@ -357,16 +362,15 @@ export const cleanupDeletedImages = functions
 
         // Supprimer document Firestore
         await doc.ref.delete();
-        console.log(`✅ [Cleanup] Document supprimé: ${doc.id}`);
+        console.log(`✅ [Cleanup] Document supprime: ${doc.id}`);
       });
 
       await Promise.all(deletePromises);
 
-      console.log('✅ [Cleanup] Nettoyage terminé');
+      console.log('✅ [Cleanup] Nettoyage termine');
       return { success: true, deletedCount: snapshot.size };
     } catch (error) {
       console.error('❌ [Cleanup] Erreur:', error);
       throw error;
     }
   });
-
