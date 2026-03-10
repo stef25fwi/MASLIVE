@@ -520,16 +520,42 @@ module.exports = function createMediaMarketplaceStripe(deps) {
         "https://maslive.web.app/media-marketplace/cancel"
       )
 
-      const cartSnapshot = await db.collection(COLLECTIONS.carts).doc(uid).get()
-      if (!cartSnapshot.exists) {
-        throw new HttpsError("failed-precondition", "Cart is empty")
-      }
+      // Race condition protection: lock cart for checkout
+      const cartRef = db.collection(COLLECTIONS.carts).doc(uid)
+      let cart = null
+      let cartItems = []
 
-      const cart = cartSnapshot.data() || {}
-      const cartItems = Array.isArray(cart.items) ? cart.items : []
-      if (!cartItems.length) {
-        throw new HttpsError("failed-precondition", "Cart is empty")
-      }
+      await db.runTransaction(async (transaction) => {
+        const cartSnapshot = await transaction.get(cartRef)
+        if (!cartSnapshot.exists) {
+          throw new HttpsError("failed-precondition", "Cart is empty")
+        }
+
+        const cartData = cartSnapshot.data() || {}
+        const items = Array.isArray(cartData.items) ? cartData.items : []
+        if (!items.length) {
+          throw new HttpsError("failed-precondition", "Cart is empty")
+        }
+
+        // Check if checkout already in progress (prevent concurrent checkouts)
+        const checkoutLockExpiry = cartData.checkoutLockedUntil?.toMillis?.()
+        const now = Date.now()
+        if (checkoutLockExpiry && checkoutLockExpiry > now) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Checkout already in progress. Please wait a moment and try again."
+          )
+        }
+
+        // Lock cart for 5 minutes (timeout in case of error)
+        transaction.update(cartRef, {
+          checkoutLockedUntil: new Date(now + 5 * 60 * 1000),
+          updatedAt: serverTimestamp(),
+        })
+
+        cart = cartData
+        cartItems = items
+      })
 
       const photoIds = cartItems
         .filter((item) => item.assetType === "photo")
@@ -630,6 +656,17 @@ module.exports = function createMediaMarketplaceStripe(deps) {
         { merge: true }
       )
 
+      // Clear cart and checkout lock after successful order creation
+      await cartRef.set(
+        {
+          items: [],
+          checkoutLockedUntil: null,
+          lastCheckoutOrderId: orderId,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      )
+
       return {
         orderId,
         checkoutUrl: session.url,
@@ -664,15 +701,9 @@ module.exports = function createMediaMarketplaceStripe(deps) {
         throw new HttpsError("invalid-argument", "photographerId and planId are required")
       }
 
-      const [photographerSnapshot, planSnapshot, existingSubscriptionSnapshot] = await Promise.all([
+      const [photographerSnapshot, planSnapshot] = await Promise.all([
         db.collection(COLLECTIONS.photographers).doc(photographerId).get(),
         db.collection(COLLECTIONS.photographerPlans).doc(planId).get(),
-        db
-          .collection(COLLECTIONS.photographerSubscriptions)
-          .where("photographerId", "==", photographerId)
-          .where("status", "in", Array.from(ACTIVE_SUBSCRIPTION_STATUSES))
-          .limit(1)
-          .get(),
       ])
 
       if (!photographerSnapshot.exists) {
@@ -691,9 +722,37 @@ module.exports = function createMediaMarketplaceStripe(deps) {
         throw new HttpsError("failed-precondition", "Plan inactive")
       }
 
-      if (!existingSubscriptionSnapshot.empty) {
-        throw new HttpsError("failed-precondition", "An active subscription already exists")
-      }
+      // Race condition protection: check + create subscription in transaction
+      const subscriptionRef = db.collection(COLLECTIONS.photographerSubscriptions).doc()
+      const subscriptionId = subscriptionRef.id
+
+      await db.runTransaction(async (transaction) => {
+        // Re-check for existing active subscription inside transaction
+        const existingSubscriptionSnapshot = await transaction.get(
+          db
+            .collection(COLLECTIONS.photographerSubscriptions)
+            .where("photographerId", "==", photographerId)
+            .where("status", "in", Array.from(ACTIVE_SUBSCRIPTION_STATUSES))
+            .limit(1)
+        )
+
+        if (!existingSubscriptionSnapshot.empty) {
+          throw new HttpsError("failed-precondition", "An active subscription already exists")
+        }
+
+        // Create subscription document atomically
+        transaction.set(subscriptionRef, {
+          subscriptionId,
+          photographerId,
+          ownerUid: uid,
+          planId,
+          status: "incomplete",
+          billingInterval: interval,
+          quotaSnapshot: buildQuotaSnapshotFromPlan(plan),
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+      })
 
       const priceId = interval === "year" ? plan.stripePriceAnnualId : plan.stripePriceMonthlyId
       if (typeof priceId !== "string" || priceId.trim().length === 0) {
@@ -708,21 +767,6 @@ module.exports = function createMediaMarketplaceStripe(deps) {
         request.data?.cancelUrl,
         "https://maslive.web.app/media-marketplace/subscription-cancel"
       )
-
-      const subscriptionRef = db.collection(COLLECTIONS.photographerSubscriptions).doc()
-      const subscriptionId = subscriptionRef.id
-
-      await subscriptionRef.set({
-        subscriptionId,
-        photographerId,
-        ownerUid: uid,
-        planId,
-        status: "incomplete",
-        billingInterval: interval,
-        quotaSnapshot: buildQuotaSnapshotFromPlan(plan),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      })
 
       const stripeClient = getStripe()
       const session = await stripeClient.checkout.sessions.create(
