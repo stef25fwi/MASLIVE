@@ -110,7 +110,7 @@ echo ""
 
 echo "[4/5] 🧰 Dépendances Functions (npm ci)..."
 if [[ -f "functions/package-lock.json" ]]; then
-	(cd functions && npm ci)
+	(cd functions && npm ci --omit=dev)
 else
 	echo "ℹ️ functions/package-lock.json absent: skip npm ci"
 fi
