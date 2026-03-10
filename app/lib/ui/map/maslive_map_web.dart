@@ -1514,13 +1514,20 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         }),
       ]);
       if (feats is js.JsArray && feats.isNotEmpty) {
-        final f = feats[0];
-        if (f is js.JsObject) {
-          final props = f['properties'];
+        for (final item in feats) {
+          if (item is! js.JsObject) continue;
+
+          final props = item['properties'];
+          final isPreview =
+              props is js.JsObject && props['isPreview'] == true;
+          if (isPreview) continue;
+
           final poiId =
-              (props is js.JsObject ? props['poiId'] : null) ?? f['id'];
+              (props is js.JsObject ? props['poiId'] : null) ?? item['id'];
           final id = (poiId ?? '').toString();
-          return id.isEmpty ? null : id;
+          if (id.isNotEmpty) {
+            return id;
+          }
         }
       }
     } catch (_) {

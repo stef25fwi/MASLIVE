@@ -1813,11 +1813,20 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
               ),
             );
             if (res.isNotEmpty) {
-              final feature = res.first?.queriedFeature.feature;
-              if (feature != null) {
+              for (final queried in res) {
+                final feature = queried?.queriedFeature.feature;
+                if (feature == null) continue;
+
                 final props =
                     (feature['properties'] as Map?)?.cast<String, dynamic>() ??
                     const <String, dynamic>{};
+
+                // Les overlays de prévisualisation parking ne doivent pas
+                // intercepter les taps carte pendant le dessin.
+                if (props['isPreview'] == true) {
+                  continue;
+                }
+
                 final poiId = (props['poiId'] ?? feature['id'] ?? '')
                     .toString();
                 if (poiId.isNotEmpty) {
@@ -1830,6 +1839,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
                   } catch (_) {
                     // ignore
                   }
+                  break;
                 }
               }
             }
