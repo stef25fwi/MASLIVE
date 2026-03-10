@@ -562,121 +562,132 @@ module.exports = function createMediaMarketplaceStripe(deps) {
         cart = cartData
         cartItems = items
       })
+      try {
+        const photoIds = cartItems
+          .filter((item) => item.assetType === "photo")
+          .map((item) => item.assetId)
+        const packIds = cartItems
+          .filter((item) => item.assetType === "pack")
+          .map((item) => item.assetId)
 
-      const photoIds = cartItems
-        .filter((item) => item.assetType === "photo")
-        .map((item) => item.assetId)
-      const packIds = cartItems
-        .filter((item) => item.assetType === "pack")
-        .map((item) => item.assetId)
+        const [photosById, packsById] = await Promise.all([
+          getDocumentMap(COLLECTIONS.mediaPhotos, photoIds),
+          getDocumentMap(COLLECTIONS.mediaPacks, packIds),
+        ])
 
-      const [photosById, packsById] = await Promise.all([
-        getDocumentMap(COLLECTIONS.mediaPhotos, photoIds),
-        getDocumentMap(COLLECTIONS.mediaPacks, packIds),
-      ])
-
-      const packPhotoIds = uniqueStrings(
-        Array.from(packsById.values()).flatMap((pack) =>
-          Array.isArray(pack.photoIds) ? pack.photoIds : []
+        const packPhotoIds = uniqueStrings(
+          Array.from(packsById.values()).flatMap((pack) =>
+            Array.isArray(pack.photoIds) ? pack.photoIds : []
+          )
         )
-      )
-      const packPhotosById = await getDocumentMap(COLLECTIONS.mediaPhotos, packPhotoIds)
+        const packPhotosById = await getDocumentMap(COLLECTIONS.mediaPhotos, packPhotoIds)
 
-      const commissionRates = await getCommissionRatesByPhotographer(
-        cartItems.map((item) => item.photographerId)
-      )
+        const commissionRates = await getCommissionRatesByPhotographer(
+          cartItems.map((item) => item.photographerId)
+        )
 
-      const orderItems = cartItems.map((item) => {
-        const assetType = typeof item.assetType === "string" ? item.assetType : "photo"
-        const assetId = typeof item.assetId === "string" ? item.assetId : ""
-        const commissionRate = clampPositiveAmount(commissionRates.get(item.photographerId) || 0)
+        const orderItems = cartItems.map((item) => {
+          const assetType = typeof item.assetType === "string" ? item.assetType : "photo"
+          const assetId = typeof item.assetId === "string" ? item.assetId : ""
+          const commissionRate = clampPositiveAmount(commissionRates.get(item.photographerId) || 0)
 
-        if (assetType === "pack") {
-          const pack = packsById.get(assetId)
-          assertValidPackForSale(pack, assetId, packPhotosById)
-          return buildOrderLineItemFromPack(item, pack, commissionRate)
-        }
+          if (assetType === "pack") {
+            const pack = packsById.get(assetId)
+            assertValidPackForSale(pack, assetId, packPhotosById)
+            return buildOrderLineItemFromPack(item, pack, commissionRate)
+          }
 
-        const photo = photosById.get(assetId)
-        assertValidPhotoForSale(photo, assetId)
-        return buildOrderLineItemFromPhoto(item, photo, commissionRate)
-      })
+          const photo = photosById.get(assetId)
+          assertValidPhotoForSale(photo, assetId)
+          return buildOrderLineItemFromPhoto(item, photo, commissionRate)
+        })
 
-      const breakdown = computeOrderBreakdown(orderItems)
-      const orderRef = db.collection(COLLECTIONS.orders).doc()
-      const orderId = orderRef.id
-      const photographerIds = uniqueStrings(orderItems.map((item) => item.photographerId))
-      const photographerOwnerUids = await getPhotographerOwnerUids(photographerIds)
-      const orderPayload = {
-        orderId,
-        buyerUid: uid,
-        photographerIds,
-        photographerOwnerUids,
-        items: orderItems,
-        currency: cart.currency || orderItems[0]?.currency || "EUR",
-        subtotal: breakdown.subtotal,
-        stripeFee: breakdown.stripeFee,
-        platformFee: breakdown.platformFee,
-        taxAmount: breakdown.taxAmount,
-        total: breakdown.total,
-        photographerNetTotal: breakdown.photographerNetTotal,
-        paymentStatus: "pending",
-        deliveryStatus: "pending",
-        pricingBreakdown: breakdown,
-        metadata: {
-          kind: MEDIA_MARKETPLACE_KIND_ORDER,
-          source: "media_marketplace",
-          itemCount: orderItems.length,
-        },
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      }
-
-      await orderRef.set(orderPayload)
-
-      const stripeClient = getStripe()
-      const session = await stripeClient.checkout.sessions.create(
-        {
-          mode: "payment",
-          line_items: buildStripeLineItems(orderItems),
-          client_reference_id: orderId,
-          success_url: `${successUrl}?orderId=${orderId}`,
-          cancel_url: `${cancelUrl}?orderId=${orderId}`,
+        const breakdown = computeOrderBreakdown(orderItems)
+        const orderRef = db.collection(COLLECTIONS.orders).doc()
+        const orderId = orderRef.id
+        const photographerIds = uniqueStrings(orderItems.map((item) => item.photographerId))
+        const photographerOwnerUids = await getPhotographerOwnerUids(photographerIds)
+        const orderPayload = {
+          orderId,
+          buyerUid: uid,
+          photographerIds,
+          photographerOwnerUids,
+          items: orderItems,
+          currency: cart.currency || orderItems[0]?.currency || "EUR",
+          subtotal: breakdown.subtotal,
+          stripeFee: breakdown.stripeFee,
+          platformFee: breakdown.platformFee,
+          taxAmount: breakdown.taxAmount,
+          total: breakdown.total,
+          photographerNetTotal: breakdown.photographerNetTotal,
+          paymentStatus: "pending",
+          deliveryStatus: "pending",
+          pricingBreakdown: breakdown,
           metadata: {
             kind: MEDIA_MARKETPLACE_KIND_ORDER,
-            orderId,
-            uid,
-            userId: uid,
+            source: "media_marketplace",
+            itemCount: orderItems.length,
           },
-          customer_email: request.auth.token.email || undefined,
-        },
-        { idempotencyKey: `media_marketplace_checkout_${uid}_${orderId}` }
-      )
-
-      await orderRef.set(
-        {
-          stripeCheckoutSessionId: session.id,
-          stripeCustomerId: session.customer || null,
+          createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      )
+        }
 
-      // Clear cart and checkout lock after successful order creation
-      await cartRef.set(
-        {
-          items: [],
-          checkoutLockedUntil: null,
-          lastCheckoutOrderId: orderId,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      )
+        await orderRef.set(orderPayload)
 
-      return {
-        orderId,
-        checkoutUrl: session.url,
-        stripeSessionId: session.id,
+        const stripeClient = getStripe()
+        const session = await stripeClient.checkout.sessions.create(
+          {
+            mode: "payment",
+            line_items: buildStripeLineItems(orderItems),
+            client_reference_id: orderId,
+            success_url: `${successUrl}?orderId=${orderId}`,
+            cancel_url: `${cancelUrl}?orderId=${orderId}`,
+            metadata: {
+              kind: MEDIA_MARKETPLACE_KIND_ORDER,
+              orderId,
+              uid,
+              userId: uid,
+            },
+            customer_email: request.auth.token.email || undefined,
+          },
+          { idempotencyKey: `media_marketplace_checkout_${uid}_${orderId}` }
+        )
+
+        await orderRef.set(
+          {
+            stripeCheckoutSessionId: session.id,
+            stripeCustomerId: session.customer || null,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        )
+
+        // Clear cart and checkout lock after successful order creation
+        await cartRef.set(
+          {
+            items: [],
+            checkoutLockedUntil: null,
+            lastCheckoutOrderId: orderId,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        )
+
+        return {
+          orderId,
+          checkoutUrl: session.url,
+          stripeSessionId: session.id,
+        }
+      } catch (error) {
+        // Best effort unlock to avoid temporary denial of checkout after failures.
+        await cartRef.set(
+          {
+            checkoutLockedUntil: null,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        ).catch(() => null)
+        throw error
       }
     }
   )
