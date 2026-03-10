@@ -2,11 +2,9 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "MASLIVE: � Async Update Deps (phased: analyzer → build → web)",
-      "type": "shell",
-      "command": "bash /workspaces/MASLIVE/update_deps_phased.sh",
+      
+      "command": "cd /workspaces/MASLIVE && perl -0pi -e 's/\n\s*\{\n\s*\"label\": \"MASLIVE: Cleanup deps merge artifacts\",.*?\n\s*\},//s' .vscode/tasks.json && rm -f .vscode/tasks_deps_update.json app/pubspec.lock.bak commit_deps_update.sh update_deps_phased.sh && git add -A && git commit -m \"chore(cleanup): remove deps update helper artifacts\" && git push origin main",
       "problemMatcher": [],
-      "isBackground": false,
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
@@ -14,7 +12,7 @@
       }
     },
     {
-      "label": "MASLIVE: �🚀 Commit + Push + Build + Deploy (POI editor menu alignment)",
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (POI editor menu alignment)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && bash commit_push_build_deploy.sh \"refactor: align CircuitPoiEditorPage POI menu with wizard (GlassPanel + nav + zones parking + import)\"",
       "problemMatcher": [],
