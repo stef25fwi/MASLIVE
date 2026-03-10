@@ -71,7 +71,8 @@ dependencies:
   image: ^4.3.0  # Traitement d'images (resize, compression)
 
   # Auth providers
-  google_sign_in: ^6.3.0  # v7 = refonte architecture auth — migration à planifier séparément
+  google_sign_in: ^7.2.0
+  google_sign_in_web: ^1.1.2
   sign_in_with_apple: ^7.0.1
   crypto: ^3.0.0
 

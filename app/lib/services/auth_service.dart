@@ -21,6 +21,7 @@ class AuthService {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  Future<void>? _googleInitialization;
 
   // Stream de l'utilisateur actuel
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -201,26 +202,51 @@ class AuthService {
 
   Future<UserCredential> signInWithGoogle() async {
     try {
-      final googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) {
-        throw const AuthException('Connexion Google annulée');
+      await ensureGoogleSignInInitialized();
+
+      if (kIsWeb) {
+        throw const AuthException(
+          'Utilisez le bouton Google affiche dans la fenetre de connexion.',
+        );
       }
 
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final result = await _auth.signInWithCredential(credential);
-      await _syncSocialUserProfile(result.user);
-      return result;
+      final googleUser = await GoogleSignIn.instance.authenticate();
+      return _signInWithGoogleAccount(googleUser);
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        throw const AuthException('Connexion Google annulée');
+      }
+      throw AuthException('Erreur Google: ${e.description ?? e.code.name}');
     } on FirebaseAuthException catch (e) {
       throw AuthException(_mapFirebaseAuthError(e));
     } catch (e) {
       if (e is AuthException) rethrow;
       throw AuthException('Erreur Google: $e');
     }
+  }
+
+  Future<void> ensureGoogleSignInInitialized() {
+    return _googleInitialization ??= GoogleSignIn.instance.initialize();
+  }
+
+  Future<UserCredential> signInWithGoogleAccount(
+    GoogleSignInAccount googleUser,
+  ) {
+    return _signInWithGoogleAccount(googleUser);
+  }
+
+  Future<UserCredential> _signInWithGoogleAccount(
+    GoogleSignInAccount googleUser,
+  ) async {
+    final idToken = googleUser.authentication.idToken;
+    if (idToken == null || idToken.isEmpty) {
+      throw const AuthException('Token Google invalide ou manquant');
+    }
+
+    final credential = GoogleAuthProvider.credential(idToken: idToken);
+    final result = await _auth.signInWithCredential(credential);
+    await _syncSocialUserProfile(result.user);
+    return result;
   }
 
   Future<UserCredential> signInWithApple() async {
@@ -272,6 +298,14 @@ class AuthService {
         case AuthorizationErrorCode.notInteractive:
           throw const AuthException(
             'Connexion Apple indisponible dans ce contexte',
+          );
+        case AuthorizationErrorCode.credentialExport:
+          throw const AuthException('Export des identifiants Apple impossible');
+        case AuthorizationErrorCode.credentialImport:
+          throw const AuthException('Import des identifiants Apple impossible');
+        case AuthorizationErrorCode.matchedExcludedCredential:
+          throw const AuthException(
+            'Une credentielle Apple exclue a ete detectee',
           );
         case AuthorizationErrorCode.unknown:
           throw AuthException('Erreur Apple inconnue: ${e.message}');
