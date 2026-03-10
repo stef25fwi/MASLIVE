@@ -1,9 +1,10 @@
-const test = require("node:test")
+const { test, after } = require("node:test")
 const assert = require("node:assert/strict")
 const fs = require("node:fs")
 const path = require("node:path")
 
 let testEnv = null
+let setupUnavailableReason = null
 
 async function loadRulesTestingOrSkip(t) {
   let rulesTesting
@@ -22,11 +23,19 @@ async function loadRulesTestingOrSkip(t) {
   return rulesTesting
 }
 
-test("rules emulator setup", async (t) => {
-  const rulesTesting = await loadRulesTestingOrSkip(t)
-  if (!rulesTesting) return
+async function ensureTestEnvironment(t) {
+  if (setupUnavailableReason) {
+    t.skip(setupUnavailableReason)
+    return null
+  }
 
-  if (testEnv) return
+  if (testEnv) return testEnv
+
+  const rulesTesting = await loadRulesTestingOrSkip(t)
+  if (!rulesTesting) {
+    setupUnavailableReason = "rules emulator prerequisites missing"
+    return null
+  }
 
   const rules = fs.readFileSync(
     path.join(__dirname, "..", "..", "firestore.rules"),
@@ -38,25 +47,30 @@ test("rules emulator setup", async (t) => {
     firestore: { rules },
   })
 
-  t.after(async () => {
-    if (testEnv) {
-      await testEnv.cleanup()
-      testEnv = null
-    }
-  })
+  return testEnv
+}
 
-  assert.ok(testEnv)
+after(async () => {
+  if (testEnv) {
+    await testEnv.cleanup()
+    testEnv = null
+  }
+})
+
+test("rules emulator setup", async (t) => {
+  const env = await ensureTestEnvironment(t)
+  if (!env) return
+
+  assert.ok(env)
 })
 
 test("rules emulator: legacy order create rejects marketplace-shaped payload", async (t) => {
   const rulesTesting = await loadRulesTestingOrSkip(t)
   if (!rulesTesting) return
-  if (!testEnv) {
-    t.skip("rules test environment unavailable")
-    return
-  }
+  const env = await ensureTestEnvironment(t)
+  if (!env) return
 
-  const db = testEnv.authenticatedContext("user_legacy").firestore()
+  const db = env.authenticatedContext("user_legacy").firestore()
   const orderRef = db.collection("orders").doc("order_legacy_1")
 
   await rulesTesting.assertFails(
@@ -75,12 +89,10 @@ test("rules emulator: legacy order create rejects marketplace-shaped payload", a
 test("rules emulator: marketplace order create accepts expected model", async (t) => {
   const rulesTesting = await loadRulesTestingOrSkip(t)
   if (!rulesTesting) return
-  if (!testEnv) {
-    t.skip("rules test environment unavailable")
-    return
-  }
+  const env = await ensureTestEnvironment(t)
+  if (!env) return
 
-  const db = testEnv.authenticatedContext("buyer_market").firestore()
+  const db = env.authenticatedContext("buyer_market").firestore()
   const orderRef = db.collection("orders").doc("order_market_1")
 
   await rulesTesting.assertSucceeds(
@@ -110,12 +122,10 @@ test("rules emulator: marketplace order create accepts expected model", async (t
 test("rules emulator: media_entitlements stay non-writable by client", async (t) => {
   const rulesTesting = await loadRulesTestingOrSkip(t)
   if (!rulesTesting) return
-  if (!testEnv) {
-    t.skip("rules test environment unavailable")
-    return
-  }
+  const env = await ensureTestEnvironment(t)
+  if (!env) return
 
-  const db = testEnv.authenticatedContext("buyer_market").firestore()
+  const db = env.authenticatedContext("buyer_market").firestore()
   const entRef = db.collection("media_entitlements").doc("ent_1")
 
   await rulesTesting.assertFails(
