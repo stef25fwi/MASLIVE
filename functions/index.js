@@ -1761,6 +1761,14 @@ exports.createCheckoutSession = onRequest(
         return res.status(401).json({ error: "Unauthorized" });
       }
 
+      // Legacy endpoint disabled for security hardening.
+      // Use createStorexPaymentIntent (server-priced flow) instead.
+      return res.status(410).json({
+        error: "This endpoint is deprecated for security reasons",
+        code: "ENDPOINT_DEPRECATED",
+        use: "createStorexPaymentIntent",
+      });
+
       const { orderId, successUrl, cancelUrl } = req.body || {};
 
       if (!orderId || typeof orderId !== "string") {
@@ -1873,6 +1881,14 @@ exports.createSubscriptionCheckoutSession = onRequest(
       if (!uid) {
         return res.status(401).json({ error: "Unauthorized" });
       }
+
+      // Legacy endpoint disabled for security hardening.
+      // Use createPhotographerSubscriptionCheckoutSession (plan-bound flow) instead.
+      return res.status(410).json({
+        error: "This endpoint is deprecated for security reasons",
+        code: "ENDPOINT_DEPRECATED",
+        use: "createPhotographerSubscriptionCheckoutSession",
+      });
 
       const { priceId, successUrl, cancelUrl } = req.body || {};
 

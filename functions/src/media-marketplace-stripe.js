@@ -398,6 +398,12 @@ module.exports = function createMediaMarketplaceStripe(deps) {
     const buyerUid = session?.metadata?.uid || session?.metadata?.userId
     if (!orderId || !buyerUid) return false
 
+    // Only fulfill when Stripe confirms the checkout session is actually paid.
+    const paymentStatus = String(session?.payment_status || "").toLowerCase()
+    if (paymentStatus !== "paid") {
+      return false
+    }
+
     const orderRef = db.collection(COLLECTIONS.orders).doc(orderId)
     const orderSnapshot = await orderRef.get()
     if (!orderSnapshot.exists) return false

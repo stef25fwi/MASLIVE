@@ -653,7 +653,16 @@ service cloud.firestore {
       // Création: utilisateur authentifié avec son propre userId
       allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid
-        && request.resource.data.keys().hasAll(['userId', 'groupId', 'items', 'totalPrice']);
+        && request.resource.data.keys().hasAll(['userId', 'groupId', 'items', 'totalPrice'])
+        // Prevent overlap with media marketplace order model.
+        && !('buyerUid' in request.resource.data)
+        && !('photographerIds' in request.resource.data)
+        && !('photographerOwnerUids' in request.resource.data)
+        && !('pricingBreakdown' in request.resource.data)
+        && !(('metadata' in request.resource.data)
+             && (request.resource.data.metadata is map)
+             && ('kind' in request.resource.data.metadata)
+             && request.resource.data.metadata.kind == 'media_marketplace_order');
       
       // Mise à jour/Suppression: admin master
       // + vendeur: peut uniquement valider/rejeter (champs limités)
