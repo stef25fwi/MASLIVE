@@ -82,7 +82,7 @@ class MarketMapGroupPublicPositionService {
       'position': GeoPoint(lat, lng),
       'lat': lat,
       'lng': lng,
-      if (memberCount != null) 'memberCount': memberCount,
+      'memberCount': ?memberCount,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }

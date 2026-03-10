@@ -225,7 +225,7 @@ class _SystemMessagesPageState extends State<SystemMessagesPage> {
                         ),
                       ),
                     ),
-                    if (priorityBadge != null) priorityBadge,
+                    ?priorityBadge,
                     if (_currentUser?.isAdminRole == true) ...[
                       const SizedBox(width: 8),
                       PopupMenuButton(

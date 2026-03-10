@@ -6524,7 +6524,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             'strokeColor': style['strokeColor'],
             'strokeWidth': style['strokeWidth'],
             'strokeDash': style['strokeDash'],
-            if (fillPattern != null) 'fillPattern': fillPattern,
+            'fillPattern': ?fillPattern,
             'patternOpacity': style['patternOpacity'],
           },
           'geometry': <String, dynamic>{
@@ -6560,7 +6560,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 perimeter,
                 labelPreset,
               ),
-              if (badgeId != null) 'parkingBadgeId': badgeId,
+              'parkingBadgeId': ?badgeId,
             },
             'geometry': <String, dynamic>{
               'type': 'Point',
@@ -6690,7 +6690,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           'strokeColor': previewStroke,
           'strokeWidth': _parkingZoneStrokeWidth,
           'strokeDash': _parkingZoneStrokeDash,
-          if (previewPattern != null) 'fillPattern': previewPattern,
+          'fillPattern': ?previewPattern,
           'patternOpacity': _parkingZonePatternOpacity.clamp(0.0, 1.0),
         },
         'geometry': <String, dynamic>{
@@ -6724,7 +6724,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             previewParkingZonePoints,
             _parkingZoneLabelPreset,
           ),
-          if (badgeId != null) 'parkingBadgeId': badgeId,
+          'parkingBadgeId': ?badgeId,
         },
         'geometry': <String, dynamic>{
           'type': 'Point',

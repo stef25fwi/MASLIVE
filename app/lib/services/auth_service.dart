@@ -22,6 +22,12 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   Future<void>? _googleInitialization;
+  static const String _appleServiceId = String.fromEnvironment(
+    'APPLE_SERVICE_ID',
+  );
+  static const String _appleRedirectUri = String.fromEnvironment(
+    'APPLE_REDIRECT_URI',
+  );
 
   // Stream de l'utilisateur actuel
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -251,7 +257,10 @@ class AuthService {
 
   Future<UserCredential> signInWithApple() async {
     try {
-      if (!kIsWeb) {
+      final requiresWebOptions =
+          kIsWeb || defaultTargetPlatform == TargetPlatform.android;
+
+      if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
         final available = await SignInWithApple.isAvailable();
         if (!available) {
           throw const AuthException(
@@ -263,13 +272,36 @@ class AuthService {
       final rawNonce = _generateNonce();
       final nonce = _sha256ofString(rawNonce);
 
-      final appleCredential = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
-        ],
-        nonce: nonce,
-      );
+      final AuthorizationCredentialAppleID appleCredential;
+      if (requiresWebOptions) {
+        final redirectUri = Uri.tryParse(_appleRedirectUri);
+        if (_appleServiceId.isEmpty ||
+            redirectUri == null ||
+            !redirectUri.isAbsolute) {
+          throw const AuthException(
+            'Configuration Apple manquante (APPLE_SERVICE_ID / APPLE_REDIRECT_URI).',
+          );
+        }
+        appleCredential = await SignInWithApple.getAppleIDCredential(
+          scopes: [
+            AppleIDAuthorizationScopes.email,
+            AppleIDAuthorizationScopes.fullName,
+          ],
+          nonce: nonce,
+          webAuthenticationOptions: WebAuthenticationOptions(
+            clientId: _appleServiceId,
+            redirectUri: redirectUri,
+          ),
+        );
+      } else {
+        appleCredential = await SignInWithApple.getAppleIDCredential(
+          scopes: [
+            AppleIDAuthorizationScopes.email,
+            AppleIDAuthorizationScopes.fullName,
+          ],
+          nonce: nonce,
+        );
+      }
 
       if (appleCredential.identityToken == null) {
         throw const AuthException('Token Apple invalide ou manquant.');
@@ -416,6 +448,12 @@ class AuthService {
   // Déconnexion
   Future<void> signOut() async {
     try {
+      // Also clear Google provider session when present.
+      try {
+        await GoogleSignIn.instance.signOut();
+      } catch (_) {
+        // Ignore: user may not be signed in with Google.
+      }
       await _auth.signOut();
     } catch (e) {
       // print('Erreur signOut: $e');

@@ -54,14 +54,14 @@ class PhotographerRepository {
     double? totalRevenueNet,
   }) async {
     final patch = <String, dynamic>{
-      if (publishedPhotoCount != null) 'publishedPhotoCount': publishedPhotoCount,
-      if (activeGalleryCount != null) 'activeGalleryCount': activeGalleryCount,
-      if (activePackCount != null) 'activePackCount': activePackCount,
-      if (storageUsedBytes != null) 'storageUsedBytes': storageUsedBytes,
-      if (salesCount != null) 'salesCount': salesCount,
-      if (averageRating != null) 'averageRating': averageRating,
-      if (totalRevenueGross != null) 'totalRevenueGross': totalRevenueGross,
-      if (totalRevenueNet != null) 'totalRevenueNet': totalRevenueNet,
+      'publishedPhotoCount': ?publishedPhotoCount,
+      'activeGalleryCount': ?activeGalleryCount,
+      'activePackCount': ?activePackCount,
+      'storageUsedBytes': ?storageUsedBytes,
+      'salesCount': ?salesCount,
+      'averageRating': ?averageRating,
+      'totalRevenueGross': ?totalRevenueGross,
+      'totalRevenueNet': ?totalRevenueNet,
     };
     await _collection.doc(photographerId).set(patch, SetOptions(merge: true));
   }

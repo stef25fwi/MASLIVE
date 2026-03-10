@@ -769,9 +769,9 @@ class CircuitRepository {
       'publishedVersion': version,
       'publishedAt': now,
       'updatedAt': now,
-      if (publishedCenter != null) 'center': publishedCenter,
-      if (publishedInitialZoom != null) 'initialZoom': publishedInitialZoom,
-      if (publishedBounds != null) 'bounds': publishedBounds,
+      'center': ?publishedCenter,
+      'initialZoom': ?publishedInitialZoom,
+      'bounds': ?publishedBounds,
       if (currentData['perimeterMapCamera'] is Map)
         'perimeterMapCamera': currentData['perimeterMapCamera'],
       if ((currentData['styleUrl'] ?? '').toString().trim().isNotEmpty)
@@ -1267,7 +1267,7 @@ class CircuitRepository {
         if (nonEmpty(poi.whatsapp) != null) 'whatsapp': nonEmpty(poi.whatsapp),
         if (nonEmpty(poi.email) != null) 'email': nonEmpty(poi.email),
         if (nonEmpty(poi.mapsUrl) != null) 'mapsUrl': nonEmpty(poi.mapsUrl),
-        if (metadata != null) 'metadata': metadata,
+        'metadata': ?metadata,
         if (instagram != null && instagram.isNotEmpty) 'instagram': instagram,
         if (facebook != null && facebook.isNotEmpty) 'facebook': facebook,
         'createdByUid': actorUid,

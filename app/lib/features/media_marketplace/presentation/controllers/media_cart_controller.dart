@@ -150,8 +150,8 @@ class MediaCartController extends ChangeNotifier {
     try {
       final callable = _functions.httpsCallable('createMediaMarketplaceCheckout');
       final response = await callable.call(<String, dynamic>{
-        if (successUrl != null) 'successUrl': successUrl,
-        if (cancelUrl != null) 'cancelUrl': cancelUrl,
+        'successUrl': ?successUrl,
+        'cancelUrl': ?cancelUrl,
       });
       final data = Map<String, dynamic>.from(response.data as Map);
       checkoutUrl = data['checkoutUrl']?.toString();

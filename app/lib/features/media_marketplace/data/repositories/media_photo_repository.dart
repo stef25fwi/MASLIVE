@@ -65,8 +65,8 @@ class MediaPhotoRepository {
   }) async {
     await _collection.doc(photoId).set({
       'isForSale': isForSale,
-      if (unitPrice != null) 'unitPrice': unitPrice,
-      if (currency != null) 'currency': currency,
+      'unitPrice': ?unitPrice,
+      'currency': ?currency,
     }, SetOptions(merge: true));
   }
 

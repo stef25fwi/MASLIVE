@@ -69,6 +69,40 @@
       }
     },
     {
+      "label": "MASLIVE: Flutter analyze strict (zero issues)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && ../.flutter_sdk/bin/flutter analyze --fatal-warnings --fatal-infos",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: ▶️ One Click Run Web (Apple Sign-In)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true && APPLE_SID=${APPLE_SERVICE_ID:-${APPLE_WEB_SERVICE_ID:-}} && APPLE_REDIRECT=${APPLE_REDIRECT_URI:-} && if [ -z \"$APPLE_SID\" ] || [ -z \"$APPLE_REDIRECT\" ]; then echo '❌ Variables manquantes: APPLE_SERVICE_ID (ou APPLE_WEB_SERVICE_ID) et APPLE_REDIRECT_URI'; exit 1; fi && cd app && ../.flutter_sdk/bin/flutter run -d chrome --dart-define=APPLE_SERVICE_ID=\"$APPLE_SID\" --dart-define=APPLE_REDIRECT_URI=\"$APPLE_REDIRECT\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Git commit + push (analyzer zero + tasks + Apple Sign-In)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add .vscode/tasks.json app/lib/services/auth_service.dart app/lib/pages/login_page.dart app/macos/Runner/DebugProfile.entitlements app/macos/Runner/Release.entitlements app/lib/admin/circuit_wizard_pro_page.dart app/lib/features/media_marketplace app/lib/pages/home_map_page_3d.dart app/lib/profile/system_messages_page.dart app/lib/services/circuit_repository.dart app/lib/services/group/marketmap_group_public_position_service.dart app/lib/services/user_category_service.dart app/lib/ui/widgets/mapbox_web_view_widget_web.dart && if git diff --cached --quiet; then echo '⚠️ Rien à committer'; exit 0; fi && git commit -m \"fix(analyzer): zero issues + tasks hardening + Apple Sign-In compat\" && git push origin main && echo '✅ Push OK'",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Flutter test (poi popup/type)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE/app && ../.flutter_sdk/bin/flutter test test/poi_normalizer_test.dart test/poi_popup_service_test.dart test/polaroid_poi_sheet_test.dart",
@@ -102,9 +136,9 @@
       }
     },
     {
-      "label": "MASLIVE: � Merge analyzer-stack-hardening → main",
+      "label": "MASLIVE: Merge analyzer-stack-hardening into main (confirm)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git fetch origin && git checkout main && git pull origin main && git merge --no-ff chore/analyzer-stack-hardening -m \"merge: chore/analyzer-stack-hardening into main\" && git push origin main && echo '✅ Merge OK → main'",
+      "command": "cd /workspaces/MASLIVE && if [ \"${CONFIRM_MAIN_MERGE:-}\" != \"YES\" ]; then echo '❌ Merge bloqué. Re-lancer avec: CONFIRM_MAIN_MERGE=YES'; exit 1; fi && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git fetch origin && git checkout main && git pull origin main && git merge --no-ff chore/analyzer-stack-hardening -m \"merge: chore/analyzer-stack-hardening into main\" && echo '✅ Merge local OK sur main. Push manuel: git push origin main'",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -113,9 +147,20 @@
       }
     },
     {
-      "label": "MASLIVE: �🚀 Commit + Push (analyzer hardening)",
+      "label": "MASLIVE: Commit + Push (analyzer deps-config only)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add app/analysis_options.yaml app/pubspec.yaml app/pubspec.lock app/lib app/test .vscode/tasks.json && if git diff --cached --quiet; then echo '⚠️ Rien à committer'; else git commit -m \"chore(analyzer): restore null-aware diagnostics and harden commit task\" && echo '✅ Commit OK'; fi && git push origin chore/analyzer-stack-hardening && echo '✅ Push OK'",
+      "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add app/analysis_options.yaml app/pubspec.yaml app/pubspec.lock .gitignore .vscode/tasks.json && if git diff --cached --quiet; then echo '⚠️ Rien à committer (deps/config)'; exit 0; fi && git commit -m \"chore(analyzer): deps and config hardening\" && git push origin chore/analyzer-stack-hardening && echo '✅ Push OK (deps/config)'",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: Commit + Push (analyzer code changes)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add app/lib app/test && if git diff --cached --quiet; then echo '⚠️ Rien à committer (code)'; exit 0; fi && git commit -m \"fix(analyzer): apply safe code lint fixes\" && git push origin chore/analyzer-stack-hardening && echo '✅ Push OK (code)'",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -339,7 +384,7 @@
     {
       "label": "MASLIVE: Git commit + push (security: redact Mapbox token logs)",
       "type": "shell",
-      "command": "bash -lc 'cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z "$EMAIL" ]; then git config user.email "devcontainer@maslive.local"; fi && if [ -z "$NAME" ]; then git config user.name "MASLIVE Devcontainer"; fi && git add commit_push_build_deploy.sh build_deploy_now.sh build_and_deploy_hosting.sh quick_deploy.sh deploy_firebase.sh deploy_production.sh scripts/build_with_mapbox.sh .vscode/tasks.json && if git diff --cached --quiet; then echo "⚠️ Rien à committer (redact token logs)"; exit 0; fi && git commit -m "chore(security): redact Mapbox token in logs" && git push origin main' > /tmp/maslive_security_commit.log 2>&1; echo EXIT_CODE=$? >> /tmp/maslive_security_commit.log; tail -n 80 /tmp/maslive_security_commit.log",
+      "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add commit_push_build_deploy.sh build_deploy_now.sh build_and_deploy_hosting.sh quick_deploy.sh deploy_firebase.sh deploy_production.sh scripts/build_with_mapbox.sh .vscode/tasks.json && if git diff --cached --quiet; then echo '⚠️ Rien à committer (redact token logs)'; exit 0; fi && git commit -m \"chore(security): redact Mapbox token in logs\" && git push origin main",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -1521,6 +1566,18 @@
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (prompt)",
       "type": "shell",
       "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: 🚀 One Click Commit+Push+Build+Deploy",
+      "type": "shell",
+      "command": "bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"chore: one click deploy\"",
       "problemMatcher": [],
       "isBackground": false,
       "presentation": {

@@ -101,8 +101,8 @@ class PhotographerSubscriptionController extends ChangeNotifier {
         'photographerId': currentProfile.photographerId,
         'planId': planId,
         'billingInterval': billingInterval,
-        if (successUrl != null) 'successUrl': successUrl,
-        if (cancelUrl != null) 'cancelUrl': cancelUrl,
+        'successUrl': ?successUrl,
+        'cancelUrl': ?cancelUrl,
       });
       final data = Map<String, dynamic>.from(response.data as Map);
       checkoutUrl = data['checkoutUrl']?.toString();

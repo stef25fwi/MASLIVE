@@ -523,7 +523,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
             'fill-extrusion-opacity': 0.6,
           },
         }),
-        if (labelLayerId != null) labelLayerId,
+        ?labelLayerId,
       ]);
     } catch (_) {
       // ignore

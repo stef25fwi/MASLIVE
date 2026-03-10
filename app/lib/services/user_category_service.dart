@@ -84,8 +84,8 @@ class UserCategoryService {
       final result = await callable.call({
         'targetUserId': targetUserId,
         'categoryId': categoryId,
-        if (expiresAt != null) 'expiresAt': expiresAt.toIso8601String(),
-        if (verificationProof != null) 'verificationProof': verificationProof,
+        'expiresAt': ?expiresAt?.toIso8601String(),
+        'verificationProof': ?verificationProof,
       });
       return result.data as Map<String, dynamic>;
     } catch (e) {

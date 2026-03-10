@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../session/session_scope.dart';
 import 'auth/auth_action_runner.dart';
@@ -22,6 +23,13 @@ class _LoginPageState extends State<LoginPage> {
   String? _error;
   bool _emailError = false;
   bool _passwordError = false;
+
+  bool get _supportsAppleSignInUi {
+    if (kIsWeb) return true;
+    return defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.android;
+  }
 
   Future<void> _run(Future<void> Function() fn) async {
     // Validation
@@ -356,21 +364,23 @@ class _LoginPageState extends State<LoginPage> {
                                           : () =>
                                                 _runProvider(AuthAction.google),
                                     ),
-                                    const SizedBox(height: 10),
-                                    _SocialButton(
-                                      label: AppLocalizations.of(
-                                        context,
-                                      )!.continueWithApple,
-                                      leading: const Icon(
-                                        Icons.apple,
-                                        size: 22,
-                                        color: Color(0xFF111827),
+                                    if (_supportsAppleSignInUi) ...[
+                                      const SizedBox(height: 10),
+                                      _SocialButton(
+                                        label: AppLocalizations.of(
+                                          context,
+                                        )!.continueWithApple,
+                                        leading: const Icon(
+                                          Icons.apple,
+                                          size: 22,
+                                          color: Color(0xFF111827),
+                                        ),
+                                        onPressed: _loading
+                                            ? () {}
+                                            : () =>
+                                                  _runProvider(AuthAction.apple),
                                       ),
-                                      onPressed: _loading
-                                          ? () {}
-                                          : () =>
-                                                _runProvider(AuthAction.apple),
-                                    ),
+                                    ],
                                     const SizedBox(height: 6),
                                   ],
                                 ),

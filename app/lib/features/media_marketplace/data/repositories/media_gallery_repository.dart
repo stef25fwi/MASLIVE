@@ -70,11 +70,11 @@ class MediaGalleryRepository {
     String? coverUrl,
   }) async {
     await _collection.doc(galleryId).set({
-      if (photoCount != null) 'photoCount': photoCount,
-      if (publishedPhotoCount != null) 'publishedPhotoCount': publishedPhotoCount,
-      if (packCount != null) 'packCount': packCount,
-      if (coverPhotoId != null) 'coverPhotoId': coverPhotoId,
-      if (coverUrl != null) 'coverUrl': coverUrl,
+      'photoCount': ?photoCount,
+      'publishedPhotoCount': ?publishedPhotoCount,
+      'packCount': ?packCount,
+      'coverPhotoId': ?coverPhotoId,
+      'coverUrl': ?coverUrl,
     }, SetOptions(merge: true));
   }
 }

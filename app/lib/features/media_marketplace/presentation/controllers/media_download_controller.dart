@@ -65,7 +65,7 @@ class MediaDownloadController extends ChangeNotifier {
       final response = await callable.call(<String, dynamic>{
         'entitlementId': entitlementId,
         'assetId': assetId,
-        if (photoId != null) 'photoId': photoId,
+        'photoId': ?photoId,
         'variant': variant,
       });
       final data = Map<String, dynamic>.from(response.data as Map);
