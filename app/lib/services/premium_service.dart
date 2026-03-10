@@ -96,7 +96,7 @@ class PremiumService {
 
   Future<void> purchasePackage(Package package) async {
     if (kIsWeb) return;
-    await Purchases.purchasePackage(package);
+    await Purchases.purchase(PurchaseParams.package(package));
     await refresh();
   }
 

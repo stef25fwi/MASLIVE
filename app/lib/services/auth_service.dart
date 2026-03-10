@@ -275,8 +275,6 @@ class AuthService {
           );
         case AuthorizationErrorCode.unknown:
           throw AuthException('Erreur Apple inconnue: ${e.message}');
-        default:
-          throw AuthException('Erreur Apple: ${e.message}');
       }
     } catch (e) {
       if (e is AuthException) rethrow;
