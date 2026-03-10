@@ -502,6 +502,17 @@
       }
     },
     {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (Mapbox token build)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && BRANCH=$(git branch --show-current) && if [ -z \"$BRANCH\" ]; then echo '❌ Branche Git introuvable'; exit 1; fi && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add .vscode/tasks.json app/lib/services/mapbox_token_service.dart && if git diff --cached --quiet; then echo '⚠️ Rien à committer (Mapbox token build)'; exit 0; fi && git commit -m \"fix(mapbox): inject token reliably at web build\" && git push origin \"$BRANCH\" && cd app && source /workspaces/MASLIVE/flutter_env.sh && flutter pub get && { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -z \"$TOKEN\" ]; then echo '❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).'; exit 1; fi && flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" --dart-define=MAPBOX_PUBLIC_TOKEN=\"$TOKEN\" && cd .. && firebase deploy --only hosting && echo '✅ Commit + push + build + deploy OK sur $BRANCH'",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git commit + push (wizard POI inline popup under map)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && EMAIL=$(git config --get user.email || true) && NAME=$(git config --get user.name || true) && if [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi && if [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi && git add app/lib/admin/circuit_wizard_pro_page.dart app/lib/admin/poi_bottom_popup.dart .vscode/tasks.json && git commit -m \"feat(wizard): POI panel under map (scroll)\" && git push origin main",
@@ -677,7 +688,7 @@
     {
       "label": "MASLIVE: Flutter build web (release)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE/app && flutter build web --release",
+      "command": "cd /workspaces/MASLIVE/app && flutter pub get && { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -z \"$TOKEN\" ]; then echo '❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).'; exit 1; fi && echo 'Using MAPBOX token from env' && flutter build web --release --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" --dart-define=MAPBOX_PUBLIC_TOKEN=\"$TOKEN\"",
       "problemMatcher": [],
       "isBackground": false
     },

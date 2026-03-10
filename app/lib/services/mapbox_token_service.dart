@@ -28,6 +28,9 @@ class MapboxTokenService {
   static const String _compileTimeToken = String.fromEnvironment(
     'MAPBOX_ACCESS_TOKEN',
   );
+  static const String _compileTimePublicToken = String.fromEnvironment(
+    'MAPBOX_PUBLIC_TOKEN',
+  );
   static const String _compileTimeLegacyToken = String.fromEnvironment(
     'MAPBOX_TOKEN',
   );
@@ -51,6 +54,17 @@ class MapboxTokenService {
       final info = const MapboxTokenInfo(
         token: _compileTimeLegacyToken,
         source: 'dart-define MAPBOX_TOKEN (legacy)',
+      );
+      _cachedToken = info.token;
+      _cachedSource = info.source;
+      writeWebMapboxToken(info.token);
+      return info;
+    }
+
+    if (_compileTimePublicToken.isNotEmpty) {
+      final info = const MapboxTokenInfo(
+        token: _compileTimePublicToken,
+        source: 'dart-define MAPBOX_PUBLIC_TOKEN',
       );
       _cachedToken = info.token;
       _cachedSource = info.source;
@@ -120,6 +134,7 @@ class MapboxTokenService {
     final overridden = (override ?? '').trim();
     if (overridden.isNotEmpty) return overridden;
     if (_compileTimeToken.isNotEmpty) return _compileTimeToken;
+    if (_compileTimePublicToken.isNotEmpty) return _compileTimePublicToken;
     if (_compileTimeLegacyToken.isNotEmpty) return _compileTimeLegacyToken;
     final webToken = readWebMapboxToken();
     if (webToken.isNotEmpty) return webToken;
@@ -132,6 +147,9 @@ class MapboxTokenService {
     final overridden = (override ?? '').trim();
     if (overridden.isNotEmpty) return 'override param';
     if (_compileTimeToken.isNotEmpty) return 'dart-define MAPBOX_ACCESS_TOKEN';
+    if (_compileTimePublicToken.isNotEmpty) {
+      return 'dart-define MAPBOX_PUBLIC_TOKEN';
+    }
     if (_compileTimeLegacyToken.isNotEmpty) {
       return 'dart-define MAPBOX_TOKEN (legacy)';
     }
