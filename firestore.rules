@@ -1149,7 +1149,9 @@ service cloud.firestore {
     }
 
     match /photographer_plans/{planId} {
-      allow read: if true;
+      // Keep plan catalog visible to authenticated users only,
+      // and only for active plans to limit commercial metadata exposure.
+      allow read: if isSignedIn() && resource.data.isActive == true;
       allow create, update, delete: if isMasterAdmin();
     }
 
