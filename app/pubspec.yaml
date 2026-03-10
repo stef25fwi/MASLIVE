@@ -39,14 +39,14 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # Pour Mapbox web interop
-  web: any
+  web: ^1.1.1
 
   # Carte OSM
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
 
-  # Mapbox
-  mapbox_maps_flutter: ^2.6.0
+  # Mapbox — verrouillé en v2 (v3 = breaking API majeure)
+  mapbox_maps_flutter: ^2.19.0
 
   # HTTP (pour OSRM routing)
   http: ^1.1.0
@@ -55,18 +55,18 @@ dependencies:
   flutter_compass: ^0.8.0
 
   # Firebase
-  firebase_core: ^3.6.0
-  firebase_auth: ^5.3.1
-  cloud_firestore: ^5.4.4
+  firebase_core: ^3.15.0
+  firebase_auth: ^5.7.0
+  cloud_firestore: ^5.6.0
   cloud_functions: ^5.6.2
-  firebase_analytics: ^11.0.0
-  firebase_storage: ^12.4.1
+  firebase_analytics: ^11.6.0
+  firebase_storage: ^12.4.0
   firebase_messaging: ^15.2.0
   geolocator: ^13.0.1
   timeago: ^3.7.0  # Format des dates relatives (il y a 2 jours, etc.)
 
   # Stripe
-  flutter_stripe: ^11.0.0
+  flutter_stripe: ^11.5.0
 
   # Upload images (produits / profil)
   image_picker: ^1.1.2
@@ -80,11 +80,11 @@ dependencies:
   crypto: ^3.0.0
 
   # RevenueCat
-  purchases_flutter: ^8.0.0
+  purchases_flutter: ^8.11.0
 
   # Internationalisation (i18n)
   intl: ^0.20.2
-  get: ^4.6.6
+  get: ^4.7.0
   shared_preferences: ^2.5.4
   url_launcher: ^6.3.2
 
