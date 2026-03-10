@@ -21,7 +21,7 @@
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^3.0.2",
-    "firebase": "^11.7.0"
+    "firebase": "^10.14.1"
   },
   "overrides": {
     "@tootallnate/once": "^3.0.1"
