@@ -155,15 +155,16 @@ module.exports = function createMediaMarketplaceStripe(deps) {
     if (photo.isPublished !== true) {
       throw new HttpsError("failed-precondition", `Photo not published: ${assetId}`)
     }
-    if (photo.lifecycleStatus && String(photo.lifecycleStatus) !== "ready") {
-      throw new HttpsError("failed-precondition", `Photo not ready: ${assetId}`)
+    if (photo.lifecycleStatus && String(photo.lifecycleStatus) !== "published") {
+      throw new HttpsError("failed-precondition", `Photo lifecycle not published: ${assetId}`)
     }
-    if (photo.moderationStatus && String(photo.moderationStatus) === "rejected") {
-      throw new HttpsError("failed-precondition", `Photo rejected: ${assetId}`)
+    const moderationStatus = String(photo.moderationStatus || "").toLowerCase()
+    if (moderationStatus !== "approved") {
+      throw new HttpsError("failed-precondition", `Photo moderation not approved: ${assetId}`)
     }
   }
 
-  function assertValidPackForSale(pack, assetId) {
+  function assertValidPackForSale(pack, assetId, photosById) {
     if (!pack) {
       throw new HttpsError("failed-precondition", `Pack not found: ${assetId}`)
     }
@@ -172,6 +173,16 @@ module.exports = function createMediaMarketplaceStripe(deps) {
     }
     if (!Array.isArray(pack.photoIds) || pack.photoIds.length === 0) {
       throw new HttpsError("failed-precondition", `Pack empty: ${assetId}`)
+    }
+
+    const moderationStatus = String(pack.moderationStatus || "").toLowerCase()
+    if (moderationStatus && moderationStatus !== "approved") {
+      throw new HttpsError("failed-precondition", `Pack moderation not approved: ${assetId}`)
+    }
+
+    for (const photoId of uniqueStrings(pack.photoIds)) {
+      const packPhoto = photosById.get(photoId)
+      assertValidPhotoForSale(packPhoto, `${assetId}:${photoId}`)
     }
   }
 
@@ -532,6 +543,13 @@ module.exports = function createMediaMarketplaceStripe(deps) {
         getDocumentMap(COLLECTIONS.mediaPacks, packIds),
       ])
 
+      const packPhotoIds = uniqueStrings(
+        Array.from(packsById.values()).flatMap((pack) =>
+          Array.isArray(pack.photoIds) ? pack.photoIds : []
+        )
+      )
+      const packPhotosById = await getDocumentMap(COLLECTIONS.mediaPhotos, packPhotoIds)
+
       const commissionRates = await getCommissionRatesByPhotographer(
         cartItems.map((item) => item.photographerId)
       )
@@ -543,7 +561,7 @@ module.exports = function createMediaMarketplaceStripe(deps) {
 
         if (assetType === "pack") {
           const pack = packsById.get(assetId)
-          assertValidPackForSale(pack, assetId)
+          assertValidPackForSale(pack, assetId, packPhotosById)
           return buildOrderLineItemFromPack(item, pack, commissionRate)
         }
 

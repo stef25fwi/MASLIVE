@@ -1192,11 +1192,20 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && isPhotographerOwner(request.resource.data.photographerId)
         && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.photoId == photoId;
+        && request.resource.data.photoId == photoId
+        && (
+          isMasterAdmin()
+          || !('moderationStatus' in request.resource.data)
+          || request.resource.data.moderationStatus == 'pending'
+        );
 
       allow update: if canManagePhotographerProfile(resource.data.photographerId)
         && request.resource.data.photographerId == resource.data.photographerId
-        && request.resource.data.ownerUid == resource.data.ownerUid;
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && (
+          isMasterAdmin()
+          || request.resource.data.moderationStatus == resource.data.moderationStatus
+        );
 
       allow delete: if canManagePhotographerProfile(resource.data.photographerId);
     }

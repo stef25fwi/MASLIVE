@@ -21,6 +21,12 @@ module.exports = function createMediaMarketplaceMedia(deps) {
   }
 
   const DOWNLOAD_VARIANTS = new Set(["original", "preview", "thumbnail", "watermarked"])
+  const VARIANT_DIRECTORY_BY_NAME = {
+    original: "originals",
+    preview: "previews",
+    thumbnail: "thumbs",
+    watermarked: "watermarked",
+  }
   const ARCHIVED_GALLERY_STATUS = "archived"
 
   function serverTimestamp() {
@@ -81,6 +87,32 @@ module.exports = function createMediaMarketplaceMedia(deps) {
       default:
         return photo.originalPath || ""
     }
+  }
+
+  function normalizeStoragePath(path) {
+    const normalized = nonEmptyString(path).replace(/\\/g, "/")
+    if (!normalized) return ""
+    if (normalized.startsWith("/") || normalized.includes("..") || normalized.includes("//")) {
+      return ""
+    }
+    return normalized
+  }
+
+  function isStrictMarketplacePhotoPath(photo, variant, storagePath) {
+    const normalizedPath = normalizeStoragePath(storagePath)
+    if (!normalizedPath) return false
+
+    const photographerId = nonEmptyString(photo?.photographerId)
+    const eventId = nonEmptyString(photo?.eventId)
+    const galleryId = nonEmptyString(photo?.galleryId)
+    const variantDirectory = VARIANT_DIRECTORY_BY_NAME[variant]
+
+    if (!photographerId || !eventId || !galleryId || !variantDirectory) {
+      return false
+    }
+
+    const expectedPrefix = `photographers/${photographerId}/events/${eventId}/galleries/${galleryId}/${variantDirectory}/`
+    return normalizedPath.startsWith(expectedPrefix)
   }
 
   async function createSignedDownloadUrl(storagePath, fileName) {
@@ -460,7 +492,28 @@ module.exports = function createMediaMarketplaceMedia(deps) {
         throw new HttpsError("failed-precondition", "Requested media variant is not available")
       }
 
-      const signedUrl = await createSignedDownloadUrl(downloadPath, photo.downloadFileName || `${targetPhotoId}.jpg`)
+      const normalizedDownloadPath = normalizeStoragePath(downloadPath)
+      if (!isStrictMarketplacePhotoPath(photo, variant, normalizedDownloadPath)) {
+        await logDownloadAttempt({
+          buyerUid,
+          entitlementId,
+          assetId,
+          assetType: entitlement.assetType || "photo",
+          photoId: targetPhotoId,
+          outcome: "denied_invalid_storage_path",
+          request,
+          metadata: {
+            variant,
+            requestedPath: downloadPath,
+          },
+        })
+        throw new HttpsError("permission-denied", "Storage path is not allowed for this entitlement")
+      }
+
+      const signedUrl = await createSignedDownloadUrl(
+        normalizedDownloadPath,
+        photo.downloadFileName || `${targetPhotoId}.jpg`
+      )
 
       await Promise.all([
         entitlementSnapshot.ref.set(
@@ -477,7 +530,7 @@ module.exports = function createMediaMarketplaceMedia(deps) {
           assetType: entitlement.assetType || "photo",
           photoId: targetPhotoId,
           outcome: "allowed",
-          signedUrlPath: downloadPath,
+          signedUrlPath: normalizedDownloadPath,
           request,
           metadata: { variant, allowedVariants },
         }),
@@ -486,7 +539,7 @@ module.exports = function createMediaMarketplaceMedia(deps) {
       return {
         url: signedUrl,
         expiresInSeconds: 900,
-        path: downloadPath,
+        path: normalizedDownloadPath,
         photoId: targetPhotoId,
         variant,
       }

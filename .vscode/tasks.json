@@ -1146,6 +1146,17 @@
       }
     },
     {
+      "label": "MASLIVE: Git commit + push (security marketplace hardening)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add firestore.rules functions/src/media-marketplace-media.js functions/src/media-marketplace-stripe.js .vscode/tasks.json && git commit -m \"fix(security): lock marketplace moderation and harden signed URL paths\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: Git commit + push (nav icons)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git add app/lib/pages/default_map_page.dart app/lib/pages/home_map_page_3d.dart && git commit -m \"ui(map): move language to vertical nav + parking icon asset\" && git push origin main",
