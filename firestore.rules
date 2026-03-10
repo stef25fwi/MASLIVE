@@ -1204,7 +1204,20 @@ service cloud.firestore {
         && request.resource.data.ownerUid == resource.data.ownerUid
         && (
           isMasterAdmin()
-          || request.resource.data.moderationStatus == resource.data.moderationStatus
+          || (
+            // Non-admins cannot change moderation status
+            request.resource.data.moderationStatus == resource.data.moderationStatus
+            // Non-admins can only publish if already approved by moderation
+            && (
+              request.resource.data.isPublished == resource.data.isPublished
+              || (request.resource.data.isPublished == true && resource.data.moderationStatus == 'approved')
+            )
+            // Non-admins can only set lifecycleStatus=published if approved
+            && (
+              request.resource.data.lifecycleStatus == resource.data.lifecycleStatus
+              || (request.resource.data.lifecycleStatus == 'published' && resource.data.moderationStatus == 'approved')
+            )
+          )
         );
 
       allow delete: if canManagePhotographerProfile(resource.data.photographerId);
