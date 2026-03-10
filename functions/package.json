@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "node --test test/*.test.js test/*security*.test.js"
+    "test": "node --test test/*.test.js test/*security*.test.js",
+    "test:rules": "node --test test/firestore-rules-emulator-security.test.js"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +18,10 @@
     "firebase-functions": "^7.1.0",
     "ngeohash": "^0.6.3",
     "stripe": "^17.5.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.2",
+    "firebase": "^11.7.0"
   },
   "overrides": {
     "@tootallnate/once": "^3.0.1"
