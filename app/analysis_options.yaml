@@ -5,8 +5,6 @@ analyzer:
     deprecated_member_use: warning
     unused_import: warning
     invalid_null_aware_operator: error
-    # use_null_aware_elements est un diagnostic SDK (pas un lint rule) — géré ici
-    use_null_aware_elements: ignore
   exclude:
     - _archive/**
     - tooling/**
@@ -16,7 +14,3 @@ analyzer:
     - "**/*_backup.dart"
     - "**/*_redirect.dart"
     - "lib/pages/admin_dashboard_page_REMOVED.dart"
-
-linter:
-  rules:
-    use_null_aware_elements: false
