@@ -1969,6 +1969,28 @@
         "panel": "dedicated",
         "clear": true
       }
+    },
+    {
+      "label": "MASLIVE: Git commit + push (bump deps vagues 1-3)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git add app/pubspec.yaml app/lib/services/auth_service.dart app/lib/pages/group/group_export_page.dart app/lib/commerce_module_single_file.dart && git commit -m \"chore: bump share_plus v12 + fl_chart v1 + geolocator v14 + permission_handler v12 + fix breaking changes\" && git push origin main",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "MASLIVE: flutter pub upgrade stripe + analyze",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/app && flutter pub upgrade flutter_stripe && flutter analyze 2>&1",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
     }
   ]
 }
