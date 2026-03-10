@@ -514,7 +514,7 @@ class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Edition points: TODO prochaine phase'),
+                          content: Text('Edition des points non disponible dans cette version.'),
                         ),
                       );
                     },
