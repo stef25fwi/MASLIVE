@@ -72,7 +72,7 @@ dependencies:
 
   # Auth providers
   google_sign_in: ^6.3.0  # v7 = refonte architecture auth — migration à planifier séparément
-  sign_in_with_apple: ^6.1.4  # v7 = breaking API — migration à planifier séparément
+  sign_in_with_apple: ^7.0.1
   crypto: ^3.0.0
 
   # RevenueCat

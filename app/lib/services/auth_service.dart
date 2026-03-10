@@ -273,6 +273,14 @@ class AuthService {
           throw const AuthException(
             'Connexion Apple indisponible dans ce contexte',
           );
+        case AuthorizationErrorCode.credentialExport:
+          throw const AuthException('Export des identifiants Apple impossible');
+        case AuthorizationErrorCode.credentialImport:
+          throw const AuthException('Import des identifiants Apple impossible');
+        case AuthorizationErrorCode.matchedExcludedCredential:
+          throw const AuthException(
+            'Une credentielle Apple exclue a ete detectee',
+          );
         case AuthorizationErrorCode.unknown:
           throw AuthException('Erreur Apple inconnue: ${e.message}');
       }
