@@ -1382,7 +1382,7 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
       await [
         Permission.camera,
         Permission.photos,
-        Permission.storage,
+        // Permission.storage retiré (déprécié Android 13+ / permission_handler v12)
       ].request();
     } catch (_) {
       // ignore

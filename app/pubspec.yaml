@@ -41,10 +41,6 @@ dependencies:
   # Pour Mapbox web interop
   web: ^1.1.1
 
-  # Carte OSM
-  flutter_map: ^7.0.2
-  latlong2: ^0.9.1
-
   # Mapbox — verrouillé en v2 (v3 = breaking API majeure)
   mapbox_maps_flutter: ^2.19.0
 
@@ -62,7 +58,7 @@ dependencies:
   firebase_analytics: ^11.6.0
   firebase_storage: ^12.4.0
   firebase_messaging: ^15.2.0
-  geolocator: ^13.0.1
+  geolocator: ^14.0.0
   timeago: ^3.7.0  # Format des dates relatives (il y a 2 jours, etc.)
 
   # Stripe
@@ -70,13 +66,13 @@ dependencies:
 
   # Upload images (produits / profil)
   image_picker: ^1.1.2
-  image_cropper: ^8.0.2  # Édition native avec filtres système iOS/Android
-  permission_handler: ^11.3.1
+  image_cropper: ^8.1.0  # Édition native avec filtres système iOS/Android — migration v11 à planifier
+  permission_handler: ^12.0.0
   image: ^4.3.0  # Traitement d'images (resize, compression)
 
   # Auth providers
-  google_sign_in: ^6.0.0
-  sign_in_with_apple: ^6.0.0
+  google_sign_in: ^6.3.0  # v7 = refonte architecture auth — migration à planifier séparément
+  sign_in_with_apple: ^6.1.4  # v7 = breaking API — migration à planifier séparément
   crypto: ^3.0.0
 
   # RevenueCat
@@ -95,8 +91,8 @@ dependencies:
   provider: ^6.1.2
   
   # Charts & exports
-  fl_chart: ^0.70.1
-  share_plus: ^10.1.3
+  fl_chart: ^1.1.1
+  share_plus: ^12.0.0
   path_provider: ^2.1.5
   
   # Cache local & offline

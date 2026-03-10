@@ -56,7 +56,7 @@ class _GroupExportPageState extends State<GroupExportPage> {
       );
 
       await Clipboard.setData(ClipboardData(text: content));
-      await Share.share(content, subject: 'Export session $format');
+      await SharePlus.instance.share(ShareParams(text: content, subject: 'Export session $format'));
 
       if (mounted) {
         TopSnackBar.show(
@@ -104,7 +104,7 @@ class _GroupExportPageState extends State<GroupExportPage> {
       );
 
       await Clipboard.setData(ClipboardData(text: content));
-      await Share.share(content, subject: 'Export toutes sessions $format');
+      await SharePlus.instance.share(ShareParams(text: content, subject: 'Export toutes sessions $format'));
 
       if (mounted) {
         TopSnackBar.show(
