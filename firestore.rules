@@ -1217,6 +1217,11 @@ service cloud.firestore {
               request.resource.data.lifecycleStatus == resource.data.lifecycleStatus
               || (request.resource.data.lifecycleStatus == 'published' && resource.data.moderationStatus == 'approved')
             )
+            // Non-admins cannot modify Storage paths (prevent path hijacking)
+            && request.resource.data.get('originalPath', '') == resource.data.get('originalPath', '')
+            && request.resource.data.get('previewPath', '') == resource.data.get('previewPath', '')
+            && request.resource.data.get('thumbnailPath', '') == resource.data.get('thumbnailPath', '')
+            && request.resource.data.get('watermarkedPath', '') == resource.data.get('watermarkedPath', '')
           )
         );
 
