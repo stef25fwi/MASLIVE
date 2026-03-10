@@ -1948,7 +1948,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           DropdownButtonFormField<CircuitDraftVersion>(
-                            value: picked,
+                            initialValue: picked,
                             decoration: const InputDecoration(
                               labelText: 'Version',
                               border: OutlineInputBorder(),

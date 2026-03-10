@@ -443,7 +443,7 @@ class RouteStyleConfig {
       'buildings3dEnabled': buildings3dEnabled,
       'buildingOpacity': buildingOpacity,
       'routeAlwaysOnTop': routeAlwaysOnTop,
-      if (parkColor != null) 'parkColor': parkColor!.value,
+    if (parkColor != null) 'parkColor': parkColor!.toARGB32(),
     };
   }
 

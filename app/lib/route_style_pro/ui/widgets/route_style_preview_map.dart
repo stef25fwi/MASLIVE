@@ -452,7 +452,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     }
 
     // Couleur des parcs : applique si changée
-    final parkColorValue = cfg.parkColor?.value;
+    final parkColorValue = cfg.parkColor?.toARGB32();
     if (_lastParkColorValue != parkColorValue) {
       _lastParkColorValue = parkColorValue;
       await _webController.setParkColor(cfg.parkColor);

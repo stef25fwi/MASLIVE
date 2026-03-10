@@ -1360,7 +1360,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
           sourceId: _poiSourceId,
           circleRadius: 6.0,
           circleColor: 0xFFFFFFFF,
-          circleStrokeColor: _poiStyle.circleStrokeColor.value,
+          circleStrokeColor: _poiStyle.circleStrokeColor.toARGB32(),
           circleStrokeWidth: 2.5,
         ),
       );
