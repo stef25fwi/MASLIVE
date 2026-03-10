@@ -2165,7 +2165,7 @@ exports.stripeWebhook = onRequest(
     try {
       switch (event.type) {
         case "checkout.session.completed":
-          await handleCheckoutSessionCompleted(event.data.object);
+          await handleCheckoutSessionCompleted(event.data.object, event.id);
           break;
 
         case "customer.subscription.updated":
@@ -2213,7 +2213,7 @@ exports.stripeWebhook = onRequest(
  * Traite l'événement checkout.session.completed
  * Commande payée via le Media Shop
  */
-async function handleCheckoutSessionCompleted(session) {
+async function handleCheckoutSessionCompleted(session, eventId) {
   console.log("Processing checkout.session.completed:", session.id);
 
   if (await mediaMarketplaceStripe.handleMarketplaceCheckoutSessionCompleted(session)) {
@@ -2235,20 +2235,55 @@ async function handleCheckoutSessionCompleted(session) {
   const rootOrderRef = db.collection("orders").doc(orderId);
   const rootSnap = await rootOrderRef.get();
   if (rootSnap.exists) {
-    const rootOrder = rootSnap.data() || {};
+    let rootOrder = rootSnap.data() || {};
+    let shouldProcessRootOrder = false;
 
-    await rootOrderRef.set(
-      {
-        status: "paid",
-        paidAt: admin.firestore.FieldValue.serverTimestamp(),
-        stripe: {
-          sessionId: session.id,
-          paymentIntentId: session.payment_intent || null,
+    await db.runTransaction(async (transaction) => {
+      const freshSnap = await transaction.get(rootOrderRef);
+      if (!freshSnap.exists) {
+        return;
+      }
+
+      const freshOrder = freshSnap.data() || {};
+      const status = String(freshOrder.status || "").toLowerCase();
+      const stripeData =
+        freshOrder.stripe && typeof freshOrder.stripe === "object"
+          ? freshOrder.stripe
+          : {};
+      const alreadyProcessedSession =
+        typeof stripeData.sessionId === "string" && stripeData.sessionId === session.id;
+      const alreadyProcessedEvent =
+        typeof stripeData.lastProcessedCheckoutEventId === "string"
+        && typeof eventId === "string"
+        && stripeData.lastProcessedCheckoutEventId === eventId;
+
+      if (alreadyProcessedEvent || (status === "paid" && alreadyProcessedSession)) {
+        console.log(`Root order ${orderId} already processed for session ${session.id}`);
+        return;
+      }
+
+      rootOrder = freshOrder;
+      shouldProcessRootOrder = true;
+
+      transaction.set(
+        rootOrderRef,
+        {
+          status: "paid",
+          paidAt: admin.firestore.FieldValue.serverTimestamp(),
+          stripe: {
+            sessionId: session.id,
+            paymentIntentId: session.payment_intent || null,
+            lastProcessedCheckoutEventId: typeof eventId === "string" ? eventId : null,
+          },
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
+        { merge: true }
+      );
+    });
+
+    if (!shouldProcessRootOrder) {
+      return;
+    }
 
     if (uid && typeof uid === "string") {
       await db

@@ -176,7 +176,7 @@ module.exports = function createMediaMarketplaceStripe(deps) {
     }
 
     const moderationStatus = String(pack.moderationStatus || "").toLowerCase()
-    if (moderationStatus && moderationStatus !== "approved") {
+    if (moderationStatus !== "approved") {
       throw new HttpsError("failed-precondition", `Pack moderation not approved: ${assetId}`)
     }
 

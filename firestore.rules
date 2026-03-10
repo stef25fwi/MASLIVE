@@ -663,50 +663,84 @@ service cloud.firestore {
         || (('sellerIds' in resource.data)
             && (resource.data.sellerIds is list)
             && resource.data.sellerIds.hasAny([request.auth.uid]))
+        || canReadMarketplaceOrder(resource.data)
       );
       
       // Création: utilisateur authentifié avec son propre userId
-      allow create: if isSignedIn()
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.keys().hasAll(['userId', 'groupId', 'items', 'totalPrice'])
-        && request.resource.data.keys().hasOnly([
-          'orderNo',
-          'itemsCount',
-          'userId',
-          'buyerId',
-          'buyerEmail',
-          'groupId',
-          'shopId',
-          'sellerIds',
-          'shippingAddress',
-          'items',
-          'totalPrice',
-          'status',
-          'createdAt',
-          'deliveredAt',
-          'storex',
-          'updatedAt'
-        ])
-        // Prevent overlap with media marketplace order model.
-        && !('buyerUid' in request.resource.data)
-        && !('photographerIds' in request.resource.data)
-        && !('photographerOwnerUids' in request.resource.data)
-        && !('pricingBreakdown' in request.resource.data)
-        && request.resource.data.totalPrice is number
-        && request.resource.data.totalPrice > 0
-        && request.resource.data.items is list
-        && request.resource.data.items.size() > 0
-        && request.resource.data.status is string
-        && request.resource.data.status == 'pending'
-        && (!('buyerId' in request.resource.data) || request.resource.data.buyerId == request.auth.uid)
-        && (!('sellerIds' in request.resource.data) || request.resource.data.sellerIds is list)
-        && !(('metadata' in request.resource.data)
-             && (request.resource.data.metadata is map)
-             && ('kind' in request.resource.data.metadata)
-             && request.resource.data.metadata.kind == 'media_marketplace_order');
+      allow create: if isSignedIn() && (
+        (
+          request.resource.data.userId == request.auth.uid
+          && request.resource.data.keys().hasAll(['userId', 'groupId', 'items', 'totalPrice'])
+          && request.resource.data.keys().hasOnly([
+            'orderNo',
+            'itemsCount',
+            'userId',
+            'buyerId',
+            'buyerEmail',
+            'groupId',
+            'shopId',
+            'sellerIds',
+            'shippingAddress',
+            'items',
+            'totalPrice',
+            'status',
+            'createdAt',
+            'deliveredAt',
+            'storex',
+            'updatedAt'
+          ])
+          // Prevent overlap with media marketplace order model.
+          && !('buyerUid' in request.resource.data)
+          && !('photographerIds' in request.resource.data)
+          && !('photographerOwnerUids' in request.resource.data)
+          && !('pricingBreakdown' in request.resource.data)
+          && request.resource.data.totalPrice is number
+          && request.resource.data.totalPrice > 0
+          && request.resource.data.items is list
+          && request.resource.data.items.size() > 0
+          && request.resource.data.status is string
+          && request.resource.data.status == 'pending'
+          && (!('buyerId' in request.resource.data) || request.resource.data.buyerId == request.auth.uid)
+          && (!('sellerIds' in request.resource.data) || request.resource.data.sellerIds is list)
+          && !(('metadata' in request.resource.data)
+               && (request.resource.data.metadata is map)
+               && ('kind' in request.resource.data.metadata)
+               && request.resource.data.metadata.kind == 'media_marketplace_order')
+        )
+        || (
+          request.resource.data.keys().hasOnly([
+            'orderId',
+            'buyerUid',
+            'photographerIds',
+            'photographerOwnerUids',
+            'items',
+            'currency',
+            'subtotal',
+            'stripeFee',
+            'platformFee',
+            'taxAmount',
+            'total',
+            'photographerNetTotal',
+            'paymentStatus',
+            'deliveryStatus',
+            'pricingBreakdown',
+            'metadata',
+            'createdAt',
+            'updatedAt'
+          ])
+          && request.resource.data.buyerUid == request.auth.uid
+          && request.resource.data.orderId == orderId
+          && request.resource.data.paymentStatus == 'pending'
+          && !('userId' in request.resource.data)
+          && !('totalPrice' in request.resource.data)
+          && (request.resource.data.metadata is map)
+          && request.resource.data.metadata.kind == 'media_marketplace_order'
+        )
+      );
       
       // Mise à jour/Suppression: admin master
       // + vendeur: peut uniquement valider/rejeter (champs limités)
+      // + acheteur marketplace: update limitée (updatedAt)
       allow update: if canManageContent() || (
         isSignedIn()
         && (('sellerIds' in resource.data)
@@ -721,6 +755,16 @@ service cloud.firestore {
           'rejectedAt'
         ])
         && (request.resource.data.status in ['validated', 'rejected'])
+      ) || (
+        isSignedIn()
+        && isMarketplaceOrderBuyer(resource.data)
+        && request.resource.data.buyerUid == resource.data.buyerUid
+        && request.resource.data.photographerIds == resource.data.photographerIds
+        && request.resource.data.photographerOwnerUids == resource.data.photographerOwnerUids
+        && request.resource.data.items == resource.data.items
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'updatedAt'
+        ])
       );
 
       allow delete: if canManageContent();
@@ -1301,54 +1345,6 @@ service cloud.firestore {
 
     match /carts/{uid} {
       allow read, create, update, delete: if isSignedIn() && request.auth.uid == uid;
-    }
-
-    match /orders/{orderId} {
-      allow read: if isSignedIn() && canReadMarketplaceOrder(resource.data);
-
-      allow create: if isSignedIn()
-        && request.resource.data.keys().hasOnly([
-          'orderId',
-          'buyerUid',
-          'photographerIds',
-          'photographerOwnerUids',
-          'items',
-          'currency',
-          'subtotal',
-          'stripeFee',
-          'platformFee',
-          'taxAmount',
-          'total',
-          'photographerNetTotal',
-          'paymentStatus',
-          'deliveryStatus',
-          'pricingBreakdown',
-          'metadata',
-          'createdAt',
-          'updatedAt'
-        ])
-        && request.resource.data.buyerUid == request.auth.uid
-        && request.resource.data.orderId == orderId
-        && request.resource.data.paymentStatus == 'pending'
-        // Enforce marketplace order shape and disjointness from legacy orders.
-        && !('userId' in request.resource.data)
-        && !('totalPrice' in request.resource.data)
-        && (request.resource.data.metadata is map)
-        && request.resource.data.metadata.kind == 'media_marketplace_order';
-
-      allow update: if isSignedIn() && (
-        isMasterAdmin()
-        || (isMarketplaceOrderBuyer(resource.data)
-            && request.resource.data.buyerUid == resource.data.buyerUid
-            && request.resource.data.photographerIds == resource.data.photographerIds
-            && request.resource.data.photographerOwnerUids == resource.data.photographerOwnerUids
-            && request.resource.data.items == resource.data.items
-            && request.resource.data.diff(resource.data).changedKeys().hasOnly([
-              'updatedAt'
-            ]))
-      );
-
-      allow delete: if isMasterAdmin();
     }
 
     match /media_entitlements/{entitlementId} {
