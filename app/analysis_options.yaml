@@ -17,3 +17,7 @@ analyzer:
     - "**/*_backup.dart"
     - "**/*_redirect.dart"
     - "lib/pages/admin_dashboard_page_REMOVED.dart"
+
+linter:
+  rules:
+    use_null_aware_elements: false
