@@ -144,4 +144,13 @@ class PremiumService {
     );
     if (!ok) throw StateError('Cannot open checkout url');
   }
+
+  Future<bool> openCheckoutUrl(String url) async {
+    final value = url.trim();
+    if (value.isEmpty) return false;
+    return launchUrl(
+      Uri.parse(value),
+      mode: LaunchMode.platformDefault,
+    );
+  }
 }

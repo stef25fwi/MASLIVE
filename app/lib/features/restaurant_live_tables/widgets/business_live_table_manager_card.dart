@@ -5,6 +5,7 @@ import '../../../ui/snack/top_snack_bar.dart';
 import '../models/live_table_state.dart';
 import '../repositories/restaurant_live_table_repository.dart';
 import '../services/live_table_status_service.dart';
+import '../services/restaurant_subscription_guard.dart';
 import 'business_restaurant_selector_sheet.dart';
 import 'live_table_pro_panel.dart';
 import 'live_table_status_badge.dart';
@@ -30,6 +31,7 @@ class _BusinessLiveTableManagerCardState
 
   final _service = LiveTableStatusService();
   final _repository = RestaurantLiveTableRepository();
+  final _subscriptionGuard = const RestaurantSubscriptionGuard();
 
   bool _linking = false;
   bool _publishing = false;
@@ -124,8 +126,31 @@ class _BusinessLiveTableManagerCardState
   bool get _hasBusinessLiveSubscription {
     final raw = widget.businessData['liveTableSubscription'];
     if (raw is! Map) return false;
-    final status = (raw['status'] ?? '').toString().trim().toLowerCase();
-    return status == 'active' || status == 'trialing';
+    return _subscriptionGuard.hasActiveLiveTableFeature(
+      Map<String, dynamic>.from(raw),
+    );
+  }
+
+  Future<void> _openLiveTableCheckout() async {
+    try {
+      final result = await _service.createRestaurantLiveTableSubscriptionCheckoutSession(
+        planCode: 'food_pro_live',
+        billingInterval: 'month',
+      );
+      final opened = await PremiumService.instance.openCheckoutUrl(result.checkoutUrl);
+      if (!mounted) return;
+      if (!opened) {
+        TopSnackBar.show(
+          context,
+          const SnackBar(
+            content: Text('Impossible d\'ouvrir Stripe Checkout.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _statusError = e.toString());
+    }
   }
 
   String get _persistedLinkedKey => '$_linkedCountryId|$_linkedEventId|$_linkedCircuitId|$_linkedPoiId';
@@ -457,7 +482,7 @@ class _BusinessLiveTableManagerCardState
                                   setState(() => _liveStatus = v);
                                 },
                                 onOpenPaywall: () {
-                                  Navigator.of(context).pushNamed('/paywall');
+                                  _openLiveTableCheckout();
                                 },
                               ),
                               const SizedBox(height: 12),

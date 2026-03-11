@@ -21,6 +21,11 @@ const createRestaurantLiveTablesHandlers = require("./src/restaurant-live-tables
 
 const STRIPE_SECRET_KEY = defineSecret("STRIPE_SECRET_KEY");
 const STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET");
+const LIVE_TABLE_ALLOWED_PLAN_CODES = new Set([
+  "food_pro_live",
+  "food_premium",
+  "restaurant_live_plus",
+]);
 
 // Stripe SDK (lazy initialization)
 const stripeModule = require("stripe");
@@ -211,6 +216,98 @@ async function findUserIdByStripeSubscriptionId(subscriptionId) {
   return snap.docs[0].id;
 }
 
+function normalizeLowerString(value) {
+  return (value || "").toString().trim().toLowerCase();
+}
+
+function isLiveTableBusinessSubscription(subscription, existingBusinessDoc) {
+  const kind = normalizeLowerString(subscription?.metadata?.kind);
+  return kind === "business_live_table_subscription" || !!existingBusinessDoc;
+}
+
+async function findBusinessByLiveTableStripeSubscriptionId(subscriptionId) {
+  if (!subscriptionId || typeof subscriptionId !== "string") return null;
+  const snap = await db
+    .collection("businesses")
+    .where("liveTableSubscription.stripeSubscriptionId", "==", subscriptionId)
+    .limit(1)
+    .get();
+  if (snap.empty) return null;
+  return snap.docs[0];
+}
+
+function extractBusinessIdFromStripeSubscription(subscription) {
+  const fromBusinessId = (subscription?.metadata?.businessId || "").toString().trim();
+  if (fromBusinessId) return fromBusinessId;
+  const fromUid = (subscription?.metadata?.uid || "").toString().trim();
+  if (fromUid) return fromUid;
+  return "";
+}
+
+function normalizeStripeInterval(interval) {
+  const raw = normalizeLowerString(interval);
+  return raw === "year" || raw === "annual" ? "year" : "month";
+}
+
+async function syncBusinessLiveTableSubscriptionFromStripeSubscription(subscription, fallbackMetadata = {}) {
+  const metadata = {
+    ...((subscription && subscription.metadata) || {}),
+    ...(fallbackMetadata || {}),
+  };
+
+  const existingDoc = await findBusinessByLiveTableStripeSubscriptionId(subscription?.id);
+  const businessId =
+    extractBusinessIdFromStripeSubscription({ metadata }) ||
+    (existingDoc ? existingDoc.id : "");
+  if (!businessId) {
+    console.warn("Cannot resolve businessId for live table subscription", subscription?.id);
+    return false;
+  }
+
+  const planCode = normalizeLowerString(metadata.planCode || "food_pro_live");
+  if (!LIVE_TABLE_ALLOWED_PLAN_CODES.has(planCode)) {
+    console.warn("Ignoring unsupported live table planCode", planCode);
+    return false;
+  }
+
+  const status = normalizeLowerString(subscription?.status || "incomplete");
+  const isActive = status === "active" || status === "trialing";
+  const priceId = subscription?.items?.data?.[0]?.price?.id || null;
+  const billingInterval = normalizeStripeInterval(
+    metadata.billingInterval || subscription?.items?.data?.[0]?.price?.recurring?.interval
+  );
+
+  await db
+    .collection("businesses")
+    .doc(businessId)
+    .set(
+      {
+        liveTableSubscription: {
+          status,
+          planCode,
+          billingInterval,
+          stripeCustomerId: subscription?.customer || null,
+          stripeSubscriptionId: subscription?.id || null,
+          stripePriceId: priceId,
+          startedAt: subscription?.start_date
+            ? admin.firestore.Timestamp.fromMillis(subscription.start_date * 1000)
+            : null,
+          currentPeriodEnd: subscription?.current_period_end
+            ? admin.firestore.Timestamp.fromMillis(subscription.current_period_end * 1000)
+            : null,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        features: {
+          liveTableStatusEnabled: isActive,
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+  return true;
+}
+
 
 setGlobalOptions({ region: "us-east1" });
 
@@ -240,6 +337,9 @@ const restaurantLiveTablesHandlers = createRestaurantLiveTablesHandlers({
   onCall,
   HttpsError,
   toSafeInt,
+  STRIPE_SECRET_KEY,
+  getStripe,
+  isAllowedRedirectUrl,
 });
 
 exports.createMediaMarketplaceCheckout =
@@ -257,6 +357,8 @@ exports.assignBusinessRestaurantPoi =
   restaurantLiveTablesHandlers.assignBusinessRestaurantPoi;
 exports.setRestaurantLiveTableStatus =
   restaurantLiveTablesHandlers.setRestaurantLiveTableStatus;
+exports.createRestaurantLiveTableSubscriptionCheckoutSession =
+  restaurantLiveTablesHandlers.createRestaurantLiveTableSubscriptionCheckoutSession;
 
 function assertNumber(n, name) {
   if (typeof n !== "number" || Number.isNaN(n) || !Number.isFinite(n)) {
@@ -2232,6 +2334,16 @@ async function handleCheckoutSessionCompleted(session, eventId) {
     return;
   }
 
+  if (
+    normalizeLowerString(session?.metadata?.kind) === "business_live_table_subscription" &&
+    session?.subscription
+  ) {
+    const stripeClient = getStripe();
+    const subscription = await stripeClient.subscriptions.retrieve(session.subscription);
+    await syncBusinessLiveTableSubscriptionFromStripeSubscription(subscription, session.metadata);
+    return;
+  }
+
   // Supporte 2 modèles:
   // - Nouveau modèle simple: /orders/{orderId}
   // - Modèle existant Media Shop: /users/{uid}/orders/{orderId}
@@ -2401,6 +2513,12 @@ async function handleCustomerSubscriptionUpdated(subscription) {
     return;
   }
 
+  const existingBusinessDoc = await findBusinessByLiveTableStripeSubscriptionId(subscription?.id);
+  if (isLiveTableBusinessSubscription(subscription, existingBusinessDoc)) {
+    await syncBusinessLiveTableSubscriptionFromStripeSubscription(subscription);
+    return;
+  }
+
   const subscriptionId = subscription?.id;
   const uid = subscription?.metadata?.uid;
 
@@ -2438,6 +2556,35 @@ async function handleCustomerSubscriptionDeleted(subscription) {
     return;
   }
 
+  const existingBusinessDoc = await findBusinessByLiveTableStripeSubscriptionId(subscription?.id);
+  if (isLiveTableBusinessSubscription(subscription, existingBusinessDoc)) {
+    const businessDoc = existingBusinessDoc;
+    const businessId =
+      (subscription?.metadata?.businessId || "").toString().trim() ||
+      (businessDoc ? businessDoc.id : "");
+    if (!businessId) return;
+
+    await db
+      .collection("businesses")
+      .doc(businessId)
+      .set(
+        {
+          liveTableSubscription: {
+            status: "canceled",
+            planCode: normalizeLowerString(subscription?.metadata?.planCode || "food_pro_live"),
+            stripeSubscriptionId: subscription?.id || null,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          features: {
+            liveTableStatusEnabled: false,
+          },
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    return;
+  }
+
   const subscriptionId = subscription?.id;
   const uid = subscription?.metadata?.uid;
 
@@ -2471,6 +2618,25 @@ async function handleInvoicePaid(invoice) {
   }
 
   const subscriptionId = invoice?.subscription;
+  const businessDoc = await findBusinessByLiveTableStripeSubscriptionId(subscriptionId);
+  if (businessDoc) {
+    await businessDoc.ref.set(
+      {
+        liveTableSubscription: {
+          status: "active",
+          lastPaidAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        features: {
+          liveTableStatusEnabled: true,
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    return;
+  }
+
   if (!subscriptionId) return;
   const uid = await findUserIdByStripeSubscriptionId(subscriptionId);
   if (!uid) return;
@@ -2496,6 +2662,25 @@ async function handleInvoicePaymentFailed(invoice) {
   }
 
   const subscriptionId = invoice?.subscription;
+  const businessDoc = await findBusinessByLiveTableStripeSubscriptionId(subscriptionId);
+  if (businessDoc) {
+    await businessDoc.ref.set(
+      {
+        liveTableSubscription: {
+          status: "past_due",
+          lastPaymentFailedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        features: {
+          liveTableStatusEnabled: false,
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    return;
+  }
+
   if (!subscriptionId) return;
   const uid = await findUserIdByStripeSubscriptionId(subscriptionId);
   if (!uid) return;
