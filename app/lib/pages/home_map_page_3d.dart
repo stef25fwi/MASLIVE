@@ -267,6 +267,84 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     }
   }
 
+  bool _boolLike(dynamic value, {required bool fallback}) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    final raw = (value ?? '').toString().trim().toLowerCase();
+    if (raw.isEmpty) return fallback;
+    if (raw == 'true' || raw == '1' || raw == 'yes' || raw == 'on') return true;
+    if (raw == 'false' || raw == '0' || raw == 'no' || raw == 'off') return false;
+    return fallback;
+  }
+
+  String _normalizeLiveTableStateForBadge(dynamic raw) {
+    final value = (raw ?? '').toString().trim().toLowerCase();
+    switch (value) {
+      case 'available':
+      case 'open':
+      case 'free':
+      case 'green':
+        return 'available';
+      case 'limited':
+      case 'few':
+      case 'orange':
+        return 'limited';
+      case 'full':
+      case 'busy':
+      case 'closed':
+      case 'complete':
+      case 'red':
+        return 'full';
+      default:
+        return '';
+    }
+  }
+
+  String _resolveLiveTableBadgeState({
+    required String poiType,
+    required Map<String, dynamic> metadata,
+    required dynamic rootPublished,
+    required dynamic rootPremiumFeatures,
+    required dynamic rootLiveTableSummary,
+  }) {
+    if (poiType != 'food') return '';
+
+    final published = _boolLike(
+      rootPublished ?? metadata['isPublished'] ?? metadata['published'],
+      fallback: true,
+    );
+    if (!published) return '';
+
+    final premiumFeatures = rootPremiumFeatures is Map
+        ? Map<String, dynamic>.from(rootPremiumFeatures)
+        : (metadata['premiumFeatures'] is Map
+              ? Map<String, dynamic>.from(metadata['premiumFeatures'])
+              : const <String, dynamic>{});
+
+    final summary = rootLiveTableSummary is Map
+        ? Map<String, dynamic>.from(rootLiveTableSummary)
+        : (metadata['liveTableSummary'] is Map
+              ? Map<String, dynamic>.from(metadata['liveTableSummary'])
+              : const <String, dynamic>{});
+
+    final liveTable = metadata['liveTable'] is Map
+        ? Map<String, dynamic>.from(metadata['liveTable'])
+        : const <String, dynamic>{};
+
+    final premiumEnabled = _boolLike(
+      premiumFeatures['liveTableStatusEnabled'] ??
+          premiumFeatures['enabled'] ??
+          liveTable['enabled'],
+      fallback: false,
+    );
+    if (!premiumEnabled) return '';
+
+    final state = _normalizeLiveTableStateForBadge(
+      summary['state'] ?? liveTable['status'],
+    );
+    return state;
+  }
+
   Future<void> _openMarketPoiSelector() async {
     final selection = await showMarketMapPoiSelectorSheet(
       context,
@@ -1543,15 +1621,14 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         }
       }
 
-      // État live tables pour le badge marker (food uniquement)
-      String liveTableState = '';
-      if (type == 'food') {
-        final lt = meta['liveTable'];
-        if (lt is Map && lt['enabled'] == true) {
-          final s = (lt['status'] ?? '').toString().trim();
-          if (s.isNotEmpty && s != 'unknown') liveTableState = s;
-        }
-      }
+      // État live tables pour le badge marker (food uniquement, premium actif).
+      final liveTableState = _resolveLiveTableBadgeState(
+        poiType: type,
+        metadata: meta,
+        rootPublished: d.isPublished ?? d.published,
+        rootPremiumFeatures: d.premiumFeatures,
+        rootLiveTableSummary: d.liveTableSummary,
+      );
 
       feats.add({
         'type': 'Feature',
