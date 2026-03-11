@@ -123,6 +123,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   // === MarketMap POIs (GeoJSON Layers) ===
   static const String _mmPoiSourceId = 'mm_pois_src';
   static const String _mmPoiLayerPrefix = 'mm_pois_layer__'; // + type
+  static const String _mmPoiLiveBadgeLayerId = 'mm_pois_live_badge';
   GeoJsonSource? _mmPoiSource;
   final Set<String> _mmPoiLayerIds = <String>{};
 
@@ -1431,6 +1432,46 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           _mmPoiLayerIds.add(layerId);
         }
 
+        // Couche badge live tables (petit point coloré sur les POI food avec statut actif)
+        if (!_mmPoiLayerIds.contains(_mmPoiLiveBadgeLayerId) || forceRebuild) {
+          try {
+            final badgeLayer = CircleLayer(
+              id: _mmPoiLiveBadgeLayerId,
+              sourceId: _mmPoiSourceId,
+              circleRadius: 5.0,
+              circleColor: 0xFF4CAF50, // override via expression ci-dessous
+              circleOpacity: 1.0,
+              circleStrokeColor: Colors.white.toARGB32(),
+              circleStrokeWidth: 1.5,
+            );
+            await style.addLayer(badgeLayer);
+
+            // Filtre: seulement les POI food avec un état live non vide
+            await style.setStyleLayerProperty(_mmPoiLiveBadgeLayerId, 'filter', [
+              'all',
+              ['==', ['get', 'type'], 'food'],
+              ['!=', ['get', 'liveTableState'], ''],
+            ]);
+
+            // Couleur dynamique par état live
+            await style.setStyleLayerProperty(_mmPoiLiveBadgeLayerId, 'circle-color', [
+              'match', ['get', 'liveTableState'],
+              'available', '#4CAF50',
+              'limited', '#FF9800',
+              'full', '#F44336',
+              '#9E9E9E',
+            ]);
+
+            // Décalage en bas à droite du marker principal
+            await style.setStyleLayerProperty(
+              _mmPoiLiveBadgeLayerId, 'circle-translate', [8.0, 8.0]);
+
+            _mmPoiLayerIds.add(_mmPoiLiveBadgeLayerId);
+          } catch (_) {
+            // ignore
+          }
+        }
+
         return; // OK
       } catch (_) {
         await Future.delayed(const Duration(milliseconds: 120));
@@ -1502,6 +1543,16 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         }
       }
 
+      // État live tables pour le badge marker (food uniquement)
+      String liveTableState = '';
+      if (type == 'food') {
+        final lt = meta['liveTable'];
+        if (lt is Map && lt['enabled'] == true) {
+          final s = (lt['status'] ?? '').toString().trim();
+          if (s.isNotEmpty && s != 'unknown') liveTableState = s;
+        }
+      }
+
       feats.add({
         'type': 'Feature',
         'id': d.id?.toString() ?? '',
@@ -1530,6 +1581,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
           // meta: explicitly JSON encode to ensure it survives Mapbox serialization
           'meta': meta.isNotEmpty ? jsonEncode(meta) : '',
+
+          // Badge live tables (état disponibilité pour les POI food abonnés)
+          'liveTableState': liveTableState,
         },
       });
     }
@@ -1577,6 +1631,16 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       } catch (_) {
         // ignore
       }
+    }
+    // Badge live tables: visible uniquement quand la couche food est active
+    try {
+      await map.style.setStyleLayerProperty(
+        _mmPoiLiveBadgeLayerId,
+        'visibility',
+        (wanted == 'food') ? 'visible' : 'none',
+      );
+    } catch (_) {
+      // ignore
     }
   }
 
@@ -2205,6 +2269,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       if (!mounted) return;
       unawaited(
         _showPoiPolaroid(
+          poiId: poiId,
+          countryId: _marketPoiSelection.country?.id,
+          eventId: _marketPoiSelection.event?.id,
+          circuitId: _marketPoiSelection.circuit?.id,
           title: name.isEmpty ? 'Point d\'intérêt' : name,
           description: desc,
           category: type,
@@ -2236,6 +2304,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   /// Affiche un overlay style "polaroïd" pour un POI.
   Future<void> _showPoiPolaroid({
+    String? poiId,
+    String? countryId,
+    String? eventId,
+    String? circuitId,
     required String title,
     required String description,
     required String category,
@@ -2291,6 +2363,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         mapsUrl: mapsUrl,
         lat: lat,
         lng: lng,
+        countryId: countryId,
+        eventId: eventId,
+        circuitId: circuitId,
+        poiId: poiId,
       );
     } catch (e) {
       if (kDebugMode) {

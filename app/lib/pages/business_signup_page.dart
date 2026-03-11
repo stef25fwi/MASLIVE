@@ -5,6 +5,19 @@ import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
 import '../ui/widgets/country_autocomplete_field.dart';
 
+const List<String> masliveBusinessSectors = [
+  'Groupes / Carnaval / Événementiel',
+  'Artistes / DJ / Performers',
+  'Photographes / Vidéastes / Média',
+  'Mode / Merch / Accessoires',
+  'Restauration / Food / Bars',
+  'Tourisme / Loisirs / Activités',
+  'Transport / Déplacement / Logistique',
+  'Prestataires événementiels',
+  'Boutiques / Exposants / Vente',
+  'Autre',
+];
+
 class BusinessSignupPage extends StatefulWidget {
   const BusinessSignupPage({super.key});
 
@@ -83,24 +96,19 @@ class _BusinessSignupPageState extends State<BusinessSignupPage> {
     'Réunion',
   ];
 
-  final List<String> _sectors = [
-    'Arts et spectacles',
-    'Commerce',
-    'Communication et multimédia',
-    'Construction et BTP',
-    'Éducation et formation',
-    'Finance et assurance',
-    'Hôtellerie et restauration',
-    'Immobilier',
-    'Industrie manufacturière',
-    'Informatique et télécommunications',
-    'Santé et action sociale',
-    'Services aux entreprises',
-    'Services aux particuliers',
-    'Transport et logistique',
-    'Tourisme et loisirs',
-    'Autre',
-  ];
+  String? get _activitySectorForDropdown {
+    final current = _activitySector?.trim();
+    if (current == null || current.isEmpty) return null;
+    if (masliveBusinessSectors.contains(current)) return current;
+    return 'Autre';
+  }
+
+  String? get _activitySectorForSave {
+    final current = _activitySector?.trim();
+    if (current == null || current.isEmpty) return null;
+    if (masliveBusinessSectors.contains(current)) return current;
+    return 'Autre';
+  }
 
 
 
@@ -155,7 +163,7 @@ class _BusinessSignupPageState extends State<BusinessSignupPage> {
         'companyName': _companyNameCtrl.text.trim(),
         'siret': _siretCtrl.text.trim(),
         'legalForm': _legalForm,
-        'activitySector': _activitySector,
+        'activitySector': _activitySectorForSave,
         'address': _addressCtrl.text.trim(),
         'city': _cityCtrl.text.trim(),
         'postalCode': _postalCodeCtrl.text.trim(),
@@ -335,8 +343,8 @@ class _BusinessSignupPageState extends State<BusinessSignupPage> {
                     const SizedBox(height: 12),
                     _DropdownField(
                       label: 'Secteur d\'activité *',
-                      value: _activitySector,
-                      items: _sectors,
+                      value: _activitySectorForDropdown,
+                      items: masliveBusinessSectors,
                       icon: Icons.work_outline,
                       onChanged: (v) => setState(() => _activitySector = v),
                       validator: (v) =>

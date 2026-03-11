@@ -1247,6 +1247,49 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
             false,
           ],
         ],
+        [
+          'all',
+          [
+            '!=',
+            ['get', kMasLivePoiAppearanceKey],
+            kMasLivePoiAppearanceIconPointId,
+          ],
+          [
+            '!=',
+            ['get', kMasLivePoiAppearanceKey],
+            'icon-point.webp',
+          ],
+          [
+            '!=',
+            ['get', kMasLivePoiAppearanceKey],
+            'icon-point.wbp',
+          ],
+          [
+            '!=',
+            ['get', kMasLivePoiAppearanceKey],
+            'point.webp',
+          ],
+          [
+            '!=',
+            ['get', kMasLivePoiAppearanceKey],
+            'point.wbp',
+          ],
+          [
+            '!=',
+            ['get', kMasLivePoiAppearanceKey],
+            'point_webp',
+          ],
+          [
+            '!=',
+            ['get', kMasLivePoiAppearanceKey],
+            'point_wbp',
+          ],
+          [
+            '!=',
+            ['get', kMasLivePoiAppearanceKey],
+            'point',
+          ],
+        ],
       ]);
     } catch (_) {
       // ignore

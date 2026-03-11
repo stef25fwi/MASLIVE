@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../features/restaurant_live_tables/widgets/business_live_table_manager_card.dart';
 import '../ui/snack/top_snack_bar.dart';
 
 class BusinessAccountPage extends StatefulWidget {
@@ -177,8 +178,9 @@ class _BusinessAccountPageState extends State<BusinessAccountPage> {
           String chipLabel;
           switch (status) {
             case 'approved':
+            case 'active':
               chipColor = Colors.green;
-              chipLabel = 'Validé';
+              chipLabel = status == 'active' ? 'Actif' : 'Validé';
               break;
             case 'rejected':
               chipColor = Colors.red;
@@ -288,7 +290,7 @@ class _BusinessAccountPageState extends State<BusinessAccountPage> {
                   ),
                 ),
 
-              if (status == 'approved')
+              if (status == 'approved' || status == 'active')
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -359,6 +361,11 @@ class _BusinessAccountPageState extends State<BusinessAccountPage> {
                       ],
                     ),
                   ),
+                ),
+
+              if (status == 'approved' || status == 'active')
+                BusinessLiveTableManagerCard(
+                  businessData: data,
                 ),
             ],
           );

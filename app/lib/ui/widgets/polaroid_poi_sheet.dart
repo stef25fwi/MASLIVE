@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../features/restaurant_live_tables/widgets/live_table_status_section.dart';
 import '../../ui_kit/tokens/maslive_tokens.dart';
 
 Future<void> showPolaroidPoiSheet({
@@ -23,6 +24,10 @@ Future<void> showPolaroidPoiSheet({
   String? mapsUrl,
   double? lat,
   double? lng,
+  String? countryId,
+  String? eventId,
+  String? circuitId,
+  String? poiId,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -43,6 +48,10 @@ Future<void> showPolaroidPoiSheet({
       mapsUrl: mapsUrl,
       lat: lat,
       lng: lng,
+      countryId: countryId,
+      eventId: eventId,
+      circuitId: circuitId,
+      poiId: poiId,
     ),
   );
 }
@@ -61,6 +70,10 @@ class PolaroidPoiSheet extends StatelessWidget {
   final String? mapsUrl;
   final double? lat;
   final double? lng;
+  final String? countryId;
+  final String? eventId;
+  final String? circuitId;
+  final String? poiId;
 
   /// Hauteur max du bottom sheet (0.0 - 1.0)
   final double maxHeightFactor;
@@ -80,6 +93,10 @@ class PolaroidPoiSheet extends StatelessWidget {
     this.mapsUrl,
     this.lat,
     this.lng,
+    this.countryId,
+    this.eventId,
+    this.circuitId,
+    this.poiId,
     this.maxHeightFactor = 0.78,
   });
 
@@ -143,6 +160,10 @@ class PolaroidPoiSheet extends StatelessWidget {
                             mapsUrl: mapsUrl,
                             lat: lat,
                             lng: lng,
+                            countryId: countryId,
+                            eventId: eventId,
+                            circuitId: circuitId,
+                            poiId: poiId,
                           ),
                         ),
                       ),
@@ -172,6 +193,10 @@ class PolaroidPoiCard extends StatelessWidget {
   final String? mapsUrl;
   final double? lat;
   final double? lng;
+  final String? countryId;
+  final String? eventId;
+  final String? circuitId;
+  final String? poiId;
 
   const PolaroidPoiCard({
     super.key,
@@ -188,6 +213,10 @@ class PolaroidPoiCard extends StatelessWidget {
     this.mapsUrl,
     this.lat,
     this.lng,
+    this.countryId,
+    this.eventId,
+    this.circuitId,
+    this.poiId,
   });
 
   @override
@@ -285,6 +314,11 @@ class PolaroidPoiCard extends StatelessWidget {
                         mapsUrl: mapsUrl,
                         lat: lat,
                         lng: lng,
+                        meta: meta,
+                        countryId: countryId,
+                        eventId: eventId,
+                        circuitId: circuitId,
+                        poiId: poiId,
                       ),
                     ),
                   ),
@@ -533,6 +567,11 @@ class _InfoArea extends StatelessWidget {
   final String? mapsUrl;
   final double? lat;
   final double? lng;
+  final Map<String, dynamic>? meta;
+  final String? countryId;
+  final String? eventId;
+  final String? circuitId;
+  final String? poiId;
 
   const _InfoArea({
     required this.title,
@@ -546,6 +585,11 @@ class _InfoArea extends StatelessWidget {
     required this.mapsUrl,
     required this.lat,
     required this.lng,
+    required this.meta,
+    required this.countryId,
+    required this.eventId,
+    required this.circuitId,
+    required this.poiId,
   });
 
   String? _cleanPhone(String? raw) {
@@ -715,6 +759,13 @@ class _InfoArea extends StatelessWidget {
           const SizedBox(height: 6),
           _InfoRow(icon: Icons.place, text: addr),
         ],
+        LiveTableStatusSection(
+          meta: meta,
+          countryId: countryId,
+          eventId: eventId,
+          circuitId: circuitId,
+          poiId: poiId,
+        ),
         const Spacer(),
         Row(
           children: [

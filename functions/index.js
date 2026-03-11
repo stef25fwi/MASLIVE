@@ -17,6 +17,7 @@ const {
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const createMediaMarketplaceStripe = require("./src/media-marketplace-stripe");
 const createMediaMarketplaceMedia = require("./src/media-marketplace-media");
+const createRestaurantLiveTablesHandlers = require("./src/restaurant-live-tables");
 
 const STRIPE_SECRET_KEY = defineSecret("STRIPE_SECRET_KEY");
 const STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET");
@@ -233,6 +234,13 @@ const mediaMarketplaceMedia = createMediaMarketplaceMedia({
   onDocumentUpdated,
   onDocumentDeleted,
 });
+const restaurantLiveTablesHandlers = createRestaurantLiveTablesHandlers({
+  admin,
+  db,
+  onCall,
+  HttpsError,
+  toSafeInt,
+});
 
 exports.createMediaMarketplaceCheckout =
   mediaMarketplaceStripe.createMediaMarketplaceCheckout;
@@ -245,6 +253,10 @@ exports.syncMediaPhotoOnDelete = mediaMarketplaceMedia.syncMediaPhotoOnDelete;
 exports.syncMediaPackOnCreate = mediaMarketplaceMedia.syncMediaPackOnCreate;
 exports.syncMediaPackOnUpdate = mediaMarketplaceMedia.syncMediaPackOnUpdate;
 exports.syncMediaPackOnDelete = mediaMarketplaceMedia.syncMediaPackOnDelete;
+exports.assignBusinessRestaurantPoi =
+  restaurantLiveTablesHandlers.assignBusinessRestaurantPoi;
+exports.setRestaurantLiveTableStatus =
+  restaurantLiveTablesHandlers.setRestaurantLiveTableStatus;
 
 function assertNumber(n, name) {
   if (typeof n !== "number" || Number.isNaN(n) || !Number.isFinite(n)) {

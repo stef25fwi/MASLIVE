@@ -2067,6 +2067,36 @@
           "clear": true
         }
       },
+      {
+        "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (POI polaroid photo flow)",
+        "type": "shell",
+        "command": "set -euo pipefail\ncd /workspaces/MASLIVE\n\nEMAIL=$(git config --get user.email || true)\nNAME=$(git config --get user.name || true)\nif [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi\nif [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi\n\ngit add .vscode/tasks.json app/lib/admin/circuit_wizard_pro_page.dart app/lib/admin/poi_edit_popup.dart app/lib/firebase_options.dart app/lib/ui/map/maslive_map_web.dart app/lib/ui/map/maslive_map_native.dart\n\nif git diff --cached --quiet; then\n  echo \"ℹ️ Rien à committer pour POI polaroid photo flow\"\nelse\n  git commit -m \"fix(poi): persist polaroid photo flow across map and storage\"\nfi\n\ngit push origin main\n\ncd /workspaces/MASLIVE/app\nsource /workspaces/MASLIVE/flutter_env.sh\n{ [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true\nTOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}}\nif [ -z \"$TOKEN\" ]; then\n  echo \"❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).\"\n  exit 1\nfi\nflutter pub get\nflutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" --dart-define=MAPBOX_PUBLIC_TOKEN=\"$TOKEN\"\ncd /workspaces/MASLIVE\nfirebase deploy --only hosting,functions,firestore:rules,firestore:indexes",
+        "problemMatcher": [],
+        "isBackground": false,
+        "group": {
+          "kind": "build"
+        },
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated",
+          "clear": true
+        }
+      },
+      {
+        "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (POI + secteurs MASLIVE)",
+        "type": "shell",
+        "command": "set -euo pipefail\ncd /workspaces/MASLIVE\n\nEMAIL=$(git config --get user.email || true)\nNAME=$(git config --get user.name || true)\nif [ -z \"$EMAIL\" ]; then git config user.email \"devcontainer@maslive.local\"; fi\nif [ -z \"$NAME\" ]; then git config user.name \"MASLIVE Devcontainer\"; fi\n\ngit add .vscode/tasks.json app/lib/admin/circuit_wizard_pro_page.dart app/lib/admin/poi_edit_popup.dart app/lib/firebase_options.dart app/lib/ui/map/maslive_map_web.dart app/lib/ui/map/maslive_map_native.dart app/lib/pages/business_signup_page.dart\n\nif git diff --cached --quiet; then\n  echo \"ℹ️ Rien à committer pour POI + secteurs MASLIVE\"\nelse\n  git commit -m \"fix(poi+business): harden polaroid flow and MASLIVE sectors\"\nfi\n\ngit push origin main\n\ncd /workspaces/MASLIVE/app\nsource /workspaces/MASLIVE/flutter_env.sh\n{ [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true\nTOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}}\nif [ -z \"$TOKEN\" ]; then\n  echo \"❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).\"\n  exit 1\nfi\nflutter pub get\nflutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" --dart-define=MAPBOX_PUBLIC_TOKEN=\"$TOKEN\"\ncd /workspaces/MASLIVE\nfirebase deploy --only hosting,functions,firestore:rules,firestore:indexes",
+        "problemMatcher": [],
+        "isBackground": false,
+        "group": {
+          "kind": "build"
+        },
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated",
+          "clear": true
+        }
+      },
     {
       "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (parking controle)",
       "type": "shell",

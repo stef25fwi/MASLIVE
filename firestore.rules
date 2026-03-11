@@ -641,6 +641,14 @@ service cloud.firestore {
       }
     }
 
+    // ========== COLLECTION: RESTAURANT LIVE STATUS (V1) ==========
+    // Source of truth public pour l'etat live des tables restaurants.
+    // Ecriture via Cloud Functions/Admin SDK uniquement.
+    match /restaurant_live_status/{statusId} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
     // ========== COLLECTION: CONFIG ==========
     match /config/{id} {
       // Lecture: publique

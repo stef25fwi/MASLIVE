@@ -51,7 +51,7 @@ class DefaultFirebaseOptions {
     appId: '1:1234567890:android:abcd1234',
     messagingSenderId: '1234567890',
     projectId: 'maslive',
-    storageBucket: 'maslive.appspot.com',
+    storageBucket: 'maslive.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
@@ -59,7 +59,7 @@ class DefaultFirebaseOptions {
     appId: '1:1234567890:ios:abcd1234',
     messagingSenderId: '1234567890',
     projectId: 'maslive',
-    storageBucket: 'maslive.appspot.com',
+    storageBucket: 'maslive.firebasestorage.app',
     iosBundleId: 'com.example.masslive',
   );
 
@@ -68,7 +68,7 @@ class DefaultFirebaseOptions {
     appId: '1:1234567890:macos:abcd1234',
     messagingSenderId: '1234567890',
     projectId: 'maslive',
-    storageBucket: 'maslive.appspot.com',
+    storageBucket: 'maslive.firebasestorage.app',
     iosBundleId: 'com.example.masslive',
   );
 
@@ -77,7 +77,7 @@ class DefaultFirebaseOptions {
     appId: '1:1234567890:windows:abcd1234',
     messagingSenderId: '1234567890',
     projectId: 'maslive',
-    storageBucket: 'maslive.appspot.com',
+    storageBucket: 'maslive.firebasestorage.app',
   );
 
   static const FirebaseOptions linux = FirebaseOptions(
@@ -85,6 +85,6 @@ class DefaultFirebaseOptions {
     appId: '1:1234567890:linux:abcd1234',
     messagingSenderId: '1234567890',
     projectId: 'maslive',
-    storageBucket: 'maslive.appspot.com',
+    storageBucket: 'maslive.firebasestorage.app',
   );
 }

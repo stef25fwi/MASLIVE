@@ -1089,22 +1089,46 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   double _expandedWizardMapHeight(BuildContext context) {
+    final viewport = MediaQuery.sizeOf(context);
+    final isLandscape = viewport.width > viewport.height;
+    if (isLandscape) {
+      final base = _responsiveWizardMapHeight(context);
+      return (base * 1.35).clamp(420.0, 980.0);
+    }
     return (_responsiveWizardMapHeight(context) * _wizardMapHeightMultiplier)
         .clamp(640.0, 1440.0);
   }
 
   double _expandedWizardRouteMapHeight(BuildContext context) {
     final viewport = MediaQuery.sizeOf(context);
+    final isLandscape = viewport.width > viewport.height;
     final base =
         _responsiveWizardMapHeight(context) +
         (viewport.width < 920 ? 72.0 : 56.0);
+    if (isLandscape) {
+      return (base * 1.28).clamp(460.0, 1020.0);
+    }
     return (base * _wizardMapHeightMultiplier).clamp(760.0, 1560.0);
   }
 
   double _expandedWizardPoiMapHeight(BuildContext context) {
-    final viewportHeight = MediaQuery.sizeOf(context).height;
+    final viewport = MediaQuery.sizeOf(context);
+    final viewportHeight = viewport.height;
+    final isLandscape = viewport.width > viewport.height;
+    if (isLandscape) {
+      final compactBase = (viewportHeight - 96).clamp(320.0, 520.0);
+      return (compactBase * 1.25).clamp(420.0, 760.0);
+    }
     final base = (viewportHeight - 168).clamp(520.0, 760.0);
     return (base * _wizardMapHeightMultiplier).clamp(1040.0, 1520.0);
+  }
+
+  String _wizardMapViewportKey(BuildContext context, String scope) {
+    final viewport = MediaQuery.sizeOf(context);
+    final orientation = viewport.width > viewport.height
+        ? 'landscape'
+        : 'portrait';
+    return '$scope-$orientation-${viewport.width.toInt()}x${viewport.height.toInt()}';
   }
 
   double _embeddedStyleProPreviewHeight(BuildContext context) {
@@ -1214,6 +1238,18 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   // avec une carte intégrée dans un scroll (drag/pan/zoom).
   int _wizardMapPointerCount = 0;
   bool get _isWizardMapInteracting => _wizardMapPointerCount > 0;
+  bool get _parkingZoneModeActive =>
+      _isDrawingParkingZone || _isEditingParkingZonePerimeter;
+
+  MarketMapLayer? get _parkingLayer {
+    for (final layer in _layers) {
+      if (layer.type == 'parking') return layer;
+    }
+    return null;
+  }
+
+  MarketMapLayer? get _activePoiLayerForMap =>
+      _parkingZoneModeActive ? (_parkingLayer ?? _selectedLayer) : _selectedLayer;
 
   Widget _wrapWizardMapToBlockScroll(Widget child) {
     return Listener(
@@ -1432,6 +1468,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   bool _isRefreshingMarketImport = false;
   bool _isEnsuringAllPoisLoaded = false;
+  bool _isRefreshingPoiMarkers = false;
+  bool _pendingPoiMarkersRefresh = false;
 
   // Snap en continu (debounce + ignore résultats obsolètes)
   Timer? _routeSnapDebounce;
@@ -2544,7 +2582,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           // Charger layers
           _layers = await _loadLayers();
 
-          // Assure les couches POI attendues (visit/food/assistance/parking/wc)
+          // Assure les couches POI attendues (visit/food/assistance/parking/wc/cashier)
           // et migre les anciens types (tour/visiter -> visit).
           await _ensureDefaultPoiLayers();
 
@@ -2597,7 +2635,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   Future<List<MarketMapLayer>> _loadLayers() async {
     if (_projectId == null) {
-      // Initialiser les 6 couches standard
+      // Initialiser les couches standard
       return [
         MarketMapLayer(
           id: '1',
@@ -2646,6 +2684,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           isVisible: true,
           zIndex: 6,
           color: '#F59E0B',
+        ),
+        MarketMapLayer(
+          id: '7',
+          label: 'Distributeur de billets',
+          type: 'cashier',
+          isVisible: true,
+          zIndex: 7,
+          color: '#14B8A6',
         ),
       ];
     }
@@ -2752,6 +2798,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             label: 'Lieux à visiter',
             color: '#F59E0B',
             preferredZ: 6,
+          ),
+          (
+            type: 'cashier',
+            label: 'Distributeur de billets',
+            color: '#14B8A6',
+            preferredZ: 7,
           ),
         ];
 
@@ -3239,6 +3291,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final proCfg = _routeStyleProConfig?.validated();
     final mapHeight = _expandedWizardRouteMapHeight(context);
     return CircuitMapEditor(
+      key: ValueKey(_wizardMapViewportKey(context, 'wizard-route')),
       title: 'Tracé + Style',
       subtitle: 'Tracez l\'itinéraire et réglez son apparence',
       points: _routePoints,
@@ -3605,6 +3658,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   height: 440,
                   child: _wrapWizardMapToBlockScroll(
                     MasLiveMap(
+                      key: ValueKey(
+                        _wizardMapViewportKey(context, 'wizard-infos-preview'),
+                      ),
                       initialLng: _routePoints.isNotEmpty
                           ? _routePoints.first.lng
                           : (_perimeterPoints.isNotEmpty
@@ -3668,6 +3724,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final mapHeight = _expandedWizardMapHeight(context);
     final pointsListMaxHeight = _responsiveWizardPointsListMaxHeight(context);
     return CircuitMapEditor(
+      key: ValueKey(_wizardMapViewportKey(context, 'wizard-perimeter')),
       title: 'Définir le périmètre',
       subtitle: 'Tracez la zone de couverture (polygon fermé)',
       points: _perimeterPoints,
@@ -5295,10 +5352,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               children: [
                 toolButton(
                   icon: const Icon(Icons.edit_location_alt_rounded),
-                  tooltip: 'Ajouter un POI (coordonnées manuelles)',
+                  tooltip: parkingLayerSelected
+                    ? 'Les parkings se créent uniquement en zone'
+                    : 'Ajouter un POI (coordonnées manuelles)',
                   onPressed:
                       (_selectedLayer == null ||
                           _pois.length >= _poiLimit ||
+                      parkingLayerSelected ||
                           parkingDrawingActive)
                       ? null
                       : () {
@@ -5320,10 +5380,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 ),
                 toolButton(
                   icon: const Icon(Icons.my_location),
-                  tooltip: 'Ajouter un POI à la position actuelle',
+                  tooltip: parkingLayerSelected
+                    ? 'Les parkings se créent uniquement en zone'
+                    : 'Ajouter un POI à la position actuelle',
                   onPressed:
                       (_selectedLayer == null ||
                           _pois.length >= _poiLimit ||
+                      parkingLayerSelected ||
                           parkingDrawingActive)
                       ? null
                       : _addPoiAtCurrentCenter,
@@ -5416,30 +5479,32 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 ),
               ),
             const SizedBox(height: 10),
-            InputDecorator(
-              decoration: const InputDecoration(
-                labelText: 'Apparence (nouveau POI)',
-                border: OutlineInputBorder(),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _defaultPoiAppearanceId,
-                  isExpanded: true,
-                  items: [
-                    for (final p in kMasLivePoiAppearancePresets)
-                      DropdownMenuItem(
-                        value: p.id,
-                        child: buildMasLivePoiAppearanceMenuItem(p),
-                      ),
-                  ],
-                  onChanged: (v) {
-                    if (v == null) return;
-                    setState(() => _defaultPoiAppearanceId = v);
-                  },
+            if (!parkingLayerSelected) ...[
+              InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Apparence (nouveau POI)',
+                  border: OutlineInputBorder(),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _defaultPoiAppearanceId,
+                    isExpanded: true,
+                    items: [
+                      for (final p in kMasLivePoiAppearancePresets)
+                        DropdownMenuItem(
+                          value: p.id,
+                          child: buildMasLivePoiAppearanceMenuItem(p),
+                        ),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _defaultPoiAppearanceId = v);
+                    },
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
+            ],
             if (poiLayers.isNotEmpty)
               Row(
                 children: [
@@ -5713,6 +5778,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       ClipRRect(
                         borderRadius: BorderRadius.circular(MasliveTokens.rXL),
                         child: MasLiveMap(
+                          key: ValueKey(
+                            _wizardMapViewportKey(context, 'wizard-poi-map'),
+                          ),
                           controller: _poiMapController,
                           initialLng: _poiInitialLng ?? -61.533,
                           initialLat: _poiInitialLat ?? 16.241,
@@ -5993,6 +6061,22 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       return;
     }
 
+    if (_selectedLayer!.type == 'parking') {
+      setState(() {
+        _isDrawingParkingZone = true;
+        _isEditingParkingZonePerimeter = false;
+        _poiInlineError = null;
+        _parkingZonePoints = <LngLat>[(lng: lng, lat: lat)];
+      });
+      await _refreshPoiMarkers();
+      if (mounted) {
+        _showTopSnackBar(
+          'Parking: création uniquement en zone. Continuez avec au moins 2 autres points.',
+        );
+      }
+      return;
+    }
+
     // Unifier avec la page POI: création d'un point via le même popup complet.
     final layerType = _selectedLayer!.type;
     final provisional = MarketMapPOI(
@@ -6028,33 +6112,52 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   Future<void> _refreshPoiMarkers() async {
-    if (_selectedLayer == null) {
-      await _poiMapController.clearPoisGeoJson();
+    if (_isRefreshingPoiMarkers) {
+      _pendingPoiMarkersRefresh = true;
       return;
     }
 
-    final layer = _selectedLayer!;
-    final poisForLayer = _pois
-        .where(
-          (p) =>
-              _poiMatchesSelectedLayer(p, layer) &&
-              !(_isEditingParkingZonePerimeter && _poiEditingPoi?.id == p.id),
-        )
-        .toList();
+    _isRefreshingPoiMarkers = true;
+    try {
+      do {
+        _pendingPoiMarkersRefresh = false;
 
-    final previewParkingZonePoints =
-        ((_isDrawingParkingZone || _isEditingParkingZonePerimeter) &&
-            layer.type == 'parking' &&
-            _parkingZonePoints.isNotEmpty)
-        ? _parkingZonePoints
-        : null;
+        final layer = _activePoiLayerForMap;
+        if (layer == null) {
+          await _poiMapController.clearPoisGeoJson();
+          continue;
+        }
 
-    await _poiMapController.setPoisGeoJson(
-      _buildPoisFeatureCollection(
-        poisForLayer,
-        previewParkingZonePoints: previewParkingZonePoints,
-      ),
-    );
+        final poisForLayer = _pois
+            .where(
+              (p) =>
+                  _poiMatchesSelectedLayer(p, layer) &&
+                  !(_isEditingParkingZonePerimeter &&
+                      _poiEditingPoi?.id == p.id),
+            )
+            .toList();
+
+        final previewParkingZonePoints =
+            (_parkingZoneModeActive &&
+                layer.type == 'parking' &&
+                _parkingZonePoints.isNotEmpty)
+            ? _parkingZonePoints
+            : null;
+
+        if (_parkingZoneModeActive) {
+          await _poiMapController.clearPoisGeoJson();
+        }
+
+        await _poiMapController.setPoisGeoJson(
+          _buildPoisFeatureCollection(
+            poisForLayer,
+            previewParkingZonePoints: previewParkingZonePoints,
+          ),
+        );
+      } while (_pendingPoiMarkersRefresh);
+    } finally {
+      _isRefreshingPoiMarkers = false;
+    }
   }
 
   void _syncPoiRouteStyleProTimer() {
@@ -6569,13 +6672,49 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           });
         }
       } else {
+        final meta = Map<String, dynamic>.from(
+          poi.metadata ?? const <String, dynamic>{},
+        );
+        var imageUrl = (poi.imageUrl ?? '').trim();
+        if (imageUrl.isEmpty) {
+          final image = meta['image'];
+          if (image is Map) {
+            final url = (image['url'] ?? image['downloadUrl'] ?? '')
+                .toString()
+                .trim();
+            if (url.isNotEmpty) {
+              imageUrl = url;
+            }
+          }
+        }
+        final openingHours = (poi.openingHours is String)
+            ? (poi.openingHours as String).trim()
+            : (poi.openingHours != null ? jsonEncode(poi.openingHours) : '');
         features.add(<String, dynamic>{
           'type': 'Feature',
           'id': poi.id,
           'properties': <String, dynamic>{
             'poiId': poi.id,
             'layerId': poi.layerType,
+            'type': poi.layerType,
+            'name': poi.name,
             'title': poi.name,
+            'desc': (poi.description ?? '').trim(),
+            'description': poi.description ?? '',
+            'imageUrl': imageUrl,
+            'lng': poi.lng,
+            'lat': poi.lat,
+            'address': poi.address ?? '',
+            'openingHours': openingHours,
+            'phone': poi.phone ?? '',
+            'website': poi.website ?? '',
+            'instagram': poi.instagram ?? '',
+            'facebook': poi.facebook ?? '',
+            'whatsapp': poi.whatsapp ?? '',
+            'email': poi.email ?? '',
+            'mapsUrl': poi.mapsUrl ?? '',
+            'popupEnabled': meta['popupEnabled'],
+            'meta': meta.isNotEmpty ? jsonEncode(meta) : '',
             if (poi.metadata?[kMasLivePoiAppearanceKey] is String)
               kMasLivePoiAppearanceKey: poi.metadata![kMasLivePoiAppearanceKey],
           },
@@ -6737,9 +6876,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   Future<void> _onMapTapForPoi(double lng, double lat) async {
-    if ((_isDrawingParkingZone || _isEditingParkingZonePerimeter) &&
-        _selectedLayer?.type == 'parking') {
+    if (_parkingZoneModeActive) {
+      final parkingLayer = _parkingLayer;
+      if (parkingLayer == null) return;
       setState(() {
+        _selectedLayer = parkingLayer;
+        _poiInlineError = null;
         _parkingZonePoints = <LngLat>[
           ..._parkingZonePoints,
           (lng: lng, lat: lat),
@@ -6759,13 +6901,34 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       return;
     }
 
+    if (_selectedLayer?.type == 'parking') {
+      setState(() {
+        _isDrawingParkingZone = true;
+        _isEditingParkingZonePerimeter = false;
+        _poiInlineError = null;
+        _parkingZonePoints = <LngLat>[(lng: lng, lat: lat)];
+      });
+      try {
+        await _refreshPoiMarkers();
+      } catch (e) {
+        debugPrint('Erreur lors du démarrage de la zone parking: $e');
+      }
+      if (mounted) {
+        _showTopSnackBar(
+          'Parking: création uniquement en zone. Continuez avec au moins 2 autres points.',
+        );
+      }
+      return;
+    }
+
     await _createPoiAt(lng: lng, lat: lat);
   }
 
   Future<void> _editPoi(MarketMapPOI poi) async {
     final perimeter = _poiPerimeterFromMetadata(poi);
     if (perimeter != null) {
-      // Garder l'éditeur inline pour les zones parking (style, etc.).
+      // Les zones parking gardent l'éditeur inline pour modifier
+      // directement leur périmètre sur la carte.
       _openPoiEditSection(poi);
       return;
     }
@@ -6847,11 +7010,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   void _startParkingZoneDrawing() {
-    if (_selectedLayer?.type != 'parking') return;
+    final parkingLayer = _parkingLayer;
+    if (parkingLayer == null) return;
     _poiSelection.clear();
     _closePoiInlineEditor(keepSelection: false);
 
     setState(() {
+      _selectedLayer = parkingLayer;
       _isDrawingParkingZone = true;
       _isEditingParkingZonePerimeter = false;
       _parkingZonePoints = <LngLat>[];
@@ -6897,6 +7062,20 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     _scrollPoiBottomSectionIntoView();
   }
 
+  void _startParkingZonePerimeterEditingFromPoint(MarketMapPOI poi) {
+    if (poi.layerType != 'parking') return;
+
+    _poiSelection.select(poi);
+    setState(() {
+      _isDrawingParkingZone = false;
+      _isEditingParkingZonePerimeter = true;
+      _parkingZonePoints = <LngLat>[(lng: poi.lng, lat: poi.lat)];
+      _poiInlineError = null;
+    });
+    _refreshPoiMarkers();
+    _scrollPoiBottomSectionIntoView();
+  }
+
   void _cancelParkingZonePerimeterEditing() {
     setState(() {
       _isEditingParkingZonePerimeter = false;
@@ -6918,7 +7097,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   void _finishParkingZoneDrawing() {
-    if (_selectedLayer?.type != 'parking') return;
+    if (!_parkingZoneModeActive) return;
     if (_parkingZonePoints.length < 3) return;
     _openPoiCreateZoneSection(perimeterPoints: _parkingZonePoints);
   }
@@ -7016,11 +7195,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       final zonePerimeter = _isEditingParkingZonePerimeter
           ? _parkingZonePoints
           : (perimeter ?? const <LngLat>[]);
+      final convertsParkingPointToZone =
+          !isZone &&
+          poi.layerType == 'parking' &&
+          _isEditingParkingZonePerimeter &&
+          zonePerimeter.length >= 3;
 
       Map<String, dynamic>? nextMetadata = poi.metadata;
       var nextLng = poi.lng;
       var nextLat = poi.lat;
-      if (isZone) {
+      if (isZone || convertsParkingPointToZone) {
         if (zonePerimeter.length < 3) {
           setState(
             () => _poiInlineError = 'Périmètre incomplet (min. 3 points).',
@@ -7064,6 +7248,17 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           },
         };
       } else {
+        final parsedLat = double.tryParse(_poiInlineLatController.text.trim());
+        final parsedLng = double.tryParse(_poiInlineLngController.text.trim());
+        if (parsedLat == null || parsedLng == null) {
+          setState(
+            () => _poiInlineError =
+                'Coordonnées invalides. Vérifiez latitude et longitude.',
+          );
+          return;
+        }
+        nextLat = parsedLat;
+        nextLng = parsedLng;
         nextMetadata = <String, dynamic>{
           ...(poi.metadata ?? const <String, dynamic>{}),
           kMasLivePoiAppearanceKey: normalizeMasLivePoiAppearanceId(
@@ -7119,10 +7314,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final isEdit = _poiInlineEditorMode == _PoiInlineEditorMode.edit;
 
     final editingPoi = _poiEditingPoi;
+    final isParkingPoi = isEdit && editingPoi?.layerType == 'parking';
     final isEditZone =
         isEdit &&
         editingPoi != null &&
         _poiPerimeterFromMetadata(editingPoi) != null;
+    final isEditZoneLike =
+      isEditZone || (isParkingPoi && _isEditingParkingZonePerimeter);
     final editZonePerimeter = editingPoi == null
         ? null
         : _poiPerimeterFromMetadata(editingPoi);
@@ -7132,7 +7330,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               ? _parkingZonePoints.length
               : (editZonePerimeter?.length ?? 0));
 
-    final title = isEdit ? 'Modifier la zone parking' : 'Nouvelle zone parking';
+    final title = isCreateZone
+      ? 'Nouvelle zone parking'
+      : isEditZoneLike
+      ? 'Modifier la zone parking'
+      : isParkingPoi
+      ? 'Modifier le parking'
+      : 'Modifier le POI';
 
     final primaryLabel = isEdit ? 'Enregistrer' : 'Ajouter la zone';
 
@@ -7182,7 +7386,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   border: OutlineInputBorder(),
                 ),
               ),
-              if (isCreateZone || isEditZone) ...[
+              if (isCreateZone || isEditZoneLike) ...[
                 const SizedBox(height: 12),
                 Text(
                   'Périmètre: $displayedPerimeterCount points',
@@ -7191,14 +7395,27 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ],
-              if (isEditZone) ...[
+              if (isParkingPoi && !isEditZoneLike) ...[
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: FilledButton.tonalIcon(
+                    onPressed: () => _startParkingZonePerimeterEditingFromPoint(
+                      editingPoi!,
+                    ),
+                    icon: const Icon(Icons.draw_rounded, size: 18),
+                    label: const Text('Créer une zone sur la carte'),
+                  ),
+                ),
+              ],
+              if (isEditZoneLike) ...[
                 const SizedBox(height: 10),
                 if (!_isEditingParkingZonePerimeter)
                   Align(
                     alignment: Alignment.centerLeft,
                     child: FilledButton.tonalIcon(
                       onPressed: () =>
-                          _startParkingZonePerimeterEditing(editingPoi),
+                          _startParkingZonePerimeterEditing(editingPoi!),
                       icon: const Icon(Icons.draw_rounded, size: 18),
                       label: const Text('Modifier le périmètre sur la carte'),
                     ),
@@ -7217,13 +7434,52 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       ),
                       TextButton(
                         onPressed: _cancelParkingZonePerimeterEditing,
-                        child: const Text('Annuler le contour'),
+                        child: Text(
+                          isEditZone
+                              ? 'Annuler le contour'
+                              : 'Revenir au point parking',
+                        ),
                       ),
                     ],
                   ),
               ],
 
-              if (isCreateZone || isEditZone) ...[
+              if (isEdit && !isEditZoneLike) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _poiInlineLatController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                          signed: true,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'Latitude',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: _poiInlineLngController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                          signed: true,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'Longitude',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
+              if (isCreateZone || isEditZoneLike) ...[
                 const SizedBox(height: 12),
                 FilledButton.tonal(
                   onPressed: _applyParkingZonePresetWhiteBlue,

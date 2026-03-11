@@ -1019,6 +1019,49 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
                   false,
                 ],
               ],
+              [
+                'all',
+                [
+                  '!=',
+                  ['get', kMasLivePoiAppearanceKey],
+                  kMasLivePoiAppearanceIconPointId,
+                ],
+                [
+                  '!=',
+                  ['get', kMasLivePoiAppearanceKey],
+                  'icon-point.webp',
+                ],
+                [
+                  '!=',
+                  ['get', kMasLivePoiAppearanceKey],
+                  'icon-point.wbp',
+                ],
+                [
+                  '!=',
+                  ['get', kMasLivePoiAppearanceKey],
+                  'point.webp',
+                ],
+                [
+                  '!=',
+                  ['get', kMasLivePoiAppearanceKey],
+                  'point.wbp',
+                ],
+                [
+                  '!=',
+                  ['get', kMasLivePoiAppearanceKey],
+                  'point_webp',
+                ],
+                [
+                  '!=',
+                  ['get', kMasLivePoiAppearanceKey],
+                  'point_wbp',
+                ],
+                [
+                  '!=',
+                  ['get', kMasLivePoiAppearanceKey],
+                  'point',
+                ],
+              ],
             ],
             'paint': {
               'circle-radius': _poiStyle.circleRadius,
@@ -1064,6 +1107,49 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
               '==',
               ['get', 'isPreviewVertex'],
               false,
+            ],
+          ],
+          [
+            'all',
+            [
+              '!=',
+              ['get', kMasLivePoiAppearanceKey],
+              kMasLivePoiAppearanceIconPointId,
+            ],
+            [
+              '!=',
+              ['get', kMasLivePoiAppearanceKey],
+              'icon-point.webp',
+            ],
+            [
+              '!=',
+              ['get', kMasLivePoiAppearanceKey],
+              'icon-point.wbp',
+            ],
+            [
+              '!=',
+              ['get', kMasLivePoiAppearanceKey],
+              'point.webp',
+            ],
+            [
+              '!=',
+              ['get', kMasLivePoiAppearanceKey],
+              'point.wbp',
+            ],
+            [
+              '!=',
+              ['get', kMasLivePoiAppearanceKey],
+              'point_webp',
+            ],
+            [
+              '!=',
+              ['get', kMasLivePoiAppearanceKey],
+              'point_wbp',
+            ],
+            [
+              '!=',
+              ['get', kMasLivePoiAppearanceKey],
+              'point',
             ],
           ],
         ]),
@@ -1122,11 +1208,6 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
                 ],
                 [
                   '==',
-                  'icon-point.webp',
-                ],
-                [
-                  '==',
-                  ['get', kMasLivePoiAppearanceKey],
                   ['get', kMasLivePoiAppearanceKey],
                   'point',
                 ],

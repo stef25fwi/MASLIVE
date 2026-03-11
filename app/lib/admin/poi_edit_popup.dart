@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -8,8 +9,11 @@ import 'package:image_cropper/image_cropper.dart';
 
 import '../models/image_asset.dart' as img;
 import '../models/market_circuit_models.dart';
+import '../features/restaurant_live_tables/models/live_table_state.dart';
+import '../features/restaurant_live_tables/widgets/live_table_pro_panel.dart';
 import '../services/image_management_service.dart';
 import '../services/poi_popup_service.dart';
+import '../services/premium_service.dart';
 import '../services/webp_converter.dart';
 import '../ui/map/maslive_poi_style.dart';
 import '../ui/snack/top_snack_bar.dart';
@@ -50,6 +54,9 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
   final _whatsappCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _mapsUrlCtrl = TextEditingController();
+  final _liveTableAvailableCtrl = TextEditingController();
+  final _liveTableCapacityCtrl = TextEditingController();
+  final _liveTableMessageCtrl = TextEditingController();
 
   final _latCtrl = TextEditingController();
   final _lngCtrl = TextEditingController();
@@ -79,6 +86,9 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
 
   bool _popupEnabled = true;
   bool _isVisible = true;
+  bool _liveTableEnabled = false;
+  LiveTableStatus _liveTableStatus = LiveTableStatus.available;
+  bool _hadLiveTableConfig = false;
 
   String _textFromOpeningHours(Object? value) {
     if (value == null) return '';
@@ -231,6 +241,26 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       }
     }
 
+    final liveRaw = meta['liveTable'];
+    if (liveRaw is Map) {
+      _hadLiveTableConfig = true;
+      final live = Map<String, dynamic>.from(liveRaw);
+      _liveTableEnabled = live['enabled'] == true;
+      _liveTableStatus = liveTableStatusFromString(live['status']?.toString());
+      final available = live['availableTables'];
+      final capacity = live['capacity'];
+      final message = (live['message'] ?? '').toString().trim();
+      if (available != null) {
+        _liveTableAvailableCtrl.text = available.toString();
+      }
+      if (capacity != null) {
+        _liveTableCapacityCtrl.text = capacity.toString();
+      }
+      if (message.isNotEmpty) {
+        _liveTableMessageCtrl.text = message;
+      }
+    }
+
     _popupEnabled = PoiPopupService.isPopupEnabled(
       type: widget.poi.layerType,
       meta: meta,
@@ -252,6 +282,9 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
     _whatsappCtrl.dispose();
     _emailCtrl.dispose();
     _mapsUrlCtrl.dispose();
+    _liveTableAvailableCtrl.dispose();
+    _liveTableCapacityCtrl.dispose();
+    _liveTableMessageCtrl.dispose();
     _latCtrl.dispose();
     _lngCtrl.dispose();
     super.dispose();
@@ -754,10 +787,43 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
     };
 
     if ((_uploadedImageUrl ?? '').trim().isNotEmpty) {
+      final bucket = (Firebase.app().options.storageBucket ?? '').trim();
+      final parentId = _poiImagesParentId();
       meta['image'] = <String, dynamic>{
         'assetId': _uploadedImageAssetId,
         'url': _uploadedImageUrl,
+        'downloadUrl': _uploadedImageUrl,
+        if (bucket.isNotEmpty) 'bucket': bucket,
+        if (parentId != null && parentId.isNotEmpty) 'parentId': parentId,
       };
+    }
+
+    if (_liveTableEnabled) {
+      int? parseInt(String raw) {
+        final s = raw.trim();
+        if (s.isEmpty) return null;
+        return int.tryParse(s);
+      }
+
+      final nowIso = DateTime.now().toUtc().toIso8601String();
+      meta['liveTable'] = <String, dynamic>{
+        'enabled': true,
+        'status': liveTableStatusToString(_liveTableStatus),
+        'availableTables': parseInt(_liveTableAvailableCtrl.text),
+        'capacity': parseInt(_liveTableCapacityCtrl.text),
+        'message': _liveTableMessageCtrl.text.trim(),
+        'updatedAt': nowIso,
+      };
+    } else if (_hadLiveTableConfig) {
+      final nowIso = DateTime.now().toUtc().toIso8601String();
+      meta['liveTable'] = <String, dynamic>{
+        'enabled': false,
+        'status': liveTableStatusToString(LiveTableStatus.unknown),
+        'message': '',
+        'updatedAt': nowIso,
+      };
+    } else {
+      meta.remove('liveTable');
     }
 
     final nextImageUrl = (_uploadedImageUrl?.trim().isNotEmpty ?? false)
@@ -1306,6 +1372,32 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                           : 'Ajoute une photo pour activer la fiche photo.',
                     ),
                     contentPadding: EdgeInsets.zero,
+                  ),
+
+                  ValueListenableBuilder<bool>(
+                    valueListenable: PremiumService.instance.isPremium,
+                    builder: (context, isPremium, _) {
+                      return LiveTableProPanel(
+                        layerType: widget.poi.layerType,
+                        isPremium: isPremium,
+                        isBusinessSubscribed: false,
+                        isLoadingRemoteState: false,
+                        enabled: _liveTableEnabled,
+                        status: _liveTableStatus,
+                        availableCtrl: _liveTableAvailableCtrl,
+                        capacityCtrl: _liveTableCapacityCtrl,
+                        messageCtrl: _liveTableMessageCtrl,
+                        onToggleEnabled: (v) {
+                          setState(() => _liveTableEnabled = v);
+                        },
+                        onStatusChanged: (v) {
+                          setState(() => _liveTableStatus = v);
+                        },
+                        onOpenPaywall: () {
+                          Navigator.of(context).pushNamed('/paywall');
+                        },
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 12),
