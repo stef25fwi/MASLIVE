@@ -191,6 +191,19 @@ function isAllowedRedirectUrl(url) {
   }
 }
 
+function getAllowedPremiumPriceIds() {
+  const raw = [
+    process.env.STRIPE_PREMIUM_MONTHLY_PRICE_ID,
+    process.env.STRIPE_PREMIUM_YEARLY_PRICE_ID,
+  ];
+  return new Set(
+    raw
+      .filter((value) => typeof value === "string")
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0)
+  );
+}
+
 async function getUidFromAuthorizationHeader(req) {
   const h = req.headers.authorization || req.headers.Authorization;
   if (!h || typeof h !== "string") return null;
@@ -1996,24 +2009,38 @@ exports.createSubscriptionCheckoutSession = onRequest(
         return res.status(401).json({ error: "Unauthorized" });
       }
 
-      // Legacy endpoint disabled for security hardening.
-      // Use createPhotographerSubscriptionCheckoutSession (plan-bound flow) instead.
-      return res.status(410).json({
-        error: "This endpoint is deprecated for security reasons",
-        code: "ENDPOINT_DEPRECATED",
-        use: "createPhotographerSubscriptionCheckoutSession",
-      });
-
       const { priceId, successUrl, cancelUrl } = req.body || {};
 
       if (!priceId || typeof priceId !== "string" || !priceId.startsWith("price_")) {
         return res.status(400).json({ error: "priceId required" });
       }
+
+      const allowedPriceIds = getAllowedPremiumPriceIds();
+      if (allowedPriceIds.size === 0) {
+        return res.status(500).json({
+          error: "Premium price IDs are not configured",
+          code: "PREMIUM_PRICES_NOT_CONFIGURED",
+        });
+      }
+      if (!allowedPriceIds.has(priceId)) {
+        return res.status(400).json({
+          error: "Unsupported premium priceId",
+          code: "UNSUPPORTED_PREMIUM_PRICE_ID",
+        });
+      }
+
       if (!isAllowedRedirectUrl(successUrl) || !isAllowedRedirectUrl(cancelUrl)) {
         return res
           .status(400)
           .json({ error: "successUrl & cancelUrl required (https)" });
       }
+
+      const userSnap = await db.collection("users").doc(uid).get();
+      const userData = userSnap.exists ? (userSnap.data() || {}) : {};
+      const customerEmail =
+        (typeof userData.email === "string" && userData.email.trim().length > 0)
+          ? userData.email.trim()
+          : undefined;
 
       const stripeClient = getStripe();
       const session = await stripeClient.checkout.sessions.create(
@@ -2022,6 +2049,7 @@ exports.createSubscriptionCheckoutSession = onRequest(
           line_items: [{ price: priceId, quantity: 1 }],
           success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: cancelUrl,
+          customer_email: customerEmail,
           metadata: { uid, kind: "subscription" },
           client_reference_id: uid,
           subscription_data: {
@@ -2491,6 +2519,18 @@ async function handleCheckoutSessionCompleted(session, eventId) {
               `Stock decremented (root order) for product ${productId}: ${currentStock} -> ${newStock} (-${quantity})`
             );
           }
+
+          transaction.set(
+            rootOrderRef,
+            {
+              storex: {
+                stockDecrementedAt: admin.firestore.FieldValue.serverTimestamp(),
+                stockDecrementSource: "checkout_session",
+              },
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
         });
       }
     } catch (stockErr) {
@@ -2721,35 +2761,156 @@ async function handlePaymentIntentSucceeded(paymentIntent) {
     .collection("orders")
     .doc(orderId);
 
+  // 1) Traitement root order idempotent + stock atomique
+  const rootOrderRef = db.collection("orders").doc(orderId);
+  let rootOrderProcessed = false;
+  let stockUpdated = false;
+
+  await db.runTransaction(async (transaction) => {
+    const rootSnap = await transaction.get(rootOrderRef);
+    if (!rootSnap.exists) {
+      return;
+    }
+
+    const rootOrder = rootSnap.data() || {};
+    const status = String(rootOrder.status || "").toLowerCase();
+    const stripeData =
+      rootOrder.stripe && typeof rootOrder.stripe === "object"
+        ? rootOrder.stripe
+        : {};
+    const storexData =
+      rootOrder.storex && typeof rootOrder.storex === "object"
+        ? rootOrder.storex
+        : {};
+
+    const lastProcessedPi =
+      typeof stripeData.lastProcessedPaymentIntentId === "string"
+        ? stripeData.lastProcessedPaymentIntentId
+        : "";
+    const isSamePaymentIntent =
+      typeof paymentIntent.id === "string" && paymentIntent.id === lastProcessedPi;
+
+    const hasCheckoutSession =
+      typeof stripeData.sessionId === "string" && stripeData.sessionId.trim().length > 0;
+    const stockAlreadyDecremented =
+      !!storexData.stockDecrementedAt || (hasCheckoutSession && status === "paid");
+    const statusAlreadyFinal = status === "paid" || status === "confirmed";
+
+    if (isSamePaymentIntent && statusAlreadyFinal && stockAlreadyDecremented) {
+      console.log(`Order ${orderId} already processed for payment intent ${paymentIntent.id}`);
+      return;
+    }
+
+    if (!stockAlreadyDecremented) {
+      const items = Array.isArray(rootOrder.items) ? rootOrder.items : [];
+      const productsToDecrement = items
+        .filter((item) => item.productId && typeof item.productId === "string")
+        .map((item) => ({
+          productId: item.productId,
+          quantity: Number(item.quantity || 1),
+        }))
+        .filter((p) => p.quantity > 0);
+
+      const productRefs = {};
+      const productDocs = {};
+
+      for (const { productId } of productsToDecrement) {
+        const productRef = db.collection("products").doc(productId);
+        const productSnap = await transaction.get(productRef);
+        productRefs[productId] = productRef;
+        productDocs[productId] = productSnap.exists ? productSnap.data() : null;
+
+        if (rootOrder.shopId) {
+          const shopRef = db
+            .collection("shops")
+            .doc(rootOrder.shopId)
+            .collection("products")
+            .doc(productId);
+          const shopSnap = await transaction.get(shopRef);
+          productRefs[`${productId}_shop`] = shopRef;
+          if (shopSnap.exists) {
+            productDocs[`${productId}_shop`] = shopSnap.data();
+          }
+        }
+      }
+
+      for (const { productId, quantity } of productsToDecrement) {
+        const product = productDocs[productId];
+        if (!product) continue;
+
+        const currentStock = Number(product.stock || 0);
+        const newStock = Math.max(0, currentStock - quantity);
+
+        const updateData = {
+          stock: newStock,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        const alertQty = Number(product.alertQty || 0);
+        if (alertQty > 0) {
+          if (newStock === 0) {
+            updateData.stockStatus = "out_of_stock";
+          } else if (newStock <= alertQty) {
+            updateData.stockStatus = "low_stock";
+          } else {
+            updateData.stockStatus = "in_stock";
+          }
+        }
+
+        transaction.update(productRefs[productId], updateData);
+        if (productRefs[`${productId}_shop`]) {
+          transaction.update(productRefs[`${productId}_shop`], updateData);
+        }
+
+        console.log(
+          `Stock decremented (payment intent) for product ${productId}: ${currentStock} -> ${newStock} (-${quantity})`
+        );
+      }
+
+      stockUpdated = productsToDecrement.length > 0;
+    }
+
+    const rootPatch = {
+      status: "paid",
+      paidAt: admin.firestore.FieldValue.serverTimestamp(),
+      stripe: {
+        paymentIntentId: paymentIntent.id,
+        status: paymentIntent.status || "succeeded",
+        lastProcessedPaymentIntentId: paymentIntent.id,
+      },
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    if (!stockAlreadyDecremented) {
+      rootPatch.storex = {
+        stockDecrementedAt: admin.firestore.FieldValue.serverTimestamp(),
+        stockDecrementSource: "payment_intent",
+      };
+    }
+
+    transaction.set(rootOrderRef, rootPatch, { merge: true });
+    rootOrderProcessed = true;
+  });
+
   await orderRef.set(
     {
-      status: "confirmed",
+      status: "paid",
       paidAt: admin.firestore.FieldValue.serverTimestamp(),
       stripe: {
         paymentIntentId: paymentIntent.id,
         status: paymentIntent.status || "succeeded",
+        lastProcessedPaymentIntentId: paymentIntent.id,
       },
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     },
     { merge: true }
   );
 
-  // Miroir root order (si présent)
-  const rootOrderRef = db.collection("orders").doc(orderId);
-  await rootOrderRef.set(
-    {
-      status: "confirmed",
-      paidAt: admin.firestore.FieldValue.serverTimestamp(),
-      stripe: {
-        paymentIntentId: paymentIntent.id,
-        status: paymentIntent.status || "succeeded",
-      },
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    },
-    { merge: true }
+  console.log(
+    `Order ${orderId} marked as paid via payment_intent.succeeded` +
+      (rootOrderProcessed ? " (root processed)" : " (root missing)") +
+      (stockUpdated ? " + stock updated" : "")
   );
-
-  console.log(`Order ${orderId} marked as paid via payment_intent.succeeded`);
 }
 
 /**

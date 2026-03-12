@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -444,6 +446,57 @@ class StorexPaymentPage extends StatefulWidget {
 class _StorexPaymentPageState extends State<StorexPaymentPage> {
   bool loading = false;
 
+  Future<bool> _waitOrderPaid({
+    required String uid,
+    required String orderId,
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
+    bool isPaidStatus(String? raw) {
+      final v = (raw ?? '').trim().toLowerCase();
+      return v == 'paid' || v == 'confirmed';
+    }
+
+    final ref = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('orders')
+        .doc(orderId);
+
+    try {
+      final first = await ref.get();
+      if (isPaidStatus(first.data()?['status']?.toString())) {
+        return true;
+      }
+    } catch (_) {
+      // ignore and fall back to snapshot wait
+    }
+
+    final completer = Completer<bool>();
+    StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? sub;
+    Timer? timer;
+
+    sub = ref.snapshots().listen(
+      (snap) {
+        if (completer.isCompleted) return;
+        if (isPaidStatus(snap.data()?['status']?.toString())) {
+          completer.complete(true);
+        }
+      },
+      onError: (_) {
+        if (!completer.isCompleted) completer.complete(false);
+      },
+    );
+
+    timer = Timer(timeout, () {
+      if (!completer.isCompleted) completer.complete(false);
+    });
+
+    final ok = await completer.future;
+    await sub.cancel();
+    timer.cancel();
+    return ok;
+  }
+
   int _subtotalCents(List<CartItem> items) {
     var total = 0;
     for (final it in items) {
@@ -494,20 +547,21 @@ class _StorexPaymentPageState extends State<StorexPaymentPage> {
       // 3) Present sheet
       await Stripe.instance.presentPaymentSheet();
 
-      // 4) Mark order as processing (final status set by webhook)
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('orders')
-          .doc(orderId)
-          .update({
-        'status': 'processing',
-        'stripe.status': 'processing',
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      // 5) Clear cart (local + Firestore sync)
-      CartService.instance.clear();
+      // 4) Wait backend confirmation before clearing cart.
+      // Fallback robuste: si webhook retardé, on garde le panier.
+      final paid = await _waitOrderPaid(uid: user.uid, orderId: orderId);
+      if (paid) {
+        CartService.instance.clear();
+      } else if (mounted) {
+        TopSnackBar.show(
+          context,
+          const SnackBar(
+            content: Text(
+              'Paiement en cours de confirmation serveur. Panier conservé temporairement.',
+            ),
+          ),
+        );
+      }
 
       if (!mounted) return;
       Navigator.of(context).pushNamedAndRemoveUntil(
