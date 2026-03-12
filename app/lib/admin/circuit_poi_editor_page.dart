@@ -277,6 +277,16 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
     final norm = raw.trim().toLowerCase();
     if (norm == 'tour' || norm == 'visiter') return 'visit';
     if (norm == 'toilet' || norm == 'toilets') return 'wc';
+    if (norm == 'parkings' ||
+        norm == 'parking_zone' ||
+        norm == 'parking_zones' ||
+        norm == 'parking-zone' ||
+        norm == 'parking-zones' ||
+        norm == 'parkingzone' ||
+        norm == 'zones_parking' ||
+        norm == 'zone_parking') {
+      return 'parking';
+    }
     return norm;
   }
 

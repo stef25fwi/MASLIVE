@@ -1241,9 +1241,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   bool get _parkingZoneModeActive =>
       _isDrawingParkingZone || _isEditingParkingZonePerimeter;
 
+  bool _isParkingLayerType(String raw) =>
+      _normalizePoiLayerType(raw) == 'parking';
+
   MarketMapLayer? get _parkingLayer {
     for (final layer in _layers) {
-      if (layer.type == 'parking') return layer;
+      if (_isParkingLayerType(layer.type)) return layer;
     }
     return null;
   }
@@ -2712,6 +2715,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final norm = raw.trim().toLowerCase();
     if (norm == 'tour' || norm == 'visiter') return 'visit';
     if (norm == 'toilet' || norm == 'toilets') return 'wc';
+    if (norm == 'parkings' ||
+        norm == 'parking_zone' ||
+        norm == 'parking_zones' ||
+        norm == 'parking-zone' ||
+        norm == 'parking-zones' ||
+        norm == 'parkingzone' ||
+        norm == 'zones_parking' ||
+        norm == 'zone_parking') {
+      return 'parking';
+    }
     return norm;
   }
 
@@ -5154,7 +5167,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final compactPoiLayout = MediaQuery.sizeOf(context).width < 520;
 
     Widget buildPoiToolsPanel({required List<MarketMapLayer> poiLayers}) {
-      final parkingLayerSelected = _selectedLayer?.type == 'parking';
+      final parkingLayerSelected =
+          _selectedLayer != null && _isParkingLayerType(_selectedLayer!.type);
       final parkingDrawingActive =
           parkingLayerSelected &&
           (_isDrawingParkingZone || _isEditingParkingZonePerimeter);
@@ -6061,7 +6075,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       return;
     }
 
-    if (_selectedLayer!.type == 'parking') {
+    if (_isParkingLayerType(_selectedLayer!.type)) {
       setState(() {
         _isDrawingParkingZone = true;
         _isEditingParkingZonePerimeter = false;
@@ -6139,7 +6153,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
         final previewParkingZonePoints =
             (_parkingZoneModeActive &&
-                layer.type == 'parking' &&
+            _isParkingLayerType(layer.type) &&
                 _parkingZonePoints.isNotEmpty)
             ? _parkingZonePoints
             : null;
@@ -6637,7 +6651,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         });
 
         // Label “P” au centre pour les zones parking.
-        if (poi.layerType == 'parking') {
+        if (_isParkingLayerType(poi.layerType)) {
           final c = _centroidOf(perimeter);
           final vehicleTypes = _parkingZoneVehicleTypesFromMetadata(poi);
           final labelPreset = _parkingZoneLabelPresetFromStyle(style);
@@ -6901,7 +6915,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       return;
     }
 
-    if (_selectedLayer?.type == 'parking') {
+    if (_selectedLayer != null && _isParkingLayerType(_selectedLayer!.type)) {
       setState(() {
         _isDrawingParkingZone = true;
         _isEditingParkingZonePerimeter = false;
@@ -7063,7 +7077,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   void _startParkingZonePerimeterEditingFromPoint(MarketMapPOI poi) {
-    if (poi.layerType != 'parking') return;
+    if (!_isParkingLayerType(poi.layerType)) return;
 
     _poiSelection.select(poi);
     setState(() {
@@ -7106,7 +7120,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     if (_selectedLayer == null) return;
 
     if (_poiInlineEditorMode == _PoiInlineEditorMode.createZone) {
-      if (_selectedLayer?.type != 'parking') {
+      if (_selectedLayer == null ||
+          !_isParkingLayerType(_selectedLayer!.type)) {
         setState(
           () => _poiInlineError = 'Zone disponible uniquement en parking.',
         );
@@ -7197,7 +7212,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           : (perimeter ?? const <LngLat>[]);
       final convertsParkingPointToZone =
           !isZone &&
-          poi.layerType == 'parking' &&
+          _isParkingLayerType(poi.layerType) &&
           _isEditingParkingZonePerimeter &&
           zonePerimeter.length >= 3;
 
@@ -7314,7 +7329,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final isEdit = _poiInlineEditorMode == _PoiInlineEditorMode.edit;
 
     final editingPoi = _poiEditingPoi;
-    final isParkingPoi = isEdit && editingPoi?.layerType == 'parking';
+    final isParkingPoi =
+      isEdit && editingPoi != null && _isParkingLayerType(editingPoi.layerType);
     final isEditZone =
         isEdit &&
         editingPoi != null &&
@@ -7401,7 +7417,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   alignment: Alignment.centerLeft,
                   child: FilledButton.tonalIcon(
                     onPressed: () => _startParkingZonePerimeterEditingFromPoint(
-                      editingPoi!,
+                      editingPoi,
                     ),
                     icon: const Icon(Icons.draw_rounded, size: 18),
                     label: const Text('Créer une zone sur la carte'),
@@ -7415,7 +7431,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     alignment: Alignment.centerLeft,
                     child: FilledButton.tonalIcon(
                       onPressed: () =>
-                          _startParkingZonePerimeterEditing(editingPoi!),
+                          _startParkingZonePerimeterEditing(editingPoi),
                       icon: const Icon(Icons.draw_rounded, size: 18),
                       label: const Text('Modifier le périmètre sur la carte'),
                     ),
