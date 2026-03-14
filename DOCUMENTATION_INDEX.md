@@ -120,6 +120,17 @@
 
 ---
 
+### 🛡️ RGPD/DSAR - Fiche support 1 page
+**Fichier:** `RGPD_DSAR_SUPPORT_1PAGE.md`
+- **Durée:** 5 minutes
+- **Pour:** Support, Ops, Compliance
+- **Contient:** Procédure ultra-courte export/suppression + vérifications + escalade
+- **Résumé:** Traiter une demande DSAR en moins de 10 minutes avec preuves minimales
+
+✨ **Parfait pour:** Traitement opérationnel rapide en production
+
+---
+
 ## 🗂️ Fichiers de code
 
 ### 🎯 Modèle de données

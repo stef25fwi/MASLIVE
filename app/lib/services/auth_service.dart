@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:crypto/crypto.dart';
@@ -28,6 +29,22 @@ class AuthService {
   static const String _appleRedirectUri = String.fromEnvironment(
     'APPLE_REDIRECT_URI',
   );
+
+  bool get _isAppleWebFlowConfigured {
+    final uri = Uri.tryParse(_appleRedirectUri);
+    return _appleServiceId.isNotEmpty && uri != null && uri.isAbsolute;
+  }
+
+  bool get supportsAppleSignInUi {
+    if (kIsWeb) return _isAppleWebFlowConfigured;
+
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return _isAppleWebFlowConfigured;
+    }
+
+    return defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS;
+  }
 
   // Stream de l'utilisateur actuel
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -476,15 +493,26 @@ class AuthService {
     try {
       final user = _auth.currentUser;
       if (user != null) {
-        // Supprimer le document Firestore
-        await _firestore.collection('users').doc(user.uid).delete();
-        // Supprimer le compte Firebase
-        await user.delete();
+        final functions = FirebaseFunctions.instanceFor(region: 'us-east1');
+        final callable = functions.httpsCallable('deleteMyAccountGdpr');
+        await callable.call();
       }
     } catch (e) {
       // print('Erreur deleteAccount: $e');
       rethrow;
     }
+  }
+
+  // Export des données personnelles (RGPD)
+  Future<Map<String, dynamic>> exportMyPersonalData() async {
+    final functions = FirebaseFunctions.instanceFor(region: 'us-east1');
+    final callable = functions.httpsCallable('exportMyPersonalData');
+    final result = await callable.call();
+    final data = result.data;
+    if (data is Map<String, dynamic>) {
+      return data;
+    }
+    return {'success': false, 'export': null};
   }
 }
 

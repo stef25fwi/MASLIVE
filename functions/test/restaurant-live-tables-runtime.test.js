@@ -77,7 +77,7 @@ function createFakeDb(initial = {}) {
   }
 }
 
-function createHandlers(storeSeed = {}) {
+function createHandlers(storeSeed = {}, overrides = {}) {
   const db = createFakeDb(storeSeed)
   const DELETE_FIELD = db._deleteField
   class TestHttpsError extends Error {
@@ -106,10 +106,68 @@ function createHandlers(storeSeed = {}) {
       if (!Number.isFinite(x)) return fallback
       return Math.trunc(x)
     },
+    STRIPE_SECRET_KEY: {},
+    getStripe: overrides.getStripe,
+    isAllowedRedirectUrl: overrides.isAllowedRedirectUrl || (() => true),
   })
 
   return { db, handlers, TestHttpsError }
 }
+
+test("createRestaurantLiveTableSubscriptionCheckoutSession creates Stripe checkout and marks pending", async () => {
+  const previousPrice = process.env.STRIPE_PRICE_FOOD_PRO_LIVE_MONTHLY
+  process.env.STRIPE_PRICE_FOOD_PRO_LIVE_MONTHLY = "price_food_live_month"
+
+  try {
+    const { db, handlers } = createHandlers(
+      {
+        "businesses/biz_1": {
+          ownerUid: "biz_1",
+          status: "approved",
+          email: "owner@example.com",
+        },
+      },
+      {
+        getStripe: () => ({
+          checkout: {
+            sessions: {
+              create: async () => ({
+                id: "cs_live_1",
+                url: "https://checkout.stripe.test/live_1",
+                customer: "cus_live_1",
+              }),
+            },
+          },
+        }),
+      }
+    )
+
+    const result = await handlers.createRestaurantLiveTableSubscriptionCheckoutSession({
+      auth: { uid: "biz_1", token: { email: "owner@example.com" } },
+      data: {
+        planCode: "food_pro_live",
+        billingInterval: "month",
+        successUrl: "https://maslive.web.app/business-account?ok=1",
+        cancelUrl: "https://maslive.web.app/business-account?cancel=1",
+      },
+    })
+
+    assert.equal(result.checkoutUrl, "https://checkout.stripe.test/live_1")
+    assert.equal(result.stripeSessionId, "cs_live_1")
+
+    const business = db._store.get("businesses/biz_1")
+    assert.equal(business.liveTableSubscription.status, "checkout_pending")
+    assert.equal(business.liveTableSubscription.planCode, "food_pro_live")
+    assert.equal(business.liveTableSubscription.stripePriceId, "price_food_live_month")
+    assert.equal(business.liveTableSubscription.pendingCheckoutSessionId, "cs_live_1")
+  } finally {
+    if (previousPrice == null) {
+      delete process.env.STRIPE_PRICE_FOOD_PRO_LIVE_MONTHLY
+    } else {
+      process.env.STRIPE_PRICE_FOOD_PRO_LIVE_MONTHLY = previousPrice
+    }
+  }
+})
 
 test("assignBusinessRestaurantPoi links an approved business to a food poi", async () => {
   const { db, handlers } = createHandlers({

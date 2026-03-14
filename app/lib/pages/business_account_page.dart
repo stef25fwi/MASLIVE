@@ -18,6 +18,15 @@ class _BusinessAccountPageState extends State<BusinessAccountPage> {
   bool _loadingStripe = false;
   String? _stripeError;
 
+  bool _isFoodBusinessSector(String? rawSector) {
+    final v = (rawSector ?? '').trim().toLowerCase();
+    if (v.isEmpty) return false;
+    return v.contains('food') ||
+        v.contains('restauration') ||
+        v.contains('restaurant') ||
+        v.contains('bar');
+  }
+
   FirebaseFunctions get _functions =>
       FirebaseFunctions.instanceFor(region: 'us-east1');
 
@@ -164,6 +173,8 @@ class _BusinessAccountPageState extends State<BusinessAccountPage> {
           final companyName = (data['companyName'] ?? '').toString();
           final siret = (data['siret'] ?? '').toString();
           final status = (data['status'] ?? 'pending').toString();
+          final activitySector = (data['activitySector'] ?? '').toString();
+          final isFoodBusiness = _isFoodBusinessSector(activitySector);
           final rejectionReason = (data['rejectionReason'] ?? '').toString();
 
           final stripe = (data['stripe'] is Map)
@@ -363,7 +374,7 @@ class _BusinessAccountPageState extends State<BusinessAccountPage> {
                   ),
                 ),
 
-              if (status == 'approved' || status == 'active')
+              if ((status == 'approved' || status == 'active') && isFoodBusiness)
                 BusinessLiveTableManagerCard(
                   businessData: data,
                 ),

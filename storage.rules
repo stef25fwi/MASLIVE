@@ -36,7 +36,12 @@ service firebase.storage {
     }
 
     function isGroupAdmin(groupId) {
-      return hasUserDoc() && userRole() == 'group' && userGroupId() == groupId;
+      return hasUserDoc() && (
+        userRole() == 'group'
+        || userRole() == 'group-admin'
+        || userRole() == 'admin_group'
+        || userRole() == 'admin_groupe'
+      ) && userGroupId() == groupId;
     }
 
     function isPhotographerOwner(photographerId) {
@@ -54,7 +59,9 @@ service firebase.storage {
     }
     
     function isValidImageType() {
-      return request.resource.contentType.matches('image/.*');
+      return request.resource != null
+        && request.resource.contentType != null
+        && request.resource.contentType.matches('image/(jpeg|jpg|png|webp|gif|heic|heif)');
     }
     
     function isValidImageSize() {
@@ -112,7 +119,7 @@ service firebase.storage {
     // ✅ Média générique (photos, articles, etc.)
     // Chemin: media/{scopeId}/{mediaId}/original/{filename}
     match /media/{scopeId}/{allPaths=**} {
-      allow read: if true;
+      allow read: if isMasterAdmin();
       allow write: if isMasterAdmin() &&
                       isValidImageType() &&
                       isValidImageSize();

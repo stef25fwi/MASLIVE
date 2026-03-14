@@ -7120,8 +7120,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     if (_selectedLayer == null) return;
 
     if (_poiInlineEditorMode == _PoiInlineEditorMode.createZone) {
-      if (_selectedLayer == null ||
-          !_isParkingLayerType(_selectedLayer!.type)) {
+      if (_selectedLayer?.type != 'parking') {
         setState(
           () => _poiInlineError = 'Zone disponible uniquement en parking.',
         );
@@ -7185,13 +7184,18 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
       setState(() {
         _pois.add(poi);
-        _poiInlineEditorMode = _PoiInlineEditorMode.none;
         _poiInlineError = null;
         _isDrawingParkingZone = false;
+        _isEditingParkingZonePerimeter = false;
         _parkingZonePoints = <LngLat>[];
       });
       _refreshPoiMarkers();
-      _poiSelection.select(poi);
+      _openPoiEditSection(poi);
+      if (mounted) {
+        _showTopSnackBar(
+          '✅ Zone parking créée. Vous pouvez maintenant modifier son périmètre et son style.',
+        );
+      }
       unawaited(_persistPoiDraftUpdate(poi));
       return;
     }

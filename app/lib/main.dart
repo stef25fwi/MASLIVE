@@ -134,14 +134,21 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
 
     // 2) Stripe (native uniquement): ne doit jamais bloquer le démarrage.
     if (!kIsWeb) {
-      Stripe.publishableKey =
-          "pk_test_51Ssn0PCCIRtTE2nOVARmqXRG6rRTiNxeuvHiwU2zuqcKYn0l1KdzptkB4ZWlHtYcFedBiGlHqB4OLQcQzXC9A6SY00OcBNOnDr";
-      try {
-        await Stripe.instance
-            .applySettings()
-            .timeout(const Duration(seconds: 4));
-      } catch (e) {
-        debugPrint('⚠️ Bootstrap: Stripe applySettings skipped: $e');
+      const stripePublishableKey = String.fromEnvironment(
+        'STRIPE_PUBLISHABLE_KEY',
+        defaultValue: '',
+      );
+      if (stripePublishableKey.isNotEmpty) {
+        Stripe.publishableKey = stripePublishableKey;
+        try {
+          await Stripe.instance
+              .applySettings()
+              .timeout(const Duration(seconds: 4));
+        } catch (e) {
+          debugPrint('⚠️ Bootstrap: Stripe applySettings skipped: $e');
+        }
+      } else {
+        debugPrint('⚠️ Bootstrap: STRIPE_PUBLISHABLE_KEY missing, Stripe skipped');
       }
     }
 

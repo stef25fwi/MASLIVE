@@ -1,0 +1,49 @@
+{
+  "requestId": "DSAR-YYYYMMDD-0001",
+  "requestedAt": "2026-03-14T10:00:00Z",
+  "processedAt": "2026-03-14T10:15:00Z",
+  "channel": "in-app",
+  "requestType": "export",
+  "dataSubject": {
+    "uid": "<UID>",
+    "email": "<email@example.com>"
+  },
+  "status": "completed",
+  "scope": {
+    "auth": true,
+    "firestoreProfile": true,
+    "firestoreSubCollections": [
+      "cart",
+      "wishlist",
+      "orders",
+      "purchases",
+      "favorites",
+      "followingGroups",
+      "devices",
+      "inbox",
+      "shop_profile",
+      "categories"
+    ],
+    "storageUserPrefixes": [
+      "users/<UID>/",
+      "media/<UID>/",
+      "avatars/<UID>/",
+      "profile/<UID>/"
+    ]
+  },
+  "legalNotes": {
+    "retentionExceptions": [
+      "Certaines donnees peuvent etre conservees pour obligations legales (fiscales/comptables)"
+    ],
+    "securityLogsPolicy": "Conservation minimisee et proportionnee"
+  },
+  "audit": {
+    "gdprRequestCollection": "gdpr_requests",
+    "gdprRequestDocId": "<FIRESTORE_DOC_ID>",
+    "backendFunction": "exportMyPersonalData"
+  },
+  "contact": {
+    "controller": "MASLIVE",
+    "supportEmail": "<support@maslive.example>"
+  }
+}

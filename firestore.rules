@@ -284,9 +284,28 @@ service cloud.firestore {
         || canManageUsers()
       );
 
+      // Ordres utilisateur (copie/mirror): lecture propriétaire/admin, écriture backend uniquement.
+      match /orders/{orderId} {
+        allow read: if isSignedIn() && (
+          request.auth.uid == uid
+          || canManageUsers()
+        );
+        allow create, update, delete: if false;
+      }
+
+      // Historique achats: lecture propriétaire/admin, écriture backend uniquement.
+      match /purchases/{purchaseId} {
+        allow read: if isSignedIn() && (
+          request.auth.uid == uid
+          || canManageUsers()
+        );
+        allow create, update, delete: if false;
+      }
+
       // Sous-collections privées (cart, favorites, followingGroups, ...)
-      match /{document=**} {
+      match /{subCollection}/{document=**} {
         allow read, write: if isSignedIn() && (
+          !(subCollection in ['orders', 'purchases']) &&
           request.auth.uid == uid 
           || canManageUsers()
         );
@@ -890,14 +909,18 @@ service cloud.firestore {
         || isTrackerByAdminGroupId(resource.data.adminGroupId)
       );
 
-      allow create: if isSignedIn()
-        && request.auth.uid == adminUid
+      allow create: if isMasterAdmin()
+        && request.resource.data.adminUid == adminUid
         && (request.resource.data.adminGroupId is string)
         && request.resource.data.adminGroupId.matches('^\\d{6}$');
 
       allow update: if isSignedIn() && (
-        request.auth.uid == adminUid
-        || isMasterAdmin()
+        isMasterAdmin()
+        || (
+          request.auth.uid == adminUid
+          && request.resource.data.adminUid == resource.data.adminUid
+          && request.resource.data.adminGroupId == resource.data.adminGroupId
+        )
       );
 
       allow delete: if isMasterAdmin();
@@ -905,19 +928,17 @@ service cloud.firestore {
 
     // Répertoire des codes admin (lookup)
     match /group_admin_codes/{code} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (
+        isMasterAdmin() || resource.data.adminUid == request.auth.uid
+      );
 
-      allow create: if isSignedIn()
+      allow create: if isMasterAdmin()
         && (code is string)
         && code.matches('^\\d{6}$')
-        && request.resource.data.adminUid == request.auth.uid
+        && request.resource.data.adminUid is string
         && (request.resource.data.isActive == true);
 
-      allow update: if isSignedIn() && (
-        isMasterAdmin()
-        || (resource.data.adminUid == request.auth.uid
-            && request.resource.data.adminUid == resource.data.adminUid)
-      );
+      allow update: if isMasterAdmin();
 
       allow delete: if isMasterAdmin();
     }
@@ -930,7 +951,28 @@ service cloud.firestore {
         || isGroupAdminByAdminGroupId(resource.data.adminGroupId)
       );
 
-      allow create, update: if isSignedIn() && request.auth.uid == trackerUid;
+      allow create: if isSignedIn()
+        && request.resource.data.uid == trackerUid
+        && request.resource.data.adminGroupId is string
+        && request.resource.data.adminGroupId.matches('^\\d{6}$')
+        && (
+          isMasterAdmin()
+          || isGroupAdminByAdminGroupId(request.resource.data.adminGroupId)
+        );
+
+      allow update: if isSignedIn() && (
+        isMasterAdmin()
+        || (
+          request.auth.uid == trackerUid
+          && request.resource.data.adminGroupId == resource.data.adminGroupId
+          && request.resource.data.uid == resource.data.uid
+        )
+        || (
+          isGroupAdminByAdminGroupId(resource.data.adminGroupId)
+          && request.resource.data.adminGroupId == resource.data.adminGroupId
+          && request.resource.data.uid == resource.data.uid
+        )
+      );
       allow delete: if isMasterAdmin();
     }
 

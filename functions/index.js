@@ -47,6 +47,81 @@ function uniqueStrings(arr) {
   return Array.from(new Set((arr || []).filter((x) => typeof x === "string" && x.trim().length > 0).map((x) => x.trim())));
 }
 
+const GDPR_EXPORT_SUBCOLLECTIONS = [
+  "cart",
+  "wishlist",
+  "orders",
+  "purchases",
+  "favorites",
+  "followingGroups",
+  "devices",
+  "inbox",
+  "shop_profile",
+  "categories",
+];
+
+async function readCollectionDocsLimited(colRef, limit = 200) {
+  const snap = await colRef.limit(limit + 1).get();
+  const docs = [];
+  snap.docs.slice(0, limit).forEach((d) => docs.push({ id: d.id, ...d.data() }));
+  return {
+    docs,
+    truncated: snap.size > limit,
+    count: Math.min(snap.size, limit),
+  };
+}
+
+async function deleteStoragePrefix(prefix) {
+  if (!prefix || typeof prefix !== "string") return;
+  try {
+    const bucket = admin.storage().bucket();
+    await bucket.deleteFiles({ prefix, force: true });
+  } catch (error) {
+    // Ignore not found: prefix may have no files.
+    logger.debug("No files to delete for prefix", { prefix, code: error?.code || null });
+  }
+}
+
+async function buildGdprExportForUser(uid) {
+  const userRef = db.collection("users").doc(uid);
+  const [userSnap, authRecord] = await Promise.all([
+    userRef.get(),
+    admin.auth().getUser(uid).catch(() => null),
+  ]);
+
+  const profile = userSnap.exists ? userSnap.data() || {} : {};
+  const subCollections = {};
+
+  for (const subCollection of GDPR_EXPORT_SUBCOLLECTIONS) {
+    const result = await readCollectionDocsLimited(userRef.collection(subCollection), 200);
+    subCollections[subCollection] = {
+      count: result.count,
+      truncated: result.truncated,
+      docs: result.docs,
+    };
+  }
+
+  return {
+    generatedAt: new Date().toISOString(),
+    uid,
+    auth: authRecord ? {
+      uid: authRecord.uid,
+      email: authRecord.email || null,
+      phoneNumber: authRecord.phoneNumber || null,
+      disabled: !!authRecord.disabled,
+      providerIds: (authRecord.providerData || []).map((p) => p.providerId),
+      metadata: {
+        creationTime: authRecord.metadata?.creationTime || null,
+        lastSignInTime: authRecord.metadata?.lastSignInTime || null,
+      },
+    } : null,
+    firestore: {
+      profile,
+      subCollections,
+    },
+  };
+}
+
 function normalizeShippingAddress(address) {
   const a = (address && typeof address === "object") ? address : {};
   const s = (k, max = 120) => {
@@ -139,6 +214,67 @@ function getStripeWebhookSecret() {
   return STRIPE_WEBHOOK_SECRET.value() || process.env.STRIPE_WEBHOOK_SECRET;
 }
 
+async function claimStripeWebhookEvent(eventId, eventType) {
+  const ref = db.collection("_stripe_webhook_events").doc(eventId);
+  const nowMs = Date.now();
+
+  return db.runTransaction(async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (snap.exists) {
+      const data = snap.data() || {};
+      const status = String(data.status || "").toLowerCase();
+      const lastReceivedAtMs = data.lastReceivedAt?.toMillis?.() || 0;
+
+      if (status === "processed") {
+        return { shouldProcess: false, reason: "processed" };
+      }
+
+      // Avoid concurrent duplicate processing windows.
+      if (status === "processing" && lastReceivedAtMs > 0 && (nowMs - lastReceivedAtMs) < 5 * 60 * 1000) {
+        return { shouldProcess: false, reason: "processing" };
+      }
+
+      const attempts = toSafeInt(data.attempts, 0) + 1;
+      transaction.set(
+        ref,
+        {
+          eventId,
+          eventType,
+          status: "processing",
+          attempts,
+          lastReceivedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      return { shouldProcess: true, reason: "retry" };
+    }
+
+    transaction.set(ref, {
+      eventId,
+      eventType,
+      status: "processing",
+      attempts: 1,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastReceivedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return { shouldProcess: true, reason: "new" };
+  });
+}
+
+async function markStripeWebhookEventStatus(eventId, status, errorCode = null) {
+  await db.collection("_stripe_webhook_events").doc(eventId).set(
+    {
+      status,
+      errorCode: errorCode || null,
+      processedAt: status === "processed" ? admin.firestore.FieldValue.serverTimestamp() : null,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
 function getStripe() {
   if (!stripe) {
     const apiKey = STRIPE_SECRET_KEY.value() || process.env.STRIPE_SECRET_KEY;
@@ -189,6 +325,30 @@ function isAllowedRedirectUrl(url) {
   } catch {
     return false;
   }
+}
+
+function isAllowedWebOrigin(origin) {
+  if (typeof origin !== "string" || origin.trim().length === 0) return false;
+  try {
+    const u = new URL(origin);
+    if (u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1")) {
+      return true;
+    }
+    if (u.protocol !== "https:") return false;
+    return u.hostname === "maslive.web.app" || u.hostname === "maslive.firebaseapp.com";
+  } catch {
+    return false;
+  }
+}
+
+function applyStrictCors(req, res) {
+  const origin = req.headers.origin;
+  if (isAllowedWebOrigin(origin)) {
+    res.set("Access-Control-Allow-Origin", origin);
+    res.set("Vary", "Origin");
+  }
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
 }
 
 function getAllowedPremiumPriceIds() {
@@ -1273,6 +1433,88 @@ exports.initializeRoles = onCall({ region: "us-east1" }, async (request) => {
 });
 
 /**
+ * Export RGPD des données personnelles de l'utilisateur connecté.
+ */
+exports.exportMyPersonalData = onCall({ region: "us-east1" }, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Authentication required");
+  }
+
+  const data = await buildGdprExportForUser(uid);
+  await db.collection("gdpr_requests").add({
+    uid,
+    type: "export",
+    status: "completed",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return {
+    success: true,
+    export: data,
+  };
+});
+
+/**
+ * Suppression RGPD: purge du profil utilisateur, de ses sous-collections,
+ * suppression des médias user-scoped et suppression du compte Auth.
+ */
+exports.deleteMyAccountGdpr = onCall({ region: "us-east1" }, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Authentication required");
+  }
+
+  const requestRef = await db.collection("gdpr_requests").add({
+    uid,
+    type: "delete",
+    status: "processing",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  try {
+    await Promise.all([
+      deleteStoragePrefix(`users/${uid}/`),
+      deleteStoragePrefix(`media/${uid}/`),
+      deleteStoragePrefix(`avatars/${uid}/`),
+      deleteStoragePrefix(`profile/${uid}/`),
+    ]);
+
+    await db.recursiveDelete(db.collection("users").doc(uid));
+
+    await admin.auth().deleteUser(uid);
+
+    await requestRef.set(
+      {
+        status: "completed",
+        completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return {
+      success: true,
+      message: "Account and personal data deleted",
+    };
+  } catch (error) {
+    await requestRef.set(
+      {
+        status: "failed",
+        errorCode: error?.code || null,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    logger.error("GDPR account deletion failed", {
+      uid,
+      code: error?.code || null,
+    });
+    throw new HttpsError("internal", "Unable to delete account data");
+  }
+});
+
+/**
  * Cloud Function pour assigner un rôle à un utilisateur
  * Callable par admin ou super admin
  */
@@ -1873,10 +2115,8 @@ exports.createCheckoutSession = onRequest(
   },
   async (req, res) => {
     try {
-      // CORS minimal (si appelé depuis web/mobile)
-      res.set("Access-Control-Allow-Origin", "*");
-      res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      // CORS strict (origines connues uniquement)
+      applyStrictCors(req, res);
       if (req.method === "OPTIONS") return res.status(204).send("");
 
       if (req.method !== "POST") {
@@ -1995,9 +2235,7 @@ exports.createSubscriptionCheckoutSession = onRequest(
   },
   async (req, res) => {
     try {
-      res.set("Access-Control-Allow-Origin", "*");
-      res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      applyStrictCors(req, res);
       if (req.method === "OPTIONS") return res.status(204).send("");
 
       if (req.method !== "POST") {
@@ -2278,6 +2516,11 @@ exports.stripeWebhook = onRequest(
     }
 
     const sig = req.headers["stripe-signature"];
+    if (!sig || typeof sig !== "string") {
+      res.status(400).send("Missing stripe-signature header");
+      return;
+    }
+
     const webhookSecret = getStripeWebhookSecret();
 
     if (!webhookSecret) {
@@ -2297,12 +2540,31 @@ exports.stripeWebhook = onRequest(
         webhookSecret
       );
     } catch (err) {
-      console.error("Webhook signature verification failed:", err.message);
-      res.status(400).send(`Webhook Error: ${err.message}`);
+      logger.warn("Webhook signature verification failed", {
+        code: err?.code || null,
+      });
+      res.status(400).send("Invalid webhook signature");
       return;
     }
 
-    console.log("Webhook event received:", event.type, event.id);
+    const eventId = typeof event?.id === "string" ? event.id : "";
+    if (!eventId) {
+      res.status(400).send("Invalid webhook event id");
+      return;
+    }
+
+    const claim = await claimStripeWebhookEvent(eventId, event.type);
+    if (!claim.shouldProcess) {
+      logger.info("Ignoring duplicate Stripe webhook event", {
+        eventType: event.type,
+        eventId,
+        reason: claim.reason,
+      });
+      res.status(200).json({ received: true, duplicate: true });
+      return;
+    }
+
+    logger.info("Webhook event received", { eventType: event.type, eventId });
 
     try {
       switch (event.type) {
@@ -2340,12 +2602,18 @@ exports.stripeWebhook = onRequest(
           break;
 
         default:
-          console.log("Unhandled event type:", event.type);
+          logger.info("Unhandled event type", { eventType: event.type, eventId });
       }
 
+      await markStripeWebhookEventStatus(eventId, "processed");
       res.status(200).json({ received: true, eventType: event.type });
     } catch (error) {
-      console.error("Error processing webhook:", error);
+      await markStripeWebhookEventStatus(eventId, "failed", error?.code || null).catch(() => null);
+      logger.error("Error processing webhook", {
+        eventType: event.type,
+        eventId,
+        code: error?.code || null,
+      });
       res.status(500).send("Webhook handler error");
     }
   }
@@ -2519,18 +2787,6 @@ async function handleCheckoutSessionCompleted(session, eventId) {
               `Stock decremented (root order) for product ${productId}: ${currentStock} -> ${newStock} (-${quantity})`
             );
           }
-
-          transaction.set(
-            rootOrderRef,
-            {
-              storex: {
-                stockDecrementedAt: admin.firestore.FieldValue.serverTimestamp(),
-                stockDecrementSource: "checkout_session",
-              },
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            },
-            { merge: true }
-          );
         });
       }
     } catch (stockErr) {
@@ -2761,156 +3017,35 @@ async function handlePaymentIntentSucceeded(paymentIntent) {
     .collection("orders")
     .doc(orderId);
 
-  // 1) Traitement root order idempotent + stock atomique
-  const rootOrderRef = db.collection("orders").doc(orderId);
-  let rootOrderProcessed = false;
-  let stockUpdated = false;
-
-  await db.runTransaction(async (transaction) => {
-    const rootSnap = await transaction.get(rootOrderRef);
-    if (!rootSnap.exists) {
-      return;
-    }
-
-    const rootOrder = rootSnap.data() || {};
-    const status = String(rootOrder.status || "").toLowerCase();
-    const stripeData =
-      rootOrder.stripe && typeof rootOrder.stripe === "object"
-        ? rootOrder.stripe
-        : {};
-    const storexData =
-      rootOrder.storex && typeof rootOrder.storex === "object"
-        ? rootOrder.storex
-        : {};
-
-    const lastProcessedPi =
-      typeof stripeData.lastProcessedPaymentIntentId === "string"
-        ? stripeData.lastProcessedPaymentIntentId
-        : "";
-    const isSamePaymentIntent =
-      typeof paymentIntent.id === "string" && paymentIntent.id === lastProcessedPi;
-
-    const hasCheckoutSession =
-      typeof stripeData.sessionId === "string" && stripeData.sessionId.trim().length > 0;
-    const stockAlreadyDecremented =
-      !!storexData.stockDecrementedAt || (hasCheckoutSession && status === "paid");
-    const statusAlreadyFinal = status === "paid" || status === "confirmed";
-
-    if (isSamePaymentIntent && statusAlreadyFinal && stockAlreadyDecremented) {
-      console.log(`Order ${orderId} already processed for payment intent ${paymentIntent.id}`);
-      return;
-    }
-
-    if (!stockAlreadyDecremented) {
-      const items = Array.isArray(rootOrder.items) ? rootOrder.items : [];
-      const productsToDecrement = items
-        .filter((item) => item.productId && typeof item.productId === "string")
-        .map((item) => ({
-          productId: item.productId,
-          quantity: Number(item.quantity || 1),
-        }))
-        .filter((p) => p.quantity > 0);
-
-      const productRefs = {};
-      const productDocs = {};
-
-      for (const { productId } of productsToDecrement) {
-        const productRef = db.collection("products").doc(productId);
-        const productSnap = await transaction.get(productRef);
-        productRefs[productId] = productRef;
-        productDocs[productId] = productSnap.exists ? productSnap.data() : null;
-
-        if (rootOrder.shopId) {
-          const shopRef = db
-            .collection("shops")
-            .doc(rootOrder.shopId)
-            .collection("products")
-            .doc(productId);
-          const shopSnap = await transaction.get(shopRef);
-          productRefs[`${productId}_shop`] = shopRef;
-          if (shopSnap.exists) {
-            productDocs[`${productId}_shop`] = shopSnap.data();
-          }
-        }
-      }
-
-      for (const { productId, quantity } of productsToDecrement) {
-        const product = productDocs[productId];
-        if (!product) continue;
-
-        const currentStock = Number(product.stock || 0);
-        const newStock = Math.max(0, currentStock - quantity);
-
-        const updateData = {
-          stock: newStock,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        };
-
-        const alertQty = Number(product.alertQty || 0);
-        if (alertQty > 0) {
-          if (newStock === 0) {
-            updateData.stockStatus = "out_of_stock";
-          } else if (newStock <= alertQty) {
-            updateData.stockStatus = "low_stock";
-          } else {
-            updateData.stockStatus = "in_stock";
-          }
-        }
-
-        transaction.update(productRefs[productId], updateData);
-        if (productRefs[`${productId}_shop`]) {
-          transaction.update(productRefs[`${productId}_shop`], updateData);
-        }
-
-        console.log(
-          `Stock decremented (payment intent) for product ${productId}: ${currentStock} -> ${newStock} (-${quantity})`
-        );
-      }
-
-      stockUpdated = productsToDecrement.length > 0;
-    }
-
-    const rootPatch = {
-      status: "paid",
-      paidAt: admin.firestore.FieldValue.serverTimestamp(),
-      stripe: {
-        paymentIntentId: paymentIntent.id,
-        status: paymentIntent.status || "succeeded",
-        lastProcessedPaymentIntentId: paymentIntent.id,
-      },
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
-
-    if (!stockAlreadyDecremented) {
-      rootPatch.storex = {
-        stockDecrementedAt: admin.firestore.FieldValue.serverTimestamp(),
-        stockDecrementSource: "payment_intent",
-      };
-    }
-
-    transaction.set(rootOrderRef, rootPatch, { merge: true });
-    rootOrderProcessed = true;
-  });
-
   await orderRef.set(
     {
-      status: "paid",
+      status: "confirmed",
       paidAt: admin.firestore.FieldValue.serverTimestamp(),
       stripe: {
         paymentIntentId: paymentIntent.id,
         status: paymentIntent.status || "succeeded",
-        lastProcessedPaymentIntentId: paymentIntent.id,
       },
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     },
     { merge: true }
   );
 
-  console.log(
-    `Order ${orderId} marked as paid via payment_intent.succeeded` +
-      (rootOrderProcessed ? " (root processed)" : " (root missing)") +
-      (stockUpdated ? " + stock updated" : "")
+  // Miroir root order (si présent)
+  const rootOrderRef = db.collection("orders").doc(orderId);
+  await rootOrderRef.set(
+    {
+      status: "confirmed",
+      paidAt: admin.firestore.FieldValue.serverTimestamp(),
+      stripe: {
+        paymentIntentId: paymentIntent.id,
+        status: paymentIntent.status || "succeeded",
+      },
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
   );
+
+  console.log(`Order ${orderId} marked as paid via payment_intent.succeeded`);
 }
 
 /**

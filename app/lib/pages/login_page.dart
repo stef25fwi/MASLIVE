@@ -24,12 +24,8 @@ class _LoginPageState extends State<LoginPage> {
   bool _emailError = false;
   bool _passwordError = false;
 
-  bool get _supportsAppleSignInUi {
-    if (kIsWeb) return true;
-    return defaultTargetPlatform == TargetPlatform.iOS ||
-        defaultTargetPlatform == TargetPlatform.macOS ||
-        defaultTargetPlatform == TargetPlatform.android;
-  }
+  bool get _supportsAppleSignInUi =>
+      AuthService.instance.supportsAppleSignInUi;
 
   Future<void> _run(Future<void> Function() fn) async {
     // Validation

@@ -313,6 +313,14 @@ class _BusinessLiveTableManagerCardState
                 fontWeight: FontWeight.w600,
               ),
             ),
+            if (!_hasBusinessLiveSubscription) ...[
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: _openLiveTableCheckout,
+                icon: const Icon(Icons.credit_card_rounded),
+                label: const Text('Prendre un abonnement Table Live (Stripe)'),
+              ),
+            ],
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: _pickRestaurant,

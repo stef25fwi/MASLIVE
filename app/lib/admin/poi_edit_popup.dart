@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -15,6 +16,8 @@ import '../services/image_management_service.dart';
 import '../services/poi_popup_service.dart';
 import '../services/premium_service.dart';
 import '../services/webp_converter.dart';
+import '../ui/map/maslive_map.dart';
+import '../ui/map/maslive_map_controller.dart';
 import '../ui/map/maslive_poi_style.dart';
 import '../ui/snack/top_snack_bar.dart';
 import '../ui_kit/tokens/maslive_tokens.dart';
@@ -60,6 +63,11 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
 
   final _latCtrl = TextEditingController();
   final _lngCtrl = TextEditingController();
+  final MasLiveMapController _poiMapPreviewController = MasLiveMapController();
+
+  double? _previewLat;
+  double? _previewLng;
+  bool _poiMapReady = false;
 
   final _picker = ImagePicker();
   final _imageService = ImageManagementService.instance;
@@ -187,6 +195,8 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
 
     _latCtrl.text = widget.poi.lat.toStringAsFixed(6);
     _lngCtrl.text = widget.poi.lng.toStringAsFixed(6);
+    _previewLat = widget.poi.lat;
+    _previewLng = widget.poi.lng;
 
     _isVisible = widget.poi.isVisible;
 
@@ -267,10 +277,15 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       requireImage: true,
       hasImage: _hasAnyImage,
     );
+
+    _latCtrl.addListener(_onCoordsFieldChanged);
+    _lngCtrl.addListener(_onCoordsFieldChanged);
   }
 
   @override
   void dispose() {
+    _latCtrl.removeListener(_onCoordsFieldChanged);
+    _lngCtrl.removeListener(_onCoordsFieldChanged);
     _nameCtrl.dispose();
     _descCtrl.dispose();
     _addressCtrl.dispose();
@@ -320,6 +335,117 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       return false;
     }
     return true;
+  }
+
+  void _onCoordsFieldChanged() {
+    final lat = _parseDouble(_latCtrl.text);
+    final lng = _parseDouble(_lngCtrl.text);
+    if (lat == null || lng == null) return;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return;
+
+    if (_previewLat == lat && _previewLng == lng) return;
+    setState(() {
+      _previewLat = lat;
+      _previewLng = lng;
+    });
+    unawaited(_syncPoiMapPreview());
+  }
+
+  Future<void> _syncPoiMapPreview() async {
+    if (!_poiMapReady) return;
+    final lat = _previewLat;
+    final lng = _previewLng;
+    if (lat == null || lng == null) return;
+
+    await _poiMapPreviewController.setMarkers([
+      MapMarker(
+        id: 'poi_preview_marker',
+        lng: lng,
+        lat: lat,
+        label: _nameCtrl.text.trim().isEmpty ? 'POI' : _nameCtrl.text.trim(),
+      ),
+    ]);
+    await _poiMapPreviewController.moveTo(
+      lng: lng,
+      lat: lat,
+      zoom: 16,
+      animate: false,
+    );
+  }
+
+  Future<void> _onPoiMapTap(MapPoint p) async {
+    final lat = p.lat;
+    final lng = p.lng;
+    setState(() {
+      _previewLat = lat;
+      _previewLng = lng;
+      _latCtrl.text = lat.toStringAsFixed(6);
+      _lngCtrl.text = lng.toStringAsFixed(6);
+    });
+    await _syncPoiMapPreview();
+  }
+
+  Widget _buildPoiMapPreviewCard() {
+    final hasValidCoords =
+        _previewLat != null &&
+        _previewLng != null &&
+        _previewLat! >= -90 &&
+        _previewLat! <= 90 &&
+        _previewLng! >= -180 &&
+        _previewLng! <= 180;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.map_outlined, size: 18, color: MasliveTokens.text),
+            const SizedBox(width: 8),
+            Text(
+              'Carte du POI',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(MasliveTokens.rM),
+          child: SizedBox(
+            height: 220,
+            child: hasValidCoords
+                ? MasLiveMap(
+                    controller: _poiMapPreviewController,
+                    initialLng: _previewLng!,
+                    initialLat: _previewLat!,
+                    initialZoom: 16,
+                    onTap: _onPoiMapTap,
+                    onMapReady: (_) {
+                      _poiMapReady = true;
+                      unawaited(_syncPoiMapPreview());
+                    },
+                  )
+                : Container(
+                    color: Colors.black12,
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: const Text(
+                      'Saisissez des coordonnees valides pour afficher la carte.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Astuce: touchez la carte pour mettre a jour Lat/Lng automatiquement.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: MasliveTokens.textSoft,
+          ),
+        ),
+      ],
+    );
   }
 
   String? _poiImagesParentId() {
@@ -1165,6 +1291,9 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  _buildPoiMapPreviewCard(),
+
+                  const SizedBox(height: 12),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     value: _isVisible,
