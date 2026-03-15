@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import 'media_cart_page.dart';
+import '../../../../pages/cart/unified_cart_page.dart';
+import '../../../../providers/cart_provider.dart';
 import 'media_downloads_page.dart';
 import 'media_marketplace_home_page.dart';
 import 'photographer_dashboard_page.dart';
@@ -51,9 +53,9 @@ class MediaMarketplaceEntryPage extends StatelessWidget {
                   ),
                 const TabBar(
                   isScrollable: true,
-                  tabs: <Tab>[
+                  tabs: <Widget>[
                     Tab(text: 'Catalogue', icon: Icon(Icons.photo_library_outlined)),
-                    Tab(text: 'Panier', icon: Icon(Icons.shopping_cart_outlined)),
+                    _MarketplaceCartTab(),
                     Tab(text: 'Téléchargements', icon: Icon(Icons.download_outlined)),
                     Tab(text: 'Photographe', icon: Icon(Icons.camera_alt_outlined)),
                   ],
@@ -72,13 +74,7 @@ class MediaMarketplaceEntryPage extends StatelessWidget {
               showContextHeader: false,
               embedded: true,
             ),
-            MediaCartPage(
-              eventId: eventId,
-              eventName: eventName,
-              circuitName: circuitName,
-              showContextHeader: false,
-              embedded: true,
-            ),
+            const UnifiedCartPage(embedded: true),
             MediaDownloadsPage(
               eventId: eventId,
               eventName: eventName,
@@ -96,6 +92,52 @@ class MediaMarketplaceEntryPage extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _MarketplaceCartTab extends StatelessWidget {
+  const _MarketplaceCartTab();
+
+  @override
+  Widget build(BuildContext context) {
+    final count = context.watch<CartProvider>().totalQuantity;
+
+    return Tab(
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: <Widget>[
+          const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(Icons.shopping_cart_outlined),
+              SizedBox(width: 8),
+              Text('Panier'),
+            ],
+          ),
+          if (count > 0)
+            Positioned(
+              right: -14,
+              top: -6,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF111827),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  count > 99 ? '99+' : '$count',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    height: 1,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

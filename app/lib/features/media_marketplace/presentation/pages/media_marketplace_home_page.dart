@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/enums/media_asset_type.dart';
-import '../../data/models/cart_item_model.dart';
 import '../../data/models/media_gallery_model.dart';
 import '../../data/models/media_pack_model.dart';
 import '../../data/models/media_photo_model.dart';
-import '../../presentation/controllers/media_cart_controller.dart';
 import '../../presentation/controllers/media_marketplace_catalog_controller.dart';
+import '../../../../models/cart_item_model.dart' as unified_cart;
+import '../../../../providers/cart_provider.dart';
+import '../../../../ui/snack/top_snack_bar.dart';
 import '../widgets/media_gallery_card.dart';
 import '../widgets/media_marketplace_context_chips.dart';
 import '../widgets/media_marketplace_message_card.dart';
@@ -35,29 +36,18 @@ class MediaMarketplaceHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: <ChangeNotifierProvider<dynamic>>[
-        ChangeNotifierProvider<MediaMarketplaceCatalogController>(
-          create: (_) {
-            final controller = MediaMarketplaceCatalogController();
-            Future<void>.microtask(() async {
-              if (eventId != null && eventId!.isNotEmpty) {
-                await controller.loadEventGalleries(eventId!);
-              } else if (photographerId != null && photographerId!.isNotEmpty) {
-                await controller.loadPhotographerGalleries(photographerId!);
-              }
-            });
-            return controller;
-          },
-        ),
-        ChangeNotifierProvider<MediaCartController>(
-          create: (_) {
-            final controller = MediaCartController();
-            Future<void>.microtask(controller.loadCurrentUserCart);
-            return controller;
-          },
-        ),
-      ],
+    return ChangeNotifierProvider<MediaMarketplaceCatalogController>(
+      create: (_) {
+        final controller = MediaMarketplaceCatalogController();
+        Future<void>.microtask(() async {
+          if (eventId != null && eventId!.isNotEmpty) {
+            await controller.loadEventGalleries(eventId!);
+          } else if (photographerId != null && photographerId!.isNotEmpty) {
+            await controller.loadPhotographerGalleries(photographerId!);
+          }
+        });
+        return controller;
+      },
       child: _MediaMarketplaceHomeView(
         embedded: embedded,
         eventName: eventName,
@@ -84,7 +74,7 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final catalog = context.watch<MediaMarketplaceCatalogController>();
-    final cart = context.watch<MediaCartController>();
+    final cart = context.watch<CartProvider>();
 
     final content = Column(
         children: <Widget>[
@@ -182,19 +172,7 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
                               .map(
                                 (MediaPhotoModel photo) => MediaPhotoCard(
                                   photo: photo,
-                                  onPrimaryAction: () => cart.addItem(
-                                    CartItemModel(
-                                      assetId: photo.photoId,
-                                      assetType: MediaAssetType.photo,
-                                      photographerId: photo.photographerId,
-                                      galleryId: photo.galleryId,
-                                      eventId: photo.eventId,
-                                      title: photo.downloadFileName,
-                                      thumbnailUrl: photo.thumbnailPath,
-                                      unitPrice: photo.unitPrice,
-                                      currency: photo.currency,
-                                    ),
-                                  ),
+                                  onPrimaryAction: () => _addMediaPhoto(context, photo),
                                 ),
                               )
                               .toList(growable: false),
@@ -212,22 +190,7 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
                               .map(
                                 (MediaPackModel pack) => MediaPackCard(
                                   pack: pack,
-                                  onPrimaryAction: () => cart.addItem(
-                                    CartItemModel(
-                                      assetId: pack.packId,
-                                      assetType: MediaAssetType.pack,
-                                      photographerId: pack.photographerId,
-                                      galleryId: pack.galleryId,
-                                      eventId: pack.eventId,
-                                      title: pack.title,
-                                      thumbnailUrl: pack.coverUrl,
-                                      unitPrice: pack.price,
-                                      currency: pack.currency,
-                                      metadata: <String, dynamic>{
-                                        'photoIds': pack.photoIds,
-                                      },
-                                    ),
-                                  ),
+                                  onPrimaryAction: () => _addMediaPack(context, pack),
                                 ),
                               )
                               .toList(growable: false),
@@ -253,12 +216,74 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
           Center(
             child: Padding(
               padding: const EdgeInsets.only(right: 16),
-              child: Text('Panier ${cart.itemCount}'),
+              child: Text('Panier ${cart.mediaItems.length}'),
             ),
           ),
         ],
       ),
       body: content,
+    );
+  }
+
+  Future<void> _addMediaPhoto(BuildContext context, MediaPhotoModel photo) async {
+    await context.read<CartProvider>().addCartItem(
+      unified_cart.CartItemModel(
+        id: '',
+        itemType: unified_cart.CartItemType.media,
+        productId: photo.photoId,
+        sellerId: photo.photographerId,
+        eventId: photo.eventId,
+        title: photo.downloadFileName,
+        subtitle: photo.galleryId.isEmpty ? null : 'Galerie ${photo.galleryId}',
+        imageUrl: photo.thumbnailPath,
+        unitPrice: photo.unitPrice,
+        quantity: 1,
+        currency: photo.currency,
+        isDigital: true,
+        requiresShipping: false,
+        sourceType: 'media_marketplace',
+        metadata: <String, dynamic>{
+          'assetType': MediaAssetType.photo.firestoreValue,
+          'galleryId': photo.galleryId,
+        },
+      ),
+    );
+    if (!context.mounted) return;
+    TopSnackBar.show(
+      context,
+      SnackBar(content: Text('${photo.downloadFileName} ajoute au panier')),
+    );
+  }
+
+  Future<void> _addMediaPack(BuildContext context, MediaPackModel pack) async {
+    await context.read<CartProvider>().addCartItem(
+      unified_cart.CartItemModel(
+        id: '',
+        itemType: unified_cart.CartItemType.media,
+        productId: pack.packId,
+        sellerId: pack.photographerId,
+        eventId: pack.eventId,
+        title: pack.title,
+        subtitle: pack.galleryId.isEmpty ? null : 'Pack galerie ${pack.galleryId}',
+        imageUrl: pack.coverUrl ?? '',
+        unitPrice: pack.price,
+        quantity: 1,
+        currency: pack.currency,
+        isDigital: true,
+        requiresShipping: false,
+        sourceType: 'media_marketplace',
+        metadata: <String, dynamic>{
+          'assetType': MediaAssetType.pack.firestoreValue,
+          'galleryId': pack.galleryId,
+          'photoIds': pack.photoIds,
+          'photoCount': pack.photoIds.length,
+        },
+      ),
+    );
+    if (!context.mounted) return;
+    TopSnackBar.show(
+      context,
+      SnackBar(content: Text('${pack.title} ajoute au panier')),
     );
   }
 }

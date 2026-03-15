@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:get/get.dart';
+import 'package:provider/provider.dart';
 import 'dart:async';
 import 'firebase_options.dart';
 import 'session/session_controller.dart';
@@ -19,7 +20,7 @@ import 'pages/group_member_page.dart';
 import 'pages/login_page.dart';
 import 'pages/tracking_live_page.dart';
 import 'pages/app_shell.dart';
-import 'pages/cart_page.dart';
+import 'pages/cart/unified_cart_page.dart';
 import 'pages/paywall_page.dart';
 import 'pages/account_admin_page.dart';
 import 'pages/account_page.dart';
@@ -75,6 +76,7 @@ import 'pages/group/group_map_live_page.dart';
 import 'pages/group/group_track_history_page.dart';
 import 'pages/group/group_export_page.dart';
 import 'pages/public/marketmap_public_viewer_page.dart';
+import 'providers/cart_provider.dart';
 import 'widgets/admin_route_guard.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -221,10 +223,12 @@ class MasLiveApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return SessionScope(
       notifier: session,
-      child: ListenableBuilder(
-        listenable: LocalizationService(),
-        builder: (context, child) {
-          return GetMaterialApp(
+      child: ChangeNotifierProvider<CartProvider>.value(
+        value: CartProvider.instance..start(),
+        child: ListenableBuilder(
+          listenable: LocalizationService(),
+          builder: (context, child) {
+            return GetMaterialApp(
             debugShowCheckedModeBanner: false,
             navigatorKey: _rootNavigatorKey,
             theme: MasliveTheme.lightTheme,
@@ -380,7 +384,7 @@ class MasLiveApp extends StatelessWidget {
               '/circuit-save': (_) => const CircuitSavePage(),
               '/circuit-draw': (_) => const CircuitDrawPage(),
               '/favorites': (_) => const FavoritesPage(),
-              '/cart': (_) => const CartPage(),
+              '/cart': (_) => const UnifiedCartPage(),
               '/paywall': (_) => const PaywallPage(),
               '/pending-products': (_) => const PendingProductsPage(),
               '/purchase-history': (_) => const PurchaseHistoryPage(),
@@ -433,7 +437,7 @@ class MasLiveApp extends StatelessWidget {
                 }
                 return const MediaMarketplaceEntryPage();
               },
-              '/media-marketplace/cart': (_) => const MediaCartPage(),
+              '/media-marketplace/cart': (_) => const UnifiedCartPage(),
               '/media-marketplace/downloads': (_) =>
                   const MediaDownloadsPage(),
               '/media-marketplace/photographer': (_) =>
@@ -503,8 +507,9 @@ class MasLiveApp extends StatelessWidget {
                 child: child ?? const SizedBox(),
               ),
             ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

@@ -2,10 +2,12 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 
-import 'cart_page.dart';
+import 'cart/unified_cart_page.dart';
 import 'product_detail_page.dart';
 import '../models/group_product.dart';
+import '../providers/cart_provider.dart';
 import '../services/cart_service.dart';
 import '../shop/widgets/shop_drawer.dart';
 import '../widgets/language_switcher.dart';
@@ -25,7 +27,7 @@ class StorexShopPage extends StatefulWidget {
   final String? shopId;
   final String? groupId;
 
-  // Gradient rainbow (référence cart_page.dart)
+  // Gradient rainbow (référence historique du header panier)
   static const rainbowGradient = LinearGradient(
     colors: [Color(0xFFFFE36A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
     begin: Alignment.centerLeft,
@@ -47,6 +49,7 @@ class _StorexShopPageState extends State<StorexShopPage> {
 
   @override
   Widget build(BuildContext context) {
+    final cartCount = context.watch<CartProvider>().totalQuantity;
     final pages = [
       _StorexHome(shopId: widget.shopId, groupId: widget.groupId),
       _StorexCategory(shopId: widget.shopId, groupId: widget.groupId),
@@ -71,7 +74,7 @@ class _StorexShopPageState extends State<StorexShopPage> {
             children: [
               _Bottom(icon: Icons.storefront_outlined, activeIcon: Icons.storefront, active: tab == 0, onTap: () => setState(() => tab = 0)),
               _Bottom(icon: Icons.grid_view_outlined, activeIcon: Icons.grid_view, active: tab == 1, onTap: () => setState(() => tab = 1)),
-              _Bottom(icon: Icons.shopping_bag_outlined, activeIcon: Icons.shopping_bag, active: tab == 2, onTap: () => setState(() => tab = 2)),
+              _Bottom(icon: Icons.shopping_bag_outlined, activeIcon: Icons.shopping_bag, active: tab == 2, badgeCount: cartCount, onTap: () => setState(() => tab = 2)),
               _Bottom(icon: Icons.person_outline, activeIcon: Icons.person, active: tab == 3, onTap: () => setState(() => tab = 3)),
             ],
           ),
@@ -83,18 +86,44 @@ class _StorexShopPageState extends State<StorexShopPage> {
 }
 
 class _Bottom extends StatelessWidget {
-  const _Bottom({required this.icon, required this.activeIcon, required this.active, required this.onTap});
+  const _Bottom({required this.icon, required this.activeIcon, required this.active, required this.onTap, this.badgeCount = 0});
   final IconData icon;
   final IconData activeIcon;
   final bool active;
   final VoidCallback onTap;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
     return InkResponse(
       radius: 28,
       onTap: onTap,
-      child: Icon(active ? activeIcon : icon, color: active ? Colors.black87 : Colors.black38),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: <Widget>[
+          Icon(active ? activeIcon : icon, color: active ? Colors.black87 : Colors.black38),
+          if (badgeCount > 0)
+            Positioned(
+              right: -10,
+              top: -8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF111827),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  badgeCount > 99 ? '99+' : '$badgeCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -1414,7 +1443,7 @@ class _CartWrap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const CartPage();
+    return const UnifiedCartPage();
   }
 }
 

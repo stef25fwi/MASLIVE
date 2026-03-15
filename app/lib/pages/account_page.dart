@@ -8,6 +8,7 @@ import '../services/commerce/commerce_service.dart';
 import '../widgets/commerce/commerce_section_card.dart';
 import '../ui/theme/maslive_theme.dart';
 import '../widgets/rainbow_header.dart';
+import '../widgets/cart/cart_icon_badge.dart';
 import '../ui/widgets/honeycomb_background.dart';
 import '../ui/widgets/maslive_card.dart';
 import '../l10n/app_localizations.dart';
@@ -140,10 +141,9 @@ class _AccountUiPageState extends State<AccountUiPage> {
       ),
       _AccountTileData(
         icon: Icons.shopping_cart_outlined,
-        title: 'Panier médias',
-        subtitle: 'Finaliser mes achats photo',
-        route: '/media-marketplace',
-        arguments: <String, dynamic>{'initialTab': 'cart'},
+        title: 'Panier',
+        subtitle: 'Retrouver tous mes achats en attente',
+        route: '/cart',
       ),
       _AccountTileData(
         icon: Icons.download_outlined,
@@ -210,9 +210,10 @@ class _AccountUiPageState extends State<AccountUiPage> {
                   onPressed: () => Navigator.of(context).maybePop(),
                   icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
                 ),
-                trailing: const Icon(
-                  Icons.account_circle_outlined,
-                  color: Colors.white,
+                trailing: CartIconBadge(
+                  iconColor: Colors.white,
+                  backgroundColor: Colors.white.withValues(alpha: 0.16),
+                  borderColor: Colors.white.withValues(alpha: 0.22),
                 ),
               ),
             ),

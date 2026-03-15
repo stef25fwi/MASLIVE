@@ -719,8 +719,8 @@ exports.nearbySearch = onCall(
 
 /**
  * createStorexPaymentIntent (callable)
- * Lit users/{uid}/cart (source de vérité), crée users/{uid}/orders/{orderId}
- * puis renvoie { orderId, clientSecret }.
+ * Lit users/{uid}/cart_items pour le merch unifié (fallback legacy users/{uid}/cart),
+ * crée users/{uid}/orders/{orderId} puis renvoie { orderId, clientSecret }.
  */
 exports.createStorexPaymentIntent = onCall(
   { region: "us-east1", secrets: [STRIPE_SECRET_KEY] },
@@ -734,20 +734,31 @@ exports.createStorexPaymentIntent = onCall(
   const shippingCents = Number(data.shippingCents || 0);
   const shippingMethod = String(data.shippingMethod || "flat_rate");
   const shippingAddress = normalizeShippingAddress(data.address);
+  const checkoutPayload = data.checkoutPayload && typeof data.checkoutPayload === "object"
+    ? data.checkoutPayload
+    : null;
+  const userRef = admin.firestore().collection("users").doc(uid);
 
   // 1) Lire le panier Firestore (source de vérité)
-  const cartSnap = await admin
-    .firestore()
-    .collection("users")
-    .doc(uid)
-    .collection("cart")
+  const unifiedCartSnap = await userRef
+    .collection("cart_items")
+    .where("itemType", "==", "merch")
     .get();
 
-  if (cartSnap.empty) throw new HttpsError("failed-precondition", "Cart empty");
+  let cartDocs = [];
+  let cartSource = "unified_cart_items";
+
+  if (!unifiedCartSnap.empty) {
+    cartDocs = unifiedCartSnap.docs.map((d) => ({ id: d.id, data: d.data() || {}, source: "unified" }));
+  } else {
+    const cartSnap = await userRef.collection("cart").get();
+    if (cartSnap.empty) throw new HttpsError("failed-precondition", "Cart empty");
+    cartDocs = cartSnap.docs.map((d) => ({ id: d.id, data: d.data() || {}, source: "legacy" }));
+    cartSource = "legacy_cart";
+  }
 
   // IMPORTANT: Ne jamais faire confiance aux montants venant de users/{uid}/cart.
   // On recalcule les prix depuis la source de vérité (products).
-  const cartDocs = cartSnap.docs.map((d) => ({ id: d.id, data: d.data() || {} }));
   const productIds = cartDocs
     .map((x) => x.data.productId)
     .filter((v) => typeof v === "string" && v.trim().length > 0);
@@ -758,6 +769,7 @@ exports.createStorexPaymentIntent = onCall(
 
   for (const doc of cartDocs) {
     const it = doc.data;
+    const meta = it.metadata && typeof it.metadata === "object" ? it.metadata : {};
     const productId = typeof it.productId === "string" ? it.productId.trim() : "";
     if (!productId) continue;
 
@@ -779,7 +791,12 @@ exports.createStorexPaymentIntent = onCall(
 
     items.push({
       key: doc.id,
-      groupId: it.groupId || "",
+      unifiedCartItemId: doc.source === "unified" ? doc.id : null,
+      itemType: "merch",
+      sourceType: typeof it.sourceType === "string" ? it.sourceType : "group_shop",
+      groupId: doc.source === "unified"
+        ? (typeof meta.groupId === "string" ? meta.groupId : "")
+        : (it.groupId || ""),
       productId,
       title: looksLikeNonEmptyString(product.title) ? product.title : (it.title || ""),
       priceCents,
@@ -789,10 +806,14 @@ exports.createStorexPaymentIntent = onCall(
         : (looksLikeNonEmptyString(product.ownerUid)
             ? product.ownerUid
             : (looksLikeNonEmptyString(product.sellerId) ? product.sellerId : "")),
-      size: it.size || "M",
-      color: it.color || "Noir",
+      size: doc.source === "unified"
+        ? (typeof meta.size === "string" && meta.size.trim().length > 0 ? meta.size : "M")
+        : (it.size || "M"),
+      color: doc.source === "unified"
+        ? (typeof meta.color === "string" && meta.color.trim().length > 0 ? meta.color : "Noir")
+        : (it.color || "Noir"),
       imageUrl: looksLikeNonEmptyString(product.imageUrl) ? product.imageUrl : (it.imageUrl || ""),
-      imagePath: product.imagePath || it.imagePath || null,
+      imagePath: product.imagePath || meta.imagePath || it.imagePath || null,
     });
   }
 
@@ -841,6 +862,8 @@ exports.createStorexPaymentIntent = onCall(
     items,
     paymentMethod: "stripe",
     userId: uid,
+    cartSource,
+    checkoutPayload,
     groupId,
     shopId,
     totalPrice: totalCents,
@@ -873,6 +896,8 @@ exports.createStorexPaymentIntent = onCall(
       })),
       totalPrice: totalCents,
       status: "pending",
+      cartSource,
+      checkoutPayload,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       deliveredAt: null,
       storex: {

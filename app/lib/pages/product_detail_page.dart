@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import '../models/group_product.dart';
 import '../services/cart_service.dart';
-import 'cart_page.dart';
+import 'cart/unified_cart_page.dart';
 import '../widgets/honeycomb_background.dart';
 import '../widgets/rainbow_header.dart';
 import 'shop/storex_reviews_and_success_pages.dart';
@@ -601,7 +601,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                           onPressed: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => const CartPage(),
+                                builder: (_) => const UnifiedCartPage(),
                               ),
                             );
                           },

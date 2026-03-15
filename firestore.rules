@@ -166,6 +166,64 @@ service cloud.firestore {
         || (('photographerId' in data) && isPhotographerOwner(data.photographerId));
     }
 
+    function isCartOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isValidCartItemType(value) {
+      return value is string && value in ['merch', 'media'];
+    }
+
+    function isNonEmptyCartString(value) {
+      return value is string && value.size() > 0;
+    }
+
+    function isOptionalCartString(value) {
+      return value == null || value is string;
+    }
+
+    function isOptionalCartMap(value) {
+      return value == null || value is map;
+    }
+
+    function isValidCartItemPayload(data) {
+      return data.keys().hasOnly([
+          'id',
+          'itemType',
+          'productId',
+          'sellerId',
+          'eventId',
+          'title',
+          'subtitle',
+          'imageUrl',
+          'unitPrice',
+          'quantity',
+          'currency',
+          'isDigital',
+          'requiresShipping',
+          'sourceType',
+          'metadata',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isValidCartItemType(data.itemType)
+        && isNonEmptyCartString(data.productId)
+        && isNonEmptyCartString(data.title)
+        && isNonEmptyCartString(data.currency)
+        && data.unitPrice is number
+        && data.unitPrice >= 0
+        && data.quantity is int
+        && data.quantity >= 1
+        && data.isDigital is bool
+        && data.requiresShipping is bool
+        && isOptionalCartString(data.sellerId)
+        && isOptionalCartString(data.eventId)
+        && isOptionalCartString(data.subtitle)
+        && isOptionalCartString(data.imageUrl)
+        && isOptionalCartString(data.sourceType)
+        && isOptionalCartMap(data.metadata);
+    }
+
     // Autorise l'écriture dans `marketMap` si et seulement si l'écriture est
     // rattachée à un projet `map_projects/{projectId}` du groupe de l'admin.
     // (Le chemin marketMap ne porte pas le groupId, on contrôle via sourceProjectId)
@@ -302,10 +360,19 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
+      match /cart_items/{cartItemId} {
+        allow read: if isCartOwner(uid) || canManageUsers();
+        allow create: if (isCartOwner(uid) || canManageUsers())
+          && isValidCartItemPayload(request.resource.data);
+        allow update: if (isCartOwner(uid) || canManageUsers())
+          && isValidCartItemPayload(request.resource.data);
+        allow delete: if isCartOwner(uid) || canManageUsers();
+      }
+
       // Sous-collections privées (cart, favorites, followingGroups, ...)
       match /{subCollection}/{document=**} {
         allow read, write: if isSignedIn() && (
-          !(subCollection in ['orders', 'purchases']) &&
+          !(subCollection in ['orders', 'purchases', 'cart_items']) &&
           request.auth.uid == uid 
           || canManageUsers()
         );

@@ -7,7 +7,7 @@ import '../shop/widgets/product_tile.dart';
 import 'storex_shop_page.dart';
 import 'product_detail_page.dart';
 import '../services/cart_service.dart';
-import 'cart_page.dart';
+import 'cart/unified_cart_page.dart';
 import '../ui/snack/top_snack_bar.dart';
 
 class ShopBodyUnderHeader extends StatefulWidget {
@@ -201,7 +201,7 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
           label: 'Voir',
           onPressed: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const CartPage()),
+            MaterialPageRoute(builder: (_) => const UnifiedCartPage()),
           ),
         ),
       ),
@@ -555,7 +555,7 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
                             onPressed: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const CartPage(),
+                                builder: (_) => const UnifiedCartPage(),
                               ),
                             ),
                           ),

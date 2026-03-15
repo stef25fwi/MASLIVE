@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'cart/cart_icon_badge.dart';
+
 /// Header pixel-perfect (style comme ton visuel) :
 /// - Titre: "La boutique"
 /// - Sous-titre: "Merch, stickers, accessoires & photos"
@@ -95,42 +97,11 @@ class LaBoutiqueHeader extends StatelessWidget {
               ),
 
               const SizedBox(width: 12),
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  _RoundIconGlassButton(
-                    icon: Icons.shopping_cart_rounded,
-                    onTap: onCartIconTap,
-                  ),
-                  if ((cartCount ?? 0) > 0)
-                    Positioned(
-                      right: -2,
-                      top: -2,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF111827),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.8),
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          '${(cartCount ?? 0) > 99 ? '99+' : cartCount}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 11,
-                            height: 1.0,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
+              CartIconBadge(
+                onPressed: onCartIconTap,
+                iconColor: const Color(0xFF111827),
+                backgroundColor: Colors.white.withValues(alpha: 0.20),
+                borderColor: Colors.white.withValues(alpha: 0.28),
               ),
             ],
           ),

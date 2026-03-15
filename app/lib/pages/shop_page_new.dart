@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'cart_page.dart';
+import 'cart/unified_cart_page.dart';
 import 'storex_shop_page.dart';
 import 'product_detail_page.dart';
 import '../models/group_product.dart';
 import '../services/cart_service.dart';
 import '../ui/snack/top_snack_bar.dart';
+import '../widgets/cart/cart_icon_badge.dart';
 import '../widgets/language_switcher.dart';
 import '../l10n/app_localizations.dart';
 
@@ -265,7 +266,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
           label: 'Voir',
           onPressed: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const CartPage()),
+            MaterialPageRoute(builder: (_) => const UnifiedCartPage()),
           ),
         ),
       ),
@@ -298,7 +299,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
               onCartTap: () {
                 Navigator.of(
                   context,
-                ).push(MaterialPageRoute(builder: (_) => const CartPage()));
+                ).push(MaterialPageRoute(builder: (_) => const UnifiedCartPage()));
               },
             ),
 
@@ -799,27 +800,11 @@ class _CartButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.16),
-      borderRadius: BorderRadius.circular(22),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
-        child: Container(
-          width: 48,
-          height: 48,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
-          ),
-          child: const Icon(
-            Icons.shopping_bag_outlined,
-            color: Colors.white,
-            size: 24,
-          ),
-        ),
-      ),
+    return CartIconBadge(
+      onPressed: onTap,
+      iconColor: Colors.white,
+      backgroundColor: Colors.white.withValues(alpha: 0.16),
+      borderColor: Colors.white.withValues(alpha: 0.22),
     );
   }
 }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
 import '../../models/cart_item.dart';
+import '../../providers/cart_provider.dart';
 import '../../services/cart_service.dart';
 import '../../ui/snack/top_snack_bar.dart';
 import '../../ui/widgets/country_autocomplete_field.dart';
@@ -472,6 +473,7 @@ class _StorexPaymentPageState extends State<StorexPaymentPage> {
         'shippingCents': widget.shippingCents,
         'shippingMethod': widget.shippingMethodKey,
         'address': widget.address.toMap(),
+        'checkoutPayload': CartProvider.instance.buildCheckoutPayload(),
       });
 
       final data = res.data;
