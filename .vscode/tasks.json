@@ -2148,7 +2148,7 @@
     {
       "label": "MASLIVE: 🚀 One Click Commit+Push+Build+Deploy (no gpg)",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE && git config --local commit.gpgsign false && bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat(cart): unify merch and media carts + split checkout + legacy cleanup\"",
+      "command": "cd /workspaces/MASLIVE && git config --local commit.gpgsign false && bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"fix(deploy): allow functions npm ci legacy peer deps\"",
       "problemMatcher": [],
       "isBackground": false,
       "presentation": {
