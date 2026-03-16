@@ -34,6 +34,7 @@ import '../route_style_pro/ui/route_style_wizard_pro_page.dart';
 import '../pages/home_vertical_nav.dart';
 import 'poi_bottom_popup.dart';
 import 'poi_edit_popup.dart';
+import '../features/wizard/presentation/sections/wizard_step2_map_style_section.dart';
 
 typedef LngLat = ({double lng, double lat});
 
@@ -3663,6 +3664,20 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     ],
                   );
                 },
+              ),
+              const SizedBox(height: MasliveTokens.m),
+              WizardStep2MapStyleSection(
+                orgId: (FirebaseAuth.instance.currentUser?.uid ?? '').trim(),
+                currentStyleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text),
+                onApplyPreset: (preset) => _applyStylePreset(
+                  preset.theme.global.mapboxBaseStyle,
+                ),
+                onPreviewPreset: (preset) => _applyStylePreset(
+                  preset.theme.global.mapboxBaseStyle,
+                ),
+                onDuplicatePreset: (preset) => _applyStylePreset(
+                  preset.theme.global.mapboxBaseStyle,
+                ),
               ),
               const SizedBox(height: MasliveTokens.m),
               ClipRRect(

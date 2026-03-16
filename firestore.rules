@@ -1486,6 +1486,84 @@ service cloud.firestore {
       allow create, update, delete: if isSignedIn() && isMasterAdmin();
     }
 
+    // ========== COLLECTION: MAPBOX STYLE PRESETS ==========
+    // Politique:
+    // - Lecture publique: uniquement presets publies ET visibles dans le wizard.
+    // - Lecture privee: admin master ou proprietaire du preset.
+    // - Ecriture complete: admin master.
+    // - Ecriture limitee proprietaire: brouillons uniquement, sans publication ni default.
+    function isMapStylePublicDoc(data) {
+      return data.status == 'published' && data.visibleInWizard == true;
+    }
+
+    function isMapStyleOwner(data) {
+      return isSignedIn() && data.ownerUid == request.auth.uid;
+    }
+
+    function canReadMapStyleDoc(data) {
+      return isMapStylePublicDoc(data) || isMasterAdmin() || isMapStyleOwner(data);
+    }
+
+    function isMapStyleBaseValid(data) {
+      return (data.ownerUid is string)
+        && (data.ownerUid.size() > 0)
+        && (data.orgId is string)
+        && (data.orgId.size() > 0)
+        && (data.name is string)
+        && (data.name.size() > 0)
+        && (data.category in ['clair', 'nuit', 'carnaval', 'institutionnel', 'evenement', 'mobilite'])
+        && (data.scope in ['global', 'org', 'event'])
+        && (data.status in ['draft', 'published', 'archived'])
+        && (data.theme is map);
+    }
+
+    function isOwnerSafeCreateMapStyle(data) {
+      return isMapStyleOwner(data)
+        && data.status == 'draft'
+        && data.isDefault == false
+        && data.visibleInWizard == false
+        && data.isQuickPreset == false
+        && data.publishedAt == null
+        && data.archivedAt == null;
+    }
+
+    function isOwnerSafeUpdateMapStyle() {
+      return isMapStyleOwner(resource.data)
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.orgId == resource.data.orgId
+        && request.resource.data.status == 'draft'
+        && request.resource.data.isDefault == false
+        && request.resource.data.visibleInWizard == false
+        && request.resource.data.isQuickPreset == false
+        && request.resource.data.publishedAt == null
+        && request.resource.data.archivedAt == null;
+    }
+
+    match /mapbox_style_presets/{presetId} {
+      allow read: if canReadMapStyleDoc(resource.data);
+
+      allow create: if isMapStyleBaseValid(request.resource.data)
+        && (
+          isMasterAdmin()
+          || isOwnerSafeCreateMapStyle(request.resource.data)
+        );
+
+      allow update: if isMapStyleBaseValid(request.resource.data)
+        && (
+          isMasterAdmin()
+          || isOwnerSafeUpdateMapStyle()
+        );
+
+      allow delete: if isMasterAdmin()
+        || (
+          isMapStyleOwner(resource.data)
+          && (
+            !(resource.data.referencesCount is int)
+            || resource.data.referencesCount <= 0
+          )
+        );
+    }
+
     // ========== REFUS PAR DÉFAUT ==========
     match /{document=**} {
       allow read, write: if false;

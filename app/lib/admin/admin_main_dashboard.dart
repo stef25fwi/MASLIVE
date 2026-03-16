@@ -27,6 +27,7 @@ import 'admin_moderation_page.dart';
 import 'commerce_analytics_page.dart';
 import 'user_profile_preview_page.dart';
 import '../features/media_marketplace/presentation/pages/media_marketplace_pages.dart';
+import '../features/map_style/presentation/widgets/mapbox_style_tile.dart';
 import '../pages/superadmin_articles_page.dart';
 import '../commerce_module_single_file.dart';
 import 'admin_groups_page.dart';
@@ -99,6 +100,28 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
       }
       return (out: out, low: low);
     });
+  }
+
+  Stream<({int total, int published, int wizardVisible})> _watchMapStyleStats() {
+    return _firestore
+        .collection('mapbox_style_presets')
+        .snapshots()
+        .map((snapshot) {
+          var published = 0;
+          var wizardVisible = 0;
+          for (final doc in snapshot.docs) {
+            final data = doc.data();
+            final isPublished = (data['status'] ?? '').toString() == 'published';
+            final isWizardVisible = data['visibleInWizard'] == true;
+            if (isPublished) published++;
+            if (isPublished && isWizardVisible) wizardVisible++;
+          }
+          return (
+            total: snapshot.size,
+            published: published,
+            wizardVisible: wizardVisible,
+          );
+        });
   }
 
   Widget _countBadge({required String text, required Color color}) {
@@ -237,6 +260,19 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                     color: Colors.grey,
                     onTap: () =>
                         Navigator.pushNamed(context, '/admin/marketmap-debug'),
+                  ),
+                  const SizedBox(height: 12),
+                  StreamBuilder<({int total, int published, int wizardVisible})>(
+                    stream: _watchMapStyleStats(),
+                    builder: (context, snapshot) {
+                      final stats = snapshot.data ?? (total: 0, published: 0, wizardVisible: 0);
+                      return MapboxStyleTile(
+                        presetCount: stats.total,
+                        publishedCount: stats.published,
+                        wizardCount: stats.wizardVisible,
+                        onTap: () => Navigator.pushNamed(context, '/admin/mapbox-style-studio'),
+                      );
+                    },
                   ),
                   const SizedBox(height: 24),
 

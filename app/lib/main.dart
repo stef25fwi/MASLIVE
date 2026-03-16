@@ -70,6 +70,7 @@ import 'admin/admin_moderation_page.dart';
 import 'admin/commerce_analytics_page.dart';
 import 'route_style_pro/ui/route_style_wizard_pro_page.dart';
 import 'features/media_marketplace/presentation/pages/media_marketplace_pages.dart';
+import 'features/map_style/presentation/pages/mapbox_style_studio_page.dart';
 import 'pages/group/admin_group_dashboard_page.dart';
 import 'pages/group/tracker_group_profile_page.dart';
 import 'pages/group/group_map_live_page.dart';
@@ -355,6 +356,8 @@ class MasLiveApp extends StatelessWidget {
                   const AdminRouteGuard(child: MarketMapDebugPage()),
               '/admin/circuit-wizard': (_) =>
                   const AdminRouteGuard(child: CircuitWizardEntryPage()),
+                '/admin/mapbox-style-studio': (_) =>
+                  const AdminRouteGuard(child: MapboxStyleStudioPage()),
               '/admin/route-style-pro': (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments;
                 if (args is RouteStyleProArgs) {
