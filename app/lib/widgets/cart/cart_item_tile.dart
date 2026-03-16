@@ -29,8 +29,9 @@ class CartItemTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
+        color: Colors.white.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0x1A0F172A)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,9 +173,9 @@ class _QuantityStepper extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.white.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFD1D5DB)),
+        border: Border.all(color: const Color(0x1F0F172A)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -213,7 +214,11 @@ class _TypeBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: isMerch ? const Color(0xFFFFF3E6) : const Color(0xFFE8F4FF),
+        gradient: LinearGradient(
+          colors: isMerch
+              ? const <Color>[Color(0xFFFFF3E6), Color(0xFFFFE2F0)]
+              : const <Color>[Color(0xFFE8F4FF), Color(0xFFEAF9FF)],
+        ),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(

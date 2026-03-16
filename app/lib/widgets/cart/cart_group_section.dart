@@ -22,14 +22,14 @@ class CartGroupSection extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 18),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.white.withValues(alpha: 0.88),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: const Color(0x1F0F172A)),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            blurRadius: 24,
+            blurRadius: 20,
             offset: const Offset(0, 12),
-            color: Colors.black.withValues(alpha: 0.05),
+            color: const Color(0x14000000),
           ),
         ],
       ),

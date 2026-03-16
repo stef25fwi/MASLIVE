@@ -21,18 +21,20 @@ class EmptyCartView extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: <Color>[
-                  Color(0xFFFFF7E8),
-                  Color(0xFFF7FBFF),
+                  Color(0xFFFFF6D9),
+                  Color(0xFFFFEAF5),
+                  Color(0xFFEFF9FF),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: const Color(0x1F0F172A)),
               boxShadow: <BoxShadow>[
                 BoxShadow(
-                  blurRadius: 28,
+                  blurRadius: 22,
                   offset: const Offset(0, 14),
-                  color: Colors.black.withValues(alpha: 0.08),
+                  color: const Color(0x1A000000),
                 ),
               ],
             ),
@@ -75,6 +77,10 @@ class EmptyCartView extends StatelessWidget {
                   const SizedBox(height: 20),
                   FilledButton.icon(
                     onPressed: onContinueShopping,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF111827),
+                      foregroundColor: Colors.white,
+                    ),
                     icon: const Icon(Icons.storefront_outlined),
                     label: const Text('Retour boutique'),
                   ),

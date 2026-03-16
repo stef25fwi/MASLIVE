@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:ui';
 import '../models/group_product.dart';
 import '../services/cart_service.dart';
 import 'cart/unified_cart_page.dart';
@@ -40,6 +41,12 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   ImageStreamListener? _heroImageStreamListener;
 
   static const _bg = Color(0xFFF4F5F8);
+  static const _premiumRainbow = LinearGradient(
+    colors: [Color(0xFFFFE36A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  bool _animateIn = false;
 
   @override
   void initState() {
@@ -54,6 +61,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         : 'Default';
 
     _resolveHeroAspectRatio(widget.product);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _animateIn = true);
+    });
   }
 
   @override
@@ -322,16 +333,22 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 child: Column(
                   children: [
                     // Photo / galerie sous le header (scrollable)
-                    SizedBox(
-                      width: double.infinity,
-                      child: AspectRatio(
-                        aspectRatio: _heroAspectRatio,
-                        child: widget.heroTag == null
-                            ? _productImageGallery(p)
-                            : Hero(
-                                tag: widget.heroTag!,
-                                child: _productImageGallery(p),
-                              ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(24),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: AspectRatio(
+                            aspectRatio: _heroAspectRatio,
+                            child: widget.heroTag == null
+                                ? _productImageGallery(p)
+                                : Hero(
+                                    tag: widget.heroTag!,
+                                    child: _productImageGallery(p),
+                                  ),
+                          ),
+                        ),
                       ),
                     ),
                     Padding(
@@ -342,7 +359,9 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                           const SizedBox(height: 14),
 
                   // Infos produit
-                  _card(
+                  _animatedBlock(
+                    index: 0,
+                    child: _card(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -394,12 +413,15 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         ),
                       ],
                     ),
+                    ),
                   ),
 
                   const SizedBox(height: 14),
 
                   // Options
-                  _card(
+                  _animatedBlock(
+                    index: 1,
+                    child: _card(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -432,12 +454,15 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         ),
                       ],
                     ),
+                    ),
                   ),
 
                   const SizedBox(height: 14),
 
                   // Stock et Quantité
-                  _card(
+                  _animatedBlock(
+                    index: 2,
+                    child: _card(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -485,12 +510,15 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         ],
                       ],
                     ),
+                    ),
                   ),
 
                   const SizedBox(height: 14),
 
                   // Description
-                  _card(
+                  _animatedBlock(
+                    index: 3,
+                    child: _card(
                     child: Text(
                       'Description du produit…\n'
                       '• Impression HD\n'
@@ -502,6 +530,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         fontWeight: FontWeight.w700,
                         color: Colors.black.withValues(alpha: 0.72),
                       ),
+                    ),
                     ),
                   ),
                         ],
@@ -529,7 +558,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         bottom: 12 + MediaQuery.of(context).padding.bottom,
       ),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.94),
+        color: Colors.white.withValues(alpha: 0.72),
         boxShadow: [
           BoxShadow(
             blurRadius: 18,
@@ -538,83 +567,115 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.40),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.65)),
+            ),
+            child: Row(
               children: [
-                Text(
-                  p.priceLabel,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        p.priceLabel,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Taille $size • $color',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black.withValues(alpha: 0.55),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Taille $size • $color',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black.withValues(alpha: 0.55),
-                  ),
+                const SizedBox(width: 12),
+                _gradientButton(
+                  text: p.stockFor(size, color) > 0
+                      ? 'Ajouter ($quantity)'
+                      : 'Indisponible',
+                  onTap: p.stockFor(size, color) > 0
+                      ? () {
+                          if (quantity > p.stockFor(size, color)) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('❌ Quantité indisponible'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
+                          CartService.instance.addProduct(
+                            groupId: widget.groupId,
+                            product: p,
+                            size: size,
+                            color: color,
+                            quantity: quantity, // Utiliser la quantité sélectionnée
+                          );
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                '✅ Ajouté: $quantity x ${p.title} ($size, $color)',
+                              ),
+                              backgroundColor: const Color(0xFF0F766E),
+                              action: SnackBarAction(
+                                label: 'Panier',
+                                textColor: Colors.white,
+                                onPressed: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const UnifiedCartPage(),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          );
+
+                          // Reset quantité après ajout
+                          setState(() => quantity = 1);
+                        }
+                      : null,
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 12),
-          _gradientButton(
-            text: p.stockFor(size, color) > 0
-                ? 'Ajouter ($quantity)'
-                : 'Indisponible',
-            onTap: p.stockFor(size, color) > 0
-                ? () {
-                    if (quantity > p.stockFor(size, color)) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('❌ Quantité indisponible'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
+        ),
+      ),
+    );
+  }
 
-                    CartService.instance.addProduct(
-                      groupId: widget.groupId,
-                      product: p,
-                      size: size,
-                      color: color,
-                      quantity: quantity, // Utiliser la quantité sélectionnée
-                    );
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          '✅ Ajouté: $quantity x ${p.title} ($size, $color)',
-                        ),
-                        backgroundColor: const Color(0xFF0F766E),
-                        action: SnackBarAction(
-                          label: 'Panier',
-                          textColor: Colors.white,
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const UnifiedCartPage(),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    );
-
-                    // Reset quantité après ajout
-                    setState(() => quantity = 1);
-                  }
-                : null,
-          ),
-        ],
+  Widget _animatedBlock({
+    required int index,
+    required Widget child,
+  }) {
+    final delayMs = 70 * index;
+    return AnimatedSlide(
+      offset: _animateIn ? Offset.zero : const Offset(0, 0.08),
+      duration: Duration(milliseconds: 360 + delayMs),
+      curve: Curves.easeOutCubic,
+      child: AnimatedOpacity(
+        opacity: _animateIn ? 1 : 0,
+        duration: Duration(milliseconds: 280 + delayMs),
+        curve: Curves.easeOutCubic,
+        child: child,
       ),
     );
   }
@@ -623,8 +684,9 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(18),
+        color: Colors.white.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0x1A0F172A)),
         boxShadow: [
           BoxShadow(
             blurRadius: 18,
@@ -710,15 +772,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
           gradient: enabled
-              ? const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFFFFE36A),
-                    Color(0xFFFF7BC5),
-                    Color(0xFF7CE0FF),
-                  ],
-                )
+              ? _premiumRainbow
               : LinearGradient(
                   colors: [Colors.grey.shade300, Colors.grey.shade400],
                 ),

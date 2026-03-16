@@ -34,8 +34,43 @@ class StorexShopPage extends StatefulWidget {
     end: Alignment.centerRight,
   );
 
+  static const premiumHeaderGradient = LinearGradient(
+    colors: [
+      Color(0xFFFFE36A),
+      Color(0xFFFF8ACD),
+      Color(0xFF98E4FF),
+      Color(0xFFB8FFDA),
+    ],
+    stops: [0.0, 0.34, 0.7, 1.0],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
   @override
   State<StorexShopPage> createState() => _StorexShopPageState();
+}
+
+class _ShopUi {
+  const _ShopUi._();
+
+  static const Color pageBg = Color(0xFFF7F8FC);
+  static const Color cardBg = Color(0xFFFFFFFF);
+  static const Color textMain = Color(0xFF101828);
+  static const Color textMuted = Color(0xFF667085);
+  static const Color strokeSoft = Color(0x1F0F172A);
+  static const Color navBg = Color(0xF9FFFFFF);
+
+  static const LinearGradient chipGradient = LinearGradient(
+    colors: [Color(0xFFFFB26A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+  );
+
+  static const BoxShadow cardShadow = BoxShadow(
+    color: Color(0x14000000),
+    blurRadius: 18,
+    offset: Offset(0, 8),
+  );
 }
 
 class _StorexShopPageState extends State<StorexShopPage> {
@@ -60,14 +95,22 @@ class _StorexShopPageState extends State<StorexShopPage> {
     return DefaultTextStyle.merge(
       style: const TextStyle(fontWeight: FontWeight.w600),
       child: Scaffold(
+        backgroundColor: _ShopUi.pageBg,
         body: pages[tab],
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
-          height: 58,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            border: Border(top: BorderSide(color: Color(0x11000000))),
+          height: 68,
+          decoration: BoxDecoration(
+            color: _ShopUi.navBg,
+            border: const Border(top: BorderSide(color: _ShopUi.strokeSoft)),
+            boxShadow: const <BoxShadow>[
+              BoxShadow(
+                color: Color(0x14000000),
+                blurRadius: 20,
+                offset: Offset(0, -2),
+              ),
+            ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -95,13 +138,30 @@ class _Bottom extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final iconChild = Icon(
+      active ? activeIcon : icon,
+      color: active ? Colors.white : const Color(0xFF98A2B3),
+    );
+
     return InkResponse(
       radius: 28,
       onTap: onTap,
       child: Stack(
         clipBehavior: Clip.none,
         children: <Widget>[
-          Icon(active ? activeIcon : icon, color: active ? Colors.black87 : Colors.black38),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.all(8),
+            decoration: active
+                ? BoxDecoration(
+                    gradient: _ShopUi.chipGradient,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: const <BoxShadow>[_ShopUi.cardShadow],
+                  )
+                : null,
+            child: iconChild,
+          ),
           if (badgeCount > 0)
             Positioned(
               right: -10,
@@ -109,7 +169,7 @@ class _Bottom extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF111827),
+                  gradient: _ShopUi.chipGradient,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
@@ -235,7 +295,7 @@ class _StorexHome extends StatelessWidget {
     final repo = StorexRepo(shopId: shopId, groupId: groupId);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: _ShopUi.pageBg,
       drawer: ShopDrawer(
         shopId: shopId,
         groupId: groupId,
@@ -270,10 +330,10 @@ class _StorexHome extends StatelessWidget {
         shadowColor: Colors.transparent,
         scrolledUnderElevation: 0,
         flexibleSpace: Container(
-          decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
+          decoration: const BoxDecoration(gradient: StorexShopPage.premiumHeaderGradient),
         ),
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: _ShopUi.textMain),
         leading: Builder(
           builder: (ctx) => IconButton(
             icon: const Icon(Icons.menu),
@@ -281,10 +341,10 @@ class _StorexHome extends StatelessWidget {
           ),
         ),
         centerTitle: false,
-        title: LanguageSwitcher(textColor: Colors.white),
+        title: LanguageSwitcher(textColor: _ShopUi.textMain),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search),
+            icon: const Icon(Icons.search, color: _ShopUi.textMain),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _SearchPage(shopId: shopId, groupId: groupId))),
           ),
         ],
@@ -320,7 +380,11 @@ class _StorexHome extends StatelessWidget {
                 children: [
                   Text(
                     l10n.AppLocalizations.of(context)!.shopBestSeller,
-                    style: const TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.6),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                      color: _ShopUi.textMain,
+                    ),
                   ),
                   TextButton(
                     onPressed: () => Navigator.of(context).push(
@@ -335,7 +399,7 @@ class _StorexHome extends StatelessWidget {
                     ),
                     child: Text(
                       l10n.AppLocalizations.of(context)!.shopSeeMore,
-                      style: const TextStyle(color: Colors.black38),
+                      style: const TextStyle(color: _ShopUi.textMuted),
                     ),
                   ),
                 ],
@@ -423,7 +487,12 @@ class _BestCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: 160,
-        decoration: BoxDecoration(color: const Color(0xFFF1F2F4), borderRadius: BorderRadius.circular(14)),
+        decoration: BoxDecoration(
+          color: _ShopUi.cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _ShopUi.strokeSoft),
+          boxShadow: const <BoxShadow>[_ShopUi.cardShadow],
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -431,7 +500,7 @@ class _BestCard extends StatelessWidget {
               child: Stack(
                 children: [
                   ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                     child: _Img(p: p, fit: BoxFit.cover),
                   ),
                   Positioned(
@@ -440,7 +509,11 @@ class _BestCard extends StatelessWidget {
                     child: InkResponse(
                       onTap: onWish,
                       radius: 18,
-                      child: Icon(wished ? Icons.favorite : Icons.favorite_border, color: wished ? Colors.redAccent : Colors.black54, size: 20),
+                      child: Icon(
+                        wished ? Icons.favorite : Icons.favorite_border,
+                        color: wished ? const Color(0xFFFF4D8D) : const Color(0xFF98A2B3),
+                        size: 20,
+                      ),
                     ),
                   )
                 ],
@@ -448,11 +521,16 @@ class _BestCard extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
-              child: Text(p.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w500)),
+              child: Text(
+                p.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w700, color: _ShopUi.textMain),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
-              child: Text(p.priceLabel, style: const TextStyle(fontWeight: FontWeight.w800)),
+              child: Text(p.priceLabel, style: const TextStyle(fontWeight: FontWeight.w900, color: _ShopUi.textMain)),
             ),
           ],
         ),
@@ -475,7 +553,12 @@ class _BannerTile extends StatelessWidget {
       onTap: onTap,
       child: Container(
         height: 140,
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), color: const Color(0xFFF1F2F4)),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: _ShopUi.cardBg,
+          border: Border.all(color: _ShopUi.strokeSoft),
+          boxShadow: const <BoxShadow>[_ShopUi.cardShadow],
+        ),
         child: Stack(
           children: [
             Positioned.fill(
@@ -492,9 +575,12 @@ class _BannerTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.0)),
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0, color: _ShopUi.textMain),
+                  ),
                   const SizedBox(height: 6),
-                  Text(subtitle, style: const TextStyle(color: Colors.black38)),
+                  Text(subtitle, style: const TextStyle(color: _ShopUi.textMuted)),
                 ],
               ),
             ),
@@ -533,7 +619,7 @@ class _SearchPageState extends State<_SearchPage> {
     final repo = StorexRepo(shopId: widget.shopId, groupId: widget.groupId);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: _ShopUi.pageBg,
       body: SafeArea(
         child: Column(
           children: [
@@ -631,30 +717,30 @@ class _StorexCategory extends StatelessWidget {
     final repo = StorexRepo(shopId: shopId, groupId: groupId);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: _ShopUi.pageBg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
         scrolledUnderElevation: 0,
         flexibleSpace: Container(
-          decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
+          decoration: const BoxDecoration(gradient: StorexShopPage.premiumHeaderGradient),
         ),
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: _ShopUi.textMain),
         title: Text(
           l10n.AppLocalizations.of(context)!.categories,
           style: const TextStyle(
-            color: Colors.white,
+            color: _ShopUi.textMain,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.6,
           ),
         ),
         actions: [
-          LanguageSwitcher(textColor: Colors.white),
+          LanguageSwitcher(textColor: _ShopUi.textMain),
           IconButton(
-            icon: const Icon(Icons.search, color: Colors.white),
+            icon: const Icon(Icons.search, color: _ShopUi.textMain),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _SearchPage(shopId: shopId, groupId: groupId))),
           )
         ],
@@ -790,17 +876,17 @@ class _ListPageState extends State<_ListPage> {
         : repo.byCategory(categoryId: widget.categoryId!, limit: 250).snapshots();
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: _ShopUi.pageBg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
         scrolledUnderElevation: 0,
         flexibleSpace: Container(
-          decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
+          decoration: const BoxDecoration(gradient: StorexShopPage.premiumHeaderGradient),
         ),
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: _ShopUi.textMain),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
@@ -808,7 +894,7 @@ class _ListPageState extends State<_ListPage> {
         centerTitle: true,
         title: Text(
           widget.title.toUpperCase(),
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          style: const TextStyle(color: _ShopUi.textMain, fontWeight: FontWeight.w700),
         ),
         actions: [
           IconButton(
@@ -958,7 +1044,7 @@ class _StorexAccount extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: _ShopUi.pageBg,
       drawer: ShopDrawer(
         shopId: shopId,
         groupId: groupId,
@@ -995,10 +1081,10 @@ class _StorexAccount extends StatelessWidget {
         shadowColor: Colors.transparent,
         scrolledUnderElevation: 0,
         flexibleSpace: Container(
-          decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
+          decoration: const BoxDecoration(gradient: StorexShopPage.premiumHeaderGradient),
         ),
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: _ShopUi.textMain),
         leading: Builder(
           builder: (ctx) => IconButton(
             icon: const Icon(Icons.menu),
@@ -1006,7 +1092,7 @@ class _StorexAccount extends StatelessWidget {
           ),
         ),
         actions: [
-          LanguageSwitcher(textColor: Colors.white),
+          LanguageSwitcher(textColor: _ShopUi.textMain),
           const SizedBox(width: 8),
         ],
       ),
@@ -1123,17 +1209,17 @@ class _WishlistPage extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: _ShopUi.pageBg,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
           shadowColor: Colors.transparent,
           scrolledUnderElevation: 0,
           flexibleSpace: Container(
-            decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
+            decoration: const BoxDecoration(gradient: StorexShopPage.premiumHeaderGradient),
           ),
           elevation: 0,
-          iconTheme: const IconThemeData(color: Colors.white),
+          iconTheme: const IconThemeData(color: _ShopUi.textMain),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () => Navigator.of(context).pop(),
@@ -1141,7 +1227,7 @@ class _WishlistPage extends StatelessWidget {
           centerTitle: true,
           title: Text(
             l10n.AppLocalizations.of(context)!.myFavorites,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+            style: const TextStyle(color: _ShopUi.textMain, fontWeight: FontWeight.w800),
           ),
         ),
         body: Center(
@@ -1173,22 +1259,22 @@ class _WishlistPage extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: _ShopUi.pageBg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
         scrolledUnderElevation: 0,
         flexibleSpace: Container(
-          decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
+          decoration: const BoxDecoration(gradient: StorexShopPage.premiumHeaderGradient),
         ),
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: _ShopUi.textMain),
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.of(context).pop()),
         centerTitle: true,
         title: Text(
           l10n.AppLocalizations.of(context)!.myFavorites,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+          style: const TextStyle(color: _ShopUi.textMain, fontWeight: FontWeight.w800),
         ),
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -1240,9 +1326,10 @@ class _WishlistPage extends StatelessWidget {
                               height: 36,
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF1F232A),
+                                  backgroundColor: const Color(0xFF131821),
                                   foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                 ),
                                 onPressed: () async {
                                   try {
@@ -1307,17 +1394,17 @@ class _OrdersPage extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: _ShopUi.pageBg,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
           shadowColor: Colors.transparent,
           scrolledUnderElevation: 0,
           flexibleSpace: Container(
-            decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
+            decoration: const BoxDecoration(gradient: StorexShopPage.premiumHeaderGradient),
           ),
           elevation: 0,
-          iconTheme: const IconThemeData(color: Colors.white),
+          iconTheme: const IconThemeData(color: _ShopUi.textMain),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () => Navigator.of(context).pop(),
@@ -1325,7 +1412,7 @@ class _OrdersPage extends StatelessWidget {
           centerTitle: true,
           title: Text(
             l10n.AppLocalizations.of(context)!.myOrders,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+            style: const TextStyle(color: _ShopUi.textMain, fontWeight: FontWeight.w800),
           ),
         ),
         body: Center(
@@ -1357,22 +1444,22 @@ class _OrdersPage extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: _ShopUi.pageBg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
         scrolledUnderElevation: 0,
         flexibleSpace: Container(
-          decoration: const BoxDecoration(gradient: StorexShopPage.rainbowGradient),
+          decoration: const BoxDecoration(gradient: StorexShopPage.premiumHeaderGradient),
         ),
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: _ShopUi.textMain),
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.of(context).pop()),
         centerTitle: true,
         title: Text(
           l10n.AppLocalizations.of(context)!.myOrders,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+          style: const TextStyle(color: _ShopUi.textMain, fontWeight: FontWeight.w800),
         ),
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -1483,7 +1570,7 @@ class _ImgRaw extends StatelessWidget {
   }
 
   Widget _fallback() => Container(
-        color: const Color(0xFFE3E5EA),
+      color: const Color(0xFFEFF1F6),
         child: const Center(child: Icon(Icons.shopping_bag_outlined, color: Color(0xFFB0B6C3), size: 36)),
       );
 }
@@ -1493,5 +1580,10 @@ class _Empty extends StatelessWidget {
   final String text;
 
   @override
-  Widget build(BuildContext context) => Center(child: Text(text, style: const TextStyle(color: Colors.black38)));
+  Widget build(BuildContext context) => Center(
+        child: Text(
+          text,
+          style: const TextStyle(color: _ShopUi.textMuted, fontWeight: FontWeight.w600),
+        ),
+      );
 }

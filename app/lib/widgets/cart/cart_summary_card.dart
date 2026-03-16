@@ -29,18 +29,20 @@ class CartSummaryCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: <Color>[
-            Color(0xFF101726),
-            Color(0xFF192238),
+            Color(0xFFFFE36A),
+            Color(0xFFFF8ACD),
+            Color(0xFF98E4FF),
           ],
-          begin: Alignment.topLeft,
+          begin: Alignment.centerLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: const Color(0x1F0F172A)),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            blurRadius: 26,
+            blurRadius: 22,
             offset: const Offset(0, 14),
-            color: Colors.black.withValues(alpha: 0.18),
+            color: const Color(0x22000000),
           ),
         ],
       ),
@@ -50,7 +52,7 @@ class CartSummaryCard extends StatelessWidget {
           Text(
             'Recapitulatif',
             style: theme.textTheme.titleLarge?.copyWith(
-              color: Colors.white,
+              color: const Color(0xFF111827),
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -60,7 +62,7 @@ class CartSummaryCard extends StatelessWidget {
           _SummaryLine(label: 'Sous-total Media', value: '$mediaSubtotal ${currency.toUpperCase()}'),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 14),
-            child: Divider(color: Color(0xFF374151), height: 1),
+            child: Divider(color: Color(0x40111827), height: 1),
           ),
           _SummaryLine(
             label: 'Total global',
@@ -72,6 +74,10 @@ class CartSummaryCard extends StatelessWidget {
             width: double.infinity,
             child: FilledButton.icon(
               onPressed: enabled ? onCheckout : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF111827),
+                foregroundColor: Colors.white,
+              ),
               icon: const Icon(Icons.lock_outline_rounded),
               label: Text(checkoutLabel),
             ),
@@ -95,7 +101,7 @@ class _SummaryLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = emphasized ? Colors.white : const Color(0xFFD1D5DB);
+    final color = emphasized ? const Color(0xFF101828) : const Color(0xFF344054);
     return Row(
       children: <Widget>[
         Expanded(

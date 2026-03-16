@@ -39,7 +39,7 @@ class ShopDrawer extends StatelessWidget {
     final localizations = l10n.AppLocalizations.of(context)!;
 
     return Drawer(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF7F8FC),
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -95,16 +95,16 @@ class ShopDrawer extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF4A90E2), Color(0xFF357ABD)],
+                      colors: [Color(0xFFFFB26A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.blue.withValues(alpha: 0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
+                        color: const Color(0x22000000),
+                        blurRadius: 14,
+                        offset: const Offset(0, 8),
                       ),
                     ],
                   ),
@@ -152,7 +152,7 @@ class ShopDrawer extends StatelessWidget {
                 child: Text(
                   localizations.categories.toUpperCase(),
                   style: const TextStyle(
-                    color: Colors.black45,
+                    color: Color(0xFF667085),
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.2,
@@ -163,7 +163,7 @@ class ShopDrawer extends StatelessWidget {
               // Catégories dynamiques
               Expanded(
                 child: Container(
-                  color: Colors.white,
+                  color: const Color(0xFFF7F8FC),
                   child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                     stream: repo.bestSeller(limit: 250).snapshots(),
                     builder: (context, snap) {
@@ -251,20 +251,21 @@ class ShopDrawerItem extends StatelessWidget {
           horizontal: 12,
         ),
         decoration: BoxDecoration(
-          color: Colors.transparent,
+          color: const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0x1F0F172A)),
         ),
         child: Row(
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 20, color: Colors.black87),
+              Icon(icon, size: 20, color: const Color(0xFF101828)),
               const SizedBox(width: 12)
             ],
             Text(
               label,
               style: TextStyle(
                 fontSize: small ? 14 : 16,
-                color: Colors.black87,
+                color: const Color(0xFF101828),
                 fontWeight: small ? FontWeight.w600 : FontWeight.w700,
               ),
             ),
