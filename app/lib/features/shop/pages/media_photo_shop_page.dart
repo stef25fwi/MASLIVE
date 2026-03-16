@@ -1,136 +1,90 @@
 import 'package:flutter/material.dart';
-
 import '../models/mock_shop_models.dart';
-import '../widgets/category_chip_row.dart';
-import '../widgets/photo_grid_card.dart';
-import '../widgets/section_header.dart';
-import '../widgets/shop_app_header.dart';
+
+final List<String> photoCategories = ShopMockData.photoCategories;
+final List<PhotoItem> popularPhotos = ShopMockData.popularPhotos;
 
 class MediaPhotoShopPage extends StatelessWidget {
   const MediaPhotoShopPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final List<PhotoItem> photos = ShopMockData.popularPhotos;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F9),
-      bottomNavigationBar: const MediaBottomNav(),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 1,
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Colors.black,
+        unselectedItemColor: Colors.black54,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Accueil'),
+          BottomNavigationBarItem(icon: Icon(Icons.photo_camera_outlined), label: 'Photos'),
+          BottomNavigationBarItem(icon: Icon(Icons.download_outlined), label: 'Téléchargements'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profil'),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 14),
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              const SizedBox(height: 4),
-              const ShopAppHeader(
-                centeredLogoText: 'MASLIVE',
-                subtitle: 'LA BOUTIQUE PHOTO',
-                compact: true,
-              ),
-              const SizedBox(height: 16),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 18),
-                child: CategoryChipRow(
-                  labels: ShopMockData.photoCategories,
-                  darkStyle: false,
-                  selectedIndex: 0,
+            children: [
+              const Center(
+                child: Text(
+                  'MASLIVE',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.8),
                 ),
               ),
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: const _CarnivalHeroCard(),
-              ),
-              const SizedBox(height: 16),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 18),
-                child: SectionHeader(
-                  title: 'PHOTOS POPULAIRES',
-                  actionLabel: 'Voir tout',
+              const SizedBox(height: 6),
+              const Center(
+                child: Text(
+                  'LA BOUTIQUE PHOTO',
+                  style: TextStyle(fontSize: 13, color: Colors.black54, fontWeight: FontWeight.w500, letterSpacing: 1.2),
                 ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                height: 40,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: photoCategories.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  itemBuilder: (context, index) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFEFF1),
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: Text(
+                        photoCategories[index],
+                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 18),
+              const _CarnivalHeroCard(),
+              const SizedBox(height: 18),
+              Row(
+                children: const [
+                  Text(
+                    'PHOTOS POPULAIRES',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 0.3),
+                  ),
+                  Spacer(),
+                  Text(
+                    'Voir tout',
+                    style: TextStyle(fontSize: 13.5, color: Colors.black54, fontWeight: FontWeight.w500),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: _PremiumMosaic(photos: photos),
-              ),
+              const _PhotoMosaicGrid(),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _PremiumMosaic extends StatelessWidget {
-  const _PremiumMosaic({required this.photos});
-
-  final List<PhotoItem> photos;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 352,
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: Column(
-              children: <Widget>[
-                Expanded(
-                  flex: 6,
-                  child: PhotoGridCard(
-                    imageUrl: photos[0].imageUrl,
-                    showFavorite: photos[0].isFavorite,
-                    radius: 21,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Expanded(
-                  flex: 5,
-                  child: PhotoGridCard(
-                    imageUrl: photos[3].imageUrl,
-                    showFavorite: photos[3].isFavorite,
-                    radius: 21,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              children: <Widget>[
-                Expanded(
-                  flex: 5,
-                  child: PhotoGridCard(
-                    imageUrl: photos[1].imageUrl,
-                    showFavorite: photos[1].isFavorite,
-                    radius: 21,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Expanded(
-                  flex: 4,
-                  child: PhotoGridCard(
-                    imageUrl: photos[2].imageUrl,
-                    showFavorite: photos[2].isFavorite,
-                    radius: 21,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Expanded(
-                  flex: 3,
-                  child: PhotoGridCard(
-                    imageUrl: photos[4].imageUrl,
-                    showFavorite: photos[4].isFavorite,
-                    radius: 21,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -146,16 +100,16 @@ class _CarnivalHeroCard extends StatelessWidget {
       child: Stack(
         children: <Widget>[
           AspectRatio(
-            aspectRatio: 16 / 10.2,
+            aspectRatio: 16 / 10,
             child: Image.network(
-              ShopMockData.mediaHeroImage,
+              'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1200',
               fit: BoxFit.cover,
             ),
           ),
-          DecoratedBox(
+          Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: <Color>[
+                colors: [
                   Colors.black.withValues(alpha: 0.10),
                   Colors.black.withValues(alpha: 0.50),
                 ],
@@ -163,21 +117,20 @@ class _CarnivalHeroCard extends StatelessWidget {
                 end: Alignment.bottomCenter,
               ),
             ),
-            child: const SizedBox.expand(),
           ),
           const Positioned(
             left: 18,
             bottom: 20,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
+              children: [
                 Text(
                   'CARNAVAL 2024',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 31,
+                    fontSize: 30,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: -0.9,
+                    letterSpacing: -0.8,
                   ),
                 ),
                 SizedBox(height: 4),
@@ -185,14 +138,90 @@ class _CarnivalHeroCard extends StatelessWidget {
                   'DÉCOUVRIR  >',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 13.5,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 0.1,
                   ),
                 ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PhotoMosaicGrid extends StatelessWidget {
+  const _PhotoMosaicGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 360,
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Column(
+              children: [
+                Expanded(
+                  flex: 6,
+                  child: _photoCard(popularPhotos[0].imageUrl, true),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  flex: 5,
+                  child: _photoCard(popularPhotos[3].imageUrl, true),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              children: [
+                Expanded(
+                  flex: 5,
+                  child: _photoCard(popularPhotos[1].imageUrl, true),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  flex: 4,
+                  child: _photoCard(popularPhotos[2].imageUrl, false),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  flex: 3,
+                  child: _photoCard(popularPhotos[4].imageUrl, false),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _photoCard(String url, bool favorite) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.network(url, fit: BoxFit.cover),
+          if (favorite)
+            Positioned(
+              top: 10,
+              right: 10,
+              child: Container(
+                width: 34,
+                height: 34,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.favorite_border, size: 18),
+              ),
+            ),
         ],
       ),
     );
