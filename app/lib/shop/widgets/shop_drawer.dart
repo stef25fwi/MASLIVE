@@ -31,11 +31,8 @@ class ShopDrawer extends StatelessWidget {
   final VoidCallback onNavigateProfile;
   final void Function(String? categoryId, String title) onNavigateCategory;
 
-  static const String _allCategoryId = '__all__';
-
   @override
   Widget build(BuildContext context) {
-    final repo = StorexRepo(shopId: shopId, groupId: groupId);
     final localizations = l10n.AppLocalizations.of(context)!;
 
     return Drawer(
@@ -46,14 +43,6 @@ class ShopDrawer extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Logo
-              Image.asset(
-                'assets/images/maslivelogo.png',
-                height: 40,
-                fit: BoxFit.contain,
-              ),
-              const SizedBox(height: 30),
-              
               // Éléments fixes
               ShopDrawerItem(
                 localizations.home,
@@ -147,68 +136,8 @@ class ShopDrawer extends StatelessWidget {
               const SizedBox(height: 24),
               
               // Header catégories
-              Padding(
-                padding: const EdgeInsets.only(left: 4, bottom: 12),
-                child: Text(
-                  localizations.categories.toUpperCase(),
-                  style: const TextStyle(
-                    color: Color(0xFF667085),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ),
-              
-              // Catégories dynamiques
-              Expanded(
-                child: Container(
-                  color: const Color(0xFFF7F8FC),
-                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                    stream: repo.bestSeller(limit: 250).snapshots(),
-                    builder: (context, snap) {
-                      if (!snap.hasData) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(20),
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        );
-                      }
+              const Spacer(),
 
-                      final docs = (snap.data?.docs ?? [])
-                          .where((d) => StorexRepo.onlyApproved(d.data()))
-                          .toList();
-                      final products = docs.map(GroupProduct.fromFirestore).toList();
-
-                      final set = <String>{};
-                      for (final p in products) {
-                        final c = p.category.trim();
-                        if (c.isNotEmpty) set.add(c);
-                      }
-                      final cats = set.toList()..sort();
-                      final finalCats = <String>[_allCategoryId, ...cats];
-
-                      return ListView(
-                        padding: EdgeInsets.zero,
-                        children: finalCats.map((c) {
-                          return ShopDrawerItem(
-                            c == _allCategoryId ? localizations.all : c,
-                            () {
-                              Navigator.of(context).pop();
-                              final title = c == _allCategoryId ? localizations.all : c;
-                              final categoryId = c == _allCategoryId ? null : c;
-                              onNavigateCategory(categoryId, title);
-                            },
-                            small: true,
-                          );
-                        }).toList(),
-                      );
-                    },
-                  ),
-                ),
-              ),
-              
               // Language switcher
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,

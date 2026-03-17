@@ -343,18 +343,18 @@ class _StorexHome extends StatelessWidget {
             Text(
               "MAS'LIVE",
               style: TextStyle(
-                fontSize: 22,
+                fontSize: 28,
                 fontWeight: FontWeight.w900,
                 letterSpacing: -0.9,
                 color: _ShopUi.textMain,
                 height: 1,
               ),
             ),
-            SizedBox(height: 2),
+            SizedBox(height: 8),
             Text(
               'LA BOUTIQUE',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 13.5,
                 fontWeight: FontWeight.w500,
                 letterSpacing: 2.2,
                 color: _ShopUi.textMuted,
@@ -663,37 +663,41 @@ class _StorexPremiumProductCard extends StatelessWidget {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: Stack(
-                children: [
-                  Positioned(
-                    top: 12,
-                    right: 12,
-                    child: GestureDetector(
-                      onTap: onWish,
-                      child: Container(
-                        width: 42,
-                        height: 42,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          wished ? Icons.favorite : Icons.favorite_border,
-                          color: wished ? const Color(0xFFFF4D8D) : _ShopUi.textMain,
-                          size: 24,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                clipBehavior: Clip.antiAlias,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _Img(p: product, fit: BoxFit.cover),
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: GestureDetector(
+                        onTap: onWish,
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.88),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.12),
+                                blurRadius: 6,
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            wished ? Icons.favorite : Icons.favorite_border,
+                            color: wished ? const Color(0xFFFF4D8D) : _ShopUi.textMain,
+                            size: 20,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  Positioned.fill(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 22, 16, 16),
-                      child: Center(
-                        child: _Img(p: product, fit: BoxFit.contain),
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

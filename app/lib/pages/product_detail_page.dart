@@ -4,7 +4,6 @@ import 'dart:ui';
 import '../models/group_product.dart';
 import '../services/cart_service.dart';
 import 'cart/unified_cart_page.dart';
-import '../widgets/honeycomb_background.dart';
 import '../widgets/rainbow_header.dart';
 import 'shop/storex_reviews_and_success_pages.dart';
 
@@ -317,8 +316,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
     return Scaffold(
       backgroundColor: _bg,
-      body: HoneycombBackground(
-        child: Column(
+      body: Column(
           children: [
             RainbowHeader(
               title: 'Shop',
@@ -542,7 +540,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             ),
           ],
         ),
-      ),
 
       // Bottom “sticky” achat
       bottomSheet: _buyBar(context, p),
