@@ -737,6 +737,55 @@ exports.createStorexPaymentIntent = onCall(
   const checkoutPayload = data.checkoutPayload && typeof data.checkoutPayload === "object"
     ? data.checkoutPayload
     : null;
+  const storeOrder = await createStorexOrderDraftFromMerchCart({
+    uid,
+    currency,
+    shippingCents,
+    shippingMethod,
+    shippingAddress,
+    checkoutPayload,
+  });
+
+  // 4) PaymentIntent
+  const stripeClient = getStripeV20240620();
+  const pi = await stripeClient.paymentIntents.create(
+    {
+      amount: storeOrder.totalCents,
+      currency,
+      automatic_payment_methods: { enabled: true },
+      metadata: { uid, orderId: storeOrder.orderId },
+    },
+    { idempotencyKey: storeOrder.orderId }
+  );
+
+  await storeOrder.orderRef.update({
+    stripe: { paymentIntentId: pi.id },
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  await storeOrder.rootOrderRef.set(
+    {
+      stripe: { paymentIntentId: pi.id },
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  return {
+    orderId: storeOrder.orderId,
+    clientSecret: pi.client_secret,
+  };
+  }
+);
+
+async function createStorexOrderDraftFromMerchCart({
+  uid,
+  currency,
+  shippingCents,
+  shippingMethod,
+  shippingAddress,
+  checkoutPayload,
+}) {
   const userRef = admin.firestore().collection("users").doc(uid);
 
   // 1) Lire le panier Firestore (source de vérité)
@@ -837,16 +886,13 @@ exports.createStorexPaymentIntent = onCall(
 
   const shopId = DEFAULT_STOREX_SHOP_ID;
 
-  // groupId: prend le premier item non vide (sinon string vide)
   const groupId = items.find((x) => (x.groupId || "").trim().length > 0)?.groupId || "";
 
-  // orderNo: générer un numéro de commande lisible (ORD-YYYYMMDD-shortId)
   const now = new Date();
   const datePart = now.toISOString().slice(0, 10).replace(/-/g, "");
   const shortId = orderRef.id.slice(0, 6).toUpperCase();
   const orderNo = `ORD-${datePart}-${shortId}`;
 
-  // itemsCount: nombre total d'items
   const itemsCount = items.length;
 
   await orderRef.set({
@@ -871,8 +917,6 @@ exports.createStorexPaymentIntent = onCall(
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  // 3b) Miroir dans /orders/{orderId} pour l'admin + pages commandes
-  // Schéma compatible avec app/lib/models/order_model.dart
   const rootOrderRef = admin.firestore().collection("orders").doc(orderRef.id);
 
   const sellerIds = uniqueStrings(items.map((it) => it.sellerId));
@@ -912,35 +956,110 @@ exports.createStorexPaymentIntent = onCall(
     { merge: true }
   );
 
-  // 4) PaymentIntent
-  const stripeClient = getStripeV20240620();
-  const pi = await stripeClient.paymentIntents.create(
-    {
-      amount: totalCents,
-      currency,
-      automatic_payment_methods: { enabled: true },
-      metadata: { uid, orderId: orderRef.id },
-    },
-    { idempotencyKey: orderRef.id }
-  );
-
-  await orderRef.update({
-    stripe: { paymentIntentId: pi.id },
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
-
-  await rootOrderRef.set(
-    {
-      stripe: { paymentIntentId: pi.id },
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    },
-    { merge: true }
-  );
-
   return {
     orderId: orderRef.id,
-    clientSecret: pi.client_secret,
+    totalCents,
+    orderRef,
+    rootOrderRef,
   };
+}
+
+/**
+ * createMixedCartPaymentIntent (callable)
+ * - Crée une commande Storex (merch) + une commande Media Marketplace (media)
+ * - Crée un SEUL PaymentIntent Stripe couvrant les 2 montants
+ * - Webhook payment_intent.succeeded: confirme Storex + délivre les entitlements media
+ */
+exports.createMixedCartPaymentIntent = onCall(
+  { region: "us-east1", secrets: [STRIPE_SECRET_KEY] },
+  async (req) => {
+    const auth = req.auth;
+    if (!auth) throw new HttpsError("unauthenticated", "Sign in required");
+    const uid = auth.uid;
+
+    const data = req.data || {};
+    const currency = String(data.currency || "eur").toLowerCase();
+    const shippingCents = Number(data.shippingCents || 0);
+    const shippingMethod = String(data.shippingMethod || "flat_rate");
+    const shippingAddress = normalizeShippingAddress(data.address);
+    const checkoutPayload = data.checkoutPayload && typeof data.checkoutPayload === "object"
+      ? data.checkoutPayload
+      : null;
+
+    // Create Storex order draft (merch)
+    const storeOrder = await createStorexOrderDraftFromMerchCart({
+      uid,
+      currency,
+      shippingCents,
+      shippingMethod,
+      shippingAddress,
+      checkoutPayload,
+    });
+
+    // Create Media Marketplace order draft (media)
+    const mediaOrder = await mediaMarketplaceStripe.createMarketplaceOrderForPaymentIntent({
+      uid,
+      checkoutPayload,
+    });
+    if (!mediaOrder?.orderId || !Number.isFinite(Number(mediaOrder.totalCents))) {
+      throw new HttpsError("failed-precondition", "Media cart empty");
+    }
+
+    const totalCents = storeOrder.totalCents + toSafeInt(mediaOrder.totalCents, 0);
+    if (totalCents <= 0) {
+      throw new HttpsError("failed-precondition", "Cart total invalid");
+    }
+
+    const stripeClient = getStripeV20240620();
+    const pi = await stripeClient.paymentIntents.create(
+      {
+        amount: totalCents,
+        currency,
+        automatic_payment_methods: { enabled: true },
+        metadata: {
+          uid,
+          kind: "mixed_cart",
+          storeOrderId: storeOrder.orderId,
+          mediaOrderId: mediaOrder.orderId,
+        },
+      },
+      { idempotencyKey: `mixed_${storeOrder.orderId}_${mediaOrder.orderId}` }
+    );
+
+    await storeOrder.orderRef.update({
+      stripe: {
+        paymentIntentId: pi.id,
+        kind: "mixed_cart",
+        mediaOrderId: mediaOrder.orderId,
+      },
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    await storeOrder.rootOrderRef.set(
+      {
+        stripe: {
+          paymentIntentId: pi.id,
+          kind: "mixed_cart",
+          mediaOrderId: mediaOrder.orderId,
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    await db.collection("orders").doc(mediaOrder.orderId).set(
+      {
+        stripePaymentIntentId: pi.id,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return {
+      storeOrderId: storeOrder.orderId,
+      mediaOrderId: mediaOrder.orderId,
+      clientSecret: pi.client_secret,
+      totalCents,
+    };
   }
 );
 
@@ -3029,7 +3148,9 @@ async function handlePaymentIntentSucceeded(paymentIntent) {
   console.log("Processing payment_intent.succeeded:", paymentIntent.id);
 
   const uid = paymentIntent.metadata?.uid;
-  const orderId = paymentIntent.metadata?.orderId;
+  const orderId = paymentIntent.metadata?.orderId || paymentIntent.metadata?.storeOrderId;
+  const kind = normalizeLowerString(paymentIntent.metadata?.kind || "");
+  const mediaOrderId = paymentIntent.metadata?.mediaOrderId;
 
   if (!uid || !orderId) {
     console.warn("Missing uid or orderId in payment intent metadata");
@@ -3069,6 +3190,15 @@ async function handlePaymentIntentSucceeded(paymentIntent) {
     },
     { merge: true }
   );
+
+  if (kind === "mixed_cart" && typeof mediaOrderId === "string" && mediaOrderId.trim().length > 0) {
+    await mediaMarketplaceStripe.fulfillMarketplaceOrderFromPaymentIntent({
+      orderId: mediaOrderId.trim(),
+      buyerUid: uid,
+      paymentIntentId: paymentIntent.id,
+      stripeCustomerId: paymentIntent.customer || null,
+    });
+  }
 
   console.log(`Order ${orderId} marked as paid via payment_intent.succeeded`);
 }

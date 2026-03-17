@@ -544,6 +544,273 @@ module.exports = function createMediaMarketplaceStripe(deps) {
     return true
   }
 
+  async function createMarketplaceOrderForPaymentIntent({ uid, checkoutPayload }) {
+    if (!uid) return null
+
+    const unifiedCart = await loadUnifiedMediaCart(uid)
+
+    // Race condition protection: lock cart for checkout
+    const cartRef = db.collection(COLLECTIONS.carts).doc(uid)
+    let cart = null
+    let cartItems = []
+
+    await db.runTransaction(async (transaction) => {
+      const cartSnapshot = await transaction.get(cartRef)
+      const cartData = cartSnapshot.exists ? (cartSnapshot.data() || {}) : {}
+      const items = Array.isArray(cartData.items) ? cartData.items : []
+      if (!unifiedCart.items.length && !items.length) {
+        throw new HttpsError("failed-precondition", "Cart is empty")
+      }
+
+      const checkoutLockExpiry = cartData.checkoutLockedUntil?.toMillis?.()
+      const now = Date.now()
+      if (checkoutLockExpiry && checkoutLockExpiry > now) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Checkout already in progress. Please wait a moment and try again."
+        )
+      }
+
+      transaction.set(
+        cartRef,
+        {
+          checkoutLockedUntil: new Date(now + 5 * 60 * 1000),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      )
+
+      cart = cartData
+      cartItems = unifiedCart.items.length ? unifiedCart.items : items
+    })
+
+    try {
+      const photoIds = cartItems
+        .filter((item) => item.assetType === "photo")
+        .map((item) => item.assetId)
+      const packIds = cartItems
+        .filter((item) => item.assetType === "pack")
+        .map((item) => item.assetId)
+
+      const [photosById, packsById] = await Promise.all([
+        getDocumentMap(COLLECTIONS.mediaPhotos, photoIds),
+        getDocumentMap(COLLECTIONS.mediaPacks, packIds),
+      ])
+
+      const packPhotoIds = uniqueStrings(
+        Array.from(packsById.values()).flatMap((pack) =>
+          Array.isArray(pack.photoIds) ? pack.photoIds : []
+        )
+      )
+      const packPhotosById = await getDocumentMap(COLLECTIONS.mediaPhotos, packPhotoIds)
+
+      const commissionRates = await getCommissionRatesByPhotographer(
+        cartItems.map((item) => item.photographerId)
+      )
+
+      const orderItems = cartItems.map((item) => {
+        const assetType = typeof item.assetType === "string" ? item.assetType : "photo"
+        const assetId = typeof item.assetId === "string" ? item.assetId : ""
+        const commissionRate = clampPositiveAmount(commissionRates.get(item.photographerId) || 0)
+
+        if (assetType === "pack") {
+          const pack = packsById.get(assetId)
+          assertValidPackForSale(pack, assetId, packPhotosById)
+          return buildOrderLineItemFromPack(item, pack, commissionRate)
+        }
+
+        const photo = photosById.get(assetId)
+        assertValidPhotoForSale(photo, assetId)
+        return buildOrderLineItemFromPhoto(item, photo, commissionRate)
+      })
+
+      const breakdown = computeOrderBreakdown(orderItems)
+      const orderRef = db.collection(COLLECTIONS.orders).doc()
+      const orderId = orderRef.id
+      const photographerIds = uniqueStrings(orderItems.map((item) => item.photographerId))
+      const photographerOwnerUids = await getPhotographerOwnerUids(photographerIds)
+
+      const orderPayload = {
+        orderId,
+        buyerUid: uid,
+        photographerIds,
+        photographerOwnerUids,
+        items: orderItems,
+        currency: cart?.currency || orderItems[0]?.currency || "EUR",
+        subtotal: breakdown.subtotal,
+        stripeFee: breakdown.stripeFee,
+        platformFee: breakdown.platformFee,
+        taxAmount: breakdown.taxAmount,
+        total: breakdown.total,
+        photographerNetTotal: breakdown.photographerNetTotal,
+        paymentStatus: "pending",
+        deliveryStatus: "pending",
+        pricingBreakdown: breakdown,
+        metadata: {
+          kind: MEDIA_MARKETPLACE_KIND_ORDER,
+          source: "mixed_cart_payment_intent",
+          itemCount: orderItems.length,
+          cartSource: unifiedCart.items.length ? "unified_cart_items" : "legacy_cart",
+        },
+        checkoutPayload: checkoutPayload || null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }
+
+      await orderRef.set(orderPayload)
+
+      // Clear cart and checkout lock after successful order creation
+      if (unifiedCart.refs.length) {
+        const batch = db.batch()
+        unifiedCart.refs.forEach((ref) => batch.delete(ref))
+        batch.set(
+          cartRef,
+          {
+            checkoutLockedUntil: null,
+            lastCheckoutOrderId: orderId,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        )
+        await batch.commit()
+      } else {
+        await cartRef.set(
+          {
+            items: [],
+            checkoutLockedUntil: null,
+            lastCheckoutOrderId: orderId,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        )
+      }
+
+      return {
+        orderId,
+        totalCents: amountToCents(breakdown.total),
+        currency: orderPayload.currency,
+      }
+    } catch (error) {
+      // Best effort unlock to avoid temporary denial of checkout after failures.
+      await cartRef
+        .set(
+          {
+            checkoutLockedUntil: null,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        )
+        .catch(() => null)
+      throw error
+    }
+  }
+
+  async function fulfillMarketplaceOrderFromPaymentIntent({ orderId, buyerUid, paymentIntentId, stripeCustomerId }) {
+    if (!orderId || !buyerUid) return false
+
+    const orderRef = db.collection(COLLECTIONS.orders).doc(orderId)
+    const orderSnapshot = await orderRef.get()
+    if (!orderSnapshot.exists) return false
+
+    const order = orderSnapshot.data() || {}
+    if (order?.metadata?.kind !== MEDIA_MARKETPLACE_KIND_ORDER) {
+      return false
+    }
+
+    const paymentStatus = String(order?.paymentStatus || "").toLowerCase()
+    const deliveryStatus = String(order?.deliveryStatus || "").toLowerCase()
+    if (paymentStatus === "paid" && deliveryStatus === "delivered") {
+      return true
+    }
+
+    const items = Array.isArray(order.items) ? order.items : []
+    const subtotal = clampPositiveAmount(order.subtotal)
+    const stripeFeeTotal = clampPositiveAmount(order.stripeFee)
+    const payoutBatch = db.batch()
+
+    for (const item of items) {
+      const assetId = item.assetId
+      const lineSubtotal = clampPositiveAmount(item.lineSubtotal)
+      const share = subtotal > 0 ? lineSubtotal / subtotal : 0
+      const allocatedStripeFee = stripeFeeTotal * share
+      const platformFee = clampPositiveAmount(item?.pricingSnapshot?.commissionRate) * lineSubtotal
+      const netAmount = Math.max(0, lineSubtotal - platformFee - allocatedStripeFee)
+
+      const entitlementId = `${orderId}_${assetId}`
+      payoutBatch.set(
+        db.collection(COLLECTIONS.mediaEntitlements).doc(entitlementId),
+        {
+          entitlementId,
+          buyerUid,
+          orderId,
+          assetId,
+          assetType: item.assetType,
+          photographerId: item.photographerId,
+          photoIds: Array.isArray(item.photoIds) ? item.photoIds : [],
+          allowedVariants: ["original"],
+          downloadCount: 0,
+          isActive: true,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      )
+
+      const payoutId = `${orderId}_${assetId}`
+      payoutBatch.set(
+        db.collection(COLLECTIONS.payoutLedger).doc(payoutId),
+        {
+          ledgerId: payoutId,
+          photographerId: item.photographerId,
+          orderId,
+          assetId,
+          grossAmount: lineSubtotal,
+          platformFee,
+          stripeFee: allocatedStripeFee,
+          taxAmount: 0,
+          netAmount,
+          currency: item.currency || order.currency || "EUR",
+          payoutStatus: "available",
+          metadata: {
+            kind: MEDIA_MARKETPLACE_KIND_ORDER,
+            assetType: item.assetType,
+          },
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      )
+    }
+
+    payoutBatch.set(
+      orderRef,
+      {
+        paymentStatus: "paid",
+        deliveryStatus: "delivered",
+        stripePaymentIntentId: paymentIntentId || null,
+        stripeCustomerId: stripeCustomerId || null,
+        paidAt: serverTimestamp(),
+        deliveredAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    )
+
+    payoutBatch.set(
+      db.collection(COLLECTIONS.carts).doc(buyerUid),
+      {
+        uid: buyerUid,
+        items: [],
+        checkoutLockedUntil: null,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    )
+
+    await payoutBatch.commit()
+    return true
+  }
+
   const createMediaMarketplaceCheckout = onCall(
     {
       region: "us-east1",
@@ -981,6 +1248,8 @@ module.exports = function createMediaMarketplaceStripe(deps) {
   return {
     createMediaMarketplaceCheckout,
     createPhotographerSubscriptionCheckoutSession,
+    createMarketplaceOrderForPaymentIntent,
+    fulfillMarketplaceOrderFromPaymentIntent,
     handleMarketplaceCheckoutSessionCompleted,
     handleMarketplaceCustomerSubscriptionUpdated,
     handleMarketplaceCustomerSubscriptionDeleted,

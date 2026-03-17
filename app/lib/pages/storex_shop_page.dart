@@ -526,7 +526,7 @@ class _StorexHeroBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(2),
-      height: 168,
+      height: 188,
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: const LinearGradient(

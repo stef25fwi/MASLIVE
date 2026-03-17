@@ -1,10 +1,9 @@
-import 'dart:async';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/cart_provider.dart';
+import '../checkout/maslive_ultra_premium_checkout_page.dart';
 import '../../services/cart_checkout_service.dart';
 import '../../session/require_signin.dart';
 import '../../session/session_scope.dart';
@@ -15,10 +14,7 @@ import '../../widgets/cart/cart_summary_card.dart';
 import '../../widgets/cart/empty_cart_view.dart';
 
 class UnifiedCartPage extends StatefulWidget {
-  const UnifiedCartPage({
-    super.key,
-    this.embedded = false,
-  });
+  const UnifiedCartPage({super.key, this.embedded = false});
 
   final bool embedded;
 
@@ -65,7 +61,12 @@ class _UnifiedCartPageState extends State<UnifiedCartPage> {
       final currency = cart.items.first.currency;
       body = ListView(
         physics: const BouncingScrollPhysics(),
-        padding: EdgeInsets.fromLTRB(widget.embedded ? 8 : 18, 16, widget.embedded ? 8 : 18, 24),
+        padding: EdgeInsets.fromLTRB(
+          widget.embedded ? 8 : 18,
+          16,
+          widget.embedded ? 8 : 18,
+          24,
+        ),
         children: <Widget>[
           if (cart.error != null)
             Padding(
@@ -140,7 +141,9 @@ class _UnifiedCartPageState extends State<UnifiedCartPage> {
               currency: currency,
               enabled: !cart.isEmpty,
               onCheckout: () => _handleCheckout(context, cart, session),
-              checkoutLabel: cart.mediaCheckoutItems.isNotEmpty && cart.merchCheckoutItems.isNotEmpty
+              checkoutLabel:
+                  cart.mediaCheckoutItems.isNotEmpty &&
+                      cart.merchCheckoutItems.isNotEmpty
                   ? 'Continuer vers checkout'
                   : 'Continuer',
             ),
@@ -163,12 +166,24 @@ class _UnifiedCartPageState extends State<UnifiedCartPage> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(gradient: _premiumHeaderGradient),
         ),
-        title: const Text('Panier', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF101828))),
+        title: const Text(
+          'Panier',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF101828),
+          ),
+        ),
         actions: <Widget>[
           if (!cart.isEmpty)
             TextButton(
               onPressed: cart.clearCart,
-              child: const Text('Tout vider', style: TextStyle(color: Color(0xFF101828), fontWeight: FontWeight.w700)),
+              child: const Text(
+                'Tout vider',
+                style: TextStyle(
+                  color: Color(0xFF101828),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
         ],
       ),
@@ -176,10 +191,7 @@ class _UnifiedCartPageState extends State<UnifiedCartPage> {
     );
   }
 
-  Widget _reveal({
-    required int index,
-    required Widget child,
-  }) {
+  Widget _reveal({required int index, required Widget child}) {
     final delayMs = 90 * index;
     return AnimatedSlide(
       offset: _animateIn ? Offset.zero : const Offset(0, 0.08),
@@ -216,7 +228,11 @@ class _UnifiedCartPageState extends State<UnifiedCartPage> {
       return;
     }
 
-    await _showSplitCheckoutSheet(context, cart, session);
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const MasliveUltraPremiumCheckoutPage(),
+      ),
+    );
   }
 
   Future<void> _startMerchCheckout(
@@ -266,72 +282,6 @@ class _UnifiedCartPageState extends State<UnifiedCartPage> {
         SnackBar(content: Text('Checkout media impossible: $error')),
       );
     }
-  }
-
-  Future<void> _showSplitCheckoutSheet(
-    BuildContext context,
-    CartProvider cart,
-    SessionControllerLike session,
-  ) async {
-    final payload = cart.buildCheckoutPayload();
-    final summary = Map<String, dynamic>.from(
-      payload['summary'] as Map<String, dynamic>? ?? const <String, dynamic>{},
-    );
-
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                const Text(
-                  'Choisir le checkout',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Le panier contient du merch et des medias. Checkout separe disponible maintenant.',
-                  style: Theme.of(sheetContext).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 14),
-                Text('Total merch: ${summary['merchSubtotal'] ?? 0} EUR'),
-                Text('Total media: ${summary['mediaSubtotal'] ?? 0} EUR'),
-                Text('Total global: ${summary['grandTotal'] ?? 0} EUR'),
-                const SizedBox(height: 18),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      Navigator.of(sheetContext).pop();
-                      unawaited(_startMerchCheckout(context, session));
-                    },
-                    icon: const Icon(Icons.shopping_bag_outlined),
-                    label: const Text('Payer le merch'),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.of(sheetContext).pop();
-                      unawaited(_startMediaCheckout(context, cart, session));
-                    },
-                    icon: const Icon(Icons.photo_library_outlined),
-                    label: const Text('Payer les medias'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
   }
 }
 
