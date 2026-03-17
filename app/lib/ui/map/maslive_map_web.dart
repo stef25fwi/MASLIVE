@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'maslive_map_controller.dart';
 import 'maslive_poi_style.dart';
 import '../../services/mapbox_token_service.dart';
+import '../../utils/mapbox_style_url.dart';
 
 /// Implémentation Web de MasLiveMap
 /// Utilise Mapbox GL JS via HtmlElementView avec API Phase 1 complète
@@ -122,7 +123,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
   String _poisGeoJsonString = '{"type":"FeatureCollection","features":[]}';
 
-  static const String _fallbackStyleUrl = 'mapbox://styles/mapbox/streets-v12';
+  static const String _fallbackStyleUrl = kDefaultMapboxStyleUrl;
 
   List<MapMarker>? _lastMarkers;
   ({
@@ -158,40 +159,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   }
 
   String _normalizeMapboxStyleUrl(String raw) {
-    final value = raw.trim();
-    if (value.isEmpty) return value;
-
-    Uri uri;
-    try {
-      uri = Uri.parse(value);
-    } catch (_) {
-      return value;
-    }
-
-    final host = uri.host.toLowerCase();
-
-    // Cas fréquent: URL Mapbox Studio (page HTML) copiée depuis l'UI.
-    // Ex: https://studio.mapbox.com/styles/{user}/{styleId}/edit
-    // => mapbox://styles/{user}/{styleId}
-    if (host == 'studio.mapbox.com') {
-      final seg = uri.pathSegments;
-      final stylesIndex = seg.indexOf('styles');
-      if (stylesIndex != -1 && seg.length >= stylesIndex + 3) {
-        final user = seg[stylesIndex + 1];
-        final styleId = seg[stylesIndex + 2];
-        if (user.isNotEmpty && styleId.isNotEmpty) {
-          return 'mapbox://styles/$user/$styleId';
-        }
-      }
-    }
-
-    // Certains liens finissent par ".html" (HTML, non JSON). On tente d'enlever le suffixe.
-    if (value.toLowerCase().endsWith('.html')) {
-      final withoutHtml = value.substring(0, value.length - 5);
-      return withoutHtml;
-    }
-
-    return value;
+    return normalizeMapboxStyleUrl(raw, fallback: _fallbackStyleUrl);
   }
 
   String? _friendlyHintForReason(String? reason) {

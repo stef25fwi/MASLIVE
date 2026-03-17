@@ -33,6 +33,7 @@ import '../services/market_map_service.dart';
 import '../models/market_poi.dart';
 import '../models/group_circuit_public_position.dart';
 import '../services/group/marketmap_group_public_position_service.dart';
+import '../utils/mapbox_style_url.dart';
 import '../utils/web_viewport_resize.dart';
 import 'storex_shop_page.dart';
 import 'home_vertical_nav.dart';
@@ -382,9 +383,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       _projectCenterLat = center['lat'];
       _projectCenterLng = center['lng'];
       _projectZoom = circuit.initialZoom;
-      if (circuit.styleUrl != null && circuit.styleUrl!.trim().isNotEmpty) {
-        _styleUrl = circuit.styleUrl!.trim();
-      }
+      _styleUrl = normalizeMapboxStyleUrl(circuit.styleUrl);
 
       // Nouveau circuit => reset affichage POIs.
       _marketPoiMarkers = const <MapMarker>[];

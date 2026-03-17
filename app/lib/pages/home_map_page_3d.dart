@@ -32,6 +32,7 @@ import '../models/market_poi.dart';
 import '../ui/widgets/marketmap_poi_selector_sheet.dart';
 import '../services/poi_analytics_service.dart';
 import '../utils/poi_normalizer.dart';
+import '../utils/mapbox_style_url.dart';
 import '../route_style_pro/services/route_style_pro_projection.dart';
 import '../route_style_pro/models/route_style_config.dart';
 import '../l10n/app_localizations.dart' as l10n;
@@ -389,8 +390,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     }
 
     final circuit = selection.circuit!;
-    final styleUrl = circuit.styleUrl?.trim();
-    if (styleUrl != null && styleUrl.isNotEmpty && _mapboxMap != null) {
+    final styleUrl = normalizeMapboxStyleUrl(circuit.styleUrl);
+    if (styleUrl.isNotEmpty && _mapboxMap != null) {
       try {
         await _mapboxMap!.style.setStyleURI(styleUrl);
       } catch (e) {
