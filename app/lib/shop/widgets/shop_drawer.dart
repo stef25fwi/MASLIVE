@@ -114,7 +114,7 @@ class ShopDrawer extends StatelessWidget {
                       const SizedBox(width: 12),
                       const Expanded(
                         child: Text(
-                          'Marché des médias',
+                          'La boutique photo',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -135,17 +135,13 @@ class ShopDrawer extends StatelessWidget {
               
               const SizedBox(height: 24),
               
-              // Header catégories
-              const Spacer(),
-
-              // Language switcher
+              // Language switcher at bottom
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   LanguageSwitcher(),
                 ],
               ),
-              const SizedBox(height: 8),
             ],
           ),
         ),
