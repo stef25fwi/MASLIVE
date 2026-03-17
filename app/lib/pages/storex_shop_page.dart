@@ -329,6 +329,7 @@ class _StorexHome extends StatelessWidget {
         shadowColor: Colors.transparent,
         scrolledUnderElevation: 0,
         elevation: 0,
+        toolbarHeight: 88,
         iconTheme: const IconThemeData(color: _ShopUi.textMain),
         leading: Builder(
           builder: (ctx) => IconButton(
@@ -337,31 +338,34 @@ class _StorexHome extends StatelessWidget {
           ),
         ),
         centerTitle: true,
-        title: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              "MAS'LIVE",
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.9,
-                color: _ShopUi.textMain,
-                height: 1,
+        title: const Padding(
+          padding: EdgeInsets.only(top: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "MAS'LIVE",
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.9,
+                  color: _ShopUi.textMain,
+                  height: 1,
+                ),
               ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'LA BOUTIQUE',
-              style: TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 2.2,
-                color: _ShopUi.textMuted,
-                height: 1,
+              SizedBox(height: 8),
+              Text(
+                'LA BOUTIQUE',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 2.2,
+                  color: _ShopUi.textMuted,
+                  height: 1,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           IconButton(
@@ -399,7 +403,7 @@ class _StorexHome extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _StorexHeroBanner(firstProduct: products.first),
+                    const _StorexHeroBanner(),
                     const SizedBox(height: 26),
                     Row(
                       children: [
@@ -516,8 +520,7 @@ class _StorexHome extends StatelessWidget {
 // ─── _StorexHeroBanner ──────────────────────────────────────────────────────
 
 class _StorexHeroBanner extends StatelessWidget {
-  const _StorexHeroBanner({required this.firstProduct});
-  final GroupProduct firstProduct;
+  const _StorexHeroBanner();
 
   @override
   Widget build(BuildContext context) {
@@ -531,7 +534,10 @@ class _StorexHeroBanner extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          _Img(p: firstProduct, fit: BoxFit.cover),
+          Image.asset(
+            'assets/shop/boutik1.webp',
+            fit: BoxFit.cover,
+          ),
           Container(
             decoration: BoxDecoration(
               gradient: RadialGradient(
