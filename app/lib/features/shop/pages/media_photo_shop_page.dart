@@ -6,7 +6,6 @@ class MediaPhotoShopPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const Color pageBg = Color(0xFFF7F7F7);
-    const Color chipBg = Color(0xFFFFFFFF);
     const Color textPrimary = Color(0xFF111111);
     const Color textSecondary = Color(0xFF7A7A7A);
     const Color borderColor = Color(0xFFEDEDED);
@@ -216,9 +215,9 @@ class _HeroCarnavalCard extends StatelessWidget {
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
                 colors: [
-                  Colors.black.withOpacity(0.50),
-                  Colors.black.withOpacity(0.14),
-                  Colors.black.withOpacity(0.10),
+                  Colors.black.withValues(alpha: 0.50),
+                  Colors.black.withValues(alpha: 0.14),
+                  Colors.black.withValues(alpha: 0.10),
                 ],
                 stops: const [0.0, 0.38, 1.0],
               ),

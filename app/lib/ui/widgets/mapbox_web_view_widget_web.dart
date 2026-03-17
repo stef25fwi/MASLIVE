@@ -74,7 +74,8 @@ class _MapboxWebViewState extends State<MapboxWebView> {
     _viewType = 'mapbox-web-view-${DateTime.now().microsecondsSinceEpoch}';
     _registerFactory();
 
-    if (widget.accessToken.trim().isEmpty) {
+    const _ctToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+    if (_ctToken.isEmpty && widget.accessToken.trim().isEmpty) {
       _error =
           'Token Mapbox manquant. Configure MAPBOX_ACCESS_TOKEN (ou MAPBOX_TOKEN legacy).';
     }
@@ -110,7 +111,9 @@ class _MapboxWebViewState extends State<MapboxWebView> {
     if (oldWidget.interactive != widget.interactive) {
       _syncPointerEvents();
     }
-    if (_map == null && _container != null && widget.accessToken.isNotEmpty) {
+    const _ctToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+    final _effectiveToken = _ctToken.isNotEmpty ? _ctToken : widget.accessToken;
+    if (_map == null && _container != null && _effectiveToken.isNotEmpty) {
       _initMapbox(_container!);
     }
 
@@ -171,7 +174,9 @@ class _MapboxWebViewState extends State<MapboxWebView> {
   }
 
   void _initMapbox(html.DivElement container) {
-    if (widget.accessToken.trim().isEmpty) {
+    const _ctToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+    final effectiveToken = _ctToken.isNotEmpty ? _ctToken : widget.accessToken.trim();
+    if (effectiveToken.isEmpty) {
       if (_error == null) {
         setState(() {
           _error =
@@ -192,7 +197,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
       return;
     }
 
-    mapboxglObj['accessToken'] = widget.accessToken;
+    mapboxglObj['accessToken'] = effectiveToken;
 
     final mapConfig = js.JsObject.jsify({
       'container': container,
