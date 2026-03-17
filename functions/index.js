@@ -965,6 +965,85 @@ async function createStorexOrderDraftFromMerchCart({
 }
 
 /**
+ * validatePromoCode (callable)
+ * - Valide un code promo contre la configuration Firestore
+ * - Retourne { valid: boolean, discountCents: number, message: string }
+ */
+exports.validatePromoCode = onCall(
+  { region: "us-east1" },
+  async (req) => {
+    const auth = req.auth;
+    if (!auth) throw new HttpsError("unauthenticated", "Sign in required");
+    // uid not required for promo validation, but auth confirms user identity
+
+    const data = req.data || {};
+    const promoCode = String(data.promoCode || "").trim().toUpperCase();
+    const subtotalCents = toSafeInt(data.subtotalCents, 0);
+
+    if (!promoCode) {
+      return { valid: false, discountCents: 0, message: "Code vide" };
+    }
+
+    // Load promo codes from Firestore config
+    const promoSnap = await db.collection("config").doc("promo_codes").get();
+    const promoConfig = promoSnap.exists && promoSnap.data() ? promoSnap.data() : {};
+    const codes = promoConfig.codes || {};
+    const codeData = codes[promoCode];
+
+    if (!codeData) {
+      return { valid: false, discountCents: 0, message: "Code promo invalide" };
+    }
+
+    // Check expiration
+    if (codeData.expiresAt) {
+      const expiresAtMs = (typeof codeData.expiresAt === "object" && typeof codeData.expiresAt.toMillis === "function")
+        ? codeData.expiresAt.toMillis()
+        : (typeof codeData.expiresAt === "number" ? codeData.expiresAt : 0);
+      if (expiresAtMs > 0 && Date.now() > expiresAtMs) {
+        return { valid: false, discountCents: 0, message: "Code promo expiré" };
+      }
+    }
+
+    // Check if disabled
+    if (codeData.disabled === true) {
+      return { valid: false, discountCents: 0, message: "Code promo désactivé" };
+    }
+
+    // Calculate discount
+    let discountCents = 0;
+    if (codeData.type === "percentage") {
+      const pct = clampPositiveAmount(codeData.value);
+      discountCents = Math.floor((subtotalCents * pct) / 100);
+      // Cap by maxDiscountCents if specified
+      if (codeData.maxDiscountCents && discountCents > codeData.maxDiscountCents) {
+        discountCents = codeData.maxDiscountCents;
+      }
+    } else if (codeData.type === "fixed") {
+      discountCents = toSafeInt(codeData.value, 0);
+    }
+
+    // Check minimum order value
+    if (codeData.minSubtotalCents && subtotalCents < codeData.minSubtotalCents) {
+      return {
+        valid: false,
+        discountCents: 0,
+        message: `Minimum commande: ${(codeData.minSubtotalCents / 100).toFixed(2)}€`,
+      };
+    }
+
+    if (discountCents <= 0) {
+      return { valid: false, discountCents: 0, message: "Réduction invalide" };
+    }
+
+    return {
+      valid: true,
+      discountCents,
+      message: `Réduction appliquée: -${(discountCents / 100).toFixed(2)}€`,
+    };
+  }
+);
+
+/**
  * createMixedCartPaymentIntent (callable)
  * - Crée une commande Storex (merch) + une commande Media Marketplace (media)
  * - Crée un SEUL PaymentIntent Stripe couvrant les 2 montants
@@ -981,6 +1060,7 @@ exports.createMixedCartPaymentIntent = onCall(
     const currency = String(data.currency || "eur").toLowerCase();
     const shippingCents = Number(data.shippingCents || 0);
     const shippingMethod = String(data.shippingMethod || "flat_rate");
+    const promoCode = String(data.promoCode || "").trim().toUpperCase();
     const shippingAddress = normalizeShippingAddress(data.address);
     const checkoutPayload = data.checkoutPayload && typeof data.checkoutPayload === "object"
       ? data.checkoutPayload
@@ -1005,7 +1085,42 @@ exports.createMixedCartPaymentIntent = onCall(
       throw new HttpsError("failed-precondition", "Media cart empty");
     }
 
-    const totalCents = storeOrder.totalCents + toSafeInt(mediaOrder.totalCents, 0);
+    // Validate and apply promo code (server-side validation)
+    let promoCentsDiscount = 0;
+    if (promoCode) {
+      const subtotalCents = storeOrder.totalCents + toSafeInt(mediaOrder.totalCents, 0);
+      const promoSnap = await db.collection("config").doc("promo_codes").get();
+      const promoConfig = promoSnap.exists && promoSnap.data() ? promoSnap.data() : {};
+      const codes = promoConfig.codes || {};
+      const codeData = codes[promoCode];
+
+      if (codeData && codeData.disabled !== true) {
+        // Check expiration
+        const expiresAtMs = (typeof codeData.expiresAt === "object" && typeof codeData.expiresAt.toMillis === "function")
+          ? codeData.expiresAt.toMillis()
+          : (typeof codeData.expiresAt === "number" ? codeData.expiresAt : 0);
+        if (!expiresAtMs || Date.now() <= expiresAtMs) {
+          // Check minimum order value
+          if (!codeData.minSubtotalCents || subtotalCents >= codeData.minSubtotalCents) {
+            // Calculate discount
+            if (codeData.type === "percentage") {
+              const pct = clampPositiveAmount(codeData.value);
+              promoCentsDiscount = Math.floor((subtotalCents * pct) / 100);
+              if (codeData.maxDiscountCents && promoCentsDiscount > codeData.maxDiscountCents) {
+                promoCentsDiscount = codeData.maxDiscountCents;
+              }
+            } else if (codeData.type === "fixed") {
+              promoCentsDiscount = toSafeInt(codeData.value, 0);
+            }
+          }
+        }
+      }
+    }
+
+    const totalCents = Math.max(
+      0,
+      storeOrder.totalCents + toSafeInt(mediaOrder.totalCents, 0) - promoCentsDiscount
+    );
     if (totalCents <= 0) {
       throw new HttpsError("failed-precondition", "Cart total invalid");
     }
@@ -1021,12 +1136,16 @@ exports.createMixedCartPaymentIntent = onCall(
           kind: "mixed_cart",
           storeOrderId: storeOrder.orderId,
           mediaOrderId: mediaOrder.orderId,
+          promoCode: promoCode || "none",
+          promoCentsDiscount: String(promoCentsDiscount),
         },
       },
       { idempotencyKey: `mixed_${storeOrder.orderId}_${mediaOrder.orderId}` }
     );
 
     await storeOrder.orderRef.update({
+      promoCode: promoCode || null,
+      promoCentsDiscount,
       stripe: {
         paymentIntentId: pi.id,
         kind: "mixed_cart",
@@ -1059,6 +1178,8 @@ exports.createMixedCartPaymentIntent = onCall(
       mediaOrderId: mediaOrder.orderId,
       clientSecret: pi.client_secret,
       totalCents,
+      promoCentsDiscount,
+      promoCode: promoCode || null,
     };
   }
 );

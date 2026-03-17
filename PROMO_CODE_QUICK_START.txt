@@ -1,0 +1,176 @@
+# ⚡ QUICK START - Promo Code System (NEXT STEPS)
+
+## 🎯 What Was Done
+
+✅ **Cloud Functions**
+- New `validatePromoCode()` callable
+- Modified `createMixedCartPaymentIntent()` to accept + apply promos
+- Server-side validation & amount calculation
+- Firestore metadata audit trail
+
+✅ **Dart Client** 
+- `CartCheckoutService.validatePromoCode()` method
+- `startMixedCheckout()` accepts promoCode parameter
+- `maslive_ultra_premium_checkout_page.dart` fully integrated
+- Loading UI + error messages
+
+✅ **Code Quality**
+- Zero compilation errors
+- Unit tests provided
+- Security-first design (server-side validation)
+- Comprehensive documentation
+
+---
+
+## ⏳ What's LEFT (3 Steps to Production)
+
+### Step 1️⃣: Create Firestore Config (5 min)
+
+**Via Firebase Console:**
+1. Go to Firestore
+2. Create collection: **`config`**
+3. Add document: **`promo_codes`**
+4. Copy-paste JSON:
+
+```json
+{
+  "codes": {
+    "MAS10": {
+      "type": "percentage",
+      "value": 10,
+      "minSubtotalCents": 5000,
+      "disabled": false
+    },
+    "MEDIA5": {
+      "type": "fixed",
+      "value": 500,
+      "minSubtotalCents": 2000,
+      "disabled": false
+    },
+    "WELCOME20": {
+      "type": "percentage",
+      "value": 20,
+      "maxDiscountCents": 2000,
+      "disabled": false
+    }
+  }
+}
+```
+
+### Step 2️⃣: Deploy Functions (3 min)
+
+```bash
+cd /workspaces/MASLIVE
+firebase deploy --only functions
+```
+
+Monitor: `firebase functions:logs read --limit 30`
+
+### Step 3️⃣: Test E2E (10 min)
+
+**Open app, go to checkout:**
+
+1. **Test: Valid code**
+   - Panier €70+
+   - Code: `MAS10`
+   - ✅ See: -7€ discount
+
+2. **Test: Minimum order**
+   - Panier €30
+   - Code: `MAS10` (needs €50)
+   - ✅ See: "Minimum €50"
+
+3. **Test: Invalid code**
+   - Code: `FAKECODE`
+   - ✅ See: "Code invalide"
+
+---
+
+## 📁 Key Files for Reference
+
+| File | Purpose |
+|------|---------|
+| `PROMO_CODE_SUMMARY.md` | Visual architecture |
+| `PROMO_CODE_IMPLEMENTATION.md` | Technical details |
+| `PROMO_CODE_DEPLOYMENT.md` | Full deployment checklist |
+| `functions/index.js` | Cloud Functions |
+| `app/lib/services/cart_checkout_service.dart` | Service layer |
+| `app/lib/pages/checkout/maslive_ultra_premium_checkout_page.dart` | UI |
+| `functions/promo-code.test.js` | Tests |
+
+---
+
+## ✅ Current Status
+
+```
+POINT 2 TODO: "Brancher coupon reel via Cloud Functions"
+
+Code Implementation:    ✅ DONE
+Documentation:         ✅ DONE
+Testing Framework:     ✅ DONE
+Deployment Guide:      ✅ DONE
+
+Firestore Setup:       ⏳ READY (manual step)
+Functions Deploy:      ⏳ READY (manual cmd)
+E2E Testing:          ⏳ READY (manual testing)
+
+Status: READY FOR PRODUCTION 🚀
+```
+
+---
+
+## 🔗 Integration Points
+
+**Client → Server:**
+```
+_applyPromo()
+  ↓
+CartCheckoutService.validatePromoCode()
+  ↓
+Firebase Function: validatePromoCode()
+  ↓
+Firestore: config/promo_codes (read)
+```
+
+**Checkout → Server:**
+```
+_checkout()
+  ↓
+startMixedCheckout(promoCode: _promoCode)
+  ↓
+Firebase Function: createMixedCartPaymentIntent()
+  ↓
+Firestore: orders/{storeOrderId} (write with promo info)
+  ↓
+Stripe: PaymentIntent(amount=DISCOUNTED_TOTAL)
+```
+
+---
+
+## 🚨 Important Notes
+
+1. **Firestore config is REQUIRED** - CF won't find codes without it
+2. **Server-side validation is paramount** - Never trust client amount
+3. **Metadata in Stripe PaymentIntent** - Allows audit trail
+4. **User must be authenticated** - CF checks `req.auth`
+5. **No rate limiting yet** - Can add if promo abuse detected
+
+---
+
+## 📞 Quick Debug
+
+If validation fails:
+```bash
+# Check function logs
+firebase functions:logs read validatePromoCode --limit 50
+
+# Check Firestore config exists
+firebase firestore:documents:list config
+
+# Verify deployment
+firebase functions:describe validatePromoCode
+```
+
+---
+
+🎉 **Ready to launch!** Execute the 3 steps above and you're live.

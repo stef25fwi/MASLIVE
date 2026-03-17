@@ -43,6 +43,7 @@ class _MasliveUltraPremiumCheckoutPageState
   bool _acceptTerms = true;
   String? _promoCode;
   bool _checkoutLoading = false;
+  bool _promoValidationLoading = false;
 
   double get serviceFee => 0.0;
 
@@ -111,31 +112,56 @@ class _MasliveUltraPremiumCheckoutPageState
     );
   }
 
-  void _applyPromo() {
+  Future<void> _applyPromo() async {
     final code = _promoController.text.trim().toUpperCase();
     if (code.isEmpty) return;
 
-    if (code == 'MAS10' || code == 'MEDIA5') {
-      setState(() => _promoCode = code);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Code promo appliqué : $code'),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(MasliveTokens.rM),
+    setState(() => _promoValidationLoading = true);
+    try {
+      final cart = context.read<CartProvider>();
+      final items = cart.checkoutEligibleItems;
+      final subtotal = items.fold(0.0, (sum, e) => sum + e.totalPrice);
+      final subtotalCents = (subtotal * 100).toInt();
+
+      final result = await CartCheckoutService.validatePromoCode(
+        code,
+        subtotalCents: subtotalCents,
+      );
+
+      if (!mounted) return;
+
+      final valid = result['valid'] as bool? ?? false;
+      final message = (result['message'] as String?) ?? 'Erreur';
+
+      if (valid) {
+        setState(() => _promoCode = code);
+        TopSnackBar.show(
+          context,
+          SnackBar(content: Text(message)),
+        );
+        _promoController.clear();
+      } else {
+        setState(() => _promoCode = null);
+        TopSnackBar.show(
+          context,
+          SnackBar(
+            content: Text(message),
+            backgroundColor: const Color(0xFFEF5350),
           ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _promoCode = null);
+      TopSnackBar.show(
+        context,
+        SnackBar(
+          content: Text('Erreur validation: $e'),
+          backgroundColor: const Color(0xFFEF5350),
         ),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Code promo invalide'),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(MasliveTokens.rM),
-          ),
-        ),
-      );
+    } finally {
+      if (mounted) setState(() => _promoValidationLoading = false);
     }
   }
 
@@ -215,6 +241,7 @@ class _MasliveUltraPremiumCheckoutPageState
           shippingMethod: _shippingMethodKey(
             hasPhysicalItems: hasPhysicalItems,
           ),
+          promoCode: _promoCode,
         );
         return;
       }
@@ -363,7 +390,7 @@ class _MasliveUltraPremiumCheckoutPageState
                                           ),
                                         ),
                                         child: ElevatedButton(
-                                          onPressed: _applyPromo,
+                                          onPressed: _promoValidationLoading ? null : _applyPromo,
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: Colors.transparent,
                                             shadowColor: Colors.transparent,
@@ -377,13 +404,25 @@ class _MasliveUltraPremiumCheckoutPageState
                                               horizontal: 20,
                                             ),
                                           ),
-                                          child: const Text(
-                                            'Appliquer',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
+                                          child: _promoValidationLoading
+                                              ? const SizedBox(
+                                                  width: 20,
+                                                  height: 20,
+                                                  child: CircularProgressIndicator(
+                                                    valueColor:
+                                                        AlwaysStoppedAnimation<Color>(
+                                                          Colors.white,
+                                                        ),
+                                                    strokeWidth: 2,
+                                                  ),
+                                                )
+                                              : const Text(
+                                                  'Appliquer',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.w800,
+                                                  ),
+                                                ),
                                         ),
                                       ),
                                     ),

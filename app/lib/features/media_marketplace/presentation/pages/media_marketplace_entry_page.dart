@@ -42,20 +42,6 @@ class MediaMarketplaceEntryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final safeInitialTabIndex = initialTabIndex.clamp(0, 3);
 
-    final tabBar = TabBar(
-      isScrollable: false,
-      labelColor: MasliveTheme.textPrimary,
-      unselectedLabelColor: MasliveTheme.textSecondary,
-      indicatorColor: MasliveTheme.textPrimary,
-      indicatorSize: TabBarIndicatorSize.label,
-      tabs: const <Widget>[
-        Tab(text: 'Catalogue', icon: Icon(Icons.photo_library_outlined)),
-        _MarketplaceCartTab(),
-        Tab(text: 'Téléchargements', icon: Icon(Icons.download_outlined)),
-        Tab(text: 'Photographe', icon: Icon(Icons.camera_alt_outlined)),
-      ],
-    );
-
     return DefaultTabController(
       length: 4,
       initialIndex: safeInitialTabIndex,
@@ -63,18 +49,31 @@ class MediaMarketplaceEntryPage extends StatelessWidget {
         backgroundColor: MasliveTheme.surfaceAlt,
         bottomNavigationBar: SafeArea(
           top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: MasliveTheme.surface,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: MasliveTheme.divider),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
-                child: tabBar,
-              ),
+          child: Container(
+            height: 68,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.98),
+              border: const Border(top: BorderSide(color: Color(0x1F0F172A))),
+              boxShadow: const <BoxShadow>[
+                BoxShadow(
+                  color: Color(0x14000000),
+                  blurRadius: 20,
+                  offset: Offset(0, -2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                // Catalogue (index 0)
+                _MediaBottomItem(tabIndex: 0, icon: Icons.photo_library_outlined, activeIcon: Icons.photo_library, label: 'Catalogue'),
+                // Photographe (index 3)
+                _MediaBottomItem(tabIndex: 3, icon: Icons.camera_alt_outlined, activeIcon: Icons.camera_alt, label: 'Photographe'),
+                // Panier (index 1)
+                _MediaBottomCartItem(),
+                // Téléchargements (index 2)
+                _MediaBottomItem(tabIndex: 2, icon: Icons.download_outlined, activeIcon: Icons.download, label: 'Téléchargements'),
+              ],
             ),
           ),
         ),
@@ -86,7 +85,7 @@ class MediaMarketplaceEntryPage extends StatelessWidget {
                 if (!embedded) ...<Widget>[
                   Padding(
                     padding: const EdgeInsets.fromLTRB(8, 16, 8, 12),
-                    child: const _MarketplacePremiumHeader(),
+                    child: _MarketplacePremiumHeader(onBack: () => Navigator.of(context).pop()),
                   ),
                 ] else ...<Widget>[
                   const SizedBox(height: 6),
@@ -210,83 +209,210 @@ class MediaMarketplaceEntryPage extends StatelessWidget {
 }
 
 class _MarketplacePremiumHeader extends StatelessWidget {
-  const _MarketplacePremiumHeader();
+  const _MarketplacePremiumHeader({this.onBack});
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Text(
-          "MAS'LIVE",
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.9,
-            color: MasliveTheme.textPrimary,
-            height: 1,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // Back button
+        if (onBack != null)
+          InkResponse(
+            radius: 24,
+            onTap: onBack,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 20,
+                color: MasliveTheme.textPrimary,
+              ),
+            ),
+          )
+        else
+          const SizedBox(width: 40),
+        const SizedBox(width: 12),
+        // Title (centered)
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Text(
+                "MAS'LIVE",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.8,
+                  color: MasliveTheme.textPrimary,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'LA BOUTIQUE PHOTO',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.2,
+                  color: MasliveTheme.textSecondary,
+                  height: 1,
+                ),
+              ),
+            ],
           ),
-          textAlign: TextAlign.center,
         ),
-        SizedBox(height: 8),
-        Text(
-          'LA BOUTIQUE PHOTO',
-          style: TextStyle(
-            fontSize: 13.5,
-            fontWeight: FontWeight.w500,
-            letterSpacing: 2.2,
-            color: MasliveTheme.textSecondary,
-            height: 1,
-          ),
-          textAlign: TextAlign.center,
-        ),
+        const SizedBox(width: 12),
+        // Right spacer (balance layout)
+        const SizedBox(width: 40),
       ],
     );
   }
 }
 
-class _MarketplaceCartTab extends StatelessWidget {
-  const _MarketplaceCartTab();
+class _MediaBottomItem extends StatelessWidget {
+  const _MediaBottomItem({
+    required this.tabIndex,
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+  });
+
+  final int tabIndex;
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkResponse(
+      radius: 28,
+      onTap: () => DefaultTabController.of(context).animateTo(tabIndex),
+      child: Center(
+        child: StatefulBuilder(
+          builder: (context, setState) => DefaultTabController(
+            initialIndex: tabIndex,
+            length: 4,
+            child: Builder(
+              builder: (ctx) {
+                final isActive = DefaultTabController.of(ctx).index == tabIndex;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOut,
+                  padding: const EdgeInsets.all(8),
+                  decoration: isActive
+                      ? BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFFB26A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: const <BoxShadow>[
+                            BoxShadow(
+                              color: Color(0x14000000),
+                              blurRadius: 18,
+                              offset: Offset(0, 8),
+                            ),
+                          ],
+                        )
+                      : null,
+                  child: Icon(
+                    isActive ? activeIcon : icon,
+                    color: isActive ? Colors.white : const Color(0xFF98A2B3),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MediaBottomCartItem extends StatelessWidget {
+  const _MediaBottomCartItem();
 
   @override
   Widget build(BuildContext context) {
     final count = context.watch<CartProvider>().totalQuantity;
 
-    return Tab(
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: <Widget>[
-          const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(Icons.shopping_cart_outlined),
-              SizedBox(width: 8),
-              Text('Panier'),
-            ],
-          ),
-          if (count > 0)
-            Positioned(
-              right: -14,
-              top: -6,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF111827),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  count > 99 ? '99+' : '$count',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    height: 1,
+    return InkResponse(
+      radius: 28,
+      onTap: () => DefaultTabController.of(context).animateTo(1),
+      child: Center(
+        child: DefaultTabController(
+          initialIndex: 1,
+          length: 4,
+          child: Builder(
+            builder: (ctx) {
+              final isActive = DefaultTabController.of(ctx).index == 1;
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOut,
+                    padding: const EdgeInsets.all(8),
+                    decoration: isActive
+                        ? BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFFFB26A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: const <BoxShadow>[
+                              BoxShadow(
+                                color: Color(0x14000000),
+                                blurRadius: 18,
+                                offset: Offset(0, 8),
+                              ),
+                            ],
+                          )
+                        : null,
+                    child: Icon(
+                      isActive ? Icons.shopping_bag : Icons.shopping_bag_outlined,
+                      color: isActive ? Colors.white : const Color(0xFF98A2B3),
+                    ),
                   ),
-                ),
-              ),
-            ),
-        ],
+                  if (count > 0)
+                    Positioned(
+                      right: -10,
+                      top: -8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFFB26A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          ),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          count > 99 ? '99+' : '$count',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
       ),
     );
   }
 }
+

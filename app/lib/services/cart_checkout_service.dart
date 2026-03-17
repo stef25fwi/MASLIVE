@@ -12,6 +12,21 @@ import '../ui/snack/top_snack_bar.dart';
 class CartCheckoutService {
   const CartCheckoutService._();
 
+  static Future<Map<String, dynamic>> validatePromoCode(
+    String promoCode, {
+    required int subtotalCents,
+  }) async {
+    final callable = FirebaseFunctions.instanceFor(region: 'us-east1')
+        .httpsCallable('validatePromoCode');
+
+    final response = await callable.call<Map<String, dynamic>>(<String, dynamic>{
+      'promoCode': promoCode.trim().toUpperCase(),
+      'subtotalCents': subtotalCents,
+    });
+
+    return Map<String, dynamic>.from(response.data);
+  }
+
   static Future<void> startMerchCheckout(BuildContext context) async {
     StorexCheckoutFlow.start(context);
   }
@@ -54,6 +69,7 @@ class CartCheckoutService {
     CartProvider cart, {
     required int shippingCents,
     required String shippingMethod,
+    String? promoCode,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -70,6 +86,7 @@ class CartCheckoutService {
       'shippingCents': shippingCents,
       'shippingMethod': shippingMethod,
       'address': shippingAddress,
+      'promoCode': promoCode ?? '',
       'checkoutPayload': cart.buildCheckoutPayload(),
     });
 
