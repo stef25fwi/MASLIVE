@@ -525,84 +525,57 @@ class _StorexHeroBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      padding: const EdgeInsets.all(2),
       height: 168,
       width: double.infinity,
       decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFFFFE36A),
+            Color(0xFFFF7BC5),
+            Color(0xFF7CE0FF),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(30),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset(
-            'assets/shop/boutik1.webp',
-            fit: BoxFit.cover,
-          ),
-          Container(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment.center,
-                radius: 1.15,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withValues(alpha: 0.18),
-                ],
-              ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/shop/boutik1.webp',
+              fit: BoxFit.cover,
             ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.black.withValues(alpha: 0.20),
-                  Colors.transparent,
-                  Colors.black.withValues(alpha: 0.08),
-                ],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
-            ),
-          ),
-          Center(
-            child: Container(
-              width: 232,
-              height: 112,
+            Container(
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: const Color(0xFFFF6BB5),
-                  width: 6,
+                gradient: RadialGradient(
+                  center: Alignment.center,
+                  radius: 1.15,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.18),
+                  ],
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFFF6BB5).withValues(alpha: 0.45),
-                    blurRadius: 22,
-                    spreadRadius: 2,
-                  ),
-                ],
               ),
             ),
-          ),
-          const Center(
-            child: Text(
-              'MASLIVE',
-              style: TextStyle(
-                fontSize: 50,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -1.6,
-                color: Color(0xFFFF6BB5),
-                height: 1,
-                shadows: [
-                  Shadow(
-                    color: Colors.black54,
-                    blurRadius: 6,
-                    offset: Offset(0, 2),
-                  ),
-                ],
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.black.withValues(alpha: 0.20),
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.08),
+                  ],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
