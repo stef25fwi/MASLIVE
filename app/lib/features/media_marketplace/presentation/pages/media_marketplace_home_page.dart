@@ -87,9 +87,24 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
       });
     }
 
-    final premiumBody = DecoratedBox(
+    final MediaGalleryModel? selectedGallery = catalog.selectedGalleryId == null
+        ? null
+        : catalog.galleries
+            .cast<MediaGalleryModel?>()
+            .firstWhere(
+              (g) => g?.galleryId == catalog.selectedGalleryId,
+              orElse: () => null,
+            );
+
+    final String? heroImageUrl = selectedGallery?.coverUrl?.trim().isNotEmpty == true
+        ? selectedGallery!.coverUrl!.trim()
+        : (catalog.photos.isNotEmpty
+            ? catalog.photos.first.thumbnailPath
+            : (catalog.packs.isNotEmpty ? catalog.packs.first.coverUrl : null));
+
+    final body = DecoratedBox(
       decoration: const BoxDecoration(
-        gradient: MasliveTheme.backgroundWash,
+        color: MasliveTheme.surfaceAlt,
       ),
       child: Column(
         children: <Widget>[
@@ -102,75 +117,50 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
           Expanded(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  _MarketplacePremiumHeader(
-                    cartCount: cart.totalQuantity,
+                  const SizedBox(height: 4),
+                  Center(
+                    child: Text(
+                      'MASLIVE',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.8,
+                        color: MasliveTheme.textPrimary,
+                        height: 1,
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 18),
-                  _MarketplacePremiumHeroBanner(
-                    title: eventName?.trim().isNotEmpty == true
-                        ? eventName!.trim()
-                        : 'MASLIVE',
-                    subtitle: circuitName?.trim().isNotEmpty == true
-                        ? circuitName!.trim()
-                        : null,
+                  const SizedBox(height: 8),
+                  Center(
+                    child: Text(
+                      'LA BOUTIQUE PHOTO',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 2.2,
+                        color: MasliveTheme.textSecondary,
+                        height: 1,
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 14),
                   if (showContextHeader && catalog.currentEventId != null) ...<Widget>[
                     MediaMarketplaceContextChips(
                       eventId: catalog.currentEventId!,
                       circuitName: circuitName,
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 14),
                   ],
-                  _PremiumTitleRow(
-                    title: 'NOUVEAUTÉS',
-                    trailing: 'Voir tout',
-                    onTrailingTap: catalog.selectedGalleryId == null
-                        ? null
-                        : () {},
-                  ),
-                  const SizedBox(height: 14),
                   if (catalog.galleries.isEmpty && !catalog.loading)
                     MediaMarketplaceMessageCard.empty(
                       title: 'Catalogue des médias',
                       message:
                           'Ouvre cette page avec un eventId ou un photographerId pour charger un catalogue ciblé.',
                       icon: Icons.filter_center_focus,
-                    )
-                  else if (catalog.selectedGalleryId == null)
-                    MediaMarketplaceMessageCard.empty(
-                      title: 'Sélectionne une galerie',
-                      message: 'Choisis une catégorie ci-dessous pour afficher les médias disponibles.',
-                      icon: Icons.photo_library_outlined,
-                    )
-                  else
-                    _PremiumProductsGrid(
-                      photos: catalog.photos,
-                      packs: catalog.packs,
-                      onAddPhoto: (photo) => _addMediaPhoto(context, photo),
-                      onAddPack: (pack) => _addMediaPack(context, pack),
-                    ),
-                  const SizedBox(height: 22),
-                  const Text(
-                    'CATÉGORIES',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.2,
-                      color: MasliveTheme.textPrimary,
-                      height: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  if (catalog.galleries.isEmpty && !catalog.loading)
-                    MediaMarketplaceMessageCard.empty(
-                      title: 'Aucune galerie',
-                      message: 'Aucune galerie disponible pour cette source.',
-                      icon: Icons.photo_library_outlined,
                     )
                   else
                     SingleChildScrollView(
@@ -180,8 +170,8 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
                         children: catalog.galleries
                             .map(
                               (MediaGalleryModel gallery) => Padding(
-                                padding: const EdgeInsets.only(right: 10),
-                                child: _CategoryPill(
+                                padding: const EdgeInsets.only(right: 12),
+                                child: _CategoryChip(
                                   label: gallery.title.isEmpty
                                       ? 'GALERIE'
                                       : gallery.title.toUpperCase(),
@@ -194,6 +184,58 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
                       ),
                     ),
                   const SizedBox(height: 20),
+                  _HeroGalleryCard(
+                    title: selectedGallery?.title.trim().isNotEmpty == true
+                        ? selectedGallery!.title.trim().toUpperCase()
+                        : (eventName?.trim().isNotEmpty == true
+                            ? eventName!.trim().toUpperCase()
+                            : 'GALERIE'),
+                    imageUrl: heroImageUrl,
+                    onTap: catalog.selectedGalleryId == null
+                        ? null
+                        : () {},
+                  ),
+                  const SizedBox(height: 22),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: const <Widget>[
+                      Text(
+                        'PHOTOS POPULAIRES',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.2,
+                          color: MasliveTheme.textPrimary,
+                          height: 1.1,
+                        ),
+                      ),
+                      Spacer(),
+                      Text(
+                        'Voir tout',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w500,
+                          color: MasliveTheme.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  if (catalog.selectedGalleryId == null)
+                    MediaMarketplaceMessageCard.empty(
+                      title: 'Sélectionne une galerie',
+                      message: 'Choisis une catégorie ci-dessus pour afficher les médias disponibles.',
+                      icon: Icons.photo_library_outlined,
+                    )
+                  else
+                    _PhotosMosaic(
+                      photos: catalog.photos,
+                      packs: catalog.packs,
+                      cart: cart,
+                      onAddPhoto: (photo) => _addMediaPhoto(context, photo),
+                      onAddPack: (pack) => _addMediaPack(context, pack),
+                    ),
+                  const SizedBox(height: 18),
                 ],
               ),
             ),
@@ -202,9 +244,7 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
       ),
     );
 
-    if (embedded) {
-      return premiumBody;
-    }
+    if (embedded) return body;
 
     return Scaffold(
       appBar: AppBar(
@@ -218,7 +258,7 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
           ),
         ],
       ),
-      body: premiumBody,
+      body: body,
     );
   }
 
@@ -285,215 +325,8 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
   }
 }
 
-class _MarketplacePremiumHeader extends StatelessWidget {
-  const _MarketplacePremiumHeader({required this.cartCount});
-
-  final int cartCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 40,
-      child: Row(
-        children: <Widget>[
-          const Icon(
-            Icons.menu,
-            size: 28,
-            color: MasliveTheme.textPrimary,
-          ),
-          const Spacer(),
-          const Text(
-            'MASLIVE',
-            style: TextStyle(
-              fontSize: 25,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.8,
-              color: MasliveTheme.textPrimary,
-              height: 1,
-            ),
-          ),
-          const Spacer(),
-          const Icon(
-            Icons.search,
-            size: 24,
-            color: MasliveTheme.textPrimary,
-          ),
-          const SizedBox(width: 14),
-          Stack(
-            clipBehavior: Clip.none,
-            children: <Widget>[
-              const Icon(
-                Icons.shopping_bag_outlined,
-                size: 23,
-                color: MasliveTheme.textPrimary,
-              ),
-              if (cartCount > 0)
-                Positioned(
-                  right: -10,
-                  top: -8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: MasliveTheme.textPrimary,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      cartCount > 99 ? '99+' : '$cartCount',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        height: 1,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MarketplacePremiumHeroBanner extends StatelessWidget {
-  const _MarketplacePremiumHeroBanner({required this.title, this.subtitle});
-
-  final String title;
-  final String? subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 142,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: MasliveTheme.headerGradient,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        fit: StackFit.expand,
-        children: <Widget>[
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-                colors: <Color>[
-                  MasliveTheme.textPrimary.withValues(alpha: 0.26),
-                  MasliveTheme.textPrimary.withValues(alpha: 0.10),
-                  MasliveTheme.textPrimary.withValues(alpha: 0.06),
-                ],
-                stops: const <double>[0.0, 0.45, 1.0],
-              ),
-            ),
-          ),
-          Positioned(
-            left: 18,
-            top: 18,
-            bottom: 18,
-            right: 18,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                const Spacer(),
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                    letterSpacing: -1.0,
-                    height: 1,
-                  ),
-                ),
-                if (subtitle?.trim().isNotEmpty == true) ...<Widget>[
-                  const SizedBox(height: 6),
-                  Text(
-                    subtitle!.trim(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      height: 1,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 10),
-                Container(
-                  height: 34,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: MasliveTheme.textPrimary,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Text(
-                    'VOIR',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: 0.8,
-                      height: 1,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PremiumTitleRow extends StatelessWidget {
-  const _PremiumTitleRow({required this.title, required this.trailing, this.onTrailingTap});
-
-  final String title;
-  final String trailing;
-  final VoidCallback? onTrailingTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: <Widget>[
-        const SizedBox(width: 0),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.2,
-            color: MasliveTheme.textPrimary,
-            height: 1.1,
-          ),
-        ),
-        const Spacer(),
-        GestureDetector(
-          onTap: onTrailingTap,
-          child: Text(
-            trailing,
-            style: const TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w500,
-              color: MasliveTheme.textSecondary,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _CategoryPill extends StatelessWidget {
-  const _CategoryPill({
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({
     required this.label,
     required this.selected,
     required this.onTap,
@@ -509,19 +342,25 @@ class _CategoryPill extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(22),
       child: Container(
-        height: 40,
+        height: 42,
         padding: const EdgeInsets.symmetric(horizontal: 18),
         decoration: BoxDecoration(
-          color: selected ? MasliveTheme.textPrimary : MasliveTheme.textPrimary.withValues(alpha: 0.72),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(22),
+          border: selected
+              ? Border.all(
+                  color: MasliveTheme.textPrimary.withValues(alpha: 0.22),
+                  width: 1,
+                )
+              : null,
         ),
         alignment: Alignment.center,
         child: Text(
           label,
           style: const TextStyle(
-            fontSize: 12.8,
+            fontSize: 13.5,
             fontWeight: FontWeight.w700,
-            color: Colors.white,
+            color: MasliveTheme.textPrimary,
             letterSpacing: 0.1,
             height: 1,
           ),
@@ -531,158 +370,91 @@ class _CategoryPill extends StatelessWidget {
   }
 }
 
-class _PremiumProductsGrid extends StatelessWidget {
-  const _PremiumProductsGrid({
-    required this.photos,
-    required this.packs,
-    required this.onAddPhoto,
-    required this.onAddPack,
-  });
-
-  final List<MediaPhotoModel> photos;
-  final List<MediaPackModel> packs;
-  final ValueChanged<MediaPhotoModel> onAddPhoto;
-  final ValueChanged<MediaPackModel> onAddPack;
-
-  @override
-  Widget build(BuildContext context) {
-    final itemCount = photos.length + packs.length;
-    if (itemCount == 0) {
-      return MediaMarketplaceMessageCard.empty(
-        title: 'Aucun média',
-        message: 'Cette galerie ne contient pas encore de photos ou packs vendables.',
-        icon: Icons.collections_outlined,
-      );
-    }
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 0.73,
-      ),
-      itemCount: itemCount,
-      itemBuilder: (context, i) {
-        final bool isPhoto = i < photos.length;
-        if (isPhoto) {
-          final photo = photos[i];
-          return _PremiumProductCard(
-            title: photo.downloadFileName,
-            subtitle: 'PHOTO',
-            price: _formatPrice(photo.unitPrice, photo.currency),
-            icon: Icons.image_outlined,
-            onTap: () => onAddPhoto(photo),
-          );
-        }
-        final pack = packs[i - photos.length];
-        return _PremiumProductCard(
-          title: pack.title,
-          subtitle: '${pack.photoIds.length} PHOTOS',
-          price: _formatPrice(pack.price, pack.currency),
-          icon: Icons.collections_outlined,
-          onTap: () => onAddPack(pack),
-        );
-      },
-    );
-  }
-}
-
-class _PremiumProductCard extends StatelessWidget {
-  const _PremiumProductCard({
+class _HeroGalleryCard extends StatelessWidget {
+  const _HeroGalleryCard({
     required this.title,
-    required this.subtitle,
-    required this.price,
-    required this.icon,
+    required this.imageUrl,
     required this.onTap,
   });
 
   final String title;
-  final String subtitle;
-  final String price;
-  final IconData icon;
-  final VoidCallback onTap;
+  final String? imageUrl;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(28),
       child: Container(
+        height: 240,
+        width: double.infinity,
         decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
           color: MasliveTheme.surface,
-          borderRadius: BorderRadius.circular(24),
           boxShadow: MasliveTheme.cardShadow,
         ),
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
           children: <Widget>[
-            Align(
-              alignment: Alignment.topRight,
-              child: Container(
-                width: 34,
-                height: 34,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
+            if (imageUrl?.trim().isNotEmpty == true)
+              Image.network(
+                imageUrl!.trim(),
+                fit: BoxFit.cover,
+              )
+            else
+              Container(
+                color: MasliveTheme.surface,
+                alignment: Alignment.center,
                 child: const Icon(
-                  Icons.favorite_border,
-                  size: 19,
-                  color: MasliveTheme.textPrimary,
+                  Icons.photo_library_outlined,
+                  size: 54,
+                  color: MasliveTheme.textSecondary,
+                ),
+              ),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: <Color>[
+                    MasliveTheme.textPrimary.withValues(alpha: 0.50),
+                    MasliveTheme.textPrimary.withValues(alpha: 0.14),
+                    MasliveTheme.textPrimary.withValues(alpha: 0.10),
+                  ],
+                  stops: const <double>[0.0, 0.38, 1.0],
                 ),
               ),
             ),
-            const SizedBox(height: 4),
-            Expanded(
-              child: Center(
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: MasliveTheme.surfaceAlt,
-                    borderRadius: BorderRadius.circular(18),
+            Positioned(
+              left: 18,
+              bottom: 22,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 27,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      letterSpacing: -0.6,
+                      height: 1,
+                    ),
                   ),
-                  alignment: Alignment.center,
-                  child: Icon(icon, size: 46, color: MasliveTheme.textSecondary),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w800,
-                color: MasliveTheme.textSecondary,
-                height: 1,
-                letterSpacing: 0.4,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: MasliveTheme.textPrimary,
-                height: 1.2,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              price,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-                color: MasliveTheme.textPrimary,
-                height: 1,
+                  const SizedBox(height: 12),
+                  const Text(
+                    'DÉCOUVRIR  >',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: 0.2,
+                      height: 1,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -692,8 +464,229 @@ class _PremiumProductCard extends StatelessWidget {
   }
 }
 
-String _formatPrice(double value, String currency) {
-  final formatted = value.toStringAsFixed(2).replaceAll('.', ',');
-  final symbol = currency.toUpperCase() == 'EUR' ? '€' : currency.toUpperCase();
-  return '$formatted $symbol';
+class _PhotosMosaic extends StatelessWidget {
+  const _PhotosMosaic({
+    required this.photos,
+    required this.packs,
+    required this.cart,
+    required this.onAddPhoto,
+    required this.onAddPack,
+  });
+
+  final List<MediaPhotoModel> photos;
+  final List<MediaPackModel> packs;
+  final CartProvider cart;
+  final ValueChanged<MediaPhotoModel> onAddPhoto;
+  final ValueChanged<MediaPackModel> onAddPack;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<_MosaicItem> items = <_MosaicItem>[];
+
+    for (final photo in photos) {
+      if (items.length >= 7) break;
+      items.add(
+        _MosaicItem(
+          imageUrl: photo.thumbnailPath,
+          showHeart: true,
+          filledHeart: cart.mediaItems.any((i) => i.productId == photo.photoId),
+          heartSmall: items.length == 6,
+          onTap: () => onAddPhoto(photo),
+        ),
+      );
+    }
+
+    for (final pack in packs) {
+      if (items.length >= 7) break;
+      final String? url = pack.coverUrl?.trim().isNotEmpty == true ? pack.coverUrl!.trim() : null;
+      items.add(
+        _MosaicItem(
+          imageUrl: url,
+          showHeart: false,
+          filledHeart: false,
+          heartSmall: items.length == 6,
+          onTap: () => onAddPack(pack),
+        ),
+      );
+    }
+
+    if (items.isEmpty) {
+      return MediaMarketplaceMessageCard.empty(
+        title: 'Aucun média',
+        message: 'Cette galerie ne contient pas encore de photos ou packs vendables.',
+        icon: Icons.collections_outlined,
+      );
+    }
+
+    while (items.length < 7) {
+      items.add(const _MosaicItem.placeholder());
+    }
+
+    return SizedBox(
+      height: 434,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Expanded(
+            child: Column(
+              children: <Widget>[
+                Expanded(
+                  flex: 11,
+                  child: _PhotoCard(
+                    item: items[0],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  flex: 9,
+                  child: _PhotoCard(
+                    item: items[1],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            flex: 1,
+            child: Column(
+              children: <Widget>[
+                Expanded(
+                  flex: 9,
+                  child: _PhotoCard(
+                    item: items[2],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  flex: 8,
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: _PhotoCard(
+                          item: items[3],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          children: <Widget>[
+                            Expanded(
+                              child: _PhotoCard(
+                                item: items[4],
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Expanded(
+                              child: _PhotoCard(
+                                item: items[5],
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Expanded(
+                              child: _PhotoCard(
+                                item: items[6],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MosaicItem {
+  const _MosaicItem({
+    required this.imageUrl,
+    required this.showHeart,
+    required this.filledHeart,
+    required this.heartSmall,
+    required this.onTap,
+  });
+
+  const _MosaicItem.placeholder()
+      : imageUrl = null,
+        showHeart = false,
+        filledHeart = false,
+        heartSmall = false,
+        onTap = null;
+
+  final String? imageUrl;
+  final bool showHeart;
+  final bool filledHeart;
+  final bool heartSmall;
+  final VoidCallback? onTap;
+}
+
+class _PhotoCard extends StatelessWidget {
+  const _PhotoCard({required this.item});
+
+  final _MosaicItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final double heartBoxSize = item.heartSmall ? 22 : 34;
+    final double heartIconSize = item.heartSmall ? 14 : 20;
+
+    return InkWell(
+      onTap: item.onTap,
+      borderRadius: BorderRadius.circular(22),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          color: MasliveTheme.surface,
+          boxShadow: MasliveTheme.cardShadow,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            if (item.imageUrl?.trim().isNotEmpty == true)
+              Image.network(
+                item.imageUrl!.trim(),
+                fit: BoxFit.cover,
+              )
+            else
+              Container(
+                color: MasliveTheme.surface,
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.image_outlined,
+                  size: 34,
+                  color: MasliveTheme.textSecondary,
+                ),
+              ),
+            if (item.showHeart)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  width: heartBoxSize,
+                  height: heartBoxSize,
+                  decoration: BoxDecoration(
+                    color: item.filledHeart ? MasliveTheme.pink : Colors.transparent,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    item.filledHeart ? Icons.favorite : Icons.favorite_border,
+                    size: heartIconSize,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
