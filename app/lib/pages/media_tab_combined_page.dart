@@ -31,7 +31,7 @@ class MediaTabCombinedPage extends StatelessWidget {
         body: const TabBarView(
           children: [
             MediaGalleryMasliveInstagramPage(),
-            MediaMarketplaceEntryPage(),
+            MediaMarketplaceEntryPage(embedded: true),
           ],
         ),
       ),

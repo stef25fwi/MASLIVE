@@ -64,7 +64,8 @@ class _UnifiedCartPageState extends State<UnifiedCartPage> {
     } else {
       final currency = cart.items.first.currency;
       body = ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
         children: <Widget>[
           if (cart.error != null)
             Padding(

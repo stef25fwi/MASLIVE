@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/mock_shop_models.dart';
-import '../widgets/category_chip_row.dart';
-import '../widgets/rounded_product_card.dart';
-import '../widgets/section_header.dart';
 import '../widgets/shop_app_header.dart';
+import '../../../ui/theme/maslive_theme.dart';
 
 class MarketplacePremiumPage extends StatelessWidget {
   const MarketplacePremiumPage({super.key});
@@ -12,126 +10,361 @@ class MarketplacePremiumPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F8),
+      backgroundColor: MasliveTheme.surfaceAlt,
       bottomNavigationBar: const MerchBottomNav(),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              const SizedBox(height: 4),
-              const ShopAppHeader(
-                centeredLogoText: 'MASLIVE',
-                showMenu: true,
-                showSearch: true,
-                showBag: true,
-                compact: true,
-              ),
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: const _MerchHeroBanner(),
-              ),
-              const SizedBox(height: 18),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 18),
-                child: SectionHeader(
-                  title: 'NOUVEAUTÉS',
-                  actionLabel: 'Voir tout',
+        bottom: false,
+        child: Column(
+          children: <Widget>[
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const _TopHeader(),
+                    const SizedBox(height: 18),
+                    const _HeroBanner(),
+                    const SizedBox(height: 26),
+                    const _SectionTitleRow(
+                      title: 'NOUVEAUTÉS',
+                      actionLabel: 'Voir tout',
+                    ),
+                    const SizedBox(height: 16),
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: ShopMockData.merchProducts.length,
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 14,
+                        crossAxisSpacing: 14,
+                        childAspectRatio: 0.735,
+                      ),
+                      itemBuilder: (context, index) {
+                        final MerchProduct product = ShopMockData.merchProducts[index];
+                        return _MerchProductCard(
+                          title: product.title,
+                          price: product.price,
+                          imageUrl: product.imageUrl,
+                          isFavorite: product.isFavorite,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'CATÉGORIES',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.4,
+                        color: MasliveTheme.textPrimary,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 46,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: ShopMockData.merchCategories.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 12),
+                        itemBuilder: (context, i) {
+                          return _CategoryChip(label: ShopMockData.merchCategories[i]);
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                 ),
               ),
-              const SizedBox(height: 10),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: ShopMockData.merchProducts.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 13,
-                    crossAxisSpacing: 13,
-                    childAspectRatio: 0.69,
-                  ),
-                  itemBuilder: (BuildContext context, int index) {
-                    final MerchProduct product = ShopMockData.merchProducts[index];
-                    return RoundedProductCard(
-                      imageUrl: product.imageUrl,
-                      title: product.title,
-                      price: product.price,
-                      isFavorite: product.isFavorite,
-                      backgroundColor: const Color(0xFFF0F1F3),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 18),
-                child: SectionHeader(
-                  title: 'CATÉGORIES',
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 18),
-                child: CategoryChipRow(
-                  labels: ShopMockData.merchCategories,
-                  darkStyle: true,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _MerchHeroBanner extends StatelessWidget {
-  const _MerchHeroBanner();
+class _TopHeader extends StatelessWidget {
+  const _TopHeader();
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(22),
-      child: Stack(
-        children: <Widget>[
-          AspectRatio(
-            aspectRatio: 16 / 8.7,
-            child: Image.network(
-              ShopMockData.merchHeroImage,
-              fit: BoxFit.cover,
+    return SizedBox(
+      height: 44,
+      child: Row(
+        children: const <Widget>[
+          Icon(
+            Icons.menu,
+            size: 29,
+            color: MasliveTheme.textPrimary,
+          ),
+          Spacer(),
+          Text(
+            'MASLIVE',
+            style: TextStyle(
+              fontSize: 31,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -1.1,
+              color: MasliveTheme.textPrimary,
+              height: 1,
             ),
           ),
-          DecoratedBox(
+          Spacer(),
+          Icon(
+            Icons.search,
+            size: 28,
+            color: MasliveTheme.textPrimary,
+          ),
+          SizedBox(width: 14),
+          Icon(
+            Icons.shopping_bag_outlined,
+            size: 27,
+            color: MasliveTheme.textPrimary,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroBanner extends StatelessWidget {
+  const _HeroBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 168,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          Image.network(
+            ShopMockData.merchHeroImage,
+            fit: BoxFit.cover,
+          ),
+          Container(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(0.0, 0.0),
+                radius: 1.15,
+                colors: <Color>[
+                  Colors.transparent,
+                  MasliveTheme.textPrimary.withValues(alpha: 0.18),
+                ],
+              ),
+            ),
+          ),
+          Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: <Color>[
-                  Colors.black.withValues(alpha: 0.15),
-                  Colors.black.withValues(alpha: 0.35),
+                  MasliveTheme.textPrimary.withValues(alpha: 0.20),
+                  Colors.transparent,
+                  MasliveTheme.textPrimary.withValues(alpha: 0.08),
                 ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
               ),
             ),
-            child: const SizedBox.expand(),
           ),
-          const Positioned(
-            left: 18,
-            bottom: 18,
+          Center(
+            child: Container(
+              width: 232,
+              height: 112,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: MasliveTheme.pink,
+                  width: 6,
+                ),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: MasliveTheme.pink.withValues(alpha: 0.45),
+                    blurRadius: 22,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const Center(
             child: Text(
               'MASLIVE',
               style: TextStyle(
-                color: Colors.white,
-                fontSize: 31,
+                fontSize: 50,
                 fontWeight: FontWeight.w900,
-                letterSpacing: -1.1,
+                letterSpacing: -1.6,
+                color: MasliveTheme.pink,
+                height: 1,
+                shadows: <Shadow>[
+                  Shadow(
+                    color: Colors.black54,
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SectionTitleRow extends StatelessWidget {
+  const _SectionTitleRow({required this.title, required this.actionLabel});
+
+  final String title;
+  final String actionLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.4,
+            color: MasliveTheme.textPrimary,
+            height: 1,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          actionLabel,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: MasliveTheme.textSecondary,
+            height: 1,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MerchProductCard extends StatelessWidget {
+  const _MerchProductCard({
+    required this.title,
+    required this.price,
+    required this.imageUrl,
+    required this.isFavorite,
+  });
+
+  final String title;
+  final String price;
+  final String imageUrl;
+  final bool isFavorite;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: MasliveTheme.surface,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: MasliveTheme.cardShadow,
+            ),
+            child: Stack(
+              children: <Widget>[
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    width: 42,
+                    height: 42,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isFavorite ? Icons.favorite : Icons.favorite_border,
+                      color: MasliveTheme.textPrimary,
+                      size: 24,
+                    ),
+                  ),
+                ),
+                Positioned.fill(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 22, 16, 16),
+                    child: Center(
+                      child: Image.network(
+                        imageUrl,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w500,
+            color: MasliveTheme.textPrimary,
+            height: 1,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          price,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w900,
+            color: MasliveTheme.textPrimary,
+            height: 1,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 46,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: BoxDecoration(
+        color: MasliveTheme.textPrimary,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          letterSpacing: 0.2,
+          height: 1,
+        ),
       ),
     );
   }
