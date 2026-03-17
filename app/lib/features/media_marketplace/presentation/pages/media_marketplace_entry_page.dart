@@ -32,13 +32,13 @@ class MediaMarketplaceEntryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final safeInitialTabIndex = initialTabIndex.clamp(0, 3);
-    final cartCount = context.watch<CartProvider>().totalQuantity;
 
     final tabBar = TabBar(
-      isScrollable: true,
+      isScrollable: false,
       labelColor: MasliveTheme.textPrimary,
       unselectedLabelColor: MasliveTheme.textSecondary,
       indicatorColor: MasliveTheme.textPrimary,
+      indicatorSize: TabBarIndicatorSize.label,
       tabs: const <Widget>[
         Tab(text: 'Catalogue', icon: Icon(Icons.photo_library_outlined)),
         _MarketplaceCartTab(),
@@ -63,6 +63,23 @@ class MediaMarketplaceEntryPage extends StatelessWidget {
       initialIndex: safeInitialTabIndex,
       child: Scaffold(
         backgroundColor: MasliveTheme.surfaceAlt,
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: MasliveTheme.surface,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: MasliveTheme.divider),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: tabBar,
+              ),
+            ),
+          ),
+        ),
         body: DecoratedBox(
           decoration: const BoxDecoration(gradient: MasliveTheme.backgroundWash),
           child: SafeArea(
@@ -71,35 +88,12 @@ class MediaMarketplaceEntryPage extends StatelessWidget {
                 if (!embedded) ...<Widget>[
                   Padding(
                     padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
-                    child: _MarketplacePremiumHeader(cartCount: cartCount),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 0, 18, 14),
-                    child: _MarketplacePremiumHeroBanner(
-                      title: eventName?.trim().isNotEmpty == true
-                          ? eventName!.trim()
-                          : 'Marché des médias',
-                      subtitle: circuitName?.trim().isNotEmpty == true ? circuitName!.trim() : null,
-                    ),
+                    child: const _MarketplacePremiumHeader(),
                   ),
                 ] else ...<Widget>[
                   const SizedBox(height: 6),
                 ],
                 contextBanner,
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: MasliveTheme.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: MasliveTheme.divider),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      child: tabBar,
-                    ),
-                  ),
-                ),
                 Expanded(
                   child: TabBarView(
                     children: <Widget>[
@@ -110,7 +104,7 @@ class MediaMarketplaceEntryPage extends StatelessWidget {
                         photographerId: photographerId,
                         showContextHeader: false,
                         embedded: true,
-                        showBranding: true,
+                        showBranding: embedded,
                       ),
                       const UnifiedCartPage(embedded: true),
                       MediaDownloadsPage(
@@ -141,138 +135,37 @@ class MediaMarketplaceEntryPage extends StatelessWidget {
 }
 
 class _MarketplacePremiumHeader extends StatelessWidget {
-  const _MarketplacePremiumHeader({required this.cartCount});
-
-  final int cartCount;
+  const _MarketplacePremiumHeader();
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 40,
-      child: Row(
-        children: <Widget>[
-          const Icon(
-            Icons.menu,
-            size: 28,
+    return const Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text(
+          "MAS'LIVE",
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.9,
             color: MasliveTheme.textPrimary,
+            height: 1,
           ),
-          const Spacer(),
-          const Icon(
-            Icons.search,
-            size: 24,
-            color: MasliveTheme.textPrimary,
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: 8),
+        Text(
+          'LA BOUTIQUE PHOTO',
+          style: TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 2.2,
+            color: MasliveTheme.textSecondary,
+            height: 1,
           ),
-          const SizedBox(width: 14),
-          Stack(
-            clipBehavior: Clip.none,
-            children: <Widget>[
-              const Icon(
-                Icons.shopping_bag_outlined,
-                size: 23,
-                color: MasliveTheme.textPrimary,
-              ),
-              if (cartCount > 0)
-                Positioned(
-                  right: -10,
-                  top: -8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: MasliveTheme.textPrimary,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      cartCount > 99 ? '99+' : '$cartCount',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        height: 1,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MarketplacePremiumHeroBanner extends StatelessWidget {
-  const _MarketplacePremiumHeroBanner({required this.title, this.subtitle});
-
-  final String title;
-  final String? subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 112,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: MasliveTheme.headerGradient,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        fit: StackFit.expand,
-        children: <Widget>[
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-                colors: <Color>[
-                  MasliveTheme.textPrimary.withValues(alpha: 0.26),
-                  MasliveTheme.textPrimary.withValues(alpha: 0.10),
-                  MasliveTheme.textPrimary.withValues(alpha: 0.06),
-                ],
-                stops: const <double>[0.0, 0.45, 1.0],
-              ),
-            ),
-          ),
-          Positioned(
-            left: 18,
-            top: 16,
-            bottom: 16,
-            right: 18,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                const Spacer(),
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                    letterSpacing: -0.8,
-                    height: 1,
-                  ),
-                ),
-                if (subtitle?.trim().isNotEmpty == true) ...<Widget>[
-                  const SizedBox(height: 6),
-                  Text(
-                    subtitle!.trim(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      height: 1,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
+          textAlign: TextAlign.center,
+        ),
+      ],
     );
   }
 }
