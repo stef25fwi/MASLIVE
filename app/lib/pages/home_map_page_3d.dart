@@ -2604,16 +2604,22 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   }
 
   void _openMarketplaceForSelectedEvent() {
+    final countryId = _marketPoiSelection.country?.id;
+    final countryName = _marketPoiSelection.country?.name;
     final eventId = _marketPoiSelection.event?.id;
     final eventName = _marketPoiSelection.event?.name;
+    final circuitId = _marketPoiSelection.circuit?.id;
     final circuitName = _marketPoiSelection.circuit?.name;
     Navigator.pushNamed(
       context,
       '/media-marketplace',
       arguments: <String, dynamic>{
+        if (countryId != null && countryId.trim().isNotEmpty) 'countryId': countryId,
+        if (countryName != null && countryName.trim().isNotEmpty) 'countryName': countryName,
         if (eventId != null && eventId.trim().isNotEmpty) 'eventId': eventId,
         if (eventName != null && eventName.trim().isNotEmpty)
           'eventName': eventName,
+        if (circuitId != null && circuitId.trim().isNotEmpty) 'circuitId': circuitId,
         if (circuitName != null && circuitName.trim().isNotEmpty)
           'circuitName': circuitName,
       },

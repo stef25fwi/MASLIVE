@@ -93,12 +93,33 @@ class _TopHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ShopAppHeader(
-      centeredLogoText: "MAS'LIVE",
-      subtitle: 'LA BOUTIQUE',
-      showMenu: true,
-      showSearch: true,
-      showBag: true,
+    return const Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text(
+          "MAS'LIVE",
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.9,
+            color: MasliveTheme.textPrimary,
+            height: 1,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: 8),
+        Text(
+          'LA BOUTIQUE',
+          style: TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 2.2,
+            color: MasliveTheme.textSecondary,
+            height: 1,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
     );
   }
 }

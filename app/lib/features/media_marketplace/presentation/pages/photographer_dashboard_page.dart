@@ -80,7 +80,7 @@ class _PhotographerDashboardView extends StatelessWidget {
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+                  padding: const EdgeInsets.fromLTRB(0, 16, 0, 24),
               children: <Widget>[
                 if (controller.error != null)
                   MediaMarketplaceMessageCard.error(controller.error!),

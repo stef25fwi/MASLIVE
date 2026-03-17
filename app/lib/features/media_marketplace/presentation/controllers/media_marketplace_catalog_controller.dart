@@ -23,25 +23,38 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
 
   bool loading = false;
   Object? error;
+  String? currentCountryId;
   String? currentEventId;
   String? currentPhotographerId;
+  String? currentCircuitId;
   String? selectedGalleryId;
   List<MediaGalleryModel> galleries = const <MediaGalleryModel>[];
   List<MediaPhotoModel> photos = const <MediaPhotoModel>[];
   List<MediaPackModel> packs = const <MediaPackModel>[];
 
-  Future<void> loadEventGalleries(String eventId) async {
+  Future<void> loadEventGalleries(
+    String eventId, {
+    String? countryId,
+    String? circuitId,
+  }) async {
     loading = true;
     error = null;
+    currentCountryId = countryId;
     currentEventId = eventId;
     currentPhotographerId = null;
+    currentCircuitId = circuitId;
     selectedGalleryId = null;
     photos = const <MediaPhotoModel>[];
     packs = const <MediaPackModel>[];
     notifyListeners();
 
     try {
-      galleries = await _mediaGalleryRepository.getByEvent(eventId);
+      final eventGalleries = await _mediaGalleryRepository.getByEvent(eventId);
+      galleries = _applySelectionScope(
+        eventGalleries,
+        countryId: countryId,
+        circuitId: circuitId,
+      );
     } catch (err) {
       error = err;
       galleries = const <MediaGalleryModel>[];
@@ -54,8 +67,10 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
   Future<void> loadPhotographerGalleries(String photographerId) async {
     loading = true;
     error = null;
+    currentCountryId = null;
     currentPhotographerId = photographerId;
     currentEventId = null;
+    currentCircuitId = null;
     selectedGalleryId = null;
     photos = const <MediaPhotoModel>[];
     packs = const <MediaPackModel>[];
@@ -100,5 +115,33 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
     photos = const <MediaPhotoModel>[];
     packs = const <MediaPackModel>[];
     notifyListeners();
+  }
+
+  List<MediaGalleryModel> _applySelectionScope(
+    List<MediaGalleryModel> source, {
+    String? countryId,
+    String? circuitId,
+  }) {
+    var scoped = source;
+
+    if (countryId != null && countryId.trim().isNotEmpty) {
+      final byCountry = scoped
+          .where((gallery) => gallery.linkedCountry?.trim() == countryId.trim())
+          .toList(growable: false);
+      if (byCountry.isNotEmpty) {
+        scoped = byCountry;
+      }
+    }
+
+    if (circuitId != null && circuitId.trim().isNotEmpty) {
+      final byCircuit = scoped
+          .where((gallery) => gallery.linkedCircuitId?.trim() == circuitId.trim())
+          .toList(growable: false);
+      if (byCircuit.isNotEmpty) {
+        scoped = byCircuit;
+      }
+    }
+
+    return scoped;
   }
 }

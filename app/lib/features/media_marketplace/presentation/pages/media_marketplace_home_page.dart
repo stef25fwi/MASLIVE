@@ -16,22 +16,30 @@ import '../widgets/media_marketplace_message_card.dart';
 class MediaMarketplaceHomePage extends StatelessWidget {
   const MediaMarketplaceHomePage({
     super.key,
+    this.countryId,
+    this.countryName,
     this.eventId,
     this.eventName,
+    this.circuitId,
     this.circuitName,
     this.photographerId,
     this.showContextHeader = true,
     this.embedded = false,
     this.showBranding = true,
+    this.onOpenFilters,
   });
 
+  final String? countryId;
+  final String? countryName;
   final String? eventId;
   final String? eventName;
+  final String? circuitId;
   final String? circuitName;
   final String? photographerId;
   final bool showContextHeader;
   final bool embedded;
   final bool showBranding;
+  final VoidCallback? onOpenFilters;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +48,11 @@ class MediaMarketplaceHomePage extends StatelessWidget {
         final controller = MediaMarketplaceCatalogController();
         Future<void>.microtask(() async {
           if (eventId != null && eventId!.isNotEmpty) {
-            await controller.loadEventGalleries(eventId!);
+            await controller.loadEventGalleries(
+              eventId!,
+              countryId: countryId,
+              circuitId: circuitId,
+            );
           } else if (photographerId != null && photographerId!.isNotEmpty) {
             await controller.loadPhotographerGalleries(photographerId!);
           }
@@ -49,10 +61,12 @@ class MediaMarketplaceHomePage extends StatelessWidget {
       },
       child: _MediaMarketplaceHomeView(
         embedded: embedded,
+        countryName: countryName,
         eventName: eventName,
         circuitName: circuitName,
         showContextHeader: showContextHeader,
         showBranding: showBranding,
+        onOpenFilters: onOpenFilters,
       ),
     );
   }
@@ -61,17 +75,21 @@ class MediaMarketplaceHomePage extends StatelessWidget {
 class _MediaMarketplaceHomeView extends StatelessWidget {
   const _MediaMarketplaceHomeView({
     required this.embedded,
+    required this.countryName,
     required this.eventName,
     required this.circuitName,
     required this.showContextHeader,
     required this.showBranding,
+    required this.onOpenFilters,
   });
 
   final bool embedded;
+  final String? countryName;
   final String? eventName;
   final String? circuitName;
   final bool showContextHeader;
   final bool showBranding;
+  final VoidCallback? onOpenFilters;
 
   @override
   Widget build(BuildContext context) {
@@ -116,13 +134,13 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
           if (catalog.loading) const LinearProgressIndicator(minHeight: 2),
           if (catalog.error != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              padding: const EdgeInsets.fromLTRB(0, 16, 0, 0),
               child: MediaMarketplaceMessageCard.error(catalog.error!),
             ),
           Expanded(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+              padding: const EdgeInsets.fromLTRB(0, 18, 0, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
@@ -155,6 +173,13 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                   ],
+                  _CatalogFilterTrigger(
+                    countryName: countryName,
+                    eventName: eventName,
+                    circuitName: circuitName,
+                    onTap: onOpenFilters,
+                  ),
+                  const SizedBox(height: 14),
                   if (showContextHeader && catalog.currentEventId != null) ...<Widget>[
                     MediaMarketplaceContextChips(
                       eventId: catalog.currentEventId!,
@@ -328,6 +353,86 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
     TopSnackBar.show(
       context,
       SnackBar(content: Text('${pack.title} ajoute au panier')),
+    );
+  }
+}
+
+class _CatalogFilterTrigger extends StatelessWidget {
+  const _CatalogFilterTrigger({
+    required this.countryName,
+    required this.eventName,
+    required this.circuitName,
+    required this.onTap,
+  });
+
+  final String? countryName;
+  final String? eventName;
+  final String? circuitName;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = <String>[
+      if (countryName?.trim().isNotEmpty == true) countryName!.trim(),
+      if (eventName?.trim().isNotEmpty == true) eventName!.trim(),
+      if (circuitName?.trim().isNotEmpty == true) circuitName!.trim(),
+    ].join(' / ');
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: MasliveTheme.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: MasliveTheme.divider),
+          ),
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const Text(
+                      'CATALOGUE DES MEDIAS',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        color: MasliveTheme.textPrimary,
+                        letterSpacing: 0.2,
+                        height: 1,
+                      ),
+                    ),
+                    if (summary.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: 6),
+                      Text(
+                        summary,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w500,
+                          color: MasliveTheme.textSecondary,
+                          height: 1.2,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: MasliveTheme.textPrimary,
+                size: 26,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

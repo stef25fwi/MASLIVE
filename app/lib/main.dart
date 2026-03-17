@@ -406,8 +406,11 @@ class MasLiveApp extends StatelessWidget {
                 final args = ModalRoute.of(ctx)?.settings.arguments;
                 int initialTabIndex = 0;
                 if (args is Map) {
+                  final countryId = args['countryId'] as String?;
+                  final countryName = args['countryName'] as String?;
                   final eventId = args['eventId'] as String?;
                   final eventName = args['eventName'] as String?;
+                  final circuitId = args['circuitId'] as String?;
                   final circuitName = args['circuitName'] as String?;
                   final photographerId = args['photographerId'] as String?;
                   final ownerUid = args['ownerUid'] as String?;
@@ -430,8 +433,11 @@ class MasLiveApp extends StatelessWidget {
                     }
                   }
                   return MediaMarketplaceEntryPage(
+                    countryId: countryId,
+                    countryName: countryName,
                     eventId: eventId,
                     eventName: eventName,
+                    circuitId: circuitId,
                     circuitName: circuitName,
                     photographerId: photographerId,
                     ownerUid: ownerUid,
