@@ -140,25 +140,28 @@ class MerchBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 64,
+      height: 92,
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(
           top: BorderSide(
-            color: Color(0xFFECECEC),
+            color: Color(0xFFE8E8EA),
             width: 1,
           ),
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: const <Widget>[
-          _BottomNavItem(icon: Icons.home_outlined, label: 'Accueil', active: false),
-          _BottomNavItem(icon: Icons.shopping_bag_outlined, label: 'Shop', active: true),
-          _BottomNavItem(icon: Icons.photo_camera_outlined, label: 'Photos', active: false),
-          _BottomNavItem(icon: Icons.shopping_cart_outlined, label: 'Panier', active: false),
-          _BottomNavItem(icon: Icons.person_outline, label: 'Compte', active: false),
-        ],
+      child: const Padding(
+        padding: EdgeInsets.only(bottom: 6),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: <Widget>[
+            _BottomNavItem(icon: Icons.home_outlined, label: 'Accueil', active: false),
+            _BottomNavItem(icon: Icons.shopping_bag, label: 'Shop', active: true),
+            _BottomNavItem(icon: Icons.photo_camera_outlined, label: 'Photos', active: false),
+            _BottomNavItem(icon: Icons.shopping_bag_outlined, label: 'Panier', active: false),
+            _BottomNavItem(icon: Icons.person_outline, label: 'Compte', active: false),
+          ],
+        ),
       ),
     );
   }
@@ -211,23 +214,27 @@ class _BottomNavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color color = active ? const Color(0xFF101010) : const Color(0xFF9A9A9A);
+    final Color color = active ? const Color(0xFF111111) : const Color(0xFF808086);
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: <Widget>[
-        Icon(icon, size: 19, color: color),
-        const SizedBox(height: 3),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            color: color,
-            letterSpacing: -0.05,
+    return SizedBox(
+      width: 68,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          Icon(icon, size: 29, color: color),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 11.8,
+              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+              color: color,
+              height: 1,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

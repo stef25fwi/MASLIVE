@@ -2168,6 +2168,18 @@
         "panel": "dedicated",
         "clear": true
       }
+    },
+    {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (shop/media marketplace refresh)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git config --local commit.gpgsign false && bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"feat(shop): refresh media and merch marketplace presentation\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
     }
   ]
 }

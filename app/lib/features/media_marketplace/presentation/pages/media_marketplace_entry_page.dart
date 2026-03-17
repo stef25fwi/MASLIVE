@@ -110,6 +110,7 @@ class MediaMarketplaceEntryPage extends StatelessWidget {
                         photographerId: photographerId,
                         showContextHeader: false,
                         embedded: true,
+                        showBranding: true,
                       ),
                       const UnifiedCartPage(embedded: true),
                       MediaDownloadsPage(
@@ -154,17 +155,6 @@ class _MarketplacePremiumHeader extends StatelessWidget {
             Icons.menu,
             size: 28,
             color: MasliveTheme.textPrimary,
-          ),
-          const Spacer(),
-          const Text(
-            'MASLIVE',
-            style: TextStyle(
-              fontSize: 25,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.8,
-              color: MasliveTheme.textPrimary,
-              height: 1,
-            ),
           ),
           const Spacer(),
           const Icon(

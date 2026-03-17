@@ -22,6 +22,7 @@ class MediaMarketplaceHomePage extends StatelessWidget {
     this.photographerId,
     this.showContextHeader = true,
     this.embedded = false,
+    this.showBranding = true,
   });
 
   final String? eventId;
@@ -30,6 +31,7 @@ class MediaMarketplaceHomePage extends StatelessWidget {
   final String? photographerId;
   final bool showContextHeader;
   final bool embedded;
+  final bool showBranding;
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +52,7 @@ class MediaMarketplaceHomePage extends StatelessWidget {
         eventName: eventName,
         circuitName: circuitName,
         showContextHeader: showContextHeader,
+        showBranding: showBranding,
       ),
     );
   }
@@ -61,12 +64,14 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
     required this.eventName,
     required this.circuitName,
     required this.showContextHeader,
+    required this.showBranding,
   });
 
   final bool embedded;
   final String? eventName;
   final String? circuitName;
   final bool showContextHeader;
+  final bool showBranding;
 
   @override
   Widget build(BuildContext context) {
@@ -122,32 +127,34 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   const SizedBox(height: 4),
-                  Center(
-                    child: Text(
-                      'MASLIVE',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.8,
-                        color: MasliveTheme.textPrimary,
-                        height: 1,
+                  if (showBranding) ...<Widget>[
+                    Center(
+                      child: Text(
+                        'MASLIVE',
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.8,
+                          color: MasliveTheme.textPrimary,
+                          height: 1,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Center(
-                    child: Text(
-                      'LA BOUTIQUE PHOTO',
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 2.2,
-                        color: MasliveTheme.textSecondary,
-                        height: 1,
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Text(
+                        'LA BOUTIQUE PHOTO',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 2.2,
+                          color: MasliveTheme.textSecondary,
+                          height: 1,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
+                    const SizedBox(height: 14),
+                  ],
                   if (showContextHeader && catalog.currentEventId != null) ...<Widget>[
                     MediaMarketplaceContextChips(
                       eventId: catalog.currentEventId!,
@@ -404,14 +411,9 @@ class _HeroGalleryCard extends StatelessWidget {
                 fit: BoxFit.cover,
               )
             else
-              Container(
-                color: MasliveTheme.surface,
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.photo_library_outlined,
-                  size: 54,
-                  color: MasliveTheme.textSecondary,
-                ),
+              Image.asset(
+                'assets/images/maslivesmall.png',
+                fit: BoxFit.cover,
               ),
             Container(
               decoration: BoxDecoration(

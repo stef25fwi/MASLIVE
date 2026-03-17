@@ -11,7 +11,6 @@ class MarketplacePremiumPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: MasliveTheme.surfaceAlt,
-      bottomNavigationBar: const MerchBottomNav(),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -81,6 +80,7 @@ class MarketplacePremiumPage extends StatelessWidget {
                 ),
               ),
             ),
+            const MerchBottomNav(),
           ],
         ),
       ),
@@ -93,40 +93,12 @@ class _TopHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 44,
-      child: Row(
-        children: const <Widget>[
-          Icon(
-            Icons.menu,
-            size: 29,
-            color: MasliveTheme.textPrimary,
-          ),
-          Spacer(),
-          Text(
-            'MASLIVE',
-            style: TextStyle(
-              fontSize: 31,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -1.1,
-              color: MasliveTheme.textPrimary,
-              height: 1,
-            ),
-          ),
-          Spacer(),
-          Icon(
-            Icons.search,
-            size: 28,
-            color: MasliveTheme.textPrimary,
-          ),
-          SizedBox(width: 14),
-          Icon(
-            Icons.shopping_bag_outlined,
-            size: 27,
-            color: MasliveTheme.textPrimary,
-          ),
-        ],
-      ),
+    return const ShopAppHeader(
+      centeredLogoText: "MAS'LIVE",
+      subtitle: 'LA BOUTIQUE',
+      showMenu: true,
+      showSearch: true,
+      showBag: true,
     );
   }
 }
@@ -146,7 +118,7 @@ class _HeroBanner extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
-          Image.network(
+          Image.asset(
             ShopMockData.merchHeroImage,
             fit: BoxFit.cover,
           ),
@@ -278,7 +250,6 @@ class _MerchProductCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: MasliveTheme.surface,
               borderRadius: BorderRadius.circular(24),
-              boxShadow: MasliveTheme.cardShadow,
             ),
             child: Stack(
               children: <Widget>[
@@ -303,7 +274,7 @@ class _MerchProductCard extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 22, 16, 16),
                     child: Center(
-                      child: Image.network(
+                      child: Image.asset(
                         imageUrl,
                         fit: BoxFit.contain,
                       ),

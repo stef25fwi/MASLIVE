@@ -37,41 +37,35 @@ class PhotoItem {
 class ShopMockData {
   ShopMockData._();
 
-  static const String merchHeroImage =
-    'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1400&q=80';
+  static const String merchHeroImage = 'assets/images/maslivesmall.png';
 
-  static const String mediaHeroImage =
-    'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1400&q=80';
+  static const String mediaHeroImage = 'assets/images/maslivesmall.png';
 
   static const List<MerchProduct> merchProducts = <MerchProduct>[
     MerchProduct(
       id: 'merch_1',
       title: 'T-Shirt MASLIVE',
       price: '35,00 €',
-      imageUrl:
-          'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=80',
+      imageUrl: 'assets/shop/tshirt.png',
       isFavorite: true,
     ),
     MerchProduct(
       id: 'merch_2',
       title: 'Bandana MASLIVE',
       price: '20,00 €',
-      imageUrl:
-          'https://images.unsplash.com/photo-1503341455253-b2e723bb3dbb?auto=format&fit=crop&w=900&q=80',
+      imageUrl: 'assets/shop/bandana.png',
     ),
     MerchProduct(
       id: 'merch_3',
       title: 'Hoodie MASLIVE',
       price: '45,00 €',
-      imageUrl:
-          'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=900&q=80',
+      imageUrl: 'assets/shop/hoodie.png',
     ),
     MerchProduct(
       id: 'merch_4',
       title: 'Casquette MASLIVE',
       price: '26,00 €',
-      imageUrl:
-          'https://images.unsplash.com/photo-1521369909029-2afed882baee?auto=format&fit=crop&w=900&q=80',
+      imageUrl: 'assets/shop/cap.png',
     ),
   ];
 
