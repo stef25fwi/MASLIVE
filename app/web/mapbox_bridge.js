@@ -944,6 +944,217 @@
     }
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Préflight api.mapbox.com (diagnostic "Failed to fetch")
+  // ───────────────────────────────────────────────────────────────────────────
+
+  function _styleToApiStyleUrl(style, accessToken) {
+    const token = (accessToken || '').trim();
+    const encodedToken = encodeURIComponent(token);
+    const fallback = 'https://api.mapbox.com/styles/v1/mapbox/streets-v12?access_token=' + encodedToken + '&fresh=true';
+
+    try {
+      if (!style || String(style).trim().length === 0) return fallback;
+    } catch (_) {
+      return fallback;
+    }
+
+    const s = String(style).trim();
+    if (s.startsWith('mapbox://styles/')) {
+      const path = s.substring('mapbox://styles/'.length);
+      if (path.length > 0) {
+        return 'https://api.mapbox.com/styles/v1/' + path + '?access_token=' + encodedToken + '&fresh=true';
+      }
+      return fallback;
+    }
+
+    if (s.startsWith('https://api.mapbox.com/styles/v1/')) {
+      try {
+        const u = new URL(s);
+        u.searchParams.set('access_token', token);
+        u.searchParams.set('fresh', 'true');
+        return u.toString();
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    // Autres URL (studio.mapbox.com, etc.) => fallback streets.
+    return fallback;
+  }
+
+  async function _preflightApiMapboxStyle(containerId, accessToken, options) {
+    const token = (accessToken || '').trim();
+    if (!token) return false;
+
+    const style = options ? options.style : null;
+    const url = _styleToApiStyleUrl(style, token);
+
+    let timeoutId = null;
+    let controller = null;
+    try {
+      if (typeof AbortController !== 'undefined') {
+        controller = new AbortController();
+        timeoutId = setTimeout(() => {
+          try { controller.abort(); } catch (_) {}
+        }, 4500);
+      }
+
+      const resp = await fetch(url, {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-store',
+        signal: controller ? controller.signal : undefined,
+      });
+
+      // Statuts token
+      if (resp && resp.status === 401) {
+        _postToFlutter({
+          type: 'MASLIVE_MAP_ERROR',
+          containerId,
+          reason: 'TOKEN_INVALID',
+          message: 'api.mapbox.com refuse le token (401). Vérifie le token (pk.*) et rebuild/deploy.',
+        });
+        return false;
+      }
+
+      if (resp && resp.status === 403) {
+        _postToFlutter({
+          type: 'MASLIVE_MAP_ERROR',
+          containerId,
+          reason: 'TOKEN_FORBIDDEN',
+          message: 'api.mapbox.com refuse le token (403). Vérifie restrictions (Allowed URLs/origins) et accès au style.',
+        });
+        return false;
+      }
+
+      if (!resp || resp.ok !== true) {
+        _postToFlutter({
+          type: 'MASLIVE_MAP_ERROR',
+          containerId,
+          reason: 'MAPBOX_API_ERROR',
+          message: 'api.mapbox.com erreur HTTP ' + String(resp ? resp.status : 'unknown') + ' sur ' + url,
+        });
+        return false;
+      }
+
+      // Contrôle léger: si la réponse ressemble à du HTML (style URL wrong)
+      try {
+        const ct = (resp.headers && resp.headers.get) ? (resp.headers.get('content-type') || '') : '';
+        if (ct && ct.indexOf('application/json') === -1) {
+          const txt = await resp.text();
+          const t = (txt || '').trim().toLowerCase();
+          if (t.startsWith('<!doctype') || t.startsWith('<html') || t.startsWith('<')) {
+            _postToFlutter({
+              type: 'MASLIVE_MAP_ERROR',
+              containerId,
+              reason: 'STYLE_NOT_JSON',
+              message: 'Le style Mapbox ne renvoie pas du JSON (réponse HTML). Vérifie l\'URL de style (mapbox://styles/<user>/<styleId>).',
+            });
+            return false;
+          }
+        }
+      } catch (_) {
+        // ignore
+      }
+
+      return true;
+    } catch (e) {
+      const msg = (() => {
+        try {
+          if (e && e.name) return String(e.name) + ': ' + String(e.message || e);
+        } catch (_) {}
+        return String(e);
+      })();
+
+      _postToFlutter({
+        type: 'MASLIVE_MAP_ERROR',
+        containerId,
+        reason: 'NETWORK_BLOCKED',
+        message:
+          'Impossible de joindre api.mapbox.com (Failed to fetch). ' +
+          'Cause fréquente: adblock/anti-tracker, DNS filtrant, proxy, ou CSP trop stricte. ' +
+          'Détail: ' + msg,
+      });
+
+      return false;
+    } finally {
+      try { if (timeoutId != null) clearTimeout(timeoutId); } catch (_) {}
+    }
+  }
+
+  function _initMapAndWireEvents(containerId, elOrId, token, options) {
+    // (Re)crée la map après préflight, puis branche READY + ERROR + TAP.
+    const map = window.initMapboxMap(elOrId, token, options);
+    if (!map) {
+      _postToFlutter({
+        type: 'MASLIVE_MAP_ERROR',
+        containerId,
+        reason: 'INIT_FAILED',
+        message: 'Initialisation Mapbox GL JS échouée (voir console navigateur pour le détail).',
+      });
+      return false;
+    }
+
+    const state = _ensureState(containerId, map);
+    state.map = map;
+    state.initInProgress = false;
+
+    let didPostReady = false;
+    const postReady = () => {
+      if (didPostReady) return;
+      didPostReady = true;
+      _postToFlutter({ type: 'MASLIVE_MAP_READY', containerId });
+    };
+    const isStable = () => {
+      try {
+        const styleOk = (map.isStyleLoaded && map.isStyleLoaded() === true);
+        const tilesOk = (typeof map.areTilesLoaded === 'function') ? (map.areTilesLoaded() === true) : true;
+        return styleOk && tilesOk;
+      } catch (_) { return false; }
+    };
+
+    map.on('load', function() {
+      if (isStable()) { postReady(); return; }
+      const onIdle = function() {
+        if (!isStable()) return;
+        try { map.off('idle', onIdle); } catch (_) {}
+        postReady();
+      };
+      try { map.on('idle', onIdle); } catch (_) {}
+      setTimeout(() => { postReady(); }, 8000);
+    });
+
+    try {
+      map.on('error', function(e) {
+        try {
+          const raw = (e && (e.error || e)) ? (e.error || e) : e;
+          const c = _classifyRuntimeError(raw);
+          const now = Date.now();
+          const key = String(c.reason || '') + '|' + String(c.message || '');
+          try {
+            const st = _v2State.get(containerId);
+            if (st) {
+              if (st.lastErrorKey === key && (now - Number(st.lastErrorAt || 0)) < 2000) return;
+              st.lastErrorKey = key;
+              st.lastErrorAt = now;
+            }
+          } catch (_) { /* ignore */ }
+          _postToFlutter({ type: 'MASLIVE_MAP_ERROR', containerId, reason: c.reason, message: c.message });
+        } catch (_) { /* ignore */ }
+      });
+    } catch (_) { /* ignore */ }
+
+    map.on('click', function(e) {
+      try {
+        if (!e || !e.lngLat) return;
+        _postToFlutter({ type: 'MASLIVE_MAP_TAP', containerId, lng: e.lngLat.lng, lat: e.lngLat.lat });
+      } catch (_) { /* ignore */ }
+    });
+
+    return true;
+  }
+
   function _ensureArrowImage(map) {
     try {
       if (map.hasImage && map.hasImage('maslive_arrow')) return;
@@ -1165,78 +1376,48 @@
           return false;
         }
 
-        // ── 5. Initialisation Mapbox GL JS ────────────────────────────────────
-        const map = window.initMapboxMap(el, token, options);
-        if (!map) {
-          _postToFlutter({
-            type: 'MASLIVE_MAP_ERROR',
-            containerId,
-            reason: 'INIT_FAILED',
-            message: 'Initialisation Mapbox GL JS échouée (voir console navigateur pour le détail).',
-          });
-          return false;
+        // Anti double-init: si une map est déjà créée pour ce containerId, OK.
+        try {
+          const existing = _v2State.get(containerId);
+          if (existing && existing.map) {
+            return true;
+          }
+          if (!existing) {
+            _v2State.set(containerId, {
+              map: null,
+              markers: new Map(),
+              routeAnim: null,
+              lastErrorKey: null,
+              lastErrorAt: 0,
+              initInProgress: true,
+            });
+          } else {
+            existing.initInProgress = true;
+          }
+        } catch (_) {
+          // ignore
         }
 
-        const state = _ensureState(containerId, map);
-        state.map = map;
-
-        // ── 6. Signal READY (quand style + tuiles stables) ───────────────────
-        let didPostReady = false;
-        const postReady = () => {
-          if (didPostReady) return;
-          didPostReady = true;
-          _postToFlutter({ type: 'MASLIVE_MAP_READY', containerId });
-        };
-        const isStable = () => {
+        // ── 5. Préflight api.mapbox.com (diag "Failed to fetch") ───────────
+        // BUT: produire une erreur explicite si le réseau/adblock/CSP bloque api.mapbox.com.
+        // On initialise Mapbox seulement si le préflight passe.
+        _preflightApiMapboxStyle(containerId, accessToken, options).then((ok) => {
+          if (!ok) return;
           try {
-            const styleOk = (map.isStyleLoaded && map.isStyleLoaded() === true);
-            const tilesOk = (typeof map.areTilesLoaded === 'function') ? (map.areTilesLoaded() === true) : true;
-            return styleOk && tilesOk;
-          } catch (_) { return false; }
-        };
-
-        map.on('load', function() {
-          if (isStable()) { postReady(); return; }
-          const onIdle = function() {
-            if (!isStable()) return;
-            try { map.off('idle', onIdle); } catch (_) {}
-            postReady();
-          };
-          try { map.on('idle', onIdle); } catch (_) {}
-          // Fallback: évite un spinner infini si idle ne se déclenche pas.
-          setTimeout(() => { postReady(); }, 8000);
-        });
-
-        // ── 7. Erreurs runtime (token révoqué, style, réseau, etc.) ──────────
-        try {
-          map.on('error', function(e) {
+            _initMapAndWireEvents(containerId, el, token, options);
+          } catch (e) {
             try {
-              const raw = (e && (e.error || e)) ? (e.error || e) : e;
-              const c = _classifyRuntimeError(raw);
-              const now = Date.now();
-              const key = String(c.reason || '') + '|' + String(c.message || '');
-              // Throttle: évite le spam si la même erreur se répète en boucle.
-              try {
-                const st = _v2State.get(containerId);
-                if (st) {
-                  if (st.lastErrorKey === key && (now - Number(st.lastErrorAt || 0)) < 2000) return;
-                  st.lastErrorKey = key;
-                  st.lastErrorAt = now;
-                }
-              } catch (_) { /* ignore */ }
-              _postToFlutter({ type: 'MASLIVE_MAP_ERROR', containerId, reason: c.reason, message: c.message });
-            } catch (_) { /* ignore */ }
-          });
-        } catch (_) { /* ignore */ }
-
-        // ── 8. Clics carte ────────────────────────────────────────────────────
-        map.on('click', function(e) {
-          try {
-            if (!e || !e.lngLat) return;
-            _postToFlutter({ type: 'MASLIVE_MAP_TAP', containerId, lng: e.lngLat.lng, lat: e.lngLat.lat });
-          } catch (_) { /* ignore */ }
+              _postToFlutter({
+                type: 'MASLIVE_MAP_ERROR',
+                containerId,
+                reason: 'EXCEPTION',
+                message: 'Erreur JS pendant init Mapbox: ' + String(e),
+              });
+            } catch (_) {}
+          }
         });
 
+        // Retourne true: init asynchrone, READY/ERROR arriveront par postMessage.
         return true;
 
       } catch (e) {
@@ -1331,19 +1512,53 @@
             });
             return false;
           }
+
+          // Préflight réseau avant init (même logique que initElement).
+          // NOTE: init() doit rester sync côté Dart, donc on lance l'init asynchrone.
+          try {
+            const existing = _v2State.get(containerId);
+            if (existing && existing.map) {
+              return true;
+            }
+            if (!existing) {
+              _v2State.set(containerId, {
+                map: null,
+                markers: new Map(),
+                routeAnim: null,
+                lastErrorKey: null,
+                lastErrorAt: 0,
+                initInProgress: true,
+              });
+            } else {
+              existing.initInProgress = true;
+            }
+          } catch (_) {
+            // ignore
+          }
+
+          _preflightApiMapboxStyle(containerId, accessToken, options).then((ok) => {
+            if (!ok) return;
+            try {
+              _initMapAndWireEvents(containerId, containerId, token, options);
+            } catch (e) {
+              try {
+                _postToFlutter({
+                  type: 'MASLIVE_MAP_ERROR',
+                  containerId,
+                  reason: 'EXCEPTION',
+                  message: 'Erreur JS pendant init Mapbox: ' + String(e),
+                });
+              } catch (_) {}
+            }
+          });
+
+          return true;
         } catch (_) {
           // ignore
         }
-        const map = window.initMapboxMap(containerId, token, options);
-        if (!map) {
-          _postToFlutter({
-            type: 'MASLIVE_MAP_ERROR',
-            containerId,
-            reason: 'INIT_FAILED',
-            message: 'Initialisation Mapbox GL JS échouée (voir console navigateur pour le détail).',
-          });
-          return false;
-        }
+        // Si on passe ici, c'est qu'un "early return" n'a pas eu lieu.
+        // Pour compat legacy, on tente quand même un init direct.
+        return _initMapAndWireEvents(containerId, containerId, token, options);
 
         const state = _ensureState(containerId, map);
         state.map = map;
