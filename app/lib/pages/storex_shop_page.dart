@@ -54,7 +54,6 @@ class _ShopUi {
   const _ShopUi._();
 
   static const Color pageBg = Color(0xFFF7F8FC);
-  static const Color cardBg = Color(0xFFFFFFFF);
   static const Color textMain = Color(0xFF101828);
   static const Color textMuted = Color(0xFF667085);
   static const Color strokeSoft = Color(0x1F0F172A);
@@ -325,13 +324,10 @@ class _StorexHome extends StatelessWidget {
         },
       ),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFFF6F7FB),
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
         scrolledUnderElevation: 0,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(gradient: StorexShopPage.premiumHeaderGradient),
-        ),
         elevation: 0,
         iconTheme: const IconThemeData(color: _ShopUi.textMain),
         leading: Builder(
@@ -340,86 +336,122 @@ class _StorexHome extends StatelessWidget {
             onPressed: () => Scaffold.of(ctx).openDrawer(),
           ),
         ),
-        centerTitle: false,
-        title: LanguageSwitcher(textColor: _ShopUi.textMain),
+        centerTitle: true,
+        title: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              "MAS'LIVE",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.9,
+                color: _ShopUi.textMain,
+                height: 1,
+              ),
+            ),
+            SizedBox(height: 2),
+            Text(
+              'LA BOUTIQUE',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 2.2,
+                color: _ShopUi.textMuted,
+                height: 1,
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.search, color: _ShopUi.textMain),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _SearchPage(shopId: shopId, groupId: groupId))),
           ),
+          const SizedBox(width: 4),
         ],
       ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: repo.bestSeller(limit: 200).snapshots(),
-        builder: (context, snap) {
-          if (!snap.hasData) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-          final docs = snap.data!.docs.where((d) => StorexRepo.onlyApproved(d.data())).toList();
-          if (docs.isEmpty) {
-            return _Empty(l10n.AppLocalizations.of(context)!.noProductsFound);
-          }
+      body: StreamBuilder<Set<String>>(
+        stream: repo.wishlistIds(),
+        builder: (context, wishSnap) {
+          final wish = wishSnap.data ?? <String>{};
+          return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: repo.bestSeller(limit: 200).snapshots(),
+            builder: (context, snap) {
+              if (!snap.hasData) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+              final docs = snap.data!.docs.where((d) => StorexRepo.onlyApproved(d.data())).toList();
+              if (docs.isEmpty) {
+                return _Empty(l10n.AppLocalizations.of(context)!.noProductsFound);
+              }
+              final products = docs.map(GroupProduct.fromFirestore).toList();
 
-          final products = docs.map(GroupProduct.fromFirestore).toList();
+              final counts = <String, int>{};
+              for (final p in products) {
+                final c = p.category.trim();
+                if (c.isEmpty) continue;
+                counts[c] = (counts[c] ?? 0) + 1;
+              }
+              final cats = counts.keys.toList()..sort();
 
-          // calc top categories for banners
-          final counts = <String, int>{};
-          for (final p in products) {
-            final cid = p.category.trim();
-            if (cid.isEmpty) continue;
-            counts[cid] = (counts[cid] ?? 0) + 1;
-          }
-          final topCats = counts.keys.toList()
-            ..sort((a, b) => (counts[b] ?? 0).compareTo(counts[a] ?? 0));
-          final catA = topCats.isNotEmpty ? topCats[0] : 'Accessoires';
-          final catB = topCats.length > 1 ? topCats[1] : catA;
-
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(14, 8, 14, 16),
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    l10n.AppLocalizations.of(context)!.shopBestSeller,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.6,
-                      color: _ShopUi.textMain,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => _ListPage(
-                          shopId: shopId,
-                          groupId: groupId,
-                          categoryId: null,
-                          title: l10n.AppLocalizations.of(context)!.shopBestSeller,
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _StorexHeroBanner(firstProduct: products.first),
+                    const SizedBox(height: 26),
+                    Row(
+                      children: [
+                        Text(
+                          l10n.AppLocalizations.of(context)!.shopBestSeller.toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.4,
+                            color: _ShopUi.textMain,
+                            height: 1,
+                          ),
                         ),
-                      ),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => _ListPage(
+                                shopId: shopId,
+                                groupId: groupId,
+                                categoryId: null,
+                                title: l10n.AppLocalizations.of(context)!.shopBestSeller,
+                              ),
+                            ),
+                          ),
+                          child: Text(
+                            l10n.AppLocalizations.of(context)!.shopSeeMore,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: _ShopUi.textMuted,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    child: Text(
-                      l10n.AppLocalizations.of(context)!.shopSeeMore,
-                      style: const TextStyle(color: _ShopUi.textMuted),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-
-              SizedBox(
-                height: 230,
-                child: StreamBuilder<Set<String>>(
-                  stream: repo.wishlistIds(),
-                  builder: (context, wishSnap) {
-                    final wish = wishSnap.data ?? <String>{};
-                    return ListView.separated(
-                      scrollDirection: Axis.horizontal,
+                    const SizedBox(height: 16),
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
                       itemCount: min(products.length, 10),
-                      separatorBuilder: (_, index) => const SizedBox(width: 10),
-                      itemBuilder: (_, i) {
-                        final p = products[i];
-                        return _BestCard(
-                          p: p,
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 14,
+                        crossAxisSpacing: 14,
+                        childAspectRatio: 0.735,
+                      ),
+                      itemBuilder: (context, index) {
+                        final p = products[index];
+                        return _StorexPremiumProductCard(
+                          product: p,
                           wished: wish.contains(p.id),
                           onWish: () => repo.toggleWish(p),
                           onTap: () => Navigator.of(context).push(
@@ -432,40 +464,48 @@ class _StorexHome extends StatelessWidget {
                           ),
                         );
                       },
-                    );
-                  },
+                    ),
+                    if (cats.isNotEmpty) ...[
+                      const SizedBox(height: 18),
+                      const Text(
+                        'CATÉGORIES',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.4,
+                          color: _ShopUi.textMain,
+                          height: 1,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: 46,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: cats.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 12),
+                          itemBuilder: (_, i) => _StorexCategoryChip(
+                            label: cats[i].toUpperCase(),
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => _ListPage(
+                                  shopId: shopId,
+                                  groupId: groupId,
+                                  categoryId: cats[i],
+                                  title: cats[i],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ],
                 ),
-              ),
-
-              const SizedBox(height: 14),
-
-              _BannerTile(
-                title: l10n.AppLocalizations.of(context)!.shopPhotoStoreTitle.toUpperCase(),
-                subtitle: l10n.AppLocalizations.of(context)!.visit,
-                image: products.first,
-                onTap: () => Navigator.of(context).pushNamed('/media-marketplace'),
-              ),
-
-              const SizedBox(height: 12),
-
-              _BannerTile(
-                title: catA.toUpperCase(),
-                subtitle:
-                    "${counts[catA] ?? 0} ${l10n.AppLocalizations.of(context)!.itemsLabel}",
-                  image: products.firstWhere((x) => x.category == catA, orElse: () => products.first),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _ListPage(shopId: shopId, groupId: groupId, categoryId: catA, title: catA))),
-              ),
-
-              const SizedBox(height: 12),
-
-              _BannerTile(
-                title: catB.toUpperCase(),
-                subtitle:
-                    "${counts[catB] ?? 0} ${l10n.AppLocalizations.of(context)!.itemsLabel}",
-                  image: products.firstWhere((x) => x.category == catB, orElse: () => products.first),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _ListPage(shopId: shopId, groupId: groupId, categoryId: catB, title: catB))),
-              ),
-            ],
+              );
+            },
           );
         },
       ),
@@ -473,119 +513,213 @@ class _StorexHome extends StatelessWidget {
   }
 }
 
-class _BestCard extends StatelessWidget {
-  const _BestCard({required this.p, required this.wished, required this.onWish, required this.onTap});
-  final GroupProduct p;
-  final bool wished;
-  final VoidCallback onWish;
+// ─── _StorexHeroBanner ──────────────────────────────────────────────────────
+
+class _StorexHeroBanner extends StatelessWidget {
+  const _StorexHeroBanner({required this.firstProduct});
+  final GroupProduct firstProduct;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 168,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          _Img(p: firstProduct, fit: BoxFit.cover),
+          Container(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.center,
+                radius: 1.15,
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withValues(alpha: 0.18),
+                ],
+              ),
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.black.withValues(alpha: 0.20),
+                  Colors.transparent,
+                  Colors.black.withValues(alpha: 0.08),
+                ],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+            ),
+          ),
+          Center(
+            child: Container(
+              width: 232,
+              height: 112,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: const Color(0xFFFF6BB5),
+                  width: 6,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFF6BB5).withValues(alpha: 0.45),
+                    blurRadius: 22,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const Center(
+            child: Text(
+              'MASLIVE',
+              style: TextStyle(
+                fontSize: 50,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -1.6,
+                color: Color(0xFFFF6BB5),
+                height: 1,
+                shadows: [
+                  Shadow(
+                    color: Colors.black54,
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── _StorexCategoryChip ─────────────────────────────────────────────────────
+
+class _StorexCategoryChip extends StatelessWidget {
+  const _StorexCategoryChip({required this.label, required this.onTap});
+  final String label;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
+    return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 160,
+        height: 46,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
         decoration: BoxDecoration(
-          color: _ShopUi.cardBg,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _ShopUi.strokeSoft),
-          boxShadow: const <BoxShadow>[_ShopUi.cardShadow],
+          color: _ShopUi.textMain,
+          borderRadius: BorderRadius.circular(24),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                    child: _Img(p: p, fit: BoxFit.cover),
-                  ),
-                  Positioned(
-                    right: 6,
-                    bottom: 6,
-                    child: InkResponse(
-                      onTap: onWish,
-                      radius: 18,
-                      child: Icon(
-                        wished ? Icons.favorite : Icons.favorite_border,
-                        color: wished ? const Color(0xFFFF4D8D) : const Color(0xFF98A2B3),
-                        size: 20,
-                      ),
-                    ),
-                  )
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
-              child: Text(
-                p.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w700, color: _ShopUi.textMain),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
-              child: Text(p.priceLabel, style: const TextStyle(fontWeight: FontWeight.w900, color: _ShopUi.textMain)),
-            ),
-          ],
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+            letterSpacing: 0.2,
+            height: 1,
+          ),
         ),
       ),
     );
   }
 }
 
-class _BannerTile extends StatelessWidget {
-  const _BannerTile({required this.title, required this.subtitle, required this.image, required this.onTap});
-  final String title;
-  final String subtitle;
-  final GroupProduct image;
+// ─── _StorexPremiumProductCard ───────────────────────────────────────────────
+
+class _StorexPremiumProductCard extends StatelessWidget {
+  const _StorexPremiumProductCard({
+    required this.product,
+    required this.wished,
+    required this.onWish,
+    required this.onTap,
+  });
+  final GroupProduct product;
+  final bool wished;
+  final VoidCallback onWish;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
+    return GestureDetector(
       onTap: onTap,
-      child: Container(
-        height: 140,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: _ShopUi.cardBg,
-          border: Border.all(color: _ShopUi.strokeSoft),
-          boxShadow: const <BoxShadow>[_ShopUi.cardShadow],
-        ),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: ClipRRect(borderRadius: BorderRadius.circular(14), child: _Img(p: image, fit: BoxFit.cover)),
-            ),
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), color: Colors.white.withAlpha((0.55 * 255).round())),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
               ),
-            ),
-            Positioned(
-              right: 16,
-              top: 46,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              child: Stack(
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0, color: _ShopUi.textMain),
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: GestureDetector(
+                      onTap: onWish,
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          wished ? Icons.favorite : Icons.favorite_border,
+                          color: wished ? const Color(0xFFFF4D8D) : _ShopUi.textMain,
+                          size: 24,
+                        ),
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(subtitle, style: const TextStyle(color: _ShopUi.textMuted)),
+                  Positioned.fill(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 22, 16, 16),
+                      child: Center(
+                        child: _Img(p: product, fit: BoxFit.contain),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            product.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: _ShopUi.textMain,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            product.priceLabel,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              color: _ShopUi.textMain,
+              height: 1,
+            ),
+          ),
+        ],
       ),
     );
   }

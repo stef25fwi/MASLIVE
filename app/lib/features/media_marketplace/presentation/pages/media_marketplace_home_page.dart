@@ -187,14 +187,7 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                   ],
-                  if (catalog.galleries.isEmpty && !catalog.loading)
-                    MediaMarketplaceMessageCard.empty(
-                      title: 'Catalogue des médias',
-                      message:
-                          'Ouvre cette page avec un eventId ou un photographerId pour charger un catalogue ciblé.',
-                      icon: Icons.filter_center_focus,
-                    )
-                  else
+                  if (!(catalog.galleries.isEmpty && !catalog.loading))
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       physics: const BouncingScrollPhysics(),
