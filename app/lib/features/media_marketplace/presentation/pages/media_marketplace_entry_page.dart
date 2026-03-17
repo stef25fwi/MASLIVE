@@ -11,7 +11,6 @@ import '../../../../ui/widgets/marketmap_poi_selector_sheet.dart';
 import 'media_downloads_page.dart';
 import 'media_marketplace_home_page.dart';
 import 'photographer_dashboard_page.dart';
-import '../widgets/media_marketplace_context_chips.dart';
 
 class MediaMarketplaceEntryPage extends StatelessWidget {
   const MediaMarketplaceEntryPage({
@@ -57,17 +56,6 @@ class MediaMarketplaceEntryPage extends StatelessWidget {
       ],
     );
 
-    final contextBanner = eventId?.trim().isNotEmpty == true
-        ? Padding(
-            padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
-            child: _SharedMarketplaceContextBanner(
-              eventId: eventId!.trim(),
-              eventName: eventName,
-              circuitName: circuitName,
-            ),
-          )
-        : const SizedBox.shrink();
-
     return DefaultTabController(
       length: 4,
       initialIndex: safeInitialTabIndex,
@@ -76,7 +64,7 @@ class MediaMarketplaceEntryPage extends StatelessWidget {
         bottomNavigationBar: SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: MasliveTheme.surface,
@@ -97,13 +85,12 @@ class MediaMarketplaceEntryPage extends StatelessWidget {
               children: <Widget>[
                 if (!embedded) ...<Widget>[
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(0, 16, 0, 12),
+                    padding: const EdgeInsets.fromLTRB(8, 16, 8, 12),
                     child: const _MarketplacePremiumHeader(),
                   ),
                 ] else ...<Widget>[
                   const SizedBox(height: 6),
                 ],
-                contextBanner,
                 Expanded(
                   child: TabBarView(
                     children: <Widget>[
@@ -298,77 +285,6 @@ class _MarketplaceCartTab extends StatelessWidget {
                 ),
               ),
             ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SharedMarketplaceContextBanner extends StatelessWidget {
-  const _SharedMarketplaceContextBanner({
-    required this.eventId,
-    required this.eventName,
-    required this.circuitName,
-  });
-
-  final String eventId;
-  final String? eventName;
-  final String? circuitName;
-
-  @override
-  Widget build(BuildContext context) {
-    final controller = DefaultTabController.maybeOf(context);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      decoration: BoxDecoration(
-        color: MasliveTheme.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: MasliveTheme.divider),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            eventName?.trim().isNotEmpty == true
-                ? eventName!.trim()
-                : 'Contexte de navigation',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: MasliveTheme.textPrimary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 10),
-          MediaMarketplaceContextChips(
-            eventId: eventId,
-            circuitName: circuitName,
-          ),
-          if (controller != null) ...<Widget>[
-            const SizedBox(height: 10),
-            AnimatedBuilder(
-              animation: controller.animation!,
-              builder: (context, _) {
-                if (controller.index == 0) {
-                  return const SizedBox.shrink();
-                }
-                return Align(
-                  alignment: Alignment.centerLeft,
-                  child: OutlinedButton.icon(
-                    onPressed: () => controller.animateTo(0),
-                    icon: const Icon(Icons.arrow_back_outlined),
-                    label: const Text('Retour au catalogue'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: MasliveTheme.textPrimary,
-                      side: BorderSide(
-                        color: MasliveTheme.divider,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
         ],
       ),
     );

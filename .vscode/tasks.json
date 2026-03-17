@@ -1339,6 +1339,17 @@
       }
     },
     {
+      "label": "MASLIVE: ♻️ Functions: upgrade firebase-functions (latest)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE/functions && npm install --save firebase-functions@latest",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: 🚀 Deploy Firebase (functions only)",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && FIREBASE_CMD=\"firebase\"; if ! command -v firebase >/dev/null 2>&1; then FIREBASE_CMD=\"npx --yes firebase-tools\"; fi; $FIREBASE_CMD deploy --only functions",

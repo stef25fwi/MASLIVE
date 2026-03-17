@@ -67,7 +67,7 @@ class _MediaDownloadsView extends StatelessWidget {
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(0, 16, 0, 24),
+                  padding: const EdgeInsets.fromLTRB(8, 16, 8, 24),
               children: <Widget>[
                 if (controller.error != null)
                   MediaMarketplaceMessageCard.error(controller.error!),

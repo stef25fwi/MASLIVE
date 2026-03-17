@@ -134,13 +134,13 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
           if (catalog.loading) const LinearProgressIndicator(minHeight: 2),
           if (catalog.error != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(0, 16, 0, 0),
+              padding: const EdgeInsets.fromLTRB(8, 16, 8, 0),
               child: MediaMarketplaceMessageCard.error(catalog.error!),
             ),
           Expanded(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(0, 18, 0, 10),
+              padding: const EdgeInsets.fromLTRB(8, 18, 8, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
