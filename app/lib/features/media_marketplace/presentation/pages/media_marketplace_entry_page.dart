@@ -275,7 +275,7 @@ class _MarketplacePremiumHeader extends StatelessWidget {
   }
 }
 
-class _MediaBottomItem extends StatelessWidget {
+class _MediaBottomItem extends StatefulWidget {
   const _MediaBottomItem({
     required this.tabIndex,
     required this.icon,
@@ -289,46 +289,61 @@ class _MediaBottomItem extends StatelessWidget {
   final String label;
 
   @override
+  State<_MediaBottomItem> createState() => _MediaBottomItemState();
+}
+
+class _MediaBottomItemState extends State<_MediaBottomItem> {
+  TabController? _controller;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _controller?.removeListener(_onTabChanged);
+    _controller = DefaultTabController.of(context);
+    _controller?.addListener(_onTabChanged);
+  }
+
+  void _onTabChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _controller?.removeListener(_onTabChanged);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isActive = (_controller?.index ?? -1) == widget.tabIndex;
     return InkResponse(
       radius: 28,
-      onTap: () => DefaultTabController.of(context).animateTo(tabIndex),
+      onTap: () => DefaultTabController.of(context).animateTo(widget.tabIndex),
       child: Center(
-        child: StatefulBuilder(
-          builder: (context, setState) => DefaultTabController(
-            initialIndex: tabIndex,
-            length: 4,
-            child: Builder(
-              builder: (ctx) {
-                final isActive = DefaultTabController.of(ctx).index == tabIndex;
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOut,
-                  padding: const EdgeInsets.all(8),
-                  decoration: isActive
-                      ? BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFFB26A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: const <BoxShadow>[
-                            BoxShadow(
-                              color: Color(0x14000000),
-                              blurRadius: 18,
-                              offset: Offset(0, 8),
-                            ),
-                          ],
-                        )
-                      : null,
-                  child: Icon(
-                    isActive ? activeIcon : icon,
-                    color: isActive ? Colors.white : const Color(0xFF98A2B3),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.all(8),
+          decoration: isActive
+              ? BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFFB26A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
                   ),
-                );
-              },
-            ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: const <BoxShadow>[
+                    BoxShadow(
+                      color: Color(0x14000000),
+                      blurRadius: 18,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
+                )
+              : null,
+          child: Icon(
+            isActive ? widget.activeIcon : widget.icon,
+            color: isActive ? Colors.white : const Color(0xFF98A2B3),
           ),
         ),
       ),
@@ -336,80 +351,97 @@ class _MediaBottomItem extends StatelessWidget {
   }
 }
 
-class _MediaBottomCartItem extends StatelessWidget {
+class _MediaBottomCartItem extends StatefulWidget {
   const _MediaBottomCartItem();
+
+  @override
+  State<_MediaBottomCartItem> createState() => _MediaBottomCartItemState();
+}
+
+class _MediaBottomCartItemState extends State<_MediaBottomCartItem> {
+  TabController? _controller;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _controller?.removeListener(_onTabChanged);
+    _controller = DefaultTabController.of(context);
+    _controller?.addListener(_onTabChanged);
+  }
+
+  void _onTabChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _controller?.removeListener(_onTabChanged);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final count = context.watch<CartProvider>().totalQuantity;
+    final isActive = (_controller?.index ?? -1) == 1;
 
     return InkResponse(
       radius: 28,
       onTap: () => DefaultTabController.of(context).animateTo(1),
       child: Center(
-        child: DefaultTabController(
-          initialIndex: 1,
-          length: 4,
-          child: Builder(
-            builder: (ctx) {
-              final isActive = DefaultTabController.of(ctx).index == 1;
-              return Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeOut,
-                    padding: const EdgeInsets.all(8),
-                    decoration: isActive
-                        ? BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFFFB26A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: const <BoxShadow>[
-                              BoxShadow(
-                                color: Color(0x14000000),
-                                blurRadius: 18,
-                                offset: Offset(0, 8),
-                              ),
-                            ],
-                          )
-                        : null,
-                    child: Icon(
-                      isActive ? Icons.shopping_bag : Icons.shopping_bag_outlined,
-                      color: isActive ? Colors.white : const Color(0xFF98A2B3),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              padding: const EdgeInsets.all(8),
+              decoration: isActive
+                  ? BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFFB26A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: const <BoxShadow>[
+                        BoxShadow(
+                          color: Color(0x14000000),
+                          blurRadius: 18,
+                          offset: Offset(0, 8),
+                        ),
+                      ],
+                    )
+                  : null,
+              child: Icon(
+                isActive ? Icons.shopping_bag : Icons.shopping_bag_outlined,
+                color: isActive ? Colors.white : const Color(0xFF98A2B3),
+              ),
+            ),
+            if (count > 0)
+              Positioned(
+                right: -10,
+                top: -8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFFB26A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    count > 99 ? '99+' : '$count',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                  if (count > 0)
-                    Positioned(
-                      right: -10,
-                      top: -8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFFB26A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                          ),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          count > 99 ? '99+' : '$count',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
+                ),
+              ),
+          ],
         ),
       ),
     );
