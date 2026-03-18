@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../media_marketplace/data/repositories/photographer_repository.dart';
+import '../../../models/market_circuit.dart';
+import '../../../models/market_country.dart';
+import '../../../models/market_event.dart';
+import '../../../ui/widgets/marketmap_poi_selector_sheet.dart';
 import '../../../ui/theme/maslive_theme.dart';
 
 class MediaPhotoShopPage extends StatefulWidget {
@@ -15,6 +19,99 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
     'photo_2',
   };
   final TextEditingController _photographerController = TextEditingController();
+  String? _countryId;
+  String? _countryName;
+  String? _eventId;
+  String? _eventName;
+  String? _circuitId;
+  String? _circuitName;
+  bool _didLoadRouteArgs = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didLoadRouteArgs) return;
+    _didLoadRouteArgs = true;
+
+    final rawArgs = ModalRoute.of(context)?.settings.arguments;
+    if (rawArgs is! Map) return;
+
+    _countryId = (rawArgs['countryId'] as String?)?.trim();
+    _countryName = (rawArgs['countryName'] as String?)?.trim();
+    _eventId = (rawArgs['eventId'] as String?)?.trim();
+    _eventName = (rawArgs['eventName'] as String?)?.trim();
+    _circuitId = (rawArgs['circuitId'] as String?)?.trim();
+    _circuitName = (rawArgs['circuitName'] as String?)?.trim();
+  }
+
+  Future<void> _openCatalogFilterMenu() async {
+    final selection = await showMarketMapCircuitSelectorSheet(
+      context,
+      initial: _buildInitialSelection(),
+      disableKeyboardInput: true,
+    );
+    if (selection == null || !mounted) return;
+
+    setState(() {
+      _countryId = selection.country?.id;
+      _countryName = selection.country?.name;
+      _eventId = selection.event?.id;
+      _eventName = selection.event?.name;
+      _circuitId = selection.circuit?.id;
+      _circuitName = selection.circuit?.name;
+    });
+  }
+
+  MarketMapPoiSelection? _buildInitialSelection() {
+    final resolvedCountryId = _countryId?.trim();
+    final resolvedEventId = _eventId?.trim();
+    final resolvedCircuitId = _circuitId?.trim();
+
+    if (resolvedCountryId == null ||
+        resolvedCountryId.isEmpty ||
+        resolvedEventId == null ||
+        resolvedEventId.isEmpty ||
+        resolvedCircuitId == null ||
+        resolvedCircuitId.isEmpty) {
+      return null;
+    }
+
+    return MarketMapPoiSelection.enabled(
+      country: MarketCountry(
+        id: resolvedCountryId,
+        name: (_countryName?.trim().isNotEmpty == true)
+            ? _countryName!.trim()
+            : resolvedCountryId,
+        slug: resolvedCountryId,
+      ),
+      event: MarketEvent(
+        id: resolvedEventId,
+        countryId: resolvedCountryId,
+        name: (_eventName?.trim().isNotEmpty == true)
+            ? _eventName!.trim()
+            : resolvedEventId,
+        slug: resolvedEventId,
+      ),
+      circuit: MarketCircuit(
+        id: resolvedCircuitId,
+        countryId: resolvedCountryId,
+        eventId: resolvedEventId,
+        name: (_circuitName?.trim().isNotEmpty == true)
+            ? _circuitName!.trim()
+            : resolvedCircuitId,
+        slug: resolvedCircuitId,
+        status: 'published',
+        createdByUid: '',
+        perimeterLocked: false,
+        zoomLocked: false,
+        center: const <String, double>{'lat': 0, 'lng': 0},
+        initialZoom: 14,
+        isVisible: true,
+        wizardState: const <String, dynamic>{},
+      ),
+      layerIds: const <String>{},
+    );
+  }
 
   Future<void> _openMarketplace({Object? initialTab}) async {
     final photographerQuery = _photographerController.text.trim();
@@ -42,6 +139,14 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
       '/media-marketplace',
       arguments: <String, dynamic>{
         if (initialTab != null) 'initialTab': initialTab,
+        if (_countryId != null && _countryId!.isNotEmpty) 'countryId': _countryId,
+        if (_countryName != null && _countryName!.isNotEmpty)
+          'countryName': _countryName,
+        if (_eventId != null && _eventId!.isNotEmpty) 'eventId': _eventId,
+        if (_eventName != null && _eventName!.isNotEmpty) 'eventName': _eventName,
+        if (_circuitId != null && _circuitId!.isNotEmpty) 'circuitId': _circuitId,
+        if (_circuitName != null && _circuitName!.isNotEmpty)
+          'circuitName': _circuitName,
         if (photographerId != null && photographerId.isNotEmpty)
           'photographerId': photographerId,
         if (ownerUid != null && ownerUid.isNotEmpty) 'ownerUid': ownerUid,
@@ -82,7 +187,7 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                     // ---------------- TOP LOGO AREA ----------------
                     const Center(
                       child: Text(
-                        'MASLIVE',
+                        "MAS'LIVE",
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.w900,
@@ -116,7 +221,11 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                     // ---------------- MEDIA FILTER ----------------
                     _MediaCatalogFilter(
                       photographerController: _photographerController,
-                      onOpenEvents: () => _openMarketplace(initialTab: 0),
+                      countryName: _countryName,
+                      eventName: _eventName,
+                      circuitName: _circuitName,
+                      onOpenFilterMenu: _openCatalogFilterMenu,
+                      onOpenEvents: _openCatalogFilterMenu,
                       onOpenPhotos: () => _openMarketplace(initialTab: 0),
                       onOpenPacks: () => _openMarketplace(initialTab: 0),
                       onOpenArtists: () => _openMarketplace(initialTab: 3),
@@ -368,6 +477,10 @@ class _HeroCarnavalCard extends StatelessWidget {
 
 class _MediaCatalogFilter extends StatelessWidget {
   final TextEditingController photographerController;
+  final String? countryName;
+  final String? eventName;
+  final String? circuitName;
+  final VoidCallback onOpenFilterMenu;
   final VoidCallback onOpenEvents;
   final VoidCallback onOpenPhotos;
   final VoidCallback onOpenPacks;
@@ -375,6 +488,10 @@ class _MediaCatalogFilter extends StatelessWidget {
 
   const _MediaCatalogFilter({
     required this.photographerController,
+    required this.countryName,
+    required this.eventName,
+    required this.circuitName,
+    required this.onOpenFilterMenu,
     required this.onOpenEvents,
     required this.onOpenPhotos,
     required this.onOpenPacks,
@@ -383,6 +500,12 @@ class _MediaCatalogFilter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final summary = <String>[
+      if (countryName?.trim().isNotEmpty == true) countryName!.trim(),
+      if (eventName?.trim().isNotEmpty == true) eventName!.trim(),
+      if (circuitName?.trim().isNotEmpty == true) circuitName!.trim(),
+    ].join(' / ');
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -393,13 +516,51 @@ class _MediaCatalogFilter extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'CATALOGUE DES MEDIAS',
-            style: TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.6,
-              color: MasliveTheme.textPrimary,
+          InkWell(
+            onTap: onOpenFilterMenu,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'CATALOGUE DES MEDIAS',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.6,
+                            color: MasliveTheme.textPrimary,
+                          ),
+                        ),
+                        if (summary.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            summary,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w500,
+                              color: MasliveTheme.textSecondary,
+                              height: 1.2,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.tune_rounded,
+                    size: 20,
+                    color: MasliveTheme.textSecondary,
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 12),
