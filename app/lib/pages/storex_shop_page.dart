@@ -404,6 +404,42 @@ class _StorexHome extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const _StorexHeroBanner(),
+                    if (cats.isNotEmpty) ...[
+                      const SizedBox(height: 18),
+                      const Text(
+                        'CATÉGORIES',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.4,
+                          color: _ShopUi.textMain,
+                          height: 1,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: 46,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: cats.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 12),
+                          itemBuilder: (_, i) => _StorexCategoryChip(
+                            label: cats[i].toUpperCase(),
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => _ListPage(
+                                  shopId: shopId,
+                                  groupId: groupId,
+                                  categoryId: cats[i],
+                                  title: cats[i],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 26),
                     Row(
                       children: [
@@ -469,43 +505,6 @@ class _StorexHome extends StatelessWidget {
                         );
                       },
                     ),
-                    if (cats.isNotEmpty) ...[
-                      const SizedBox(height: 18),
-                      const Text(
-                        'CATÉGORIES',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.4,
-                          color: _ShopUi.textMain,
-                          height: 1,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        height: 46,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          physics: const BouncingScrollPhysics(),
-                          itemCount: cats.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 12),
-                          itemBuilder: (_, i) => _StorexCategoryChip(
-                            label: cats[i].toUpperCase(),
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => _ListPage(
-                                  shopId: shopId,
-                                  groupId: groupId,
-                                  categoryId: cats[i],
-                                  title: cats[i],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
                   ],
                 ),
               );

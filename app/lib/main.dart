@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
@@ -174,13 +174,20 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
     }
 
     // 5) PremiumService: jamais bloquant (plugins réseau). On lance en arrière-plan.
+    const revenueCatApiKey = String.fromEnvironment(
+      'RC_API_KEY',
+      defaultValue: 'REVENUECAT_PUBLIC_SDK_KEY_HERE',
+    );
+    if (!kIsWeb && kReleaseMode &&
+        PremiumService.isPlaceholderApiKey(revenueCatApiKey)) {
+      throw StateError(
+        'RC_API_KEY manquant ou placeholder en build release',
+      );
+    }
     unawaited(
       PremiumService.instance
           .init(
-            revenueCatApiKey: const String.fromEnvironment(
-              'RC_API_KEY',
-              defaultValue: 'REVENUECAT_PUBLIC_SDK_KEY_HERE',
-            ),
+            revenueCatApiKey: revenueCatApiKey,
             entitlementId: 'premium',
           )
           .timeout(const Duration(seconds: 8))

@@ -152,7 +152,7 @@ if [[ -z "$TOKEN" ]]; then
 	exit 1
 fi
 echo "🗺️  Token Mapbox détecté: OK (redacted)"
-(cd app && flutter pub get && flutter build web --release --dart-define=MAPBOX_ACCESS_TOKEN="$TOKEN")
+(cd app && flutter pub get && flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN="$TOKEN")
 
 FIREBASE_CMD="firebase"
 if ! command -v firebase >/dev/null 2>&1; then

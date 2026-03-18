@@ -28,6 +28,37 @@ class PhotographerRepository {
     return PhotographerProfileModel.fromDocument(doc);
   }
 
+  Future<PhotographerProfileModel?> findByQuery(String query) async {
+    final normalized = query.trim().toLowerCase();
+    if (normalized.isEmpty) return null;
+
+    final byId = await getById(query.trim());
+    if (byId != null) return byId;
+
+    final byOwner = await getByOwnerUid(query.trim());
+    if (byOwner != null) return byOwner;
+
+    final snapshot = await _collection.limit(50).get();
+    PhotographerProfileModel? containsMatch;
+
+    for (final doc in snapshot.docs) {
+      final profile = PhotographerProfileModel.fromDocument(doc);
+      final brand = profile.brandName.trim().toLowerCase();
+      final owner = profile.ownerUid.trim().toLowerCase();
+      final id = profile.photographerId.trim().toLowerCase();
+
+      if (brand == normalized || owner == normalized || id == normalized) {
+        return profile;
+      }
+
+      if (containsMatch == null && (brand.contains(normalized) || owner.contains(normalized) || id.contains(normalized))) {
+        containsMatch = profile;
+      }
+    }
+
+    return containsMatch;
+  }
+
   Future<void> createOrUpdate(PhotographerProfileModel profile) async {
     await _collection.doc(profile.photographerId).set(profile.toMap(), SetOptions(merge: true));
   }

@@ -11,14 +11,33 @@ import 'dart:convert';
 class PremiumService {
   PremiumService._();
   static final instance = PremiumService._();
+  static const String _revenueCatPlaceholderKey =
+      'REVENUECAT_PUBLIC_SDK_KEY_HERE';
 
   String _entitlementId = 'premium';
+  bool _revenueCatConfigured = false;
   final ValueNotifier<bool> isPremium = ValueNotifier<bool>(false);
 
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _webUserSub;
 
   static const String _subscriptionCheckoutEndpoint =
       'https://us-east1-maslive.cloudfunctions.net/createSubscriptionCheckoutSession';
+
+  static bool isPlaceholderApiKey(String value) {
+    final normalized = value.trim();
+    return normalized.isEmpty || normalized == _revenueCatPlaceholderKey;
+  }
+
+  void _ensureRevenueCatAvailable() {
+    if (kIsWeb) {
+      throw UnsupportedError(
+        'RevenueCat native SDK indisponible sur web; utiliser le flux Stripe web.',
+      );
+    }
+    if (!_revenueCatConfigured) {
+      throw StateError('RevenueCat non configuré');
+    }
+  }
 
   Future<void> init({
     required String revenueCatApiKey,
@@ -57,8 +76,18 @@ class PremiumService {
       return;
     }
 
+    if (isPlaceholderApiKey(revenueCatApiKey)) {
+      isPremium.value = false;
+      if (kReleaseMode) {
+        throw StateError('RC_API_KEY manquant ou placeholder en build release');
+      }
+      debugPrint('⚠️ PremiumService: RC_API_KEY manquant, RevenueCat désactivé');
+      return;
+    }
+
     await Purchases.setLogLevel(LogLevel.info);
     await Purchases.configure(PurchasesConfiguration(revenueCatApiKey));
+    _revenueCatConfigured = true;
 
     // Sync user RevenueCat avec Firebase (si déjà loggué)
     final user = FirebaseAuth.instance.currentUser;
@@ -71,7 +100,9 @@ class PremiumService {
     // Écoute changements d’état
     FirebaseAuth.instance.authStateChanges().listen((u) async {
       if (u == null) {
-        await Purchases.logOut();
+        if (_revenueCatConfigured) {
+          await Purchases.logOut();
+        }
         isPremium.value = false;
       } else {
         await logIn(u.uid);
@@ -80,28 +111,31 @@ class PremiumService {
   }
 
   Future<void> logIn(String appUserId) async {
-    if (kIsWeb) return;
+    _ensureRevenueCatAvailable();
     await Purchases.logIn(appUserId);
     await refresh();
   }
 
   Future<void> refresh() async {
-    if (kIsWeb) return;
+    _ensureRevenueCatAvailable();
     final info = await Purchases.getCustomerInfo();
     final active = info.entitlements.active[_entitlementId] != null;
     isPremium.value = active;
   }
 
-  Future<Offerings> getOfferings() => Purchases.getOfferings();
+  Future<Offerings> getOfferings() {
+    _ensureRevenueCatAvailable();
+    return Purchases.getOfferings();
+  }
 
   Future<void> purchasePackage(Package package) async {
-    if (kIsWeb) return;
+    _ensureRevenueCatAvailable();
     await Purchases.purchase(PurchaseParams.package(package));
     await refresh();
   }
 
   Future<void> restorePurchases() async {
-    if (kIsWeb) return;
+    _ensureRevenueCatAvailable();
     await Purchases.restorePurchases();
     await refresh();
   }

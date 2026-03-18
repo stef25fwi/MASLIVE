@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../media_marketplace/data/repositories/photographer_repository.dart';
 import '../../../ui/theme/maslive_theme.dart';
 
 class MediaPhotoShopPage extends StatefulWidget {
@@ -13,13 +14,37 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
   final Set<String> _likedPhotoIds = <String>{
     'photo_2',
   };
+  final TextEditingController _photographerController = TextEditingController();
 
-  void _openMarketplace({Object? initialTab}) {
+  Future<void> _openMarketplace({Object? initialTab}) async {
+    final photographerQuery = _photographerController.text.trim();
+    String? photographerId;
+    String? ownerUid;
+
+    if (photographerQuery.isNotEmpty) {
+      final profile = await PhotographerRepository().findByQuery(photographerQuery);
+      if (!mounted) return;
+
+      if (profile != null) {
+        photographerId = profile.photographerId;
+        ownerUid = profile.ownerUid;
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Aucun photographe trouve. Ouverture du catalogue complet.'),
+          ),
+        );
+      }
+    }
+
     Navigator.pushNamed(
       context,
       '/media-marketplace',
       arguments: <String, dynamic>{
         if (initialTab != null) 'initialTab': initialTab,
+        if (photographerId != null && photographerId.isNotEmpty)
+          'photographerId': photographerId,
+        if (ownerUid != null && ownerUid.isNotEmpty) 'ownerUid': ownerUid,
       },
     );
   }
@@ -30,6 +55,12 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
 
   void _goAccount() {
     Navigator.pushNamed(context, '/account');
+  }
+
+  @override
+  void dispose() {
+    _photographerController.dispose();
+    super.dispose();
   }
 
   @override
@@ -77,39 +108,19 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
 
                     const SizedBox(height: 22),
 
-                    // ---------------- CATEGORY CHIPS ----------------
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      child: Row(
-                        children: [
-                          _CategoryChip(
-                            label: 'ÉVÉNEMENTS',
-                            onTap: () => _openMarketplace(initialTab: 0),
-                          ),
-                          const SizedBox(width: 12),
-                          _CategoryChip(
-                            label: 'PHOTOS',
-                            onTap: () => _openMarketplace(initialTab: 0),
-                          ),
-                          const SizedBox(width: 12),
-                          _CategoryChip(
-                            label: 'PACKS',
-                            onTap: () => _openMarketplace(initialTab: 0),
-                          ),
-                          const SizedBox(width: 12),
-                          _CategoryChip(
-                            label: 'ARTISTES',
-                            onTap: () => _openMarketplace(initialTab: 3),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
                     // ---------------- HERO CARD ----------------
                     _HeroCarnavalCard(onTap: () => _openMarketplace(initialTab: 0)),
+
+                    const SizedBox(height: 18),
+
+                    // ---------------- MEDIA FILTER ----------------
+                    _MediaCatalogFilter(
+                      photographerController: _photographerController,
+                      onOpenEvents: () => _openMarketplace(initialTab: 0),
+                      onOpenPhotos: () => _openMarketplace(initialTab: 0),
+                      onOpenPacks: () => _openMarketplace(initialTab: 0),
+                      onOpenArtists: () => _openMarketplace(initialTab: 3),
+                    ),
 
                     const SizedBox(height: 22),
 
@@ -266,14 +277,28 @@ class _HeroCarnavalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(28),
-        child: Container(
-          height: 240,
-          width: double.infinity,
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        gradient: const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            Color(0xFFFFB26A),
+            Color(0xFFFF7BC5),
+            Color(0xFF7CE0FF),
+          ],
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(28),
+          child: Container(
+            height: 268,
+            width: double.infinity,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(28),
           ),
@@ -281,9 +306,10 @@ class _HeroCarnavalCard extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.network(
-                'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80',
+              Image.asset(
+                'assets/shop/hero2.webp',
                 fit: BoxFit.cover,
+                alignment: Alignment.center,
               ),
 
               Container(
@@ -334,6 +360,95 @@ class _HeroCarnavalCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+      ),
+    );
+  }
+}
+
+class _MediaCatalogFilter extends StatelessWidget {
+  final TextEditingController photographerController;
+  final VoidCallback onOpenEvents;
+  final VoidCallback onOpenPhotos;
+  final VoidCallback onOpenPacks;
+  final VoidCallback onOpenArtists;
+
+  const _MediaCatalogFilter({
+    required this.photographerController,
+    required this.onOpenEvents,
+    required this.onOpenPhotos,
+    required this.onOpenPacks,
+    required this.onOpenArtists,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: MasliveTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: MasliveTheme.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'CATALOGUE DES MEDIAS',
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.6,
+              color: MasliveTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: [
+                _CategoryChip(label: 'ÉVÉNEMENTS', onTap: onOpenEvents),
+                const SizedBox(width: 10),
+                _CategoryChip(label: 'PHOTOS', onTap: onOpenPhotos),
+                const SizedBox(width: 10),
+                _CategoryChip(label: 'PACKS', onTap: onOpenPacks),
+                const SizedBox(width: 10),
+                _CategoryChip(label: 'ARTISTES', onTap: onOpenArtists),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            height: 46,
+            decoration: BoxDecoration(
+              color: MasliveTheme.surfaceAlt,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: MasliveTheme.divider),
+            ),
+            child: TextField(
+              controller: photographerController,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => onOpenPhotos(),
+              decoration: const InputDecoration(
+                hintText: 'Photographe (optionnel)',
+                hintStyle: TextStyle(
+                  color: MasliveTheme.textSecondary,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w500,
+                ),
+                prefixIcon: Icon(
+                  Icons.person_search_rounded,
+                  size: 20,
+                  color: MasliveTheme.textSecondary,
+                ),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
