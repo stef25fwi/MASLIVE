@@ -2,6 +2,7 @@
 *.class
 *.lock
 *.log
+*.pid
 *.pyc
 *.swp
 .buildlog/
