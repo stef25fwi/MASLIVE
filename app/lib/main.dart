@@ -27,6 +27,7 @@ import 'pages/account_page.dart';
 import 'pages/orders_page.dart';
 import 'pages/map_admin_editor_page.dart';
 import 'pages/storex_shop_page.dart';
+import 'features/shop/pages/media_photo_shop_page.dart';
 import 'pages/shop/storex_reviews_and_success_pages.dart';
 import 'pages/pending_products_page.dart';
 import 'pages/search_page.dart';
@@ -281,6 +282,7 @@ class MasLiveApp extends StatelessWidget {
               ),
               '/boutique': (_) =>
                   const StorexShopPage(shopId: "global", groupId: "MASLIVE"),
+                '/boutique-photo': (_) => const MediaPhotoShopPage(),
               StorexRoutes.paymentComplete: (ctx) {
                 final args = ModalRoute.of(ctx)?.settings.arguments;
                 if (args is PaymentCompleteArgs) {
