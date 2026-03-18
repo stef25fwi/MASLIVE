@@ -1,13 +1,8 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/cart_provider.dart';
 import '../checkout/maslive_ultra_premium_checkout_page.dart';
-import '../../services/cart_checkout_service.dart';
-import '../../session/require_signin.dart';
-import '../../session/session_scope.dart';
-import '../../ui/snack/top_snack_bar.dart';
 import '../../widgets/cart/cart_group_section.dart';
 import '../../widgets/cart/cart_item_tile.dart';
 import '../../widgets/cart/cart_summary_card.dart';
@@ -48,7 +43,6 @@ class _UnifiedCartPageState extends State<UnifiedCartPage> {
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
-    final session = SessionScope.of(context);
 
     Widget body;
     if (cart.loading && cart.items.isEmpty) {
@@ -140,7 +134,7 @@ class _UnifiedCartPageState extends State<UnifiedCartPage> {
               grandTotal: cart.grandTotal,
               currency: currency,
               enabled: !cart.isEmpty,
-              onCheckout: () => _handleCheckout(context, cart, session),
+                onCheckout: () => _handleCheckout(context, cart),
               checkoutLabel:
                   cart.mediaCheckoutItems.isNotEmpty &&
                       cart.merchCheckoutItems.isNotEmpty
@@ -209,22 +203,8 @@ class _UnifiedCartPageState extends State<UnifiedCartPage> {
   Future<void> _handleCheckout(
     BuildContext context,
     CartProvider cart,
-    SessionControllerLike? session,
   ) async {
-    final hasMerch = cart.merchCheckoutItems.isNotEmpty;
-    final hasMedia = cart.mediaCheckoutItems.isNotEmpty;
-
-    if (!hasMerch && !hasMedia) {
-      return;
-    }
-
-    if (hasMerch && !hasMedia) {
-      await _startMerchCheckout(context, session);
-      return;
-    }
-
-    if (!hasMerch && hasMedia) {
-      await _startMediaCheckout(context, cart, session);
+    if (cart.checkoutEligibleItems.isEmpty) {
       return;
     }
 
@@ -234,55 +214,4 @@ class _UnifiedCartPageState extends State<UnifiedCartPage> {
       ),
     );
   }
-
-  Future<void> _startMerchCheckout(
-    BuildContext context,
-    SessionControllerLike session,
-  ) async {
-    if (!session.isSignedIn) {
-      await requireSignIn(context, session: session);
-      if (!session.isSignedIn || !context.mounted) return;
-    }
-
-    if (FirebaseAuth.instance.currentUser?.uid == null) {
-      TopSnackBar.show(
-        context,
-        const SnackBar(content: Text('Utilisateur introuvable')),
-      );
-      return;
-    }
-
-    await CartCheckoutService.startMerchCheckout(context);
-  }
-
-  Future<void> _startMediaCheckout(
-    BuildContext context,
-    CartProvider cart,
-    SessionControllerLike session,
-  ) async {
-    if (!session.isSignedIn) {
-      await requireSignIn(context, session: session);
-      if (!session.isSignedIn || !context.mounted) return;
-    }
-
-    if (FirebaseAuth.instance.currentUser?.uid == null) {
-      TopSnackBar.show(
-        context,
-        const SnackBar(content: Text('Utilisateur introuvable')),
-      );
-      return;
-    }
-
-    try {
-      await CartCheckoutService.startMediaCheckout(context, cart);
-    } catch (error) {
-      if (!context.mounted) return;
-      TopSnackBar.show(
-        context,
-        SnackBar(content: Text('Checkout media impossible: $error')),
-      );
-    }
-  }
 }
-
-typedef SessionControllerLike = dynamic;

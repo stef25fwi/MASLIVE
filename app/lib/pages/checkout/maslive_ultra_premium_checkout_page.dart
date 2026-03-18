@@ -42,6 +42,7 @@ class _MasliveUltraPremiumCheckoutPageState
   bool _useSavedAddress = true;
   bool _acceptTerms = true;
   String? _promoCode;
+  int _promoDiscountCents = 0;
   bool _checkoutLoading = false;
   bool _promoValidationLoading = false;
 
@@ -59,20 +60,14 @@ class _MasliveUltraPremiumCheckoutPageState
     return items.fold(0, (sum, e) => sum + e.safeQuantity);
   }
 
-  double _promoDiscount(double subtotal) {
-    if (_promoCode == null) return 0;
-    if (_promoCode == 'MAS10') return subtotal * 0.10;
-    if (_promoCode == 'MEDIA5') return 5.0;
-    return 0;
+  double _promoDiscount() {
+    return _promoDiscountCents / 100.0;
   }
 
   double _shippingCost({
     required bool hasPhysicalItems,
-    required double subtotal,
-    required double promoDiscount,
   }) {
     if (!hasPhysicalItems) return 0;
-    // Aligné avec Storex (createStorexPaymentIntent): shippingCents ∈ {0, 500, 2000}
     return _shippingCents(hasPhysicalItems: hasPhysicalItems) / 100.0;
   }
 
@@ -82,7 +77,6 @@ class _MasliveUltraPremiumCheckoutPageState
       case DeliveryMode.pickup:
         return 500;
       case DeliveryMode.standard:
-      case DeliveryMode.express:
         return 2000;
     }
   }
@@ -93,12 +87,30 @@ class _MasliveUltraPremiumCheckoutPageState
       case DeliveryMode.pickup:
         return 'local_pickup';
       case DeliveryMode.standard:
-      case DeliveryMode.express:
         return 'flat_rate';
     }
   }
 
+  void _clearPromoState() {
+    if (_promoCode == null && _promoDiscountCents == 0) return;
+    setState(() {
+      _promoCode = null;
+      _promoDiscountCents = 0;
+    });
+  }
+
+  Future<void> _incrementItem(CartProvider cart, CartItemModel item) async {
+    _clearPromoState();
+    await cart.incrementItem(item.id);
+  }
+
+  Future<void> _decrementItem(CartProvider cart, CartItemModel item) async {
+    _clearPromoState();
+    await cart.decrementItem(item.id);
+  }
+
   Future<void> _removeItem(CartProvider cart, CartItemModel item) async {
+    _clearPromoState();
     await cart.removeCartItem(item.id);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -132,16 +144,23 @@ class _MasliveUltraPremiumCheckoutPageState
 
       final valid = result['valid'] as bool? ?? false;
       final message = (result['message'] as String?) ?? 'Erreur';
+      final discountCents = (result['discountCents'] as num?)?.toInt() ?? 0;
 
       if (valid) {
-        setState(() => _promoCode = code);
+        setState(() {
+          _promoCode = code;
+          _promoDiscountCents = discountCents;
+        });
         TopSnackBar.show(
           context,
           SnackBar(content: Text(message)),
         );
         _promoController.clear();
       } else {
-        setState(() => _promoCode = null);
+        setState(() {
+          _promoCode = null;
+          _promoDiscountCents = 0;
+        });
         TopSnackBar.show(
           context,
           SnackBar(
@@ -152,7 +171,10 @@ class _MasliveUltraPremiumCheckoutPageState
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() => _promoCode = null);
+      setState(() {
+        _promoCode = null;
+        _promoDiscountCents = 0;
+      });
       TopSnackBar.show(
         context,
         SnackBar(
@@ -188,16 +210,6 @@ class _MasliveUltraPremiumCheckoutPageState
     }
 
     if (cart.isEmpty) return;
-
-    if (_paymentMode == PaymentMode.cash) {
-      TopSnackBar.show(
-        context,
-        const SnackBar(
-          content: Text('Mode retrait non disponible pour le moment.'),
-        ),
-      );
-      return;
-    }
 
     if (!session.isSignedIn) {
       await requireSignIn(context, session: session);
@@ -277,11 +289,9 @@ class _MasliveUltraPremiumCheckoutPageState
     final items = cart.checkoutEligibleItems;
     final hasPhysicalItems = _hasPhysicalItems(items);
     final subtotal = _subtotal(items);
-    final promoDiscount = _promoDiscount(subtotal);
+    final promoDiscount = _promoDiscount();
     final shippingCost = _shippingCost(
       hasPhysicalItems: hasPhysicalItems,
-      subtotal: subtotal,
-      promoDiscount: promoDiscount,
     );
     final total = (subtotal - promoDiscount) + shippingCost + serviceFee;
     final totalQuantity = _totalQuantity(items);
@@ -326,10 +336,10 @@ class _MasliveUltraPremiumCheckoutPageState
                                 item: item,
                                 onDelete: () => _removeItem(cart, item),
                                 onIncrement: item.canAdjustQuantity
-                                    ? () => cart.incrementItem(item.id)
+                                    ? () => _incrementItem(cart, item)
                                     : null,
                                 onDecrement: item.canAdjustQuantity
-                                    ? () => cart.decrementItem(item.id)
+                                    ? () => _decrementItem(cart, item)
                                     : null,
                               ),
                             ),
@@ -468,7 +478,7 @@ class _MasliveUltraPremiumCheckoutPageState
                                     children: [
                                       _SelectableTile(
                                         title: 'Standard',
-                                        subtitle: '2 à 5 jours',
+                                        subtitle: 'Tarif live Stripe / Storex',
                                         trailing: '20,00 €',
                                         selected:
                                             _deliveryMode ==
@@ -479,20 +489,6 @@ class _MasliveUltraPremiumCheckoutPageState
                                         ),
                                         leadingIcon:
                                             Icons.local_shipping_outlined,
-                                      ),
-                                      const SizedBox(height: 10),
-                                      _SelectableTile(
-                                        title: 'Express',
-                                        subtitle: '24 à 48h',
-                                        trailing: '20,00 €',
-                                        selected:
-                                            _deliveryMode ==
-                                            DeliveryMode.express,
-                                        onTap: () => setState(
-                                          () => _deliveryMode =
-                                              DeliveryMode.express,
-                                        ),
-                                        leadingIcon: Icons.flash_on_outlined,
                                       ),
                                       const SizedBox(height: 10),
                                       _SelectableTile(
@@ -519,6 +515,13 @@ class _MasliveUltraPremiumCheckoutPageState
                                         onChanged: (v) => setState(
                                           () => _useSavedAddress = v,
                                         ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      const _InfoBanner(
+                                        icon: Icons.info_outline_rounded,
+                                        title: 'Tarifs alignés backend',
+                                        subtitle:
+                                            'Le montant final de livraison est calculé sur les valeurs autorisées par Stripe/Firebase.',
                                       ),
                                     ],
                                   ),
@@ -557,17 +560,6 @@ class _MasliveUltraPremiumCheckoutPageState
                                     () => _paymentMode = PaymentMode.wallet,
                                   ),
                                   leadingIcon: Icons.phone_iphone_rounded,
-                                ),
-                                const SizedBox(height: 10),
-                                _SelectableTile(
-                                  title: 'Paiement événement / retrait',
-                                  subtitle: 'À activer si autorisé',
-                                  trailing: 'Optionnel',
-                                  selected: _paymentMode == PaymentMode.cash,
-                                  onTap: () => setState(
-                                    () => _paymentMode = PaymentMode.cash,
-                                  ),
-                                  leadingIcon: Icons.payments_outlined,
                                 ),
                               ],
                             ),
@@ -659,9 +651,9 @@ class _MasliveUltraPremiumCheckoutPageState
   }
 }
 
-enum DeliveryMode { standard, express, pickup }
+enum DeliveryMode { standard, pickup }
 
-enum PaymentMode { card, wallet, cash }
+enum PaymentMode { card, wallet }
 
 class _CheckoutTopBar extends StatelessWidget {
   final VoidCallback onBack;
@@ -1500,8 +1492,6 @@ class _CheckoutBottomBar extends StatelessWidget {
         return 'Carte bancaire';
       case PaymentMode.wallet:
         return 'Wallet';
-      case PaymentMode.cash:
-        return 'Paiement retrait';
     }
   }
 
