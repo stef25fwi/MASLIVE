@@ -435,12 +435,9 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                                 ),
                               ),
                               onPressed: () {
-                                final navigator = Navigator.of(context);
-                                if (navigator.canPop()) {
-                                  navigator.maybePop();
-                                } else {
-                                  navigator.pushNamed('/');
-                                }
+                                Navigator.of(context).pushReplacementNamed(
+                                  '/shop-ui',
+                                );
                               },
                               tooltip: 'Retour',
                             ),

@@ -19,112 +19,147 @@ class CartItemTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final total = item.totalPrice;
     final metadataEntries = (item.metadata ?? const <String, dynamic>{})
         .entries
         .where((entry) => entry.value != null && entry.value.toString().trim().isNotEmpty)
         .take(3)
         .toList(growable: false);
+    final infoChips = <Widget>[
+      if (item.requiresShipping) const _PrimaryInfoChip(label: 'Livraison requise'),
+      if (item.isDigital) const _PrimaryInfoChip(label: 'Produit digital'),
+      for (final entry in metadataEntries)
+        _SecondaryInfoChip(label: '${entry.key}: ${entry.value}'),
+    ];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.75),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x1A0F172A)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFFEAEAEA)),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: SizedBox(
-              width: 88,
-              height: 88,
-              child: item.imageUrl.trim().isEmpty
-                  ? Container(
-                      color: const Color(0xFFE5E7EB),
-                      child: const Icon(Icons.image_outlined),
-                    )
-                  : Image.network(
-                      item.imageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: const Color(0xFFE5E7EB),
-                          child: const Icon(Icons.broken_image_outlined),
-                        );
-                      },
-                    ),
+          Container(
+            width: 104,
+            height: 104,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F4F7),
+              borderRadius: BorderRadius.circular(24),
             ),
+            clipBehavior: Clip.antiAlias,
+            child: item.imageUrl.trim().isEmpty
+                ? const Center(
+                    child: Icon(
+                      Icons.image_outlined,
+                      size: 30,
+                      color: Color(0xFF7B7B85),
+                    ),
+                  )
+                : Image.network(
+                    item.imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Center(
+                        child: Icon(
+                          Icons.image_outlined,
+                          size: 30,
+                          color: Color(0xFF7B7B85),
+                        ),
+                      );
+                    },
+                  ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Expanded(
                       child: Text(
                         item.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleMedium?.copyWith(
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontSize: 22,
+                          height: 1.1,
                           fontWeight: FontWeight.w800,
                           color: const Color(0xFF111827),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    _TypeBadge(itemType: item.itemType),
+                    const SizedBox(width: 10),
+                    _TypeBadge(itemType: item.itemType, sourceType: item.sourceType),
                   ],
                 ),
                 if (item.subtitle != null && item.subtitle!.trim().isNotEmpty) ...<Widget>[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 8),
                   Text(
                     item.subtitle!,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontSize: 16,
+                      height: 1.2,
                       color: const Color(0xFF6B7280),
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
-                if (item.isDigital || item.requiresShipping || metadataEntries.isNotEmpty) ...<Widget>[
-                  const SizedBox(height: 8),
+                if (infoChips.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 10),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: <Widget>[
-                      if (item.isDigital) const _InfoChip(label: 'Produit digital'),
-                      if (item.requiresShipping) const _InfoChip(label: 'Livraison requise'),
-                      for (final entry in metadataEntries)
-                        _InfoChip(label: '${entry.key}: ${entry.value}'),
-                    ],
+                    children: infoChips,
                   ),
                 ],
-                const SizedBox(height: 10),
+                const SizedBox(height: 16),
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: <Widget>[
                     Text(
                       '${item.unitPrice.toStringAsFixed(2)} ${item.currency}',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
                         color: const Color(0xFF111827),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'unite',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF9CA3AF),
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                     const Spacer(),
                     Text(
-                      '${item.totalPrice.toStringAsFixed(2)} ${item.currency}',
-                      style: theme.textTheme.bodyLarge?.copyWith(
+                      '${total.toStringAsFixed(2)} ${item.currency}',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontSize: 22,
                         fontWeight: FontWeight.w900,
                         color: const Color(0xFF111827),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 Row(
                   children: <Widget>[
                     if (item.canAdjustQuantity)
@@ -134,18 +169,42 @@ class CartItemTile extends StatelessWidget {
                         onDecrement: onDecrement,
                       )
                     else
-                      Text(
-                        'Quantite ${item.safeQuantity}',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF4B5563),
+                      Container(
+                        height: 46,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF9F9FB),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: const Color(0xFFEAEAEA)),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Quantite ${item.safeQuantity}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF111827),
+                          ),
                         ),
                       ),
                     const Spacer(),
-                    IconButton(
-                      onPressed: onRemove,
-                      tooltip: 'Supprimer',
-                      icon: const Icon(Icons.delete_outline_rounded),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(999),
+                      onTap: onRemove,
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF6F6),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: const Color(0xFFFFE2E2)),
+                        ),
+                        child: const Icon(
+                          Icons.delete_outline_rounded,
+                          color: Color(0xFF7C5C63),
+                          size: 22,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -171,69 +230,105 @@ class _QuantityStepper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
+    return Container(
+      height: 46,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.92),
+        color: const Color(0xFFF9F9FB),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x1F0F172A)),
+        border: Border.all(color: const Color(0xFFEAEAEA)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              onPressed: onDecrement,
-              icon: const Icon(Icons.remove_rounded),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          _QtyButton(
+            icon: Icons.remove,
+            onTap: onDecrement,
+          ),
+          SizedBox(
+            width: 40,
+            child: Center(
+              child: Text(
+                '$quantity',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF111827),
+                ),
+              ),
             ),
-            Text(
-              '$quantity',
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              onPressed: onIncrement,
-              icon: const Icon(Icons.add_rounded),
-            ),
-          ],
-        ),
+          ),
+          _QtyButton(
+            icon: Icons.add,
+            onTap: onIncrement,
+          ),
+        ],
       ),
     );
   }
 }
 
 class _TypeBadge extends StatelessWidget {
-  const _TypeBadge({required this.itemType});
+  const _TypeBadge({required this.itemType, this.sourceType});
 
   final CartItemType itemType;
+  final String? sourceType;
 
   @override
   Widget build(BuildContext context) {
     final isMerch = itemType == CartItemType.merch;
+    final label = (sourceType != null && sourceType!.trim().isNotEmpty)
+        ? sourceType!.trim().toUpperCase()
+        : (isMerch ? 'MERCH' : 'MEDIA');
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
         gradient: LinearGradient(
           colors: isMerch
-              ? const <Color>[Color(0xFFFFF3E6), Color(0xFFFFE2F0)]
-              : const <Color>[Color(0xFFE8F4FF), Color(0xFFEAF9FF)],
+              ? const <Color>[Color(0xFFFFE7CF), Color(0xFFF9D8F0)]
+              : const <Color>[Color(0xFFE8F4FF), Color(0xFFDFF4FF)],
         ),
-        borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        isMerch ? 'Merch' : 'Media',
+        label,
         style: TextStyle(
-          fontWeight: FontWeight.w800,
-          color: isMerch ? const Color(0xFFB45309) : const Color(0xFF1D4ED8),
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: isMerch ? const Color(0xFF9A5B12) : const Color(0xFF1D4ED8),
         ),
       ),
     );
   }
 }
 
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.label});
+class _PrimaryInfoChip extends StatelessWidget {
+  const _PrimaryInfoChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F8F8),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFE9E9E9)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF4B5563),
+        ),
+      ),
+    );
+  }
+}
+
+class _SecondaryInfoChip extends StatelessWidget {
+  const _SecondaryInfoChip({required this.label});
 
   final String label;
 
@@ -252,6 +347,30 @@ class _InfoChip extends StatelessWidget {
           fontSize: 12,
           fontWeight: FontWeight.w700,
           color: Color(0xFF4B5563),
+        ),
+      ),
+    );
+  }
+}
+
+class _QtyButton extends StatelessWidget {
+  const _QtyButton({required this.icon, this.onTap});
+
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: SizedBox(
+        width: 42,
+        height: 46,
+        child: Icon(
+          icon,
+          size: 20,
+          color: const Color(0xFF4B5563),
         ),
       ),
     );
