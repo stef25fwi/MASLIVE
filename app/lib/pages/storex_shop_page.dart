@@ -2,14 +2,13 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:provider/provider.dart';
 
 import 'cart/unified_cart_page.dart';
 import 'product_detail_page.dart';
 import '../models/group_product.dart';
-import '../providers/cart_provider.dart';
 import '../services/cart_service.dart';
 import '../shop/widgets/shop_drawer.dart';
+import '../widgets/cart/cart_icon_badge.dart';
 import '../widgets/language_switcher.dart';
 import '../l10n/app_localizations.dart' as l10n;
 import '../ui/snack/top_snack_bar.dart';
@@ -83,7 +82,6 @@ class _StorexShopPageState extends State<StorexShopPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cartCount = context.watch<CartProvider>().totalQuantity;
     final pages = [
       _StorexHome(shopId: widget.shopId, groupId: widget.groupId),
       _StorexCategory(shopId: widget.shopId, groupId: widget.groupId),
@@ -114,9 +112,37 @@ class _StorexShopPageState extends State<StorexShopPage> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _Bottom(icon: Icons.storefront_outlined, activeIcon: Icons.storefront, active: tab == 0, onTap: () => setState(() => tab = 0)),
+              _Bottom(
+                icon: Icons.map_outlined,
+                activeIcon: Icons.map,
+                active: false,
+                onTap: () {
+                  final navigator = Navigator.of(context);
+                  if (navigator.canPop()) {
+                    navigator.maybePop();
+                  } else {
+                    navigator.pushNamed('/');
+                  }
+                },
+              ),
               _Bottom(icon: Icons.grid_view_outlined, activeIcon: Icons.grid_view, active: tab == 1, onTap: () => setState(() => tab = 1)),
-              _Bottom(icon: Icons.shopping_bag_outlined, activeIcon: Icons.shopping_bag, active: tab == 2, badgeCount: cartCount, onTap: () => setState(() => tab = 2)),
+              InkResponse(
+                radius: 28,
+                onTap: () => setState(() => tab = 2),
+                child: const CartIconBadge(
+                  iconGradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: <Color>[
+                      Color(0xFFFFB26A),
+                      Color(0xFFFF7BC5),
+                      Color(0xFF7CE0FF),
+                    ],
+                  ),
+                  backgroundColor: _ShopUi.navBg,
+                  borderColor: _ShopUi.strokeSoft,
+                ),
+              ),
               _Bottom(icon: Icons.person_outline, activeIcon: Icons.person, active: tab == 3, onTap: () => setState(() => tab = 3)),
             ],
           ),
@@ -128,12 +154,11 @@ class _StorexShopPageState extends State<StorexShopPage> {
 }
 
 class _Bottom extends StatelessWidget {
-  const _Bottom({required this.icon, required this.activeIcon, required this.active, required this.onTap, this.badgeCount = 0});
+  const _Bottom({required this.icon, required this.activeIcon, required this.active, required this.onTap});
   final IconData icon;
   final IconData activeIcon;
   final bool active;
   final VoidCallback onTap;
-  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -145,43 +170,18 @@ class _Bottom extends StatelessWidget {
     return InkResponse(
       radius: 28,
       onTap: onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: <Widget>[
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOut,
-            padding: const EdgeInsets.all(8),
-            decoration: active
-                ? BoxDecoration(
-                    gradient: _ShopUi.chipGradient,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: const <BoxShadow>[_ShopUi.cardShadow],
-                  )
-                : null,
-            child: iconChild,
-          ),
-          if (badgeCount > 0)
-            Positioned(
-              right: -10,
-              top: -8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  gradient: _ShopUi.chipGradient,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  badgeCount > 99 ? '99+' : '$badgeCount',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-        ],
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.all(8),
+        decoration: active
+            ? BoxDecoration(
+                gradient: _ShopUi.chipGradient,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: const <BoxShadow>[_ShopUi.cardShadow],
+              )
+            : null,
+        child: iconChild,
       ),
     );
   }
@@ -368,9 +368,21 @@ class _StorexHome extends StatelessWidget {
           ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.search, color: _ShopUi.textMain),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _SearchPage(shopId: shopId, groupId: groupId))),
+          CartIconBadge(
+            iconGradient: const LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: <Color>[
+                Color(0xFFFFB26A),
+                Color(0xFFFF7BC5),
+                Color(0xFF7CE0FF),
+              ],
+            ),
+            backgroundColor: _ShopUi.pageBg,
+            borderColor: _ShopUi.strokeSoft,
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const UnifiedCartPage()),
+            ),
           ),
           const SizedBox(width: 4),
         ],
@@ -855,10 +867,22 @@ class _StorexCategory extends StatelessWidget {
         ),
         actions: [
           LanguageSwitcher(textColor: _ShopUi.textMain),
-          IconButton(
-            icon: const Icon(Icons.search, color: _ShopUi.textMain),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _SearchPage(shopId: shopId, groupId: groupId))),
-          )
+          CartIconBadge(
+            iconGradient: const LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: <Color>[
+                Color(0xFFFFB26A),
+                Color(0xFFFF7BC5),
+                Color(0xFF7CE0FF),
+              ],
+            ),
+            backgroundColor: _ShopUi.pageBg,
+            borderColor: _ShopUi.strokeSoft,
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const UnifiedCartPage()),
+            ),
+          ),
         ],
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
