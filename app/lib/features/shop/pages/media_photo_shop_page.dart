@@ -406,15 +406,47 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
 
                     // ---------------- TOP LOGO AREA ----------------
                     SizedBox(
-                      height: 54,
+                      height: 48,
                       child: Stack(
                         children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: IconButton(
+                              icon: Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  color: MasliveTheme.surface,
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: MasliveTheme.divider,
+                                  ),
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.arrow_back_ios_new_rounded,
+                                    color: MasliveTheme.textPrimary,
+                                    size: 17,
+                                  ),
+                                ),
+                              ),
+                              onPressed: () {
+                                final navigator = Navigator.of(context);
+                                if (navigator.canPop()) {
+                                  navigator.maybePop();
+                                } else {
+                                  navigator.pushNamed('/');
+                                }
+                              },
+                              tooltip: 'Retour',
+                            ),
+                          ),
                           const Align(
-                            alignment: Alignment.topCenter,
+                            alignment: Alignment.center,
                             child: Text(
                               "MAS'LIVE",
                               style: TextStyle(
@@ -426,9 +458,8 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                               ),
                             ),
                           ),
-                          Positioned(
-                            right: 0,
-                            top: 0,
+                          const Align(
+                            alignment: Alignment.centerRight,
                             child: CartIconBadge(
                               iconGradient: const LinearGradient(
                                 begin: Alignment.centerLeft,
@@ -446,7 +477,7 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     const Center(
                       child: Text(
                         'LA BOUTIQUE PHOTO',
