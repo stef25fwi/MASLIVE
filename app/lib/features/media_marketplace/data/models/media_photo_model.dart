@@ -35,6 +35,11 @@ class MediaPhotoModel {
   final String ownerUid;
   final String galleryId;
   final String eventId;
+  final String countryId;
+  final String? countryName;
+  final String circuitId;
+  final String? circuitName;
+  final String? eventName;
   final String originalPath;
   final String previewPath;
   final String thumbnailPath;
@@ -67,6 +72,11 @@ class MediaPhotoModel {
     required this.ownerUid,
     required this.galleryId,
     required this.eventId,
+    required this.countryId,
+    this.countryName,
+    required this.circuitId,
+    this.circuitName,
+    this.eventName,
     required this.originalPath,
     required this.previewPath,
     required this.thumbnailPath,
@@ -104,6 +114,11 @@ class MediaPhotoModel {
       ownerUid: map['ownerUid']?.toString() ?? '',
       galleryId: map['galleryId']?.toString() ?? '',
       eventId: map['eventId']?.toString() ?? '',
+      countryId: map['countryId']?.toString() ?? '',
+      countryName: map['countryName']?.toString(),
+      circuitId: map['circuitId']?.toString() ?? '',
+      circuitName: map['circuitName']?.toString(),
+      eventName: map['eventName']?.toString(),
       originalPath: map['originalPath']?.toString() ?? '',
       previewPath: map['previewPath']?.toString() ?? '',
       thumbnailPath: map['thumbnailPath']?.toString() ?? '',
@@ -145,6 +160,11 @@ class MediaPhotoModel {
       'ownerUid': ownerUid,
       'galleryId': galleryId,
       'eventId': eventId,
+      'countryId': countryId,
+      if (countryName != null) 'countryName': countryName,
+      'circuitId': circuitId,
+      if (circuitName != null) 'circuitName': circuitName,
+      if (eventName != null) 'eventName': eventName,
       'originalPath': originalPath,
       'previewPath': previewPath,
       'thumbnailPath': thumbnailPath,
@@ -179,6 +199,11 @@ class MediaPhotoModel {
     String? ownerUid,
     String? galleryId,
     String? eventId,
+    String? countryId,
+    String? countryName,
+    String? circuitId,
+    String? circuitName,
+    String? eventName,
     String? originalPath,
     String? previewPath,
     String? thumbnailPath,
@@ -211,6 +236,11 @@ class MediaPhotoModel {
       ownerUid: ownerUid ?? this.ownerUid,
       galleryId: galleryId ?? this.galleryId,
       eventId: eventId ?? this.eventId,
+      countryId: countryId ?? this.countryId,
+      countryName: countryName ?? this.countryName,
+      circuitId: circuitId ?? this.circuitId,
+      circuitName: circuitName ?? this.circuitName,
+      eventName: eventName ?? this.eventName,
       originalPath: originalPath ?? this.originalPath,
       previewPath: previewPath ?? this.previewPath,
       thumbnailPath: thumbnailPath ?? this.thumbnailPath,
@@ -248,6 +278,11 @@ class MediaPhotoModel {
         other.ownerUid == ownerUid &&
         other.galleryId == galleryId &&
         other.eventId == eventId &&
+        other.countryId == countryId &&
+        other.countryName == countryName &&
+        other.circuitId == circuitId &&
+        other.circuitName == circuitName &&
+        other.eventName == eventName &&
         other.originalPath == originalPath &&
         other.previewPath == previewPath &&
         other.thumbnailPath == thumbnailPath &&
@@ -282,6 +317,11 @@ class MediaPhotoModel {
         ownerUid,
         galleryId,
         eventId,
+        countryId,
+        countryName,
+        circuitId,
+        circuitName,
+        eventName,
         originalPath,
         previewPath,
         thumbnailPath,

@@ -270,9 +270,13 @@ class CommerceSubmission {
       'thumbUrl': thumbUrl,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
-      'submittedAt': submittedAt != null ? Timestamp.fromDate(submittedAt!) : null,
+      'submittedAt': submittedAt != null
+          ? Timestamp.fromDate(submittedAt!)
+          : null,
       'moderatedBy': moderatedBy,
-      'moderatedAt': moderatedAt != null ? Timestamp.fromDate(moderatedAt!) : null,
+      'moderatedAt': moderatedAt != null
+          ? Timestamp.fromDate(moderatedAt!)
+          : null,
       'moderationNote': moderationNote,
       'publishedRef': publishedRef,
     };
@@ -287,6 +291,8 @@ class CommerceSubmission {
 
     // Champs media
     if (isMedia) {
+      map['price'] = price;
+      map['currency'] = currency;
       map['mediaType'] = mediaType?.toJson();
       map['takenAt'] = takenAt != null ? Timestamp.fromDate(takenAt!) : null;
       map['location'] = location;
@@ -374,5 +380,6 @@ class CommerceSubmission {
   }
 
   @override
-  String toString() => 'CommerceSubmission(id: $id, type: $type, status: $status, title: $title)';
+  String toString() =>
+      'CommerceSubmission(id: $id, type: $type, status: $status, title: $title)';
 }

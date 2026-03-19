@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../models/commerce_submission.dart';
@@ -34,6 +35,7 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _photographerController = TextEditingController();
+  final _priceController = TextEditingController(text: '3');
   final _countryController = TextEditingController();
   final _eventController = TextEditingController();
   final _circuitController = TextEditingController();
@@ -41,6 +43,7 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
   ScopeType _selectedScopeType = ScopeType.global;
   String _scopeId = '';
   MediaType _mediaType = MediaType.photo;
+  String _currency = 'EUR';
   String? _countryId;
   String? _countryName;
   String? _eventId;
@@ -51,6 +54,36 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
   List<String> _mediaUrls = [];
   final List<XFile> _selectedFiles = [];
   double _uploadProgress = 0.0;
+
+  String _normalizePriceInput(String input) {
+    final cleaned = input
+        .replaceAll(',', '.')
+        .replaceAll(RegExp(r'[^0-9.]'), '');
+    final parts = cleaned.split('.');
+    if (parts.length <= 1) return cleaned;
+    return '${parts[0]}.${parts.sublist(1).join('')}';
+  }
+
+  void _setControllerValue(TextEditingController controller, String text) {
+    controller.value = controller.value.copyWith(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+      composing: TextRange.empty,
+    );
+  }
+
+  double? _parsePrice() {
+    final normalized = _normalizePriceInput(_priceController.text);
+    if (normalized.isEmpty) return null;
+    return double.tryParse(normalized);
+  }
+
+  String _formatPrice(double? value) {
+    if (value == null || value <= 0) return '--';
+    return '${value.toStringAsFixed(2)} $_currency';
+  }
+
+  int get _totalMediaCount => _mediaUrls.length + _selectedFiles.length;
 
   @override
   void initState() {
@@ -69,9 +102,11 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
           _titleController.text = submission.title;
           _descriptionController.text = submission.description;
           _photographerController.text = submission.photographer ?? '';
+          _priceController.text = submission.price?.toString() ?? '3';
           _selectedScopeType = submission.scopeType;
           _scopeId = submission.scopeId;
           _mediaType = submission.mediaType ?? MediaType.photo;
+          _currency = submission.currency ?? 'EUR';
           _mediaUrls = List.from(submission.mediaUrls);
           _countryId = submission.countryId;
           _countryName = submission.countryName;
@@ -79,16 +114,19 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
           _eventName = submission.eventName;
           _circuitId = submission.circuitId;
           _circuitName = submission.circuitName;
-          _countryController.text = submission.countryName ?? submission.countryId ?? '';
-          _eventController.text = submission.eventName ?? submission.eventId ?? '';
-          _circuitController.text = submission.circuitName ?? submission.circuitId ?? '';
+          _countryController.text =
+              submission.countryName ?? submission.countryId ?? '';
+          _eventController.text =
+              submission.eventName ?? submission.eventId ?? '';
+          _circuitController.text =
+              submission.circuitName ?? submission.circuitId ?? '';
         });
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -105,9 +143,9 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
     }
   }
 
@@ -225,7 +263,8 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
 
       // Upload
       if (_selectedFiles.isNotEmpty) {
-        String submissionId = _existing?.id ?? 'temp_${DateTime.now().millisecondsSinceEpoch}';
+        String submissionId =
+            _existing?.id ?? 'temp_${DateTime.now().millisecondsSinceEpoch}';
 
         if (kIsWeb) {
           for (final file in _selectedFiles) {
@@ -257,6 +296,8 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
           'title': _titleController.text.trim(),
           'description': _descriptionController.text.trim(),
           'photographer': _photographerController.text.trim(),
+          'price': _parsePrice(),
+          'currency': _currency,
           'mediaType': _mediaType.toJson(),
           'mediaUrls': _mediaUrls,
           'scopeType': _selectedScopeType.toJson(),
@@ -279,6 +320,8 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
           mediaUrls: _mediaUrls,
           mediaType: _mediaType,
           photographer: _photographerController.text.trim(),
+          price: _parsePrice(),
+          currency: _currency,
           countryId: _countryId,
           countryName: _countryName,
           eventId: _eventId,
@@ -289,16 +332,16 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Brouillon enregistré')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('✅ Brouillon enregistré')));
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('❌ $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -310,9 +353,9 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
     setState(() => _showMarketScopeError = true);
     final marketScopeError = _marketScopeError();
     if (marketScopeError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(marketScopeError)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(marketScopeError)));
       return;
     }
 
@@ -331,7 +374,8 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
 
       // Upload
       if (_selectedFiles.isNotEmpty) {
-        String submissionId = _existing?.id ?? 'temp_${DateTime.now().millisecondsSinceEpoch}';
+        String submissionId =
+            _existing?.id ?? 'temp_${DateTime.now().millisecondsSinceEpoch}';
 
         if (kIsWeb) {
           for (final file in _selectedFiles) {
@@ -365,6 +409,8 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
           'title': _titleController.text.trim(),
           'description': _descriptionController.text.trim(),
           'photographer': _photographerController.text.trim(),
+          'price': _parsePrice(),
+          'currency': _currency,
           'mediaType': _mediaType.toJson(),
           'mediaUrls': _mediaUrls,
           'scopeType': _selectedScopeType.toJson(),
@@ -388,6 +434,8 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
           mediaUrls: _mediaUrls,
           mediaType: _mediaType,
           photographer: _photographerController.text.trim(),
+          price: _parsePrice(),
+          currency: _currency,
           countryId: _countryId,
           countryName: _countryName,
           eventId: _eventId,
@@ -407,9 +455,9 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('❌ $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -421,6 +469,7 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
     _titleController.dispose();
     _descriptionController.dispose();
     _photographerController.dispose();
+    _priceController.dispose();
     _countryController.dispose();
     _eventController.dispose();
     _circuitController.dispose();
@@ -436,7 +485,10 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
         elevation: 0,
         title: Text(
           _isEditing ? 'Modifier le média' : 'Nouveau média',
-          style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         iconTheme: const IconThemeData(color: Colors.black87),
       ),
@@ -444,7 +496,9 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
           ? const Center(child: CircularProgressIndicator())
           : LayoutBuilder(
               builder: (context, constraints) {
-                final maxWidth = constraints.maxWidth > 900 ? 900.0 : constraints.maxWidth;
+                final maxWidth = constraints.maxWidth > 900
+                    ? 900.0
+                    : constraints.maxWidth;
                 return Center(
                   child: Container(
                     constraints: BoxConstraints(maxWidth: maxWidth),
@@ -457,11 +511,15 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                             controller: _titleController,
                             decoration: InputDecoration(
                               labelText: 'Titre *',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                               filled: true,
                               fillColor: Colors.grey.shade50,
                             ),
-                            validator: (v) => v == null || v.trim().isEmpty ? 'Titre obligatoire' : null,
+                            validator: (v) => v == null || v.trim().isEmpty
+                                ? 'Titre obligatoire'
+                                : null,
                           ),
                           const SizedBox(height: 16),
                           TextFormField(
@@ -469,21 +527,67 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                             maxLines: 4,
                             decoration: InputDecoration(
                               labelText: 'Description *',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                               filled: true,
                               fillColor: Colors.grey.shade50,
                             ),
-                            validator: (v) => v == null || v.trim().isEmpty ? 'Description obligatoire' : null,
+                            validator: (v) => v == null || v.trim().isEmpty
+                                ? 'Description obligatoire'
+                                : null,
                           ),
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: _photographerController,
                             decoration: InputDecoration(
                               labelText: 'Photographe',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                               filled: true,
                               fillColor: Colors.grey.shade50,
                             ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _priceController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'[0-9.,]'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              final normalized = _normalizePriceInput(value);
+                              if (normalized != value) {
+                                _setControllerValue(
+                                  _priceController,
+                                  normalized,
+                                );
+                              }
+                            },
+                            decoration: InputDecoration(
+                              labelText: 'Prix par photo ($_currency) *',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey.shade50,
+                              prefixText: '€ ',
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Prix obligatoire';
+                              }
+                              final price = _parsePrice();
+                              if (price == null || price <= 0) {
+                                return 'Prix invalide';
+                              }
+                              return null;
+                            },
                           ),
                           const SizedBox(height: 16),
                           _MarketScopeField(
@@ -502,19 +606,26 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                             label: 'CIRCUIT *',
                             controller: _circuitController,
                             onTap: _selectMarketScope,
-                            errorText: _showMarketScopeError ? _marketScopeError() : null,
+                            errorText: _showMarketScopeError
+                                ? _marketScopeError()
+                                : null,
                           ),
                           const SizedBox(height: 16),
                           DropdownButtonFormField<MediaType>(
                             initialValue: _mediaType,
                             decoration: InputDecoration(
                               labelText: 'Type de média',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                               filled: true,
                               fillColor: Colors.grey.shade50,
                             ),
                             items: MediaType.values.map((type) {
-                              return DropdownMenuItem(value: type, child: Text(type.name));
+                              return DropdownMenuItem(
+                                value: type,
+                                child: Text(type.name),
+                              );
                             }).toList(),
                             onChanged: (val) {
                               if (val != null) setState(() => _mediaType = val);
@@ -525,15 +636,21 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                             initialValue: _selectedScopeType,
                             decoration: InputDecoration(
                               labelText: 'Portée',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                               filled: true,
                               fillColor: Colors.grey.shade50,
                             ),
                             items: ScopeType.values.map((type) {
-                              return DropdownMenuItem(value: type, child: Text(type.name));
+                              return DropdownMenuItem(
+                                value: type,
+                                child: Text(type.name),
+                              );
                             }).toList(),
                             onChanged: (val) {
-                              if (val != null) setState(() => _selectedScopeType = val);
+                              if (val != null)
+                                setState(() => _selectedScopeType = val);
                             },
                           ),
                           const SizedBox(height: 16),
@@ -541,7 +658,9 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                             initialValue: _scopeId,
                             decoration: InputDecoration(
                               labelText: 'Scope ID (optionnel)',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                               filled: true,
                               fillColor: Colors.grey.shade50,
                             ),
@@ -549,7 +668,13 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                           ),
                           const SizedBox(height: 24),
                           if (_mediaUrls.isNotEmpty) ...[
-                            const Text('Médias actuels', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            const Text(
+                              'Médias actuels',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
                             const SizedBox(height: 8),
                             Wrap(
                               spacing: 8,
@@ -559,14 +684,24 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                                   children: [
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(12),
-                                      child: Image.network(entry.value, width: 100, height: 100, fit: BoxFit.cover),
+                                      child: Image.network(
+                                        entry.value,
+                                        width: 100,
+                                        height: 100,
+                                        fit: BoxFit.cover,
+                                      ),
                                     ),
                                     Positioned(
                                       top: 4,
                                       right: 4,
                                       child: IconButton(
-                                        icon: const Icon(Icons.close, color: Colors.white),
-                                        style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                                        icon: const Icon(
+                                          Icons.close,
+                                          color: Colors.white,
+                                        ),
+                                        style: IconButton.styleFrom(
+                                          backgroundColor: Colors.black54,
+                                        ),
                                         onPressed: () => _removeUrl(entry.key),
                                       ),
                                     ),
@@ -577,12 +712,20 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                             const SizedBox(height: 16),
                           ],
                           if (_selectedFiles.isNotEmpty) ...[
-                            const Text('Nouveaux médias', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            const Text(
+                              'Nouveaux médias',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
                             const SizedBox(height: 8),
                             Wrap(
                               spacing: 8,
                               runSpacing: 8,
-                              children: _selectedFiles.asMap().entries.map((entry) {
+                              children: _selectedFiles.asMap().entries.map((
+                                entry,
+                              ) {
                                 return Stack(
                                   children: [
                                     ClipRRect(
@@ -592,19 +735,43 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                                               future: entry.value.readAsBytes(),
                                               builder: (context, snapshot) {
                                                 if (snapshot.hasData) {
-                                                return Image.memory(Uint8List.fromList(snapshot.data!), width: 100, height: 100, fit: BoxFit.cover);
+                                                  return Image.memory(
+                                                    Uint8List.fromList(
+                                                      snapshot.data!,
+                                                    ),
+                                                    width: 100,
+                                                    height: 100,
+                                                    fit: BoxFit.cover,
+                                                  );
                                                 }
-                                                return const SizedBox(width: 100, height: 100, child: Center(child: CircularProgressIndicator()));
+                                                return const SizedBox(
+                                                  width: 100,
+                                                  height: 100,
+                                                  child: Center(
+                                                    child:
+                                                        CircularProgressIndicator(),
+                                                  ),
+                                                );
                                               },
                                             )
-                                          : Image.file(File(entry.value.path), width: 100, height: 100, fit: BoxFit.cover),
+                                          : Image.file(
+                                              File(entry.value.path),
+                                              width: 100,
+                                              height: 100,
+                                              fit: BoxFit.cover,
+                                            ),
                                     ),
                                     Positioned(
                                       top: 4,
                                       right: 4,
                                       child: IconButton(
-                                        icon: const Icon(Icons.close, color: Colors.white),
-                                        style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                                        icon: const Icon(
+                                          Icons.close,
+                                          color: Colors.white,
+                                        ),
+                                        style: IconButton.styleFrom(
+                                          backgroundColor: Colors.black54,
+                                        ),
                                         onPressed: () => _removeFile(entry.key),
                                       ),
                                     ),
@@ -620,16 +787,33 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                             label: const Text('Ajouter des médias'),
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.all(16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                           const SizedBox(height: 16),
                           if (_isLoading && _uploadProgress > 0) ...[
                             LinearProgressIndicator(value: _uploadProgress),
                             const SizedBox(height: 8),
-                            Text('Upload: ${(_uploadProgress * 100).toInt()}%', textAlign: TextAlign.center),
+                            Text(
+                              'Upload: ${(_uploadProgress * 100).toInt()}%',
+                              textAlign: TextAlign.center,
+                            ),
                             const SizedBox(height: 16),
                           ],
+                          _MediaSubmissionRecap(
+                            title: _titleController.text.trim(),
+                            photographer: _photographerController.text.trim(),
+                            mediaTypeLabel: _mediaType.name,
+                            scopeLabel: _selectedScopeType.name,
+                            countryName: _countryController.text.trim(),
+                            eventName: _eventController.text.trim(),
+                            circuitName: _circuitController.text.trim(),
+                            mediaCount: _totalMediaCount,
+                            formattedPrice: _formatPrice(_parsePrice()),
+                          ),
+                          const SizedBox(height: 16),
                           Row(
                             children: [
                               Expanded(
@@ -637,7 +821,9 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                                   onPressed: _isLoading ? null : _saveDraft,
                                   style: OutlinedButton.styleFrom(
                                     padding: const EdgeInsets.all(16),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
                                   child: const Text('Enregistrer brouillon'),
                                 ),
@@ -645,13 +831,24 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                               const SizedBox(width: 16),
                               Expanded(
                                 child: ElevatedButton(
-                                  onPressed: _isLoading ? null : _submitForReview,
+                                  onPressed: _isLoading
+                                      ? null
+                                      : _submitForReview,
                                   style: ElevatedButton.styleFrom(
                                     padding: const EdgeInsets.all(16),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
                                   child: _isLoading
-                                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                      ? const SizedBox(
+                                          height: 20,
+                                          width: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
                                       : const Text('Soumettre'),
                                 ),
                               ),
@@ -695,6 +892,119 @@ class _MarketScopeField extends StatelessWidget {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: Colors.grey.shade50,
+      ),
+    );
+  }
+}
+
+class _MediaSubmissionRecap extends StatelessWidget {
+  const _MediaSubmissionRecap({
+    required this.title,
+    required this.photographer,
+    required this.mediaTypeLabel,
+    required this.scopeLabel,
+    required this.countryName,
+    required this.eventName,
+    required this.circuitName,
+    required this.mediaCount,
+    required this.formattedPrice,
+  });
+
+  final String title;
+  final String photographer;
+  final String mediaTypeLabel;
+  final String scopeLabel;
+  final String countryName;
+  final String eventName;
+  final String circuitName;
+  final int mediaCount;
+  final String formattedPrice;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Text(
+            'Récapitulatif créateur',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 12),
+          _RecapRow(label: 'Titre', value: title.isEmpty ? '--' : title),
+          _RecapRow(
+            label: 'Photographe',
+            value: photographer.isEmpty ? '--' : photographer,
+          ),
+          _RecapRow(label: 'Type', value: mediaTypeLabel),
+          _RecapRow(label: 'Portée', value: scopeLabel),
+          _RecapRow(
+            label: 'Pays',
+            value: countryName.isEmpty ? '--' : countryName,
+          ),
+          _RecapRow(
+            label: 'Événement',
+            value: eventName.isEmpty ? '--' : eventName,
+          ),
+          _RecapRow(
+            label: 'Circuit',
+            value: circuitName.isEmpty ? '--' : circuitName,
+          ),
+          _RecapRow(label: 'Photos', value: '$mediaCount'),
+          _RecapRow(
+            label: 'Prix par photo',
+            value: formattedPrice,
+            isEmphasis: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecapRow extends StatelessWidget {
+  const _RecapRow({
+    required this.label,
+    required this.value,
+    this.isEmphasis = false,
+  });
+
+  final String label;
+  final String value;
+  final bool isEmphasis;
+
+  @override
+  Widget build(BuildContext context) {
+    final valueStyle = TextStyle(
+      fontSize: 13.5,
+      fontWeight: isEmphasis ? FontWeight.w700 : FontWeight.w500,
+      color: isEmphasis ? Colors.black87 : Colors.black54,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SizedBox(
+            width: 112,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.black54,
+              ),
+            ),
+          ),
+          Expanded(child: Text(value, style: valueStyle)),
+        ],
       ),
     );
   }

@@ -112,6 +112,14 @@ function sanitizeFileBasename(value, fallback = "media") {
 
 const DEFAULT_MEDIA_PHOTO_PRICE_EUR = 3;
 
+function resolveMediaUnitPrice(submission) {
+  const rawPrice = Number(submission?.price);
+  if (Number.isFinite(rawPrice) && rawPrice > 0) {
+    return rawPrice;
+  }
+  return DEFAULT_MEDIA_PHOTO_PRICE_EUR;
+}
+
 const GDPR_EXPORT_SUBCOLLECTIONS = [
   "cart",
   "wishlist",
@@ -3530,6 +3538,9 @@ exports.approveCommerceSubmission = onCall(
 
   // Champs media
   if (submission.type === "media") {
+    const mediaUnitPrice = resolveMediaUnitPrice(submission);
+    const mediaCurrency = nonEmptyString(submission.currency) || "EUR";
+
     if (!looksLikeNonEmptyString(submission.countryId) ||
         !looksLikeNonEmptyString(submission.eventId) ||
         !looksLikeNonEmptyString(submission.circuitId)) {
@@ -3543,8 +3554,8 @@ exports.approveCommerceSubmission = onCall(
     if (submission.takenAt) publishedData.takenAt = submission.takenAt;
     if (submission.location) publishedData.location = submission.location;
     if (submission.photographer) publishedData.photographer = submission.photographer;
-    publishedData.defaultPhotoUnitPrice = DEFAULT_MEDIA_PHOTO_PRICE_EUR;
-    publishedData.currency = "EUR";
+    publishedData.defaultPhotoUnitPrice = mediaUnitPrice;
+    publishedData.currency = mediaCurrency;
     publishedData.countryId = submission.countryId;
     if (looksLikeNonEmptyString(submission.countryName)) {
       publishedData.countryName = submission.countryName;
@@ -3603,8 +3614,8 @@ exports.approveCommerceSubmission = onCall(
       photoCount: mediaUrls.length,
       publishedPhotoCount: mediaUrls.length,
       packCount: 0,
-      defaultPhotoUnitPrice: DEFAULT_MEDIA_PHOTO_PRICE_EUR,
-      currency: "EUR",
+      defaultPhotoUnitPrice: mediaUnitPrice,
+      currency: mediaCurrency,
       publishedAt: admin.firestore.FieldValue.serverTimestamp(),
       createdAt: submission.createdAt || admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -3644,8 +3655,8 @@ exports.approveCommerceSubmission = onCall(
         visibility: "public",
         isPublished: true,
         isForSale: true,
-        unitPrice: DEFAULT_MEDIA_PHOTO_PRICE_EUR,
-        currency: "EUR",
+        unitPrice: mediaUnitPrice,
+        currency: mediaCurrency,
         createdAt: submission.createdAt || admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         sourceSubmissionId: submissionId,

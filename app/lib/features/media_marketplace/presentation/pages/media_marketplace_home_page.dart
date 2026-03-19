@@ -104,7 +104,8 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
         catalog.galleries.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final controller = context.read<MediaMarketplaceCatalogController>();
-        if (controller.selectedGalleryId == null && controller.galleries.isNotEmpty) {
+        if (controller.selectedGalleryId == null &&
+            controller.galleries.isNotEmpty) {
           controller.selectGallery(controller.galleries.first.galleryId);
         }
       });
@@ -112,23 +113,22 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
 
     final MediaGalleryModel? selectedGallery = catalog.selectedGalleryId == null
         ? null
-        : catalog.galleries
-            .cast<MediaGalleryModel?>()
-            .firstWhere(
-              (g) => g?.galleryId == catalog.selectedGalleryId,
-              orElse: () => null,
-            );
+        : catalog.galleries.cast<MediaGalleryModel?>().firstWhere(
+            (g) => g?.galleryId == catalog.selectedGalleryId,
+            orElse: () => null,
+          );
 
-    final String? heroImageUrl = selectedGallery?.coverUrl?.trim().isNotEmpty == true
+    final String? heroImageUrl =
+        selectedGallery?.coverUrl?.trim().isNotEmpty == true
         ? selectedGallery!.coverUrl!.trim()
         : (catalog.photos.isNotEmpty
-            ? catalog.photos.first.thumbnailPath
-            : (catalog.packs.isNotEmpty ? catalog.packs.first.coverUrl : null));
+              ? catalog.photos.first.thumbnailPath
+              : (catalog.packs.isNotEmpty
+                    ? catalog.packs.first.coverUrl
+                    : null));
 
     final body = DecoratedBox(
-      decoration: const BoxDecoration(
-        color: MasliveTheme.surfaceAlt,
-      ),
+      decoration: const BoxDecoration(color: MasliveTheme.surfaceAlt),
       child: Column(
         children: <Widget>[
           if (catalog.loading) const LinearProgressIndicator(minHeight: 2),
@@ -180,7 +180,8 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
                     onTap: onOpenFilters,
                   ),
                   const SizedBox(height: 14),
-                  if (showContextHeader && catalog.currentEventId != null) ...<Widget>[
+                  if (showContextHeader &&
+                      catalog.currentEventId != null) ...<Widget>[
                     MediaMarketplaceContextChips(
                       eventId: catalog.currentEventId!,
                       circuitName: circuitName,
@@ -200,8 +201,11 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
                                   label: gallery.title.isEmpty
                                       ? 'GALERIE'
                                       : gallery.title.toUpperCase(),
-                                  selected: catalog.selectedGalleryId == gallery.galleryId,
-                                  onTap: () => catalog.selectGallery(gallery.galleryId),
+                                  selected:
+                                      catalog.selectedGalleryId ==
+                                      gallery.galleryId,
+                                  onTap: () =>
+                                      catalog.selectGallery(gallery.galleryId),
                                 ),
                               ),
                             )
@@ -213,12 +217,10 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
                     title: selectedGallery?.title.trim().isNotEmpty == true
                         ? selectedGallery!.title.trim().toUpperCase()
                         : (eventName?.trim().isNotEmpty == true
-                            ? eventName!.trim().toUpperCase()
-                            : 'GALERIE'),
+                              ? eventName!.trim().toUpperCase()
+                              : 'GALERIE'),
                     imageUrl: heroImageUrl,
-                    onTap: catalog.selectedGalleryId == null
-                        ? null
-                        : () {},
+                    onTap: catalog.selectedGalleryId == null ? null : () {},
                   ),
                   const SizedBox(height: 22),
                   Row(
@@ -249,7 +251,8 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
                   if (catalog.selectedGalleryId == null)
                     MediaMarketplaceMessageCard.empty(
                       title: 'Sélectionne une galerie',
-                      message: 'Choisis une catégorie ci-dessus pour afficher les médias disponibles.',
+                      message:
+                          'Choisis une catégorie ci-dessus pour afficher les médias disponibles.',
                       icon: Icons.photo_library_outlined,
                     )
                   else
@@ -257,7 +260,8 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
                       photos: catalog.photos,
                       packs: catalog.packs,
                       cart: cart,
-                      onAddPhoto: (photo) => _addMediaPhoto(context, photo),
+                      onAddPhoto: (photo) =>
+                          _openMediaPhotoDetails(context, photo),
                       onAddPack: (pack) => _addMediaPack(context, pack),
                     ),
                   const SizedBox(height: 18),
@@ -287,7 +291,10 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
     );
   }
 
-  Future<void> _addMediaPhoto(BuildContext context, MediaPhotoModel photo) async {
+  Future<void> _addMediaPhoto(
+    BuildContext context,
+    MediaPhotoModel photo,
+  ) async {
     await context.read<CartProvider>().addCartItem(
       unified_cart.CartItemModel(
         id: '',
@@ -317,6 +324,26 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
     );
   }
 
+  Future<void> _openMediaPhotoDetails(
+    BuildContext context,
+    MediaPhotoModel photo,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext modalContext) {
+        return _MediaPhotoDetailsSheet(
+          photo: photo,
+          onAddToCart: () async {
+            Navigator.of(modalContext).pop();
+            await _addMediaPhoto(context, photo);
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _addMediaPack(BuildContext context, MediaPackModel pack) async {
     await context.read<CartProvider>().addCartItem(
       unified_cart.CartItemModel(
@@ -326,7 +353,9 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
         sellerId: pack.photographerId,
         eventId: pack.eventId,
         title: pack.title,
-        subtitle: pack.galleryId.isEmpty ? null : 'Pack galerie ${pack.galleryId}',
+        subtitle: pack.galleryId.isEmpty
+            ? null
+            : 'Pack galerie ${pack.galleryId}',
         imageUrl: pack.coverUrl ?? '',
         unitPrice: pack.price,
         quantity: 1,
@@ -346,6 +375,166 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
     TopSnackBar.show(
       context,
       SnackBar(content: Text('${pack.title} ajoute au panier')),
+    );
+  }
+}
+
+class _MediaPhotoDetailsSheet extends StatelessWidget {
+  const _MediaPhotoDetailsSheet({
+    required this.photo,
+    required this.onAddToCart,
+  });
+
+  final MediaPhotoModel photo;
+  final Future<void> Function() onAddToCart;
+
+  String get _formattedPrice =>
+      '${photo.unitPrice.toStringAsFixed(2)} ${photo.currency}';
+
+  @override
+  Widget build(BuildContext context) {
+    final String imageUrl = photo.previewPath.trim().isNotEmpty
+        ? photo.previewPath.trim()
+        : photo.thumbnailPath.trim();
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 46,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.black12,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(22),
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: imageUrl.isNotEmpty
+                      ? Image.network(imageUrl, fit: BoxFit.cover)
+                      : Container(
+                          color: MasliveTheme.surface,
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.image_outlined,
+                            size: 42,
+                            color: MasliveTheme.textSecondary,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                photo.downloadFileName,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: MasliveTheme.textPrimary,
+                  height: 1.15,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _PhotoDetailMetaRow(
+                label: 'Prix',
+                value: _formattedPrice,
+                emphasize: true,
+              ),
+              if (photo.countryName != null && photo.countryName!.isNotEmpty)
+                _PhotoDetailMetaRow(
+                  label: 'Pays',
+                  value: photo.countryName ?? '--',
+                ),
+              if (photo.eventName != null && photo.eventName!.isNotEmpty)
+                _PhotoDetailMetaRow(
+                  label: 'Événement',
+                  value: photo.eventName ?? '--',
+                ),
+              if (photo.circuitName != null && photo.circuitName!.isNotEmpty)
+                _PhotoDetailMetaRow(
+                  label: 'Circuit',
+                  value: photo.circuitName ?? '--',
+                ),
+              _PhotoDetailMetaRow(
+                label: 'Galerie',
+                value: photo.galleryId.isEmpty ? '--' : photo.galleryId,
+              ),
+              _PhotoDetailMetaRow(
+                label: 'Statut vente',
+                value: photo.isForSale ? 'Disponible' : 'Indisponible',
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: photo.isForSale ? () => onAddToCart() : null,
+                  icon: const Icon(Icons.add_shopping_cart_rounded),
+                  label: const Text('Ajouter au panier'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PhotoDetailMetaRow extends StatelessWidget {
+  const _PhotoDetailMetaRow({
+    required this.label,
+    required this.value,
+    this.emphasize = false,
+  });
+
+  final String label;
+  final String value;
+  final bool emphasize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SizedBox(
+            width: 94,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: MasliveTheme.textSecondary,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: emphasize ? 16 : 13.5,
+                fontWeight: emphasize ? FontWeight.w800 : FontWeight.w500,
+                color: MasliveTheme.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -504,15 +693,9 @@ class _HeroGalleryCard extends StatelessWidget {
           fit: StackFit.expand,
           children: <Widget>[
             if (imageUrl?.trim().isNotEmpty == true)
-              Image.network(
-                imageUrl!.trim(),
-                fit: BoxFit.cover,
-              )
+              Image.network(imageUrl!.trim(), fit: BoxFit.cover)
             else
-              Image.asset(
-                'assets/images/maslivesmall.png',
-                fit: BoxFit.cover,
-              ),
+              Image.asset('assets/images/maslivesmall.png', fit: BoxFit.cover),
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -598,7 +781,9 @@ class _PhotosMosaic extends StatelessWidget {
 
     for (final pack in packs) {
       if (items.length >= 7) break;
-      final String? url = pack.coverUrl?.trim().isNotEmpty == true ? pack.coverUrl!.trim() : null;
+      final String? url = pack.coverUrl?.trim().isNotEmpty == true
+          ? pack.coverUrl!.trim()
+          : null;
       items.add(
         _MosaicItem(
           imageUrl: url,
@@ -613,7 +798,8 @@ class _PhotosMosaic extends StatelessWidget {
     if (items.isEmpty) {
       return MediaMarketplaceMessageCard.empty(
         title: 'Aucun média',
-        message: 'Cette galerie ne contient pas encore de photos ou packs vendables.',
+        message:
+            'Cette galerie ne contient pas encore de photos ou packs vendables.',
         icon: Icons.collections_outlined,
       );
     }
@@ -630,19 +816,9 @@ class _PhotosMosaic extends StatelessWidget {
           Expanded(
             child: Column(
               children: <Widget>[
-                Expanded(
-                  flex: 11,
-                  child: _PhotoCard(
-                    item: items[0],
-                  ),
-                ),
+                Expanded(flex: 11, child: _PhotoCard(item: items[0])),
                 const SizedBox(height: 10),
-                Expanded(
-                  flex: 9,
-                  child: _PhotoCard(
-                    item: items[1],
-                  ),
-                ),
+                Expanded(flex: 9, child: _PhotoCard(item: items[1])),
               ],
             ),
           ),
@@ -651,43 +827,22 @@ class _PhotosMosaic extends StatelessWidget {
             flex: 1,
             child: Column(
               children: <Widget>[
-                Expanded(
-                  flex: 9,
-                  child: _PhotoCard(
-                    item: items[2],
-                  ),
-                ),
+                Expanded(flex: 9, child: _PhotoCard(item: items[2])),
                 const SizedBox(height: 10),
                 Expanded(
                   flex: 8,
                   child: Row(
                     children: <Widget>[
-                      Expanded(
-                        child: _PhotoCard(
-                          item: items[3],
-                        ),
-                      ),
+                      Expanded(child: _PhotoCard(item: items[3])),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           children: <Widget>[
-                            Expanded(
-                              child: _PhotoCard(
-                                item: items[4],
-                              ),
-                            ),
+                            Expanded(child: _PhotoCard(item: items[4])),
                             const SizedBox(height: 10),
-                            Expanded(
-                              child: _PhotoCard(
-                                item: items[5],
-                              ),
-                            ),
+                            Expanded(child: _PhotoCard(item: items[5])),
                             const SizedBox(height: 10),
-                            Expanded(
-                              child: _PhotoCard(
-                                item: items[6],
-                              ),
-                            ),
+                            Expanded(child: _PhotoCard(item: items[6])),
                           ],
                         ),
                       ),
@@ -713,11 +868,11 @@ class _MosaicItem {
   });
 
   const _MosaicItem.placeholder()
-      : imageUrl = null,
-        showHeart = false,
-        filledHeart = false,
-        heartSmall = false,
-        onTap = null;
+    : imageUrl = null,
+      showHeart = false,
+      filledHeart = false,
+      heartSmall = false,
+      onTap = null;
 
   final String? imageUrl;
   final bool showHeart;
@@ -751,10 +906,7 @@ class _PhotoCard extends StatelessWidget {
           fit: StackFit.expand,
           children: <Widget>[
             if (item.imageUrl?.trim().isNotEmpty == true)
-              Image.network(
-                item.imageUrl!.trim(),
-                fit: BoxFit.cover,
-              )
+              Image.network(item.imageUrl!.trim(), fit: BoxFit.cover)
             else
               Container(
                 color: MasliveTheme.surface,
@@ -773,7 +925,9 @@ class _PhotoCard extends StatelessWidget {
                   width: heartBoxSize,
                   height: heartBoxSize,
                   decoration: BoxDecoration(
-                    color: item.filledHeart ? MasliveTheme.pink : Colors.transparent,
+                    color: item.filledHeart
+                        ? MasliveTheme.pink
+                        : Colors.transparent,
                     shape: BoxShape.circle,
                   ),
                   alignment: Alignment.center,

@@ -80,6 +80,8 @@ class CommerceService {
     }
 
     if (type == SubmissionType.media) {
+      submission['price'] = price;
+      submission['currency'] = currency ?? 'EUR';
       submission['mediaType'] = mediaType?.toJson() ?? 'photo';
       if (takenAt != null) submission['takenAt'] = Timestamp.fromDate(takenAt);
       if (location != null) submission['location'] = location;
@@ -118,11 +120,18 @@ class CommerceService {
 
     final submission = CommerceSubmission.fromFirestore(doc);
     if (submission.isMedia) {
-      final hasSelection = (submission.countryId?.trim().isNotEmpty ?? false) &&
+      final hasSelection =
+          (submission.countryId?.trim().isNotEmpty ?? false) &&
           (submission.eventId?.trim().isNotEmpty ?? false) &&
           (submission.circuitId?.trim().isNotEmpty ?? false);
       if (!hasSelection) {
-        throw Exception('Pays, evenement et circuit sont obligatoires pour un media');
+        throw Exception(
+          'Pays, evenement et circuit sont obligatoires pour un media',
+        );
+      }
+
+      if ((submission.price ?? 0) <= 0) {
+        throw Exception('Le prix photo doit etre superieur a 0');
       }
     }
 
@@ -144,7 +153,9 @@ class CommerceService {
 
     final submission = CommerceSubmission.fromFirestore(doc);
     if (!submission.canEdit) {
-      throw Exception('Cannot delete submission in status: ${submission.status}');
+      throw Exception(
+        'Cannot delete submission in status: ${submission.status}',
+      );
     }
 
     if (submission.ownerUid != user.uid) {
@@ -165,7 +176,9 @@ class CommerceService {
     String submissionId,
   ) async {
     try {
-      final folderRef = _storage.ref('commerce/$scopeId/$ownerUid/$submissionId');
+      final folderRef = _storage.ref(
+        'commerce/$scopeId/$ownerUid/$submissionId',
+      );
       final result = await folderRef.listAll();
 
       // Supprimer tous les fichiers
@@ -204,7 +217,7 @@ class CommerceService {
   }) async {
     // Convertit File en XFile pour utiliser StorageService
     final xfiles = files.map((f) => XFile(f.path)).toList();
-    
+
     return await _storageService.uploadMediaFiles(
       mediaId: submissionId,
       files: xfiles,
@@ -228,7 +241,7 @@ class CommerceService {
       name: filename,
       mimeType: 'image/jpeg',
     );
-    
+
     return await _storageService.uploadMediaFile(
       mediaId: submissionId,
       file: xfile,
@@ -320,10 +333,7 @@ class CommerceService {
 
     try {
       final callable = _functions.httpsCallable('rejectCommerceSubmission');
-      await callable.call({
-        'submissionId': submissionId,
-        'note': note,
-      });
+      await callable.call({'submissionId': submissionId, 'note': note});
     } catch (e) {
       throw Exception('Failed to reject submission: $e');
     }
@@ -364,7 +374,8 @@ class CommerceService {
 
     // Admin groupe peut modérer uniquement son scope
     if (role == 'admin_groupe' && scopeId != null) {
-      final managedScopeIds = (data['managedScopeIds'] as List<dynamic>?)?.cast<String>();
+      final managedScopeIds = (data['managedScopeIds'] as List<dynamic>?)
+          ?.cast<String>();
       return managedScopeIds?.contains(scopeId) ?? false;
     }
 
