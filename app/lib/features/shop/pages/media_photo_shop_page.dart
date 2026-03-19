@@ -195,30 +195,54 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
     required List<_InlineFilterOption> options,
     required ValueChanged<String?> onSelected,
   }) async {
-    final currentContext = anchorKey.currentContext;
-    if (currentContext == null || options.isEmpty) return;
-    final box = currentContext.findRenderObject() as RenderBox?;
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
-    if (box == null || overlay == null) return;
-    final position = RelativeRect.fromRect(
-      Rect.fromPoints(
-        box.localToGlobal(Offset.zero, ancestor: overlay),
-        box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay),
-      ),
-      Offset.zero & overlay.size,
-    );
-
-    final selected = await showMenu<String?>(
+    if (options.isEmpty) return;
+    final selected = await showModalBottomSheet<String?>(
       context: context,
-      position: position,
-      items: options
-          .map(
-            (option) => PopupMenuItem<String?>(
-              value: option.value,
-              child: Text(option.label),
+      backgroundColor: Colors.white,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: options
+                    .map(
+                      (option) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: InkWell(
+                          onTap: () => Navigator.of(sheetContext).pop(option.value),
+                          borderRadius: BorderRadius.circular(999),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(color: MasliveTheme.divider),
+                            ),
+                            child: Text(
+                              option.label,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: MasliveTheme.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
             ),
-          )
-          .toList(growable: false),
+          ),
+        );
+      },
     );
 
     if (!mounted) return;
@@ -334,8 +358,7 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
     final countryOptions = <_InlineFilterOption>[
       const _InlineFilterOption(value: null, label: 'TOUS LES PAYS'),
       ..._mapCountries
-          .where((country) =>
-              visibleCountryIds.isEmpty || visibleCountryIds.contains(country.id))
+          .where((country) => visibleCountryIds.contains(country.id))
           .map(
             (country) => _InlineFilterOption(
               value: country.id,
@@ -351,8 +374,7 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
     final eventOptions = <_InlineFilterOption>[
       const _InlineFilterOption(value: null, label: 'TOUS LES EVENEMENTS'),
       ..._mapEvents
-          .where((event) =>
-              visibleEventIds.isEmpty || visibleEventIds.contains(event.id))
+          .where((event) => visibleEventIds.contains(event.id))
           .map(
             (event) => _InlineFilterOption(
               value: event.id,
@@ -890,6 +912,29 @@ class _MediaCatalogFilter extends StatelessWidget {
                         border: InputBorder.none,
                         isDense: true,
                         contentPadding: EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: onToggleExpanded,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2563EB),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        minimumSize: const Size.fromHeight(46),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'VALIDER',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.3,
+                        ),
                       ),
                     ),
                   ),
