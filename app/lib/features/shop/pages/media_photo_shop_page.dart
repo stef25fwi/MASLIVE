@@ -306,45 +306,52 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
             ),
 
             // ---------------- BOTTOM NAV ----------------
-            Container(
-              height: 88,
-              decoration: const BoxDecoration(
-                color: MasliveTheme.surface,
-                border: Border(
-                  top: BorderSide(
-                    color: MasliveTheme.divider,
-                    width: 1,
+            SafeArea(
+              top: false,
+              child: Container(
+                height: 68,
+                decoration: const BoxDecoration(
+                  color: _ShopBottomTheme.navBg,
+                  border: Border(
+                    top: BorderSide(color: _ShopBottomTheme.strokeSoft),
                   ),
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: Color(0x14000000),
+                      blurRadius: 20,
+                      offset: Offset(0, -2),
+                    ),
+                  ],
                 ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _BottomNavItem(
-                    icon: Icons.home_outlined,
-                    label: 'Accueil',
-                    active: false,
-                    onTap: _goHome,
-                  ),
-                  _BottomNavItem(
-                    icon: Icons.photo_camera_outlined,
-                    label: 'Photos',
-                    active: true,
-                    onTap: () {},
-                  ),
-                  _BottomNavItem(
-                    icon: Icons.arrow_downward_rounded,
-                    label: 'Téléchargements',
-                    active: false,
-                    onTap: () => _openMarketplace(initialTab: 'downloads'),
-                  ),
-                  _BottomNavItem(
-                    icon: Icons.person_outline,
-                    label: 'Profil',
-                    active: false,
-                    onTap: _goAccount,
-                  ),
-                ],
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _BottomNavItem(
+                      icon: Icons.home_outlined,
+                      activeIcon: Icons.home,
+                      active: false,
+                      onTap: _goHome,
+                    ),
+                    _BottomNavItem(
+                      icon: Icons.photo_camera_outlined,
+                      activeIcon: Icons.photo_camera,
+                      active: true,
+                      onTap: () {},
+                    ),
+                    _BottomNavItem(
+                      icon: Icons.arrow_downward_rounded,
+                      activeIcon: Icons.arrow_downward_rounded,
+                      active: false,
+                      onTap: () => _openMarketplace(initialTab: 'downloads'),
+                    ),
+                    _BottomNavItem(
+                      icon: Icons.person_outline,
+                      activeIcon: Icons.person,
+                      active: false,
+                      onTap: _goAccount,
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -877,51 +884,60 @@ class _PhotoCard extends StatelessWidget {
   }
 }
 
+class _ShopBottomTheme {
+  const _ShopBottomTheme._();
+
+  static const Color navBg = Color(0xF9FFFFFF);
+  static const Color strokeSoft = Color(0x1F0F172A);
+  static const LinearGradient chipGradient = LinearGradient(
+    colors: [Color(0xFFFFB26A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+  );
+
+  static const BoxShadow cardShadow = BoxShadow(
+    color: Color(0x14000000),
+    blurRadius: 18,
+    offset: Offset(0, 8),
+  );
+}
+
 class _BottomNavItem extends StatelessWidget {
   final IconData icon;
-  final String label;
+  final IconData activeIcon;
   final bool active;
   final VoidCallback? onTap;
 
   const _BottomNavItem({
     required this.icon,
-    required this.label,
+    required this.activeIcon,
     required this.active,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    const Color activeColor = MasliveTheme.textPrimary;
-    const Color inactiveColor = MasliveTheme.textSecondary;
+    final iconChild = Icon(
+      active ? activeIcon : icon,
+      color: active ? Colors.white : const Color(0xFF98A2B3),
+      size: 24,
+    );
 
-    return InkWell(
+    return InkResponse(
+      radius: 28,
       onTap: onTap,
-      child: SizedBox(
-        width: 86,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 29,
-              color: active ? activeColor : inactiveColor,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11.8,
-                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                color: active ? activeColor : inactiveColor,
-                height: 1,
-              ),
-            ),
-          ],
-        ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.all(8),
+        decoration: active
+            ? BoxDecoration(
+                gradient: _ShopBottomTheme.chipGradient,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: const <BoxShadow>[_ShopBottomTheme.cardShadow],
+              )
+            : null,
+        child: iconChild,
       ),
     );
   }
