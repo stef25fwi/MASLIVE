@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -12,6 +14,10 @@ import '../../../../providers/cart_provider.dart';
 import '../../../../ui/theme/maslive_theme.dart';
 import '../../../../ui/snack/top_snack_bar.dart';
 import '../../../../utils/country_flag.dart';
+import '../../../../models/market_circuit.dart';
+import '../../../../models/market_country.dart';
+import '../../../../models/market_event.dart';
+import '../../../../services/market_map_service.dart';
 import '../widgets/media_marketplace_context_chips.dart';
 import '../widgets/media_marketplace_message_card.dart';
 
@@ -121,10 +127,25 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
   String _loadedPhotographerSignature = '';
   bool _updatingPhotographerField = false;
 
+  final MarketMapService _mapService = MarketMapService();
+  StreamSubscription<VisibleCircuitsIndex>? _visibleSub;
+  VisibleCircuitsIndex? _visibleIndex;
+  List<MarketCountry> _mapCountries = <MarketCountry>[];
+  List<MarketEvent> _mapEvents = <MarketEvent>[];
+  List<MarketCircuit> _mapCircuits = <MarketCircuit>[];
+
   @override
   void initState() {
     super.initState();
     _syncFiltersFromWidget();
+    _visibleSub = _mapService.watchVisibleCircuitsIndex().listen((index) {
+      if (!mounted) return;
+      setState(() => _visibleIndex = index);
+    });
+    _mapService.watchCountries().first.then((countries) {
+      if (!mounted) return;
+      setState(() => _mapCountries = countries);
+    });
     _photographerController.addListener(() {
       if (_updatingPhotographerField) return;
       final uppercase = _photographerController.text.toUpperCase();
@@ -156,6 +177,9 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
     _selectedCountryId = _normalizedOrNull(widget.countryId);
     _selectedEventId = _normalizedOrNull(widget.eventId);
     _selectedCircuitId = _normalizedOrNull(widget.circuitId);
+    if (_selectedCountryId != null) {
+      _loadMapEvents(_selectedCountryId!, _selectedEventId);
+    }
   }
 
   String? _normalizedOrNull(String? value) {
@@ -235,6 +259,55 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
     });
   }
 
+  void _loadMapEvents(String countryId, [String? thenLoadCircuitsForEvent]) {
+    _mapService.watchEvents(countryId: countryId).first.then((events) {
+      if (!mounted) return;
+      setState(() {
+        _mapEvents = events;
+        _mapCircuits = <MarketCircuit>[];
+      });
+      if (thenLoadCircuitsForEvent != null) {
+        _loadMapCircuits(countryId, thenLoadCircuitsForEvent);
+      }
+    });
+  }
+
+  void _loadMapCircuits(String countryId, String eventId) {
+    _mapService
+        .watchCircuits(countryId: countryId, eventId: eventId)
+        .first
+        .then((circuits) {
+      if (!mounted) return;
+      setState(() => _mapCircuits = circuits.where((c) => c.isVisible).toList());
+    });
+  }
+
+  String _eventNameLabel(String? eventId) {
+    if (eventId == null) return 'SELECTIONNER UN EVENEMENT';
+    final event = _mapEvents.cast<MarketEvent?>().firstWhere(
+      (e) => e?.id == eventId,
+      orElse: () => null,
+    );
+    if (event != null) return event.name.toUpperCase();
+    if (eventId == widget.eventId && widget.eventName?.trim().isNotEmpty == true) {
+      return widget.eventName!.trim().toUpperCase();
+    }
+    return eventId.toUpperCase();
+  }
+
+  String _circuitNameLabel(String? circuitId) {
+    if (circuitId == null) return 'SELECTIONNER UN CIRCUIT';
+    final circuit = _mapCircuits.cast<MarketCircuit?>().firstWhere(
+      (c) => c?.id == circuitId,
+      orElse: () => null,
+    );
+    if (circuit != null) return circuit.name.toUpperCase();
+    if (circuitId == widget.circuitId && widget.circuitName?.trim().isNotEmpty == true) {
+      return widget.circuitName!.trim().toUpperCase();
+    }
+    return circuitId.toUpperCase();
+  }
+
   Future<void> _openInlineOptionMenu({
     required BuildContext context,
     required GlobalKey anchorKey,
@@ -273,6 +346,7 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
 
   @override
   void dispose() {
+    _visibleSub?.cancel();
     _photographerController.dispose();
     super.dispose();
   }
@@ -339,61 +413,26 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
             orElse: () => null,
           );
 
-    final countryIds = catalog.galleries
-        .map((gallery) => gallery.linkedCountry?.trim())
-        .whereType<String>()
-        .where((value) => value.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+    final visibleCountryIds = _visibleIndex?.countryIds ?? const <String>{};
     final countryOptions = <_InlineFilterOption>[
       const _InlineFilterOption(value: null, label: 'TOUS LES PAYS'),
-      ...countryIds.map((code) {
-      return _InlineFilterOption(
-        value: code,
-        label: _countryFieldLabel(
-          code,
-          code == widget.countryId ? widget.countryName : null,
-        ),
-      );
-      }),
+      ..._mapCountries
+          .where((c) => visibleCountryIds.isEmpty || visibleCountryIds.contains(c.id))
+          .map((c) => _InlineFilterOption(value: c.id, label: _countryFieldLabel(c.id, c.name))),
     ];
 
-    final eventIds = catalog.galleries
-        .map((gallery) => gallery.eventId.trim())
-        .where((value) => value.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+    final visibleEventIds =
+        _visibleIndex?.eventIdsForCountry(_selectedCountryId ?? '') ?? const <String>{};
     final eventOptions = <_InlineFilterOption>[
       const _InlineFilterOption(value: null, label: 'TOUS LES EVENEMENTS'),
-      ...eventIds.map((eventId) {
-      return _InlineFilterOption(
-        value: eventId,
-        label: eventId == widget.eventId
-            ? _upperText(widget.eventName, fallback: eventId.toUpperCase())
-            : eventId.toUpperCase(),
-      );
-      }),
+      ..._mapEvents
+          .where((e) => visibleEventIds.isEmpty || visibleEventIds.contains(e.id))
+          .map((e) => _InlineFilterOption(value: e.id, label: e.name.toUpperCase())),
     ];
 
-    final circuitIds = catalog.galleries
-        .map((gallery) => gallery.linkedCircuitId?.trim())
-        .whereType<String>()
-        .where((value) => value.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
     final circuitOptions = <_InlineFilterOption>[
       const _InlineFilterOption(value: null, label: 'TOUS LES CIRCUITS'),
-      ...circuitIds.map((circuitId) {
-      return _InlineFilterOption(
-        value: circuitId,
-        label: circuitId == widget.circuitId
-            ? _upperText(widget.circuitName, fallback: circuitId.toUpperCase())
-            : circuitId.toUpperCase(),
-      );
-      }),
+      ..._mapCircuits.map((c) => _InlineFilterOption(value: c.id, label: c.name.toUpperCase())),
     ];
 
     final String? heroImageUrl =
@@ -458,18 +497,8 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
                           ? widget.countryName
                           : null,
                     ),
-                    eventFieldLabel: _selectedEventId == widget.eventId
-                        ? _upperText(widget.eventName, fallback: 'SELECTIONNER UN EVENEMENT')
-                        : _upperText(
-                            _selectedEventId,
-                            fallback: 'SELECTIONNER UN EVENEMENT',
-                          ),
-                    circuitFieldLabel: _selectedCircuitId == widget.circuitId
-                        ? _upperText(widget.circuitName, fallback: 'SELECTIONNER UN CIRCUIT')
-                        : _upperText(
-                            _selectedCircuitId,
-                            fallback: 'SELECTIONNER UN CIRCUIT',
-                          ),
+                    eventFieldLabel: _eventNameLabel(_selectedEventId),
+                    circuitFieldLabel: _circuitNameLabel(_selectedCircuitId),
                     photographerController: _photographerController,
                     isExpanded: _catalogMenuExpanded,
                     onToggleExpanded: () {
@@ -484,7 +513,12 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
                       onSelected: (value) {
                         setState(() {
                           _selectedCountryId = value;
+                          _selectedEventId = null;
+                          _selectedCircuitId = null;
+                          _mapEvents = <MarketEvent>[];
+                          _mapCircuits = <MarketCircuit>[];
                         });
+                        if (value != null) _loadMapEvents(value);
                       },
                     ),
                     onSelectEvent: (anchorKey) => _openInlineOptionMenu(
@@ -494,7 +528,12 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
                       onSelected: (value) {
                         setState(() {
                           _selectedEventId = value;
+                          _selectedCircuitId = null;
+                          _mapCircuits = <MarketCircuit>[];
                         });
+                        if (_selectedCountryId != null && value != null) {
+                          _loadMapCircuits(_selectedCountryId!, value);
+                        }
                       },
                     ),
                     onSelectCircuit: (anchorKey) => _openInlineOptionMenu(

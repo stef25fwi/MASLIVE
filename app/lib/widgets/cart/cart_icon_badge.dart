@@ -9,12 +9,14 @@ class CartIconBadge extends StatelessWidget {
   const CartIconBadge({
     super.key,
     this.iconColor,
+    this.iconGradient,
     this.backgroundColor,
     this.borderColor,
     this.onPressed,
   });
 
   final Color? iconColor;
+  final Gradient? iconGradient;
   final Color? backgroundColor;
   final Color? borderColor;
   final VoidCallback? onPressed;
@@ -48,9 +50,21 @@ class CartIconBadge extends StatelessWidget {
                     color: borderColor ?? Colors.white.withValues(alpha: 0.30),
                   ),
                 ),
-                child: Icon(
-                  Icons.shopping_cart_rounded,
-                  color: iconColor ?? const Color(0xFF111827),
+                child: Builder(
+                  builder: (context) {
+                    final baseIcon = Icon(
+                      Icons.shopping_cart_rounded,
+                      color: iconGradient != null
+                          ? Colors.white
+                          : (iconColor ?? const Color(0xFF111827)),
+                    );
+                    if (iconGradient == null) return baseIcon;
+                    return ShaderMask(
+                      blendMode: BlendMode.srcIn,
+                      shaderCallback: (bounds) => iconGradient!.createShader(bounds),
+                      child: baseIcon,
+                    );
+                  },
                 ),
               ),
             ),

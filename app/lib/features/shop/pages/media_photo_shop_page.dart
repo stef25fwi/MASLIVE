@@ -1,6 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../media_marketplace/data/repositories/photographer_repository.dart';
+import '../../../models/market_circuit.dart';
+import '../../../models/market_country.dart';
+import '../../../models/market_event.dart';
+import '../../../services/market_map_service.dart';
 import '../../../widgets/cart/cart_icon_badge.dart';
 import '../../../ui/theme/maslive_theme.dart';
 import '../../../utils/country_flag.dart';
@@ -26,6 +32,17 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
   bool _didLoadRouteArgs = false;
   bool _catalogMenuExpanded = false;
   bool _updatingPhotographerField = false;
+  final MarketMapService _mapService = MarketMapService();
+  StreamSubscription<VisibleCircuitsIndex>? _visibleSub;
+  VisibleCircuitsIndex? _visibleIndex;
+  List<MarketCountry> _mapCountries = <MarketCountry>[];
+  List<MarketEvent> _mapEvents = <MarketEvent>[];
+  List<MarketCircuit> _mapCircuits = <MarketCircuit>[];
+
+  String? _normalizedOrNull(String? value) {
+    final trimmed = value?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
 
   String _upperText(String? value, {String fallback = '--'}) {
     final trimmed = value?.trim();
@@ -72,9 +89,152 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
     return buffer.isEmpty ? 'SELECTIONNER UN PAYS' : buffer.toString();
   }
 
+  String _countryFieldLabelFrom(MarketCountry country) {
+    return _countryFieldLabelFromValues(country.id, country.name);
+  }
+
+  String _countryFieldLabelFromValues(String? countryId, String? countryName) {
+    final resolvedId = countryId?.trim();
+    final resolvedName = countryName?.trim();
+    if ((resolvedId == null || resolvedId.isEmpty) &&
+        (resolvedName == null || resolvedName.isEmpty)) {
+      return 'SELECTIONNER UN PAYS';
+    }
+
+    final iso2 = guessIso2FromMarketMapCountry(
+      id: resolvedId ?? '',
+      slug: resolvedId ?? '',
+      name: resolvedName ?? resolvedId ?? '',
+    );
+    final flag = countryFlagEmojiFromIso2(iso2);
+    final code = iso2.isNotEmpty ? iso2 : _upperText(resolvedId, fallback: '');
+    final name = resolvedName != null && resolvedName.isNotEmpty
+        ? resolvedName.toUpperCase()
+        : '';
+
+    final buffer = StringBuffer();
+    if (flag.isNotEmpty) {
+      buffer.write(flag);
+      buffer.write(' ');
+    }
+    if (name.isNotEmpty) {
+      buffer.write(name);
+      if (code.isNotEmpty) {
+        buffer.write(' (');
+        buffer.write(code);
+        buffer.write(')');
+      }
+      return buffer.toString();
+    }
+    if (code.isNotEmpty) {
+      buffer.write(code);
+    }
+    return buffer.isEmpty ? 'SELECTIONNER UN PAYS' : buffer.toString();
+  }
+
+  String _eventFieldLabel() {
+    if (_eventId == null || _eventId!.trim().isEmpty) {
+      return 'SELECTIONNER UN EVENEMENT';
+    }
+    final selected = _mapEvents.cast<MarketEvent?>().firstWhere(
+      (event) => event?.id == _eventId,
+      orElse: () => null,
+    );
+    if (selected != null) return selected.name.toUpperCase();
+    return _upperText(_eventName, fallback: _eventId!.toUpperCase());
+  }
+
+  String _circuitFieldLabel() {
+    if (_circuitId == null || _circuitId!.trim().isEmpty) {
+      return 'SELECTIONNER UN CIRCUIT';
+    }
+    final selected = _mapCircuits.cast<MarketCircuit?>().firstWhere(
+      (circuit) => circuit?.id == _circuitId,
+      orElse: () => null,
+    );
+    if (selected != null) return selected.name.toUpperCase();
+    return _upperText(_circuitName, fallback: _circuitId!.toUpperCase());
+  }
+
+  void _loadCountries() {
+    _mapService.watchCountries().first.then((countries) {
+      if (!mounted) return;
+      setState(() => _mapCountries = countries);
+    });
+  }
+
+  void _loadEvents(String countryId, [String? thenLoadCircuitsForEvent]) {
+    _mapService.watchEvents(countryId: countryId).first.then((events) {
+      if (!mounted) return;
+      setState(() {
+        _mapEvents = events;
+        _mapCircuits = <MarketCircuit>[];
+      });
+      final eventId = _normalizedOrNull(thenLoadCircuitsForEvent);
+      if (eventId != null) {
+        _loadCircuits(countryId, eventId);
+      }
+    });
+  }
+
+  void _loadCircuits(String countryId, String eventId) {
+    _mapService
+        .watchCircuits(countryId: countryId, eventId: eventId)
+        .first
+        .then((circuits) {
+      if (!mounted) return;
+      setState(() {
+        _mapCircuits = circuits.where((c) => c.isVisible).toList();
+      });
+    });
+  }
+
+  Future<void> _openInlineOptionMenu({
+    required BuildContext context,
+    required GlobalKey anchorKey,
+    required List<_InlineFilterOption> options,
+    required ValueChanged<String?> onSelected,
+  }) async {
+    final currentContext = anchorKey.currentContext;
+    if (currentContext == null || options.isEmpty) return;
+    final box = currentContext.findRenderObject() as RenderBox?;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (box == null || overlay == null) return;
+    final position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        box.localToGlobal(Offset.zero, ancestor: overlay),
+        box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    final selected = await showMenu<String?>(
+      context: context,
+      position: position,
+      items: options
+          .map(
+            (option) => PopupMenuItem<String?>(
+              value: option.value,
+              child: Text(option.label),
+            ),
+          )
+          .toList(growable: false),
+    );
+
+    if (!mounted) return;
+    if (selected != null || options.any((option) => option.value == null)) {
+      onSelected(selected);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _visibleSub = _mapService.watchVisibleCircuitsIndex().listen((index) {
+      if (!mounted) return;
+      setState(() => _visibleIndex = index);
+    });
+    _loadCountries();
     _photographerController.addListener(() {
       if (_updatingPhotographerField) return;
       final uppercase = _photographerController.text.toUpperCase();
@@ -103,6 +263,11 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
     _eventName = (rawArgs['eventName'] as String?)?.trim();
     _circuitId = (rawArgs['circuitId'] as String?)?.trim();
     _circuitName = (rawArgs['circuitName'] as String?)?.trim();
+
+    final selectedCountry = _normalizedOrNull(_countryId);
+    if (selectedCountry != null) {
+      _loadEvents(selectedCountry, _eventId);
+    }
   }
 
   Future<void> _openMarketplace({Object? initialTab}) async {
@@ -156,12 +321,57 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
 
   @override
   void dispose() {
+    _visibleSub?.cancel();
     _photographerController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final visibleCountryIds = _visibleIndex?.countryIds ?? const <String>{};
+    final selectedCountryId = _normalizedOrNull(_countryId);
+
+    final countryOptions = <_InlineFilterOption>[
+      const _InlineFilterOption(value: null, label: 'TOUS LES PAYS'),
+      ..._mapCountries
+          .where((country) =>
+              visibleCountryIds.isEmpty || visibleCountryIds.contains(country.id))
+          .map(
+            (country) => _InlineFilterOption(
+              value: country.id,
+              label: _countryFieldLabelFrom(country),
+            ),
+          ),
+    ];
+
+    final visibleEventIds = selectedCountryId == null
+        ? const <String>{}
+        : (_visibleIndex?.eventIdsForCountry(selectedCountryId) ??
+              const <String>{});
+    final eventOptions = <_InlineFilterOption>[
+      const _InlineFilterOption(value: null, label: 'TOUS LES EVENEMENTS'),
+      ..._mapEvents
+          .where((event) =>
+              visibleEventIds.isEmpty || visibleEventIds.contains(event.id))
+          .map(
+            (event) => _InlineFilterOption(
+              value: event.id,
+              label: event.name.toUpperCase(),
+            ),
+          ),
+    ];
+
+    final circuitOptions = <_InlineFilterOption>[
+      const _InlineFilterOption(value: null, label: 'TOUS LES CIRCUITS'),
+      ..._mapCircuits
+          .map(
+            (circuit) => _InlineFilterOption(
+              value: circuit.id,
+              label: circuit.name.toUpperCase(),
+            ),
+          ),
+    ];
+
     return Scaffold(
       backgroundColor: MasliveTheme.surfaceAlt,
       body: SafeArea(
@@ -198,7 +408,15 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                             right: 0,
                             top: 0,
                             child: CartIconBadge(
-                              iconColor: MasliveTheme.textPrimary,
+                              iconGradient: const LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: <Color>[
+                                  Color(0xFFFFB26A),
+                                  Color(0xFFFF7BC5),
+                                  Color(0xFF7CE0FF),
+                                ],
+                              ),
                               backgroundColor: MasliveTheme.surface,
                               borderColor: MasliveTheme.divider,
                             ),
@@ -206,7 +424,7 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     const Center(
                       child: Text(
                         'LA BOUTIQUE PHOTO',
@@ -231,20 +449,83 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                     _MediaCatalogFilter(
                       photographerController: _photographerController,
                       countryLabel: _countryFieldLabel(),
-                      eventLabel: _upperText(
-                        _eventName,
-                        fallback: 'SELECTIONNER UN EVENEMENT',
-                      ),
-                      circuitLabel: _upperText(
-                        _circuitName,
-                        fallback: 'SELECTIONNER UN CIRCUIT',
-                      ),
+                      eventLabel: _eventFieldLabel(),
+                      circuitLabel: _circuitFieldLabel(),
                       isExpanded: _catalogMenuExpanded,
                       onToggleExpanded: () {
                         setState(() {
                           _catalogMenuExpanded = !_catalogMenuExpanded;
                         });
                       },
+                      onSelectCountry: (anchorKey) => _openInlineOptionMenu(
+                        context: context,
+                        anchorKey: anchorKey,
+                        options: countryOptions,
+                        onSelected: (value) {
+                          final selected = value == null
+                              ? null
+                              : _mapCountries.cast<MarketCountry?>().firstWhere(
+                                  (country) => country?.id == value,
+                                  orElse: () => null,
+                                );
+                          setState(() {
+                            _countryId = value;
+                            _countryName = selected?.name;
+                            _eventId = null;
+                            _eventName = null;
+                            _circuitId = null;
+                            _circuitName = null;
+                            _mapEvents = <MarketEvent>[];
+                            _mapCircuits = <MarketCircuit>[];
+                          });
+                          final countryId = _normalizedOrNull(value);
+                          if (countryId != null) {
+                            _loadEvents(countryId);
+                          }
+                        },
+                      ),
+                      onSelectEvent: (anchorKey) => _openInlineOptionMenu(
+                        context: context,
+                        anchorKey: anchorKey,
+                        options: eventOptions,
+                        onSelected: (value) {
+                          final selected = value == null
+                              ? null
+                              : _mapEvents.cast<MarketEvent?>().firstWhere(
+                                  (event) => event?.id == value,
+                                  orElse: () => null,
+                                );
+                          setState(() {
+                            _eventId = value;
+                            _eventName = selected?.name;
+                            _circuitId = null;
+                            _circuitName = null;
+                            _mapCircuits = <MarketCircuit>[];
+                          });
+                          final countryId = _normalizedOrNull(_countryId);
+                          final eventId = _normalizedOrNull(value);
+                          if (countryId != null && eventId != null) {
+                            _loadCircuits(countryId, eventId);
+                          }
+                        },
+                      ),
+                      onSelectCircuit: (anchorKey) => _openInlineOptionMenu(
+                        context: context,
+                        anchorKey: anchorKey,
+                        options: circuitOptions,
+                        onSelected: (value) {
+                          final selected = value == null
+                              ? null
+                              : _mapCircuits.cast<MarketCircuit?>().firstWhere(
+                                  (circuit) => circuit?.id == value,
+                                  orElse: () => null,
+                                );
+                          setState(() {
+                            _circuitId = value;
+                            _circuitName = selected?.name;
+                          });
+                        },
+                      ),
                     ),
 
                     const SizedBox(height: 22),
@@ -466,6 +747,9 @@ class _MediaCatalogFilter extends StatelessWidget {
   final String circuitLabel;
   final bool isExpanded;
   final VoidCallback onToggleExpanded;
+  final ValueChanged<GlobalKey> onSelectCountry;
+  final ValueChanged<GlobalKey> onSelectEvent;
+  final ValueChanged<GlobalKey> onSelectCircuit;
 
   const _MediaCatalogFilter({
     required this.photographerController,
@@ -474,6 +758,9 @@ class _MediaCatalogFilter extends StatelessWidget {
     required this.circuitLabel,
     required this.isExpanded,
     required this.onToggleExpanded,
+    required this.onSelectCountry,
+    required this.onSelectEvent,
+    required this.onSelectCircuit,
   });
 
   @override
@@ -560,18 +847,21 @@ class _MediaCatalogFilter extends StatelessWidget {
                     label: 'PAYS',
                     value: countryLabel,
                     hintText: 'Selectionner un pays',
+                    onTap: onSelectCountry,
                   ),
                   const SizedBox(height: 10),
                   _FilterReadOnlyField(
                     label: 'EVENEMENT',
                     value: eventLabel,
                     hintText: 'Selectionner un evenement',
+                    onTap: onSelectEvent,
                   ),
                   const SizedBox(height: 10),
                   _FilterReadOnlyField(
                     label: 'CIRCUIT',
                     value: circuitLabel,
                     hintText: 'Selectionner un circuit',
+                    onTap: onSelectCircuit,
                   ),
                   const SizedBox(height: 10),
                   Container(
@@ -622,44 +912,64 @@ class _FilterReadOnlyField extends StatelessWidget {
     required this.label,
     required this.value,
     required this.hintText,
+    required this.onTap,
   });
 
   final String label;
   final String? value;
   final String hintText;
+  final ValueChanged<GlobalKey> onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 46,
-      alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        color: MasliveTheme.surfaceAlt,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: MasliveTheme.divider),
-      ),
-      child: RichText(
-        overflow: TextOverflow.ellipsis,
-        text: TextSpan(
-          style: const TextStyle(
-            color: MasliveTheme.textPrimary,
-            fontSize: 13.5,
-            fontWeight: FontWeight.w600,
-          ),
+    final anchorKey = GlobalKey();
+    return InkWell(
+      key: anchorKey,
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => onTap(anchorKey),
+      child: Container(
+        height: 46,
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: MasliveTheme.surfaceAlt,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: MasliveTheme.divider),
+        ),
+        child: Row(
           children: [
-            TextSpan(
-              text: '$label: ',
-              style: const TextStyle(
-                color: MasliveTheme.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+            Expanded(
+              child: RichText(
+                overflow: TextOverflow.ellipsis,
+                text: TextSpan(
+                  style: const TextStyle(
+                    color: MasliveTheme.textPrimary,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  children: [
+                    TextSpan(
+                      text: '$label: ',
+                      style: const TextStyle(
+                        color: MasliveTheme.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    TextSpan(
+                      text: (value?.trim().isNotEmpty == true)
+                          ? value!.trim().toUpperCase()
+                          : hintText.toUpperCase(),
+                    ),
+                  ],
+                ),
               ),
             ),
-            TextSpan(
-              text: (value?.trim().isNotEmpty == true)
-                  ? value!.trim().toUpperCase()
-                  : hintText.toUpperCase(),
+            const SizedBox(width: 6),
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 18,
+              color: MasliveTheme.textSecondary,
             ),
           ],
         ),
@@ -882,6 +1192,13 @@ class _PhotoCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _InlineFilterOption {
+  const _InlineFilterOption({required this.value, required this.label});
+
+  final String? value;
+  final String label;
 }
 
 class _ShopBottomTheme {
