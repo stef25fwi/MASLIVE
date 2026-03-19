@@ -110,6 +110,8 @@ function sanitizeFileBasename(value, fallback = "media") {
   return sanitized || fallback;
 }
 
+const DEFAULT_MEDIA_PHOTO_PRICE_EUR = 3;
+
 const GDPR_EXPORT_SUBCOLLECTIONS = [
   "cart",
   "wishlist",
@@ -3541,6 +3543,8 @@ exports.approveCommerceSubmission = onCall(
     if (submission.takenAt) publishedData.takenAt = submission.takenAt;
     if (submission.location) publishedData.location = submission.location;
     if (submission.photographer) publishedData.photographer = submission.photographer;
+    publishedData.defaultPhotoUnitPrice = DEFAULT_MEDIA_PHOTO_PRICE_EUR;
+    publishedData.currency = "EUR";
     publishedData.countryId = submission.countryId;
     if (looksLikeNonEmptyString(submission.countryName)) {
       publishedData.countryName = submission.countryName;
@@ -3599,6 +3603,8 @@ exports.approveCommerceSubmission = onCall(
       photoCount: mediaUrls.length,
       publishedPhotoCount: mediaUrls.length,
       packCount: 0,
+      defaultPhotoUnitPrice: DEFAULT_MEDIA_PHOTO_PRICE_EUR,
+      currency: "EUR",
       publishedAt: admin.firestore.FieldValue.serverTimestamp(),
       createdAt: submission.createdAt || admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -3637,8 +3643,8 @@ exports.approveCommerceSubmission = onCall(
         lifecycleStatus: "published",
         visibility: "public",
         isPublished: true,
-        isForSale: false,
-        unitPrice: 0,
+        isForSale: true,
+        unitPrice: DEFAULT_MEDIA_PHOTO_PRICE_EUR,
         currency: "EUR",
         createdAt: submission.createdAt || admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
