@@ -75,7 +75,7 @@ Future<MarketMapPoiSelection?> showMarketMapCircuitSelectorSheet(
     context,
     service: service,
     initial: initial,
-    title: 'Carte',
+    title: '',
     showLayers: false,
     disableKeyboardInput: disableKeyboardInput,
   );
@@ -444,15 +444,18 @@ class _MarketMapPoiSelectorSheetState
                 children: [
                 Row(
                   children: [
-                    Expanded(
-                      child: Text(
-                        widget.title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
+                    if (widget.title.trim().isNotEmpty)
+                      Expanded(
+                        child: Text(
+                          widget.title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
-                      ),
-                    ),
+                      )
+                    else
+                      const Spacer(),
                     TextButton.icon(
                       onPressed: () => Navigator.of(
                         context,

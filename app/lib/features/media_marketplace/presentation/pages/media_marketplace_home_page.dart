@@ -5,11 +5,13 @@ import '../../core/enums/media_asset_type.dart';
 import '../../data/models/media_gallery_model.dart';
 import '../../data/models/media_pack_model.dart';
 import '../../data/models/media_photo_model.dart';
+import '../../data/repositories/photographer_repository.dart';
 import '../../presentation/controllers/media_marketplace_catalog_controller.dart';
 import '../../../../models/cart_item_model.dart' as unified_cart;
 import '../../../../providers/cart_provider.dart';
 import '../../../../ui/theme/maslive_theme.dart';
 import '../../../../ui/snack/top_snack_bar.dart';
+import '../../../../utils/country_flag.dart';
 import '../widgets/media_marketplace_context_chips.dart';
 import '../widgets/media_marketplace_message_card.dart';
 
@@ -61,8 +63,11 @@ class MediaMarketplaceHomePage extends StatelessWidget {
       },
       child: _MediaMarketplaceHomeView(
         embedded: embedded,
+        countryId: countryId,
         countryName: countryName,
+        eventId: eventId,
         eventName: eventName,
+        circuitId: circuitId,
         circuitName: circuitName,
         showContextHeader: showContextHeader,
         showBranding: showBranding,
@@ -75,8 +80,11 @@ class MediaMarketplaceHomePage extends StatelessWidget {
 class _MediaMarketplaceHomeView extends StatefulWidget {
   const _MediaMarketplaceHomeView({
     required this.embedded,
+    required this.countryId,
     required this.countryName,
+    required this.eventId,
     required this.eventName,
+    required this.circuitId,
     required this.circuitName,
     required this.showContextHeader,
     required this.showBranding,
@@ -84,8 +92,11 @@ class _MediaMarketplaceHomeView extends StatefulWidget {
   });
 
   final bool embedded;
+  final String? countryId;
   final String? countryName;
+  final String? eventId;
   final String? eventName;
+  final String? circuitId;
   final String? circuitName;
   final bool showContextHeader;
   final bool showBranding;
@@ -100,6 +111,165 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
   bool _catalogMenuExpanded = false;
   final TextEditingController _photographerController =
       TextEditingController();
+  final PhotographerRepository _photographerRepository =
+      PhotographerRepository();
+  final Map<String, String> _photographerNamesById = <String, String>{};
+
+  String? _selectedCountryId;
+  String? _selectedEventId;
+  String? _selectedCircuitId;
+  String _loadedPhotographerSignature = '';
+  bool _updatingPhotographerField = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncFiltersFromWidget();
+    _photographerController.addListener(() {
+      if (_updatingPhotographerField) return;
+      final uppercase = _photographerController.text.toUpperCase();
+      if (uppercase == _photographerController.text) {
+        setState(() {});
+        return;
+      }
+      _updatingPhotographerField = true;
+      _photographerController.value = _photographerController.value.copyWith(
+        text: uppercase,
+        selection: TextSelection.collapsed(offset: uppercase.length),
+      );
+      _updatingPhotographerField = false;
+      setState(() {});
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _MediaMarketplaceHomeView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.countryId != widget.countryId ||
+        oldWidget.eventId != widget.eventId ||
+        oldWidget.circuitId != widget.circuitId) {
+      _syncFiltersFromWidget();
+    }
+  }
+
+  void _syncFiltersFromWidget() {
+    _selectedCountryId = _normalizedOrNull(widget.countryId);
+    _selectedEventId = _normalizedOrNull(widget.eventId);
+    _selectedCircuitId = _normalizedOrNull(widget.circuitId);
+  }
+
+  String? _normalizedOrNull(String? value) {
+    final trimmed = value?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
+
+  String _upperText(String? value, {String fallback = '--'}) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) return fallback;
+    return trimmed.toUpperCase();
+  }
+
+  String _countryFieldLabel(String? countryId, String? countryName) {
+    final resolvedId = _normalizedOrNull(countryId);
+    final resolvedName = _normalizedOrNull(countryName);
+    if (resolvedId == null && resolvedName == null) {
+      return 'SELECTIONNER UN PAYS';
+    }
+    final iso2 = guessIso2FromMarketMapCountry(
+      id: resolvedId ?? '',
+      slug: resolvedId ?? '',
+      name: resolvedName ?? resolvedId ?? '',
+    );
+    final flag = countryFlagEmojiFromIso2(iso2);
+    final code = iso2.isNotEmpty ? iso2 : _upperText(resolvedId, fallback: '');
+    final name = resolvedName != null ? resolvedName.toUpperCase() : '';
+    final buffer = StringBuffer();
+    if (flag.isNotEmpty) {
+      buffer.write(flag);
+      buffer.write(' ');
+    }
+    if (name.isNotEmpty) {
+      buffer.write(name);
+      if (code.isNotEmpty) {
+        buffer.write(' (');
+        buffer.write(code);
+        buffer.write(')');
+      }
+      return buffer.toString();
+    }
+    if (code.isNotEmpty) {
+      buffer.write(code);
+    }
+    return buffer.isEmpty ? 'SELECTIONNER UN PAYS' : buffer.toString();
+  }
+
+  Future<void> _ensurePhotographerNames(List<MediaGalleryModel> galleries) async {
+    final ids = galleries
+        .map((gallery) => gallery.photographerId.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    final signature = ids.join('|');
+    if (signature == _loadedPhotographerSignature) return;
+    _loadedPhotographerSignature = signature;
+    if (ids.isEmpty) {
+      if (!mounted) return;
+      setState(() => _photographerNamesById.clear());
+      return;
+    }
+    final resolved = await Future.wait(
+      ids.map((id) async {
+        final profile = await _photographerRepository.getById(id);
+        final label = profile?.brandName.trim().isNotEmpty == true
+            ? profile!.brandName.trim()
+            : id;
+        return MapEntry(id, label);
+      }),
+    );
+    if (!mounted) return;
+    setState(() {
+      _photographerNamesById
+        ..clear()
+        ..addEntries(resolved);
+    });
+  }
+
+  Future<void> _openInlineOptionMenu({
+    required BuildContext context,
+    required GlobalKey anchorKey,
+    required List<_InlineFilterOption> options,
+    required ValueChanged<String?> onSelected,
+  }) async {
+    final currentContext = anchorKey.currentContext;
+    if (currentContext == null || options.isEmpty) return;
+    final box = currentContext.findRenderObject() as RenderBox?;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (box == null || overlay == null) return;
+    final position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        box.localToGlobal(Offset.zero, ancestor: overlay),
+        box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+    final selected = await showMenu<String?>(
+      context: context,
+      position: position,
+      items: options
+          .map(
+            (option) => PopupMenuItem<String?>(
+              value: option.value,
+              child: Text(option.label),
+            ),
+          )
+          .toList(growable: false),
+    );
+    if (!mounted) return;
+    if (selected != null || options.any((option) => option.value == null)) {
+      onSelected(selected);
+    }
+  }
 
   @override
   void dispose() {
@@ -112,27 +282,119 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
     final catalog = context.watch<MediaMarketplaceCatalogController>();
     final cart = context.watch<CartProvider>();
 
-    // UX: si on a des galeries mais aucune sélection, on auto-sélectionne la 1ère.
-    // Ça permet d'afficher immédiatement du contenu dans le layout Premium.
+    if (!catalog.loading && catalog.galleries.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _ensurePhotographerNames(catalog.galleries);
+      });
+    }
+
+    final photographerQuery = _photographerController.text.trim().toLowerCase();
+    final filteredGalleries = catalog.galleries.where((gallery) {
+      if (_selectedCountryId != null &&
+          gallery.linkedCountry?.trim() != _selectedCountryId) {
+        return false;
+      }
+      if (_selectedEventId != null && gallery.eventId.trim() != _selectedEventId) {
+        return false;
+      }
+      if (_selectedCircuitId != null &&
+          gallery.linkedCircuitId?.trim() != _selectedCircuitId) {
+        return false;
+      }
+      if (photographerQuery.isNotEmpty) {
+        final photographerId = gallery.photographerId.trim().toLowerCase();
+        final photographerName =
+            (_photographerNamesById[gallery.photographerId] ?? '')
+                .trim()
+                .toLowerCase();
+        if (!photographerId.contains(photographerQuery) &&
+            !photographerName.contains(photographerQuery)) {
+          return false;
+        }
+      }
+      return true;
+    }).toList(growable: false);
+
     if (!catalog.loading &&
         catalog.error == null &&
-        catalog.selectedGalleryId == null &&
-        catalog.galleries.isNotEmpty) {
+        filteredGalleries.isNotEmpty &&
+        (catalog.selectedGalleryId == null ||
+            !filteredGalleries.any(
+              (gallery) => gallery.galleryId == catalog.selectedGalleryId,
+            ))) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final controller = context.read<MediaMarketplaceCatalogController>();
-        if (controller.selectedGalleryId == null &&
-            controller.galleries.isNotEmpty) {
-          controller.selectGallery(controller.galleries.first.galleryId);
+        if (!filteredGalleries.any(
+          (gallery) => gallery.galleryId == controller.selectedGalleryId,
+        )) {
+          controller.selectGallery(filteredGalleries.first.galleryId);
         }
       });
     }
 
     final MediaGalleryModel? selectedGallery = catalog.selectedGalleryId == null
         ? null
-        : catalog.galleries.cast<MediaGalleryModel?>().firstWhere(
+        : filteredGalleries.cast<MediaGalleryModel?>().firstWhere(
             (g) => g?.galleryId == catalog.selectedGalleryId,
             orElse: () => null,
           );
+
+    final countryIds = catalog.galleries
+        .map((gallery) => gallery.linkedCountry?.trim())
+        .whereType<String>()
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    final countryOptions = <_InlineFilterOption>[
+      const _InlineFilterOption(value: null, label: 'TOUS LES PAYS'),
+      ...countryIds.map((code) {
+      return _InlineFilterOption(
+        value: code,
+        label: _countryFieldLabel(
+          code,
+          code == widget.countryId ? widget.countryName : null,
+        ),
+      );
+      }),
+    ];
+
+    final eventIds = catalog.galleries
+        .map((gallery) => gallery.eventId.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    final eventOptions = <_InlineFilterOption>[
+      const _InlineFilterOption(value: null, label: 'TOUS LES EVENEMENTS'),
+      ...eventIds.map((eventId) {
+      return _InlineFilterOption(
+        value: eventId,
+        label: eventId == widget.eventId
+            ? _upperText(widget.eventName, fallback: eventId.toUpperCase())
+            : eventId.toUpperCase(),
+      );
+      }),
+    ];
+
+    final circuitIds = catalog.galleries
+        .map((gallery) => gallery.linkedCircuitId?.trim())
+        .whereType<String>()
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    final circuitOptions = <_InlineFilterOption>[
+      const _InlineFilterOption(value: null, label: 'TOUS LES CIRCUITS'),
+      ...circuitIds.map((circuitId) {
+      return _InlineFilterOption(
+        value: circuitId,
+        label: circuitId == widget.circuitId
+            ? _upperText(widget.circuitName, fallback: circuitId.toUpperCase())
+            : circuitId.toUpperCase(),
+      );
+      }),
+    ];
 
     final String? heroImageUrl =
         selectedGallery?.coverUrl?.trim().isNotEmpty == true
@@ -190,9 +452,24 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
                     const SizedBox(height: 14),
                   ],
                   _CatalogFilterTrigger(
-                    countryName: widget.countryName,
-                    eventName: widget.eventName,
-                    circuitName: widget.circuitName,
+                    countryFieldLabel: _countryFieldLabel(
+                      _selectedCountryId,
+                      _selectedCountryId == widget.countryId
+                          ? widget.countryName
+                          : null,
+                    ),
+                    eventFieldLabel: _selectedEventId == widget.eventId
+                        ? _upperText(widget.eventName, fallback: 'SELECTIONNER UN EVENEMENT')
+                        : _upperText(
+                            _selectedEventId,
+                            fallback: 'SELECTIONNER UN EVENEMENT',
+                          ),
+                    circuitFieldLabel: _selectedCircuitId == widget.circuitId
+                        ? _upperText(widget.circuitName, fallback: 'SELECTIONNER UN CIRCUIT')
+                        : _upperText(
+                            _selectedCircuitId,
+                            fallback: 'SELECTIONNER UN CIRCUIT',
+                          ),
                     photographerController: _photographerController,
                     isExpanded: _catalogMenuExpanded,
                     onToggleExpanded: () {
@@ -200,7 +477,36 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
                         _catalogMenuExpanded = !_catalogMenuExpanded;
                       });
                     },
-                    onOpenFilters: widget.onOpenFilters,
+                    onSelectCountry: (anchorKey) => _openInlineOptionMenu(
+                      context: context,
+                      anchorKey: anchorKey,
+                      options: countryOptions,
+                      onSelected: (value) {
+                        setState(() {
+                          _selectedCountryId = value;
+                        });
+                      },
+                    ),
+                    onSelectEvent: (anchorKey) => _openInlineOptionMenu(
+                      context: context,
+                      anchorKey: anchorKey,
+                      options: eventOptions,
+                      onSelected: (value) {
+                        setState(() {
+                          _selectedEventId = value;
+                        });
+                      },
+                    ),
+                    onSelectCircuit: (anchorKey) => _openInlineOptionMenu(
+                      context: context,
+                      anchorKey: anchorKey,
+                      options: circuitOptions,
+                      onSelected: (value) {
+                        setState(() {
+                          _selectedCircuitId = value;
+                        });
+                      },
+                    ),
                   ),
                   const SizedBox(height: 14),
                   if (widget.showContextHeader &&
@@ -216,7 +522,7 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
                       scrollDirection: Axis.horizontal,
                       physics: const BouncingScrollPhysics(),
                       child: Row(
-                        children: catalog.galleries
+                        children: filteredGalleries
                             .map(
                               (MediaGalleryModel gallery) => Padding(
                                 padding: const EdgeInsets.only(right: 12),
@@ -271,11 +577,14 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
                     ],
                   ),
                   const SizedBox(height: 14),
-                  if (catalog.selectedGalleryId == null)
+                  if (selectedGallery == null)
                     MediaMarketplaceMessageCard.empty(
-                      title: 'Sélectionne une galerie',
-                      message:
-                          'Choisis une catégorie ci-dessus pour afficher les médias disponibles.',
+                      title: filteredGalleries.isEmpty
+                          ? 'Aucun resultat'
+                          : 'Sélectionne une galerie',
+                      message: filteredGalleries.isEmpty
+                          ? 'Aucune galerie ne correspond aux filtres actifs.'
+                          : 'Choisis une catégorie ci-dessus pour afficher les médias disponibles.',
                       icon: Icons.photo_library_outlined,
                     )
                   else
@@ -564,29 +873,39 @@ class _PhotoDetailMetaRow extends StatelessWidget {
 
 class _CatalogFilterTrigger extends StatelessWidget {
   const _CatalogFilterTrigger({
-    required this.countryName,
-    required this.eventName,
-    required this.circuitName,
+    required this.countryFieldLabel,
+    required this.eventFieldLabel,
+    required this.circuitFieldLabel,
     required this.photographerController,
     required this.isExpanded,
     required this.onToggleExpanded,
-    required this.onOpenFilters,
+    required this.onSelectCountry,
+    required this.onSelectEvent,
+    required this.onSelectCircuit,
   });
 
-  final String? countryName;
-  final String? eventName;
-  final String? circuitName;
+  final String countryFieldLabel;
+  final String eventFieldLabel;
+  final String circuitFieldLabel;
   final TextEditingController photographerController;
   final bool isExpanded;
   final VoidCallback onToggleExpanded;
-  final VoidCallback? onOpenFilters;
+  final ValueChanged<GlobalKey> onSelectCountry;
+  final ValueChanged<GlobalKey> onSelectEvent;
+  final ValueChanged<GlobalKey> onSelectCircuit;
 
   @override
   Widget build(BuildContext context) {
     final summary = <String>[
-      if (countryName?.trim().isNotEmpty == true) countryName!.trim(),
-      if (eventName?.trim().isNotEmpty == true) eventName!.trim(),
-      if (circuitName?.trim().isNotEmpty == true) circuitName!.trim(),
+      if (countryFieldLabel.trim().isNotEmpty &&
+          countryFieldLabel != 'SELECTIONNER UN PAYS')
+        countryFieldLabel,
+      if (eventFieldLabel.trim().isNotEmpty &&
+          eventFieldLabel != 'SELECTIONNER UN EVENEMENT')
+        eventFieldLabel,
+      if (circuitFieldLabel.trim().isNotEmpty &&
+          circuitFieldLabel != 'SELECTIONNER UN CIRCUIT')
+        circuitFieldLabel,
     ].join(' / ');
 
     return Container(
@@ -599,54 +918,57 @@ class _CatalogFilterTrigger extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: onToggleExpanded,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        const Text(
-                          'CATALOGUE DES MEDIAS',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                            color: MasliveTheme.textPrimary,
-                            letterSpacing: 0.2,
-                            height: 1,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const Text(
+                        'CATALOGUE DES MEDIAS',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          color: MasliveTheme.textPrimary,
+                          letterSpacing: 0.2,
+                          height: 1,
+                        ),
+                      ),
+                      if (summary.isNotEmpty) ...<Widget>[
+                        const SizedBox(height: 6),
+                        Text(
+                          summary,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500,
+                            color: MasliveTheme.textSecondary,
+                            height: 1.2,
                           ),
                         ),
-                        if (summary.isNotEmpty) ...<Widget>[
-                          const SizedBox(height: 6),
-                          Text(
-                            summary,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w500,
-                              color: MasliveTheme.textSecondary,
-                              height: 1.2,
-                            ),
-                          ),
-                        ],
                       ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: onToggleExpanded,
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: Icon(
+                      isExpanded
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
+                      color: MasliveTheme.textPrimary,
+                      size: 26,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Icon(
-                    isExpanded
-                        ? Icons.keyboard_arrow_up_rounded
-                        : Icons.keyboard_arrow_down_rounded,
-                    color: MasliveTheme.textPrimary,
-                    size: 26,
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           AnimatedCrossFade(
@@ -657,23 +979,23 @@ class _CatalogFilterTrigger extends StatelessWidget {
                 children: <Widget>[
                   _CatalogReadOnlyField(
                     label: 'PAYS',
-                    value: countryName,
+                    value: countryFieldLabel,
                     hintText: 'Selectionner un pays',
-                    onTap: onOpenFilters,
+                    onTap: onSelectCountry,
                   ),
                   const SizedBox(height: 10),
                   _CatalogReadOnlyField(
                     label: 'EVENEMENT',
-                    value: eventName,
+                    value: eventFieldLabel,
                     hintText: 'Selectionner un evenement',
-                    onTap: onOpenFilters,
+                    onTap: onSelectEvent,
                   ),
                   const SizedBox(height: 10),
                   _CatalogReadOnlyField(
                     label: 'CIRCUIT',
-                    value: circuitName,
+                    value: circuitFieldLabel,
                     hintText: 'Selectionner un circuit',
-                    onTap: onOpenFilters,
+                    onTap: onSelectCircuit,
                   ),
                   const SizedBox(height: 10),
                   Container(
@@ -686,6 +1008,7 @@ class _CatalogFilterTrigger extends StatelessWidget {
                     child: TextField(
                       controller: photographerController,
                       textInputAction: TextInputAction.search,
+                      textCapitalization: TextCapitalization.characters,
                       decoration: const InputDecoration(
                         labelText: 'PHOTOGRAPHE (optionnel)',
                         labelStyle: TextStyle(
@@ -702,15 +1025,6 @@ class _CatalogFilterTrigger extends StatelessWidget {
                         isDense: true,
                         contentPadding: EdgeInsets.symmetric(vertical: 12),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: onOpenFilters,
-                      icon: const Icon(Icons.tune_rounded),
-                      label: const Text('Choisir pays / evenement / circuit'),
                     ),
                   ),
                 ],
@@ -738,16 +1052,18 @@ class _CatalogReadOnlyField extends StatelessWidget {
   final String label;
   final String? value;
   final String hintText;
-  final VoidCallback? onTap;
+  final ValueChanged<GlobalKey> onTap;
 
   @override
   Widget build(BuildContext context) {
     final resolvedValue = value?.trim();
+    final anchorKey = GlobalKey();
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap,
+        key: anchorKey,
+        onTap: () => onTap(anchorKey),
         borderRadius: BorderRadius.circular(14),
         child: Container(
           height: 46,
@@ -781,11 +1097,10 @@ class _CatalogReadOnlyField extends StatelessWidget {
                       ),
                       TextSpan(
                         text: resolvedValue != null && resolvedValue.isNotEmpty
-                            ? resolvedValue
-                            : hintText,
+                            ? resolvedValue.toUpperCase()
+                            : hintText.toUpperCase(),
                         style: TextStyle(
-                          color:
-                              resolvedValue != null && resolvedValue.isNotEmpty
+                          color: resolvedValue != null && resolvedValue.isNotEmpty
                               ? MasliveTheme.textPrimary
                               : MasliveTheme.textSecondary,
                         ),
@@ -796,7 +1111,7 @@ class _CatalogReadOnlyField extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               const Icon(
-                Icons.chevron_right_rounded,
+                Icons.keyboard_arrow_down_rounded,
                 size: 20,
                 color: MasliveTheme.textSecondary,
               ),
@@ -806,6 +1121,13 @@ class _CatalogReadOnlyField extends StatelessWidget {
       ),
     );
   }
+}
+
+class _InlineFilterOption {
+  const _InlineFilterOption({required this.value, required this.label});
+
+  final String? value;
+  final String label;
 }
 
 class _CategoryChip extends StatelessWidget {
