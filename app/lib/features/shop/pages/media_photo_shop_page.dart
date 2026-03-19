@@ -4,6 +4,7 @@ import '../../media_marketplace/data/repositories/photographer_repository.dart';
 import '../../../models/market_circuit.dart';
 import '../../../models/market_country.dart';
 import '../../../models/market_event.dart';
+import '../../../widgets/cart/cart_icon_badge.dart';
 import '../../../ui/widgets/marketmap_poi_selector_sheet.dart';
 import '../../../ui/theme/maslive_theme.dart';
 
@@ -26,6 +27,7 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
   String? _circuitId;
   String? _circuitName;
   bool _didLoadRouteArgs = false;
+  bool _catalogMenuExpanded = false;
 
   @override
   void didChangeDependencies() {
@@ -185,16 +187,33 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                     const SizedBox(height: 4),
 
                     // ---------------- TOP LOGO AREA ----------------
-                    const Center(
-                      child: Text(
-                        "MAS'LIVE",
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.8,
-                          color: MasliveTheme.textPrimary,
-                          height: 1,
-                        ),
+                    SizedBox(
+                      height: 54,
+                      child: Stack(
+                        children: [
+                          const Align(
+                            alignment: Alignment.topCenter,
+                            child: Text(
+                              "MAS'LIVE",
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.8,
+                                color: MasliveTheme.textPrimary,
+                                height: 1,
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: CartIconBadge(
+                              iconColor: MasliveTheme.textPrimary,
+                              backgroundColor: MasliveTheme.surface,
+                              borderColor: MasliveTheme.divider,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -224,11 +243,13 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                       countryName: _countryName,
                       eventName: _eventName,
                       circuitName: _circuitName,
+                      isExpanded: _catalogMenuExpanded,
+                      onToggleExpanded: () {
+                        setState(() {
+                          _catalogMenuExpanded = !_catalogMenuExpanded;
+                        });
+                      },
                       onOpenFilterMenu: _openCatalogFilterMenu,
-                      onOpenEvents: _openCatalogFilterMenu,
-                      onOpenPhotos: () => _openMarketplace(initialTab: 0),
-                      onOpenPacks: () => _openMarketplace(initialTab: 0),
-                      onOpenArtists: () => _openMarketplace(initialTab: 3),
                     ),
 
                     const SizedBox(height: 22),
@@ -338,45 +359,6 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
   }
 }
 
-class _CategoryChip extends StatelessWidget {
-  final String label;
-  final VoidCallback? onTap;
-
-  const _CategoryChip({
-    required this.label,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
-        child: Container(
-          height: 42,
-          padding: const EdgeInsets.symmetric(horizontal: 18),
-          decoration: BoxDecoration(
-            color: MasliveTheme.surface,
-            borderRadius: BorderRadius.circular(22),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w700,
-              color: MasliveTheme.textPrimary,
-              letterSpacing: 0.1,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _HeroCarnavalCard extends StatelessWidget {
   final VoidCallback? onTap;
 
@@ -480,22 +462,18 @@ class _MediaCatalogFilter extends StatelessWidget {
   final String? countryName;
   final String? eventName;
   final String? circuitName;
+  final bool isExpanded;
+  final VoidCallback onToggleExpanded;
   final VoidCallback onOpenFilterMenu;
-  final VoidCallback onOpenEvents;
-  final VoidCallback onOpenPhotos;
-  final VoidCallback onOpenPacks;
-  final VoidCallback onOpenArtists;
 
   const _MediaCatalogFilter({
     required this.photographerController,
     required this.countryName,
     required this.eventName,
     required this.circuitName,
+    required this.isExpanded,
+    required this.onToggleExpanded,
     required this.onOpenFilterMenu,
-    required this.onOpenEvents,
-    required this.onOpenPhotos,
-    required this.onOpenPacks,
-    required this.onOpenArtists,
   });
 
   @override
@@ -517,7 +495,7 @@ class _MediaCatalogFilter extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           InkWell(
-            onTap: onOpenFilterMenu,
+            onTap: onToggleExpanded,
             borderRadius: BorderRadius.circular(12),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
@@ -555,7 +533,7 @@ class _MediaCatalogFilter extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   const Icon(
-                    Icons.tune_rounded,
+                    Icons.keyboard_arrow_down_rounded,
                     size: 20,
                     color: MasliveTheme.textSecondary,
                   ),
@@ -563,53 +541,125 @@ class _MediaCatalogFilter extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: [
-                _CategoryChip(label: 'ÉVÉNEMENTS', onTap: onOpenEvents),
-                const SizedBox(width: 10),
-                _CategoryChip(label: 'PHOTOS', onTap: onOpenPhotos),
-                const SizedBox(width: 10),
-                _CategoryChip(label: 'PACKS', onTap: onOpenPacks),
-                const SizedBox(width: 10),
-                _CategoryChip(label: 'ARTISTES', onTap: onOpenArtists),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            height: 46,
-            decoration: BoxDecoration(
-              color: MasliveTheme.surfaceAlt,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: MasliveTheme.divider),
-            ),
-            child: TextField(
-              controller: photographerController,
-              textInputAction: TextInputAction.search,
-              onSubmitted: (_) => onOpenPhotos(),
-              decoration: const InputDecoration(
-                hintText: 'Photographe (optionnel)',
-                hintStyle: TextStyle(
-                  color: MasliveTheme.textSecondary,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w500,
-                ),
-                prefixIcon: Icon(
-                  Icons.person_search_rounded,
-                  size: 20,
-                  color: MasliveTheme.textSecondary,
-                ),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(vertical: 12),
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Column(
+                children: [
+                  _FilterReadOnlyField(
+                    label: 'PAYS',
+                    value: countryName,
+                    hintText: 'Selectionner un pays',
+                  ),
+                  const SizedBox(height: 10),
+                  _FilterReadOnlyField(
+                    label: 'EVENEMENT',
+                    value: eventName,
+                    hintText: 'Selectionner un evenement',
+                  ),
+                  const SizedBox(height: 10),
+                  _FilterReadOnlyField(
+                    label: 'CIRCUIT',
+                    value: circuitName,
+                    hintText: 'Selectionner un circuit',
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: MasliveTheme.surfaceAlt,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: MasliveTheme.divider),
+                    ),
+                    child: TextField(
+                      controller: photographerController,
+                      textInputAction: TextInputAction.search,
+                      decoration: const InputDecoration(
+                        labelText: 'PHOTOGRAPHE (optionnel)',
+                        labelStyle: TextStyle(
+                          color: MasliveTheme.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.person_search_rounded,
+                          size: 20,
+                          color: MasliveTheme.textSecondary,
+                        ),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: onOpenFilterMenu,
+                      icon: const Icon(Icons.tune_rounded),
+                      label: const Text('Choisir pays / evenement / circuit'),
+                    ),
+                  ),
+                ],
               ),
             ),
+            crossFadeState: isExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 200),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FilterReadOnlyField extends StatelessWidget {
+  const _FilterReadOnlyField({
+    required this.label,
+    required this.value,
+    required this.hintText,
+  });
+
+  final String label;
+  final String? value;
+  final String hintText;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 46,
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: MasliveTheme.surfaceAlt,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: MasliveTheme.divider),
+      ),
+      child: RichText(
+        overflow: TextOverflow.ellipsis,
+        text: TextSpan(
+          style: const TextStyle(
+            color: MasliveTheme.textPrimary,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+          ),
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: const TextStyle(
+                color: MasliveTheme.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            TextSpan(
+              text: (value?.trim().isNotEmpty == true) ? value!.trim() : hintText,
+            ),
+          ],
+        ),
       ),
     );
   }
