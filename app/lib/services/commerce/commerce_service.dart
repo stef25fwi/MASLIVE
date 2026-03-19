@@ -46,6 +46,12 @@ class CommerceService {
     DateTime? takenAt,
     GeoPoint? location,
     String? photographer,
+    String? countryId,
+    String? countryName,
+    String? eventId,
+    String? eventName,
+    String? circuitId,
+    String? circuitName,
   }) async {
     final user = _currentUser;
     if (user == null) throw Exception('User not authenticated');
@@ -78,6 +84,12 @@ class CommerceService {
       if (takenAt != null) submission['takenAt'] = Timestamp.fromDate(takenAt);
       if (location != null) submission['location'] = location;
       if (photographer != null) submission['photographer'] = photographer;
+      if (countryId != null) submission['countryId'] = countryId;
+      if (countryName != null) submission['countryName'] = countryName;
+      if (eventId != null) submission['eventId'] = eventId;
+      if (eventName != null) submission['eventName'] = eventName;
+      if (circuitId != null) submission['circuitId'] = circuitId;
+      if (circuitName != null) submission['circuitName'] = circuitName;
     }
 
     final doc = await _submissions.add(submission);
@@ -100,6 +112,19 @@ class CommerceService {
   Future<void> submitForReview(String submissionId) async {
     final user = _currentUser;
     if (user == null) throw Exception('User not authenticated');
+
+    final doc = await _submissions.doc(submissionId).get();
+    if (!doc.exists) throw Exception('Submission not found');
+
+    final submission = CommerceSubmission.fromFirestore(doc);
+    if (submission.isMedia) {
+      final hasSelection = (submission.countryId?.trim().isNotEmpty ?? false) &&
+          (submission.eventId?.trim().isNotEmpty ?? false) &&
+          (submission.circuitId?.trim().isNotEmpty ?? false);
+      if (!hasSelection) {
+        throw Exception('Pays, evenement et circuit sont obligatoires pour un media');
+      }
+    }
 
     await _submissions.doc(submissionId).update({
       'status': SubmissionStatus.pending.toJson(),

@@ -551,18 +551,21 @@ class _MediaCatalogFilter extends StatelessWidget {
                     label: 'PAYS',
                     value: countryName,
                     hintText: 'Selectionner un pays',
+                    onTap: onOpenFilterMenu,
                   ),
                   const SizedBox(height: 10),
                   _FilterReadOnlyField(
                     label: 'EVENEMENT',
                     value: eventName,
                     hintText: 'Selectionner un evenement',
+                    onTap: onOpenFilterMenu,
                   ),
                   const SizedBox(height: 10),
                   _FilterReadOnlyField(
                     label: 'CIRCUIT',
                     value: circuitName,
                     hintText: 'Selectionner un circuit',
+                    onTap: onOpenFilterMenu,
                   ),
                   const SizedBox(height: 10),
                   Container(
@@ -621,44 +624,67 @@ class _FilterReadOnlyField extends StatelessWidget {
     required this.label,
     required this.value,
     required this.hintText,
+    required this.onTap,
   });
 
   final String label;
   final String? value;
   final String hintText;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 46,
-      alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        color: MasliveTheme.surfaceAlt,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: MasliveTheme.divider),
-      ),
-      child: RichText(
-        overflow: TextOverflow.ellipsis,
-        text: TextSpan(
-          style: const TextStyle(
-            color: MasliveTheme.textPrimary,
-            fontSize: 13.5,
-            fontWeight: FontWeight.w600,
+        child: Container(
+          height: 46,
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: MasliveTheme.surfaceAlt,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: MasliveTheme.divider),
           ),
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: const TextStyle(
-                color: MasliveTheme.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+          child: Row(
+            children: [
+              Expanded(
+                child: RichText(
+                  overflow: TextOverflow.ellipsis,
+                  text: TextSpan(
+                    style: const TextStyle(
+                      color: MasliveTheme.textPrimary,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: '$label: ',
+                        style: const TextStyle(
+                          color: MasliveTheme.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      TextSpan(
+                        text: (value?.trim().isNotEmpty == true)
+                            ? value!.trim()
+                            : hintText,
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            TextSpan(
-              text: (value?.trim().isNotEmpty == true) ? value!.trim() : hintText,
-            ),
-          ],
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: MasliveTheme.textSecondary,
+              ),
+            ],
+          ),
         ),
       ),
     );

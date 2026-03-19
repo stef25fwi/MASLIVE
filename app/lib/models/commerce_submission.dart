@@ -156,6 +156,12 @@ class CommerceSubmission {
   final DateTime? takenAt;
   final GeoPoint? location;
   final String? photographer;
+  final String? countryId;
+  final String? countryName;
+  final String? eventId;
+  final String? eventName;
+  final String? circuitId;
+  final String? circuitName;
 
   CommerceSubmission({
     required this.id,
@@ -184,6 +190,12 @@ class CommerceSubmission {
     this.takenAt,
     this.location,
     this.photographer,
+    this.countryId,
+    this.countryName,
+    this.eventId,
+    this.eventName,
+    this.circuitId,
+    this.circuitName,
   });
 
   /// Helpers
@@ -234,6 +246,12 @@ class CommerceSubmission {
       takenAt: (data['takenAt'] as Timestamp?)?.toDate(),
       location: data['location'] as GeoPoint?,
       photographer: data['photographer'] as String?,
+      countryId: data['countryId'] as String?,
+      countryName: data['countryName'] as String?,
+      eventId: data['eventId'] as String?,
+      eventName: data['eventName'] as String?,
+      circuitId: data['circuitId'] as String?,
+      circuitName: data['circuitName'] as String?,
     );
   }
 
@@ -273,6 +291,12 @@ class CommerceSubmission {
       map['takenAt'] = takenAt != null ? Timestamp.fromDate(takenAt!) : null;
       map['location'] = location;
       map['photographer'] = photographer;
+      map['countryId'] = countryId;
+      map['countryName'] = countryName;
+      map['eventId'] = eventId;
+      map['eventName'] = eventName;
+      map['circuitId'] = circuitId;
+      map['circuitName'] = circuitName;
     }
 
     return map;
@@ -306,6 +330,12 @@ class CommerceSubmission {
     DateTime? takenAt,
     GeoPoint? location,
     String? photographer,
+    String? countryId,
+    String? countryName,
+    String? eventId,
+    String? eventName,
+    String? circuitId,
+    String? circuitName,
   }) {
     return CommerceSubmission(
       id: id ?? this.id,
@@ -334,6 +364,12 @@ class CommerceSubmission {
       takenAt: takenAt ?? this.takenAt,
       location: location ?? this.location,
       photographer: photographer ?? this.photographer,
+      countryId: countryId ?? this.countryId,
+      countryName: countryName ?? this.countryName,
+      eventId: eventId ?? this.eventId,
+      eventName: eventName ?? this.eventName,
+      circuitId: circuitId ?? this.circuitId,
+      circuitName: circuitName ?? this.circuitName,
     );
   }
 

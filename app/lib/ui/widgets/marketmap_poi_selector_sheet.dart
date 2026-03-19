@@ -305,10 +305,30 @@ class _MarketMapPoiSelectorSheetState
         );
   }
 
+  InputDecoration _selectorDecoration(String label) {
+    const radius = BorderRadius.all(Radius.circular(14));
+    final border = OutlineInputBorder(
+      borderRadius: radius,
+      borderSide: BorderSide(color: MasliveTokens.borderSoft),
+    );
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: MasliveTokens.surface,
+      border: border,
+      enabledBorder: border,
+      focusedBorder: border.copyWith(
+        borderSide: BorderSide(color: Colors.grey.shade400),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+    );
+  }
+
   Widget _countryOptionLabel(BuildContext context, MarketCountry c) {
     final iso2 = _countryIso2(c);
     final flag = countryFlagEmojiFromIso2(iso2);
-    final label = _countryLabel(c);
+    final label = _countryLabel(c).toUpperCase();
+    final code = iso2.toUpperCase();
     final textStyle = _countryTextStyle(context);
 
     return Row(
@@ -324,7 +344,7 @@ class _MarketMapPoiSelectorSheetState
         const SizedBox(width: 10),
         Expanded(
           child: Text(
-            label,
+            '$label  ($code)',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: textStyle,
@@ -351,14 +371,39 @@ class _MarketMapPoiSelectorSheetState
     final bottomPadding = MediaQuery.viewInsetsOf(context).bottom;
     final baseTheme = Theme.of(context);
     final sheetTheme = baseTheme.copyWith(
+      colorScheme: baseTheme.colorScheme.copyWith(
+        primary: MasliveTokens.text,
+        secondary: MasliveTokens.text,
+      ),
       inputDecorationTheme: baseTheme.inputDecorationTheme.copyWith(
         filled: true,
         fillColor: MasliveTokens.surface,
       ),
       dropdownMenuTheme: DropdownMenuThemeData(
+        menuStyle: MenuStyle(
+          backgroundColor: WidgetStatePropertyAll<Color>(MasliveTokens.surface),
+          shape: WidgetStatePropertyAll<OutlinedBorder>(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+          side: WidgetStatePropertyAll<BorderSide>(
+            BorderSide(color: MasliveTokens.borderSoft),
+          ),
+        ),
         inputDecorationTheme: baseTheme.inputDecorationTheme.copyWith(
           filled: true,
           fillColor: MasliveTokens.surface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: MasliveTokens.borderSoft),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: MasliveTokens.borderSoft),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.grey.shade400),
+          ),
         ),
       ),
     );
@@ -450,19 +495,26 @@ class _MarketMapPoiSelectorSheetState
                         initialValue: currentValue,
                         isExpanded: true,
                         menuMaxHeight: 420,
-                        decoration: const InputDecoration(
-                          labelText: 'Pays',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 16,
-                          ),
-                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        dropdownColor: MasliveTokens.surface,
+                        decoration: _selectorDecoration('PAYS'),
                         items: [
                           for (final c in items)
                             DropdownMenuItem<String>(
                               value: c.id,
-                              child: _countryOptionLabel(context, c),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: c.id == currentValue
+                                      ? Colors.grey.shade200
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 4,
+                                ),
+                                child: _countryOptionLabel(context, c),
+                              ),
                             ),
                         ],
                         onChanged: !allowSelection
@@ -546,10 +598,11 @@ class _MarketMapPoiSelectorSheetState
                     }
 
                     return DropdownMenu<MarketEvent>(
+                      width: MediaQuery.sizeOf(context).width - 32,
                       controller: _eventCtrl,
                       focusNode: _eventFocus,
                       enabled: allowSelection && _country != null,
-                      label: const Text('Événement'),
+                      label: const Text('EVENEMENT'),
                       enableSearch: true,
                       enableFilter: true,
                       requestFocusOnTap: true,
@@ -591,10 +644,9 @@ class _MarketMapPoiSelectorSheetState
 
                   return DropdownButtonFormField<String>(
                     initialValue: value,
-                    decoration: const InputDecoration(
-                      labelText: 'Événement',
-                      border: OutlineInputBorder(),
-                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    dropdownColor: MasliveTokens.surface,
+                    decoration: _selectorDecoration('EVENEMENT'),
                     items: [
                       for (final e in items)
                         DropdownMenuItem(
@@ -644,10 +696,9 @@ class _MarketMapPoiSelectorSheetState
 
                     return DropdownButtonFormField<String>(
                       initialValue: currentValue,
-                      decoration: const InputDecoration(
-                        labelText: 'Circuit',
-                        border: OutlineInputBorder(),
-                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      dropdownColor: MasliveTokens.surface,
+                      decoration: _selectorDecoration('CIRCUIT'),
                       items: [
                         for (final c in items)
                           DropdownMenuItem(
@@ -702,10 +753,11 @@ class _MarketMapPoiSelectorSheetState
                   }
 
                   return DropdownMenu<MarketCircuit>(
+                    width: MediaQuery.sizeOf(context).width - 32,
                     controller: _circuitCtrl,
                     focusNode: _circuitFocus,
                     enabled: allowSelection && _country != null && _event != null,
-                    label: const Text('Circuit'),
+                    label: const Text('CIRCUIT'),
                     enableSearch: true,
                     enableFilter: true,
                     requestFocusOnTap: true,

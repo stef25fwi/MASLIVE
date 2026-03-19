@@ -3,8 +3,13 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_picker/image_picker.dart';
+
 import '../../models/commerce_submission.dart';
+import '../../models/market_circuit.dart';
+import '../../models/market_country.dart';
+import '../../models/market_event.dart';
 import '../../services/commerce/commerce_service.dart';
+import '../../ui/widgets/marketmap_poi_selector_sheet.dart';
 
 /// Page de création/édition d'un média
 class CreateMediaPage extends StatefulWidget {
@@ -23,15 +28,25 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
 
   bool _isLoading = false;
   bool _isEditing = false;
+  bool _showMarketScopeError = false;
   CommerceSubmission? _existing;
 
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _photographerController = TextEditingController();
+  final _countryController = TextEditingController();
+  final _eventController = TextEditingController();
+  final _circuitController = TextEditingController();
 
   ScopeType _selectedScopeType = ScopeType.global;
   String _scopeId = '';
   MediaType _mediaType = MediaType.photo;
+  String? _countryId;
+  String? _countryName;
+  String? _eventId;
+  String? _eventName;
+  String? _circuitId;
+  String? _circuitName;
 
   List<String> _mediaUrls = [];
   final List<XFile> _selectedFiles = [];
@@ -58,6 +73,15 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
           _scopeId = submission.scopeId;
           _mediaType = submission.mediaType ?? MediaType.photo;
           _mediaUrls = List.from(submission.mediaUrls);
+          _countryId = submission.countryId;
+          _countryName = submission.countryName;
+          _eventId = submission.eventId;
+          _eventName = submission.eventName;
+          _circuitId = submission.circuitId;
+          _circuitName = submission.circuitName;
+          _countryController.text = submission.countryName ?? submission.countryId ?? '';
+          _eventController.text = submission.eventName ?? submission.eventId ?? '';
+          _circuitController.text = submission.circuitName ?? submission.circuitId ?? '';
         });
       }
     } catch (e) {
@@ -89,6 +113,106 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
 
   void _removeFile(int index) => setState(() => _selectedFiles.removeAt(index));
   void _removeUrl(int index) => setState(() => _mediaUrls.removeAt(index));
+
+  MarketMapPoiSelection? _buildInitialSelection() {
+    final resolvedCountryId = _countryId?.trim();
+    final resolvedEventId = _eventId?.trim();
+    final resolvedCircuitId = _circuitId?.trim();
+    if (resolvedCountryId == null ||
+        resolvedCountryId.isEmpty ||
+        resolvedEventId == null ||
+        resolvedEventId.isEmpty ||
+        resolvedCircuitId == null ||
+        resolvedCircuitId.isEmpty) {
+      return null;
+    }
+
+    return MarketMapPoiSelection.enabled(
+      country: MarketCountry(
+        id: resolvedCountryId,
+        name: (_countryName?.trim().isNotEmpty == true)
+            ? _countryName!.trim()
+            : resolvedCountryId,
+        slug: resolvedCountryId,
+      ),
+      event: MarketEvent(
+        id: resolvedEventId,
+        countryId: resolvedCountryId,
+        name: (_eventName?.trim().isNotEmpty == true)
+            ? _eventName!.trim()
+            : resolvedEventId,
+        slug: resolvedEventId,
+      ),
+      circuit: MarketCircuit(
+        id: resolvedCircuitId,
+        countryId: resolvedCountryId,
+        eventId: resolvedEventId,
+        name: (_circuitName?.trim().isNotEmpty == true)
+            ? _circuitName!.trim()
+            : resolvedCircuitId,
+        slug: resolvedCircuitId,
+        status: 'draft',
+        createdByUid: '',
+        perimeterLocked: false,
+        zoomLocked: false,
+        center: const <String, double>{'lat': 0.0, 'lng': 0.0},
+        initialZoom: 14,
+        isVisible: true,
+        wizardState: const <String, dynamic>{},
+      ),
+      layerIds: const <String>{},
+    );
+  }
+
+  Future<void> _selectMarketScope() async {
+    final selection = await showMarketMapCircuitSelectorSheet(
+      context,
+      initial: _buildInitialSelection(),
+      disableKeyboardInput: true,
+    );
+    if (!mounted || selection == null) return;
+
+    if (!selection.enabled ||
+        selection.country == null ||
+        selection.event == null ||
+        selection.circuit == null) {
+      setState(() {
+        _countryId = null;
+        _countryName = null;
+        _eventId = null;
+        _eventName = null;
+        _circuitId = null;
+        _circuitName = null;
+        _countryController.clear();
+        _eventController.clear();
+        _circuitController.clear();
+      });
+      return;
+    }
+
+    setState(() {
+      _showMarketScopeError = false;
+      _countryId = selection.country!.id;
+      _countryName = selection.country!.name;
+      _eventId = selection.event!.id;
+      _eventName = selection.event!.name;
+      _circuitId = selection.circuit!.id;
+      _circuitName = selection.circuit!.name;
+      _countryController.text = selection.country!.name;
+      _eventController.text = selection.event!.name;
+      _circuitController.text = selection.circuit!.name;
+    });
+  }
+
+  bool get _hasRequiredMarketScope =>
+      (_countryId?.trim().isNotEmpty ?? false) &&
+      (_eventId?.trim().isNotEmpty ?? false) &&
+      (_circuitId?.trim().isNotEmpty ?? false);
+
+  String? _marketScopeError() {
+    if (_hasRequiredMarketScope) return null;
+    return 'Pays, evenement et circuit sont obligatoires';
+  }
 
   Future<void> _saveDraft() async {
     if (!_formKey.currentState!.validate()) return;
@@ -137,6 +261,12 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
           'mediaUrls': _mediaUrls,
           'scopeType': _selectedScopeType.toJson(),
           'scopeId': _scopeId.isEmpty ? 'global' : _scopeId,
+          'countryId': _countryId,
+          'countryName': _countryName,
+          'eventId': _eventId,
+          'eventName': _eventName,
+          'circuitId': _circuitId,
+          'circuitName': _circuitName,
         });
       } else {
         await _service.createDraftSubmission(
@@ -149,6 +279,12 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
           mediaUrls: _mediaUrls,
           mediaType: _mediaType,
           photographer: _photographerController.text.trim(),
+          countryId: _countryId,
+          countryName: _countryName,
+          eventId: _eventId,
+          eventName: _eventName,
+          circuitId: _circuitId,
+          circuitName: _circuitName,
         );
       }
 
@@ -171,6 +307,14 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
 
   Future<void> _submitForReview() async {
     if (!_formKey.currentState!.validate()) return;
+    setState(() => _showMarketScopeError = true);
+    final marketScopeError = _marketScopeError();
+    if (marketScopeError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(marketScopeError)),
+      );
+      return;
+    }
 
     if (_mediaUrls.isEmpty && _selectedFiles.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -225,6 +369,12 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
           'mediaUrls': _mediaUrls,
           'scopeType': _selectedScopeType.toJson(),
           'scopeId': _scopeId.isEmpty ? 'global' : _scopeId,
+          'countryId': _countryId,
+          'countryName': _countryName,
+          'eventId': _eventId,
+          'eventName': _eventName,
+          'circuitId': _circuitId,
+          'circuitName': _circuitName,
         });
         submissionId = _existing!.id;
       } else {
@@ -238,6 +388,12 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
           mediaUrls: _mediaUrls,
           mediaType: _mediaType,
           photographer: _photographerController.text.trim(),
+          countryId: _countryId,
+          countryName: _countryName,
+          eventId: _eventId,
+          eventName: _eventName,
+          circuitId: _circuitId,
+          circuitName: _circuitName,
         );
       }
 
@@ -265,6 +421,9 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
     _titleController.dispose();
     _descriptionController.dispose();
     _photographerController.dispose();
+    _countryController.dispose();
+    _eventController.dispose();
+    _circuitController.dispose();
     super.dispose();
   }
 
@@ -325,6 +484,25 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                               filled: true,
                               fillColor: Colors.grey.shade50,
                             ),
+                          ),
+                          const SizedBox(height: 16),
+                          _MarketScopeField(
+                            label: 'PAYS *',
+                            controller: _countryController,
+                            onTap: _selectMarketScope,
+                          ),
+                          const SizedBox(height: 16),
+                          _MarketScopeField(
+                            label: 'EVENEMENT *',
+                            controller: _eventController,
+                            onTap: _selectMarketScope,
+                          ),
+                          const SizedBox(height: 16),
+                          _MarketScopeField(
+                            label: 'CIRCUIT *',
+                            controller: _circuitController,
+                            onTap: _selectMarketScope,
+                            errorText: _showMarketScopeError ? _marketScopeError() : null,
                           ),
                           const SizedBox(height: 16),
                           DropdownButtonFormField<MediaType>(
@@ -486,6 +664,38 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                 );
               },
             ),
+    );
+  }
+}
+
+class _MarketScopeField extends StatelessWidget {
+  const _MarketScopeField({
+    required this.label,
+    required this.controller,
+    required this.onTap,
+    this.errorText,
+  });
+
+  final String label;
+  final TextEditingController controller;
+  final VoidCallback onTap;
+  final String? errorText;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      readOnly: true,
+      onTap: onTap,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: 'Choisir via le menu Carte',
+        errorText: errorText,
+        suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+        fillColor: Colors.grey.shade50,
+      ),
     );
   }
 }

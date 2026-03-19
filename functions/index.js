@@ -47,6 +47,69 @@ function uniqueStrings(arr) {
   return Array.from(new Set((arr || []).filter((x) => typeof x === "string" && x.trim().length > 0).map((x) => x.trim())));
 }
 
+function nonEmptyString(value) {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function decodeStoragePathFromUrl(value) {
+  const raw = nonEmptyString(value);
+  if (!raw) return "";
+
+  try {
+    const url = new URL(raw);
+    const marker = "/o/";
+    const markerIndex = url.pathname.indexOf(marker);
+    if (markerIndex === -1) return "";
+    const encodedPath = url.pathname.slice(markerIndex + marker.length);
+    return decodeURIComponent(encodedPath);
+  } catch (_) {
+    return "";
+  }
+}
+
+function guessFileExtension(value, fallback = "jpg") {
+  const raw = nonEmptyString(value);
+  if (!raw) return fallback;
+
+  const withoutQuery = raw.split("?")[0];
+  const lastSegment = withoutQuery.split("/").pop() || "";
+  const lastDot = lastSegment.lastIndexOf(".");
+  if (lastDot === -1 || lastDot === lastSegment.length - 1) return fallback;
+
+  return lastSegment.slice(lastDot + 1).toLowerCase();
+}
+
+function guessMimeTypeFromExtension(extension) {
+  switch ((extension || "").toLowerCase()) {
+    case "png":
+      return "image/png";
+    case "webp":
+      return "image/webp";
+    case "gif":
+      return "image/gif";
+    case "heic":
+      return "image/heic";
+    case "jpeg":
+    case "jpg":
+    default:
+      return "image/jpeg";
+  }
+}
+
+function sanitizeFileBasename(value, fallback = "media") {
+  const raw = nonEmptyString(value);
+  if (!raw) return fallback;
+
+  const sanitized = raw
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toLowerCase();
+
+  return sanitized || fallback;
+}
+
 const GDPR_EXPORT_SUBCOLLECTIONS = [
   "cart",
   "wishlist",
@@ -3465,14 +3528,132 @@ exports.approveCommerceSubmission = onCall(
 
   // Champs media
   if (submission.type === "media") {
+    if (!looksLikeNonEmptyString(submission.countryId) ||
+        !looksLikeNonEmptyString(submission.eventId) ||
+        !looksLikeNonEmptyString(submission.circuitId)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "countryId, eventId and circuitId are required for media submissions"
+      );
+    }
+
     publishedData.mediaType = submission.mediaType || "photo";
     if (submission.takenAt) publishedData.takenAt = submission.takenAt;
     if (submission.location) publishedData.location = submission.location;
     if (submission.photographer) publishedData.photographer = submission.photographer;
+    publishedData.countryId = submission.countryId;
+    if (looksLikeNonEmptyString(submission.countryName)) {
+      publishedData.countryName = submission.countryName;
+    }
+    publishedData.eventId = submission.eventId;
+    if (looksLikeNonEmptyString(submission.eventName)) {
+      publishedData.eventName = submission.eventName;
+    }
+    publishedData.circuitId = submission.circuitId;
+    if (looksLikeNonEmptyString(submission.circuitName)) {
+      publishedData.circuitName = submission.circuitName;
+    }
   }
 
   // Publier dans la boutique
   await admin.firestore().collection(targetPath).doc(submissionId).set(publishedData);
+
+  if (submission.type === "media") {
+    const photographerQuery = await admin.firestore()
+      .collection("photographers")
+      .where("ownerUid", "==", submission.ownerUid)
+      .limit(1)
+      .get();
+    const photographerId = photographerQuery.docs[0]?.id || nonEmptyString(submission.ownerUid) || submissionId;
+    const mediaUrls = Array.isArray(submission.mediaUrls)
+      ? submission.mediaUrls.filter((value) => typeof value === "string" && value.trim().length > 0)
+      : [];
+    const coverUrl = nonEmptyString(submission.thumbUrl) || mediaUrls[0] || null;
+    const linkedGroupIds = submission.scopeType === "group" && looksLikeNonEmptyString(submission.scopeId)
+      ? [submission.scopeId.trim()]
+      : [];
+
+    await admin.firestore().collection("photographers").doc(photographerId).set({
+      photographerId,
+      ownerUid: submission.ownerUid,
+      brandName: nonEmptyString(submission.photographer) || nonEmptyString(submission.title) || "MASLIVE",
+      status: "approved",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    const galleryData = {
+      galleryId: submissionId,
+      photographerId,
+      ownerUid: submission.ownerUid,
+      eventId: submission.eventId,
+      title: nonEmptyString(submission.title) || "GALERIE",
+      description: nonEmptyString(submission.description),
+      coverUrl,
+      visibility: "public",
+      status: "published",
+      tags: [],
+      linkedCountry: submission.countryId,
+      linkedCircuitId: submission.circuitId,
+      linkedGroupIds,
+      photoCount: mediaUrls.length,
+      publishedPhotoCount: mediaUrls.length,
+      packCount: 0,
+      publishedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: submission.createdAt || admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      sourceSubmissionId: submissionId,
+      sourcePublishedRef: `${targetPath}/${submissionId}`,
+      countryName: nonEmptyString(submission.countryName),
+      eventName: nonEmptyString(submission.eventName),
+      circuitName: nonEmptyString(submission.circuitName),
+      mediaUrls,
+    };
+
+    await admin.firestore().collection("media_galleries").doc(submissionId).set(galleryData, { merge: true });
+
+    const mediaPhotosBatch = admin.firestore().batch();
+    const titleBasename = sanitizeFileBasename(submission.title, "media");
+
+    mediaUrls.forEach((mediaUrl, index) => {
+      const photoId = `${submissionId}_${index + 1}`;
+      const extension = guessFileExtension(mediaUrl);
+      const originalPath = decodeStoragePathFromUrl(mediaUrl) || mediaUrl;
+      const photoDoc = admin.firestore().collection("media_photos").doc(photoId);
+
+      mediaPhotosBatch.set(photoDoc, {
+        photoId,
+        photographerId,
+        ownerUid: submission.ownerUid,
+        galleryId: submissionId,
+        eventId: submission.eventId,
+        originalPath,
+        previewPath: mediaUrl,
+        thumbnailPath: mediaUrl,
+        watermarkedPath: mediaUrl,
+        downloadFileName: `${titleBasename}_${index + 1}.${extension}`,
+        mimeType: guessMimeTypeFromExtension(extension),
+        moderationStatus: "approved",
+        lifecycleStatus: "published",
+        visibility: "public",
+        isPublished: true,
+        isForSale: false,
+        unitPrice: 0,
+        currency: "EUR",
+        createdAt: submission.createdAt || admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        sourceSubmissionId: submissionId,
+        sourceUrl: mediaUrl,
+        countryId: submission.countryId,
+        countryName: nonEmptyString(submission.countryName),
+        eventName: nonEmptyString(submission.eventName),
+        circuitId: submission.circuitId,
+        circuitName: nonEmptyString(submission.circuitName),
+      }, { merge: true });
+    });
+
+    await mediaPhotosBatch.commit();
+  }
 
   // Mettre à jour la soumission
   await submissionRef.update({
