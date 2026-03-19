@@ -72,7 +72,7 @@ class MediaMarketplaceHomePage extends StatelessWidget {
   }
 }
 
-class _MediaMarketplaceHomeView extends StatelessWidget {
+class _MediaMarketplaceHomeView extends StatefulWidget {
   const _MediaMarketplaceHomeView({
     required this.embedded,
     required this.countryName,
@@ -90,6 +90,22 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
   final bool showContextHeader;
   final bool showBranding;
   final VoidCallback? onOpenFilters;
+
+  @override
+  State<_MediaMarketplaceHomeView> createState() =>
+      _MediaMarketplaceHomeViewState();
+}
+
+class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
+  bool _catalogMenuExpanded = false;
+  final TextEditingController _photographerController =
+      TextEditingController();
+
+  @override
+  void dispose() {
+    _photographerController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -145,7 +161,7 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   const SizedBox(height: 4),
-                  if (showBranding) ...<Widget>[
+                  if (widget.showBranding) ...<Widget>[
                     Center(
                       child: Text(
                         'MASLIVE',
@@ -174,17 +190,24 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
                     const SizedBox(height: 14),
                   ],
                   _CatalogFilterTrigger(
-                    countryName: countryName,
-                    eventName: eventName,
-                    circuitName: circuitName,
-                    onTap: onOpenFilters,
+                    countryName: widget.countryName,
+                    eventName: widget.eventName,
+                    circuitName: widget.circuitName,
+                    photographerController: _photographerController,
+                    isExpanded: _catalogMenuExpanded,
+                    onToggleExpanded: () {
+                      setState(() {
+                        _catalogMenuExpanded = !_catalogMenuExpanded;
+                      });
+                    },
+                    onOpenFilters: widget.onOpenFilters,
                   ),
                   const SizedBox(height: 14),
-                  if (showContextHeader &&
+                  if (widget.showContextHeader &&
                       catalog.currentEventId != null) ...<Widget>[
                     MediaMarketplaceContextChips(
                       eventId: catalog.currentEventId!,
-                      circuitName: circuitName,
+                      circuitName: widget.circuitName,
                     ),
                     const SizedBox(height: 14),
                   ],
@@ -216,8 +239,8 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
                   _HeroGalleryCard(
                     title: selectedGallery?.title.trim().isNotEmpty == true
                         ? selectedGallery!.title.trim().toUpperCase()
-                        : (eventName?.trim().isNotEmpty == true
-                              ? eventName!.trim().toUpperCase()
+                      : (widget.eventName?.trim().isNotEmpty == true
+                        ? widget.eventName!.trim().toUpperCase()
                               : 'GALERIE'),
                     imageUrl: heroImageUrl,
                     onTap: catalog.selectedGalleryId == null ? null : () {},
@@ -273,7 +296,7 @@ class _MediaMarketplaceHomeView extends StatelessWidget {
       ),
     );
 
-    if (embedded) return body;
+    if (widget.embedded) return body;
 
     return Scaffold(
       appBar: AppBar(
@@ -544,13 +567,19 @@ class _CatalogFilterTrigger extends StatelessWidget {
     required this.countryName,
     required this.eventName,
     required this.circuitName,
-    required this.onTap,
+    required this.photographerController,
+    required this.isExpanded,
+    required this.onToggleExpanded,
+    required this.onOpenFilters,
   });
 
   final String? countryName;
   final String? eventName;
   final String? circuitName;
-  final VoidCallback? onTap;
+  final TextEditingController photographerController;
+  final bool isExpanded;
+  final VoidCallback onToggleExpanded;
+  final VoidCallback? onOpenFilters;
 
   @override
   Widget build(BuildContext context) {
@@ -560,56 +589,216 @@ class _CatalogFilterTrigger extends StatelessWidget {
       if (circuitName?.trim().isNotEmpty == true) circuitName!.trim(),
     ].join(' / ');
 
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: MasliveTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: MasliveTheme.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: onToggleExpanded,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const Text(
+                          'CATALOGUE DES MEDIAS',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                            color: MasliveTheme.textPrimary,
+                            letterSpacing: 0.2,
+                            height: 1,
+                          ),
+                        ),
+                        if (summary.isNotEmpty) ...<Widget>[
+                          const SizedBox(height: 6),
+                          Text(
+                            summary,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w500,
+                              color: MasliveTheme.textSecondary,
+                              height: 1.2,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Icon(
+                    isExpanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: MasliveTheme.textPrimary,
+                    size: 26,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Column(
+                children: <Widget>[
+                  _CatalogReadOnlyField(
+                    label: 'PAYS',
+                    value: countryName,
+                    hintText: 'Selectionner un pays',
+                    onTap: onOpenFilters,
+                  ),
+                  const SizedBox(height: 10),
+                  _CatalogReadOnlyField(
+                    label: 'EVENEMENT',
+                    value: eventName,
+                    hintText: 'Selectionner un evenement',
+                    onTap: onOpenFilters,
+                  ),
+                  const SizedBox(height: 10),
+                  _CatalogReadOnlyField(
+                    label: 'CIRCUIT',
+                    value: circuitName,
+                    hintText: 'Selectionner un circuit',
+                    onTap: onOpenFilters,
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: MasliveTheme.surfaceAlt,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: MasliveTheme.divider),
+                    ),
+                    child: TextField(
+                      controller: photographerController,
+                      textInputAction: TextInputAction.search,
+                      decoration: const InputDecoration(
+                        labelText: 'PHOTOGRAPHE (optionnel)',
+                        labelStyle: TextStyle(
+                          color: MasliveTheme.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.person_search_rounded,
+                          size: 20,
+                          color: MasliveTheme.textSecondary,
+                        ),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: onOpenFilters,
+                      icon: const Icon(Icons.tune_rounded),
+                      label: const Text('Choisir pays / evenement / circuit'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            crossFadeState: isExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 180),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CatalogReadOnlyField extends StatelessWidget {
+  const _CatalogReadOnlyField({
+    required this.label,
+    required this.value,
+    required this.hintText,
+    required this.onTap,
+  });
+
+  final String label;
+  final String? value;
+  final String hintText;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final resolvedValue = value?.trim();
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
-        child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          height: 46,
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
-            color: MasliveTheme.surface,
-            borderRadius: BorderRadius.circular(20),
+            color: MasliveTheme.surfaceAlt,
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(color: MasliveTheme.divider),
           ),
           child: Row(
             children: <Widget>[
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    const Text(
-                      'CATALOGUE DES MEDIAS',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        color: MasliveTheme.textPrimary,
-                        letterSpacing: 0.2,
-                        height: 1,
-                      ),
+                child: RichText(
+                  overflow: TextOverflow.ellipsis,
+                  text: TextSpan(
+                    style: const TextStyle(
+                      color: MasliveTheme.textPrimary,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
                     ),
-                    if (summary.isNotEmpty) ...<Widget>[
-                      const SizedBox(height: 6),
-                      Text(
-                        summary,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                    children: <InlineSpan>[
+                      TextSpan(
+                        text: '$label  ',
                         style: const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w500,
                           color: MasliveTheme.textSecondary,
-                          height: 1.2,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                      TextSpan(
+                        text: resolvedValue != null && resolvedValue.isNotEmpty
+                            ? resolvedValue
+                            : hintText,
+                        style: TextStyle(
+                          color:
+                              resolvedValue != null && resolvedValue.isNotEmpty
+                              ? MasliveTheme.textPrimary
+                              : MasliveTheme.textSecondary,
                         ),
                       ),
                     ],
-                  ],
+                  ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: MasliveTheme.textPrimary,
-                size: 26,
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: MasliveTheme.textSecondary,
               ),
             ],
           ),
