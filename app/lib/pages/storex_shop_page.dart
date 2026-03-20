@@ -82,11 +82,11 @@ class _StorexShopPageState extends State<StorexShopPage> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = [
+  final pages = [
       _StorexHome(shopId: widget.shopId, groupId: widget.groupId),
-      _StorexCategory(shopId: widget.shopId, groupId: widget.groupId),
-      const _CartWrap(),
-      _StorexAccount(shopId: widget.shopId, groupId: widget.groupId),
+      _StorexSearch(shopId: widget.shopId, groupId: widget.groupId),
+      _StorexFavorites(shopId: widget.shopId, groupId: widget.groupId),
+      _StorexMediatheque(shopId: widget.shopId, groupId: widget.groupId),
     ];
 
     return DefaultTextStyle.merge(
@@ -115,35 +115,27 @@ class _StorexShopPageState extends State<StorexShopPage> {
               _Bottom(
                 icon: Icons.map_outlined,
                 activeIcon: Icons.map,
-                active: false,
-                onTap: () {
-                  final navigator = Navigator.of(context);
-                  if (navigator.canPop()) {
-                    navigator.maybePop();
-                  } else {
-                    navigator.pushNamed('/');
-                  }
-                },
+                active: tab == 0,
+                onTap: () => setState(() => tab = 0),
               ),
-              _Bottom(icon: Icons.grid_view_outlined, activeIcon: Icons.grid_view, active: tab == 1, onTap: () => setState(() => tab = 1)),
-              InkResponse(
-                radius: 28,
+              _Bottom(
+                icon: Icons.search_outlined,
+                activeIcon: Icons.search,
+                active: tab == 1,
+                onTap: () => setState(() => tab = 1),
+              ),
+              _Bottom(
+                icon: Icons.favorite_outline_rounded,
+                activeIcon: Icons.favorite_rounded,
+                active: tab == 2,
                 onTap: () => setState(() => tab = 2),
-                child: const CartIconBadge(
-                  iconGradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: <Color>[
-                      Color(0xFFFFB26A),
-                      Color(0xFFFF7BC5),
-                      Color(0xFF7CE0FF),
-                    ],
-                  ),
-                  backgroundColor: _ShopUi.navBg,
-                  borderColor: _ShopUi.strokeSoft,
-                ),
               ),
-              _Bottom(icon: Icons.person_outline, activeIcon: Icons.person, active: tab == 3, onTap: () => setState(() => tab = 3)),
+              _Bottom(
+                icon: Icons.image_outlined,
+                activeIcon: Icons.image_rounded,
+                active: tab == 3,
+                onTap: () => setState(() => tab = 3),
+              ),
             ],
           ),
         ),
@@ -523,6 +515,179 @@ class _StorexHome extends StatelessWidget {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+/// =======================
+/// SEARCH / RECHERCHE PAGE
+/// =======================
+
+class _StorexSearch extends StatefulWidget {
+  const _StorexSearch({required this.shopId, required this.groupId});
+  final String? shopId;
+  final String? groupId;
+
+  @override
+  State<_StorexSearch> createState() => _StorexSearchState();
+}
+
+class _StorexSearchState extends State<_StorexSearch> {
+  late TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final repo = StorexRepo(shopId: widget.shopId, groupId: widget.groupId);
+    final searchQuery = _searchController.text.toLowerCase();
+
+    return Scaffold(
+      backgroundColor: _ShopUi.pageBg,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: StorexShopPage.premiumHeaderGradient),
+        ),
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: _ShopUi.textMain),
+        title: Text(
+          'Rechercher',
+          style: const TextStyle(
+            color: _ShopUi.textMain,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.6,
+          ),
+        ),
+        actions: [
+          LanguageSwitcher(textColor: _ShopUi.textMain),
+          CartIconBadge(
+            iconGradient: const LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: <Color>[
+                Color(0xFFFFB26A),
+                Color(0xFFFF7BC5),
+                Color(0xFF7CE0FF),
+              ],
+            ),
+            backgroundColor: _ShopUi.pageBg,
+            borderColor: _ShopUi.strokeSoft,
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const UnifiedCartPage()),
+            ),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Tapez un produit...',
+                prefixIcon: const Icon(Icons.search_rounded, color: _ShopUi.textMuted),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded, color: _ShopUi.textMuted),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: _ShopUi.strokeSoft),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+              onChanged: (value) {
+                setState(() {});
+              },
+            ),
+          ),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: repo.bestSeller(limit: 500).snapshots(),
+              builder: (context, snap) {
+                if (!snap.hasData) {
+                  return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+                }
+
+                final docs = snap.data!.docs.where((d) => StorexRepo.onlyApproved(d.data())).toList();
+                final allProducts = docs.map(GroupProduct.fromFirestore).toList();
+
+                // Filtrer par recherche texte
+                final filteredProducts = searchQuery.isEmpty
+                    ? allProducts
+                    : allProducts.where((p) {
+                        final name = p.title.toLowerCase();
+                        return name.contains(searchQuery);
+                      }).toList();
+
+                if (filteredProducts.isEmpty) {
+                  return _Empty(
+                    searchQuery.isEmpty ? 'Commencez à taper pour chercher' : 'Aucun produit trouvé',
+                  );
+                }
+
+                return GridView.builder(
+                  padding: const EdgeInsets.all(12),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 0.6,
+                  ),
+                  itemCount: filteredProducts.length,
+                  itemBuilder: (context, index) {
+                    final p = filteredProducts[index];
+                    return _StorexPremiumProductCard(
+                      product: p,
+                      wished: false,
+                      onWish: () {},
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => ProductDetailPage(groupId: widget.groupId ?? 'MASLIVE', product: p),
+                          ),
+                        );
+                        final size = p.sizes.isNotEmpty ? p.sizes.first : 'M';
+                        final color = p.colors.isNotEmpty ? p.colors.first : 'Noir';
+                        CartService.instance.addProduct(
+                          groupId: widget.groupId ?? 'MASLIVE',
+                          product: p,
+                          size: size,
+                          color: color,
+                          quantity: 1,
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1671,6 +1836,206 @@ class _CartWrap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const UnifiedCartPage();
+  }
+}
+
+/// =======================
+/// FAVORIS / WISHLIST PAGE
+/// =======================
+
+class _StorexFavorites extends StatelessWidget {
+  const _StorexFavorites({required this.shopId, required this.groupId});
+  final String? shopId;
+  final String? groupId;
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      return const Center(
+        child: Text('Connectez-vous pour voir vos favoris'),
+      );
+    }
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Favoris',
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 16),
+          StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final wishlist = (snapshot.data?['wishlist'] as List?)?.cast<String>() ?? [];
+
+              if (wishlist.isEmpty) {
+                return const _Empty('Aucun favori pour le moment');
+              }
+
+              return StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('products')
+                    .where(FieldPath.documentId, whereIn: wishlist.take(10).toList())
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final products = snapshot.data!.docs
+                      .map((doc) => GroupProduct.fromFirestore(doc))
+                      .toList();
+
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      childAspectRatio: 0.6,
+                    ),
+                    itemCount: products.length,
+                    itemBuilder: (context, index) {
+                      final p = products[index];
+                      return _StorexPremiumProductCard(
+                        product: p,
+                        wished: wishlist.contains(p.id),
+                        onWish: () {
+                          // Toggle wishlist
+                          final updatedWishlist = List<String>.from(wishlist);
+                          if (updatedWishlist.contains(p.id)) {
+                            updatedWishlist.remove(p.id);
+                          } else {
+                            updatedWishlist.add(p.id);
+                          }
+                          FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(user.uid)
+                              .update({'wishlist': updatedWishlist});
+                        },
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => ProductDetailPage(groupId: groupId ?? 'MASLIVE', product: p),
+                            ),
+                          );
+                          final size = p.sizes.isNotEmpty ? p.sizes.first : 'M';
+                          final color = p.colors.isNotEmpty ? p.colors.first : 'Noir';
+                          CartService.instance.addProduct(
+                            groupId: groupId ?? 'MASLIVE',
+                            product: p,
+                            size: size,
+                            color: color,
+                            quantity: 1,
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// =======================
+/// MEDIATHEQUE / MEDIA LIBRARY PAGE
+/// =======================
+
+class _StorexMediatheque extends StatelessWidget {
+  const _StorexMediatheque({required this.shopId, required this.groupId});
+  final String? shopId;
+  final String? groupId;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Médiathèque',
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 16),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('products')
+                .where('itemType', isEqualTo: 'Media')
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final products = snapshot.data!.docs
+                  .map((doc) => GroupProduct.fromFirestore(doc))
+                  .toList();
+
+              if (products.isEmpty) {
+                return const _Empty('Aucun média disponible');
+              }
+
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 0.6,
+                ),
+                itemCount: products.length,
+                itemBuilder: (context, index) {
+                  final p = products[index];
+                  return _StorexPremiumProductCard(
+                    product: p,
+                    wished: false,
+                    onWish: () {},
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => ProductDetailPage(groupId: groupId ?? 'MASLIVE', product: p),
+                        ),
+                      );
+                      final size = p.sizes.isNotEmpty ? p.sizes.first : 'M';
+                      final color = p.colors.isNotEmpty ? p.colors.first : 'Noir';
+                      CartService.instance.addProduct(
+                        groupId: groupId ?? 'MASLIVE',
+                        product: p,
+                        size: size,
+                        color: color,
+                        quantity: 1,
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
   }
 }
 
