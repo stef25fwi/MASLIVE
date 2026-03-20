@@ -98,6 +98,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   bool _isTracking = false;
   bool _isMapReady = false;
   bool _isGpsReady = false;
+  bool _isStyleLoadedOnce = false; // signal splash uniquement au 1er style load
 
   String _runtimeMapboxToken = '';
   // ignore: unused_field
@@ -2013,15 +2014,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     if (!mounted) return;
     _mapboxMap = mapboxMap;
 
-    // Priorité UX: marquer la carte prête dès que le widget Mapbox est créé,
-    // puis finaliser le runtime en arrière-plan.
-    if (mounted) {
-      setState(() {
-        _isMapReady = true;
-        _checkIfReady();
-      });
-    }
-
+    // Lance le warmup en arrière-plan (gestes, buildings, annotations).
+    // Le signal splash est déplacé dans _onStyleLoaded pour garantir que
+    // les tuiles sont visibles avant que le splash disparaisse.
     unawaited(_warmupMapRuntimeAsync(mapboxMap));
 
     // Appliquer le resize initial si LayoutBuilder a déjà capturé la taille.
@@ -2070,6 +2065,18 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   Future<void> _onStyleLoaded(StyleLoadedEventData data) async {
     // Style reload => runtime layers/sources sont perdus
     _mmRouteRuntimeReady = false;
+
+    // ✅ Premier chargement uniquement : signale que les tuiles sont visibles.
+    // C'est le bon moment pour masquer le splash (vs _onMapCreated qui est trop tôt).
+    if (!_isStyleLoadedOnce) {
+      _isStyleLoadedOnce = true;
+      if (mounted) {
+        setState(() {
+          _isMapReady = true;
+          _checkIfReady();
+        });
+      }
+    }
 
     // Re-ajoute ce qui dépend du style
     await _add3dBuildings();
