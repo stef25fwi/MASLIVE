@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
@@ -46,10 +48,10 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
       _startAssetPreload();
     });
 
-    // Timeout de secours : si la carte ne notifie pas dans les 5 secondes, on affiche quand même
+    // Timeout de secours : ✅ réduit (12→10s web, 10→8s natif) car Firebase timeout est 8s.
     final timeout = kIsWeb
-        ? const Duration(seconds: 12)
-        : const Duration(seconds: 10);
+        ? const Duration(seconds: 10)
+        : const Duration(seconds: 8);
     Future.delayed(timeout, () {
       if (mounted && !_didHideSplash) {
         debugPrint(
@@ -72,22 +74,38 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
     _tryHideSplash();
   }
 
+  /// Tier 1 : charge les 4 images critiques pendant le splash (~50ms).
+  /// Tier 2 : toutes les autres images → background après masquage du splash.
   Future<void> _startAssetPreload() async {
-    final assets = await StartupPreloadService.collectSplashImageAssets();
-    if (!mounted) return;
-
-    try {
-      for (final path in assets) {
+    // Tier 1 — rapide, seulement les images affichées immédiatement.
+    for (final path in StartupPreloadService.tier1Images) {
+      if (!mounted) return;
+      try {
         await precacheImage(AssetImage(path), context);
-      }
-      await StartupPreloadService.warmupMapStyleAsset();
-    } catch (_) {
-      // Ne bloque jamais le démarrage.
+      } catch (_) {}
     }
+    // Style carte JSON (lecture mémoire, < 5ms).
+    await StartupPreloadService.warmupMapStyleAsset();
 
     if (!mounted) return;
     _assetsReady = true;
+    debugPrint('⏱ Splash: tier1 assets ready');
     _tryHideSplash();
+
+    // Tier 2 — lancé en arrière-plan, n'attend PAS le splash.
+    unawaited(_preloadTier2Async());
+  }
+
+  /// Précharge les images secondaires en arrière-plan (non bloquant).
+  Future<void> _preloadTier2Async() async {
+    final tier2 = await StartupPreloadService.collectTier2Assets();
+    for (final path in tier2) {
+      if (!mounted) return;
+      try {
+        await precacheImage(AssetImage(path), context);
+      } catch (_) {}
+    }
+    debugPrint('⏱ Splash: tier2 assets ready (${tier2.length} images)');
   }
 
   void _tryHideSplash() {
@@ -95,7 +113,8 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
     if (!_mapSignalReady || !_assetsReady) return;
 
     final elapsedMs = DateTime.now().difference(_splashStartTime).inMilliseconds;
-    final remainingMs = 2500 - elapsedMs;
+    // ✅ Délai minimum réduit 2500ms → 1800ms = gain ~700ms visible.
+    final remainingMs = 1800 - elapsedMs;
 
     if (remainingMs > 0) {
       debugPrint(

@@ -125,18 +125,29 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
   }
 
   Future<_BootResult> _bootstrap() async {
-    // 1) Firebase: requis pour auth/firestore. On timeoute pour éviter un blocage infini.
+    final bootSw = Stopwatch()..start();
+
+    // 1) Firebase — requis pour auth/firestore.
+    //    ✅ Timeout réduit 12s → 8s : moins de splash visible à l'utilisateur.
     try {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
-      ).timeout(const Duration(seconds: 12));
+      ).timeout(const Duration(seconds: 8));
+      debugPrint('⏱ Bootstrap[1/6] Firebase: ${bootSw.elapsedMilliseconds}ms');
     } catch (e) {
-      debugPrint('❌ Bootstrap: Firebase.initializeApp failed/timeout: $e');
-      // On continue quand même pour afficher l'UI (les pages Firebase pourront
-      // afficher leurs erreurs au lieu d'un splash natif infini).
+      debugPrint('❌ Bootstrap[1/6] Firebase timeout (${bootSw.elapsedMilliseconds}ms): $e');
+      // On continue : les pages Firebase afficheront leurs propres erreurs.
     }
 
-    // 2) Stripe (native uniquement): ne doit jamais bloquer le démarrage.
+    // 2+3) Stripe (native) + MapboxToken en parallèle — indépendants l'un de l'autre.
+    //      ✅ Gain ~min(stripe_ms, mapbox_ms) vs exécution séquentielle.
+    final List<Future<void>> parallelInits = [
+      MapboxTokenService.warmUp()
+          .timeout(const Duration(seconds: 2))
+          .catchError((Object e) {
+        debugPrint('⚠️ Bootstrap[3/6] MapboxToken skipped: $e');
+      }),
+    ];
     if (!kIsWeb) {
       const stripePublishableKey = String.fromEnvironment(
         'STRIPE_PUBLISHABLE_KEY',
@@ -144,31 +155,28 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
       );
       if (stripePublishableKey.isNotEmpty) {
         Stripe.publishableKey = stripePublishableKey;
-        try {
-          await Stripe.instance
+        parallelInits.add(
+          Stripe.instance
               .applySettings()
-              .timeout(const Duration(seconds: 4));
-        } catch (e) {
-          debugPrint('⚠️ Bootstrap: Stripe applySettings skipped: $e');
-        }
+              .timeout(const Duration(seconds: 4))
+              .catchError((Object e) {
+            debugPrint('⚠️ Bootstrap[2/6] Stripe skipped: $e');
+          }),
+        );
       } else {
-        debugPrint('⚠️ Bootstrap: STRIPE_PUBLISHABLE_KEY missing, Stripe skipped');
+        debugPrint('⚠️ Bootstrap[2/6] STRIPE_PUBLISHABLE_KEY manquant, Stripe skipped');
       }
     }
-
-    // 3) Mapbox token warmup: SharedPreferences (rapide) mais on timeoute par sûreté.
-    try {
-      await MapboxTokenService.warmUp().timeout(const Duration(seconds: 2));
-    } catch (e) {
-      debugPrint('⚠️ Bootstrap: MapboxTokenService.warmUp skipped: $e');
-    }
+    await Future.wait(parallelInits);
+    debugPrint('⏱ Bootstrap[2+3/6] Stripe+MapboxToken (parallel): ${bootSw.elapsedMilliseconds}ms');
 
     // 4) LanguageService: doit exister avant build() (Get.find). Init best-effort.
     try {
       await Get.putAsync(() => LanguageService().init())
           .timeout(const Duration(seconds: 3));
+      debugPrint('⏱ Bootstrap[4/6] LanguageService: ${bootSw.elapsedMilliseconds}ms');
     } catch (e) {
-      debugPrint('⚠️ Bootstrap: LanguageService init fallback: $e');
+      debugPrint('⚠️ Bootstrap[4/6] LanguageService init fallback: $e');
       if (!Get.isRegistered<LanguageService>()) {
         Get.put(LanguageService());
       }
@@ -202,6 +210,7 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
     CartService.instance.start();
     NotificationsService.instance.start(navigatorKey: _rootNavigatorKey);
 
+    debugPrint('🏁 Bootstrap[6/6] total: ${bootSw.elapsedMilliseconds}ms');
     return _BootResult(session: session);
   }
 
