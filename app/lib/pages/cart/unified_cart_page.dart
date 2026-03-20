@@ -156,6 +156,10 @@ class _UnifiedCartPageState extends State<UnifiedCartPage> {
             cart.merchCheckoutItems.isNotEmpty
         ? 'Continuer vers checkout'
         : 'Continuer';
+    final cartCount = cart.items.fold<int>(
+      0,
+      (sum, item) => sum + item.safeQuantity,
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F5F9),
@@ -175,6 +179,10 @@ class _UnifiedCartPageState extends State<UnifiedCartPage> {
             enabled: !cart.isEmpty,
           ),
         ],
+      ),
+      bottomNavigationBar: _MasliveBottomNavBar(
+        cartCount: cartCount,
+        onTap: (index) => _handleBottomNavTap(context, index),
       ),
     );
   }
@@ -207,6 +215,23 @@ class _UnifiedCartPageState extends State<UnifiedCartPage> {
         builder: (_) => const MasliveUltraPremiumCheckoutPage(),
       ),
     );
+  }
+
+  void _handleBottomNavTap(BuildContext context, int index) {
+    switch (index) {
+      case 0:
+        Navigator.of(context).pushReplacementNamed('/shop-ui');
+        break;
+      case 1:
+        Navigator.of(context).pushNamed('/media-marketplace');
+        break;
+      case 2:
+        // Deja sur le panier.
+        break;
+      case 3:
+        Navigator.of(context).pushNamed('/account');
+        break;
+    }
   }
 }
 
@@ -498,6 +523,172 @@ class _CartBottomSummary extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _MasliveBottomNavBar extends StatelessWidget {
+  const _MasliveBottomNavBar({
+    required this.cartCount,
+    required this.onTap,
+  });
+
+  final int cartCount;
+  final ValueChanged<int> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 92,
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 18),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.94),
+        border: Border(
+          top: BorderSide(
+            color: const Color(0xFFE8EBF2).withValues(alpha: 0.95),
+          ),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: <Widget>[
+          _NavItem(
+            icon: Icons.storefront_outlined,
+            selected: false,
+            onTap: () => onTap(0),
+          ),
+          _NavItem(
+            icon: Icons.grid_view_rounded,
+            selected: false,
+            onTap: () => onTap(1),
+          ),
+          _CenterCartButton(
+            count: cartCount,
+            onTap: () => onTap(2),
+          ),
+          _NavItem(
+            icon: Icons.person_outline_rounded,
+            selected: false,
+            onTap: () => onTap(3),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected
+        ? const Color(0xFF17234A)
+        : const Color(0xFFAAB1C5);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: SizedBox(
+        width: 56,
+        height: 56,
+        child: Icon(
+          icon,
+          size: 30,
+          color: color,
+        ),
+      ),
+    );
+  }
+}
+
+class _CenterCartButton extends StatelessWidget {
+  const _CenterCartButton({
+    required this.count,
+    required this.onTap,
+  });
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 78,
+      height: 62,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: <Widget>[
+          InkWell(
+            borderRadius: BorderRadius.circular(26),
+            onTap: onTap,
+            child: Container(
+              width: 66,
+              height: 66,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: <Color>[
+                    Color(0xFFF6C471),
+                    Color(0xFFF290C7),
+                    Color(0xFF79C8FF),
+                  ],
+                ),
+                boxShadow: const <BoxShadow>[
+                  BoxShadow(
+                    color: Color(0x220F172A),
+                    blurRadius: 18,
+                    offset: Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.shopping_bag_outlined,
+                color: Colors.white,
+                size: 30,
+              ),
+            ),
+          ),
+          if (count > 0)
+            Positioned(
+              right: 6,
+              top: -2,
+              child: Container(
+                width: 28,
+                height: 28,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: <Color>[
+                      Color(0xFF73C8FF),
+                      Color(0xFFF48DCF),
+                    ],
+                  ),
+                ),
+                child: Text(
+                  '$count',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
