@@ -54,7 +54,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   // ========== CONSTANTES ==========
   static const Duration _resizeDebounceDelay = Duration(milliseconds: 80);
   static const Duration _menuAnimationDuration = Duration(milliseconds: 300);
-  static const Duration _mapReadyDelay = Duration(milliseconds: 300);
+  static const Duration _mapReadyDelay = Duration(milliseconds: 120);
   static const Duration _navCloseDelay = Duration(milliseconds: 2500);
   static const int _trackingIntervalSeconds = 15;
   static const int _gpsDistanceFilter = 8;
@@ -203,8 +203,15 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
     // Chargement asynchrone des données essentielles
     _bootstrapLocation(); // Permissions GPS + position initiale
-    _loadUserGroupId(); // Données utilisateur Firebase
     _loadRuntimeMapboxToken(); // Token Mapbox dynamique
+    // Données Firebase utilisateur non critiques pour le 1er rendu carte:
+    // on les décale pour réduire la contention au démarrage.
+    unawaited(
+      Future<void>.delayed(const Duration(milliseconds: 900), () async {
+        if (!mounted) return;
+        await _loadUserGroupId();
+      }),
+    );
     // Préchargement des icônes pour éviter les retards d'affichage
     WidgetsBinding.instance.addPostFrameCallback((_) {
       precacheImage(
@@ -2006,6 +2013,28 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     if (!mounted) return;
     _mapboxMap = mapboxMap;
 
+    // Priorité UX: marquer la carte prête dès que le widget Mapbox est créé,
+    // puis finaliser le runtime en arrière-plan.
+    if (mounted) {
+      setState(() {
+        _isMapReady = true;
+        _checkIfReady();
+      });
+    }
+
+    unawaited(_warmupMapRuntimeAsync(mapboxMap));
+
+    // Appliquer le resize initial si LayoutBuilder a déjà capturé la taille.
+    if (_lastSize != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scheduleResize(_lastSize!);
+      });
+    }
+  }
+
+  Future<void> _warmupMapRuntimeAsync(MapboxMap mapboxMap) async {
+    if (!mounted) return;
+
     try {
       // 1. Activer tous les gestes 3D (rotation, inclinaison, zoom)
       await mapboxMap.gestures.updateSettings(
@@ -2031,26 +2060,11 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       debugPrint('⚠️ Erreur configuration carte: $e');
     }
 
-    // 4. Marquer la carte comme prête
-    if (mounted) {
-      setState(() {
-        _isMapReady = true;
-        _checkIfReady();
-      });
-    }
-
-    // 5. Afficher le marqueur utilisateur si position disponible
+    // Afficher le marqueur utilisateur si position disponible
     await _updateUserMarker();
 
-    // 5b. MarketMap POIs via GeoJSON layers (plus scalable)
+    // MarketMap POIs via GeoJSON layers (plus scalable)
     await _renderMarketPoiMarkers(); // (on garde le nom, mais on change l'implémentation)
-
-    // 6. Appliquer le resize initial si LayoutBuilder a déjà capturé la taille
-    if (_lastSize != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scheduleResize(_lastSize!);
-      });
-    }
   }
 
   Future<void> _onStyleLoaded(StyleLoadedEventData data) async {

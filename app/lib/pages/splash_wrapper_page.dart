@@ -23,6 +23,7 @@ class SplashWrapperPage extends StatefulWidget {
 class _SplashWrapperPageState extends State<SplashWrapperPage> {
   static const Duration _fadeDuration = Duration(milliseconds: 450);
 
+  final Stopwatch _splashSw = Stopwatch();
   final bool _showHome = true;
   bool _mapReady = false;
   bool _mapSignalReady = false;
@@ -37,6 +38,7 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
   @override
   void initState() {
     super.initState();
+    _splashSw.start();
     _splashStartTime = DateTime.now();
     debugPrint('🚀 SplashWrapperPage: initState - preparing home page');
 
@@ -71,6 +73,7 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
   void _onMapReady() {
     if (!mapReadyNotifier.value || _mapSignalReady) return;
     _mapSignalReady = true;
+    debugPrint('⏱ Splash: map signal ready at ${_splashSw.elapsedMilliseconds}ms');
     _tryHideSplash();
   }
 
@@ -89,7 +92,7 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
 
     if (!mounted) return;
     _assetsReady = true;
-    debugPrint('⏱ Splash: tier1 assets ready');
+    debugPrint('⏱ Splash: tier1 assets ready at ${_splashSw.elapsedMilliseconds}ms');
     _tryHideSplash();
 
     // Tier 2 — lancé en arrière-plan, n'attend PAS le splash.
@@ -132,6 +135,7 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
   void _hideSplash({bool force = false}) {
     if (_didHideSplash) return;
     _didHideSplash = true;
+    debugPrint('🏁 Splash: hide at ${_splashSw.elapsedMilliseconds}ms (force=$force)');
     setState(() {
       _mapReady = true;
       if (force) {
