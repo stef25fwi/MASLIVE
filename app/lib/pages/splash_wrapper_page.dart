@@ -42,8 +42,20 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
     _splashStartTime = DateTime.now();
     debugPrint('🚀 SplashWrapperPage: initState - preparing home page');
 
+    // ✅ Réinitialiser le notifier global (évite un blocage si l'app revient sur
+    // ce splash après un hot-restart ou un retour en navigation : l'ancienne
+    // valeur true empêchait le listener de jamais se déclencher).
+    if (mapReadyNotifier.value) {
+      mapReadyNotifier.value = false;
+    }
+
     // Écouter quand la carte est prête
     mapReadyNotifier.addListener(_onMapReady);
+
+    // Cas où la valeur serait déjà true (ex: DefaultMapPage web très rapide).
+    if (mapReadyNotifier.value) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _onMapReady());
+    }
 
     // Précharger les assets visuels pendant le splash.
     WidgetsBinding.instance.addPostFrameCallback((_) {

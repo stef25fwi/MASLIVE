@@ -2073,8 +2073,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       if (mounted) {
         setState(() {
           _isMapReady = true;
-          _checkIfReady();
         });
+        // ✅ Appelé APRÈS setState pour que _isMapReady soit propagé.
+        _checkIfReady();
       }
     }
 
