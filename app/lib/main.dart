@@ -127,26 +127,42 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
   Future<_BootResult> _bootstrap() async {
     final bootSw = Stopwatch()..start();
 
-    // 1) Firebase — requis pour auth/firestore.
-    //    ✅ Timeout réduit 12s → 8s : moins de splash visible à l'utilisateur.
-    try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      ).timeout(const Duration(seconds: 8));
-      debugPrint('⏱ Bootstrap[1/6] Firebase: ${bootSw.elapsedMilliseconds}ms');
-    } catch (e) {
-      debugPrint('❌ Bootstrap[1/6] Firebase timeout (${bootSw.elapsedMilliseconds}ms): $e');
-      // On continue : les pages Firebase afficheront leurs propres erreurs.
-    }
+    // ✅ Phase 3: Toutes les initialisations indépendantes de Firebase
+    //    lancées EN PARALLÈLE avec Firebase → gain ~200-400ms sur chemin critique.
+    //    Firebase, MapboxToken, Stripe et LanguageService sont mutuellement indépendants.
 
-    // 2+3) Stripe (native) + MapboxToken en parallèle — indépendants l'un de l'autre.
-    //      ✅ Gain ~min(stripe_ms, mapbox_ms) vs exécution séquentielle.
-    final List<Future<void>> parallelInits = [
-      MapboxTokenService.warmUp()
-          .timeout(const Duration(seconds: 2))
-          .catchError((Object e) {
-        debugPrint('⚠️ Bootstrap[3/6] MapboxToken skipped: $e');
-      }),
+    // 4) LanguageService: enregistrement synchrone (locale='fr' par défaut immédiat).
+    final langSvc = LanguageService();
+    Get.put(langSvc); // Disponible pour Get.find() avant même la fin de init().
+
+    // 1+2+3+4) Tout en parallèle.
+    final List<Future<void>> step1 = [
+      // Firebase — requis pour auth/firestore (timeout 8s).
+      () async {
+        try {
+          await Firebase.initializeApp(
+            options: DefaultFirebaseOptions.currentPlatform,
+          ).timeout(const Duration(seconds: 8));
+        } catch (e) {
+          debugPrint('❌ Bootstrap Firebase timeout (${bootSw.elapsedMilliseconds}ms): $e');
+        }
+      }(),
+      // MapboxToken — SharedPreferences/dart-define, indépendant de Firebase.
+      () async {
+        try {
+          await MapboxTokenService.warmUp().timeout(const Duration(seconds: 2));
+        } catch (e) {
+          debugPrint('⚠️ Bootstrap MapboxToken skipped: $e');
+        }
+      }(),
+      // LanguageService — SharedPreferences uniquement, indépendant de Firebase.
+      () async {
+        try {
+          await langSvc.init().timeout(const Duration(seconds: 3));
+        } catch (e) {
+          debugPrint('⚠️ Bootstrap LanguageService fallback: $e');
+        }
+      }(),
     ];
     if (!kIsWeb) {
       const stripePublishableKey = String.fromEnvironment(
@@ -155,32 +171,20 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
       );
       if (stripePublishableKey.isNotEmpty) {
         Stripe.publishableKey = stripePublishableKey;
-        parallelInits.add(
+        step1.add(
           Stripe.instance
               .applySettings()
               .timeout(const Duration(seconds: 4))
               .catchError((Object e) {
-            debugPrint('⚠️ Bootstrap[2/6] Stripe skipped: $e');
+            debugPrint('⚠️ Bootstrap Stripe skipped: $e');
           }),
         );
       } else {
-        debugPrint('⚠️ Bootstrap[2/6] STRIPE_PUBLISHABLE_KEY manquant, Stripe skipped');
+        debugPrint('⚠️ Bootstrap Stripe: STRIPE_PUBLISHABLE_KEY manquant, skipped');
       }
     }
-    await Future.wait(parallelInits);
-    debugPrint('⏱ Bootstrap[2+3/6] Stripe+MapboxToken (parallel): ${bootSw.elapsedMilliseconds}ms');
-
-    // 4) LanguageService: doit exister avant build() (Get.find). Init best-effort.
-    try {
-      await Get.putAsync(() => LanguageService().init())
-          .timeout(const Duration(seconds: 3));
-      debugPrint('⏱ Bootstrap[4/6] LanguageService: ${bootSw.elapsedMilliseconds}ms');
-    } catch (e) {
-      debugPrint('⚠️ Bootstrap[4/6] LanguageService init fallback: $e');
-      if (!Get.isRegistered<LanguageService>()) {
-        Get.put(LanguageService());
-      }
-    }
+    await Future.wait(step1);
+    debugPrint('⏱ Bootstrap[1-4/6] Firebase+MapboxToken+Language+Stripe (parallel): ${bootSw.elapsedMilliseconds}ms');
 
     // 5) PremiumService: jamais bloquant (plugins réseau). On lance en arrière-plan.
     const revenueCatApiKey = String.fromEnvironment(

@@ -128,8 +128,8 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
     if (!_mapSignalReady || !_assetsReady) return;
 
     final elapsedMs = DateTime.now().difference(_splashStartTime).inMilliseconds;
-    // ✅ Délai minimum réduit 2500ms → 1800ms = gain ~700ms visible.
-    final remainingMs = 1800 - elapsedMs;
+    // ✅ Délai minimum réduit 2500ms → 1800ms → 1200ms = gain ~1300ms total vs original.
+    final remainingMs = 1200 - elapsedMs;
 
     if (remainingMs > 0) {
       debugPrint(
