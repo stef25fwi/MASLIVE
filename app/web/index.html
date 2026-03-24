@@ -169,9 +169,9 @@
   </script>
   
   <script>
-    // Token Mapbox injecté via --dart-define=MAPBOX_ACCESS_TOKEN=<ton_token> au moment du build
-    // ou configuré dynamiquement via l'interface admin (SharedPreferences).
-    // NE PAS mettre le token en dur ici : il serait versionné et public.
+    // Fallback legacy uniquement.
+    // La source prioritaire doit venir de Dart (MAPBOX_ACCESS_TOKEN -> bridge JS).
+    // Ne mets pas de token hardcodé ici.
     window.__MAPBOX_TOKEN__ = "";
 
     // Style par défaut (ton style "box")

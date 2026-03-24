@@ -125,17 +125,27 @@
       console.error('❌ Conteneur HTML introuvable (DOM): ' + String(containerId));
       return null;
     }
-    // Priorité: paramètre > options.accessToken > window.__MAPBOX_TOKEN__
-    const accessToken = token || options.accessToken || window.__MAPBOX_TOKEN__;
+    const scriptLoaded = (typeof mapboxgl !== 'undefined');
+    console.info('[MAPBOX][INIT] scriptLoaded=' + String(scriptLoaded));
+
+    const resolved = _resolveAccessToken(token, options);
+    _logResolvedTokenInfo(resolved);
     const style = options.style || window.__MAPBOX_STYLE__ || 'mapbox://styles/mapbox/streets-v12';
-    
-    if (!accessToken || accessToken === 'YOUR_MAPBOX_TOKEN') {
-      console.error('❌ Token Mapbox manquant ou invalide');
-      console.info('💡 Passe le token via --dart-define=MAPBOX_ACCESS_TOKEN=ton_token');
+
+    if (!resolved.ok) {
+      console.error('[MAPBOX][ERROR] code=' + String(resolved.reason || 'TOKEN_INVALID') + ' message=' + String(resolved.message || 'Token invalide'));
+      if (containerId) {
+        _postToFlutter({
+          type: 'MASLIVE_MAP_ERROR',
+          containerId,
+          reason: resolved.reason || 'TOKEN_INVALID',
+          message: resolved.message || 'Token Mapbox invalide.',
+        });
+      }
       return null;
     }
 
-    mapboxgl.accessToken = accessToken;
+    mapboxgl.accessToken = resolved.token;
 
     // Attribution (Mapbox GL JS)
     // Par défaut Mapbox utilise un mode compact sur certains viewports (bouton "i").
@@ -816,6 +826,108 @@
     return state;
   }
 
+  function _safeTokenCandidate(value) {
+    try {
+      if (value === null || value === undefined) return '';
+      return String(value).trim();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function _isPlaceholderToken(token) {
+    const t = _safeTokenCandidate(token);
+    if (!t) return false;
+    return t === 'YOUR_MAPBOX_TOKEN'
+      || t === 'TON_NOUVEAU_TOKEN_MAPBOX'
+      || t.indexOf('VOTRE_VRAI_TOKEN') >= 0
+      || t.indexOf('NOUVEAU_TOKEN') >= 0;
+  }
+
+  function _resolveAccessToken(tokenFromDart, options) {
+    const fromDart = _safeTokenCandidate(tokenFromDart);
+    const fromOptions = _safeTokenCandidate(options ? options.accessToken : '');
+    const fromWindow = _safeTokenCandidate(window.__MAPBOX_TOKEN__);
+
+    let chosen = '';
+    let source = 'none';
+    if (fromDart) {
+      chosen = fromDart;
+      source = 'token param from Dart bridge';
+    } else if (fromOptions) {
+      chosen = fromOptions;
+      source = 'options.accessToken';
+    } else if (fromWindow) {
+      chosen = fromWindow;
+      source = 'window.__MAPBOX_TOKEN__ (fallback)';
+    }
+
+    if (!chosen) {
+      return {
+        ok: false,
+        token: '',
+        source,
+        len: 0,
+        isPk: false,
+        isSk: false,
+        reason: 'TOKEN_MISSING',
+        message: 'Token Mapbox manquant.',
+      };
+    }
+
+    if (_isPlaceholderToken(chosen)) {
+      return {
+        ok: false,
+        token: '',
+        source,
+        len: chosen.length,
+        isPk: false,
+        isSk: false,
+        reason: 'TOKEN_PLACEHOLDER',
+        message: 'Token placeholder détecté. Fournis un vrai token public Mapbox pk.*.',
+      };
+    }
+
+    const isPk = chosen.startsWith('pk.') || chosen.startsWith('pk_');
+    const isSk = chosen.startsWith('sk.') || chosen.startsWith('sk_');
+    if (!isPk || isSk) {
+      return {
+        ok: false,
+        token: '',
+        source,
+        len: chosen.length,
+        isPk,
+        isSk,
+        reason: 'TOKEN_NOT_PUBLIC',
+        message: 'Token non public détecté. Le web exige un token Mapbox public pk.*.',
+      };
+    }
+
+    return {
+      ok: true,
+      token: chosen,
+      source,
+      len: chosen.length,
+      isPk,
+      isSk,
+      reason: null,
+      message: null,
+    };
+  }
+
+  function _logResolvedTokenInfo(resolved) {
+    try {
+      console.info('[MAPBOX][TOKEN] source=' + String(resolved.source || 'unknown'));
+      console.info(
+        '[MAPBOX][TOKEN] len=' + String(Number(resolved.len || 0)) +
+          ' publicPk=' + String(resolved.isPk === true) +
+          ' prefix=' + (resolved.isSk ? 'sk' : (resolved.isPk ? 'pk' : 'other')),
+      );
+    } catch (_) {
+      // ignore
+    }
+  }
+
   function _classifyRuntimeError(raw) {
     let msg = '';
     let status = null;
@@ -1314,6 +1426,7 @@
 
         // ── 3. Mapbox GL JS disponible ? ──────────────────────────────────────
         if (typeof mapboxgl === 'undefined') {
+          console.info('[MAPBOX][INIT] scriptLoaded=false');
           let status = '';
           try {
             status = window.__MAPBOXGL_LOAD_STATUS__ ? String(window.__MAPBOXGL_LOAD_STATUS__) : '';
@@ -1365,13 +1478,15 @@
         }
 
         // ── 4. Token Mapbox présent ? ─────────────────────────────────────────
-        const accessToken = token || options.accessToken || window.__MAPBOX_TOKEN__;
-        if (!accessToken || accessToken === 'YOUR_MAPBOX_TOKEN') {
+        const resolved = _resolveAccessToken(token, options);
+        _logResolvedTokenInfo(resolved);
+        if (!resolved.ok) {
+          console.error('[MAPBOX][ERROR] code=' + String(resolved.reason || 'TOKEN_INVALID') + ' message=' + String(resolved.message || 'Token invalide'));
           _postToFlutter({
             type: 'MASLIVE_MAP_ERROR',
             containerId,
-            reason: 'TOKEN_MISSING',
-            message: 'Token Mapbox manquant ou invalide.',
+            reason: resolved.reason || 'TOKEN_INVALID',
+            message: resolved.message || 'Token Mapbox invalide.',
           });
           return false;
         }
@@ -1401,10 +1516,10 @@
         // ── 5. Préflight api.mapbox.com (diag "Failed to fetch") ───────────
         // BUT: produire une erreur explicite si le réseau/adblock/CSP bloque api.mapbox.com.
         // On initialise Mapbox seulement si le préflight passe.
-        _preflightApiMapboxStyle(containerId, accessToken, options).then((ok) => {
+        _preflightApiMapboxStyle(containerId, resolved.token, options).then((ok) => {
           if (!ok) return;
           try {
-            _initMapAndWireEvents(containerId, el, token, options);
+            _initMapAndWireEvents(containerId, el, resolved.token, options);
           } catch (e) {
             try {
               _postToFlutter({
@@ -1462,6 +1577,7 @@
           }
 
           if (typeof mapboxgl === 'undefined') {
+            console.info('[MAPBOX][INIT] scriptLoaded=false');
             let status = '';
             try {
               status = (window.__MAPBOXGL_LOAD_STATUS__ ? String(window.__MAPBOXGL_LOAD_STATUS__) : '');
@@ -1502,13 +1618,15 @@
           }
 
           // Token manquant (même logique que initMapboxMap).
-          const accessToken = token || options.accessToken || window.__MAPBOX_TOKEN__;
-          if (!accessToken || accessToken === 'YOUR_MAPBOX_TOKEN') {
+          const resolved = _resolveAccessToken(token, options);
+          _logResolvedTokenInfo(resolved);
+          if (!resolved.ok) {
+            console.error('[MAPBOX][ERROR] code=' + String(resolved.reason || 'TOKEN_INVALID') + ' message=' + String(resolved.message || 'Token invalide'));
             _postToFlutter({
               type: 'MASLIVE_MAP_ERROR',
               containerId,
-              reason: 'TOKEN_MISSING',
-              message: 'Token Mapbox manquant ou invalide.',
+              reason: resolved.reason || 'TOKEN_INVALID',
+              message: resolved.message || 'Token Mapbox invalide.',
             });
             return false;
           }
@@ -1536,10 +1654,10 @@
             // ignore
           }
 
-          _preflightApiMapboxStyle(containerId, accessToken, options).then((ok) => {
+          _preflightApiMapboxStyle(containerId, resolved.token, options).then((ok) => {
             if (!ok) return;
             try {
-              _initMapAndWireEvents(containerId, containerId, token, options);
+              _initMapAndWireEvents(containerId, containerId, resolved.token, options);
             } catch (e) {
               try {
                 _postToFlutter({

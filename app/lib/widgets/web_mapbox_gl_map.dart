@@ -120,14 +120,30 @@ class _WebMapboxGLMapState extends State<WebMapboxGLMap> {
 
   void _initializeMapboxMap() {
     try {
-      // Récupérer le token depuis --dart-define ou utiliser celui du widget
-      const runtimeToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN', defaultValue: '');
-      final tokenToUse = runtimeToken.isNotEmpty ? runtimeToken : widget.accessToken;
+      // Priorité explicite: token transmis au widget -> dart-define access -> dart-define legacy.
+      const runtimeToken = String.fromEnvironment(
+        'MAPBOX_ACCESS_TOKEN',
+        defaultValue: '',
+      );
+      const runtimeLegacyToken = String.fromEnvironment(
+        'MAPBOX_TOKEN',
+        defaultValue: '',
+      );
+      final tokenToUse = widget.accessToken.trim().isNotEmpty
+          ? widget.accessToken.trim()
+          : (runtimeToken.trim().isNotEmpty
+                ? runtimeToken.trim()
+                : runtimeLegacyToken.trim());
 
       if (tokenToUse.trim().isEmpty) {
         _handleError('Token Mapbox manquant. Configure MAPBOX_ACCESS_TOKEN (ou MAPBOX_TOKEN legacy).');
         return;
       }
+
+      final isPk = tokenToUse.startsWith('pk.') || tokenToUse.startsWith('pk_');
+      debugPrint(
+        '[MAPBOX][TOKEN] source=${widget.accessToken.trim().isNotEmpty ? 'widget.accessToken' : (runtimeToken.trim().isNotEmpty ? 'dart-define MAPBOX_ACCESS_TOKEN' : 'dart-define MAPBOX_TOKEN (legacy)')} len=${tokenToUse.length} publicPk=$isPk',
+      );
 
       final optionsJson = jsonEncode({
         'style': widget.style,
@@ -136,6 +152,7 @@ class _WebMapboxGLMapState extends State<WebMapboxGLMap> {
         'pitch': widget.pitch,
         'bearing': widget.bearing,
         'enable3DBuildings': widget.enable3DBuildings,
+        'accessToken': tokenToUse,
       });
 
       final ok = _mbInit(_viewId, tokenToUse, optionsJson);

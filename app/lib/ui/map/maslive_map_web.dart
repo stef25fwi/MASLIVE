@@ -114,6 +114,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   MasLivePoiStyle _poiStyle = const MasLivePoiStyle();
 
   String _mapboxToken = '';
+  MapboxTokenInfo _resolvedTokenInfo = const MapboxTokenInfo.empty();
   bool _isLoading = true;
   String? _initError;
   late final String _containerId;
@@ -170,6 +171,10 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         return 'Renseigne un token Mapbox public (pk.*) via `--dart-define=MAPBOX_ACCESS_TOKEN=...` au build, ou via l\'UI admin.';
       case 'TOKEN_INVALID':
         return 'Le token semble invalide/révoqué. Génére un nouveau token (pk.*) puis rebuild + redeploy.';
+      case 'TOKEN_PLACEHOLDER':
+        return 'Un token placeholder a été détecté. Remplace-le par un vrai token public Mapbox pk.*.';
+      case 'TOKEN_NOT_PUBLIC':
+        return 'Sur le web, un token public Mapbox pk.* est obligatoire (sk.* refusé).';
       case 'TOKEN_FORBIDDEN':
         return 'Le token est refusé (403). Vérifie restrictions du token, scopes et accès au style utilisé.';
       case 'MAPBOXGL_MISSING':
@@ -199,10 +204,14 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     WidgetsBinding.instance.addObserver(_metricsObserver);
     // Résolution synchrone immédiate (dart-define ou cache préchauffé) pour éviter
     // le spinner de chargement initial si le token est déjà connu.
-    final syncToken = MapboxTokenService.getTokenSync();
-    if (syncToken.isNotEmpty) {
-      _mapboxToken = syncToken;
+    final syncInfo = MapboxTokenService.getTokenInfoSync();
+    _resolvedTokenInfo = syncInfo;
+    if (syncInfo.token.isNotEmpty) {
+      _mapboxToken = syncInfo.token;
       _isLoading = false;
+    } else if (syncInfo.errorCode != null) {
+      _isLoading = false;
+      _initError = '[${syncInfo.errorCode}] ${syncInfo.errorMessage ?? 'Token Mapbox invalide.'}';
     }
     _loadMapboxToken();
   }
@@ -1794,19 +1803,27 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   Future<void> _loadMapboxToken() async {
     try {
       final info = await MapboxTokenService.getTokenInfo();
+      debugPrint(
+        '[MAPBOX][TOKEN] source=${info.source} len=${info.token.length} publicPk=${info.isPublicPkToken} valid=${info.isValidFormat}',
+      );
       if (mounted) {
         setState(() {
+          _resolvedTokenInfo = info;
           _mapboxToken = info.token;
           _isLoading = false;
-          _initError = null;
+          _initError = info.isValidFormat
+              ? null
+              : '[${info.errorCode ?? 'TOKEN_INVALID'}] ${info.errorMessage ?? 'Token Mapbox invalide.'}';
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
+          _resolvedTokenInfo = const MapboxTokenInfo.empty();
           _mapboxToken = '';
           _isLoading = false;
-          _initError = null;
+          _initError =
+              '[TOKEN_MISSING] Token Mapbox introuvable. Configure MAPBOX_ACCESS_TOKEN.';
         });
       }
     }
@@ -2117,22 +2134,13 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_mapboxToken.isEmpty) {
-      return Container(
-        color: Colors.grey.shade100,
-        child: const Center(child: Text('Token Mapbox manquant')),
-      );
-    }
-
     final initError = _initError;
     if (initError != null && initError.isNotEmpty) {
       final (reason, cleanMsg) = _splitInitError(initError);
       final hint = _friendlyHintForReason(reason);
-      final tokenLen = _mapboxToken.trim().length;
-      final isPk =
-          _mapboxToken.trim().startsWith('pk.') ||
-          _mapboxToken.trim().startsWith('pk_');
-      final resolvedSource = MapboxTokenService.cachedSource;
+      final tokenLen = _resolvedTokenInfo.token.trim().length;
+      final isPk = _resolvedTokenInfo.isPublicPkToken;
+      final resolvedSource = _resolvedTokenInfo.source;
       String mapboxGlLoadStatus = 'unknown';
       try {
         final s = js.context['__MAPBOXGL_LOAD_STATUS__'];
@@ -2184,6 +2192,13 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             ),
           ),
         ),
+      );
+    }
+
+    if (_mapboxToken.isEmpty) {
+      return Container(
+        color: Colors.grey.shade100,
+        child: const Center(child: Text('Token Mapbox manquant')),
       );
     }
 
@@ -2334,10 +2349,19 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
     if (t.isEmpty) {
       return '[TOKEN_MISSING] Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).';
     }
+    if (t == 'YOUR_MAPBOX_TOKEN' ||
+        t == 'TON_NOUVEAU_TOKEN_MAPBOX' ||
+        t.contains('VOTRE_VRAI_TOKEN') ||
+        t.contains('NOUVEAU_TOKEN')) {
+      return '[TOKEN_PLACEHOLDER] Token placeholder détecté. Utilise un vrai token Mapbox public pk.*.';
+    }
+    if (t.startsWith('sk.') || t.startsWith('sk_')) {
+      return '[TOKEN_NOT_PUBLIC] Token secret sk.* détecté. Sur le web, un token public pk.* est requis.';
+    }
     // Mapbox: tokens publics typiquement `pk.`. On accepte aussi `pk_` par tolérance
     // (certaines configs historiques/masquées utilisent ce préfixe).
     if (!t.startsWith('pk.') && !t.startsWith('pk_')) {
-      return '[TOKEN_INVALID] Token Mapbox inattendu (web: pk.* requis).';
+      return '[TOKEN_NOT_PUBLIC] Token Mapbox inattendu (web: pk.* requis).';
     }
     // Token présent, format OK.
     return '';
@@ -2572,6 +2596,7 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
       'pitch': widget.initialPitch,
       'bearing': widget.initialBearing,
       'compactAttribution': widget.compactAttribution,
+      'accessToken': widget.accessToken,
     });
 
     bool ok = false;

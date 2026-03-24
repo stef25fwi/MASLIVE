@@ -68,14 +68,23 @@ class _MapboxWebViewState extends State<MapboxWebView> {
   bool _didNotifyReady = false;
   bool _didReportMapboxError = false;
 
+  String _resolveToken() {
+    const ctPrimary = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+    const ctLegacy = String.fromEnvironment('MAPBOX_TOKEN');
+    final explicit = widget.accessToken.trim();
+    if (explicit.isNotEmpty) return explicit;
+    if (ctPrimary.trim().isNotEmpty) return ctPrimary.trim();
+    if (ctLegacy.trim().isNotEmpty) return ctLegacy.trim();
+    return '';
+  }
+
   @override
   void initState() {
     super.initState();
     _viewType = 'mapbox-web-view-${DateTime.now().microsecondsSinceEpoch}';
     _registerFactory();
 
-    const _ctToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
-    if (_ctToken.isEmpty && widget.accessToken.trim().isEmpty) {
+    if (_resolveToken().isEmpty) {
       _error =
           'Token Mapbox manquant. Configure MAPBOX_ACCESS_TOKEN (ou MAPBOX_TOKEN legacy).';
     }
@@ -111,8 +120,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
     if (oldWidget.interactive != widget.interactive) {
       _syncPointerEvents();
     }
-    const _ctToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
-    final _effectiveToken = _ctToken.isNotEmpty ? _ctToken : widget.accessToken;
+    final _effectiveToken = _resolveToken();
     if (_map == null && _container != null && _effectiveToken.isNotEmpty) {
       _initMapbox(_container!);
     }
@@ -174,8 +182,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
   }
 
   void _initMapbox(html.DivElement container) {
-    const _ctToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
-    final effectiveToken = _ctToken.isNotEmpty ? _ctToken : widget.accessToken.trim();
+    final effectiveToken = _resolveToken();
     if (effectiveToken.isEmpty) {
       if (_error == null) {
         setState(() {
@@ -206,6 +213,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
       'zoom': widget.initialZoom,
       'pitch': widget.initialPitch,
       'bearing': widget.initialBearing,
+      'accessToken': effectiveToken,
       'antialias': true,
       'logoPosition': 'top-left',
       'attributionControl': false,
