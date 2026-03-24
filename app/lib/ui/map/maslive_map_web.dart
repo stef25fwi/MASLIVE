@@ -32,6 +32,7 @@ class MasLiveMapWeb extends StatefulWidget {
   final bool compactAttribution;
   final ValueChanged<MapPoint>? onTap;
   final void Function(MasLiveMapController)? onMapReady;
+  final void Function(String message)? onInitError;
 
   const MasLiveMapWeb({
     super.key,
@@ -48,6 +49,7 @@ class MasLiveMapWeb extends StatefulWidget {
     this.compactAttribution = true,
     this.onTap,
     this.onMapReady,
+    this.onInitError,
   });
 
   @override
@@ -2221,6 +2223,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             setState(() {
               _initError = msg;
             });
+            widget.onInitError?.call(msg);
           },
         );
       },

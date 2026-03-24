@@ -22,6 +22,7 @@ class MasLiveMapWeb extends StatelessWidget {
     this.compactAttribution = true,
     this.onTap,
     this.onMapReady,
+    this.onInitError,
   });
 
   final MasLiveMapController? controller;
@@ -37,6 +38,7 @@ class MasLiveMapWeb extends StatelessWidget {
   final bool compactAttribution;
   final ValueChanged<MapPoint>? onTap;
   final void Function(MasLiveMapController)? onMapReady;
+  final void Function(String message)? onInitError;
 
   @override
   Widget build(BuildContext context) {

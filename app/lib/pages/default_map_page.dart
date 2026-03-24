@@ -307,6 +307,11 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     }
   }
 
+  void _handleMapInitError(String message) {
+    debugPrint('⚠️ DefaultMapPage: map init error: $message');
+    _notifyMapReady();
+  }
+
   @override
   void dispose() {
     _groupPublicPosSub?.cancel();
@@ -1349,6 +1354,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                             unawaited(_syncMarkersToMap());
                             unawaited(_applyCachedMarketRouteToMap());
                           },
+                          onInitError: _handleMapInitError,
                         ),
                       ),
                     ),

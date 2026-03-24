@@ -117,6 +117,7 @@ class _BootstrapRoot extends StatefulWidget {
 
 class _BootstrapRootState extends State<_BootstrapRoot> {
   late final Future<_BootResult> _boot;
+  _BootResult? _fallbackBootResult;
 
   @override
   void initState() {
@@ -125,82 +126,102 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
   }
 
   Future<_BootResult> _bootstrap() async {
-    // 1) Firebase: requis pour auth/firestore. On timeoute pour éviter un blocage infini.
-    try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      ).timeout(const Duration(seconds: 12));
-    } catch (e) {
-      debugPrint('❌ Bootstrap: Firebase.initializeApp failed/timeout: $e');
-      // On continue quand même pour afficher l'UI (les pages Firebase pourront
-      // afficher leurs erreurs au lieu d'un splash natif infini).
-    }
+    final session = SessionController();
 
-    // 2) Stripe (native uniquement): ne doit jamais bloquer le démarrage.
-    if (!kIsWeb) {
-      const stripePublishableKey = String.fromEnvironment(
-        'STRIPE_PUBLISHABLE_KEY',
-        defaultValue: '',
-      );
-      if (stripePublishableKey.isNotEmpty) {
-        Stripe.publishableKey = stripePublishableKey;
-        try {
-          await Stripe.instance
-              .applySettings()
-              .timeout(const Duration(seconds: 4));
-        } catch (e) {
-          debugPrint('⚠️ Bootstrap: Stripe applySettings skipped: $e');
+    try {
+      // 1) Firebase: requis pour auth/firestore. On timeoute pour éviter un blocage infini.
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        ).timeout(const Duration(seconds: 12));
+      } catch (e) {
+        debugPrint('❌ Bootstrap: Firebase.initializeApp failed/timeout: $e');
+        // On continue quand même pour afficher l'UI (les pages Firebase pourront
+        // afficher leurs erreurs au lieu d'un splash natif infini).
+      }
+
+      // 2) Stripe (native uniquement): ne doit jamais bloquer le démarrage.
+      if (!kIsWeb) {
+        const stripePublishableKey = String.fromEnvironment(
+          'STRIPE_PUBLISHABLE_KEY',
+          defaultValue: '',
+        );
+        if (stripePublishableKey.isNotEmpty) {
+          Stripe.publishableKey = stripePublishableKey;
+          try {
+            await Stripe.instance
+                .applySettings()
+                .timeout(const Duration(seconds: 4));
+          } catch (e) {
+            debugPrint('⚠️ Bootstrap: Stripe applySettings skipped: $e');
+          }
+        } else {
+          debugPrint('⚠️ Bootstrap: STRIPE_PUBLISHABLE_KEY missing, Stripe skipped');
         }
-      } else {
-        debugPrint('⚠️ Bootstrap: STRIPE_PUBLISHABLE_KEY missing, Stripe skipped');
       }
-    }
 
-    // 3) Mapbox token warmup: SharedPreferences (rapide) mais on timeoute par sûreté.
-    try {
-      await MapboxTokenService.warmUp().timeout(const Duration(seconds: 2));
-    } catch (e) {
-      debugPrint('⚠️ Bootstrap: MapboxTokenService.warmUp skipped: $e');
-    }
-
-    // 4) LanguageService: doit exister avant build() (Get.find). Init best-effort.
-    try {
-      await Get.putAsync(() => LanguageService().init())
-          .timeout(const Duration(seconds: 3));
-    } catch (e) {
-      debugPrint('⚠️ Bootstrap: LanguageService init fallback: $e');
-      if (!Get.isRegistered<LanguageService>()) {
-        Get.put(LanguageService());
+      // 3) Mapbox token warmup: SharedPreferences (rapide) mais on timeoute par sûreté.
+      try {
+        await MapboxTokenService.warmUp().timeout(const Duration(seconds: 2));
+      } catch (e) {
+        debugPrint('⚠️ Bootstrap: MapboxTokenService.warmUp skipped: $e');
       }
-    }
 
-    // 5) PremiumService: jamais bloquant (plugins réseau). On lance en arrière-plan.
-    const revenueCatApiKey = String.fromEnvironment(
-      'RC_API_KEY',
-      defaultValue: 'REVENUECAT_PUBLIC_SDK_KEY_HERE',
-    );
-    if (!kIsWeb && kReleaseMode &&
-        PremiumService.isPlaceholderApiKey(revenueCatApiKey)) {
-      throw StateError(
-        'RC_API_KEY manquant ou placeholder en build release',
+      // 4) LanguageService: doit exister avant build() (Get.find). Init best-effort.
+      try {
+        await Get.putAsync(() => LanguageService().init())
+            .timeout(const Duration(seconds: 3));
+      } catch (e) {
+        debugPrint('⚠️ Bootstrap: LanguageService init fallback: $e');
+        if (!Get.isRegistered<LanguageService>()) {
+          Get.put(LanguageService());
+        }
+      }
+
+      // 5) PremiumService: jamais bloquant (plugins réseau). On lance en arrière-plan.
+      const revenueCatApiKey = String.fromEnvironment(
+        'RC_API_KEY',
+        defaultValue: 'REVENUECAT_PUBLIC_SDK_KEY_HERE',
       );
+      if (!kIsWeb &&
+          kReleaseMode &&
+          PremiumService.isPlaceholderApiKey(revenueCatApiKey)) {
+        debugPrint(
+          '⚠️ Bootstrap: RC_API_KEY missing or placeholder in native release, PremiumService skipped',
+        );
+      } else {
+        unawaited(
+          PremiumService.instance
+              .init(
+                revenueCatApiKey: revenueCatApiKey,
+                entitlementId: 'premium',
+              )
+              .timeout(const Duration(seconds: 8))
+              .catchError((e) {
+            debugPrint('⚠️ Bootstrap: PremiumService init skipped: $e');
+          }),
+        );
+      }
+    } catch (e, st) {
+      debugPrint('❌ Bootstrap: unexpected failure: $e');
+      debugPrint('$st');
     }
-    unawaited(
-      PremiumService.instance
-          .init(
-            revenueCatApiKey: revenueCatApiKey,
-            entitlementId: 'premium',
-          )
-          .timeout(const Duration(seconds: 8))
-          .catchError((e) {
-        debugPrint('⚠️ Bootstrap: PremiumService init skipped: $e');
-      }),
-    );
 
-    // 6) Session + services (non bloquants)
-    final session = SessionController()..start();
-    CartService.instance.start();
-    NotificationsService.instance.start(navigatorKey: _rootNavigatorKey);
+    try {
+      session.start();
+    } catch (e) {
+      debugPrint('⚠️ Bootstrap: SessionController.start skipped: $e');
+    }
+    try {
+      CartService.instance.start();
+    } catch (e) {
+      debugPrint('⚠️ Bootstrap: CartService.start skipped: $e');
+    }
+    try {
+      NotificationsService.instance.start(navigatorKey: _rootNavigatorKey);
+    } catch (e) {
+      debugPrint('⚠️ Bootstrap: NotificationsService.start skipped: $e');
+    }
 
     return _BootResult(session: session);
   }
@@ -210,6 +231,11 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
     return FutureBuilder<_BootResult>(
       future: _boot,
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          _fallbackBootResult ??= _BootResult(session: SessionController()..start());
+          debugPrint('❌ Bootstrap: FutureBuilder received error: ${snapshot.error}');
+          return MasLiveApp(session: _fallbackBootResult!.session);
+        }
         final boot = snapshot.data;
         if (boot == null) {
           // UI ultra-minimale pendant init, pour enlever le splash natif le plus vite possible.

@@ -114,6 +114,7 @@ class MasLiveMap extends StatelessWidget {
   final bool compactAttribution;
   final ValueChanged<MapPoint>? onTap;
   final void Function(MasLiveMapController controller)? onMapReady;
+  final void Function(String message)? onInitError;
 
   const MasLiveMap({
     super.key,
@@ -130,6 +131,7 @@ class MasLiveMap extends StatelessWidget {
     this.compactAttribution = true,
     this.onTap,
     this.onMapReady,
+    this.onInitError,
   });
 
   @override
@@ -150,6 +152,7 @@ class MasLiveMap extends StatelessWidget {
         compactAttribution: compactAttribution,
         onTap: onTap,
         onMapReady: onMapReady,
+        onInitError: onInitError,
       );
     } else {
       return MasLiveMapNative(
@@ -165,6 +168,7 @@ class MasLiveMap extends StatelessWidget {
         userLat: userLat,
         onTap: onTap,
         onMapReady: onMapReady,
+        onInitError: onInitError,
       );
     }
   }
