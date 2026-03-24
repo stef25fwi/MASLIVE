@@ -509,14 +509,15 @@ class _MediaCatalogFilter extends StatelessWidget {
                       const Text(
                         'CATALOGUE DES MEDIAS',
                         style: TextStyle(
-                          fontSize: 13.5,
+                          fontSize: 15,
                           fontWeight: FontWeight.w900,
-                          letterSpacing: 0.6,
                           color: MasliveTheme.textPrimary,
+                          letterSpacing: 0.2,
+                          height: 1,
                         ),
                       ),
                       if (summary.isNotEmpty) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Text(
                           summary,
                           maxLines: 2,
@@ -532,7 +533,7 @@ class _MediaCatalogFilter extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 InkWell(
                   borderRadius: BorderRadius.circular(20),
                   onTap: onToggleExpanded,
@@ -542,8 +543,8 @@ class _MediaCatalogFilter extends StatelessWidget {
                       isExpanded
                           ? Icons.keyboard_arrow_up_rounded
                           : Icons.keyboard_arrow_down_rounded,
-                      size: 20,
-                      color: MasliveTheme.textSecondary,
+                      color: MasliveTheme.textPrimary,
+                      size: 26,
                     ),
                   ),
                 ),
