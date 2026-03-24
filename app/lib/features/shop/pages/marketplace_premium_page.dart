@@ -190,7 +190,7 @@ class _HeroBanner extends StatelessWidget {
           ),
           const Center(
             child: Text(
-              'MASLIVE',
+              "MAS'LIVE",
               style: TextStyle(
                 fontSize: 50,
                 fontWeight: FontWeight.w900,

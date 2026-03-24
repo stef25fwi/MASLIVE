@@ -26,7 +26,7 @@ class ShopAppHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color iconColor = darkMode ? Colors.white : const Color(0xFF0E0E0E);
     final Color titleColor = darkMode ? Colors.white : const Color(0xFF101010);
-    final String effectiveTitle = centeredLogoText ?? title ?? 'MASLIVE';
+    final String effectiveTitle = centeredLogoText ?? title ?? "MAS'LIVE";
     final double sideWidth = showSearch && showBag ? 76 : 40;
 
     return Padding(
