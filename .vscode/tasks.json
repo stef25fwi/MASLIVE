@@ -2203,6 +2203,18 @@
         "panel": "dedicated",
         "clear": true
       }
+    },
+    {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (trace runtime mapbox firebase)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git config --local commit.gpgsign false && bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"chore(debug): trace startup runtime for Firebase and Mapbox\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
     }
   ]
 }

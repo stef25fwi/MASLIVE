@@ -5,6 +5,7 @@ import 'splash_screen.dart';
 import 'default_map_page.dart';
 import 'home_map_page_3d.dart';
 import '../services/startup_preload_service.dart';
+import '../utils/startup_trace.dart';
 import '../utils/web_viewport_resize.dart';
 
 /// Notificateur global pour savoir quand la carte est prête
@@ -36,6 +37,7 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
   void initState() {
     super.initState();
     _splashStartTime = DateTime.now();
+    StartupTrace.log('SPLASH', 'initState');
     debugPrint('🚀 SplashWrapperPage: initState - preparing home page');
 
     // Repartir d'un état propre à chaque entrée sur le splash.
@@ -43,6 +45,7 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
     // l'écouteur ne reçoit pas de changement de valeur.
     if (mapReadyNotifier.value) {
       mapReadyNotifier.value = false;
+      StartupTrace.log('SPLASH', 'mapReadyNotifier reset to false');
     }
 
     // Écouter quand la carte est prête
@@ -76,12 +79,15 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
   void _onMapReady() {
     if (!mapReadyNotifier.value || _mapSignalReady) return;
     _mapSignalReady = true;
+    StartupTrace.log('SPLASH', 'mapReadyNotifier observed true');
     _tryHideSplash();
   }
 
   Future<void> _startAssetPreload() async {
+    StartupTrace.log('SPLASH', 'asset preload start');
     try {
       final assets = await StartupPreloadService.collectSplashImageAssets();
+      StartupTrace.log('SPLASH', 'asset manifest collected count=${assets.length}');
       if (!mounted) return;
 
       for (final path in assets) {
@@ -96,21 +102,31 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
 
       try {
         await StartupPreloadService.warmupMapStyleAsset();
+        StartupTrace.log('SPLASH', 'warmupMapStyleAsset success');
       } catch (e) {
+        StartupTrace.log('SPLASH', 'warmupMapStyleAsset failed: $e');
         debugPrint('⚠️ SplashWrapper: warmupMapStyleAsset échoué: $e');
       }
     } catch (e) {
+      StartupTrace.log('SPLASH', 'asset preload failed: $e');
       debugPrint('⚠️ SplashWrapper: preload inattendu échoué: $e');
     }
 
     if (!mounted) return;
     _assetsReady = true;
+    StartupTrace.log('SPLASH', 'asset preload complete');
     _tryHideSplash();
   }
 
   void _tryHideSplash() {
     if (_didHideSplash) return;
-    if (!_mapSignalReady || !_assetsReady) return;
+    if (!_mapSignalReady || !_assetsReady) {
+      StartupTrace.log(
+        'SPLASH',
+        'gate blocked mapSignalReady=$_mapSignalReady assetsReady=$_assetsReady',
+      );
+      return;
+    }
 
     final elapsedMs = DateTime.now().difference(_splashStartTime).inMilliseconds;
     final remainingMs = 2500 - elapsedMs;
@@ -130,6 +146,10 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
 
   void _hideSplash({bool force = false}) {
     if (_didHideSplash) return;
+    StartupTrace.log(
+      'SPLASH',
+      'hideSplash force=$force mapSignalReady=$_mapSignalReady assetsReady=$_assetsReady',
+    );
     _didHideSplash = true;
     setState(() {
       _mapReady = true;
@@ -145,6 +165,7 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
       setState(() {
         _showSplashOverlay = false;
       });
+      StartupTrace.log('SPLASH', 'splash overlay removed');
     });
 
     // Restaurer les barres système

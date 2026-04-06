@@ -34,6 +34,7 @@ import '../models/market_poi.dart';
 import '../models/group_circuit_public_position.dart';
 import '../services/group/marketmap_group_public_position_service.dart';
 import '../utils/mapbox_style_url.dart';
+import '../utils/startup_trace.dart';
 import '../utils/web_viewport_resize.dart';
 import 'storex_shop_page.dart';
 import 'home_vertical_nav.dart';
@@ -302,12 +303,14 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   void _notifyMapReady() {
     if (_didNotifyMapReady) return;
     _didNotifyMapReady = true;
+    StartupTrace.log('MAPBOX_WEB', '_notifyMapReady');
     if (!mapReadyNotifier.value) {
       mapReadyNotifier.value = true;
     }
   }
 
   void _handleMapInitError(String message) {
+    StartupTrace.log('MAPBOX_WEB', 'map init error: $message');
     debugPrint('⚠️ DefaultMapPage: map init error: $message');
     _notifyMapReady();
   }

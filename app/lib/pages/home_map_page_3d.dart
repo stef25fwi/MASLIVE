@@ -33,6 +33,7 @@ import '../ui/widgets/marketmap_poi_selector_sheet.dart';
 import '../services/poi_analytics_service.dart';
 import '../utils/poi_normalizer.dart';
 import '../utils/mapbox_style_url.dart';
+import '../utils/startup_trace.dart';
 import '../route_style_pro/services/route_style_pro_projection.dart';
 import '../route_style_pro/models/route_style_config.dart';
 import '../l10n/app_localizations.dart' as l10n;
@@ -163,6 +164,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   @override
   void initState() {
     super.initState();
+    StartupTrace.log('MAPBOX_NATIVE', 'HomeMapPage3D initState');
 
     // Observer pour détecter les changements de lifecycle et de métriques (resize, rotation)
     WidgetsBinding.instance.addObserver(this);
@@ -236,18 +238,32 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   }
 
   void _initMapboxToken() {
-    final token = _effectiveMapboxToken;
+    final info = MapboxTokenService.getTokenInfoSync(override: _runtimeMapboxToken);
+    final token = info.token;
     if (token.isEmpty) {
+      StartupTrace.log(
+        'MAPBOX_NATIVE',
+        '_initMapboxToken empty source=${info.source} valid=${info.isValidFormat} code=${info.errorCode}',
+      );
       debugPrint('⚠️ HomeMapPage3D: _initMapboxToken → token vide (source sync)');
       return;
     }
+    StartupTrace.log(
+      'MAPBOX_NATIVE',
+      '_initMapboxToken source=${info.source} len=${token.length} pk=${info.isPublicPkToken}',
+    );
     debugPrint('✅ HomeMapPage3D: _initMapboxToken → token trouvé (len=${token.length})');
     MapboxOptions.setAccessToken(token);
   }
 
   Future<void> _loadRuntimeMapboxToken() async {
     try {
+      StartupTrace.log('MAPBOX_NATIVE', '_loadRuntimeMapboxToken start');
       final info = await MapboxTokenService.getTokenInfo();
+      StartupTrace.log(
+        'MAPBOX_NATIVE',
+        '_loadRuntimeMapboxToken source=${info.source} len=${info.token.length} valid=${info.isValidFormat} pk=${info.isPublicPkToken} code=${info.errorCode}',
+      );
       if (!mounted) return;
       setState(() {
         _runtimeMapboxToken = info.token;
@@ -262,6 +278,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         _notifyMapReadyFallback();
       }
     } catch (e) {
+      StartupTrace.log('MAPBOX_NATIVE', '_loadRuntimeMapboxToken failed: $e');
       debugPrint('❌ HomeMapPage3D: erreur chargement token Mapbox: $e');
       // En cas d'erreur, on débloque le splash.
       if (mounted && !mapReadyNotifier.value) {
@@ -1979,8 +1996,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   /// Utilisé par splash_wrapper_page pour masquer le splash screen.
   void _checkIfReady() {
     if (_isMapReady && !mapReadyNotifier.value) {
+      StartupTrace.log('MAPBOX_NATIVE', '_checkIfReady scheduling notifier=true');
       Future.delayed(_mapReadyDelay, () {
         if (mounted) {
+          StartupTrace.log('MAPBOX_NATIVE', '_checkIfReady set mapReadyNotifier=true');
           mapReadyNotifier.value = true;
         }
       });
@@ -1991,8 +2010,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   /// (ex: token Mapbox absent). Évite le loader infini.
   void _notifyMapReadyFallback() {
     if (mapReadyNotifier.value) return;
+    StartupTrace.log('MAPBOX_NATIVE', '_notifyMapReadyFallback scheduling notifier=true');
     Future.delayed(_mapReadyDelay, () {
       if (mounted && !mapReadyNotifier.value) {
+        StartupTrace.log('MAPBOX_NATIVE', '_notifyMapReadyFallback set mapReadyNotifier=true');
         debugPrint('🔓 HomeMapPage3D: _notifyMapReadyFallback → déblocage splash');
         mapReadyNotifier.value = true;
       }
@@ -2071,6 +2092,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   /// Configure tous les aspects de la carte : gestes 3D, bâtiments, annotation managers.
   Future<void> _onMapCreated(MapboxMap mapboxMap) async {
     if (!mounted) return;
+    StartupTrace.log('MAPBOX_NATIVE', '_onMapCreated start');
     _mapboxMap = mapboxMap;
 
     try {
@@ -2085,12 +2107,18 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       );
 
       // Guard: si le MapWidget a été recréé entre-temps, abandonner.
-      if (_mapboxMap != mapboxMap) return;
+      if (_mapboxMap != mapboxMap) {
+        StartupTrace.log('MAPBOX_NATIVE', '_onMapCreated stale after gestures');
+        return;
+      }
 
       // 2. Ajouter les bâtiments 3D au style
       await _add3dBuildings();
 
-      if (_mapboxMap != mapboxMap) return;
+      if (_mapboxMap != mapboxMap) {
+        StartupTrace.log('MAPBOX_NATIVE', '_onMapCreated stale after 3d buildings');
+        return;
+      }
 
       // 3. Créer les annotation managers pour les marqueurs
       _userAnnotationManager = await mapboxMap.annotations
@@ -2100,11 +2128,15 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       _circuitsAnnotationManager = await mapboxMap.annotations
           .createPolylineAnnotationManager();
     } catch (e) {
+      StartupTrace.log('MAPBOX_NATIVE', '_onMapCreated failed: $e');
       debugPrint('⚠️ Erreur configuration carte: $e');
     }
 
     // Guard final : vérifier que cette instance est toujours la courante.
-    if (_mapboxMap != mapboxMap) return;
+    if (_mapboxMap != mapboxMap) {
+      StartupTrace.log('MAPBOX_NATIVE', '_onMapCreated stale before ready');
+      return;
+    }
 
     // 4. Marquer la carte comme prête
     if (mounted) {
@@ -2112,6 +2144,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         _isMapReady = true;
         _checkIfReady();
       });
+      StartupTrace.log('MAPBOX_NATIVE', '_onMapCreated map ready');
     }
 
     // 5. Afficher le marqueur utilisateur si position disponible

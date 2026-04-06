@@ -60,6 +60,7 @@ import 'services/mapbox_token_service.dart';
 import 'ui/theme/maslive_theme.dart';
 import 'ui/widgets/honeycomb_background.dart';
 import 'l10n/app_localizations.dart';
+import 'utils/startup_trace.dart';
 import 'pages/circuit_editor_workflow_page.dart';
 import 'pages/splash_screen.dart';
 import 'pages/seller/seller_inbox_page.dart';
@@ -85,6 +86,7 @@ final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  StartupTrace.log('MAIN', 'WidgetsFlutterBinding initialized');
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -100,6 +102,7 @@ Future<void> main() async {
   // ✅ Important: ne jamais bloquer avant le premier frame.
   // Sinon l'utilisateur reste coincé sur le splash natif (Android/iOS) ou sur
   // le loader web sans que la splash Flutter n'apparaisse.
+  StartupTrace.log('MAIN', 'runApp(_BootstrapRoot)');
   runApp(const _BootstrapRoot());
 }
 
@@ -118,23 +121,30 @@ class _BootstrapRoot extends StatefulWidget {
 class _BootstrapRootState extends State<_BootstrapRoot> {
   late final Future<_BootResult> _boot;
   _BootResult? _fallbackBootResult;
+  bool _didLogWaitingBoot = false;
+  bool _didLogBootReady = false;
 
   @override
   void initState() {
     super.initState();
+    StartupTrace.log('BOOT', 'initState');
     _boot = _bootstrap();
   }
 
   Future<_BootResult> _bootstrap() async {
     final session = SessionController();
+    StartupTrace.log('BOOT', 'bootstrap start');
 
     try {
       // 1) Firebase: requis pour auth/firestore. On timeoute pour éviter un blocage infini.
       try {
+        StartupTrace.log('FIREBASE', 'initializeApp start');
         await Firebase.initializeApp(
           options: DefaultFirebaseOptions.currentPlatform,
         ).timeout(const Duration(seconds: 12));
+        StartupTrace.log('FIREBASE', 'initializeApp success');
       } catch (e) {
+        StartupTrace.log('FIREBASE', 'initializeApp failed: $e');
         debugPrint('❌ Bootstrap: Firebase.initializeApp failed/timeout: $e');
         // On continue quand même pour afficher l'UI (les pages Firebase pourront
         // afficher leurs erreurs au lieu d'un splash natif infini).
@@ -162,10 +172,19 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
 
       // 3) Mapbox token warmup: SharedPreferences (rapide) mais on timeoute par sûreté.
       try {
+        StartupTrace.log('MAPBOX', 'warmUp start');
         await MapboxTokenService.warmUp().timeout(const Duration(seconds: 4));
+        StartupTrace.log(
+          'MAPBOX',
+          'warmUp success source=${MapboxTokenService.cachedSource} len=${MapboxTokenService.cachedToken.length}',
+        );
         debugPrint('✅ Bootstrap: Mapbox token=${MapboxTokenService.cachedSource} '
             '(len=${MapboxTokenService.cachedToken.length})');
       } catch (e) {
+        StartupTrace.log(
+          'MAPBOX',
+          'warmUp failed: $e (cachedLen=${MapboxTokenService.cachedToken.length})',
+        );
         debugPrint('⚠️ Bootstrap: MapboxTokenService.warmUp skipped: $e '
             '(cachedToken len=${MapboxTokenService.cachedToken.length})');
       }
@@ -212,20 +231,24 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
 
     try {
       session.start();
+      StartupTrace.log('BOOT', 'SessionController started');
     } catch (e) {
       debugPrint('⚠️ Bootstrap: SessionController.start skipped: $e');
     }
     try {
       CartService.instance.start();
+      StartupTrace.log('BOOT', 'CartService started');
     } catch (e) {
       debugPrint('⚠️ Bootstrap: CartService.start skipped: $e');
     }
     try {
       NotificationsService.instance.start(navigatorKey: _rootNavigatorKey);
+      StartupTrace.log('BOOT', 'NotificationsService started');
     } catch (e) {
       debugPrint('⚠️ Bootstrap: NotificationsService.start skipped: $e');
     }
 
+    StartupTrace.log('BOOT', 'bootstrap complete');
     return _BootResult(session: session);
   }
 
@@ -235,17 +258,26 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
       future: _boot,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
+          StartupTrace.log('BOOT', 'FutureBuilder error path');
           _fallbackBootResult ??= _BootResult(session: SessionController()..start());
           debugPrint('❌ Bootstrap: FutureBuilder received error: ${snapshot.error}');
           return MasLiveApp(session: _fallbackBootResult!.session);
         }
         final boot = snapshot.data;
         if (boot == null) {
+          if (!_didLogWaitingBoot) {
+            _didLogWaitingBoot = true;
+            StartupTrace.log('BOOT', 'FutureBuilder waiting -> SplashScreen');
+          }
           // UI ultra-minimale pendant init, pour enlever le splash natif le plus vite possible.
           return const MaterialApp(
             debugShowCheckedModeBanner: false,
             home: SplashScreen(),
           );
+        }
+        if (!_didLogBootReady) {
+          _didLogBootReady = true;
+          StartupTrace.log('BOOT', 'FutureBuilder ready -> MasLiveApp');
         }
         return MasLiveApp(session: boot.session);
       },
