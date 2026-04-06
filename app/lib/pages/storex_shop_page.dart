@@ -423,7 +423,8 @@ class _StorexHome extends StatelessWidget {
                           scrollDirection: Axis.horizontal,
                           physics: const BouncingScrollPhysics(),
                           itemCount: cats.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 12),
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(width: 12),
                           itemBuilder: (_, i) => _StorexCategoryChip(
                             label: cats[i].toUpperCase(),
                             onTap: () => Navigator.of(context).push(

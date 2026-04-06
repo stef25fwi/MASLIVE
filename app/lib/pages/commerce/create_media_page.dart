@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
@@ -649,8 +648,9 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                               );
                             }).toList(),
                             onChanged: (val) {
-                              if (val != null)
+                              if (val != null) {
                                 setState(() => _selectedScopeType = val);
+                              }
                             },
                           ),
                           const SizedBox(height: 16),

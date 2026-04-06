@@ -126,23 +126,40 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
       }
     }
 
+    final arguments = <String, dynamic>{};
+    if (initialTab != null) {
+      arguments['initialTab'] = initialTab;
+    }
+    if (_countryId case final countryId? when countryId.isNotEmpty) {
+      arguments['countryId'] = countryId;
+    }
+    if (_countryName case final countryName? when countryName.isNotEmpty) {
+      arguments['countryName'] = countryName;
+    }
+    if (_eventId case final eventId? when eventId.isNotEmpty) {
+      arguments['eventId'] = eventId;
+    }
+    if (_eventName case final eventName? when eventName.isNotEmpty) {
+      arguments['eventName'] = eventName;
+    }
+    if (_circuitId case final circuitId? when circuitId.isNotEmpty) {
+      arguments['circuitId'] = circuitId;
+    }
+    if (_circuitName case final circuitName? when circuitName.isNotEmpty) {
+      arguments['circuitName'] = circuitName;
+    }
+    if (photographerId case final effectivePhotographerId?
+        when effectivePhotographerId.isNotEmpty) {
+      arguments['photographerId'] = effectivePhotographerId;
+    }
+    if (ownerUid case final effectiveOwnerUid? when effectiveOwnerUid.isNotEmpty) {
+      arguments['ownerUid'] = effectiveOwnerUid;
+    }
+
     Navigator.pushNamed(
       context,
       '/media-marketplace',
-      arguments: <String, dynamic>{
-        if (initialTab != null) 'initialTab': initialTab,
-        if (_countryId != null && _countryId!.isNotEmpty) 'countryId': _countryId,
-        if (_countryName != null && _countryName!.isNotEmpty)
-          'countryName': _countryName,
-        if (_eventId != null && _eventId!.isNotEmpty) 'eventId': _eventId,
-        if (_eventName != null && _eventName!.isNotEmpty) 'eventName': _eventName,
-        if (_circuitId != null && _circuitId!.isNotEmpty) 'circuitId': _circuitId,
-        if (_circuitName != null && _circuitName!.isNotEmpty)
-          'circuitName': _circuitName,
-        if (photographerId != null && photographerId.isNotEmpty)
-          'photographerId': photographerId,
-        if (ownerUid != null && ownerUid.isNotEmpty) 'ownerUid': ownerUid,
-      },
+      arguments: arguments,
     );
   }
 

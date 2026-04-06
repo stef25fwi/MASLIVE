@@ -993,7 +993,7 @@ class _ProductThumb extends StatelessWidget {
               ? Image.asset(
                   imageUrl,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Center(
+                  errorBuilder: (context, error, stackTrace) => const Center(
                     child: Icon(
                       Icons.image_outlined,
                       size: 30,
@@ -1005,7 +1005,7 @@ class _ProductThumb extends StatelessWidget {
               ? Image.network(
                   imageUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Center(
+                  errorBuilder: (context, error, stackTrace) => const Center(
                     child: Icon(
                       Icons.image_outlined,
                       size: 30,

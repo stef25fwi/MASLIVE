@@ -22,7 +22,7 @@ class CategoryChipRow extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: labels.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        separatorBuilder: (context, index) => const SizedBox(width: 10),
         itemBuilder: (BuildContext context, int index) {
           final bool isSelected = selectedIndex == null || selectedIndex == index;
           final Color background = darkStyle

@@ -120,8 +120,8 @@ class _MapboxWebViewState extends State<MapboxWebView> {
     if (oldWidget.interactive != widget.interactive) {
       _syncPointerEvents();
     }
-    final _effectiveToken = _resolveToken();
-    if (_map == null && _container != null && _effectiveToken.isNotEmpty) {
+    final effectiveToken = _resolveToken();
+    if (_map == null && _container != null && effectiveToken.isNotEmpty) {
       _initMapbox(_container!);
     }
 

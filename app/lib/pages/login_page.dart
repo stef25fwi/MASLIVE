@@ -1,6 +1,5 @@
 import 'dart:ui';
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../session/session_scope.dart';
 import 'auth/auth_action_runner.dart';
