@@ -12,7 +12,6 @@ import 'session/session_scope.dart';
 import 'services/localization_service.dart' show LocalizationService;
 import 'services/language_service.dart';
 import 'widgets/localized_app.dart';
-import 'pages/splash_wrapper_page.dart';
 import 'pages/group_profile_page.dart';
 import 'pages/group_shop_page.dart';
 import 'pages/role_router_page.dart';
@@ -41,6 +40,7 @@ import 'pages/business_account_page.dart';
 import 'pages/business_request_page.dart';
 import 'pages/mapbox_web_map_page.dart';
 import 'pages/default_map_page.dart';
+import 'pages/home_map_page_3d.dart';
 import 'admin/super_admin_space.dart';
 import 'commerce_module_single_file.dart';
 import 'admin/category_management_page.dart';
@@ -62,7 +62,6 @@ import 'ui/widgets/honeycomb_background.dart';
 import 'l10n/app_localizations.dart';
 import 'utils/startup_trace.dart';
 import 'pages/circuit_editor_workflow_page.dart';
-import 'pages/splash_screen.dart';
 import 'pages/seller/seller_inbox_page.dart';
 import 'pages/seller/seller_order_detail_page.dart';
 import 'pages/commerce/create_product_page.dart';
@@ -119,20 +118,84 @@ class _BootstrapRoot extends StatefulWidget {
 }
 
 class _BootstrapRootState extends State<_BootstrapRoot> {
+  static const Duration _bootWatchdogTimeout = Duration(seconds: 15);
+
+  final SessionController _session = SessionController();
   late final Future<_BootResult> _boot;
   _BootResult? _fallbackBootResult;
   bool _didLogWaitingBoot = false;
   bool _didLogBootReady = false;
+  Timer? _bootWatchdog;
 
   @override
   void initState() {
     super.initState();
     StartupTrace.log('BOOT', 'initState');
     _boot = _bootstrap();
+    _armBootWatchdog();
+  }
+
+  void _armBootWatchdog() {
+    _bootWatchdog?.cancel();
+    _bootWatchdog = Timer(_bootWatchdogTimeout, () {
+      if (!mounted) return;
+      if (_fallbackBootResult != null) return;
+
+      StartupTrace.log(
+        'BOOT',
+        'watchdog timeout after ${_bootWatchdogTimeout.inSeconds}s -> fallback MasLiveApp',
+      );
+
+      setState(() {
+        _fallbackBootResult = _buildFallbackBootResult();
+      });
+    });
+  }
+
+  _BootResult _buildFallbackBootResult() {
+    final session = _session;
+
+    try {
+      if (!Get.isRegistered<LanguageService>()) {
+        Get.put(LanguageService());
+        StartupTrace.log('BOOT', 'fallback LanguageService registered');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Bootstrap fallback: LanguageService registration skipped: $e');
+    }
+
+    try {
+      session.start();
+      StartupTrace.log('BOOT', 'fallback SessionController started');
+    } catch (e) {
+      debugPrint('⚠️ Bootstrap fallback: SessionController.start skipped: $e');
+    }
+
+    try {
+      CartService.instance.start();
+      StartupTrace.log('BOOT', 'fallback CartService started');
+    } catch (e) {
+      debugPrint('⚠️ Bootstrap fallback: CartService.start skipped: $e');
+    }
+
+    try {
+      NotificationsService.instance.start(navigatorKey: _rootNavigatorKey);
+      StartupTrace.log('BOOT', 'fallback NotificationsService started');
+    } catch (e) {
+      debugPrint('⚠️ Bootstrap fallback: NotificationsService.start skipped: $e');
+    }
+
+    return _BootResult(session: session);
+  }
+
+  @override
+  void dispose() {
+    _bootWatchdog?.cancel();
+    super.dispose();
   }
 
   Future<_BootResult> _bootstrap() async {
-    final session = SessionController();
+    final session = _session;
     StartupTrace.log('BOOT', 'bootstrap start');
 
     try {
@@ -249,6 +312,7 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
     }
 
     StartupTrace.log('BOOT', 'bootstrap complete');
+    _bootWatchdog?.cancel();
     return _BootResult(session: session);
   }
 
@@ -259,21 +323,26 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           StartupTrace.log('BOOT', 'FutureBuilder error path');
-          _fallbackBootResult ??= _BootResult(session: SessionController()..start());
+          _fallbackBootResult ??= _buildFallbackBootResult();
           debugPrint('❌ Bootstrap: FutureBuilder received error: ${snapshot.error}');
           return MasLiveApp(session: _fallbackBootResult!.session);
         }
         final boot = snapshot.data;
+        final forcedBoot = _fallbackBootResult;
+        if (forcedBoot != null && boot == null) {
+          if (!_didLogBootReady) {
+            _didLogBootReady = true;
+            StartupTrace.log('BOOT', 'FutureBuilder fallback -> MasLiveApp');
+          }
+          return MasLiveApp(session: forcedBoot.session);
+        }
         if (boot == null) {
           if (!_didLogWaitingBoot) {
             _didLogWaitingBoot = true;
-            StartupTrace.log('BOOT', 'FutureBuilder waiting -> SplashScreen');
+            StartupTrace.log('BOOT', 'FutureBuilder waiting -> MasLiveApp direct home');
           }
-          // UI ultra-minimale pendant init, pour enlever le splash natif le plus vite possible.
-          return const MaterialApp(
-            debugShowCheckedModeBanner: false,
-            home: SplashScreen(),
-          );
+          _fallbackBootResult ??= _buildFallbackBootResult();
+          return MasLiveApp(session: _fallbackBootResult!.session);
         }
         if (!_didLogBootReady) {
           _didLogBootReady = true;
@@ -306,11 +375,10 @@ class MasLiveApp extends StatelessWidget {
             locale: Get.find<LanguageService>().locale,
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            initialRoute: '/splash',
+            initialRoute: '/',
             routes: {
-              '/splash': (_) => const SplashWrapperPage(),
               '/router': (_) => const RoleRouterPage(),
-              '/': (_) => const DefaultMapPage(),
+              '/': (_) => kIsWeb ? const DefaultMapPage() : const HomeMapPage3D(),
               // '/map-legacy': (_) => const HomeMapPageV3(), // 🔄 Moved to legacy
               // Alias legacy: conserve l'URL mais évite 2 "Home carte" différents.
               '/map-web': (_) => const DefaultMapPage(),

@@ -24,7 +24,9 @@
     "firebase": "^12.10.0"
   },
   "overrides": {
-    "fast-xml-parser": "^4.5.4",
+    "fast-xml-parser": "^5.5.10",
+    "node-forge": "^1.4.0",
+    "path-to-regexp": "0.1.13",
     "@tootallnate/once": "^3.0.1"
   }
 }
