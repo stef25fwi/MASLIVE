@@ -38,6 +38,13 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
     _splashStartTime = DateTime.now();
     debugPrint('🚀 SplashWrapperPage: initState - preparing home page');
 
+    // Repartir d'un état propre à chaque entrée sur le splash.
+    // Sinon un ancien `true` peut empêcher toute nouvelle transition car
+    // l'écouteur ne reçoit pas de changement de valeur.
+    if (mapReadyNotifier.value) {
+      mapReadyNotifier.value = false;
+    }
+
     // Écouter quand la carte est prête
     mapReadyNotifier.addListener(_onMapReady);
 
@@ -73,23 +80,27 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
   }
 
   Future<void> _startAssetPreload() async {
-    final assets = await StartupPreloadService.collectSplashImageAssets();
-    if (!mounted) return;
-
-    for (final path in assets) {
-      if (!mounted) return;
-      try {
-        await precacheImage(AssetImage(path), context);
-      } catch (e) {
-        debugPrint('⚠️ SplashWrapper: précache échoué pour $path: $e');
-        // Continue les autres assets — ne bloque jamais le démarrage.
-      }
-    }
-
     try {
-      await StartupPreloadService.warmupMapStyleAsset();
+      final assets = await StartupPreloadService.collectSplashImageAssets();
+      if (!mounted) return;
+
+      for (final path in assets) {
+        if (!mounted) return;
+        try {
+          await precacheImage(AssetImage(path), context);
+        } catch (e) {
+          debugPrint('⚠️ SplashWrapper: précache échoué pour $path: $e');
+          // Continue les autres assets — ne bloque jamais le démarrage.
+        }
+      }
+
+      try {
+        await StartupPreloadService.warmupMapStyleAsset();
+      } catch (e) {
+        debugPrint('⚠️ SplashWrapper: warmupMapStyleAsset échoué: $e');
+      }
     } catch (e) {
-      debugPrint('⚠️ SplashWrapper: warmupMapStyleAsset échoué: $e');
+      debugPrint('⚠️ SplashWrapper: preload inattendu échoué: $e');
     }
 
     if (!mounted) return;

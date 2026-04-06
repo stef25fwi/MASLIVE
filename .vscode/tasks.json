@@ -1930,7 +1930,7 @@
     {
       "label": "MASLIVE: Flutter run web-server",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE/app && flutter run -d web-server --web-hostname=0.0.0.0 --web-port=50505",
+      "command": "cd /workspaces/MASLIVE/app && { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -z \"$TOKEN\" ]; then echo '❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).'; exit 1; fi && flutter run -d web-server --web-hostname=0.0.0.0 --web-port=50505 --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" --dart-define=MAPBOX_PUBLIC_TOKEN=\"$TOKEN\"",
       "problemMatcher": [],
       "isBackground": true,
       "presentation": {
@@ -1942,7 +1942,7 @@
     {
       "label": "MASLIVE: Flutter run chrome",
       "type": "shell",
-      "command": "cd /workspaces/MASLIVE/app && export CHROME_EXECUTABLE=\"$(command -v chromium || command -v google-chrome || command -v google-chrome-stable || command -v chromium-browser || true)\" && echo \"CHROME_EXECUTABLE=$CHROME_EXECUTABLE\" && flutter run -d chrome",
+      "command": "cd /workspaces/MASLIVE/app && { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true && TOKEN=${MAPBOX_ACCESS_TOKEN:-${MAPBOX_PUBLIC_TOKEN:-${MAPBOX_TOKEN:-}}} && if [ -z \"$TOKEN\" ]; then echo '❌ Token Mapbox manquant (MAPBOX_ACCESS_TOKEN).'; exit 1; fi && export CHROME_EXECUTABLE=\"$(command -v chromium || command -v google-chrome || command -v google-chrome-stable || command -v chromium-browser || true)\" && echo \"CHROME_EXECUTABLE=$CHROME_EXECUTABLE\" && flutter run -d chrome --dart-define=MAPBOX_ACCESS_TOKEN=\"$TOKEN\" --dart-define=MAPBOX_PUBLIC_TOKEN=\"$TOKEN\"",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
