@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
 import '../models/cart_item.dart';
@@ -16,13 +17,16 @@ class CartService extends ChangeNotifier {
   CartService._({
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
-  }) : _firestore = firestore ?? FirebaseFirestore.instance,
-       _auth = auth ?? FirebaseAuth.instance;
+  }) : _firestoreOverride = firestore,
+       _authOverride = auth;
 
   static final CartService instance = CartService._();
 
-  final FirebaseFirestore _firestore;
-  final FirebaseAuth _auth;
+  // Lazy: construit sans accéder Firebase, évite crash avant initializeApp().
+  final FirebaseFirestore? _firestoreOverride;
+  final FirebaseAuth? _authOverride;
+  FirebaseFirestore get _firestore => _firestoreOverride ?? FirebaseFirestore.instance;
+  FirebaseAuth get _auth => _authOverride ?? FirebaseAuth.instance;
 
   final List<CartItemModel> _items = <CartItemModel>[];
   final List<CartItemModel> _anonymousItems = <CartItemModel>[];
@@ -56,6 +60,8 @@ class CartService extends ChangeNotifier {
 
   void start() {
     if (_started) return;
+    // Firebase pas encore initialisé → on retente lors du prochain rebuild.
+    if (Firebase.apps.isEmpty) return;
     _started = true;
     _authSub = _auth.authStateChanges().listen(_handleAuthStateChanged);
     unawaited(_handleAuthStateChanged(_auth.currentUser));
