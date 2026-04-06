@@ -153,8 +153,12 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
   }
 
   _BootResult _buildFallbackBootResult() {
-    final session = _session;
-
+    // ⚠️ Cette méthode peut être appelée depuis build() (FutureBuilder, watchdog).
+    // On ne doit faire QUE le strict minimum : enregistrer LanguageService
+    // (requis par MasLiveApp.build() → Get.find<LanguageService>()).
+    // Les services Firebase (session, cart, notifications) sont initialisés
+    // dans _bootstrap() — les appeler ici avant Firebase.initializeApp()
+    // lève des exceptions silencieuses et peut perturber l'arbre Flutter.
     try {
       if (!Get.isRegistered<LanguageService>()) {
         Get.put(LanguageService());
@@ -164,28 +168,7 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
       debugPrint('⚠️ Bootstrap fallback: LanguageService registration skipped: $e');
     }
 
-    try {
-      session.start();
-      StartupTrace.log('BOOT', 'fallback SessionController started');
-    } catch (e) {
-      debugPrint('⚠️ Bootstrap fallback: SessionController.start skipped: $e');
-    }
-
-    try {
-      CartService.instance.start();
-      StartupTrace.log('BOOT', 'fallback CartService started');
-    } catch (e) {
-      debugPrint('⚠️ Bootstrap fallback: CartService.start skipped: $e');
-    }
-
-    try {
-      NotificationsService.instance.start(navigatorKey: _rootNavigatorKey);
-      StartupTrace.log('BOOT', 'fallback NotificationsService started');
-    } catch (e) {
-      debugPrint('⚠️ Bootstrap fallback: NotificationsService.start skipped: $e');
-    }
-
-    return _BootResult(session: session);
+    return _BootResult(session: _session);
   }
 
   @override

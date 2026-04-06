@@ -1802,7 +1802,11 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
   Future<void> _loadMapboxToken() async {
     try {
-      final info = await MapboxTokenService.getTokenInfo();
+      final info = await MapboxTokenService.getTokenInfo()
+          .timeout(const Duration(seconds: 6), onTimeout: () {
+        debugPrint('⚠️ _loadMapboxToken: timeout 6s -> fallback empty');
+        return const MapboxTokenInfo.empty();
+      });
       debugPrint(
         '[MAPBOX][TOKEN] source=${info.source} len=${info.token.length} publicPk=${info.isPublicPkToken} valid=${info.isValidFormat}',
       );

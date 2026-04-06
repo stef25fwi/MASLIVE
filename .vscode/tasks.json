@@ -2239,6 +2239,18 @@
         "panel": "dedicated",
         "clear": true
       }
+    },
+    {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (fix loader infini: timeout + SW reload)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git config --local commit.gpgsign false && bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"fix(startup): resolve infinite loader - token timeout, JS fallback, SW auto-reload\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
     }
   ]
 }
