@@ -4,6 +4,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:crypto/crypto.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'dart:math';
@@ -20,8 +21,8 @@ class AuthService {
     return _instance;
   }
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseAuth get _auth => FirebaseAuth.instance;
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
   Future<void>? _googleInitialization;
   static const String _appleServiceId = String.fromEnvironment(
     'APPLE_SERVICE_ID',
@@ -46,11 +47,19 @@ class AuthService {
         defaultTargetPlatform == TargetPlatform.macOS;
   }
 
+  bool get _firebaseReady => Firebase.apps.isNotEmpty;
+
   // Stream de l'utilisateur actuel
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  Stream<User?> get authStateChanges {
+    if (!_firebaseReady) return const Stream<User?>.empty();
+    return _auth.authStateChanges();
+  }
 
   // Utilisateur actuel
-  User? get currentUser => _auth.currentUser;
+  User? get currentUser {
+    if (!_firebaseReady) return null;
+    return _auth.currentUser;
+  }
 
   // Récupérer le profil utilisateur
   Future<UserProfile?> getUserProfile(String userId) async {

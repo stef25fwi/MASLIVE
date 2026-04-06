@@ -6,12 +6,14 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
+import 'dart:ui' show PlatformDispatcher;
 import 'firebase_options.dart';
 import 'session/session_controller.dart';
 import 'session/session_scope.dart';
 import 'services/localization_service.dart' show LocalizationService;
 import 'services/language_service.dart';
 import 'widgets/localized_app.dart';
+import 'pages/splash_wrapper_page.dart';
 import 'pages/group_profile_page.dart';
 import 'pages/group_shop_page.dart';
 import 'pages/role_router_page.dart';
@@ -62,6 +64,7 @@ import 'ui/widgets/honeycomb_background.dart';
 import 'l10n/app_localizations.dart';
 import 'utils/startup_trace.dart';
 import 'pages/circuit_editor_workflow_page.dart';
+import 'pages/splash_screen.dart';
 import 'pages/seller/seller_inbox_page.dart';
 import 'pages/seller/seller_order_detail_page.dart';
 import 'pages/commerce/create_product_page.dart';
@@ -82,9 +85,66 @@ import 'providers/cart_provider.dart';
 import 'widgets/admin_route_guard.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
+String? _lastStartupFatalError;
+
+void _reportStartupFatal(Object error, [StackTrace? stackTrace]) {
+  final message = error.toString();
+  _lastStartupFatalError = message;
+  StartupTrace.log('BOOT', 'fatal startup error: $message');
+  debugPrint('❌ Startup fatal error: $message');
+  if (stackTrace != null) {
+    debugPrint('$stackTrace');
+  }
+}
+
+void _installStartupErrorHandling() {
+  FlutterError.onError = (details) {
+    _reportStartupFatal(details.exception, details.stack);
+    FlutterError.presentError(details);
+  };
+
+  PlatformDispatcher.instance.onError = (error, stackTrace) {
+    _reportStartupFatal(error, stackTrace);
+    return false;
+  };
+
+  ErrorWidget.builder = (details) {
+    final message = _lastStartupFatalError ?? details.exceptionAsString();
+    return Material(
+      color: Colors.white,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, size: 56, color: Colors.redAccent),
+                const SizedBox(height: 12),
+                const Text(
+                  'Erreur de demarrage MASLIVE',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontFamily: 'monospace'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  };
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _installStartupErrorHandling();
   StartupTrace.log('MAIN', 'WidgetsFlutterBinding initialized');
 
   SystemChrome.setSystemUIOverlayStyle(
@@ -102,7 +162,10 @@ Future<void> main() async {
   // Sinon l'utilisateur reste coincé sur le splash natif (Android/iOS) ou sur
   // le loader web sans que la splash Flutter n'apparaisse.
   StartupTrace.log('MAIN', 'runApp(_BootstrapRoot)');
-  runApp(const _BootstrapRoot());
+  runZonedGuarded(
+    () => runApp(const _BootstrapRoot()),
+    (error, stackTrace) => _reportStartupFatal(error, stackTrace),
+  );
 }
 
 class _BootResult {
@@ -322,10 +385,12 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
         if (boot == null) {
           if (!_didLogWaitingBoot) {
             _didLogWaitingBoot = true;
-            StartupTrace.log('BOOT', 'FutureBuilder waiting -> MasLiveApp direct home');
+            StartupTrace.log('BOOT', 'FutureBuilder waiting -> SplashScreen');
           }
-          _fallbackBootResult ??= _buildFallbackBootResult();
-          return MasLiveApp(session: _fallbackBootResult!.session);
+          return const MaterialApp(
+            debugShowCheckedModeBanner: false,
+            home: SplashScreen(),
+          );
         }
         if (!_didLogBootReady) {
           _didLogBootReady = true;
@@ -358,8 +423,9 @@ class MasLiveApp extends StatelessWidget {
             locale: Get.find<LanguageService>().locale,
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            initialRoute: '/',
+            initialRoute: '/splash',
             routes: {
+              '/splash': (_) => const SplashWrapperPage(),
               '/router': (_) => const RoleRouterPage(),
               '/': (_) => kIsWeb ? const DefaultMapPage() : const HomeMapPage3D(),
               // '/map-legacy': (_) => const HomeMapPageV3(), // 🔄 Moved to legacy

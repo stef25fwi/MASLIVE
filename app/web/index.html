@@ -284,10 +284,7 @@
     }
   </style>
   <script id="splash-screen-script">
-    var _splashRemoved = false;
     function removeSplashFromWeb() {
-      if (_splashRemoved) return;
-      _splashRemoved = true;
       document.getElementById("splash")?.remove();
       document.getElementById("splash-branding")?.remove();
       document.getElementById("splash-loader")?.remove();
@@ -298,32 +295,6 @@
     window.addEventListener('flutter-first-frame', function () {
       removeSplashFromWeb();
     });
-
-    // Fallback: si flutter-first-frame ne se déclenche pas dans les 20s,
-    // afficher un bouton de rechargement (réseau lent, WASM bloqué, etc.).
-    setTimeout(function() {
-      if (_splashRemoved) return;
-      var loader = document.getElementById("splash-loader");
-      if (!loader) return;
-      loader.style.animation = 'none';
-      loader.style.border = 'none';
-      var btn = document.createElement('div');
-      btn.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;font-family:sans-serif;';
-      btn.innerHTML = '<p style="color:#888;margin-bottom:16px;font-size:14px">MASLIVE prend trop de temps à charger.</p>'
-        + '<button onclick="location.reload(true)" style="padding:12px 28px;background:#FF6FB1;color:#fff;border:none;border-radius:10px;font-size:15px;cursor:pointer;font-weight:600">↺ Recharger</button>';
-      document.body.appendChild(btn);
-    }, 20000);
-
-    // Rechargement automatique quand le service worker est mis à jour.
-    // Garantit que les utilisateurs obtiennent toujours la dernière version déployée.
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('controllerchange', function() {
-        if (!_splashRemoved) {
-          // SW mis à jour pendant le chargement initial -> recharger
-          location.reload();
-        }
-      });
-    }
   </script>
 </head>
 <body>
