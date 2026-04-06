@@ -162,9 +162,12 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
 
       // 3) Mapbox token warmup: SharedPreferences (rapide) mais on timeoute par sûreté.
       try {
-        await MapboxTokenService.warmUp().timeout(const Duration(seconds: 2));
+        await MapboxTokenService.warmUp().timeout(const Duration(seconds: 4));
+        debugPrint('✅ Bootstrap: Mapbox token=${MapboxTokenService.cachedSource} '
+            '(len=${MapboxTokenService.cachedToken.length})');
       } catch (e) {
-        debugPrint('⚠️ Bootstrap: MapboxTokenService.warmUp skipped: $e');
+        debugPrint('⚠️ Bootstrap: MapboxTokenService.warmUp skipped: $e '
+            '(cachedToken len=${MapboxTokenService.cachedToken.length})');
       }
 
       // 4) LanguageService: doit exister avant build() (Get.find). Init best-effort.

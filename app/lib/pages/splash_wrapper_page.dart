@@ -76,13 +76,20 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
     final assets = await StartupPreloadService.collectSplashImageAssets();
     if (!mounted) return;
 
-    try {
-      for (final path in assets) {
+    for (final path in assets) {
+      if (!mounted) return;
+      try {
         await precacheImage(AssetImage(path), context);
+      } catch (e) {
+        debugPrint('⚠️ SplashWrapper: précache échoué pour $path: $e');
+        // Continue les autres assets — ne bloque jamais le démarrage.
       }
+    }
+
+    try {
       await StartupPreloadService.warmupMapStyleAsset();
-    } catch (_) {
-      // Ne bloque jamais le démarrage.
+    } catch (e) {
+      debugPrint('⚠️ SplashWrapper: warmupMapStyleAsset échoué: $e');
     }
 
     if (!mounted) return;

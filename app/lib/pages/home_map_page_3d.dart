@@ -212,16 +212,37 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         context,
       );
     });
+
+    // Sécurité : si le token est absent dès le départ, on ne bloque pas le
+    // splash indéfiniment. On notifie la carte comme "prête" (même si c'est
+    // un écran d'erreur) pour que le splash puisse se fermer.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!_useMapboxTiles) {
+        debugPrint('⚠️ HomeMapPage3D: token Mapbox absent au 1er frame, déblocage splash');
+        _notifyMapReadyFallback();
+      }
+    });
+
+    // Sécurité : si la carte a un token mais que le SDK Mapbox ne se charge
+    // jamais (réseau coupé, token révoqué, etc.), on débloque le splash
+    // après 6 secondes pour ne pas bloquer l'utilisateur.
+    Future.delayed(const Duration(seconds: 6), () {
+      if (mounted && !_isMapReady && !mapReadyNotifier.value) {
+        debugPrint('⚠️ HomeMapPage3D: timeout 6s – carte non prête, déblocage splash');
+        _notifyMapReadyFallback();
+      }
+    });
   }
 
   void _initMapboxToken() {
-    if (_effectiveMapboxToken.isEmpty) {
-      setState(() {
-        _runtimeMapboxToken = '';
-      });
+    final token = _effectiveMapboxToken;
+    if (token.isEmpty) {
+      debugPrint('⚠️ HomeMapPage3D: _initMapboxToken → token vide (source sync)');
       return;
     }
-    MapboxOptions.setAccessToken(_effectiveMapboxToken);
+    debugPrint('✅ HomeMapPage3D: _initMapboxToken → token trouvé (len=${token.length})');
+    MapboxOptions.setAccessToken(token);
   }
 
   Future<void> _loadRuntimeMapboxToken() async {
@@ -234,8 +255,18 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           MapboxOptions.setAccessToken(_runtimeMapboxToken);
         }
       });
-    } catch (_) {
-      // ignore
+      // Si après le chargement async le token est toujours vide,
+      // on débloque le splash pour éviter un loader infini.
+      if (_runtimeMapboxToken.isEmpty && !mapReadyNotifier.value) {
+        debugPrint('⚠️ HomeMapPage3D: token Mapbox vide après chargement async, déblocage splash');
+        _notifyMapReadyFallback();
+      }
+    } catch (e) {
+      debugPrint('❌ HomeMapPage3D: erreur chargement token Mapbox: $e');
+      // En cas d'erreur, on débloque le splash.
+      if (mounted && !mapReadyNotifier.value) {
+        _notifyMapReadyFallback();
+      }
     }
   }
 
@@ -1735,11 +1766,14 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     // Détecte : rotation, split-view, resize fenêtre, clavier virtuel
     super.didChangeMetrics();
 
-    // Incrémente le tick pour forcer un rebuild de la carte via ValueKey
-    // Protégé par mounted pour éviter les setState après dispose
+    // LayoutBuilder détecte automatiquement les changements de taille et
+    // déclenche _scheduleResize qui gère le _mapTick++.
+    // On ne fait PAS de _mapTick++ ici pour éviter une double destruction /
+    // recréation du MapWidget (flash noir + annotation managers orphelins).
+    // Un setState() vide suffit à forcer un rebuild du LayoutBuilder.
     if (mounted) {
       try {
-        setState(() => _mapTick++);
+        setState(() {});
       } catch (e) {
         debugPrint('⚠️ Erreur didChangeMetrics: $e');
       }
@@ -1758,6 +1792,23 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     if (!size.width.isFinite || !size.height.isFinite) return;
     if (size.width <= 0 || size.height <= 0) return;
 
+    // Première taille valide : autoriser immédiatement la création de la carte
+    // pour éviter le flash noir (le debounce suivant gère les resize ultérieurs).
+    if (!_mapCanBeCreated) {
+      _lastSize = size;
+      _debounce?.cancel();
+      if (mounted) {
+        setState(() {
+          _mapCanBeCreated = true;
+          _mapTick++;
+        });
+        debugPrint(
+          '✅ Map first create: ${size.width.toInt()}x${size.height.toInt()} (tick: $_mapTick)',
+        );
+      }
+      return;
+    }
+
     // Ignorer si la taille n'a pas changé (optimisation)
     if (_lastSize == size) return;
     _lastSize = size;
@@ -1770,12 +1821,16 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       if (!mounted) return; // Sécurité supplémentaire
 
       try {
-        // 1) Autoriser la création de la carte seulement une fois que les contraintes
-        // sont stabilisées (fix “premier layout” : carte initialisée trop tôt).
-        // 2) Incrémenter le tick force Flutter à recréer le MapWidget avec une nouvelle Key.
+        // Incrémenter le tick force Flutter à recréer le MapWidget avec une nouvelle Key.
+        // On réinitialise l’état carte car l’ancienne instance sera détruite.
         setState(() {
           _mapCanBeCreated = true;
           _mapTick++;
+          _isMapReady = false;
+          _mapboxMap = null;
+          _userAnnotationManager = null;
+          _groupsAnnotationManager = null;
+          _circuitsAnnotationManager = null;
         });
         debugPrint(
           '✅ Map rebuild: ${size.width.toInt()}x${size.height.toInt()} (tick: $_mapTick)',
@@ -1932,6 +1987,18 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     }
   }
 
+  /// Débloque le splash même si la carte n'a pas pu être initialisée
+  /// (ex: token Mapbox absent). Évite le loader infini.
+  void _notifyMapReadyFallback() {
+    if (mapReadyNotifier.value) return;
+    Future.delayed(_mapReadyDelay, () {
+      if (mounted && !mapReadyNotifier.value) {
+        debugPrint('🔓 HomeMapPage3D: _notifyMapReadyFallback → déblocage splash');
+        mapReadyNotifier.value = true;
+      }
+    });
+  }
+
   /// Met à jour le marqueur de position utilisateur sur la carte.
   ///
   /// Supprime l'ancien marqueur et crée un nouveau pour éviter les doublons.
@@ -2017,8 +2084,13 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         ),
       );
 
+      // Guard: si le MapWidget a été recréé entre-temps, abandonner.
+      if (_mapboxMap != mapboxMap) return;
+
       // 2. Ajouter les bâtiments 3D au style
       await _add3dBuildings();
+
+      if (_mapboxMap != mapboxMap) return;
 
       // 3. Créer les annotation managers pour les marqueurs
       _userAnnotationManager = await mapboxMap.annotations
@@ -2030,6 +2102,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     } catch (e) {
       debugPrint('⚠️ Erreur configuration carte: $e');
     }
+
+    // Guard final : vérifier que cette instance est toujours la courante.
+    if (_mapboxMap != mapboxMap) return;
 
     // 4. Marquer la carte comme prête
     if (mounted) {
@@ -2043,7 +2118,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     await _updateUserMarker();
 
     // 5b. MarketMap POIs via GeoJSON layers (plus scalable)
-    await _renderMarketPoiMarkers(); // (on garde le nom, mais on change l'implémentation)
+    await _renderMarketPoiMarkers();
 
     // 6. Appliquer le resize initial si LayoutBuilder a déjà capturé la taille
     if (_lastSize != null) {

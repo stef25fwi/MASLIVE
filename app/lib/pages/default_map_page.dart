@@ -1093,9 +1093,14 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   @override
   void didChangeMetrics() {
     super.didChangeMetrics();
+    // Sur web, MasLiveMap / Mapbox GL JS gère le resize via
+    // triggerWebViewportResize dans _scheduleResize.
+    // Un setState vide suffit à forcer le LayoutBuilder à
+    // capturer les nouvelles contraintes — pas besoin de recréer
+    // le widget carte (coûteux, perd l'état WebGL).
     if (mounted) {
       try {
-        setState(() => _mapRebuildTick++);
+        setState(() {});
       } catch (e) {
         debugPrint('⚠️ Erreur didChangeMetrics: $e');
       }
