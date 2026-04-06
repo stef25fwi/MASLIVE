@@ -2227,6 +2227,18 @@
         "panel": "dedicated",
         "clear": true
       }
+    },
+    {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (functions firebase-admin + firebase-functions bump)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && git config --local commit.gpgsign false && bash /workspaces/MASLIVE/commit_push_build_deploy.sh \"chore(functions): bump firebase-admin and firebase-functions\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
     }
   ]
 }
