@@ -6,6 +6,7 @@ class MasliveGradientIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
   final double size;
+  final double iconSize;
   final String? tooltip;
   final String? label;
 
@@ -14,6 +15,7 @@ class MasliveGradientIconButton extends StatelessWidget {
     required this.icon,
     this.onTap,
     this.size = 46,
+    this.iconSize = 22,
     this.tooltip,
     this.label,
   });
@@ -25,7 +27,7 @@ class MasliveGradientIconButton extends StatelessWidget {
         ? Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              Icon(icon, color: Colors.white, size: 17),
+              Icon(icon, color: Colors.white, size: iconSize),
               const SizedBox(height: 2),
               Text(
                 label!,
@@ -42,7 +44,7 @@ class MasliveGradientIconButton extends StatelessWidget {
               ),
             ],
           )
-        : Icon(icon, color: Colors.white, size: 22);
+        : Icon(icon, color: Colors.white, size: iconSize);
 
     final button = Material(
       color: Colors.transparent,

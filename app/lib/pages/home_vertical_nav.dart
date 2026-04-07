@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../ui/theme/maslive_theme.dart';
@@ -30,6 +32,12 @@ class HomeVerticalNavMenu extends StatelessWidget {
   final EdgeInsets margin;
   final double horizontalPadding;
   final double verticalPadding;
+  final double backgroundAlpha;
+  final Color? borderColor;
+  final double borderWidth;
+  final double blurSigma;
+  final BorderRadius borderRadius;
+  final List<BoxShadow>? boxShadow;
   final List<HomeVerticalNavItem> items;
 
   const HomeVerticalNavMenu({
@@ -38,23 +46,23 @@ class HomeVerticalNavMenu extends StatelessWidget {
     this.margin = const EdgeInsets.only(right: 0),
     this.horizontalPadding = 6,
     this.verticalPadding = 10,
+    this.backgroundAlpha = 0.40,
+    this.borderColor,
+    this.borderWidth = 1,
+    this.blurSigma = 0,
+    this.borderRadius = const BorderRadius.vertical(
+      top: Radius.circular(24),
+      bottom: Radius.circular(24),
+    ),
+    this.boxShadow,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: margin,
+    final child = Padding(
       padding: EdgeInsets.symmetric(
         horizontal: horizontalPadding,
         vertical: verticalPadding,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.40),
-        boxShadow: MasliveTheme.cardShadow,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(24),
-          bottom: Radius.circular(24),
-        ),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -65,6 +73,30 @@ class HomeVerticalNavMenu extends StatelessWidget {
               if (i != items.length - 1) const SizedBox(height: 8),
             ],
           ],
+        ),
+      ),
+    );
+
+    return Container(
+      margin: margin,
+      decoration: BoxDecoration(
+        borderRadius: borderRadius,
+        boxShadow: boxShadow ?? MasliveTheme.floatingShadow,
+      ),
+      child: ClipRRect(
+        borderRadius: borderRadius,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: backgroundAlpha),
+              borderRadius: borderRadius,
+              border: borderColor == null
+                  ? null
+                  : Border.all(color: borderColor!, width: borderWidth),
+            ),
+            child: child,
+          ),
         ),
       ),
     );
