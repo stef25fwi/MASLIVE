@@ -80,6 +80,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   String _currentLanguageFlag = '';
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
+  late Animation<double> _bottomBarIconsTranslateAnimation;
   _MapAction? _selectedAction;
 
   // ========== CARTE & GÉOLOCALISATION ==========
@@ -194,14 +195,19 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       duration: _menuAnimationDuration,
       vsync: this,
     )..value = 0.0;
-    _menuSlideAnimation =
-        Tween<Offset>(begin: const Offset(1.2, 0.0), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _menuAnimController,
-            curve: Curves.easeOutCubic,
-            reverseCurve: Curves.easeInCubic,
-          ),
-        );
+    final CurvedAnimation menuMotion = CurvedAnimation(
+      parent: _menuAnimController,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    _menuSlideAnimation = Tween<Offset>(
+      begin: const Offset(1.2, 0.0),
+      end: Offset.zero,
+    ).animate(menuMotion);
+    _bottomBarIconsTranslateAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(menuMotion);
 
     // Chargement asynchrone des données essentielles
     _bootstrapLocation(); // Permissions GPS + position initiale
@@ -221,7 +227,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (!_useMapboxTiles) {
-        debugPrint('⚠️ HomeMapPage3D: token Mapbox absent au 1er frame, déblocage splash');
+        debugPrint(
+          '⚠️ HomeMapPage3D: token Mapbox absent au 1er frame, déblocage splash',
+        );
         _notifyMapReadyFallback();
       }
     });
@@ -231,28 +239,36 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     // après 6 secondes pour ne pas bloquer l'utilisateur.
     Future.delayed(const Duration(seconds: 6), () {
       if (mounted && !_isMapReady && !mapReadyNotifier.value) {
-        debugPrint('⚠️ HomeMapPage3D: timeout 6s – carte non prête, déblocage splash');
+        debugPrint(
+          '⚠️ HomeMapPage3D: timeout 6s – carte non prête, déblocage splash',
+        );
         _notifyMapReadyFallback();
       }
     });
   }
 
   void _initMapboxToken() {
-    final info = MapboxTokenService.getTokenInfoSync(override: _runtimeMapboxToken);
+    final info = MapboxTokenService.getTokenInfoSync(
+      override: _runtimeMapboxToken,
+    );
     final token = info.token;
     if (token.isEmpty) {
       StartupTrace.log(
         'MAPBOX_NATIVE',
         '_initMapboxToken empty source=${info.source} valid=${info.isValidFormat} code=${info.errorCode}',
       );
-      debugPrint('⚠️ HomeMapPage3D: _initMapboxToken → token vide (source sync)');
+      debugPrint(
+        '⚠️ HomeMapPage3D: _initMapboxToken → token vide (source sync)',
+      );
       return;
     }
     StartupTrace.log(
       'MAPBOX_NATIVE',
       '_initMapboxToken source=${info.source} len=${token.length} pk=${info.isPublicPkToken}',
     );
-    debugPrint('✅ HomeMapPage3D: _initMapboxToken → token trouvé (len=${token.length})');
+    debugPrint(
+      '✅ HomeMapPage3D: _initMapboxToken → token trouvé (len=${token.length})',
+    );
     MapboxOptions.setAccessToken(token);
   }
 
@@ -274,7 +290,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       // Si après le chargement async le token est toujours vide,
       // on débloque le splash pour éviter un loader infini.
       if (_runtimeMapboxToken.isEmpty && !mapReadyNotifier.value) {
-        debugPrint('⚠️ HomeMapPage3D: token Mapbox vide après chargement async, déblocage splash');
+        debugPrint(
+          '⚠️ HomeMapPage3D: token Mapbox vide après chargement async, déblocage splash',
+        );
         _notifyMapReadyFallback();
       }
     } catch (e) {
@@ -322,7 +340,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     final raw = (value ?? '').toString().trim().toLowerCase();
     if (raw.isEmpty) return fallback;
     if (raw == 'true' || raw == '1' || raw == 'yes' || raw == 'on') return true;
-    if (raw == 'false' || raw == '0' || raw == 'no' || raw == 'off') return false;
+    if (raw == 'false' || raw == '0' || raw == 'no' || raw == 'off')
+      return false;
     return fallback;
   }
 
@@ -1377,6 +1396,48 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     }
   }
 
+  Future<void> _recenterOnUser() async {
+    final map = _mapboxMap;
+    final pos = _userPos;
+    if (map == null || pos == null) return;
+
+    try {
+      await map.flyTo(
+        CameraOptions(
+          center: Point(coordinates: pos),
+          zoom: _userZoom,
+        ),
+        MapAnimationOptions(
+          duration: _cameraAnimationDuration.inMilliseconds,
+          startDelay: 0,
+        ),
+      );
+    } catch (e) {
+      debugPrint('⚠️ recenterOnUser error: $e');
+    }
+  }
+
+  Future<void> _adjustZoom(double delta) async {
+    final map = _mapboxMap;
+    if (map == null) return;
+
+    try {
+      final state = await map.getCameraState();
+      final nextZoom = (state.zoom + delta).clamp(3.0, 20.0).toDouble();
+      await map.flyTo(
+        CameraOptions(
+          center: state.center,
+          zoom: nextZoom,
+          pitch: state.pitch,
+          bearing: state.bearing,
+        ),
+        MapAnimationOptions(duration: 220, startDelay: 0),
+      );
+    } catch (e) {
+      debugPrint('⚠️ adjustZoom error: $e');
+    }
+  }
+
   Future<void> _renderMarketPoiMarkers() async {
     // =========================
     // MarketMap POIs (GeoJSON)
@@ -1574,24 +1635,47 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
             await style.addLayer(badgeLayer);
 
             // Filtre: seulement les POI food avec un état live non vide
-            await style.setStyleLayerProperty(_mmPoiLiveBadgeLayerId, 'filter', [
-              'all',
-              ['==', ['get', 'type'], 'food'],
-              ['!=', ['get', 'liveTableState'], ''],
-            ]);
+            await style.setStyleLayerProperty(
+              _mmPoiLiveBadgeLayerId,
+              'filter',
+              [
+                'all',
+                [
+                  '==',
+                  ['get', 'type'],
+                  'food',
+                ],
+                [
+                  '!=',
+                  ['get', 'liveTableState'],
+                  '',
+                ],
+              ],
+            );
 
             // Couleur dynamique par état live
-            await style.setStyleLayerProperty(_mmPoiLiveBadgeLayerId, 'circle-color', [
-              'match', ['get', 'liveTableState'],
-              'available', '#4CAF50',
-              'limited', '#FF9800',
-              'full', '#F44336',
-              '#9E9E9E',
-            ]);
+            await style.setStyleLayerProperty(
+              _mmPoiLiveBadgeLayerId,
+              'circle-color',
+              [
+                'match',
+                ['get', 'liveTableState'],
+                'available',
+                '#4CAF50',
+                'limited',
+                '#FF9800',
+                'full',
+                '#F44336',
+                '#9E9E9E',
+              ],
+            );
 
             // Décalage en bas à droite du marker principal
             await style.setStyleLayerProperty(
-              _mmPoiLiveBadgeLayerId, 'circle-translate', [8.0, 8.0]);
+              _mmPoiLiveBadgeLayerId,
+              'circle-translate',
+              [8.0, 8.0],
+            );
 
             _mmPoiLayerIds.add(_mmPoiLiveBadgeLayerId);
           } catch (_) {
@@ -1996,10 +2080,16 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   /// Utilisé par splash_wrapper_page pour masquer le splash screen.
   void _checkIfReady() {
     if (_isMapReady && !mapReadyNotifier.value) {
-      StartupTrace.log('MAPBOX_NATIVE', '_checkIfReady scheduling notifier=true');
+      StartupTrace.log(
+        'MAPBOX_NATIVE',
+        '_checkIfReady scheduling notifier=true',
+      );
       Future.delayed(_mapReadyDelay, () {
         if (mounted) {
-          StartupTrace.log('MAPBOX_NATIVE', '_checkIfReady set mapReadyNotifier=true');
+          StartupTrace.log(
+            'MAPBOX_NATIVE',
+            '_checkIfReady set mapReadyNotifier=true',
+          );
           mapReadyNotifier.value = true;
         }
       });
@@ -2010,11 +2100,19 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   /// (ex: token Mapbox absent). Évite le loader infini.
   void _notifyMapReadyFallback() {
     if (mapReadyNotifier.value) return;
-    StartupTrace.log('MAPBOX_NATIVE', '_notifyMapReadyFallback scheduling notifier=true');
+    StartupTrace.log(
+      'MAPBOX_NATIVE',
+      '_notifyMapReadyFallback scheduling notifier=true',
+    );
     Future.delayed(_mapReadyDelay, () {
       if (mounted && !mapReadyNotifier.value) {
-        StartupTrace.log('MAPBOX_NATIVE', '_notifyMapReadyFallback set mapReadyNotifier=true');
-        debugPrint('🔓 HomeMapPage3D: _notifyMapReadyFallback → déblocage splash');
+        StartupTrace.log(
+          'MAPBOX_NATIVE',
+          '_notifyMapReadyFallback set mapReadyNotifier=true',
+        );
+        debugPrint(
+          '🔓 HomeMapPage3D: _notifyMapReadyFallback → déblocage splash',
+        );
         mapReadyNotifier.value = true;
       }
     });
@@ -2116,7 +2214,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       await _add3dBuildings();
 
       if (_mapboxMap != mapboxMap) {
-        StartupTrace.log('MAPBOX_NATIVE', '_onMapCreated stale after 3d buildings');
+        StartupTrace.log(
+          'MAPBOX_NATIVE',
+          '_onMapCreated stale after 3d buildings',
+        );
         return;
       }
 
@@ -2356,7 +2457,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       if (imageUrl.trim().isEmpty && meta != null) {
         final img = meta['image'];
         if (img is Map) {
-          final url = (img['url'] ?? img['downloadUrl'] ?? '').toString().trim();
+          final url = (img['url'] ?? img['downloadUrl'] ?? '')
+              .toString()
+              .trim();
           if (url.isNotEmpty) {
             imageUrl = url;
             if (kDebugMode) {
@@ -2723,11 +2826,15 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       context,
       '/boutique-photo',
       arguments: <String, dynamic>{
-        if (countryId != null && countryId.trim().isNotEmpty) 'countryId': countryId,
-        if (countryName != null && countryName.trim().isNotEmpty) 'countryName': countryName,
+        if (countryId != null && countryId.trim().isNotEmpty)
+          'countryId': countryId,
+        if (countryName != null && countryName.trim().isNotEmpty)
+          'countryName': countryName,
         if (eventId != null && eventId.trim().isNotEmpty) 'eventId': eventId,
-        if (eventName != null && eventName.trim().isNotEmpty) 'eventName': eventName,
-        if (circuitId != null && circuitId.trim().isNotEmpty) 'circuitId': circuitId,
+        if (eventName != null && eventName.trim().isNotEmpty)
+          'eventName': eventName,
+        if (circuitId != null && circuitId.trim().isNotEmpty)
+          'circuitId': circuitId,
         if (circuitName != null && circuitName.trim().isNotEmpty)
           'circuitName': circuitName,
       },
@@ -2859,24 +2966,27 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
               ),
             ),
 
-            // Libellé Mapbox en haut à gauche
+            // Boussole (demi-flèche rouge)
+            const Positioned(top: 104, right: 14, child: _HalfRedCompass()),
+
             Positioned(
               left: 14,
               top: 10,
               child: SafeArea(
-                child: Text(
-                  'mapbox',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: MasliveTheme.textPrimary,
-                  ),
+                child: _MapTopLeftControls(
+                  canRecenter: _userPos != null,
+                  onRecenter: () {
+                    _recenterOnUser();
+                  },
+                  onZoomIn: () {
+                    _adjustZoom(1.0);
+                  },
+                  onZoomOut: () {
+                    _adjustZoom(-1.0);
+                  },
                 ),
               ),
             ),
-
-            // Boussole (demi-flèche rouge)
-            const Positioned(top: 104, right: 14, child: _HalfRedCompass()),
 
             // Overlay actions menu
             if (_showActionsMenu)
@@ -3056,61 +3166,103 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                 backgroundColor: Colors.transparent,
                 child: Row(
                   children: [
-                    StreamBuilder<User?>(
-                      stream: AuthService.instance.authStateChanges,
-                      builder: (context, snap) {
-                        final user = snap.data;
-                        final pseudo =
-                            (user?.displayName ?? user?.email ?? 'Profil')
-                                .trim();
+                    AnimatedBuilder(
+                      animation: _bottomBarIconsTranslateAnimation,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          StreamBuilder<User?>(
+                            stream: AuthService.instance.authStateChanges,
+                            builder: (context, snap) {
+                              final user = snap.data;
+                              final pseudo =
+                                  (user?.displayName ?? user?.email ?? 'Profil')
+                                      .trim();
 
-                        return Tooltip(
-                          message: pseudo.isEmpty ? 'Profil' : pseudo,
-                          child: InkWell(
-                            onTap: () {
-                              if (user != null) {
-                                Navigator.pushNamed(context, '/account-ui');
-                              } else {
-                                Navigator.pushNamed(context, '/login');
-                              }
+                              return Tooltip(
+                                message: pseudo.isEmpty ? 'Profil' : pseudo,
+                                child: InkWell(
+                                  onTap: () {
+                                    if (user != null) {
+                                      Navigator.pushNamed(
+                                        context,
+                                        '/account-ui',
+                                      );
+                                    } else {
+                                      Navigator.pushNamed(context, '/login');
+                                    }
+                                  },
+                                  customBorder: const CircleBorder(),
+                                  child: MasliveProfileIcon(
+                                    size: 46,
+                                    badgeSizeRatio: 0.22,
+                                    showBadge: user != null,
+                                  ),
+                                ),
+                              );
                             },
-                            customBorder: const CircleBorder(),
-                            child: MasliveProfileIcon(
-                              size: 46,
-                              badgeSizeRatio: 0.22,
-                              showBadge: user != null,
-                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                      ),
+                      builder: (context, child) {
+                        final progress =
+                            _bottomBarIconsTranslateAnimation.value;
+                        return Opacity(
+                          opacity: (1.0 - progress).clamp(0.0, 1.0).toDouble(),
+                          child: Transform.translate(
+                            offset: Offset(-96.0 * progress, 0),
+                            child: child,
                           ),
                         );
                       },
                     ),
-                    const SizedBox(width: 12),
                     const Spacer(),
-                    MasliveGradientIconButton(
-                      icon: Icons.shopping_bag_rounded,
-                      tooltip: l10n.AppLocalizations.of(context)!.shop,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const StorexShopPage(
-                              shopId: "global",
-                              groupId: "MASLIVE",
-                            ),
+                    AnimatedBuilder(
+                      animation: _bottomBarIconsTranslateAnimation,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          MasliveGradientIconButton(
+                            icon: Icons.shopping_bag_rounded,
+                            tooltip: l10n.AppLocalizations.of(context)!.shop,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const StorexShopPage(
+                                    shopId: "global",
+                                    groupId: "MASLIVE",
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 10),
+                          MasliveGradientIconButton(
+                            icon: Icons.photo_library_outlined,
+                            tooltip: _marketPoiSelection.event != null
+                                ? 'Médias de l’événement'
+                                : 'Marché des médias',
+                            onTap: _openMarketplaceForSelectedEvent,
+                          ),
+                        ],
+                      ),
+                      builder: (context, child) {
+                        final progress =
+                            _bottomBarIconsTranslateAnimation.value;
+                        return Opacity(
+                          opacity: (1.0 - progress).clamp(0.0, 1.0).toDouble(),
+                          child: Transform.translate(
+                            offset: Offset(200.0 * progress, 0),
+                            child: child,
                           ),
                         );
                       },
-                    ),
-                    const SizedBox(width: 10),
-                    MasliveGradientIconButton(
-                      icon: Icons.photo_library_outlined,
-                      tooltip: _marketPoiSelection.event != null
-                          ? 'Médias de l’événement'
-                          : 'Marché des médias',
-                      onTap: _openMarketplaceForSelectedEvent,
                     ),
                     const SizedBox(width: 10),
                     MasliveGradientIconButton(
                       icon: Icons.menu_rounded,
+                      label: l10n.AppLocalizations.of(context)!.menu,
                       tooltip: l10n.AppLocalizations.of(context)!.menu,
                       onTap: () {
                         _toggleActionsMenu();
@@ -3267,6 +3419,106 @@ class _HalfRedCompass extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MapTopLeftControls extends StatelessWidget {
+  const _MapTopLeftControls({
+    required this.canRecenter,
+    required this.onRecenter,
+    required this.onZoomIn,
+    required this.onZoomOut,
+  });
+
+  final bool canRecenter;
+  final VoidCallback onRecenter;
+  final VoidCallback onZoomIn;
+  final VoidCallback onZoomOut;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _MapOverlayControlButton(
+          icon: Icons.my_location_rounded,
+          onTap: canRecenter ? onRecenter : null,
+        ),
+        const SizedBox(height: 10),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: MasliveTheme.cardShadow,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _MapOverlayControlButton(
+                icon: Icons.add_rounded,
+                onTap: onZoomIn,
+                embedded: true,
+              ),
+              Container(
+                width: 36,
+                height: 1,
+                color: MasliveTheme.divider.withValues(alpha: 0.7),
+              ),
+              _MapOverlayControlButton(
+                icon: Icons.remove_rounded,
+                onTap: onZoomOut,
+                embedded: true,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MapOverlayControlButton extends StatelessWidget {
+  const _MapOverlayControlButton({
+    required this.icon,
+    required this.onTap,
+    this.embedded = false,
+  });
+
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool embedded;
+
+  @override
+  Widget build(BuildContext context) {
+    final child = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(embedded ? 18 : 20),
+        child: SizedBox(
+          width: embedded ? 36 : 44,
+          height: embedded ? 36 : 44,
+          child: Icon(
+            icon,
+            size: embedded ? 20 : 22,
+            color: onTap == null
+                ? MasliveTheme.textSecondary.withValues(alpha: 0.45)
+                : const Color(0xFF111827),
+          ),
+        ),
+      ),
+    );
+
+    if (embedded) return child;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: MasliveTheme.cardShadow,
+      ),
+      child: child,
     );
   }
 }

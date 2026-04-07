@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import '../theme/maslive_theme.dart';
 
@@ -6,6 +7,7 @@ class MasliveGradientIconButton extends StatelessWidget {
   final VoidCallback? onTap;
   final double size;
   final String? tooltip;
+  final String? label;
 
   const MasliveGradientIconButton({
     super.key,
@@ -13,10 +15,35 @@ class MasliveGradientIconButton extends StatelessWidget {
     this.onTap,
     this.size = 46,
     this.tooltip,
+    this.label,
   });
 
   @override
   Widget build(BuildContext context) {
+    final hasLabel = label != null && label!.trim().isNotEmpty;
+    final Widget buttonChild = hasLabel
+        ? Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Icon(icon, color: Colors.white, size: 17),
+              const SizedBox(height: 2),
+              Text(
+                label!,
+                maxLines: 1,
+                overflow: TextOverflow.fade,
+                softWrap: false,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 8.5,
+                  fontWeight: FontWeight.w800,
+                  height: 1,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
+          )
+        : Icon(icon, color: Colors.white, size: 22);
+
     final button = Material(
       color: Colors.transparent,
       child: InkWell(
@@ -42,7 +69,7 @@ class MasliveGradientIconButton extends StatelessWidget {
               ),
             ],
           ),
-          child: Icon(icon, color: Colors.white, size: 22),
+          child: buttonChild,
         ),
       ),
     );

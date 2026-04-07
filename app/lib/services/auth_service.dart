@@ -12,18 +12,54 @@ import '../models/user_profile_model.dart';
 
 class AuthService {
   static final AuthService _instance = AuthService._internal();
+  static const String _defaultGoogleOauthClientId =
+      '646399778464-hsm91nl98tb09vlg81ji36kmrn7uvtb2.apps.googleusercontent.com';
 
   static AuthService get instance => _instance;
 
-  AuthService._internal();
+  AuthService._internal({
+    FirebaseAuth? auth,
+    FirebaseFirestore? firestore,
+    FirebaseFunctions? functions,
+  }) : _authOverride = auth,
+       _firestoreOverride = firestore,
+       _functionsOverride = functions;
 
   factory AuthService() {
     return _instance;
   }
 
-  FirebaseAuth get _auth => FirebaseAuth.instance;
-  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
+  @visibleForTesting
+  factory AuthService.test({
+    required FirebaseAuth auth,
+    required FirebaseFirestore firestore,
+    FirebaseFunctions? functions,
+  }) {
+    return AuthService._internal(
+      auth: auth,
+      firestore: firestore,
+      functions: functions,
+    );
+  }
+
+  final FirebaseAuth? _authOverride;
+  final FirebaseFirestore? _firestoreOverride;
+  final FirebaseFunctions? _functionsOverride;
+
+  FirebaseAuth get _auth => _authOverride ?? FirebaseAuth.instance;
+  FirebaseFirestore get _firestore =>
+      _firestoreOverride ?? FirebaseFirestore.instance;
+  FirebaseFunctions get _functions =>
+      _functionsOverride ?? FirebaseFunctions.instanceFor(region: 'us-east1');
   Future<void>? _googleInitialization;
+  static const String _googleClientId = String.fromEnvironment(
+    'GOOGLE_CLIENT_ID',
+    defaultValue: _defaultGoogleOauthClientId,
+  );
+  static const String _googleServerClientId = String.fromEnvironment(
+    'GOOGLE_SERVER_CLIENT_ID',
+    defaultValue: _defaultGoogleOauthClientId,
+  );
   static const String _appleServiceId = String.fromEnvironment(
     'APPLE_SERVICE_ID',
   );
@@ -47,7 +83,28 @@ class AuthService {
         defaultTargetPlatform == TargetPlatform.macOS;
   }
 
-  bool get _firebaseReady => Firebase.apps.isNotEmpty;
+  bool get _firebaseReady =>
+      _authOverride != null ||
+      _firestoreOverride != null ||
+      _functionsOverride != null ||
+      Firebase.apps.isNotEmpty;
+
+  String? get _resolvedGoogleClientId {
+    final clientId = _googleClientId.trim();
+    if (clientId.isEmpty) return null;
+    if (kIsWeb ||
+        defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS) {
+      return clientId;
+    }
+    return null;
+  }
+
+  String? get _resolvedGoogleServerClientId {
+    final serverClientId = _googleServerClientId.trim();
+    if (serverClientId.isEmpty) return null;
+    return serverClientId;
+  }
 
   // Stream de l'utilisateur actuel
   Stream<User?> get authStateChanges {
@@ -117,13 +174,10 @@ class AuthService {
         data['role'] = UserProfile.roleToString(role);
       }
 
-      await _firestore.collection('users').doc(userId).set(
-        {
-          ...data,
-          if (!isExistingUser) 'createdAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      await _firestore.collection('users').doc(userId).set({
+        ...data,
+        if (!isExistingUser) 'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     } catch (e) {
       // print('Erreur createOrUpdateUserProfile: $e');
       rethrow;
@@ -131,10 +185,7 @@ class AuthService {
   }
 
   // Connexion avec email/password
-  Future<UserCredential?> signInWithEmail(
-    String email,
-    String password,
-  ) async {
+  Future<UserCredential?> signInWithEmail(String email, String password) async {
     try {
       final result = await _auth.signInWithEmailAndPassword(
         email: email,
@@ -258,21 +309,36 @@ class AuthService {
   }
 
   Future<void> ensureGoogleSignInInitialized() {
-    return _googleInitialization ??= GoogleSignIn.instance.initialize();
+    return _googleInitialization ??= GoogleSignIn.instance.initialize(
+      clientId: _resolvedGoogleClientId,
+      serverClientId: _resolvedGoogleServerClientId,
+    );
   }
 
   Future<UserCredential> signInWithGoogleAccount(
     GoogleSignInAccount googleUser,
-  ) {
+  ) async {
+    await ensureGoogleSignInInitialized();
     return _signInWithGoogleAccount(googleUser);
   }
 
   Future<UserCredential> _signInWithGoogleAccount(
     GoogleSignInAccount googleUser,
   ) async {
-    final idToken = googleUser.authentication.idToken;
+    final idToken = googleUser.authentication.idToken?.trim();
+    return _signInWithGoogleIdToken(idToken);
+  }
+
+  @visibleForTesting
+  Future<UserCredential> signInWithGoogleIdToken(String? idToken) {
+    return _signInWithGoogleIdToken(idToken?.trim());
+  }
+
+  Future<UserCredential> _signInWithGoogleIdToken(String? idToken) async {
     if (idToken == null || idToken.isEmpty) {
-      throw const AuthException('Token Google invalide ou manquant');
+      throw const AuthException(
+        'Google n\'a pas renvoyé de jeton valide. Vérifiez la configuration OAuth Google.',
+      );
     }
 
     final credential = GoogleAuthProvider.credential(idToken: idToken);
@@ -333,10 +399,9 @@ class AuthService {
         throw const AuthException('Token Apple invalide ou manquant.');
       }
 
-      final oauthCredential = OAuthProvider('apple.com').credential(
-        idToken: appleCredential.identityToken,
-        rawNonce: rawNonce,
-      );
+      final oauthCredential = OAuthProvider(
+        'apple.com',
+      ).credential(idToken: appleCredential.identityToken, rawNonce: rawNonce);
 
       final result = await _auth.signInWithCredential(oauthCredential);
       await _syncSocialUserProfile(result.user);
@@ -419,8 +484,10 @@ class AuthService {
     const charset =
         '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
     final random = Random.secure();
-    return List.generate(length, (_) => charset[random.nextInt(charset.length)])
-        .join();
+    return List.generate(
+      length,
+      (_) => charset[random.nextInt(charset.length)],
+    ).join();
   }
 
   String _sha256ofString(String input) {
@@ -502,8 +569,7 @@ class AuthService {
     try {
       final user = _auth.currentUser;
       if (user != null) {
-        final functions = FirebaseFunctions.instanceFor(region: 'us-east1');
-        final callable = functions.httpsCallable('deleteMyAccountGdpr');
+        final callable = _functions.httpsCallable('deleteMyAccountGdpr');
         await callable.call();
       }
     } catch (e) {
@@ -514,8 +580,7 @@ class AuthService {
 
   // Export des données personnelles (RGPD)
   Future<Map<String, dynamic>> exportMyPersonalData() async {
-    final functions = FirebaseFunctions.instanceFor(region: 'us-east1');
-    final callable = functions.httpsCallable('exportMyPersonalData');
+    final callable = _functions.httpsCallable('exportMyPersonalData');
     final result = await callable.call();
     final data = result.data;
     if (data is Map<String, dynamic>) {

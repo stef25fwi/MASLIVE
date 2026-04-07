@@ -131,6 +131,38 @@
   "creating": "Creando...",
   "continueWithGoogle": "Continuar con Google",
   "continueWithApple": "Continuar con Apple",
+  "loginValidationEmailRequired": "Introduce tu correo electrónico.",
+  "loginValidationInvalidEmail": "Introduce un correo electrónico válido.",
+  "loginValidationPasswordRequired": "Introduce tu contraseña.",
+  "loginValidationPasswordTooShort": "Usa al menos {minLength} caracteres.",
+  "@loginValidationPasswordTooShort": {
+    "placeholders": {
+      "minLength": {
+        "type": "int",
+        "example": "8"
+      }
+    }
+  },
+  "loginValidationConfirmPasswordRequired": "Confirma tu contraseña.",
+  "loginValidationPasswordMismatch": "Las contraseñas no coinciden.",
+  "loginFeedbackActionCancelled": "Acción cancelada.",
+  "loginFeedbackNetworkIssue": "Problema de red. Comprueba tu conexión.",
+  "loginFeedbackInvalidCredentials": "Correo o contraseña incorrectos.",
+  "loginFeedbackEmailAlreadyInUse": "Este correo ya está asociado a una cuenta.",
+  "loginFeedbackAccountExistsDifferentMethod": "Esta cuenta ya existe con otro método de acceso.",
+  "loginFeedbackTooManyAttempts": "Demasiados intentos. Vuelve a intentarlo más tarde.",
+  "loginFeedbackGoogleConfiguration": "Google Sign-In todavía requiere una configuración OAuth válida.",
+  "loginFeedbackGeneric": "La conexión falló. Vuelve a intentarlo.",
+  "loginResetPasswordDescription": "Introduce tu correo para recibir un enlace de restablecimiento.",
+  "loginResetPasswordEmailSent": "Correo de restablecimiento enviado.",
+  "loginSignUpDescription": "Crea tu acceso seguro en unos segundos.",
+  "loginSignUpIntro": "Elige un método sencillo y termina de crear tu cuenta.",
+  "loginOtherOptionsTitle": "Otras opciones",
+  "loginOtherOptionsDescription": "Usa otro método o continúa sin cuenta.",
+  "loginBusinessPrompt": "¿Eres un profesional?",
+  "loginBusinessDescription": "Crea tu cuenta profesional sin sobrecargar el flujo principal.",
+  "loginBusinessCreateAccount": "Crear una cuenta profesional",
+  "loginUseGoogleButtonOnPage": "Usa el botón de Google mostrado directamente en la página de inicio de sesión.",
   "myFavorites": "Mis favoritos",
   "myGroups": "Mis grupos",
   "savedPlacesGroups": "Lugares y grupos guardados",

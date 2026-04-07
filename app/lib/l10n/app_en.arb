@@ -131,6 +131,38 @@
   "creating": "Creating...",
   "continueWithGoogle": "Continue with Google",
   "continueWithApple": "Continue with Apple",
+  "loginValidationEmailRequired": "Please enter your email.",
+  "loginValidationInvalidEmail": "Please enter a valid email address.",
+  "loginValidationPasswordRequired": "Please enter your password.",
+  "loginValidationPasswordTooShort": "Use at least {minLength} characters.",
+  "@loginValidationPasswordTooShort": {
+    "placeholders": {
+      "minLength": {
+        "type": "int",
+        "example": "8"
+      }
+    }
+  },
+  "loginValidationConfirmPasswordRequired": "Please confirm your password.",
+  "loginValidationPasswordMismatch": "Passwords do not match.",
+  "loginFeedbackActionCancelled": "Action cancelled.",
+  "loginFeedbackNetworkIssue": "Network issue. Check your connection.",
+  "loginFeedbackInvalidCredentials": "Incorrect email or password.",
+  "loginFeedbackEmailAlreadyInUse": "This email is already linked to an account.",
+  "loginFeedbackAccountExistsDifferentMethod": "This account already exists with another sign-in method.",
+  "loginFeedbackTooManyAttempts": "Too many attempts. Please try again later.",
+  "loginFeedbackGoogleConfiguration": "Google sign-in still requires a valid OAuth configuration.",
+  "loginFeedbackGeneric": "Sign-in failed. Please try again.",
+  "loginResetPasswordDescription": "Enter your email to receive a reset link.",
+  "loginResetPasswordEmailSent": "Password reset email sent.",
+  "loginSignUpDescription": "Create your secure access in a few seconds.",
+  "loginSignUpIntro": "Choose a simple method and finish creating your account.",
+  "loginOtherOptionsTitle": "Other options",
+  "loginOtherOptionsDescription": "Use another method or continue without an account.",
+  "loginBusinessPrompt": "Are you a professional?",
+  "loginBusinessDescription": "Create your business account without crowding the main flow.",
+  "loginBusinessCreateAccount": "Create a business account",
+  "loginUseGoogleButtonOnPage": "Use the Google button shown directly on the login page.",
   "myFavorites": "My favorites",
   "myGroups": "My groups",
   "savedPlacesGroups": "Saved places and groups",

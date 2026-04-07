@@ -1,178 +1,324 @@
-import 'package:flutter_test/flutter_test.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:masslive/services/auth_service.dart';
+import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:masslive/models/user_profile_model.dart';
+import 'package:masslive/services/auth_service.dart';
+import 'package:mock_exceptions/mock_exceptions.dart';
 
 void main() {
-  group('AuthService Tests', () {
-    late AuthService authService;
+  TestWidgetsFlutterBinding.ensureInitialized();
 
-    setUpAll(() async {
-      // Initialize Firebase for testing
-      TestWidgetsFlutterBinding.ensureInitialized();
+  group('AuthService', () {
+    test('AuthService.instance reste singleton', () {
+      expect(AuthService.instance, same(AuthService.instance));
+      expect(AuthService(), same(AuthService.instance));
     });
 
-    setUp(() {
-      authService = AuthService.instance;
+    test('currentUser retourne null sans authentification', () {
+      final harness = _AuthServiceHarness();
+
+      expect(harness.service.currentUser, isNull);
     });
 
-    test('AuthService instance should be singleton', () {
-      final instance1 = AuthService.instance;
-      final instance2 = AuthService.instance;
-      expect(instance1, equals(instance2));
+    test(
+      'signInWithEmailPassword émet l’utilisateur et crée son profil',
+      () async {
+        final mockUser = MockUser(
+          uid: 'email-user-1',
+          email: 'pilot@example.com',
+          displayName: 'Pilot',
+        );
+        final harness = _AuthServiceHarness(mockUser: mockUser);
+
+        final authState = harness.service.authStateChanges.firstWhere(
+          (user) => user?.uid == mockUser.uid,
+        );
+
+        final credential = await harness.service.signInWithEmailPassword(
+          email: 'pilot@example.com',
+          password: 'password123',
+        );
+
+        expect(credential.user?.uid, mockUser.uid);
+        expect(harness.service.currentUser?.uid, mockUser.uid);
+
+        final profileDoc = await harness.firestore
+            .collection('users')
+            .doc(mockUser.uid)
+            .get();
+
+        expect(profileDoc.exists, isTrue);
+        expect(profileDoc.data()?['email'], 'pilot@example.com');
+        expect(profileDoc.data()?['displayName'], 'Pilot');
+        expect(profileDoc.data()?['role'], 'user');
+
+        expect((await authState)?.uid, mockUser.uid);
+      },
+    );
+
+    test('signInWithEmailPassword conserve un profil existant', () async {
+      final mockUser = MockUser(
+        uid: 'existing-user',
+        email: 'admin@example.com',
+        displayName: 'Admin Name',
+      );
+      final harness = _AuthServiceHarness(mockUser: mockUser);
+
+      await harness.firestore.collection('users').doc(mockUser.uid).set({
+        'email': 'admin@example.com',
+        'displayName': 'Profil existant',
+        'role': 'admin',
+        'groupId': 'group-42',
+        'createdAt': Timestamp.now(),
+      });
+
+      await harness.service.signInWithEmailPassword(
+        email: 'admin@example.com',
+        password: 'password123',
+      );
+
+      final profileDoc = await harness.firestore
+          .collection('users')
+          .doc(mockUser.uid)
+          .get();
+
+      expect(profileDoc.data()?['role'], 'admin');
+      expect(profileDoc.data()?['groupId'], 'group-42');
+      expect(profileDoc.data()?['displayName'], 'Profil existant');
     });
 
-    test('currentUser should return null when not authenticated', () {
-      expect(authService.currentUser, isNull);
-    });
+    test('signInWithEmailPassword relaie les erreurs Firebase Auth', () async {
+      final harness = _AuthServiceHarness();
 
-    test('authStateChanges stream should exist', () {
-      expect(authService.authStateChanges, isNotNull);
-      expect(authService.authStateChanges, isA<Stream<User?>>());
-    });
+      whenCalling(
+            Invocation.method(#signInWithEmailAndPassword, null, {
+              #email: 'invalid@test.com',
+              #password: 'wrongpassword',
+            }),
+          )
+          .on(harness.auth)
+          .thenThrow(
+            FirebaseAuthException(
+              code: 'wrong-password',
+              message: 'Wrong password.',
+            ),
+          );
 
-    group('Email/Password Authentication', () {
-      test('signInWithEmailPassword should throw on invalid credentials', () async {
-        expect(
-          () => authService.signInWithEmailPassword(
-            email: 'invalid@test.com',
-            password: 'wrongpassword',
+      await expectLater(
+        harness.service.signInWithEmailPassword(
+          email: 'invalid@test.com',
+          password: 'wrongpassword',
+        ),
+        throwsA(
+          isA<FirebaseAuthException>().having(
+            (error) => error.code,
+            'code',
+            'wrong-password',
           ),
-          throwsA(isA<FirebaseAuthException>()),
-        );
-      });
+        ),
+      );
+    });
 
-      test('createUserWithEmailPassword should throw on invalid email', () async {
-        expect(
-          () => authService.createUserWithEmailPassword(
-            email: 'invalidemail',
-            password: 'password123',
+    test('createUserWithEmailPassword crée le profil Firestore', () async {
+      final harness = _AuthServiceHarness();
+
+      final credential = await harness.service.createUserWithEmailPassword(
+        email: 'new-user@example.com',
+        password: 'password123',
+      );
+
+      final createdUser = credential.user;
+      expect(createdUser, isNotNull);
+
+      final profileDoc = await harness.firestore
+          .collection('users')
+          .doc(createdUser!.uid)
+          .get();
+
+      expect(profileDoc.exists, isTrue);
+      expect(profileDoc.data()?['email'], 'new-user@example.com');
+      expect(profileDoc.data()?['role'], 'user');
+    });
+
+    test('createUserWithEmailPassword relaie invalid-email', () async {
+      final harness = _AuthServiceHarness();
+
+      whenCalling(
+            Invocation.method(#createUserWithEmailAndPassword, null, {
+              #email: 'invalidemail',
+              #password: 'password123',
+            }),
+          )
+          .on(harness.auth)
+          .thenThrow(
+            FirebaseAuthException(
+              code: 'invalid-email',
+              message: 'The email address is badly formatted.',
+            ),
+          );
+
+      await expectLater(
+        harness.service.createUserWithEmailPassword(
+          email: 'invalidemail',
+          password: 'password123',
+        ),
+        throwsA(
+          isA<FirebaseAuthException>().having(
+            (error) => error.code,
+            'code',
+            'invalid-email',
           ),
-          throwsA(isA<FirebaseAuthException>()),
-        );
+        ),
+      );
+    });
+
+    test('getUserProfile retourne null si le document est absent', () async {
+      final harness = _AuthServiceHarness();
+
+      final profile = await harness.service.getUserProfile('missing-user');
+
+      expect(profile, isNull);
+    });
+
+    test('getUserProfile retourne le profil Firestore existant', () async {
+      final harness = _AuthServiceHarness();
+      await harness.firestore.collection('users').doc('profile-user').set({
+        'email': 'profile@example.com',
+        'displayName': 'Stored User',
+        'role': 'admin',
+        'createdAt': Timestamp.now(),
       });
 
-      test('createUserWithEmailPassword should throw on weak password', () async {
-        expect(
-          () => authService.createUserWithEmailPassword(
-            email: 'test@test.com',
-            password: '123',
+      final profile = await harness.service.getUserProfile('profile-user');
+
+      expect(profile, isNotNull);
+      expect(profile!.email, 'profile@example.com');
+      expect(profile.displayName, 'Stored User');
+      expect(profile.role, UserRole.admin);
+    });
+
+    test('getUserProfileStream diffuse les mises à jour Firestore', () async {
+      final harness = _AuthServiceHarness();
+
+      final emittedProfile = harness.service
+          .getUserProfileStream('stream-user')
+          .firstWhere((profile) => profile != null);
+
+      await harness.firestore.collection('users').doc('stream-user').set({
+        'email': 'stream@example.com',
+        'displayName': 'Stream User',
+        'role': 'user',
+        'createdAt': Timestamp.now(),
+      });
+
+      final profile = (await emittedProfile)!;
+      expect(profile.email, 'stream@example.com');
+      expect(profile.displayName, 'Stream User');
+    });
+
+    test('signInWithGoogleIdToken crée le profil social', () async {
+      final mockUser = MockUser(
+        uid: 'google-user-1',
+        email: 'google@example.com',
+        displayName: 'Google User',
+      );
+      final harness = _AuthServiceHarness(mockUser: mockUser);
+
+      final credential = await harness.service.signInWithGoogleIdToken(
+        'fake-google-token',
+      );
+
+      expect(credential.user?.uid, mockUser.uid);
+
+      final profileDoc = await harness.firestore
+          .collection('users')
+          .doc(mockUser.uid)
+          .get();
+
+      expect(profileDoc.exists, isTrue);
+      expect(profileDoc.data()?['email'], 'google@example.com');
+      expect(profileDoc.data()?['displayName'], 'Google User');
+    });
+
+    test('signInWithGoogleIdToken rejette un jeton vide', () async {
+      final harness = _AuthServiceHarness();
+
+      await expectLater(
+        harness.service.signInWithGoogleIdToken('   '),
+        throwsA(
+          isA<AuthException>().having(
+            (error) => error.message,
+            'message',
+            contains('jeton valide'),
           ),
-          throwsA(isA<FirebaseAuthException>()),
-        );
-      });
+        ),
+      );
     });
 
-    group('User Profile Management', () {
-      test('getUserProfile should return null for non-existent user', () async {
-        final profile = await authService.getUserProfile('non-existent-id');
-        expect(profile, isNull);
-      });
+    test('signOut vide currentUser', () async {
+      final mockUser = MockUser(
+        uid: 'signed-user',
+        email: 'signed@example.com',
+      );
+      final harness = _AuthServiceHarness(mockUser: mockUser, signedIn: true);
 
-      test('getUserProfileStream should return stream', () {
-        final stream = authService.getUserProfileStream('test-id');
-        expect(stream, isNotNull);
-        expect(stream, isA<Stream<UserProfile?>>());
-      });
+      expect(harness.service.currentUser?.uid, mockUser.uid);
+
+      await harness.service.signOut();
+
+      expect(harness.service.currentUser, isNull);
     });
 
-    group('Helper Functions', () {
-      test('_generateNonce should generate random string of correct length', () {
-        // This is a private method, so we test it indirectly
-        // through signInWithApple behavior
-        expect(true, isTrue); // Placeholder
-      });
+    test('resetPassword complète sans erreur si Firebase accepte', () async {
+      final harness = _AuthServiceHarness();
 
-      test('_sha256ofString should generate consistent hash', () {
-        // This is a private method, so we test it indirectly
-        expect(true, isTrue); // Placeholder
-      });
+      await expectLater(
+        harness.service.resetPassword('reset@example.com'),
+        completes,
+      );
     });
 
-    group('Sign Out', () {
-      test('signOut should complete without error', () async {
-        await expectLater(
-          authService.signOut(),
-          completes,
-        );
-      });
-    });
+    test('resetPassword relaie invalid-email', () async {
+      final harness = _AuthServiceHarness();
 
-    group('Password Reset', () {
-      test('resetPassword should send email for valid address', () async {
-        // This will actually try to send an email in production
-        // For testing, we just verify it doesn't throw for valid format
-        expect(
-          () => authService.resetPassword('test@example.com'),
-          returnsNormally,
-        );
-      });
+      whenCalling(
+            Invocation.method(#sendPasswordResetEmail, null, {
+              #email: 'invalidemail',
+            }),
+          )
+          .on(harness.auth)
+          .thenThrow(
+            FirebaseAuthException(
+              code: 'invalid-email',
+              message: 'The email address is badly formatted.',
+            ),
+          );
 
-      test('resetPassword should throw for invalid email', () async {
-        expect(
-          () => authService.resetPassword('invalidemail'),
-          throwsA(isA<FirebaseAuthException>()),
-        );
-      });
-    });
-  }, skip: 'Requiert un setup Firebase Auth/Firestore (mocks ou émulateur) pour les tests VM.');
-
-  group('Integration Tests', () {
-    test('Full authentication flow simulation', () {
-      // This test demonstrates the expected flow without actual Firebase calls
-      final steps = [
-        'User opens login page',
-        'User enters email/password',
-        'signInWithEmailPassword is called',
-        'If successful, user profile is fetched/created',
-        'User is redirected to home page',
-      ];
-      
-      expect(steps.length, equals(5));
-    });
-
-    test('Google Sign-In flow', () {
-      final googleFlow = [
-        'User clicks "Sign in with Google"',
-        'GoogleSignIn().signIn() is called',
-        'Google auth credentials are obtained',
-        'Firebase signInWithCredential is called',
-        'User profile is created/updated in Firestore',
-      ];
-      
-      expect(googleFlow.length, equals(5));
-    });
-
-    test('Apple Sign-In flow', () {
-      final appleFlow = [
-        'User clicks "Sign in with Apple"',
-        'Nonce is generated for security',
-        'Apple ID credentials are requested',
-        'OAuth credential is created',
-        'Firebase signInWithCredential is called',
-        'User profile is created/updated in Firestore',
-      ];
-      
-      expect(appleFlow.length, equals(6));
+      await expectLater(
+        harness.service.resetPassword('invalidemail'),
+        throwsA(
+          isA<FirebaseAuthException>().having(
+            (error) => error.code,
+            'code',
+            'invalid-email',
+          ),
+        ),
+      );
     });
   });
+}
 
-  group('Error Handling Tests', () {
-    test('Should handle network errors gracefully', () {
-      // Verify that network errors are caught and rethrown
-      expect(true, isTrue); // Placeholder for actual implementation
-    });
+class _AuthServiceHarness {
+  _AuthServiceHarness({MockUser? mockUser, bool signedIn = false})
+    : auth = MockFirebaseAuth(signedIn: signedIn, mockUser: mockUser),
+      firestore = FakeFirebaseFirestore() {
+    firestore = FakeFirebaseFirestore(authObject: auth.authForFakeFirestore);
+    service = AuthService.test(auth: auth, firestore: firestore);
+  }
 
-    test('Should handle Firebase Auth errors', () {
-      final commonErrors = [
-        'user-not-found',
-        'wrong-password',
-        'email-already-in-use',
-        'weak-password',
-        'invalid-email',
-      ];
-      
-      expect(commonErrors.length, equals(5));
-    });
-  });
+  late final MockFirebaseAuth auth;
+  late FakeFirebaseFirestore firestore;
+  late final AuthService service;
 }

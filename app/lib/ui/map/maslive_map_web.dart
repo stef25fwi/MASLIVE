@@ -30,6 +30,8 @@ class MasLiveMapWeb extends StatefulWidget {
   final double? userLng;
   final double? userLat;
   final bool compactAttribution;
+  final bool forceCompactAttribution;
+  final String controlsPosition;
   final ValueChanged<MapPoint>? onTap;
   final void Function(MasLiveMapController)? onMapReady;
   final void Function(String message)? onInitError;
@@ -47,6 +49,8 @@ class MasLiveMapWeb extends StatefulWidget {
     this.userLng,
     this.userLat,
     this.compactAttribution = true,
+    this.forceCompactAttribution = false,
+    this.controlsPosition = 'top-right',
     this.onTap,
     this.onMapReady,
     this.onInitError,
@@ -211,7 +215,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       _isLoading = false;
     } else if (syncInfo.errorCode != null) {
       _isLoading = false;
-      _initError = '[${syncInfo.errorCode}] ${syncInfo.errorMessage ?? 'Token Mapbox invalide.'}';
+      _initError =
+          '[${syncInfo.errorCode}] ${syncInfo.errorMessage ?? 'Token Mapbox invalide.'}';
     }
     _loadMapboxToken();
   }
@@ -1578,8 +1583,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           if (item is! js.JsObject) continue;
 
           final props = item['properties'];
-          final isPreview =
-              props is js.JsObject && props['isPreview'] == true;
+          final isPreview = props is js.JsObject && props['isPreview'] == true;
           if (isPreview) continue;
 
           final poiId =
@@ -1802,11 +1806,13 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
   Future<void> _loadMapboxToken() async {
     try {
-      final info = await MapboxTokenService.getTokenInfo()
-          .timeout(const Duration(seconds: 6), onTimeout: () {
-        debugPrint('⚠️ _loadMapboxToken: timeout 6s -> fallback empty');
-        return const MapboxTokenInfo.empty();
-      });
+      final info = await MapboxTokenService.getTokenInfo().timeout(
+        const Duration(seconds: 6),
+        onTimeout: () {
+          debugPrint('⚠️ _loadMapboxToken: timeout 6s -> fallback empty');
+          return const MapboxTokenInfo.empty();
+        },
+      );
       debugPrint(
         '[MAPBOX][TOKEN] source=${info.source} len=${info.token.length} publicPk=${info.isPublicPkToken} valid=${info.isValidFormat}',
       );
@@ -2233,6 +2239,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           initialBearing: widget.initialBearing,
           styleUrl: _normalizeMapboxStyleUrl(widget.styleUrl ?? ''),
           compactAttribution: widget.compactAttribution,
+          forceCompactAttribution: widget.forceCompactAttribution,
+          controlsPosition: widget.controlsPosition,
           onMapReady: _onMapReady,
           onTap: (lng, lat) {
             _handleTapFromJs(lng, lat);
@@ -2273,6 +2281,8 @@ class _MapboxWebViewCustom extends StatefulWidget {
   final double initialBearing;
   final String? styleUrl;
   final bool compactAttribution;
+  final bool forceCompactAttribution;
+  final String controlsPosition;
   final VoidCallback? onMapReady;
   final void Function(double lng, double lat)? onTap;
   final void Function(String message)? onInitError;
@@ -2288,6 +2298,8 @@ class _MapboxWebViewCustom extends StatefulWidget {
     this.initialBearing = 0.0,
     this.styleUrl,
     this.compactAttribution = true,
+    this.forceCompactAttribution = false,
+    this.controlsPosition = 'top-right',
     this.onMapReady,
     this.onTap,
     this.onInitError,
@@ -2600,6 +2612,8 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
       'pitch': widget.initialPitch,
       'bearing': widget.initialBearing,
       'compactAttribution': widget.compactAttribution,
+      'forceCompactAttribution': widget.forceCompactAttribution,
+      'controlsPosition': widget.controlsPosition,
       'accessToken': widget.accessToken,
     });
 

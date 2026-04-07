@@ -352,6 +352,95 @@ class AppLocalizationsEs extends AppLocalizations {
   String get continueWithApple => 'Continuar con Apple';
 
   @override
+  String get loginValidationEmailRequired => 'Introduce tu correo electrónico.';
+
+  @override
+  String get loginValidationInvalidEmail =>
+      'Introduce un correo electrónico válido.';
+
+  @override
+  String get loginValidationPasswordRequired => 'Introduce tu contraseña.';
+
+  @override
+  String loginValidationPasswordTooShort(int minLength) {
+    return 'Usa al menos $minLength caracteres.';
+  }
+
+  @override
+  String get loginValidationConfirmPasswordRequired =>
+      'Confirma tu contraseña.';
+
+  @override
+  String get loginValidationPasswordMismatch => 'Las contraseñas no coinciden.';
+
+  @override
+  String get loginFeedbackActionCancelled => 'Acción cancelada.';
+
+  @override
+  String get loginFeedbackNetworkIssue =>
+      'Problema de red. Comprueba tu conexión.';
+
+  @override
+  String get loginFeedbackInvalidCredentials =>
+      'Correo o contraseña incorrectos.';
+
+  @override
+  String get loginFeedbackEmailAlreadyInUse =>
+      'Este correo ya está asociado a una cuenta.';
+
+  @override
+  String get loginFeedbackAccountExistsDifferentMethod =>
+      'Esta cuenta ya existe con otro método de acceso.';
+
+  @override
+  String get loginFeedbackTooManyAttempts =>
+      'Demasiados intentos. Vuelve a intentarlo más tarde.';
+
+  @override
+  String get loginFeedbackGoogleConfiguration =>
+      'Google Sign-In todavía requiere una configuración OAuth válida.';
+
+  @override
+  String get loginFeedbackGeneric => 'La conexión falló. Vuelve a intentarlo.';
+
+  @override
+  String get loginResetPasswordDescription =>
+      'Introduce tu correo para recibir un enlace de restablecimiento.';
+
+  @override
+  String get loginResetPasswordEmailSent =>
+      'Correo de restablecimiento enviado.';
+
+  @override
+  String get loginSignUpDescription =>
+      'Crea tu acceso seguro en unos segundos.';
+
+  @override
+  String get loginSignUpIntro =>
+      'Elige un método sencillo y termina de crear tu cuenta.';
+
+  @override
+  String get loginOtherOptionsTitle => 'Otras opciones';
+
+  @override
+  String get loginOtherOptionsDescription =>
+      'Usa otro método o continúa sin cuenta.';
+
+  @override
+  String get loginBusinessPrompt => '¿Eres un profesional?';
+
+  @override
+  String get loginBusinessDescription =>
+      'Crea tu cuenta profesional sin sobrecargar el flujo principal.';
+
+  @override
+  String get loginBusinessCreateAccount => 'Crear una cuenta profesional';
+
+  @override
+  String get loginUseGoogleButtonOnPage =>
+      'Usa el botón de Google mostrado directamente en la página de inicio de sesión.';
+
+  @override
   String get myFavorites => 'Mis favoritos';
 
   @override

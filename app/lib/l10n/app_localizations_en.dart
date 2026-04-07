@@ -352,6 +352,93 @@ class AppLocalizationsEn extends AppLocalizations {
   String get continueWithApple => 'Continue with Apple';
 
   @override
+  String get loginValidationEmailRequired => 'Please enter your email.';
+
+  @override
+  String get loginValidationInvalidEmail =>
+      'Please enter a valid email address.';
+
+  @override
+  String get loginValidationPasswordRequired => 'Please enter your password.';
+
+  @override
+  String loginValidationPasswordTooShort(int minLength) {
+    return 'Use at least $minLength characters.';
+  }
+
+  @override
+  String get loginValidationConfirmPasswordRequired =>
+      'Please confirm your password.';
+
+  @override
+  String get loginValidationPasswordMismatch => 'Passwords do not match.';
+
+  @override
+  String get loginFeedbackActionCancelled => 'Action cancelled.';
+
+  @override
+  String get loginFeedbackNetworkIssue =>
+      'Network issue. Check your connection.';
+
+  @override
+  String get loginFeedbackInvalidCredentials => 'Incorrect email or password.';
+
+  @override
+  String get loginFeedbackEmailAlreadyInUse =>
+      'This email is already linked to an account.';
+
+  @override
+  String get loginFeedbackAccountExistsDifferentMethod =>
+      'This account already exists with another sign-in method.';
+
+  @override
+  String get loginFeedbackTooManyAttempts =>
+      'Too many attempts. Please try again later.';
+
+  @override
+  String get loginFeedbackGoogleConfiguration =>
+      'Google sign-in still requires a valid OAuth configuration.';
+
+  @override
+  String get loginFeedbackGeneric => 'Sign-in failed. Please try again.';
+
+  @override
+  String get loginResetPasswordDescription =>
+      'Enter your email to receive a reset link.';
+
+  @override
+  String get loginResetPasswordEmailSent => 'Password reset email sent.';
+
+  @override
+  String get loginSignUpDescription =>
+      'Create your secure access in a few seconds.';
+
+  @override
+  String get loginSignUpIntro =>
+      'Choose a simple method and finish creating your account.';
+
+  @override
+  String get loginOtherOptionsTitle => 'Other options';
+
+  @override
+  String get loginOtherOptionsDescription =>
+      'Use another method or continue without an account.';
+
+  @override
+  String get loginBusinessPrompt => 'Are you a professional?';
+
+  @override
+  String get loginBusinessDescription =>
+      'Create your business account without crowding the main flow.';
+
+  @override
+  String get loginBusinessCreateAccount => 'Create a business account';
+
+  @override
+  String get loginUseGoogleButtonOnPage =>
+      'Use the Google button shown directly on the login page.';
+
+  @override
   String get myFavorites => 'My favorites';
 
   @override

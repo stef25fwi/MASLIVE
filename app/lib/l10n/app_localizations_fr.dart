@@ -352,6 +352,95 @@ class AppLocalizationsFr extends AppLocalizations {
   String get continueWithApple => 'Continuer avec Apple';
 
   @override
+  String get loginValidationEmailRequired => 'Veuillez renseigner votre email.';
+
+  @override
+  String get loginValidationInvalidEmail => 'Veuillez saisir un email valide.';
+
+  @override
+  String get loginValidationPasswordRequired =>
+      'Veuillez renseigner votre mot de passe.';
+
+  @override
+  String loginValidationPasswordTooShort(int minLength) {
+    return 'Utilisez au moins $minLength caractères.';
+  }
+
+  @override
+  String get loginValidationConfirmPasswordRequired =>
+      'Veuillez confirmer votre mot de passe.';
+
+  @override
+  String get loginValidationPasswordMismatch =>
+      'Les mots de passe ne correspondent pas.';
+
+  @override
+  String get loginFeedbackActionCancelled => 'Action annulée.';
+
+  @override
+  String get loginFeedbackNetworkIssue =>
+      'Problème réseau. Vérifiez votre connexion.';
+
+  @override
+  String get loginFeedbackInvalidCredentials =>
+      'Email ou mot de passe incorrect.';
+
+  @override
+  String get loginFeedbackEmailAlreadyInUse =>
+      'Cet email est déjà associé à un compte.';
+
+  @override
+  String get loginFeedbackAccountExistsDifferentMethod =>
+      'Ce compte existe déjà avec une autre méthode de connexion.';
+
+  @override
+  String get loginFeedbackTooManyAttempts =>
+      'Trop de tentatives. Réessayez plus tard.';
+
+  @override
+  String get loginFeedbackGoogleConfiguration =>
+      'La connexion Google nécessite encore une configuration OAuth valide.';
+
+  @override
+  String get loginFeedbackGeneric => 'La connexion a échoué. Réessayez.';
+
+  @override
+  String get loginResetPasswordDescription =>
+      'Entrez votre email pour recevoir un lien de réinitialisation.';
+
+  @override
+  String get loginResetPasswordEmailSent => 'Email de réinitialisation envoyé.';
+
+  @override
+  String get loginSignUpDescription =>
+      'Créez votre accès sécurisé en quelques secondes.';
+
+  @override
+  String get loginSignUpIntro =>
+      'Choisissez une méthode simple et finalisez votre inscription.';
+
+  @override
+  String get loginOtherOptionsTitle => 'Autres options';
+
+  @override
+  String get loginOtherOptionsDescription =>
+      'Choisissez une autre méthode ou continuez sans compte.';
+
+  @override
+  String get loginBusinessPrompt => 'Vous êtes un professionnel ?';
+
+  @override
+  String get loginBusinessDescription =>
+      'Créez votre compte entreprise sans surcharger le parcours principal.';
+
+  @override
+  String get loginBusinessCreateAccount => 'Créer un compte professionnel';
+
+  @override
+  String get loginUseGoogleButtonOnPage =>
+      'Utilisez le bouton Google affiché directement sur la page de connexion.';
+
+  @override
   String get myFavorites => 'Mes favoris';
 
   @override

@@ -778,6 +778,150 @@ abstract class AppLocalizations {
   /// **'Continuer avec Apple'**
   String get continueWithApple;
 
+  /// No description provided for @loginValidationEmailRequired.
+  ///
+  /// In fr, this message translates to:
+  /// **'Veuillez renseigner votre email.'**
+  String get loginValidationEmailRequired;
+
+  /// No description provided for @loginValidationInvalidEmail.
+  ///
+  /// In fr, this message translates to:
+  /// **'Veuillez saisir un email valide.'**
+  String get loginValidationInvalidEmail;
+
+  /// No description provided for @loginValidationPasswordRequired.
+  ///
+  /// In fr, this message translates to:
+  /// **'Veuillez renseigner votre mot de passe.'**
+  String get loginValidationPasswordRequired;
+
+  /// No description provided for @loginValidationPasswordTooShort.
+  ///
+  /// In fr, this message translates to:
+  /// **'Utilisez au moins {minLength} caractères.'**
+  String loginValidationPasswordTooShort(int minLength);
+
+  /// No description provided for @loginValidationConfirmPasswordRequired.
+  ///
+  /// In fr, this message translates to:
+  /// **'Veuillez confirmer votre mot de passe.'**
+  String get loginValidationConfirmPasswordRequired;
+
+  /// No description provided for @loginValidationPasswordMismatch.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les mots de passe ne correspondent pas.'**
+  String get loginValidationPasswordMismatch;
+
+  /// No description provided for @loginFeedbackActionCancelled.
+  ///
+  /// In fr, this message translates to:
+  /// **'Action annulée.'**
+  String get loginFeedbackActionCancelled;
+
+  /// No description provided for @loginFeedbackNetworkIssue.
+  ///
+  /// In fr, this message translates to:
+  /// **'Problème réseau. Vérifiez votre connexion.'**
+  String get loginFeedbackNetworkIssue;
+
+  /// No description provided for @loginFeedbackInvalidCredentials.
+  ///
+  /// In fr, this message translates to:
+  /// **'Email ou mot de passe incorrect.'**
+  String get loginFeedbackInvalidCredentials;
+
+  /// No description provided for @loginFeedbackEmailAlreadyInUse.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cet email est déjà associé à un compte.'**
+  String get loginFeedbackEmailAlreadyInUse;
+
+  /// No description provided for @loginFeedbackAccountExistsDifferentMethod.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ce compte existe déjà avec une autre méthode de connexion.'**
+  String get loginFeedbackAccountExistsDifferentMethod;
+
+  /// No description provided for @loginFeedbackTooManyAttempts.
+  ///
+  /// In fr, this message translates to:
+  /// **'Trop de tentatives. Réessayez plus tard.'**
+  String get loginFeedbackTooManyAttempts;
+
+  /// No description provided for @loginFeedbackGoogleConfiguration.
+  ///
+  /// In fr, this message translates to:
+  /// **'La connexion Google nécessite encore une configuration OAuth valide.'**
+  String get loginFeedbackGoogleConfiguration;
+
+  /// No description provided for @loginFeedbackGeneric.
+  ///
+  /// In fr, this message translates to:
+  /// **'La connexion a échoué. Réessayez.'**
+  String get loginFeedbackGeneric;
+
+  /// No description provided for @loginResetPasswordDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Entrez votre email pour recevoir un lien de réinitialisation.'**
+  String get loginResetPasswordDescription;
+
+  /// No description provided for @loginResetPasswordEmailSent.
+  ///
+  /// In fr, this message translates to:
+  /// **'Email de réinitialisation envoyé.'**
+  String get loginResetPasswordEmailSent;
+
+  /// No description provided for @loginSignUpDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Créez votre accès sécurisé en quelques secondes.'**
+  String get loginSignUpDescription;
+
+  /// No description provided for @loginSignUpIntro.
+  ///
+  /// In fr, this message translates to:
+  /// **'Choisissez une méthode simple et finalisez votre inscription.'**
+  String get loginSignUpIntro;
+
+  /// No description provided for @loginOtherOptionsTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Autres options'**
+  String get loginOtherOptionsTitle;
+
+  /// No description provided for @loginOtherOptionsDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Choisissez une autre méthode ou continuez sans compte.'**
+  String get loginOtherOptionsDescription;
+
+  /// No description provided for @loginBusinessPrompt.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vous êtes un professionnel ?'**
+  String get loginBusinessPrompt;
+
+  /// No description provided for @loginBusinessDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Créez votre compte entreprise sans surcharger le parcours principal.'**
+  String get loginBusinessDescription;
+
+  /// No description provided for @loginBusinessCreateAccount.
+  ///
+  /// In fr, this message translates to:
+  /// **'Créer un compte professionnel'**
+  String get loginBusinessCreateAccount;
+
+  /// No description provided for @loginUseGoogleButtonOnPage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Utilisez le bouton Google affiché directement sur la page de connexion.'**
+  String get loginUseGoogleButtonOnPage;
+
   /// No description provided for @myFavorites.
   ///
   /// In fr, this message translates to:

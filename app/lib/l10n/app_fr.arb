@@ -131,6 +131,38 @@
   "creating": "Création...",
   "continueWithGoogle": "Continuer avec Google",
   "continueWithApple": "Continuer avec Apple",
+  "loginValidationEmailRequired": "Veuillez renseigner votre email.",
+  "loginValidationInvalidEmail": "Veuillez saisir un email valide.",
+  "loginValidationPasswordRequired": "Veuillez renseigner votre mot de passe.",
+  "loginValidationPasswordTooShort": "Utilisez au moins {minLength} caractères.",
+  "@loginValidationPasswordTooShort": {
+    "placeholders": {
+      "minLength": {
+        "type": "int",
+        "example": "8"
+      }
+    }
+  },
+  "loginValidationConfirmPasswordRequired": "Veuillez confirmer votre mot de passe.",
+  "loginValidationPasswordMismatch": "Les mots de passe ne correspondent pas.",
+  "loginFeedbackActionCancelled": "Action annulée.",
+  "loginFeedbackNetworkIssue": "Problème réseau. Vérifiez votre connexion.",
+  "loginFeedbackInvalidCredentials": "Email ou mot de passe incorrect.",
+  "loginFeedbackEmailAlreadyInUse": "Cet email est déjà associé à un compte.",
+  "loginFeedbackAccountExistsDifferentMethod": "Ce compte existe déjà avec une autre méthode de connexion.",
+  "loginFeedbackTooManyAttempts": "Trop de tentatives. Réessayez plus tard.",
+  "loginFeedbackGoogleConfiguration": "La connexion Google nécessite encore une configuration OAuth valide.",
+  "loginFeedbackGeneric": "La connexion a échoué. Réessayez.",
+  "loginResetPasswordDescription": "Entrez votre email pour recevoir un lien de réinitialisation.",
+  "loginResetPasswordEmailSent": "Email de réinitialisation envoyé.",
+  "loginSignUpDescription": "Créez votre accès sécurisé en quelques secondes.",
+  "loginSignUpIntro": "Choisissez une méthode simple et finalisez votre inscription.",
+  "loginOtherOptionsTitle": "Autres options",
+  "loginOtherOptionsDescription": "Choisissez une autre méthode ou continuez sans compte.",
+  "loginBusinessPrompt": "Vous êtes un professionnel ?",
+  "loginBusinessDescription": "Créez votre compte entreprise sans surcharger le parcours principal.",
+  "loginBusinessCreateAccount": "Créer un compte professionnel",
+  "loginUseGoogleButtonOnPage": "Utilisez le bouton Google affiché directement sur la page de connexion.",
   "myFavorites": "Mes favoris",
   "myGroups": "Mes groupes",
   "savedPlacesGroups": "Lieux et groupes enregistrés",

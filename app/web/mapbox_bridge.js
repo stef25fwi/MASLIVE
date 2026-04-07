@@ -147,12 +147,19 @@
 
     mapboxgl.accessToken = resolved.token;
 
-    // Attribution (Mapbox GL JS)
-    // Par défaut Mapbox utilise un mode compact sur certains viewports (bouton "i").
-    // On permet de forcer le mode non-compact pour supprimer ce bouton.
+    // Attribution et contrôles (Mapbox GL JS)
     const compactAttribution = (options && typeof options.compactAttribution === 'boolean')
       ? options.compactAttribution
       : true;
+    const forceCompactAttribution = (options && options.forceCompactAttribution === true);
+    const requestedControlsPosition = (options && typeof options.controlsPosition === 'string')
+      ? String(options.controlsPosition).trim()
+      : 'top-right';
+    const controlsPosition = ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(requestedControlsPosition)
+      ? requestedControlsPosition
+      : 'top-right';
+    const manageAttributionManually = forceCompactAttribution === true || compactAttribution === false;
+    const attributionCompact = forceCompactAttribution === true ? true : compactAttribution;
 
     const defaultOptions = {
       container: containerEl,
@@ -164,8 +171,8 @@
       antialias: true,
     };
 
-    if (compactAttribution === false) {
-      // Supprime le contrôle d'attribution par défaut.
+    if (manageAttributionManually) {
+      // Supprime le contrôle d'attribution par défaut pour injecter une variante maîtrisée.
       defaultOptions.attributionControl = false;
     }
 
@@ -188,12 +195,15 @@
         // Ajouter les contrôles de navigation 3D
         map.addControl(new mapboxgl.NavigationControl({
           visualizePitch: true
-        }), 'top-right');
+        }), controlsPosition);
 
-        // Attribution non-compact (sans bouton "i") si demandé.
+        // Attribution officielle conservée, avec mode compact forcé si demandé.
         try {
-          if (compactAttribution === false) {
-            map.addControl(new mapboxgl.AttributionControl({ compact: false }), 'bottom-right');
+          if (manageAttributionManually) {
+            map.addControl(
+              new mapboxgl.AttributionControl({ compact: attributionCompact === true }),
+              'bottom-right'
+            );
           }
         } catch (_) {
           // ignore
@@ -207,7 +217,7 @@
           trackUserLocation: true,
           showUserHeading: true
         });
-        map.addControl(geolocate, 'top-right');
+        map.addControl(geolocate, controlsPosition);
 
         // Activer les bâtiments 3D par défaut
         if (options.enable3DBuildings !== false) {

@@ -81,6 +81,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   String _currentLanguageFlag = '';
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
+  late Animation<double> _bottomBarIconsTranslateAnimation;
   _MapAction? _selectedAction;
 
   // Tracking
@@ -241,14 +242,19 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       duration: _menuAnimationDuration,
       vsync: this,
     );
-    _menuSlideAnimation =
-        Tween<Offset>(begin: const Offset(1.0, 0.0), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _menuAnimController,
-            curve: Curves.easeOut,
-            reverseCurve: Curves.easeIn,
-          ),
-        );
+    final CurvedAnimation menuMotion = CurvedAnimation(
+      parent: _menuAnimController,
+      curve: Curves.easeOut,
+      reverseCurve: Curves.easeIn,
+    );
+    _menuSlideAnimation = Tween<Offset>(
+      begin: const Offset(1.0, 0.0),
+      end: Offset.zero,
+    ).animate(menuMotion);
+    _bottomBarIconsTranslateAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(menuMotion);
 
     // Ouvrir la barre verticale uniquement à la toute première ouverture.
     unawaited(_autoOpenActionsMenuOnceIfNeeded());
@@ -1082,11 +1088,15 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       context,
       '/boutique-photo',
       arguments: <String, dynamic>{
-        if (countryId != null && countryId.trim().isNotEmpty) 'countryId': countryId,
-        if (countryName != null && countryName.trim().isNotEmpty) 'countryName': countryName,
+        if (countryId != null && countryId.trim().isNotEmpty)
+          'countryId': countryId,
+        if (countryName != null && countryName.trim().isNotEmpty)
+          'countryName': countryName,
         if (eventId != null && eventId.trim().isNotEmpty) 'eventId': eventId,
-        if (eventName != null && eventName.trim().isNotEmpty) 'eventName': eventName,
-        if (circuitId != null && circuitId.trim().isNotEmpty) 'circuitId': circuitId,
+        if (eventName != null && eventName.trim().isNotEmpty)
+          'eventName': eventName,
+        if (circuitId != null && circuitId.trim().isNotEmpty)
+          'circuitId': circuitId,
         if (circuitName != null && circuitName.trim().isNotEmpty)
           'circuitName': circuitName,
       },
@@ -1350,6 +1360,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                           initialBearing: 0.0,
                           styleUrl: _styleUrl,
                           showUserLocation: false,
+                          controlsPosition: 'top-left',
+                          forceCompactAttribution: true,
                           onTap: (_) {
                             // Fermer la tooltip au premier clic
                             if (_showOnboardingTooltip) {
@@ -1569,61 +1581,114 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                     backgroundColor: Colors.transparent,
                     child: Row(
                       children: [
-                        StreamBuilder<User?>(
-                          stream: AuthService.instance.authStateChanges,
-                          builder: (context, snap) {
-                            final user = snap.data;
-                            final pseudo =
-                                (user?.displayName ?? user?.email ?? 'Profil')
-                                    .trim();
+                        AnimatedBuilder(
+                          animation: _bottomBarIconsTranslateAnimation,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              StreamBuilder<User?>(
+                                stream: AuthService.instance.authStateChanges,
+                                builder: (context, snap) {
+                                  final user = snap.data;
+                                  final pseudo =
+                                      (user?.displayName ??
+                                              user?.email ??
+                                              'Profil')
+                                          .trim();
 
-                            return Tooltip(
-                              message: pseudo.isEmpty ? 'Profil' : pseudo,
-                              child: InkWell(
-                                onTap: () {
-                                  if (user != null) {
-                                    Navigator.pushNamed(context, '/account-ui');
-                                  } else {
-                                    Navigator.pushNamed(context, '/login');
-                                  }
+                                  return Tooltip(
+                                    message: pseudo.isEmpty ? 'Profil' : pseudo,
+                                    child: InkWell(
+                                      onTap: () {
+                                        if (user != null) {
+                                          Navigator.pushNamed(
+                                            context,
+                                            '/account-ui',
+                                          );
+                                        } else {
+                                          Navigator.pushNamed(
+                                            context,
+                                            '/login',
+                                          );
+                                        }
+                                      },
+                                      customBorder: const CircleBorder(),
+                                      child: MasliveProfileIcon(
+                                        size: 46,
+                                        badgeSizeRatio: 0.22,
+                                        showBadge: user != null,
+                                      ),
+                                    ),
+                                  );
                                 },
-                                customBorder: const CircleBorder(),
-                                child: MasliveProfileIcon(
-                                  size: 46,
-                                  badgeSizeRatio: 0.22,
-                                  showBadge: user != null,
-                                ),
+                              ),
+                              const SizedBox(width: 12),
+                            ],
+                          ),
+                          builder: (context, child) {
+                            final progress =
+                                _bottomBarIconsTranslateAnimation.value;
+                            return Opacity(
+                              opacity: (1.0 - progress)
+                                  .clamp(0.0, 1.0)
+                                  .toDouble(),
+                              child: Transform.translate(
+                                offset: Offset(-96.0 * progress, 0),
+                                child: child,
                               ),
                             );
                           },
                         ),
-                        const SizedBox(width: 12),
                         const Spacer(),
-                        MasliveGradientIconButton(
-                          icon: Icons.shopping_bag_rounded,
-                          tooltip: l10n.AppLocalizations.of(context)!.shop,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const StorexShopPage(
-                                  shopId: "global",
-                                  groupId: "MASLIVE",
-                                ),
+                        AnimatedBuilder(
+                          animation: _bottomBarIconsTranslateAnimation,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              MasliveGradientIconButton(
+                                icon: Icons.shopping_bag_rounded,
+                                tooltip: l10n.AppLocalizations.of(
+                                  context,
+                                )!.shop,
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const StorexShopPage(
+                                        shopId: "global",
+                                        groupId: "MASLIVE",
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(width: 10),
+                              MasliveGradientIconButton(
+                                icon: Icons.photo_library_outlined,
+                                tooltip: _marketPoiSelection.event != null
+                                    ? 'Médias de l’événement'
+                                    : 'Marché des médias',
+                                onTap: _openMarketplaceForSelectedEvent,
+                              ),
+                            ],
+                          ),
+                          builder: (context, child) {
+                            final progress =
+                                _bottomBarIconsTranslateAnimation.value;
+                            return Opacity(
+                              opacity: (1.0 - progress)
+                                  .clamp(0.0, 1.0)
+                                  .toDouble(),
+                              child: Transform.translate(
+                                offset: Offset(200.0 * progress, 0),
+                                child: child,
                               ),
                             );
                           },
-                        ),
-                        const SizedBox(width: 10),
-                        MasliveGradientIconButton(
-                          icon: Icons.photo_library_outlined,
-                          tooltip: _marketPoiSelection.event != null
-                              ? 'Médias de l’événement'
-                              : 'Marché des médias',
-                          onTap: _openMarketplaceForSelectedEvent,
                         ),
                         const SizedBox(width: 10),
                         MasliveGradientIconButton(
                           icon: Icons.menu_rounded,
+                          label: l10n.AppLocalizations.of(context)!.menu,
                           tooltip: l10n.AppLocalizations.of(context)!.menu,
                           onTap: () {
                             setState(() {

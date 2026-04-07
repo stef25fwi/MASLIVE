@@ -6,7 +6,8 @@ import 'dart:convert';
 import 'maslive_map_controller.dart';
 import 'maslive_poi_style.dart';
 import 'maslive_map_native.dart';
-import 'maslive_map_web_stub.dart' if (dart.library.html) 'maslive_map_web.dart';
+import 'maslive_map_web_stub.dart'
+    if (dart.library.html) 'maslive_map_web.dart';
 
 /// Extension "Mapbox Pro" pour l'édition POIs via GeoJSON source + layer
 ///
@@ -34,7 +35,9 @@ class MasLiveMapControllerPoi extends MasLiveMapController {
   void Function(double lat, double lng)? onMapTap;
 
   /// @nodoc - usage interne seulement
-  set setPoisGeoJsonImpl(Future<void> Function(String featureCollectionJson)? impl) {
+  set setPoisGeoJsonImpl(
+    Future<void> Function(String featureCollectionJson)? impl,
+  ) {
     _setPoisGeoJsonImpl = impl;
   }
 
@@ -107,11 +110,14 @@ class MasLiveMap extends StatelessWidget {
   final bool showUserLocation;
   final double? userLng;
   final double? userLat;
+
   /// Web (Mapbox GL JS): contrôle le mode compact de l'attribution.
   ///
   /// - `true` (défaut): comportement Mapbox standard (bouton compact "i" selon viewport).
   /// - `false`: supprime le bouton compact et force l'affichage non-compact.
   final bool compactAttribution;
+  final bool forceCompactAttribution;
+  final String controlsPosition;
   final ValueChanged<MapPoint>? onTap;
   final void Function(MasLiveMapController controller)? onMapReady;
   final void Function(String message)? onInitError;
@@ -129,6 +135,8 @@ class MasLiveMap extends StatelessWidget {
     this.userLng,
     this.userLat,
     this.compactAttribution = true,
+    this.forceCompactAttribution = false,
+    this.controlsPosition = 'top-right',
     this.onTap,
     this.onMapReady,
     this.onInitError,
@@ -150,6 +158,8 @@ class MasLiveMap extends StatelessWidget {
         userLng: userLng,
         userLat: userLat,
         compactAttribution: compactAttribution,
+        forceCompactAttribution: forceCompactAttribution,
+        controlsPosition: controlsPosition,
         onTap: onTap,
         onMapReady: onMapReady,
         onInitError: onInitError,
