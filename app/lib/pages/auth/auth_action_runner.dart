@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
-import '../../l10n/app_localizations.dart';
-import 'login_page_support.dart';
 import '../../services/auth_service.dart';
 import '../../services/premium_service.dart';
+import 'google_sign_in_web_button_stub.dart'
+    if (dart.library.js_interop) 'google_sign_in_web_button_web.dart'
+    as google_sign_in_web_button;
 
 enum AuthAction { apple, google, email }
 
@@ -19,47 +23,8 @@ class AuthActionRunner extends StatefulWidget {
 class _AuthActionRunnerState extends State<AuthActionRunner> {
   String? _error;
   bool _running = true;
-
-  String _feedbackMessage(LoginFeedbackCode code) {
-    final l10n = AppLocalizations.of(context)!;
-
-    switch (code) {
-      case LoginFeedbackCode.actionCancelled:
-        return l10n.loginFeedbackActionCancelled;
-      case LoginFeedbackCode.networkIssue:
-        return l10n.loginFeedbackNetworkIssue;
-      case LoginFeedbackCode.invalidCredentials:
-        return l10n.loginFeedbackInvalidCredentials;
-      case LoginFeedbackCode.emailAlreadyInUse:
-        return l10n.loginFeedbackEmailAlreadyInUse;
-      case LoginFeedbackCode.accountExistsDifferentCredential:
-        return l10n.loginFeedbackAccountExistsDifferentMethod;
-      case LoginFeedbackCode.tooManyAttempts:
-        return l10n.loginFeedbackTooManyAttempts;
-      case LoginFeedbackCode.googleConfiguration:
-        return l10n.loginFeedbackGoogleConfiguration;
-      case LoginFeedbackCode.generic:
-        return l10n.loginFeedbackGeneric;
-    }
-  }
-
-  String _friendlyAuthMessage(Object error) {
-    final raw = error.toString().trim();
-    final lower = raw.toLowerCase();
-    final looksTechnical =
-        lower.contains('firebaseauthexception') ||
-        lower.contains('exception:') ||
-        lower.contains('type ') ||
-        lower.contains('package:') ||
-        lower.contains('stack') ||
-        raw.length > 180;
-
-    if (!looksTechnical && raw.isNotEmpty) {
-      return raw;
-    }
-
-    return _feedbackMessage(classifyLoginFeedback(error));
-  }
+  bool _googleWebReady = false;
+  StreamSubscription<GoogleSignInAuthenticationEvent>? _googleAuthSub;
 
   Future<void> _syncPremiumAfterLogin() async {
     if (kIsWeb) return;
@@ -73,7 +38,84 @@ class _AuthActionRunnerState extends State<AuthActionRunner> {
   @override
   void initState() {
     super.initState();
+    if (widget.action == AuthAction.google && kIsWeb) {
+      _prepareGoogleWeb();
+      return;
+    }
     _run();
+  }
+
+  @override
+  void dispose() {
+    _googleAuthSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _prepareGoogleWeb() async {
+    setState(() {
+      _running = true;
+      _error = null;
+      _googleWebReady = false;
+    });
+
+    try {
+      await AuthService.instance.ensureGoogleSignInInitialized();
+      await _googleAuthSub?.cancel();
+      _googleAuthSub = GoogleSignIn.instance.authenticationEvents.listen(
+        (event) async {
+          switch (event) {
+            case GoogleSignInAuthenticationEventSignIn():
+              await _completeGoogleWebSignIn(event.user);
+            case GoogleSignInAuthenticationEventSignOut():
+              break;
+          }
+        },
+        onError: (Object error) {
+          if (!mounted) return;
+          setState(() {
+            _error = error.toString();
+            _running = false;
+            _googleWebReady = true;
+          });
+        },
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _running = false;
+        _googleWebReady = true;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _running = false;
+        _googleWebReady = false;
+      });
+    }
+  }
+
+  Future<void> _completeGoogleWebSignIn(GoogleSignInAccount googleUser) async {
+    if (!mounted) return;
+
+    setState(() {
+      _running = true;
+      _error = null;
+    });
+
+    try {
+      await AuthService.instance.signInWithGoogleAccount(googleUser);
+      await _syncPremiumAfterLogin();
+
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _running = false;
+      });
+    }
   }
 
   Future<void> _run() async {
@@ -88,11 +130,6 @@ class _AuthActionRunnerState extends State<AuthActionRunner> {
           await AuthService.instance.signInWithApple();
           break;
         case AuthAction.google:
-          if (kIsWeb) {
-            throw AuthException(
-              AppLocalizations.of(context)!.loginUseGoogleButtonOnPage,
-            );
-          }
           await AuthService.instance.signInWithGoogle();
           break;
         case AuthAction.email:
@@ -108,7 +145,7 @@ class _AuthActionRunnerState extends State<AuthActionRunner> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = _friendlyAuthMessage(e);
+        _error = e.toString();
         _running = false;
       });
     }
@@ -175,6 +212,71 @@ class _AuthActionRunnerState extends State<AuthActionRunner> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.action == AuthAction.google && kIsWeb) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF0B0B10),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Connexion Google',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Utilisez le bouton Google securise pour continuer.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70),
+                ),
+                const SizedBox(height: 24),
+                if (_running && !_googleWebReady) ...const [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 12),
+                  Text(
+                    'Preparation de Google Sign-In…',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ] else ...[
+                  google_sign_in_web_button.buildGoogleSignInButton(),
+                  const SizedBox(height: 16),
+                  if (_error != null) ...[
+                    Text(
+                      _error!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      OutlinedButton(
+                        onPressed: _prepareGoogleWeb,
+                        child: const Text('Recharger'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Retour'),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF0B0B10),
       body: Center(

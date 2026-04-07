@@ -56,6 +56,7 @@ import 'admin/map_project_wizard_entry_page.dart';
 import 'admin/marketmap_debug_page.dart';
 import 'admin/circuit_wizard_entry_page.dart';
 import 'services/cart_service.dart';
+import 'services/cart_checkout_service.dart';
 import 'services/notifications_service.dart';
 import 'services/premium_service.dart';
 import 'services/mapbox_token_service.dart';
@@ -86,6 +87,30 @@ import 'widgets/admin_route_guard.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 String? _lastStartupFatalError;
+
+String? _routeQueryParam(String key) {
+  final direct = Uri.base.queryParameters[key];
+  if (direct != null && direct.trim().isNotEmpty) {
+    return direct.trim();
+  }
+
+  final fragment = Uri.base.fragment;
+  final queryIndex = fragment.indexOf('?');
+  if (queryIndex == -1 || queryIndex == fragment.length - 1) {
+    return null;
+  }
+
+  try {
+    final query = fragment.substring(queryIndex + 1);
+    final value = Uri.splitQueryString(query)[key];
+    if (value == null || value.trim().isEmpty) {
+      return null;
+    }
+    return value.trim();
+  } catch (_) {
+    return null;
+  }
+}
 
 void _reportStartupFatal(Object error, [StackTrace? stackTrace]) {
   final message = error.toString();
@@ -634,6 +659,16 @@ class MasLiveApp extends StatelessWidget {
                 return const MediaMarketplaceEntryPage();
               },
               '/media-marketplace/cart': (_) => const UnifiedCartPage(),
+              '/media-marketplace/success': (_) =>
+                  _MediaMarketplaceCheckoutReturnPage(
+                    succeeded: true,
+                    orderId: _routeQueryParam('orderId'),
+                  ),
+              '/media-marketplace/cancel': (_) =>
+                  _MediaMarketplaceCheckoutReturnPage(
+                    succeeded: false,
+                    orderId: _routeQueryParam('orderId'),
+                  ),
               '/media-marketplace/downloads': (_) =>
                   const MediaDownloadsPage(),
               '/media-marketplace/photographer': (_) =>
@@ -725,6 +760,115 @@ class _RouteArgsErrorPage extends StatelessWidget {
           child: Text(
             'Erreur: arguments manquants pour la route $routeName',
             textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MediaMarketplaceCheckoutReturnPage extends StatefulWidget {
+  const _MediaMarketplaceCheckoutReturnPage({
+    required this.succeeded,
+    this.orderId,
+  });
+
+  final bool succeeded;
+  final String? orderId;
+
+  @override
+  State<_MediaMarketplaceCheckoutReturnPage> createState() =>
+      _MediaMarketplaceCheckoutReturnPageState();
+}
+
+class _MediaMarketplaceCheckoutReturnPageState
+    extends State<_MediaMarketplaceCheckoutReturnPage> {
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.succeeded) {
+      unawaited(CartCheckoutService.releaseMediaCheckoutLock());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final title = widget.succeeded ? 'Paiement confirme' : 'Paiement annule';
+    final message = widget.succeeded
+        ? 'Votre commande media a ete prise en compte.'
+        : 'Votre panier media a ete conserve. Vous pouvez reprendre le checkout quand vous voulez.';
+    final actionLabel = widget.succeeded ? 'Voir mes telechargements' : 'Retour au panier';
+    final actionRoute = widget.succeeded
+        ? '/media-marketplace/downloads'
+        : '/media-marketplace/cart';
+
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(
+                  widget.succeeded
+                      ? Icons.check_circle_outline
+                      : Icons.shopping_cart_outlined,
+                  size: 56,
+                  color: widget.succeeded
+                      ? const Color(0xFF0F9D58)
+                      : const Color(0xFF2563EB),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  title,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  message,
+                  style: theme.textTheme.bodyLarge,
+                  textAlign: TextAlign.center,
+                ),
+                if ((widget.orderId ?? '').trim().isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 10),
+                  Text(
+                    'Commande: ${widget.orderId!.trim()}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: Colors.black54,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: () {
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      actionRoute,
+                      (route) => false,
+                    );
+                  },
+                  child: Text(actionLabel),
+                ),
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      '/media-marketplace',
+                      (route) => false,
+                    );
+                  },
+                  child: const Text('Retour au media marketplace'),
+                ),
+              ],
+            ),
           ),
         ),
       ),

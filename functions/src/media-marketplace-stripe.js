@@ -193,6 +193,7 @@ module.exports = function createMediaMarketplaceStripe(deps) {
     const unitPrice = clampPositiveAmount(photo.unitPrice)
     const lineSubtotal = unitPrice * quantity
     return {
+      cartItemId: cartItem.cartItemId || null,
       assetId: photo.photoId || cartItem.assetId,
       assetType: "photo",
       photographerId: photo.photographerId || cartItem.photographerId || "",
@@ -217,6 +218,7 @@ module.exports = function createMediaMarketplaceStripe(deps) {
     const unitPrice = clampPositiveAmount(pack.price)
     const lineSubtotal = unitPrice * quantity
     return {
+      cartItemId: cartItem.cartItemId || null,
       assetId: pack.packId || cartItem.assetId,
       assetType: "pack",
       photographerId: pack.photographerId || cartItem.photographerId || "",
@@ -321,6 +323,25 @@ module.exports = function createMediaMarketplaceStripe(deps) {
     return {
       refs: snapshot.docs.map((doc) => doc.ref),
       items: snapshot.docs.map(normalizeUnifiedMediaCartItem),
+    }
+  }
+
+  function queueUnifiedMediaCartCleanup(batch, buyerUid, order) {
+    const items = Array.isArray(order?.items) ? order.items : []
+    const cartItemIds = uniqueStrings(
+      items.map((item) =>
+        item && typeof item.cartItemId === "string" ? item.cartItemId : ""
+      )
+    )
+
+    for (const cartItemId of cartItemIds) {
+      batch.delete(
+        db
+          .collection(COLLECTIONS.users)
+          .doc(buyerUid)
+          .collection(COLLECTIONS.unifiedCartItems)
+          .doc(cartItemId)
+      )
     }
   }
 
@@ -459,6 +480,8 @@ module.exports = function createMediaMarketplaceStripe(deps) {
     const stripeFeeTotal = clampPositiveAmount(order.stripeFee)
     const payoutBatch = db.batch()
 
+    queueUnifiedMediaCartCleanup(payoutBatch, buyerUid, order)
+
     for (const item of items) {
       const assetId = item.assetId
       const lineSubtotal = clampPositiveAmount(item.lineSubtotal)
@@ -534,7 +557,8 @@ module.exports = function createMediaMarketplaceStripe(deps) {
       db.collection(COLLECTIONS.carts).doc(buyerUid),
       {
         uid: buyerUid,
-        items: [],
+        checkoutLockedUntil: null,
+        lastCheckoutOrderId: orderId,
         updatedAt: serverTimestamp(),
       },
       { merge: true }
@@ -548,21 +572,21 @@ module.exports = function createMediaMarketplaceStripe(deps) {
     if (!uid) return null
 
     const unifiedCart = await loadUnifiedMediaCart(uid)
+    const cartItems = unifiedCart.items
 
     // Race condition protection: lock cart for checkout
-    const cartRef = db.collection(COLLECTIONS.carts).doc(uid)
-    let cart = null
-    let cartItems = []
+    const checkoutStateRef = db.collection(COLLECTIONS.carts).doc(uid)
 
     await db.runTransaction(async (transaction) => {
-      const cartSnapshot = await transaction.get(cartRef)
-      const cartData = cartSnapshot.exists ? (cartSnapshot.data() || {}) : {}
-      const items = Array.isArray(cartData.items) ? cartData.items : []
-      if (!unifiedCart.items.length && !items.length) {
+      const checkoutStateSnapshot = await transaction.get(checkoutStateRef)
+      const checkoutState = checkoutStateSnapshot.exists
+        ? (checkoutStateSnapshot.data() || {})
+        : {}
+      if (!cartItems.length) {
         throw new HttpsError("failed-precondition", "Cart is empty")
       }
 
-      const checkoutLockExpiry = cartData.checkoutLockedUntil?.toMillis?.()
+      const checkoutLockExpiry = checkoutState.checkoutLockedUntil?.toMillis?.()
       const now = Date.now()
       if (checkoutLockExpiry && checkoutLockExpiry > now) {
         throw new HttpsError(
@@ -572,16 +596,14 @@ module.exports = function createMediaMarketplaceStripe(deps) {
       }
 
       transaction.set(
-        cartRef,
+        checkoutStateRef,
         {
+          uid,
           checkoutLockedUntil: new Date(now + 5 * 60 * 1000),
           updatedAt: serverTimestamp(),
         },
         { merge: true }
       )
-
-      cart = cartData
-      cartItems = unifiedCart.items.length ? unifiedCart.items : items
     })
 
     try {
@@ -636,7 +658,7 @@ module.exports = function createMediaMarketplaceStripe(deps) {
         photographerIds,
         photographerOwnerUids,
         items: orderItems,
-        currency: cart?.currency || orderItems[0]?.currency || "EUR",
+        currency: cartItems[0]?.currency || orderItems[0]?.currency || "EUR",
         subtotal: breakdown.subtotal,
         stripeFee: breakdown.stripeFee,
         platformFee: breakdown.platformFee,
@@ -650,7 +672,7 @@ module.exports = function createMediaMarketplaceStripe(deps) {
           kind: MEDIA_MARKETPLACE_KIND_ORDER,
           source: "mixed_cart_payment_intent",
           itemCount: orderItems.length,
-          cartSource: unifiedCart.items.length ? "unified_cart_items" : "legacy_cart",
+          cartSource: "unified_cart_items",
         },
         checkoutPayload: checkoutPayload || null,
         createdAt: serverTimestamp(),
@@ -659,31 +681,14 @@ module.exports = function createMediaMarketplaceStripe(deps) {
 
       await orderRef.set(orderPayload)
 
-      // Clear cart and checkout lock after successful order creation
-      if (unifiedCart.refs.length) {
-        const batch = db.batch()
-        unifiedCart.refs.forEach((ref) => batch.delete(ref))
-        batch.set(
-          cartRef,
-          {
-            checkoutLockedUntil: null,
-            lastCheckoutOrderId: orderId,
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true }
-        )
-        await batch.commit()
-      } else {
-        await cartRef.set(
-          {
-            items: [],
-            checkoutLockedUntil: null,
-            lastCheckoutOrderId: orderId,
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true }
-        )
-      }
+      await checkoutStateRef.set(
+        {
+          uid,
+          lastCheckoutOrderId: orderId,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      )
 
       return {
         orderId,
@@ -692,9 +697,10 @@ module.exports = function createMediaMarketplaceStripe(deps) {
       }
     } catch (error) {
       // Best effort unlock to avoid temporary denial of checkout after failures.
-      await cartRef
+      await checkoutStateRef
         .set(
           {
+            uid,
             checkoutLockedUntil: null,
             updatedAt: serverTimestamp(),
           },
@@ -727,6 +733,8 @@ module.exports = function createMediaMarketplaceStripe(deps) {
     const subtotal = clampPositiveAmount(order.subtotal)
     const stripeFeeTotal = clampPositiveAmount(order.stripeFee)
     const payoutBatch = db.batch()
+
+    queueUnifiedMediaCartCleanup(payoutBatch, buyerUid, order)
 
     for (const item of items) {
       const assetId = item.assetId
@@ -800,8 +808,8 @@ module.exports = function createMediaMarketplaceStripe(deps) {
       db.collection(COLLECTIONS.carts).doc(buyerUid),
       {
         uid: buyerUid,
-        items: [],
         checkoutLockedUntil: null,
+        lastCheckoutOrderId: orderId,
         updatedAt: serverTimestamp(),
       },
       { merge: true }
@@ -827,32 +835,32 @@ module.exports = function createMediaMarketplaceStripe(deps) {
       const uid = request.auth.uid
       const successUrl = assertHttpsUrlOrDefault(
         request.data?.successUrl,
-        "https://maslive.web.app/media-marketplace/success"
+        "https://maslive.web.app/#/media-marketplace/success"
       )
       const cancelUrl = assertHttpsUrlOrDefault(
         request.data?.cancelUrl,
-        "https://maslive.web.app/media-marketplace/cancel"
+        "https://maslive.web.app/#/media-marketplace/cancel"
       )
       const checkoutPayload = request.data?.checkoutPayload && typeof request.data.checkoutPayload === "object"
         ? request.data.checkoutPayload
         : null
       const unifiedCart = await loadUnifiedMediaCart(uid)
+      const cartItems = unifiedCart.items
 
       // Race condition protection: lock cart for checkout
-      const cartRef = db.collection(COLLECTIONS.carts).doc(uid)
-      let cart = null
-      let cartItems = []
+      const checkoutStateRef = db.collection(COLLECTIONS.carts).doc(uid)
 
       await db.runTransaction(async (transaction) => {
-        const cartSnapshot = await transaction.get(cartRef)
-        const cartData = cartSnapshot.exists ? (cartSnapshot.data() || {}) : {}
-        const items = Array.isArray(cartData.items) ? cartData.items : []
-        if (!unifiedCart.items.length && !items.length) {
+        const checkoutStateSnapshot = await transaction.get(checkoutStateRef)
+        const checkoutState = checkoutStateSnapshot.exists
+          ? (checkoutStateSnapshot.data() || {})
+          : {}
+        if (!cartItems.length) {
           throw new HttpsError("failed-precondition", "Cart is empty")
         }
 
         // Check if checkout already in progress (prevent concurrent checkouts)
-        const checkoutLockExpiry = cartData.checkoutLockedUntil?.toMillis?.()
+        const checkoutLockExpiry = checkoutState.checkoutLockedUntil?.toMillis?.()
         const now = Date.now()
         if (checkoutLockExpiry && checkoutLockExpiry > now) {
           throw new HttpsError(
@@ -862,13 +870,11 @@ module.exports = function createMediaMarketplaceStripe(deps) {
         }
 
         // Lock cart for 5 minutes (timeout in case of error)
-        transaction.set(cartRef, {
+        transaction.set(checkoutStateRef, {
+          uid,
           checkoutLockedUntil: new Date(now + 5 * 60 * 1000),
           updatedAt: serverTimestamp(),
         }, { merge: true })
-
-        cart = cartData
-        cartItems = unifiedCart.items.length ? unifiedCart.items : items
       })
       try {
         const photoIds = cartItems
@@ -921,7 +927,7 @@ module.exports = function createMediaMarketplaceStripe(deps) {
           photographerIds,
           photographerOwnerUids,
           items: orderItems,
-          currency: cart.currency || orderItems[0]?.currency || "EUR",
+          currency: cartItems[0]?.currency || orderItems[0]?.currency || "EUR",
           subtotal: breakdown.subtotal,
           stripeFee: breakdown.stripeFee,
           platformFee: breakdown.platformFee,
@@ -935,7 +941,7 @@ module.exports = function createMediaMarketplaceStripe(deps) {
             kind: MEDIA_MARKETPLACE_KIND_ORDER,
             source: "media_marketplace",
             itemCount: orderItems.length,
-            cartSource: unifiedCart.items.length ? "unified_cart_items" : "legacy_cart",
+            cartSource: "unified_cart_items",
           },
           checkoutPayload,
           createdAt: serverTimestamp(),
@@ -972,27 +978,11 @@ module.exports = function createMediaMarketplaceStripe(deps) {
           { merge: true }
         )
 
-        // Clear cart and checkout lock after successful order creation
-        if (unifiedCart.refs.length) {
-          const batch = db.batch()
-          unifiedCart.refs.forEach((ref) => batch.delete(ref))
-          batch.set(cartRef, {
-            checkoutLockedUntil: null,
-            lastCheckoutOrderId: orderId,
-            updatedAt: serverTimestamp(),
-          }, { merge: true })
-          await batch.commit()
-        } else {
-          await cartRef.set(
-            {
-              items: [],
-              checkoutLockedUntil: null,
-              lastCheckoutOrderId: orderId,
-              updatedAt: serverTimestamp(),
-            },
-            { merge: true }
-          )
-        }
+        await checkoutStateRef.set({
+          uid,
+          lastCheckoutOrderId: orderId,
+          updatedAt: serverTimestamp(),
+        }, { merge: true })
 
         return {
           orderId,
@@ -1001,8 +991,9 @@ module.exports = function createMediaMarketplaceStripe(deps) {
         }
       } catch (error) {
         // Best effort unlock to avoid temporary denial of checkout after failures.
-        await cartRef.set(
+        await checkoutStateRef.set(
           {
+            uid,
             checkoutLockedUntil: null,
             updatedAt: serverTimestamp(),
           },

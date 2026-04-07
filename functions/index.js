@@ -792,7 +792,7 @@ exports.nearbySearch = onCall(
 
 /**
  * createStorexPaymentIntent (callable)
- * Lit users/{uid}/cart_items pour le merch unifié (fallback legacy users/{uid}/cart),
+ * Lit users/{uid}/cart_items pour le merch unifié,
  * crée users/{uid}/orders/{orderId} puis renvoie { orderId, clientSecret }.
  */
 exports.createStorexPaymentIntent = onCall(
@@ -867,19 +867,18 @@ async function createStorexOrderDraftFromMerchCart({
     .where("itemType", "==", "merch")
     .get();
 
-  let cartDocs = [];
-  let cartSource = "unified_cart_items";
-
-  if (!unifiedCartSnap.empty) {
-    cartDocs = unifiedCartSnap.docs.map((d) => ({ id: d.id, data: d.data() || {}, source: "unified" }));
-  } else {
-    const cartSnap = await userRef.collection("cart").get();
-    if (cartSnap.empty) throw new HttpsError("failed-precondition", "Cart empty");
-    cartDocs = cartSnap.docs.map((d) => ({ id: d.id, data: d.data() || {}, source: "legacy" }));
-    cartSource = "legacy_cart";
+  if (unifiedCartSnap.empty) {
+    throw new HttpsError("failed-precondition", "Cart empty");
   }
 
-  // IMPORTANT: Ne jamais faire confiance aux montants venant de users/{uid}/cart.
+  const cartDocs = unifiedCartSnap.docs.map((d) => ({
+    id: d.id,
+    data: d.data() || {},
+    source: "unified",
+  }));
+  const cartSource = "unified_cart_items";
+
+  // IMPORTANT: Ne jamais faire confiance aux montants venant du panier utilisateur.
   // On recalcule les prix depuis la source de vérité (products).
   const productIds = cartDocs
     .map((x) => x.data.productId)

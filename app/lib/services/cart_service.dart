@@ -278,6 +278,10 @@ class CartService extends ChangeNotifier {
       await _migrateLegacyMerchCollection(uid, CartConstants.legacyMerchNamedCollection);
       await _migrateLegacyMediaCollection(uid, CartConstants.legacyMediaNamedCollection);
       await _migrateLegacyMediaDocument(uid);
+      await _clearLegacyCollection(uid, CartConstants.legacyMerchCartCollection);
+      await _clearLegacyCollection(uid, CartConstants.legacyMerchNamedCollection);
+      await _clearLegacyCollection(uid, CartConstants.legacyMediaNamedCollection);
+      await _clearLegacyMediaDocument(uid);
       _migratedUids.add(uid);
     } catch (err, stackTrace) {
       debugPrint('Cart migration failed for $uid: $err');
@@ -597,6 +601,37 @@ class CartService extends ChangeNotifier {
       if (item == null) continue;
       await _writeMigratedItemIfMissing(uid, item);
     }
+  }
+
+  Future<void> _clearLegacyCollection(String uid, String collectionName) async {
+    final snapshot = await _firestore
+        .collection(CartConstants.userCollection)
+        .doc(uid)
+        .collection(collectionName)
+        .get();
+    if (snapshot.docs.isEmpty) return;
+
+    final batch = _firestore.batch();
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
+  Future<void> _clearLegacyMediaDocument(String uid) async {
+    final ref = _firestore
+        .collection(CartConstants.legacyMediaDocumentCollection)
+        .doc(uid);
+    final snapshot = await ref.get();
+    if (!snapshot.exists) return;
+
+    await ref.set(
+      <String, dynamic>{
+        'items': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
   }
 
   Future<void> _writeMigratedItemIfMissing(String uid, CartItemModel item) async {

@@ -12,6 +12,20 @@ import '../ui/snack/top_snack_bar.dart';
 class CartCheckoutService {
   const CartCheckoutService._();
 
+  static Future<void> releaseMediaCheckoutLock({String? uid}) async {
+    final resolvedUid = (uid ?? FirebaseAuth.instance.currentUser?.uid)?.trim();
+    if (resolvedUid == null || resolvedUid.isEmpty) return;
+
+    await FirebaseFirestore.instance.collection('carts').doc(resolvedUid).set(
+      <String, dynamic>{
+        'uid': resolvedUid,
+        'checkoutLockedUntil': null,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
   static Future<Map<String, dynamic>> validatePromoCode(
     String promoCode, {
     required int subtotalCents,
@@ -43,18 +57,23 @@ class CartCheckoutService {
     });
 
     final data = Map<String, dynamic>.from(response.data);
-    final rawUrl = (data['checkoutUrl'] ?? '').toString().trim();
-    final checkoutUri = Uri.tryParse(rawUrl);
-    if (checkoutUri == null || rawUrl.isEmpty) {
-      throw StateError('checkoutUrl media manquante');
-    }
+    try {
+      final rawUrl = (data['checkoutUrl'] ?? '').toString().trim();
+      final checkoutUri = Uri.tryParse(rawUrl);
+      if (checkoutUri == null || rawUrl.isEmpty) {
+        throw StateError('checkoutUrl media manquante');
+      }
 
-    final launched = await launchUrl(
-      checkoutUri,
-      mode: LaunchMode.externalApplication,
-    );
-    if (!launched) {
-      throw StateError('Impossible d\'ouvrir Stripe');
+      final launched = await launchUrl(
+        checkoutUri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        throw StateError('Impossible d\'ouvrir Stripe');
+      }
+    } catch (error) {
+      await releaseMediaCheckoutLock();
+      rethrow;
     }
 
     if (!context.mounted) return;
@@ -96,6 +115,7 @@ class CartCheckoutService {
     final mediaOrderId = (data['mediaOrderId'] ?? '').toString();
 
     if (clientSecret.isEmpty || storeOrderId.isEmpty || mediaOrderId.isEmpty) {
+      await releaseMediaCheckoutLock(uid: user.uid);
       throw StateError('Réponse Stripe invalide');
     }
 
@@ -110,8 +130,12 @@ class CartCheckoutService {
 
       await Stripe.instance.presentPaymentSheet();
     } on StripeException catch (e) {
+      await releaseMediaCheckoutLock(uid: user.uid);
       final msg = e.error.localizedMessage ?? e.error.message ?? 'Stripe error';
       throw StateError(msg);
+    } catch (_) {
+      await releaseMediaCheckoutLock(uid: user.uid);
+      rethrow;
     }
 
     await cart.clearCart();
