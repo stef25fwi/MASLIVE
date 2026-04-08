@@ -18,10 +18,9 @@ import '../services/geolocation_service.dart';
 import '../services/home_controls_theme_service.dart';
 import '../services/language_service.dart';
 import '../ui/theme/maslive_theme.dart';
-import '../ui/widgets/home_bottom_bar.dart';
 import '../ui/widgets/home_ultra_premium_glass.dart';
 import '../ui/widgets/maslive_card.dart';
-import '../ui/widgets/maslive_profile_icon.dart';
+import '../ui/widgets/maslive_standard_bottom_bar.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
 import '../ui/widgets/marketmap_poi_selector_sheet.dart';
 import '../route_style_pro/services/route_style_pro_projection.dart';
@@ -1364,6 +1363,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
               verticalPadding: 12,
               backgroundAlpha: 0.58,
               blurSigma: 16,
+              boxShadow: MasliveTheme.floatingShadowStrong,
               borderColor: Colors.white.withValues(alpha: 0.42),
               borderRadius: const BorderRadius.all(Radius.circular(30)),
               items: _buildClassicVerticalNavItems(context),
@@ -1382,7 +1382,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     );
   }
 
-  List<MasliveBottomBarEntry> _buildBottomBarEntries(
+  List<MasliveStandardBottomBarItem> _buildBottomBarItems(
     BuildContext context,
     User? user,
   ) {
@@ -1391,14 +1391,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         .trim();
 
     return [
-      MasliveBottomBarEntry(
-        label: localizations.profile,
+      MasliveStandardBottomBarItem(
+        icon: Icons.person_outline_rounded,
+        activeIcon: Icons.person_rounded,
         tooltip: pseudo.isEmpty ? localizations.profile : pseudo,
-        iconWidget: MasliveProfileIcon(
-          size: 38,
-          badgeSizeRatio: 0.22,
-          showBadge: user != null,
-        ),
         onTap: () {
           _selectBottomBarIndex(0);
           if (user != null) {
@@ -1408,10 +1404,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           }
         },
       ),
-      MasliveBottomBarEntry(
-        label: localizations.shop,
+      MasliveStandardBottomBarItem(
+        icon: Icons.storefront_outlined,
+        activeIcon: Icons.storefront,
         tooltip: localizations.shop,
-        icon: Icons.storefront_rounded,
         onTap: () {
           _selectBottomBarIndex(1);
           Navigator.of(context).push(
@@ -1422,21 +1418,21 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           );
         },
       ),
-      MasliveBottomBarEntry(
-        label: 'Boutique\nphotos',
+      MasliveStandardBottomBarItem(
+        icon: Icons.photo_library_outlined,
+        activeIcon: Icons.photo_library,
         tooltip: _marketPoiSelection.event != null
             ? 'Boutique photos de l’événement'
             : 'Boutique photos',
-        icon: Icons.photo_library_rounded,
         onTap: () {
           _selectBottomBarIndex(2);
           _openMarketplaceForSelectedEvent();
         },
       ),
-      MasliveBottomBarEntry(
-        label: localizations.menu,
-        tooltip: localizations.menu,
+      MasliveStandardBottomBarItem(
         icon: Icons.menu_rounded,
+        activeIcon: Icons.menu_rounded,
+        tooltip: localizations.menu,
         onTap: _toggleActionsMenu,
       ),
     ];
@@ -1448,43 +1444,25 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     required double height,
     required User? user,
   }) {
-    final entries = _buildBottomBarEntries(context, user);
+    final items = _buildBottomBarItems(context, user);
 
-    if (_useUltraPremiumHomeControls) {
-      return SizedBox(
-        width: width,
-        child: MasliveOption1BottomBar(
-          items: entries,
-          selectedIndex: _activeBottomBarIndex,
-          height: height,
-        ),
-      );
-    }
-
-    final localizations = l10n.AppLocalizations.of(context)!;
-    final pseudo = (user?.displayName ?? user?.email ?? localizations.profile)
-        .trim();
-
-    return MasliveHomeBottomBar(
+    return SizedBox(
       width: width,
-      height: height,
-      profileLabel: localizations.profile,
-      profileTooltip: pseudo.isEmpty ? localizations.profile : pseudo,
-      profileIcon: MasliveProfileIcon(
-        size: 38,
-        badgeSizeRatio: 0.22,
-        showBadge: user != null,
+      child: MasliveStandardBottomBar(
+        items: items,
+        selectedIndex: _activeBottomBarIndex,
+        height: height,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0x1F0F172A)),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x1A000000),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
-      onProfileTap: entries[0].onTap!,
-      shopLabel: localizations.shop,
-      shopTooltip: localizations.shop,
-      onShopTap: entries[1].onTap!,
-      photoLabel: 'Boutique\nphotos',
-      photoTooltip: entries[2].tooltip,
-      onPhotoTap: entries[2].onTap!,
-      menuLabel: localizations.menu,
-      menuTooltip: localizations.menu,
-      onMenuTap: entries[3].onTap!,
     );
   }
 
@@ -1791,7 +1769,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
             final bottomDockOffset = bottomInset + 10.0;
             const navMenuRightOffset = -6.0;
 
-            final bottomBarHeight = _useUltraPremiumHomeControls ? 94.0 : 84.0;
+            const bottomBarHeight = MasliveStandardBottomBar.defaultHeight;
             final bottomDockWidth = math.min(size.width - 24, 344.0).toDouble();
 
             // Géométrie de la barre verticale (doit rester cohérente avec

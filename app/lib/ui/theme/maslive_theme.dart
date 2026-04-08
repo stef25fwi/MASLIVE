@@ -66,10 +66,7 @@ class MasliveTheme {
   static const LinearGradient backgroundWash = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [
-      Color(0xFFFDFDFF),
-      Color(0xFFF6F7FB),
-    ],
+    colors: [Color(0xFFFDFDFF), Color(0xFFF6F7FB)],
   );
 
   // ---------- Radius ----------
@@ -101,6 +98,21 @@ class MasliveTheme {
       color: Color(0x24000000), // ~14% opacity
       blurRadius: 22,
       offset: Offset(0, 12),
+      spreadRadius: 0,
+    ),
+  ];
+
+  static const List<BoxShadow> floatingShadowStrong = [
+    BoxShadow(
+      color: Color(0x33000000),
+      blurRadius: 30,
+      offset: Offset(0, 18),
+      spreadRadius: 1,
+    ),
+    BoxShadow(
+      color: Color(0x18000000),
+      blurRadius: 12,
+      offset: Offset(0, 6),
       spreadRadius: 0,
     ),
   ];
@@ -164,10 +176,7 @@ class MasliveTheme {
         seedColor: const Color(0xFFFF6BB5),
         brightness: Brightness.light,
         surface: surface,
-      ).copyWith(
-        surface: surface,
-        onSurface: textPrimary,
-      ),
+      ).copyWith(surface: surface, onSurface: textPrimary),
       scaffoldBackgroundColor: surface,
       splashFactory: InkSparkle.splashFactory,
       visualDensity: VisualDensity.standard,
@@ -211,9 +220,7 @@ class MasliveTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surface,
-        hintStyle: base.textTheme.bodyMedium?.copyWith(
-          color: textSecondary,
-        ),
+        hintStyle: base.textTheme.bodyMedium?.copyWith(color: textSecondary),
         prefixIconColor: textSecondary,
         suffixIconColor: textSecondary,
         contentPadding: const EdgeInsets.symmetric(
@@ -226,17 +233,11 @@ class MasliveTheme {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(rPill),
-          borderSide: BorderSide(
-            color: divider,
-            width: 1,
-          ),
+          borderSide: BorderSide(color: divider, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(rPill),
-          borderSide: BorderSide(
-            color: const Color(0x33FF6BB5),
-            width: 1.2,
-          ),
+          borderSide: BorderSide(color: const Color(0x33FF6BB5), width: 1.2),
         ),
       ),
 
@@ -253,9 +254,7 @@ class MasliveTheme {
           fontWeight: FontWeight.w600,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        shape: StadiumBorder(
-          side: BorderSide(color: divider),
-        ),
+        shape: StadiumBorder(side: BorderSide(color: divider)),
       ),
 
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(

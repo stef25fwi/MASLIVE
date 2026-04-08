@@ -310,61 +310,74 @@ class MasliveGlassButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final borderRadius = BorderRadius.circular(26);
+    final boxShadow = <BoxShadow>[
+      BoxShadow(
+        color: Colors.black.withValues(alpha: selected ? 0.20 : 0.14),
+        blurRadius: selected ? 34 : 26,
+        offset: const Offset(0, 16),
+        spreadRadius: selected ? 1.5 : 0.5,
+      ),
+      BoxShadow(
+        color: Colors.black.withValues(alpha: selected ? 0.08 : 0.05),
+        blurRadius: 10,
+        offset: const Offset(0, 4),
+      ),
+      if (selected)
+        BoxShadow(
+          color: const Color(0xFFFFAA90).withValues(alpha: 0.28),
+          blurRadius: 22,
+          offset: const Offset(0, 8),
+          spreadRadius: 1,
+        ),
+    ];
 
     return GestureDetector(
       onTap: onTap,
-      child: ClipRRect(
-        borderRadius: borderRadius,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOut,
-            width: width,
-            height: height,
-            decoration: BoxDecoration(
-              borderRadius: borderRadius,
-              gradient: selected
-                  ? const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFFFFC07A),
-                        Color(0xFFFF9ECF),
-                        Color(0xFF84B7FF),
-                      ],
-                    )
-                  : LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.white.withValues(alpha: 0.84),
-                        Colors.white.withValues(alpha: 0.60),
-                      ],
-                    ),
-              border: showBorder
-                  ? Border.all(
-                      color: selected
-                          ? Colors.white.withValues(alpha: 0.40)
-                          : Colors.white.withValues(alpha: 0.70),
-                      width: 1.1,
-                    )
-                  : null,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: selected ? 0.14 : 0.10),
-                  blurRadius: selected ? 24 : 18,
-                  offset: const Offset(0, 10),
-                ),
-                if (selected)
-                  BoxShadow(
-                    color: const Color(0xFFFFAA90).withValues(alpha: 0.22),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
-                  ),
-              ],
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+          boxShadow: boxShadow,
+        ),
+        child: ClipRRect(
+          borderRadius: borderRadius,
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              width: width,
+              height: height,
+              decoration: BoxDecoration(
+                borderRadius: borderRadius,
+                gradient: selected
+                    ? const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFFFFC07A),
+                          Color(0xFFFF9ECF),
+                          Color(0xFF84B7FF),
+                        ],
+                      )
+                    : LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.84),
+                          Colors.white.withValues(alpha: 0.60),
+                        ],
+                      ),
+                border: showBorder
+                    ? Border.all(
+                        color: selected
+                            ? Colors.white.withValues(alpha: 0.40)
+                            : Colors.white.withValues(alpha: 0.70),
+                        width: 1.1,
+                      )
+                    : null,
+              ),
+              child: _buildVisual(),
             ),
-            child: _buildVisual(),
           ),
         ),
       ),

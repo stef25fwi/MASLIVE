@@ -282,7 +282,7 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
               SwitchListTile(
                 title: const Text('Style Ultra Premium Glass sur la home'),
                 subtitle: const Text(
-                  'Réglage global piloté par le super administrateur pour la bottom bar et la navigation verticale.',
+                  'Réglage global piloté par le super administrateur pour la navigation verticale de la home.',
                 ),
                 value: _isHomeUltraPremiumEnabled,
                 onChanged: _setHomeTheme,
