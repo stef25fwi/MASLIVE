@@ -74,6 +74,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
 
   XFile? _selectedFile;
   Uint8List? _selectedPreviewBytes;
+  Future<Uint8List>? _previewBytesFuture;
   XFile? _originalPickedFile;
   Uint8List? _originalPickedBytes;
   String? _uploadedImageUrl;
@@ -631,6 +632,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       _selectedFile = file;
       _originalPickedBytes = null;
       _selectedPreviewBytes = null;
+      _previewBytesFuture = file.readAsBytes();
     });
 
     try {
@@ -657,9 +659,16 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       }
     } catch (e) {
       if (!mounted) return;
+      final fallback = _originalPickedBytes;
       setState(() {
-        _selectedFile = file;
-        _selectedPreviewBytes = null;
+        if (fallback != null) {
+          _selectedFile = file;
+          _selectedPreviewBytes = fallback;
+        } else {
+          _selectedFile = null;
+          _selectedPreviewBytes = null;
+          _previewBytesFuture = null;
+        }
       });
       TopSnackBar.showMessage(
         context,
@@ -807,6 +816,8 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
         _uploadedImageUrl = asset.mediumUrl;
         _uploadedImageAssetId = asset.id;
         _selectedFile = null;
+        _selectedPreviewBytes = null;
+        _previewBytesFuture = null;
       });
 
       if (mounted) {
@@ -1088,10 +1099,16 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
         image = Image.memory(previewBytes, fit: BoxFit.cover);
       } else {
         image = FutureBuilder<Uint8List>(
-          future: selected.readAsBytes(),
+          future: _previewBytesFuture,
           builder: (context, snap) {
             if (snap.hasData) {
               return Image.memory(snap.data!, fit: BoxFit.cover);
+            }
+            if (snap.hasError) {
+              return const ColoredBox(
+                color: Colors.black12,
+                child: Center(child: Icon(Icons.broken_image_rounded, size: 42)),
+              );
             }
             return const Center(child: CircularProgressIndicator());
           },
