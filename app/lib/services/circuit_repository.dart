@@ -774,8 +774,9 @@ class CircuitRepository {
       'bounds': ?publishedBounds,
       if (currentData['perimeterMapCamera'] is Map)
         'perimeterMapCamera': currentData['perimeterMapCamera'],
-      if ((currentData['styleUrl'] ?? '').toString().trim().isNotEmpty)
-        'styleUrl': (currentData['styleUrl'] ?? '').toString().trim(),
+      'styleUrl': (currentData['styleUrl'] ?? '').toString().trim().isNotEmpty
+          ? (currentData['styleUrl'] ?? '').toString().trim()
+          : FieldValue.delete(),
       'route': currentData['route'] ?? const <dynamic>[],
       'perimeter': currentData['perimeter'] ?? const <dynamic>[],
       'style': currentData['routeStyle'] ?? const <String, dynamic>{},

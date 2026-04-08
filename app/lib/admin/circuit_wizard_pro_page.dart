@@ -1892,6 +1892,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       'eventId': _eventController.text.trim(),
       'description': _descriptionController.text.trim(),
       'styleUrl': _styleUrlController.text.trim(),
+      'defaultPoiAppearanceId': _defaultPoiAppearanceId,
       'perimeter': _perimeterPoints
           .map((p) => {'lng': p.lng, 'lat': p.lat})
           .toList(),
@@ -2456,6 +2457,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           _eventController.text = _draftData['eventId'] ?? '';
           _descriptionController.text = _draftData['description'] ?? '';
           _styleUrlController.text = _draftData['styleUrl'] ?? '';
+          _defaultPoiAppearanceId =
+              (_draftData['defaultPoiAppearanceId'] as String?)?.trim().isNotEmpty == true
+              ? (_draftData['defaultPoiAppearanceId'] as String).trim()
+              : kMasLivePoiAppearancePresets.first.id;
 
           // Style tracé
           final routeStyle = _draftData['routeStyle'];
@@ -6035,8 +6040,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         _parkingZoneStrokeColorHex =
             style['strokeColor'] as String? ?? _parkingZoneFillColorHex;
         _parkingZoneStrokeFollowsFill =
-            _parkingZoneStrokeColorHex.toUpperCase() ==
-            _parkingZoneFillColorHex.toUpperCase();
+            (style['strokeFollowsFill'] as bool?) ??
+            (_parkingZoneStrokeColorHex.toUpperCase() ==
+                _parkingZoneFillColorHex.toUpperCase());
         _parkingZoneColorSaturation =
             (style['colorSaturation'] as num?)?.toDouble() ??
             _parkingZoneDefaultColorSaturation;
@@ -7188,6 +7194,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             'colorSaturation': _parkingZoneColorSaturation.clamp(0.0, 1.0),
             'fillOpacity': _parkingZoneFillOpacity.clamp(0.0, 1.0),
             'strokeColor': strokeHex,
+            'strokeFollowsFill': _parkingZoneStrokeFollowsFill,
             'strokeWidth': _parkingZoneStrokeWidth,
             _parkingZoneLabelPresetKey: _parkingZoneLabelPreset,
             'strokeDash': _parkingZoneStrokeDash,
@@ -7274,6 +7281,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             'colorSaturation': _parkingZoneColorSaturation.clamp(0.0, 1.0),
             'fillOpacity': _parkingZoneFillOpacity.clamp(0.0, 1.0),
             'strokeColor': strokeHex,
+            'strokeFollowsFill': _parkingZoneStrokeFollowsFill,
             'strokeWidth': _parkingZoneStrokeWidth,
             _parkingZoneLabelPresetKey: _parkingZoneLabelPreset,
             'strokeDash': _parkingZoneStrokeDash,

@@ -2605,7 +2605,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         type: type,
         meta: meta,
         rootPopupEnabled: rootPopupEnabled,
-        requireImage: true,
+        requireImage: false,
         hasImage: imageUrl.trim().isNotEmpty || hasImageInMeta,
       );
 
