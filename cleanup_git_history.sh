@@ -29,8 +29,8 @@ fi
 
 echo ""
 echo "🔍 Étape 1: Identifier la clé à supprimer..."
-# La clé est dans les fichiers avant modification
-SECRET_KEY="sk_test_51Ssn0PCCIRtTE2nOkwOarKnrKijY1ejL54rugQOlxj0G0B4gb9ue202bHhPbDtoBQJcX74UB4xf31Jj8EHzmAA9P00NfLX4t6t"
+# Remplace par la clé détectée dans l'alerte GitHub si nécessaire
+SECRET_KEY="sk_test_EXPOSED_KEY_FROM_GITHUB_ALERT"
 
 echo "❌ Clé à supprimer de l'historique :"
 echo "   ${SECRET_KEY:0:20}...${SECRET_KEY: -10}"

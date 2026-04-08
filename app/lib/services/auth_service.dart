@@ -17,14 +17,39 @@ class AuthService {
 
   static AuthService get instance => _instance;
 
-  AuthService._internal();
+  AuthService._internal({
+    FirebaseAuth? auth,
+    FirebaseFirestore? firestore,
+    FirebaseFunctions? functions,
+  }) : _authOverride = auth,
+       _firestoreOverride = firestore,
+       _functionsOverride = functions;
 
   factory AuthService() {
     return _instance;
   }
 
-  FirebaseAuth get _auth => FirebaseAuth.instance;
-  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
+  factory AuthService.test({
+    required FirebaseAuth auth,
+    required FirebaseFirestore firestore,
+    FirebaseFunctions? functions,
+  }) {
+    return AuthService._internal(
+      auth: auth,
+      firestore: firestore,
+      functions: functions,
+    );
+  }
+
+  final FirebaseAuth? _authOverride;
+  final FirebaseFirestore? _firestoreOverride;
+  final FirebaseFunctions? _functionsOverride;
+
+  FirebaseAuth get _auth => _authOverride ?? FirebaseAuth.instance;
+  FirebaseFirestore get _firestore =>
+      _firestoreOverride ?? FirebaseFirestore.instance;
+  FirebaseFunctions get _functions =>
+      _functionsOverride ?? FirebaseFunctions.instanceFor(region: 'us-east1');
   Future<void>? _googleInitialization;
   static const String _googleClientId = String.fromEnvironment(
     'GOOGLE_CLIENT_ID',
@@ -57,7 +82,10 @@ class AuthService {
         defaultTargetPlatform == TargetPlatform.macOS;
   }
 
-  bool get _firebaseReady => Firebase.apps.isNotEmpty;
+  bool get _firebaseReady =>
+      _authOverride != null ||
+      _firestoreOverride != null ||
+      Firebase.apps.isNotEmpty;
 
   String? get _resolvedGoogleClientId {
     final clientId = _googleClientId.trim();
@@ -290,6 +318,20 @@ class AuthService {
   ) async {
     await ensureGoogleSignInInitialized();
     return _signInWithGoogleAccount(googleUser);
+  }
+
+  Future<UserCredential> signInWithGoogleIdToken(String idToken) async {
+    final trimmedToken = idToken.trim();
+    if (trimmedToken.isEmpty) {
+      throw const AuthException(
+        'Google n\'a pas renvoyé de jeton valide. Vérifiez la configuration OAuth Google.',
+      );
+    }
+
+    final credential = GoogleAuthProvider.credential(idToken: trimmedToken);
+    final result = await _auth.signInWithCredential(credential);
+    await _syncSocialUserProfile(result.user);
+    return result;
   }
 
   Future<UserCredential> _signInWithGoogleAccount(
@@ -530,8 +572,7 @@ class AuthService {
     try {
       final user = _auth.currentUser;
       if (user != null) {
-        final functions = FirebaseFunctions.instanceFor(region: 'us-east1');
-        final callable = functions.httpsCallable('deleteMyAccountGdpr');
+        final callable = _functions.httpsCallable('deleteMyAccountGdpr');
         await callable.call();
       }
     } catch (e) {
@@ -542,8 +583,7 @@ class AuthService {
 
   // Export des données personnelles (RGPD)
   Future<Map<String, dynamic>> exportMyPersonalData() async {
-    final functions = FirebaseFunctions.instanceFor(region: 'us-east1');
-    final callable = functions.httpsCallable('exportMyPersonalData');
+    final callable = _functions.httpsCallable('exportMyPersonalData');
     final result = await callable.call();
     final data = result.data;
     if (data is Map<String, dynamic>) {

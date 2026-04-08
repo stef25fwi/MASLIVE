@@ -120,15 +120,20 @@ class CartItemModel {
 
   int get safeQuantity => quantity < 1 ? 1 : quantity;
 
-  bool get canAdjustQuantity => itemType == CartItemType.merch && !isDigital;
+  /// Can adjust quantity for this item.
+  /// Media items are digital and indivisible: quantity is always 1.
+  bool get canAdjustQuantity => itemType == CartItemType.merch;
 
   factory CartItemModel.fromMap(
     Map<String, dynamic> map, {
     String? id,
   }) {
+    final itemType = cartItemTypeFromString(map['itemType']?.toString());
+    final parsedQuantity = _asInt(map['quantity'], fallback: 1).clamp(1, 999);
+
     return CartItemModel(
       id: _normalizedString(id ?? map['id']),
-      itemType: cartItemTypeFromString(map['itemType']?.toString()),
+      itemType: itemType,
       productId: _normalizedString(map['productId']),
       sellerId: _normalizedString(map['sellerId']),
       eventId: _normalizedString(map['eventId']),
@@ -138,7 +143,7 @@ class CartItemModel {
           : _normalizedString(map['subtitle']),
       imageUrl: _normalizedString(map['imageUrl']),
       unitPrice: _asDouble(map['unitPrice']),
-      quantity: _asInt(map['quantity'], fallback: 1).clamp(1, 999),
+        quantity: itemType == CartItemType.media ? 1 : parsedQuantity,
       currency: _normalizedString(map['currency'], fallback: 'EUR'),
       isDigital: _asBool(map['isDigital']),
       requiresShipping: _asBool(map['requiresShipping']),

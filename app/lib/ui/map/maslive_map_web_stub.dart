@@ -21,6 +21,8 @@ class MasLiveMapWeb extends StatelessWidget {
     this.userLat,
     this.compactAttribution = true,
     this.forceCompactAttribution = false,
+    this.showAttributionControl = true,
+    this.showMapboxLogo = true,
     this.controlsPosition = 'top-right',
     this.onTap,
     this.onMapReady,
@@ -39,6 +41,8 @@ class MasLiveMapWeb extends StatelessWidget {
   final double? userLat;
   final bool compactAttribution;
   final bool forceCompactAttribution;
+  final bool showAttributionControl;
+  final bool showMapboxLogo;
   final String controlsPosition;
   final ValueChanged<MapPoint>? onTap;
   final void Function(MasLiveMapController)? onMapReady;

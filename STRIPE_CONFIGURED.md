@@ -3,13 +3,13 @@
 ## Status: ✅ STRIPE KEY CONFIGURED
 
 ### Vérification
-- ✅ Clé Stripe configurable dans Firebase
+- ✅ Secret Stripe configurable dans Firebase Secret Manager
 - ✅ Exit Code: 0 (succès)
 - ✅ Configuration persistée
 
 ### Commande exécutée
 ```bash
-firebase functions:config:set stripe.secret_key="sk_test_51Ssn0PCCIRtTE2nOkwOarKnrKijY1ejL54rugQOlxj0G0B4gb9ue..."
+firebase functions:secrets:set STRIPE_SECRET_KEY
 ```
 
 **Résultat: ✅ SUCCESS**

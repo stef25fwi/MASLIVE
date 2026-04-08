@@ -1,89 +1,90 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
-import 'package:flutter/services.dart';
+import 'dart:async';
+import 'dart:ui' show PlatformDispatcher;
+
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
-import 'dart:async';
-import 'dart:ui' show PlatformDispatcher;
-import 'firebase_options.dart';
-import 'session/session_controller.dart';
-import 'session/session_scope.dart';
-import 'services/localization_service.dart' show LocalizationService;
-import 'services/language_service.dart';
-import 'widgets/localized_app.dart';
-import 'pages/splash_wrapper_page.dart';
-import 'pages/group_profile_page.dart';
-import 'pages/group_shop_page.dart';
-import 'pages/role_router_page.dart';
-import 'pages/group_member_page.dart';
-import 'pages/login_page.dart';
-import 'pages/tracking_live_page.dart';
-import 'pages/app_shell.dart';
-import 'pages/cart/unified_cart_page.dart';
-import 'pages/paywall_page.dart';
-import 'pages/account_admin_page.dart';
-import 'pages/account_page.dart';
-import 'pages/orders_page.dart';
-import 'pages/map_admin_editor_page.dart';
-import 'pages/storex_shop_page.dart';
-import 'features/shop/pages/media_photo_shop_page.dart';
-import 'pages/shop/storex_reviews_and_success_pages.dart';
-import 'pages/pending_products_page.dart';
-import 'pages/search_page.dart';
-import 'pages/circuit_import_export_page.dart';
-import 'pages/circuit_calculs_validation_page.dart';
-import 'pages/circuit_save_page.dart';
-import 'pages/favorites_page.dart';
-import 'pages/circuit_draw_page.dart';
-import 'pages/purchase_history_page.dart';
-import 'pages/business_account_page.dart';
-import 'pages/business_request_page.dart';
-import 'pages/mapbox_web_map_page.dart';
-import 'pages/default_map_page.dart';
-import 'pages/home_map_page_3d.dart';
-import 'admin/super_admin_space.dart';
-import 'commerce_module_single_file.dart';
-import 'admin/category_management_page.dart';
-import 'admin/role_management_page.dart';
-import 'admin/admin_circuits_page.dart';
-import 'admin/map_projects_library_page.dart';
-import 'admin/business_requests_page.dart';
+
 import 'admin/admin_main_dashboard.dart';
-import 'admin/mapmarket_projects_page.dart';
+import 'admin/admin_circuits_page.dart';
+import 'admin/admin_moderation_page.dart';
+import 'admin/business_requests_page.dart';
+import 'admin/category_management_page.dart';
+import 'admin/circuit_wizard_entry_page.dart';
+import 'admin/commerce_analytics_page.dart';
+import 'admin/map_projects_library_page.dart';
 import 'admin/map_project_wizard_entry_page.dart';
 import 'admin/marketmap_debug_page.dart';
-import 'admin/circuit_wizard_entry_page.dart';
-import 'services/cart_service.dart';
-import 'services/cart_checkout_service.dart';
-import 'services/notifications_service.dart';
-import 'services/premium_service.dart';
-import 'services/mapbox_token_service.dart';
-import 'ui/theme/maslive_theme.dart';
-import 'ui/widgets/honeycomb_background.dart';
-import 'l10n/app_localizations.dart';
-import 'utils/startup_trace.dart';
-import 'pages/circuit_editor_workflow_page.dart';
-import 'pages/splash_screen.dart';
-import 'pages/seller/seller_inbox_page.dart';
-import 'pages/seller/seller_order_detail_page.dart';
-import 'pages/commerce/create_product_page.dart';
-import 'pages/commerce/create_media_page.dart';
-import 'pages/commerce/my_submissions_page.dart';
-import 'admin/admin_moderation_page.dart';
-import 'admin/commerce_analytics_page.dart';
-import 'route_style_pro/ui/route_style_wizard_pro_page.dart';
-import 'features/media_marketplace/presentation/pages/media_marketplace_pages.dart';
+import 'admin/mapmarket_projects_page.dart';
+import 'admin/role_management_page.dart';
+import 'admin/super_admin_space.dart';
+import 'commerce_module_single_file.dart';
 import 'features/map_style/presentation/pages/mapbox_style_studio_page.dart';
+import 'features/media_marketplace/presentation/pages/media_marketplace_pages.dart';
+import 'features/shop/pages/media_photo_shop_page.dart';
+import 'firebase_options.dart';
+import 'l10n/app_localizations.dart';
+import 'pages/account_admin_page.dart';
+import 'pages/account_page.dart';
+import 'pages/app_shell.dart';
+import 'pages/business_account_page.dart';
+import 'pages/business_request_page.dart';
+import 'pages/cart/unified_cart_page.dart';
+import 'pages/circuit_calculs_validation_page.dart';
+import 'pages/circuit_draw_page.dart';
+import 'pages/circuit_editor_workflow_page.dart';
+import 'pages/circuit_import_export_page.dart';
+import 'pages/circuit_save_page.dart';
+import 'pages/default_map_page.dart';
+import 'pages/favorites_page.dart';
 import 'pages/group/admin_group_dashboard_page.dart';
-import 'pages/group/tracker_group_profile_page.dart';
+import 'pages/group/group_export_page.dart';
 import 'pages/group/group_map_live_page.dart';
 import 'pages/group/group_track_history_page.dart';
-import 'pages/group/group_export_page.dart';
+import 'pages/group/tracker_group_profile_page.dart';
+import 'pages/group_member_page.dart';
+import 'pages/group_profile_page.dart';
+import 'pages/group_shop_page.dart';
+import 'pages/home_map_page_3d.dart';
+import 'pages/login_page.dart';
+import 'pages/map_admin_editor_page.dart';
+import 'pages/mapbox_web_map_page.dart';
+import 'pages/orders_page.dart';
+import 'pages/paywall_page.dart';
+import 'pages/pending_products_page.dart';
 import 'pages/public/marketmap_public_viewer_page.dart';
+import 'pages/purchase_history_page.dart';
+import 'pages/role_router_page.dart';
+import 'pages/search_page.dart';
+import 'pages/seller/seller_inbox_page.dart';
+import 'pages/seller/seller_order_detail_page.dart';
+import 'pages/shop/storex_reviews_and_success_pages.dart';
+import 'pages/splash_wrapper_page.dart';
+import 'pages/storex_shop_page.dart';
+import 'pages/tracking_live_page.dart';
+import 'pages/commerce/create_media_page.dart';
+import 'pages/commerce/create_product_page.dart';
+import 'pages/commerce/my_submissions_page.dart';
 import 'providers/cart_provider.dart';
+import 'route_style_pro/ui/route_style_wizard_pro_page.dart';
+import 'services/cart_checkout_service.dart';
+import 'services/cart_service.dart';
+import 'services/language_service.dart';
+import 'services/localization_service.dart' show LocalizationService;
+import 'services/mapbox_token_service.dart';
+import 'services/notifications_service.dart';
+import 'services/premium_service.dart';
+import 'session/session_controller.dart';
+import 'session/session_scope.dart';
+import 'ui/theme/maslive_theme.dart';
+import 'ui/widgets/honeycomb_background.dart';
+import 'utils/startup_trace.dart';
 import 'widgets/admin_route_guard.dart';
+import 'widgets/localized_app.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 String? _lastStartupFatalError;
@@ -145,7 +146,11 @@ void _installStartupErrorHandling() {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline, size: 56, color: Colors.redAccent),
+                const Icon(
+                  Icons.error_outline,
+                  size: 56,
+                  color: Colors.redAccent,
+                ),
                 const SizedBox(height: 12),
                 const Text(
                   'Erreur de demarrage MASLIVE',
@@ -168,34 +173,25 @@ void _installStartupErrorHandling() {
 }
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  _installStartupErrorHandling();
-  StartupTrace.log('MAIN', 'WidgetsFlutterBinding initialized');
+  await runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    _installStartupErrorHandling();
+    StartupTrace.log('MAIN', 'WidgetsFlutterBinding initialized');
 
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-      statusBarBrightness: Brightness.light,
-      systemNavigationBarColor: Colors.transparent,
-      systemNavigationBarIconBrightness: Brightness.light,
-      systemNavigationBarDividerColor: Colors.transparent,
-    ),
-  );
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarDividerColor: Colors.transparent,
+      ),
+    );
 
-  // ✅ Important: ne jamais bloquer avant le premier frame.
-  // Sinon l'utilisateur reste coincé sur le splash natif (Android/iOS) ou sur
-  // le loader web sans que la splash Flutter n'apparaisse.
-  StartupTrace.log('MAIN', 'runApp(_BootstrapRoot)');
-  runZonedGuarded(
-    () => runApp(const _BootstrapRoot()),
-    (error, stackTrace) => _reportStartupFatal(error, stackTrace),
-  );
-}
-
-class _BootResult {
-  final SessionController session;
-  const _BootResult({required this.session});
+    StartupTrace.log('MAIN', 'runApp(_BootstrapRoot)');
+    runApp(const _BootstrapRoot());
+  }, (error, stackTrace) => _reportStartupFatal(error, stackTrace));
 }
 
 class _BootstrapRoot extends StatefulWidget {
@@ -206,229 +202,192 @@ class _BootstrapRoot extends StatefulWidget {
 }
 
 class _BootstrapRootState extends State<_BootstrapRoot> {
-  static const Duration _bootWatchdogTimeout = Duration(seconds: 15);
-
   final SessionController _session = SessionController();
-  late final Future<_BootResult> _boot;
-  _BootResult? _fallbackBootResult;
-  bool _didLogWaitingBoot = false;
-  bool _didLogBootReady = false;
-  Timer? _bootWatchdog;
+  Future<void>? _backgroundBootstrap;
 
   @override
   void initState() {
     super.initState();
     StartupTrace.log('BOOT', 'initState');
-    _boot = _bootstrap();
-    _armBootWatchdog();
+    _ensureBaselineServices();
+    _startBootstrap();
   }
 
-  void _armBootWatchdog() {
-    _bootWatchdog?.cancel();
-    _bootWatchdog = Timer(_bootWatchdogTimeout, () {
-      if (!mounted) return;
-      if (_fallbackBootResult != null) return;
-
-      StartupTrace.log(
-        'BOOT',
-        'watchdog timeout after ${_bootWatchdogTimeout.inSeconds}s -> fallback MasLiveApp',
-      );
-
-      setState(() {
-        _fallbackBootResult = _buildFallbackBootResult();
-      });
-    });
+  void _ensureBaselineServices() {
+    if (!Get.isRegistered<LanguageService>()) {
+      Get.put(LanguageService());
+      StartupTrace.log('BOOT', 'baseline LanguageService registered');
+    }
   }
 
-  _BootResult _buildFallbackBootResult() {
-    // ⚠️ Cette méthode peut être appelée depuis build() (FutureBuilder, watchdog).
-    // On ne doit faire QUE le strict minimum : enregistrer LanguageService
-    // (requis par MasLiveApp.build() → Get.find<LanguageService>()).
-    // Les services Firebase (session, cart, notifications) sont initialisés
-    // dans _bootstrap() — les appeler ici avant Firebase.initializeApp()
-    // lève des exceptions silencieuses et peut perturber l'arbre Flutter.
-    try {
-      if (!Get.isRegistered<LanguageService>()) {
-        Get.put(LanguageService());
-        StartupTrace.log('BOOT', 'fallback LanguageService registered');
-      }
-    } catch (e) {
-      debugPrint('⚠️ Bootstrap fallback: LanguageService registration skipped: $e');
+  void _startBootstrap() {
+    _backgroundBootstrap ??= _bootstrapInBackground();
+    unawaited(_backgroundBootstrap);
+  }
+
+  Future<void> _bootstrapInBackground() async {
+    StartupTrace.log('BOOT', 'background bootstrap start');
+
+    final firebaseReady = await _initializeFirebase();
+
+    if (firebaseReady) {
+      _startFirebaseDependentServices();
     }
 
-    return _BootResult(session: _session);
+    await Future.wait<void>([
+      _initializeStripe(),
+      _warmMapboxToken(),
+      _initializeLanguageService(),
+      _initializePremiumService(firebaseReady),
+    ]);
+
+    StartupTrace.log('BOOT', 'background bootstrap complete');
   }
 
-  @override
-  void dispose() {
-    _bootWatchdog?.cancel();
-    super.dispose();
-  }
-
-  Future<_BootResult> _bootstrap() async {
-    final session = _session;
-    StartupTrace.log('BOOT', 'bootstrap start');
-
+  Future<bool> _initializeFirebase() async {
     try {
-      // 1) Firebase: requis pour auth/firestore. On timeoute pour éviter un blocage infini.
-      try {
-        StartupTrace.log('FIREBASE', 'initializeApp start');
-        await Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform,
-        ).timeout(const Duration(seconds: 12));
-        StartupTrace.log('FIREBASE', 'initializeApp success');
-      } catch (e) {
-        StartupTrace.log('FIREBASE', 'initializeApp failed: $e');
-        debugPrint('❌ Bootstrap: Firebase.initializeApp failed/timeout: $e');
-        // On continue quand même pour afficher l'UI (les pages Firebase pourront
-        // afficher leurs erreurs au lieu d'un splash natif infini).
-      }
-
-      // 2) Stripe (native uniquement): ne doit jamais bloquer le démarrage.
-      if (!kIsWeb) {
-        const stripePublishableKey = String.fromEnvironment(
-          'STRIPE_PUBLISHABLE_KEY',
-          defaultValue: '',
-        );
-        if (stripePublishableKey.isNotEmpty) {
-          Stripe.publishableKey = stripePublishableKey;
-          try {
-            await Stripe.instance
-                .applySettings()
-                .timeout(const Duration(seconds: 4));
-          } catch (e) {
-            debugPrint('⚠️ Bootstrap: Stripe applySettings skipped: $e');
-          }
-        } else {
-          debugPrint('⚠️ Bootstrap: STRIPE_PUBLISHABLE_KEY missing, Stripe skipped');
-        }
-      }
-
-      // 3) Mapbox token warmup: SharedPreferences (rapide) mais on timeoute par sûreté.
-      try {
-        StartupTrace.log('MAPBOX', 'warmUp start');
-        await MapboxTokenService.warmUp().timeout(const Duration(seconds: 4));
+      if (Firebase.apps.isNotEmpty) {
         StartupTrace.log(
-          'MAPBOX',
-          'warmUp success source=${MapboxTokenService.cachedSource} len=${MapboxTokenService.cachedToken.length}',
+          'FIREBASE',
+          'initializeApp skipped already initialized',
         );
-        debugPrint('✅ Bootstrap: Mapbox token=${MapboxTokenService.cachedSource} '
-            '(len=${MapboxTokenService.cachedToken.length})');
-      } catch (e) {
-        StartupTrace.log(
-          'MAPBOX',
-          'warmUp failed: $e (cachedLen=${MapboxTokenService.cachedToken.length})',
-        );
-        debugPrint('⚠️ Bootstrap: MapboxTokenService.warmUp skipped: $e '
-            '(cachedToken len=${MapboxTokenService.cachedToken.length})');
+        return true;
       }
 
-      // 4) LanguageService: doit exister avant build() (Get.find). Init best-effort.
-      try {
-        await Get.putAsync(() => LanguageService().init())
-            .timeout(const Duration(seconds: 3));
-      } catch (e) {
-        debugPrint('⚠️ Bootstrap: LanguageService init fallback: $e');
-        if (!Get.isRegistered<LanguageService>()) {
-          Get.put(LanguageService());
-        }
-      }
-
-      // 5) PremiumService: jamais bloquant (plugins réseau). On lance en arrière-plan.
-      const revenueCatApiKey = String.fromEnvironment(
-        'RC_API_KEY',
-        defaultValue: 'REVENUECAT_PUBLIC_SDK_KEY_HERE',
+      StartupTrace.log('FIREBASE', 'initializeApp start');
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
       );
-      if (!kIsWeb &&
-          kReleaseMode &&
-          PremiumService.isPlaceholderApiKey(revenueCatApiKey)) {
-        debugPrint(
-          '⚠️ Bootstrap: RC_API_KEY missing or placeholder in native release, PremiumService skipped',
-        );
-      } else {
-        unawaited(
-          PremiumService.instance
-              .init(
-                revenueCatApiKey: revenueCatApiKey,
-                entitlementId: 'premium',
-              )
-              .timeout(const Duration(seconds: 8))
-              .catchError((e) {
-            debugPrint('⚠️ Bootstrap: PremiumService init skipped: $e');
-          }),
-        );
-      }
-    } catch (e, st) {
-      debugPrint('❌ Bootstrap: unexpected failure: $e');
-      debugPrint('$st');
+      StartupTrace.log('FIREBASE', 'initializeApp success');
+      return true;
+    } catch (error, stackTrace) {
+      StartupTrace.log('FIREBASE', 'initializeApp failed: $error');
+      debugPrint('❌ Bootstrap: Firebase.initializeApp failed: $error');
+      debugPrint('$stackTrace');
+      return Firebase.apps.isNotEmpty;
     }
+  }
 
+  void _startFirebaseDependentServices() {
     try {
-      session.start();
+      _session.start();
       StartupTrace.log('BOOT', 'SessionController started');
-    } catch (e) {
-      debugPrint('⚠️ Bootstrap: SessionController.start skipped: $e');
+    } catch (error) {
+      debugPrint('⚠️ Bootstrap: SessionController.start skipped: $error');
     }
+
     try {
       CartService.instance.start();
       StartupTrace.log('BOOT', 'CartService started');
-    } catch (e) {
-      debugPrint('⚠️ Bootstrap: CartService.start skipped: $e');
+    } catch (error) {
+      debugPrint('⚠️ Bootstrap: CartService.start skipped: $error');
     }
+
     try {
       NotificationsService.instance.start(navigatorKey: _rootNavigatorKey);
       StartupTrace.log('BOOT', 'NotificationsService started');
-    } catch (e) {
-      debugPrint('⚠️ Bootstrap: NotificationsService.start skipped: $e');
+    } catch (error) {
+      debugPrint('⚠️ Bootstrap: NotificationsService.start skipped: $error');
+    }
+  }
+
+  Future<void> _initializeStripe() async {
+    if (kIsWeb) {
+      return;
     }
 
-    StartupTrace.log('BOOT', 'bootstrap complete');
-    _bootWatchdog?.cancel();
-    return _BootResult(session: session);
+    const stripePublishableKey = String.fromEnvironment(
+      'STRIPE_PUBLISHABLE_KEY',
+      defaultValue: '',
+    );
+    if (stripePublishableKey.isEmpty) {
+      debugPrint(
+        '⚠️ Bootstrap: STRIPE_PUBLISHABLE_KEY missing, Stripe skipped',
+      );
+      return;
+    }
+
+    try {
+      Stripe.publishableKey = stripePublishableKey;
+      await Stripe.instance.applySettings().timeout(const Duration(seconds: 4));
+      StartupTrace.log('STRIPE', 'applySettings success');
+    } catch (error) {
+      StartupTrace.log('STRIPE', 'applySettings failed: $error');
+      debugPrint('⚠️ Bootstrap: Stripe applySettings skipped: $error');
+    }
+  }
+
+  Future<void> _warmMapboxToken() async {
+    try {
+      StartupTrace.log('MAPBOX', 'warmUp start');
+      await MapboxTokenService.warmUp().timeout(const Duration(seconds: 4));
+      StartupTrace.log(
+        'MAPBOX',
+        'warmUp success source=${MapboxTokenService.cachedSource} len=${MapboxTokenService.cachedToken.length}',
+      );
+    } catch (error) {
+      StartupTrace.log('MAPBOX', 'warmUp failed: $error');
+      debugPrint('⚠️ Bootstrap: MapboxTokenService.warmUp skipped: $error');
+    }
+  }
+
+  Future<void> _initializeLanguageService() async {
+    try {
+      final languageService = Get.find<LanguageService>();
+      await languageService.init().timeout(const Duration(seconds: 3));
+      StartupTrace.log(
+        'LANG',
+        'LanguageService init success locale=${languageService.locale.languageCode}',
+      );
+    } catch (error) {
+      StartupTrace.log('LANG', 'LanguageService init failed: $error');
+      debugPrint('⚠️ Bootstrap: LanguageService init fallback: $error');
+      if (!Get.isRegistered<LanguageService>()) {
+        Get.put(LanguageService());
+      }
+    }
+  }
+
+  Future<void> _initializePremiumService(bool firebaseReady) async {
+    if (!firebaseReady) {
+      StartupTrace.log('PREMIUM', 'init skipped firebase unavailable');
+      return;
+    }
+
+    const revenueCatApiKey = String.fromEnvironment(
+      'RC_API_KEY',
+      defaultValue: 'REVENUECAT_PUBLIC_SDK_KEY_HERE',
+    );
+
+    if (!kIsWeb &&
+        kReleaseMode &&
+        PremiumService.isPlaceholderApiKey(revenueCatApiKey)) {
+      debugPrint(
+        '⚠️ Bootstrap: RC_API_KEY missing or placeholder in native release, PremiumService skipped',
+      );
+      return;
+    }
+
+    try {
+      await PremiumService.instance
+          .init(revenueCatApiKey: revenueCatApiKey, entitlementId: 'premium')
+          .timeout(const Duration(seconds: 8));
+      StartupTrace.log('PREMIUM', 'PremiumService init success');
+    } catch (error) {
+      StartupTrace.log('PREMIUM', 'PremiumService init failed: $error');
+      debugPrint('⚠️ Bootstrap: PremiumService init skipped: $error');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<_BootResult>(
-      future: _boot,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          StartupTrace.log('BOOT', 'FutureBuilder error path');
-          _fallbackBootResult ??= _buildFallbackBootResult();
-          debugPrint('❌ Bootstrap: FutureBuilder received error: ${snapshot.error}');
-          return MasLiveApp(session: _fallbackBootResult!.session);
-        }
-        final boot = snapshot.data;
-        final forcedBoot = _fallbackBootResult;
-        if (forcedBoot != null && boot == null) {
-          if (!_didLogBootReady) {
-            _didLogBootReady = true;
-            StartupTrace.log('BOOT', 'FutureBuilder fallback -> MasLiveApp');
-          }
-          return MasLiveApp(session: forcedBoot.session);
-        }
-        if (boot == null) {
-          if (!_didLogWaitingBoot) {
-            _didLogWaitingBoot = true;
-            StartupTrace.log('BOOT', 'FutureBuilder waiting -> SplashScreen');
-          }
-          return const MaterialApp(
-            debugShowCheckedModeBanner: false,
-            home: SplashScreen(),
-          );
-        }
-        if (!_didLogBootReady) {
-          _didLogBootReady = true;
-          StartupTrace.log('BOOT', 'FutureBuilder ready -> MasLiveApp');
-        }
-        return MasLiveApp(session: boot.session);
-      },
-    );
+    return MasLiveApp(session: _session);
   }
 }
 
 class MasLiveApp extends StatelessWidget {
   const MasLiveApp({super.key, required this.session});
+
   final SessionController session;
 
   @override
@@ -441,303 +400,298 @@ class MasLiveApp extends StatelessWidget {
           listenable: LocalizationService(),
           builder: (context, child) {
             return GetMaterialApp(
-            debugShowCheckedModeBanner: false,
-            navigatorKey: _rootNavigatorKey,
-            theme: MasliveTheme.lightTheme,
-            title: 'MASLIVE',
-            locale: Get.find<LanguageService>().locale,
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            initialRoute: '/splash',
-            routes: {
-              '/splash': (_) => const SplashWrapperPage(),
-              '/router': (_) => const RoleRouterPage(),
-              '/': (_) => kIsWeb ? const DefaultMapPage() : const HomeMapPage3D(),
-              // '/map-legacy': (_) => const HomeMapPageV3(), // 🔄 Moved to legacy
-              // Alias legacy: conserve l'URL mais évite 2 "Home carte" différents.
-              '/map-web': (_) => const DefaultMapPage(),
-
-              // Debug Web Mapbox (GL JS). Gardé pour l'admin.
-              '/mapbox-web': (_) => const MapboxWebMapPage(),
-
-              // Alias historique (nom trompeur): redirige vers la page debug Mapbox web.
-              '/map-3d': (_) => const MapboxWebMapPage(),
-              // '/mapbox-google-light': (_) => const GoogleLightMapPage(), // Moved to legacy
-              '/account-ui': (_) => const AccountUiPage(),
-              '/shop-ui': (_) =>
-                  const StorexShopPage(shopId: "global", groupId: "MASLIVE"),
-              '/group-ui': (_) => const GroupProfilePage(groupId: 'demo'),
-              '/app': (ctx) {
-                final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
-                final groupId = args != null
-                    ? args['groupId'] as String?
-                    : null;
-                return AppShell(groupId: groupId ?? 'groupe_demo');
-              },
-              '/group': (_) => const GroupProfilePage(groupId: 'groupe_demo'),
-              '/shop': (ctx) {
-                final groupId =
-                    ModalRoute.of(ctx)?.settings.arguments as String?;
-                return GroupShopPage(groupId: groupId ?? 'groupe_demo');
-              },
-              '/admin/commerce': (_) => AdminRouteGuard(
-                child: ProductManagementPage(shopId: 'global'),
-              ),
-              '/boutique': (_) =>
-                  const StorexShopPage(shopId: "global", groupId: "MASLIVE"),
+              debugShowCheckedModeBanner: false,
+              navigatorKey: _rootNavigatorKey,
+              theme: MasliveTheme.lightTheme,
+              title: 'MASLIVE',
+              locale: Get.find<LanguageService>().locale,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              initialRoute: '/splash',
+              routes: {
+                '/splash': (_) => const SplashWrapperPage(),
+                '/router': (_) => const RoleRouterPage(),
+                '/': (_) =>
+                    kIsWeb ? const DefaultMapPage() : const HomeMapPage3D(),
+                '/map-web': (_) => const DefaultMapPage(),
+                '/mapbox-web': (_) => const MapboxWebMapPage(),
+                '/map-3d': (_) => const MapboxWebMapPage(),
+                '/account-ui': (_) => const AccountUiPage(),
+                '/shop-ui': (_) =>
+                    const StorexShopPage(shopId: 'global', groupId: 'MASLIVE'),
+                '/group-ui': (_) => const GroupProfilePage(groupId: 'demo'),
+                '/app': (ctx) {
+                  final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
+                  final groupId = args != null
+                      ? args['groupId'] as String?
+                      : null;
+                  return AppShell(groupId: groupId ?? 'groupe_demo');
+                },
+                '/group': (_) => const GroupProfilePage(groupId: 'groupe_demo'),
+                '/shop': (ctx) {
+                  final groupId =
+                      ModalRoute.of(ctx)?.settings.arguments as String?;
+                  return GroupShopPage(groupId: groupId ?? 'groupe_demo');
+                },
+                '/admin/commerce': (_) => AdminRouteGuard(
+                  child: ProductManagementPage(shopId: 'global'),
+                ),
+                '/boutique': (_) =>
+                    const StorexShopPage(shopId: 'global', groupId: 'MASLIVE'),
                 '/boutique-photo': (_) => const MediaPhotoShopPage(),
-              StorexRoutes.paymentComplete: (ctx) {
-                final args = ModalRoute.of(ctx)?.settings.arguments;
-                if (args is PaymentCompleteArgs) {
-                  return PaymentCompletePage(
-                    orderCode: args.orderCode,
-                    continueToRoute: args.continueToRoute,
-                  );
-                }
-                return const _RouteArgsErrorPage(
-                  routeName: StorexRoutes.paymentComplete,
-                );
-              },
-              StorexRoutes.reviews: (ctx) {
-                final args = ModalRoute.of(ctx)?.settings.arguments;
-                if (args is ReviewsArgs) {
-                  return ReviewsPage(
-                    productId: args.productId,
-                    productTitle: args.productTitle,
-                  );
-                }
-                return const _RouteArgsErrorPage(
-                  routeName: StorexRoutes.reviews,
-                );
-              },
-              StorexRoutes.addReview: (ctx) {
-                final args = ModalRoute.of(ctx)?.settings.arguments;
-                if (args is AddReviewArgs) {
-                  return AddReviewPage(
-                    productId: args.productId,
-                    productTitle: args.productTitle,
-                  );
-                }
-                return const _RouteArgsErrorPage(
-                  routeName: StorexRoutes.addReview,
-                );
-              },
-              StorexRoutes.orderTracker: (ctx) {
-                final args = ModalRoute.of(ctx)?.settings.arguments;
-                if (args is OrderTrackerArgs) {
-                  return OrderTrackerPage(orderId: args.orderId);
-                }
-                return const _RouteArgsErrorPage(
-                  routeName: StorexRoutes.orderTracker,
-                );
-              },
-              '/account': (_) => const AccountAndAdminPage(),
-              '/account-admin': (_) => const AccountAndAdminPage(),
-              '/orders': (_) => const OrdersPage(),
-              '/seller-inbox': (_) => const SellerInboxPage(),
-              '/seller-order': (ctx) {
-                final args = ModalRoute.of(ctx)?.settings.arguments;
-                final orderId = args is String ? args : null;
-                if (orderId == null || orderId.trim().isEmpty) {
-                  return const _RouteArgsErrorPage(routeName: '/seller-order');
-                }
-                return SellerOrderDetailPage(orderId: orderId);
-              },
-              '/map-admin': (_) =>
-                  const AdminRouteGuard(child: MapAdminEditorPage()),
-              '/group-member': (ctx) {
-                final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
-                final groupId = args != null
-                    ? args['groupId'] as String?
-                    : null;
-                return GroupMemberPage(groupId: groupId);
-              },
-              '/admin': (_) =>
-                  const AdminRouteGuard(child: AdminMainDashboard()),
-              '/admin/circuits': (_) =>
-                  const AdminRouteGuard(child: AdminCircuitsPage()),
-              '/admin/track-editor': (_) =>
-                  const AdminRouteGuard(child: CircuitEditorWorkflowPage()),
-              '/admin/map-library': (_) =>
-                  const AdminRouteGuard(child: MapProjectsLibraryPage()),
-              '/admin/mapmarket': (_) =>
-                  const AdminRouteGuard(child: MapMarketProjectsPage()),
-              '/admin/mapmarket/wizard': (_) =>
-                  const AdminRouteGuard(child: MapProjectWizardEntryPage()),
-              '/admin/marketmap-debug': (_) =>
-                  const AdminRouteGuard(child: MarketMapDebugPage()),
-              '/admin/circuit-wizard': (_) =>
-                  const AdminRouteGuard(child: CircuitWizardEntryPage()),
-                '/admin/mapbox-style-studio': (_) =>
-                  const AdminRouteGuard(child: MapboxStyleStudioPage()),
-              '/admin/route-style-pro': (ctx) {
-                final args = ModalRoute.of(ctx)?.settings.arguments;
-                if (args is RouteStyleProArgs) {
-                  return AdminRouteGuard(
-                    child: RouteStyleWizardProPage(
-                      projectId: args.projectId,
-                      circuitId: args.circuitId,
-                      initialRoute: args.initialRoute,
-                      initialStyleUrl: args.initialStyleUrl,
-                    ),
-                  );
-                }
-                // Sans args: fallback local + itinéraire de démo.
-                return const AdminRouteGuard(child: RouteStyleWizardProPage());
-              },
-              '/admin/superadmin': (_) =>
-                  const AdminRouteGuard(child: SuperAdminSpace()),
-              '/admin/categories': (_) =>
-                  const AdminRouteGuard(child: CategoryManagementPage()),
-              '/admin/roles': (_) =>
-                  const AdminRouteGuard(child: RoleManagementPage()),
-              '/login': (_) => const LoginPage(),
-              '/tracking': (_) => const TrackingLivePage(),
-              '/search': (_) => const SearchPage(),
-              '/circuit-import-export': (_) => const CircuitImportExportPage(),
-              '/circuit-calculs': (_) => const CircuitCalculsValidationPage(),
-              '/circuit-save': (_) => const CircuitSavePage(),
-              '/circuit-draw': (_) => const CircuitDrawPage(),
-              '/favorites': (_) => const FavoritesPage(),
-              '/cart': (_) => const UnifiedCartPage(),
-              '/paywall': (_) => const PaywallPage(),
-              '/pending-products': (_) => const PendingProductsPage(),
-              '/purchase-history': (_) => const PurchaseHistoryPage(),
-              '/business': (_) => const BusinessAccountPage(),
-              '/business-request': (_) => const BusinessRequestPage(),
-              '/admin/business-requests': (_) =>
-                  const AdminRouteGuard(child: BusinessRequestsPage()),
-              '/commerce/create-product': (_) => const CreateProductPage(),
-              '/commerce/create-media': (_) => const CreateMediaPage(),
-              '/commerce/my-submissions': (_) => const MySubmissionsPage(),
-              '/admin/moderation': (_) =>
-                  const AdminRouteGuard(child: AdminModerationPage()),
-              '/admin/commerce-analytics': (_) =>
-                  const AdminRouteGuard(child: CommerceAnalyticsPage()),
-              '/media-marketplace': (ctx) {
-                final args = ModalRoute.of(ctx)?.settings.arguments;
-                int initialTabIndex = 0;
-                if (args is Map) {
-                  final countryId = args['countryId'] as String?;
-                  final countryName = args['countryName'] as String?;
-                  final eventId = args['eventId'] as String?;
-                  final eventName = args['eventName'] as String?;
-                  final circuitId = args['circuitId'] as String?;
-                  final circuitName = args['circuitName'] as String?;
-                  final photographerId = args['photographerId'] as String?;
-                  final ownerUid = args['ownerUid'] as String?;
-                  final initialTab = args['initialTab'];
-                  if (initialTab is int) {
-                    initialTabIndex = initialTab;
-                  } else if (initialTab is String) {
-                    switch (initialTab) {
-                      case 'cart':
-                        initialTabIndex = 1;
-                        break;
-                      case 'downloads':
-                        initialTabIndex = 2;
-                        break;
-                      case 'photographer':
-                        initialTabIndex = 3;
-                        break;
-                      default:
-                        initialTabIndex = 0;
-                    }
-                  }
-                  return MediaMarketplaceEntryPage(
-                    countryId: countryId,
-                    countryName: countryName,
-                    eventId: eventId,
-                    eventName: eventName,
-                    circuitId: circuitId,
-                    circuitName: circuitName,
-                    photographerId: photographerId,
-                    ownerUid: ownerUid,
-                    initialTabIndex: initialTabIndex,
-                  );
-                }
-                return const MediaMarketplaceEntryPage();
-              },
-              '/media-marketplace/cart': (_) => const UnifiedCartPage(),
-              '/media-marketplace/success': (_) =>
-                  _MediaMarketplaceCheckoutReturnPage(
-                    succeeded: true,
-                    orderId: _routeQueryParam('orderId'),
-                  ),
-              '/media-marketplace/cancel': (_) =>
-                  _MediaMarketplaceCheckoutReturnPage(
-                    succeeded: false,
-                    orderId: _routeQueryParam('orderId'),
-                  ),
-              '/media-marketplace/downloads': (_) =>
-                  const MediaDownloadsPage(),
-              '/media-marketplace/photographer': (_) =>
-                  const PhotographerDashboardPage(),
-              '/media-marketplace/subscription': (_) =>
-                  const PhotographerSubscriptionPage(),
-              '/admin/media-marketplace/moderation': (_) =>
-                  const AdminRouteGuard(child: AdminModerationQueuePage()),
-
-              // Public (mobile): viewer MarketMap
-              '/public/marketmap': (ctx) {
-                final args = ModalRoute.of(ctx)?.settings.arguments;
-                if (args is Map) {
-                  final countryId = args['countryId'] as String?;
-                  final eventId = args['eventId'] as String?;
-                  final initialCircuitId = args['initialCircuitId'] as String?;
-                  final accessToken = args['accessToken'] as String?;
-
-                  if (countryId != null && eventId != null) {
-                    return MarketMapPublicViewerPage(
-                      countryId: countryId,
-                      eventId: eventId,
-                      initialCircuitId: initialCircuitId,
-                      accessToken: accessToken,
+                StorexRoutes.paymentComplete: (ctx) {
+                  final args = ModalRoute.of(ctx)?.settings.arguments;
+                  if (args is PaymentCompleteArgs) {
+                    return PaymentCompletePage(
+                      orderCode: args.orderCode,
+                      continueToRoute: args.continueToRoute,
                     );
                   }
-                }
-                return const _RouteArgsErrorPage(
-                  routeName: '/public/marketmap',
-                );
-              },
+                  return const _RouteArgsErrorPage(
+                    routeName: StorexRoutes.paymentComplete,
+                  );
+                },
+                StorexRoutes.reviews: (ctx) {
+                  final args = ModalRoute.of(ctx)?.settings.arguments;
+                  if (args is ReviewsArgs) {
+                    return ReviewsPage(
+                      productId: args.productId,
+                      productTitle: args.productTitle,
+                    );
+                  }
+                  return const _RouteArgsErrorPage(
+                    routeName: StorexRoutes.reviews,
+                  );
+                },
+                StorexRoutes.addReview: (ctx) {
+                  final args = ModalRoute.of(ctx)?.settings.arguments;
+                  if (args is AddReviewArgs) {
+                    return AddReviewPage(
+                      productId: args.productId,
+                      productTitle: args.productTitle,
+                    );
+                  }
+                  return const _RouteArgsErrorPage(
+                    routeName: StorexRoutes.addReview,
+                  );
+                },
+                StorexRoutes.orderTracker: (ctx) {
+                  final args = ModalRoute.of(ctx)?.settings.arguments;
+                  if (args is OrderTrackerArgs) {
+                    return OrderTrackerPage(orderId: args.orderId);
+                  }
+                  return const _RouteArgsErrorPage(
+                    routeName: StorexRoutes.orderTracker,
+                  );
+                },
+                '/account': (_) => const AccountAndAdminPage(),
+                '/account-admin': (_) => const AccountAndAdminPage(),
+                '/orders': (_) => const OrdersPage(),
+                '/seller-inbox': (_) => const SellerInboxPage(),
+                '/seller-order': (ctx) {
+                  final args = ModalRoute.of(ctx)?.settings.arguments;
+                  final orderId = args is String ? args : null;
+                  if (orderId == null || orderId.trim().isEmpty) {
+                    return const _RouteArgsErrorPage(
+                      routeName: '/seller-order',
+                    );
+                  }
+                  return SellerOrderDetailPage(orderId: orderId);
+                },
+                '/map-admin': (_) =>
+                    const AdminRouteGuard(child: MapAdminEditorPage()),
+                '/group-member': (ctx) {
+                  final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
+                  final groupId = args != null
+                      ? args['groupId'] as String?
+                      : null;
+                  return GroupMemberPage(groupId: groupId);
+                },
+                '/admin': (_) =>
+                    const AdminRouteGuard(child: AdminMainDashboard()),
+                '/admin/circuits': (_) =>
+                    const AdminRouteGuard(child: AdminCircuitsPage()),
+                '/admin/track-editor': (_) =>
+                    const AdminRouteGuard(child: CircuitEditorWorkflowPage()),
+                '/admin/map-library': (_) =>
+                    const AdminRouteGuard(child: MapProjectsLibraryPage()),
+                '/admin/mapmarket': (_) =>
+                    const AdminRouteGuard(child: MapMarketProjectsPage()),
+                '/admin/mapmarket/wizard': (_) =>
+                    const AdminRouteGuard(child: MapProjectWizardEntryPage()),
+                '/admin/marketmap-debug': (_) =>
+                    const AdminRouteGuard(child: MarketMapDebugPage()),
+                '/admin/circuit-wizard': (_) =>
+                    const AdminRouteGuard(child: CircuitWizardEntryPage()),
+                '/admin/mapbox-style-studio': (_) =>
+                    const AdminRouteGuard(child: MapboxStyleStudioPage()),
+                '/admin/route-style-pro': (ctx) {
+                  final args = ModalRoute.of(ctx)?.settings.arguments;
+                  if (args is RouteStyleProArgs) {
+                    return AdminRouteGuard(
+                      child: RouteStyleWizardProPage(
+                        projectId: args.projectId,
+                        circuitId: args.circuitId,
+                        initialRoute: args.initialRoute,
+                        initialStyleUrl: args.initialStyleUrl,
+                      ),
+                    );
+                  }
+                  return const AdminRouteGuard(
+                    child: RouteStyleWizardProPage(),
+                  );
+                },
+                '/admin/superadmin': (_) =>
+                    const AdminRouteGuard(child: SuperAdminSpace()),
+                '/admin/categories': (_) =>
+                    const AdminRouteGuard(child: CategoryManagementPage()),
+                '/admin/roles': (_) =>
+                    const AdminRouteGuard(child: RoleManagementPage()),
+                '/login': (_) => const LoginPage(),
+                '/tracking': (_) => const TrackingLivePage(),
+                '/search': (_) => const SearchPage(),
+                '/circuit-import-export': (_) =>
+                    const CircuitImportExportPage(),
+                '/circuit-calculs': (_) => const CircuitCalculsValidationPage(),
+                '/circuit-save': (_) => const CircuitSavePage(),
+                '/circuit-draw': (_) => const CircuitDrawPage(),
+                '/favorites': (_) => const FavoritesPage(),
+                '/cart': (_) => const UnifiedCartPage(),
+                '/paywall': (_) => const PaywallPage(),
+                '/pending-products': (_) => const PendingProductsPage(),
+                '/purchase-history': (_) => const PurchaseHistoryPage(),
+                '/business': (_) => const BusinessAccountPage(),
+                '/business-request': (_) => const BusinessRequestPage(),
+                '/admin/business-requests': (_) =>
+                    const AdminRouteGuard(child: BusinessRequestsPage()),
+                '/commerce/create-product': (_) => const CreateProductPage(),
+                '/commerce/create-media': (_) => const CreateMediaPage(),
+                '/commerce/my-submissions': (_) => const MySubmissionsPage(),
+                '/admin/moderation': (_) =>
+                    const AdminRouteGuard(child: AdminModerationPage()),
+                '/admin/commerce-analytics': (_) =>
+                    const AdminRouteGuard(child: CommerceAnalyticsPage()),
+                '/media-marketplace': (ctx) {
+                  final args = ModalRoute.of(ctx)?.settings.arguments;
+                  int initialTabIndex = 0;
+                  if (args is Map) {
+                    final countryId = args['countryId'] as String?;
+                    final countryName = args['countryName'] as String?;
+                    final eventId = args['eventId'] as String?;
+                    final eventName = args['eventName'] as String?;
+                    final circuitId = args['circuitId'] as String?;
+                    final circuitName = args['circuitName'] as String?;
+                    final photographerId = args['photographerId'] as String?;
+                    final ownerUid = args['ownerUid'] as String?;
+                    final initialTab = args['initialTab'];
+                    if (initialTab is int) {
+                      initialTabIndex = initialTab;
+                    } else if (initialTab is String) {
+                      switch (initialTab) {
+                        case 'cart':
+                          initialTabIndex = 1;
+                          break;
+                        case 'downloads':
+                          initialTabIndex = 2;
+                          break;
+                        case 'photographer':
+                          initialTabIndex = 3;
+                          break;
+                        default:
+                          initialTabIndex = 0;
+                      }
+                    }
+                    return MediaMarketplaceEntryPage(
+                      countryId: countryId,
+                      countryName: countryName,
+                      eventId: eventId,
+                      eventName: eventName,
+                      circuitId: circuitId,
+                      circuitName: circuitName,
+                      photographerId: photographerId,
+                      ownerUid: ownerUid,
+                      initialTabIndex: initialTabIndex,
+                    );
+                  }
+                  return const MediaMarketplaceEntryPage();
+                },
+                '/media-marketplace/cart': (_) => const UnifiedCartPage(),
+                '/media-marketplace/success': (_) =>
+                    _MediaMarketplaceCheckoutReturnPage(
+                      succeeded: true,
+                      orderId: _routeQueryParam('orderId'),
+                    ),
+                '/media-marketplace/cancel': (_) =>
+                    _MediaMarketplaceCheckoutReturnPage(
+                      succeeded: false,
+                      orderId: _routeQueryParam('orderId'),
+                    ),
+                '/media-marketplace/downloads': (_) =>
+                    const MediaDownloadsPage(),
+                '/media-marketplace/photographer': (_) =>
+                    const PhotographerDashboardPage(),
+                '/media-marketplace/subscription': (_) =>
+                    const PhotographerSubscriptionPage(),
+                '/admin/media-marketplace/moderation': (_) =>
+                    const AdminRouteGuard(child: AdminModerationQueuePage()),
+                '/public/marketmap': (ctx) {
+                  final args = ModalRoute.of(ctx)?.settings.arguments;
+                  if (args is Map) {
+                    final countryId = args['countryId'] as String?;
+                    final eventId = args['eventId'] as String?;
+                    final initialCircuitId =
+                        args['initialCircuitId'] as String?;
+                    final accessToken = args['accessToken'] as String?;
 
-              // Groupe (Admin/Tracker)
-              '/group-admin': (_) => const AdminGroupDashboardPage(),
-              '/group-tracker': (_) => const TrackerGroupProfilePage(),
-              '/group-live': (ctx) {
-                final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
-                final adminGroupId =
-                    (args?['adminGroupId'] as String?) ?? '000000';
-                return GroupMapLivePage(adminGroupId: adminGroupId);
+                    if (countryId != null && eventId != null) {
+                      return MarketMapPublicViewerPage(
+                        countryId: countryId,
+                        eventId: eventId,
+                        initialCircuitId: initialCircuitId,
+                        accessToken: accessToken,
+                      );
+                    }
+                  }
+                  return const _RouteArgsErrorPage(
+                    routeName: '/public/marketmap',
+                  );
+                },
+                '/group-admin': (_) => const AdminGroupDashboardPage(),
+                '/group-tracker': (_) => const TrackerGroupProfilePage(),
+                '/group-live': (ctx) {
+                  final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
+                  final adminGroupId =
+                      (args?['adminGroupId'] as String?) ?? '000000';
+                  return GroupMapLivePage(adminGroupId: adminGroupId);
+                },
+                '/group-history': (ctx) {
+                  final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
+                  final adminGroupId =
+                      (args?['adminGroupId'] as String?) ?? '000000';
+                  final uid = args?['uid'] as String?;
+                  return GroupTrackHistoryPage(
+                    adminGroupId: adminGroupId,
+                    uid: uid,
+                  );
+                },
+                '/group-export': (ctx) {
+                  final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
+                  final adminGroupId =
+                      (args?['adminGroupId'] as String?) ?? '000000';
+                  final uid = args?['uid'] as String?;
+                  return GroupExportPage(adminGroupId: adminGroupId, uid: uid);
+                },
               },
-              '/group-history': (ctx) {
-                final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
-                final adminGroupId =
-                    (args?['adminGroupId'] as String?) ?? '000000';
-                final uid = args?['uid'] as String?;
-                return GroupTrackHistoryPage(
-                  adminGroupId: adminGroupId,
-                  uid: uid,
-                );
+              onGenerateRoute: (settings) {
+                return null;
               },
-              '/group-export': (ctx) {
-                final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
-                final adminGroupId =
-                    (args?['adminGroupId'] as String?) ?? '000000';
-                final uid = args?['uid'] as String?;
-                return GroupExportPage(adminGroupId: adminGroupId, uid: uid);
-              },
-            },
-            onGenerateRoute: (settings) {
-              return null;
-            },
-            builder: (context, child) => HoneycombBackground(
-              opacity: 0.08,
-              child: LocalizedApp(
-                showLanguageSidebar: true,
-                child: child ?? const SizedBox(),
+              builder: (context, child) => HoneycombBackground(
+                opacity: 0.08,
+                child: LocalizedApp(
+                  showLanguageSidebar: true,
+                  child: child ?? const SizedBox(),
+                ),
               ),
-            ),
             );
           },
         ),
@@ -748,6 +702,7 @@ class MasLiveApp extends StatelessWidget {
 
 class _RouteArgsErrorPage extends StatelessWidget {
   const _RouteArgsErrorPage({required this.routeName});
+
   final String routeName;
 
   @override
@@ -798,7 +753,9 @@ class _MediaMarketplaceCheckoutReturnPageState
     final message = widget.succeeded
         ? 'Votre commande media a ete prise en compte.'
         : 'Votre panier media a ete conserve. Vous pouvez reprendre le checkout quand vous voulez.';
-    final actionLabel = widget.succeeded ? 'Voir mes telechargements' : 'Retour au panier';
+    final actionLabel = widget.succeeded
+        ? 'Voir mes telechargements'
+        : 'Retour au panier';
     final actionRoute = widget.succeeded
         ? '/media-marketplace/downloads'
         : '/media-marketplace/cart';
@@ -850,10 +807,9 @@ class _MediaMarketplaceCheckoutReturnPageState
                 const SizedBox(height: 24),
                 FilledButton(
                   onPressed: () {
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      actionRoute,
-                      (route) => false,
-                    );
+                    Navigator.of(
+                      context,
+                    ).pushNamedAndRemoveUntil(actionRoute, (route) => false);
                   },
                   child: Text(actionLabel),
                 ),

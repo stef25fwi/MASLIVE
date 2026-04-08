@@ -31,6 +31,8 @@ class MasLiveMapWeb extends StatefulWidget {
   final double? userLat;
   final bool compactAttribution;
   final bool forceCompactAttribution;
+  final bool showAttributionControl;
+  final bool showMapboxLogo;
   final String controlsPosition;
   final ValueChanged<MapPoint>? onTap;
   final void Function(MasLiveMapController)? onMapReady;
@@ -50,6 +52,8 @@ class MasLiveMapWeb extends StatefulWidget {
     this.userLat,
     this.compactAttribution = true,
     this.forceCompactAttribution = false,
+    this.showAttributionControl = true,
+    this.showMapboxLogo = true,
     this.controlsPosition = 'top-right',
     this.onTap,
     this.onMapReady,
@@ -2240,6 +2244,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           styleUrl: _normalizeMapboxStyleUrl(widget.styleUrl ?? ''),
           compactAttribution: widget.compactAttribution,
           forceCompactAttribution: widget.forceCompactAttribution,
+          showAttributionControl: widget.showAttributionControl,
+          showMapboxLogo: widget.showMapboxLogo,
           controlsPosition: widget.controlsPosition,
           onMapReady: _onMapReady,
           onTap: (lng, lat) {
@@ -2282,6 +2288,8 @@ class _MapboxWebViewCustom extends StatefulWidget {
   final String? styleUrl;
   final bool compactAttribution;
   final bool forceCompactAttribution;
+  final bool showAttributionControl;
+  final bool showMapboxLogo;
   final String controlsPosition;
   final VoidCallback? onMapReady;
   final void Function(double lng, double lat)? onTap;
@@ -2299,6 +2307,8 @@ class _MapboxWebViewCustom extends StatefulWidget {
     this.styleUrl,
     this.compactAttribution = true,
     this.forceCompactAttribution = false,
+    this.showAttributionControl = true,
+    this.showMapboxLogo = true,
     this.controlsPosition = 'top-right',
     this.onMapReady,
     this.onTap,
@@ -2613,6 +2623,8 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
       'bearing': widget.initialBearing,
       'compactAttribution': widget.compactAttribution,
       'forceCompactAttribution': widget.forceCompactAttribution,
+      'showAttributionControl': widget.showAttributionControl,
+      'showMapboxLogo': widget.showMapboxLogo,
       'controlsPosition': widget.controlsPosition,
       'accessToken': widget.accessToken,
     });

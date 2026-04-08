@@ -166,3 +166,4 @@ firebase-debug.log
 dart_analyze_machine.txt
 shop_files.zip
 shop_files*.zip
+.artifacts/

@@ -376,6 +376,130 @@ function getStripeV20240620() {
   return stripeModule(apiKey, { apiVersion: "2024-06-20" });
 }
 
+function normalizeCurrencyCode(value, fallback = "EUR") {
+  const raw = looksLikeNonEmptyString(value) ? value.trim().toUpperCase() : "";
+  return raw || fallback;
+}
+
+function sanitizeContinueToRoute(value, fallback = "/boutique") {
+  if (!looksLikeNonEmptyString(value)) return fallback;
+  const raw = value.trim();
+  if (!raw.startsWith("/") || raw.startsWith("//")) return fallback;
+  return raw;
+}
+
+function appendRedirectParams(url, params) {
+  const parsed = new URL(url);
+  const entries = Object.entries(params || {}).filter(([, value]) => {
+    if (value == null) return false;
+    return String(value).trim().length > 0;
+  });
+
+  if (!entries.length) {
+    return parsed.toString();
+  }
+
+  if (typeof parsed.hash === "string" && parsed.hash.startsWith("#/")) {
+    const fragment = parsed.hash.slice(1);
+    const queryIndex = fragment.indexOf("?");
+    const fragmentPath = queryIndex === -1 ? fragment : fragment.slice(0, queryIndex);
+    const fragmentQuery = queryIndex === -1 ? "" : fragment.slice(queryIndex + 1);
+    const searchParams = new URLSearchParams(fragmentQuery);
+
+    for (const [key, value] of entries) {
+      searchParams.set(key, String(value));
+    }
+
+    const serialized = searchParams.toString();
+    parsed.hash = serialized ? `${fragmentPath}?${serialized}` : fragmentPath;
+    return parsed.toString();
+  }
+
+  for (const [key, value] of entries) {
+    parsed.searchParams.set(key, String(value));
+  }
+
+  return parsed.toString();
+}
+
+function buildStorexStripeLineItems(items, { currency = "EUR", shippingCents = 0, shippingMethod = "flat_rate" } = {}) {
+  const normalizedCurrency = normalizeCurrencyCode(currency).toLowerCase();
+  const lineItems = (items || []).map((item) => {
+    const image = looksLikeNonEmptyString(item?.imageUrl) && String(item.imageUrl).startsWith("https://")
+      ? [String(item.imageUrl)]
+      : [];
+
+    return {
+      price_data: {
+        currency: normalizedCurrency,
+        product_data: {
+          name: looksLikeNonEmptyString(item?.title) ? String(item.title) : "Article MASLIVE",
+          images: image,
+          metadata: {
+            productId: looksLikeNonEmptyString(item?.productId) ? String(item.productId) : "",
+            sellerId: looksLikeNonEmptyString(item?.sellerId) ? String(item.sellerId) : "",
+            groupId: looksLikeNonEmptyString(item?.groupId) ? String(item.groupId) : "",
+            size: looksLikeNonEmptyString(item?.size) ? String(item.size) : "",
+            color: looksLikeNonEmptyString(item?.color) ? String(item.color) : "",
+          },
+        },
+        unit_amount: assertPositiveCents(item?.priceCents, "storex.item.priceCents"),
+      },
+      quantity: clamp(toSafeInt(item?.quantity, 1), 1, 99),
+    };
+  });
+
+  if (toSafeInt(shippingCents, 0) > 0) {
+    lineItems.push({
+      price_data: {
+        currency: normalizedCurrency,
+        product_data: {
+          name: "Livraison MASLIVE",
+          metadata: {
+            shippingMethod: looksLikeNonEmptyString(shippingMethod) ? String(shippingMethod) : "flat_rate",
+          },
+        },
+        unit_amount: toSafeInt(shippingCents, 0),
+      },
+      quantity: 1,
+    });
+  }
+
+  return lineItems;
+}
+
+function buildStripeCheckoutSummaryLineItem({
+  title,
+  description,
+  currency = "EUR",
+  totalCents,
+  metadata = {},
+}) {
+  const normalizedCurrency = normalizeCurrencyCode(currency).toLowerCase();
+  const sanitizedMetadata = {};
+
+  for (const [key, value] of Object.entries(metadata || {})) {
+    if (!looksLikeNonEmptyString(key) || value == null) continue;
+    const normalizedKey = key.trim().replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40);
+    const normalizedValue = String(value).trim().slice(0, 500);
+    if (!normalizedKey || !normalizedValue) continue;
+    sanitizedMetadata[normalizedKey] = normalizedValue;
+  }
+
+  return {
+    price_data: {
+      currency: normalizedCurrency,
+      product_data: {
+        name: looksLikeNonEmptyString(title) ? title.trim() : "Checkout MASLIVE",
+        ...(looksLikeNonEmptyString(description) ? { description: description.trim() } : {}),
+        metadata: sanitizedMetadata,
+      },
+      unit_amount: assertPositiveCents(totalCents, "checkout.totalCents"),
+    },
+    quantity: 1,
+  };
+}
+
 function isAllowedRedirectUrl(url) {
   if (typeof url !== "string" || url.trim().length === 0) return false;
   try {
@@ -803,7 +927,7 @@ exports.createStorexPaymentIntent = onCall(
   const uid = auth.uid;
 
   const data = req.data || {};
-  const currency = String(data.currency || "eur").toLowerCase();
+  const currency = normalizeCurrencyCode(data.currency, "EUR").toLowerCase();
   const shippingCents = Number(data.shippingCents || 0);
   const shippingMethod = String(data.shippingMethod || "flat_rate");
   const shippingAddress = normalizeShippingAddress(data.address);
@@ -848,6 +972,112 @@ exports.createStorexPaymentIntent = onCall(
     orderId: storeOrder.orderId,
     clientSecret: pi.client_secret,
   };
+  }
+);
+
+exports.createStorexCheckoutSession = onCall(
+  { region: "us-east1", secrets: [STRIPE_SECRET_KEY] },
+  async (req) => {
+    const auth = req.auth;
+    if (!auth) throw new HttpsError("unauthenticated", "Sign in required");
+    const uid = auth.uid;
+
+    const data = req.data || {};
+    const currency = normalizeCurrencyCode(data.currency, "EUR");
+    const shippingCents = Number(data.shippingCents || 0);
+    const shippingMethod = String(data.shippingMethod || "flat_rate");
+    const shippingAddress = normalizeShippingAddress(data.address);
+    const checkoutPayload = data.checkoutPayload && typeof data.checkoutPayload === "object"
+      ? data.checkoutPayload
+      : null;
+    const successUrl = assertHttpsUrlOrDefault(
+      data.successUrl,
+      "https://maslive.web.app/#/storex/paymentComplete"
+    );
+    const cancelUrl = assertHttpsUrlOrDefault(
+      data.cancelUrl,
+      "https://maslive.web.app/#/boutique"
+    );
+    const continueToRoute = sanitizeContinueToRoute(data.continueToRoute, "/boutique");
+
+    const storeOrder = await createStorexOrderDraftFromMerchCart({
+      uid,
+      currency: currency.toLowerCase(),
+      shippingCents,
+      shippingMethod,
+      shippingAddress,
+      checkoutPayload,
+    });
+
+    const stripeClient = getStripe();
+    const sessionMetadata = {
+      kind: "storex_checkout",
+      uid,
+      userId: uid,
+      orderId: storeOrder.orderId,
+      currency,
+      shippingMethod,
+      itemsCount: String(storeOrder.itemsCount || 0),
+    };
+
+    const session = await stripeClient.checkout.sessions.create(
+      {
+        mode: "payment",
+        line_items: buildStorexStripeLineItems(storeOrder.items, {
+          currency,
+          shippingCents: storeOrder.shippingCents,
+          shippingMethod,
+        }),
+        client_reference_id: storeOrder.orderId,
+        success_url: appendRedirectParams(successUrl, {
+          orderId: storeOrder.orderId,
+          continueToRoute,
+        }),
+        cancel_url: appendRedirectParams(cancelUrl, {
+          orderId: storeOrder.orderId,
+        }),
+        customer_email: auth.token?.email || shippingAddress.email || undefined,
+        metadata: sessionMetadata,
+        payment_intent_data: {
+          metadata: {
+            uid,
+            userId: uid,
+            orderId: storeOrder.orderId,
+            kind: "storex_checkout",
+          },
+        },
+      },
+      { idempotencyKey: `storex_checkout_${storeOrder.orderId}` }
+    );
+
+    await storeOrder.orderRef.set(
+      {
+        stripe: {
+          sessionId: session.id,
+          checkoutKind: "storex_checkout",
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    await storeOrder.rootOrderRef.set(
+      {
+        stripe: {
+          sessionId: session.id,
+          checkoutKind: "storex_checkout",
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return {
+      orderId: storeOrder.orderId,
+      checkoutUrl: session.url,
+      stripeSessionId: session.id,
+      totalCents: storeOrder.totalCents,
+    };
   }
 );
 
@@ -1031,9 +1261,33 @@ async function createStorexOrderDraftFromMerchCart({
   return {
     orderId: orderRef.id,
     totalCents,
+    subtotalCents,
+    shippingCents: safeShipping,
+    currency: currency.toUpperCase(),
+    items,
+    itemsCount,
     orderRef,
     rootOrderRef,
   };
+}
+
+async function clearStorexCartItems(uid, items) {
+  if (!looksLikeNonEmptyString(uid) || !Array.isArray(items) || items.length === 0) {
+    return;
+  }
+
+  const cartItemIds = uniqueStrings(items.map((item) => item?.unifiedCartItemId || ""));
+  if (!cartItemIds.length) {
+    return;
+  }
+
+  const batch = db.batch();
+  for (const cartItemId of cartItemIds) {
+    batch.delete(
+      db.collection("users").doc(uid).collection("cart_items").doc(cartItemId)
+    );
+  }
+  await batch.commit();
 }
 
 /**
@@ -1129,7 +1383,7 @@ exports.createMixedCartPaymentIntent = onCall(
     const uid = auth.uid;
 
     const data = req.data || {};
-    const currency = String(data.currency || "eur").toLowerCase();
+    const currency = normalizeCurrencyCode(data.currency, "EUR").toLowerCase();
     const shippingCents = Number(data.shippingCents || 0);
     const shippingMethod = String(data.shippingMethod || "flat_rate");
     const promoCode = String(data.promoCode || "").trim().toUpperCase();
@@ -1155,6 +1409,9 @@ exports.createMixedCartPaymentIntent = onCall(
     });
     if (!mediaOrder?.orderId || !Number.isFinite(Number(mediaOrder.totalCents))) {
       throw new HttpsError("failed-precondition", "Media cart empty");
+    }
+    if (normalizeCurrencyCode(mediaOrder.currency, currency.toUpperCase()).toLowerCase() !== currency) {
+      throw new HttpsError("failed-precondition", "Mixed currencies are not supported");
     }
 
     // Validate and apply promo code (server-side validation)
@@ -1249,6 +1506,188 @@ exports.createMixedCartPaymentIntent = onCall(
       storeOrderId: storeOrder.orderId,
       mediaOrderId: mediaOrder.orderId,
       clientSecret: pi.client_secret,
+      totalCents,
+      promoCentsDiscount,
+      promoCode: promoCode || null,
+    };
+  }
+);
+
+exports.createMixedCartCheckoutSession = onCall(
+  { region: "us-east1", secrets: [STRIPE_SECRET_KEY] },
+  async (req) => {
+    const auth = req.auth;
+    if (!auth) throw new HttpsError("unauthenticated", "Sign in required");
+    const uid = auth.uid;
+
+    const data = req.data || {};
+    const currency = normalizeCurrencyCode(data.currency, "EUR");
+    const shippingCents = Number(data.shippingCents || 0);
+    const shippingMethod = String(data.shippingMethod || "flat_rate");
+    const promoCode = String(data.promoCode || "").trim().toUpperCase();
+    const shippingAddress = normalizeShippingAddress(data.address);
+    const checkoutPayload = data.checkoutPayload && typeof data.checkoutPayload === "object"
+      ? data.checkoutPayload
+      : null;
+    const successUrl = assertHttpsUrlOrDefault(
+      data.successUrl,
+      "https://maslive.web.app/#/storex/paymentComplete"
+    );
+    const cancelUrl = assertHttpsUrlOrDefault(
+      data.cancelUrl,
+      "https://maslive.web.app/#/cart"
+    );
+    const continueToRoute = sanitizeContinueToRoute(data.continueToRoute, "/cart");
+
+    const storeOrder = await createStorexOrderDraftFromMerchCart({
+      uid,
+      currency: currency.toLowerCase(),
+      shippingCents,
+      shippingMethod,
+      shippingAddress,
+      checkoutPayload,
+    });
+
+    const mediaOrder = await mediaMarketplaceStripe.createMarketplaceOrderForPaymentIntent({
+      uid,
+      checkoutPayload,
+      source: "mixed_cart_checkout",
+    });
+    if (!mediaOrder?.orderId || !Number.isFinite(Number(mediaOrder.totalCents))) {
+      throw new HttpsError("failed-precondition", "Media cart empty");
+    }
+    if (normalizeCurrencyCode(mediaOrder.currency, currency).toUpperCase() !== currency) {
+      throw new HttpsError("failed-precondition", "Mixed currencies are not supported");
+    }
+
+    let promoCentsDiscount = 0;
+    if (promoCode) {
+      const subtotalCents = storeOrder.totalCents + toSafeInt(mediaOrder.totalCents, 0);
+      const promoSnap = await db.collection("config").doc("promo_codes").get();
+      const promoConfig = promoSnap.exists && promoSnap.data() ? promoSnap.data() : {};
+      const codes = promoConfig.codes || {};
+      const codeData = codes[promoCode];
+
+      if (codeData && codeData.disabled !== true) {
+        const expiresAtMs = (typeof codeData.expiresAt === "object" && typeof codeData.expiresAt.toMillis === "function")
+          ? codeData.expiresAt.toMillis()
+          : (typeof codeData.expiresAt === "number" ? codeData.expiresAt : 0);
+        if (!expiresAtMs || Date.now() <= expiresAtMs) {
+          if (!codeData.minSubtotalCents || subtotalCents >= codeData.minSubtotalCents) {
+            if (codeData.type === "percentage") {
+              const pct = clampPositiveAmount(codeData.value);
+              promoCentsDiscount = Math.floor((subtotalCents * pct) / 100);
+              if (codeData.maxDiscountCents && promoCentsDiscount > codeData.maxDiscountCents) {
+                promoCentsDiscount = codeData.maxDiscountCents;
+              }
+            } else if (codeData.type === "fixed") {
+              promoCentsDiscount = toSafeInt(codeData.value, 0);
+            }
+          }
+        }
+      }
+    }
+
+    const totalCents = Math.max(
+      0,
+      storeOrder.totalCents + toSafeInt(mediaOrder.totalCents, 0) - promoCentsDiscount
+    );
+    if (totalCents <= 0) {
+      throw new HttpsError("failed-precondition", "Cart total invalid");
+    }
+
+    const stripeClient = getStripe();
+    const sessionMetadata = {
+      kind: "mixed_cart_checkout",
+      uid,
+      userId: uid,
+      orderId: storeOrder.orderId,
+      storeOrderId: storeOrder.orderId,
+      mediaOrderId: mediaOrder.orderId,
+      currency,
+      promoCode: promoCode || "none",
+      promoCentsDiscount: String(promoCentsDiscount),
+    };
+
+    const session = await stripeClient.checkout.sessions.create(
+      {
+        mode: "payment",
+        line_items: [
+          buildStripeCheckoutSummaryLineItem({
+            title: "MASLIVE Mixed Checkout",
+            description: `${storeOrder.itemsCount || 0} article(s) merch + ${mediaOrder.itemsCount || 0} media`,
+            currency,
+            totalCents,
+            metadata: {
+              storeOrderId: storeOrder.orderId,
+              mediaOrderId: mediaOrder.orderId,
+              promoCode: promoCode || "none",
+            },
+          }),
+        ],
+        client_reference_id: storeOrder.orderId,
+        success_url: appendRedirectParams(successUrl, {
+          orderId: storeOrder.orderId,
+          continueToRoute,
+        }),
+        cancel_url: appendRedirectParams(cancelUrl, {
+          orderId: storeOrder.orderId,
+        }),
+        customer_email: auth.token?.email || shippingAddress.email || undefined,
+        metadata: sessionMetadata,
+        payment_intent_data: {
+          metadata: {
+            uid,
+            userId: uid,
+            orderId: storeOrder.orderId,
+            storeOrderId: storeOrder.orderId,
+            mediaOrderId: mediaOrder.orderId,
+            kind: "mixed_cart",
+            promoCode: promoCode || "none",
+            promoCentsDiscount: String(promoCentsDiscount),
+          },
+        },
+      },
+      { idempotencyKey: `mixed_checkout_${storeOrder.orderId}_${mediaOrder.orderId}` }
+    );
+
+    await storeOrder.orderRef.set(
+      {
+        promoCode: promoCode || null,
+        promoCentsDiscount,
+        stripe: {
+          sessionId: session.id,
+          checkoutKind: "mixed_cart_checkout",
+          mediaOrderId: mediaOrder.orderId,
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    await storeOrder.rootOrderRef.set(
+      {
+        stripe: {
+          sessionId: session.id,
+          checkoutKind: "mixed_cart_checkout",
+          mediaOrderId: mediaOrder.orderId,
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    await db.collection("orders").doc(mediaOrder.orderId).set(
+      {
+        stripeCheckoutSessionId: session.id,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return {
+      storeOrderId: storeOrder.orderId,
+      mediaOrderId: mediaOrder.orderId,
+      checkoutUrl: session.url,
+      stripeSessionId: session.id,
       totalCents,
       promoCentsDiscount,
       promoCode: promoCode || null,
@@ -2980,8 +3419,10 @@ async function handleCheckoutSessionCompleted(session, eventId) {
   // Supporte 2 modèles:
   // - Nouveau modèle simple: /orders/{orderId}
   // - Modèle existant Media Shop: /users/{uid}/orders/{orderId}
-  const orderId = session.metadata?.orderId || session.client_reference_id;
+  const orderId = session.metadata?.orderId || session.metadata?.storeOrderId || session.client_reference_id;
   const uid = session.metadata?.uid || session.metadata?.userId;
+  const kind = normalizeLowerString(session?.metadata?.kind || "");
+  const mediaOrderId = session?.metadata?.mediaOrderId;
 
   if (!orderId) {
     console.warn("Missing orderId in session metadata");
@@ -2993,7 +3434,11 @@ async function handleCheckoutSessionCompleted(session, eventId) {
   const rootSnap = await rootOrderRef.get();
   if (rootSnap.exists) {
     let rootOrder = rootSnap.data() || {};
+    let userOrder = null;
     let shouldProcessRootOrder = false;
+    const userOrderRef = uid && typeof uid === "string"
+      ? db.collection("users").doc(uid).collection("orders").doc(orderId)
+      : null;
 
     await db.runTransaction(async (transaction) => {
       const freshSnap = await transaction.get(rootOrderRef);
@@ -3014,13 +3459,17 @@ async function handleCheckoutSessionCompleted(session, eventId) {
         && typeof eventId === "string"
         && stripeData.lastProcessedCheckoutEventId === eventId;
 
-      if (alreadyProcessedEvent || (status === "paid" && alreadyProcessedSession)) {
+      if (!(alreadyProcessedEvent || (status === "paid" && alreadyProcessedSession))) {
+        shouldProcessRootOrder = true;
+      } else {
         console.log(`Root order ${orderId} already processed for session ${session.id}`);
-        return;
       }
 
       rootOrder = freshOrder;
-      shouldProcessRootOrder = true;
+      if (userOrderRef) {
+        const freshUserOrderSnap = await transaction.get(userOrderRef);
+        userOrder = freshUserOrderSnap.exists ? (freshUserOrderSnap.data() || {}) : null;
+      }
 
       transaction.set(
         rootOrderRef,
@@ -3031,16 +3480,31 @@ async function handleCheckoutSessionCompleted(session, eventId) {
             sessionId: session.id,
             paymentIntentId: session.payment_intent || null,
             lastProcessedCheckoutEventId: typeof eventId === "string" ? eventId : null,
+            kind: kind || null,
           },
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
         { merge: true }
       );
-    });
 
-    if (!shouldProcessRootOrder) {
-      return;
-    }
+      if (userOrderRef) {
+        transaction.set(
+          userOrderRef,
+          {
+            status: "paid",
+            paidAt: admin.firestore.FieldValue.serverTimestamp(),
+            stripe: {
+              sessionId: session.id,
+              paymentIntentId: session.payment_intent || null,
+              kind: kind || null,
+              mediaOrderId: typeof mediaOrderId === "string" ? mediaOrderId : null,
+            },
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+    });
 
     if (uid && typeof uid === "string") {
       await db
@@ -3055,79 +3519,30 @@ async function handleCheckoutSessionCompleted(session, eventId) {
           },
           { merge: true }
         );
+
+      await clearStorexCartItems(uid, userOrder?.items || []);
     }
 
-    // Décrémenter le stock des produits root order
-    try {
-      const items = rootOrder.items || [];
-      const productsToDecrement = items
-        .filter((item) => item.productId && typeof item.productId === "string")
-        .map((item) => ({
-          productId: item.productId,
-          quantity: Number(item.quantity || 1),
-        }))
-        .filter((p) => p.quantity > 0);
+    if (
+      kind === "mixed_cart_checkout" &&
+      uid &&
+      typeof mediaOrderId === "string" &&
+      mediaOrderId.trim().length > 0
+    ) {
+      await mediaMarketplaceStripe.fulfillMarketplaceOrderFromPaymentIntent({
+        orderId: mediaOrderId.trim(),
+        buyerUid: uid,
+        paymentIntentId: session.payment_intent || null,
+        stripeCustomerId: session.customer || null,
+      });
+    }
 
-      if (productsToDecrement.length > 0) {
-        await db.runTransaction(async (transaction) => {
-          const productRefs = {};
-          const productDocs = {};
-          for (const { productId } of productsToDecrement) {
-            const rootRef = db.collection("products").doc(productId);
-            const rootSnap = await transaction.get(rootRef);
-            productRefs[productId] = rootRef;
-            productDocs[productId] = rootSnap.exists ? rootSnap.data() : null;
-
-            if (rootOrder.shopId) {
-              const shopRef = db
-                .collection("shops")
-                .doc(rootOrder.shopId)
-                .collection("products")
-                .doc(productId);
-              const shopSnap = await transaction.get(shopRef);
-              productRefs[`${productId}_shop`] = shopRef;
-              if (shopSnap.exists) {
-                productDocs[`${productId}_shop`] = shopSnap.data();
-              }
-            }
-          }
-
-          for (const { productId, quantity } of productsToDecrement) {
-            const product = productDocs[productId];
-            if (!product) continue;
-
-            const currentStock = Number(product.stock || 0);
-            const newStock = Math.max(0, currentStock - quantity);
-
-            const updateData = {
-              stock: newStock,
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            };
-
-            const alertQty = Number(product.alertQty || 0);
-            if (alertQty > 0) {
-              if (newStock === 0) {
-                updateData.stockStatus = "out_of_stock";
-              } else if (newStock <= alertQty) {
-                updateData.stockStatus = "low_stock";
-              } else {
-                updateData.stockStatus = "in_stock";
-              }
-            }
-
-            transaction.update(productRefs[productId], updateData);
-            if (productRefs[`${productId}_shop`]) {
-              transaction.update(productRefs[`${productId}_shop`], updateData);
-            }
-
-            console.log(
-              `Stock decremented (root order) for product ${productId}: ${currentStock} -> ${newStock} (-${quantity})`
-            );
-          }
-        });
+    if (shouldProcessRootOrder) {
+      try {
+        await decrementStorexStockForRootOrder(rootOrder);
+      } catch (stockErr) {
+        console.error(`Failed to decrement stock for root order ${orderId}:`, stockErr);
       }
-    } catch (stockErr) {
-      console.error(`Failed to decrement stock for root order ${orderId}:`, stockErr);
     }
 
     console.log(`Root order ${orderId} marked as paid`);
@@ -3337,6 +3752,79 @@ async function handleInvoicePaymentFailed(invoice) {
  * Traite l'événement payment_intent.succeeded
  * Paiement réussi (confirmation supplémentaire)
  */
+
+async function decrementStorexStockForRootOrder(rootOrder) {
+  const items = Array.isArray(rootOrder?.items) ? rootOrder.items : [];
+  const productsToDecrement = items
+    .filter((item) => item.productId && typeof item.productId === "string")
+    .map((item) => ({
+      productId: item.productId,
+      quantity: Number(item.quantity || 1),
+    }))
+    .filter((product) => product.quantity > 0);
+
+  if (!productsToDecrement.length) {
+    return;
+  }
+
+  await db.runTransaction(async (transaction) => {
+    const productRefs = {};
+    const productDocs = {};
+
+    for (const { productId } of productsToDecrement) {
+      const rootRef = db.collection("products").doc(productId);
+      const rootSnap = await transaction.get(rootRef);
+      productRefs[productId] = rootRef;
+      productDocs[productId] = rootSnap.exists ? rootSnap.data() : null;
+
+      if (rootOrder.shopId) {
+        const shopRef = db
+          .collection("shops")
+          .doc(rootOrder.shopId)
+          .collection("products")
+          .doc(productId);
+        const shopSnap = await transaction.get(shopRef);
+        productRefs[`${productId}_shop`] = shopRef;
+        if (shopSnap.exists) {
+          productDocs[`${productId}_shop`] = shopSnap.data();
+        }
+      }
+    }
+
+    for (const { productId, quantity } of productsToDecrement) {
+      const product = productDocs[productId];
+      if (!product) continue;
+
+      const currentStock = Number(product.stock || 0);
+      const newStock = Math.max(0, currentStock - quantity);
+
+      const updateData = {
+        stock: newStock,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      const alertQty = Number(product.alertQty || 0);
+      if (alertQty > 0) {
+        if (newStock === 0) {
+          updateData.stockStatus = "out_of_stock";
+        } else if (newStock <= alertQty) {
+          updateData.stockStatus = "low_stock";
+        } else {
+          updateData.stockStatus = "in_stock";
+        }
+      }
+
+      transaction.update(productRefs[productId], updateData);
+      if (productRefs[`${productId}_shop`]) {
+        transaction.update(productRefs[`${productId}_shop`], updateData);
+      }
+
+      console.log(
+        `Stock decremented (root order) for product ${productId}: ${currentStock} -> ${newStock} (-${quantity})`
+      );
+    }
+  });
+}
 async function handlePaymentIntentSucceeded(paymentIntent) {
   console.log("Processing payment_intent.succeeded:", paymentIntent.id);
 

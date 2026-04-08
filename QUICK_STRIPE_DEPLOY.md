@@ -5,24 +5,27 @@
 bash /workspaces/MASLIVE/deploy_functions_stripe.sh
 ```
 
-## 2. Entre ta clé Stripe
-Le script demandera ta clé Secret Key depuis le [Stripe Dashboard](https://dashboard.stripe.com/apikeys).
-
-**Clés de test :**
-- Mode test : `sk_test_...`
-- Mode production : `sk_live_...`
+## 2. Configure les secrets Stripe
+Le script ouvre la saisie sécurisée de :
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET` en option
 
 ## 3. Attends la fin du déploiement
-Les Cloud Functions seront déployées automatiquement.
+Les Cloud Functions Stripe seront redéployées automatiquement.
 
 ---
 
 ## 📝 Configuration manuelle (si besoin)
 
-Si tu veux configurer Stripe manuellement après :
+```bash
+firebase functions:secrets:set STRIPE_SECRET_KEY
+firebase deploy --only functions
+```
+
+Webhook recommandé :
 
 ```bash
-firebase functions:config:set stripe.secret_key="sk_test_YOUR_KEY"
+firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
 firebase deploy --only functions
 ```
 
@@ -30,7 +33,9 @@ firebase deploy --only functions
 
 ## 🧪 Test du paiement
 
-1. **Build l'app Flutter V2.1 :**
+### Flow web validé dans ce dépôt
+
+1. **Build l'app Flutter web :**
 ```bash
 cd /workspaces/MASLIVE/app
 flutter pub get
@@ -44,10 +49,14 @@ firebase deploy --only hosting
 ```
 
 3. **Dans l'app :**
-   - Ajoute quelques photos au panier (3+ pour avoir une réduction)
-   - Clique sur "Créer commande"
-   - Clique sur "Créer checkout Stripe"
+   - Ajoute quelques photos au panier
+   - Lance le checkout Stripe externe
    - Utilise la carte test : `4242 4242 4242 4242`
+
+### Point d'attention
+
+- Les flows media, premium et live tables utilisent une `checkoutUrl` Stripe externe et sont compatibles web
+- Le panier merch principal et le panier mixte utilisent PaymentSheet et sont à considérer comme flows mobiles natifs à ce stade
 
 ---
 

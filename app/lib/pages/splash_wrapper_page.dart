@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
@@ -21,6 +23,10 @@ class SplashWrapperPage extends StatefulWidget {
 
 class _SplashWrapperPageState extends State<SplashWrapperPage> {
   static const Duration _fadeDuration = Duration(milliseconds: 450);
+  static const Duration _minimumSplashDuration = Duration(milliseconds: 700);
+  static const Duration _deferredAssetPreloadDelay = Duration(
+    milliseconds: 120,
+  );
 
   final bool _showHome = true;
   bool _mapReady = false;
@@ -28,6 +34,7 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
   bool _assetsReady = false;
   bool _didHideSplash = false;
   bool _showSplashOverlay = true;
+  bool _didStartDeferredAssetPreload = false;
   late DateTime _splashStartTime;
 
   Widget get _homeAfterSplash =>
@@ -87,7 +94,10 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
     StartupTrace.log('SPLASH', 'asset preload start');
     try {
       final assets = await StartupPreloadService.collectSplashImageAssets();
-      StartupTrace.log('SPLASH', 'asset manifest collected count=${assets.length}');
+      StartupTrace.log(
+        'SPLASH',
+        'asset manifest collected count=${assets.length}',
+      );
       if (!mounted) return;
 
       for (final path in assets) {
@@ -128,8 +138,10 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
       return;
     }
 
-    final elapsedMs = DateTime.now().difference(_splashStartTime).inMilliseconds;
-    final remainingMs = 2500 - elapsedMs;
+    final elapsedMs = DateTime.now()
+        .difference(_splashStartTime)
+        .inMilliseconds;
+    final remainingMs = _minimumSplashDuration.inMilliseconds - elapsedMs;
 
     if (remainingMs > 0) {
       debugPrint(
@@ -166,6 +178,7 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
         _showSplashOverlay = false;
       });
       StartupTrace.log('SPLASH', 'splash overlay removed');
+      unawaited(_startDeferredAssetPreload());
     });
 
     // Restaurer les barres système
@@ -194,6 +207,35 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
     }
   }
 
+  Future<void> _startDeferredAssetPreload() async {
+    if (_didStartDeferredAssetPreload) return;
+    _didStartDeferredAssetPreload = true;
+
+    await Future<void>.delayed(_deferredAssetPreloadDelay);
+    if (!mounted) return;
+
+    StartupTrace.log('SPLASH', 'deferred asset preload start');
+    try {
+      final assets = await StartupPreloadService.collectDeferredImageAssets();
+      if (!mounted) return;
+
+      for (final path in assets) {
+        if (!mounted) return;
+        try {
+          await precacheImage(AssetImage(path), context);
+        } catch (_) {
+          // Optionnel: ne jamais bloquer l'affichage de la home.
+        }
+      }
+      StartupTrace.log(
+        'SPLASH',
+        'deferred asset preload complete count=${assets.length}',
+      );
+    } catch (e) {
+      StartupTrace.log('SPLASH', 'deferred asset preload failed: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
@@ -207,11 +249,7 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
               Positioned.fill(
                 child: IgnorePointer(
                   ignoring: !_mapReady,
-                  child: AnimatedOpacity(
-                    duration: _fadeDuration,
-                    opacity: _mapReady ? 1.0 : 0.0,
-                    child: _homeAfterSplash,
-                  ),
+                  child: _homeAfterSplash,
                 ),
               ),
 

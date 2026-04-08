@@ -25,15 +25,9 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 ```javascript
 function getStripe() {
   if (!stripe) {
-    let apiKey = null;
-    try {
-      const config = require("firebase-functions").config();
-      apiKey = config.stripe?.secret_key || process.env.STRIPE_SECRET_KEY;
-    } catch (e) {
-      apiKey = process.env.STRIPE_SECRET_KEY;
-    }
+    const apiKey = STRIPE_SECRET_KEY.value() || process.env.STRIPE_SECRET_KEY;
     if (!apiKey) {
-      throw new Error("STRIPE_SECRET_KEY not configured. Run: firebase functions:config:set stripe.secret_key=\"sk_test_...\"");
+      throw new Error("STRIPE_SECRET_KEY not configured. Run: firebase functions:secrets:set STRIPE_SECRET_KEY");
     }
     stripe = stripeModule(apiKey);
   }
@@ -43,7 +37,7 @@ function getStripe() {
 
 **Bénéfices :**
 - Lazy initialization (uniquement quand nécessaire)
-- Utilise Firebase Config (méthode officielle)
+- Utilise Firebase Secret Manager (méthode officielle)
 - Fallback vers `.env` ou `process.env`
 - Messages d'erreur clairs
 - Sécurisé (secrets chiffrés par Firebase)
@@ -58,8 +52,8 @@ function getStripe() {
 - Mise à jour de `createCheckoutSessionForOrder` pour utiliser `getStripe()`
 
 ### 2. **deploy_functions_stripe.sh**
-- Utilise `firebase functions:config:set` au lieu de `.env`
-- Validation de la clé (doit commencer par `sk_test_` ou `sk_live_`)
+- Utilise `firebase functions:secrets:set` au lieu de `.env`
+- Saisie sécurisée via la CLI Firebase
 - Messages d'aide clairs
 
 ### 3. **Fichiers créés**
@@ -76,13 +70,7 @@ function getStripe() {
 ### Commande simple
 
 ```bash
-firebase functions:config:set stripe.secret_key="sk_test_YOUR_KEY"
-```
-
-### Vérification
-
-```bash
-firebase functions:config:get stripe.secret_key
+firebase functions:secrets:set STRIPE_SECRET_KEY
 ```
 
 ### Déploiement
@@ -99,7 +87,7 @@ firebase deploy --only functions
 |-----------|--------|
 | **Code** | ✅ Corrigé et testé |
 | **Stripe Init** | ✅ Lazy (sécurisé) |
-| **Configuration** | ✅ Firebase Config |
+| **Configuration** | ✅ Secret Manager |
 | **Scripts** | ✅ Simplifiés |
 | **Prêt** | ✅ OUI |
 
@@ -108,7 +96,7 @@ firebase deploy --only functions
 ## 🚀 Prochaine étape
 
 ```bash
-firebase functions:config:set stripe.secret_key="sk_test_YOUR_KEY_HERE"
+firebase functions:secrets:set STRIPE_SECRET_KEY
 firebase deploy --only functions
 ```
 

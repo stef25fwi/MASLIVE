@@ -22,13 +22,14 @@ bash /workspaces/MASLIVE/activate_shop_v21.sh
 
 **Puis configure :**
 ```bash
-firebase functions:config:set stripe.secret_key="COLLE_TA_CLE_ICI"
+cd /workspaces/MASLIVE
+firebase functions:secrets:set STRIPE_SECRET_KEY
 ```
 
 Exemple :
 ```bash
-# ⚠️ NE PARTAGE JAMAIS TA VRAIE CLÉ
-firebase functions:config:set stripe.secret_key="sk_test_YOUR_ACTUAL_KEY_FROM_STRIPE_DASHBOARD"
+# La CLI te demandera de coller la valeur de STRIPE_SECRET_KEY
+firebase functions:secrets:set STRIPE_SECRET_KEY
 ```
 
 ### Option B : Script interactif (si tu préfères)
@@ -41,13 +42,14 @@ Le script demandera ta clé et la configurera automatiquement.
 
 ---
 
-## Étape 3️⃣ : Vérifier la configuration
+## Étape 3️⃣ : Configurer le webhook (recommandé)
 
 ```bash
-firebase functions:config:get stripe.secret_key
+cd /workspaces/MASLIVE
+firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
 ```
 
-Tu dois voir ta clé s'afficher : `sk_test_...`
+Colle le Signing secret `whsec_...` depuis Stripe Dashboard → Webhooks.
 
 ---
 
@@ -81,6 +83,10 @@ Ou utilise la **task VS Code** : `MASLIVE: Déployer Hosting (1 clic)`
 - La commande passe en "paid" dans Firestore
 - Les photos sont marquées comme "Achetées"
 
+**Attention :**
+- Ce flow web concerne les checkouts Stripe externes
+- Le panier merch principal et le panier mixte utilisent PaymentSheet et doivent être testés sur mobile natif
+
 ---
 
 ## ✅ Checklist post-déploiement
@@ -105,7 +111,7 @@ Ou utilise la **task VS Code** : `MASLIVE: Déployer Hosting (1 clic)`
 
 **Solution :**
 ```bash
-firebase functions:config:set stripe.secret_key="sk_test_YOUR_KEY"
+firebase functions:secrets:set STRIPE_SECRET_KEY
 firebase deploy --only functions
 ```
 
@@ -114,13 +120,14 @@ firebase deploy --only functions
 **Solution :**
 ```bash
 rm -f /workspaces/MASLIVE/functions/.env
-firebase functions:config:set stripe.secret_key="sk_test_YOUR_KEY"
+firebase functions:secrets:set STRIPE_SECRET_KEY
+firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
 ```
 
 ### Paiement ne fonctionne pas
 
 **Vérifier :**
-1. Clé Stripe configurée : `firebase functions:config:get stripe.secret_key`
+1. Secret Stripe présent dans Firebase Secret Manager
 2. Logs : `firebase functions:log`
 3. Firestore : Vérifier que les commandes sont créées
 
@@ -147,13 +154,13 @@ firebase functions:config:set stripe.secret_key="sk_test_YOUR_KEY"
 bash /workspaces/MASLIVE/activate_shop_v21.sh
 
 # Configurer Stripe (remplace ta clé)
-firebase functions:config:set stripe.secret_key="sk_test_YOUR_KEY"
+firebase functions:secrets:set STRIPE_SECRET_KEY
+
+# Configurer le webhook (recommandé)
+firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
 
 # Déployer
 firebase deploy --only hosting,functions
-
-# Vérifier Stripe est configuré
-firebase functions:config:get stripe.secret_key
 
 # Voir les logs
 firebase functions:log

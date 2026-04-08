@@ -6,33 +6,32 @@
 └─────────────────────────────────────────────────────────────────┘
 
 📱 FLUTTER APP V2.1
-  ✅ Code compilé (1945 lignes)
-  ✅ Recherche textuelle
-  ✅ Packs discount (3/5/10 photos)
-  ✅ Long-press selection
-  ✅ Image precaching
-  ✅ CartProvider + Cloud Functions callable
+  ✅ Checkout URL web : media / premium / live tables
+  ✅ PaymentSheet mobile : merch / mixed checkout
+  ✅ Checkout URL web : merch / mixed checkout
 
 ☁️  CLOUD FUNCTIONS
   ✅ getStripe() lazy initialization
-  ✅ createCheckoutSessionForOrder implémentée
-  ✅ Firebase Config supporté
+  ✅ Secret Manager supporté
   ✅ Gestion erreurs complète
   ✅ Stripe SDK (^17.5.0) installé
+  ✅ Webhook secret séparé
 
 🔧 CONFIGURATION
-  ⏳ Clé Stripe à ajouter (sk_test_...)
-  ⏳ firebase functions:config:set stripe.secret_key="..."
-  ⏳ Déploiement à lancer
+  ⏳ firebase functions:secrets:set STRIPE_SECRET_KEY
+  ⏳ firebase functions:secrets:set STRIPE_WEBHOOK_SECRET (recommandé)
+  ⏳ Déploiement functions à lancer
 
 🧪 TEST READY
   ✅ Paiement test : 4242 4242 4242 4242
-  ✅ Webhooks : Optionnel mais recommandé
-  ✅ Flow complet : Panier → Commande → Stripe → Success
+  ✅ Webhooks : recommandé
+  ✅ Flow web externe : media / premium / live tables
+  ✅ Flow web externe : merch / mixed
+  ✅ Flow mobile natif : merch / mixed
 
 ┌─────────────────────────────────────────────────────────────────┐
 │                        SCORE : 9/10                              │
-│   Prêt pour production (manque juste la clé Stripe)            │
+│ Backend prêt, web checkout branché, secrets Stripe à injecter  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -42,14 +41,14 @@
 
 ### ✅ Cloud Functions (10/10)
 - Lazy initialization : ✅
-- Firebase Config : ✅
+- Secret Manager : ✅
 - Error handling : ✅
 - Firestore integration : ✅
 
-### ✅ Flutter App (10/10)
-- V2.1 Actif : ✅
-- Callable Stripe : ✅
-- UI/UX complète : ✅
+### ✅ Flutter App (9/10)
+- Flows web externes : ✅
+- PaymentSheet mobile : ✅
+- Merch / mixed web checkout : ✅
 - Compilation : ✅
 
 ### ✅ Packages (10/10)
@@ -58,19 +57,19 @@
 - Firebase Admin : ✅
 - Ngeohash : ✅
 
-### ⏳ Configuration (0/10)
-- Clé Stripe : ⏳ À configurer
+### ⏳ Configuration (3/10)
+- Secret Stripe backend : ⏳ À configurer
+- Webhook secret : ⏳ Recommandé
+- Clé publique mobile : ⏳ Au build natif
 
 ---
 
 ## 🚀 Commande à exécuter maintenant
 
 ```bash
-# Obtiens ta clé sur https://dashboard.stripe.com/apikeys
-# Puis exécute :
-
-firebase functions:config:set stripe.secret_key="sk_test_YOUR_KEY_HERE"
-firebase deploy --only hosting,functions
+firebase functions:secrets:set STRIPE_SECRET_KEY
+firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
+firebase deploy --only functions
 ```
 
 ---

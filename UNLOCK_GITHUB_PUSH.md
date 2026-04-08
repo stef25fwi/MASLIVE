@@ -47,7 +47,7 @@ Utilise `git filter-branch` pour supprimer la clé de **tous les commits**.
    ```bash
    cd /workspaces/MASLIVE
    
-   SECRET="sk_test_51Ssn0PCCIRtTE2nOkwOarKnrKijY1ejL54rugQOlxj0G0B4gb9ue202bHhPbDtoBQJcX74UB4xf31Jj8EHzmAA9P00NfLX4t6t"
+    SECRET="sk_test_EXPOSED_KEY_FROM_GITHUB_ALERT"
    
    git filter-branch --force --tree-filter \
      "find . -type f \( -name '*.md' -o -name '*.txt' \) -exec sed -i \"s|$SECRET|sk_test_YOUR_ACTUAL_KEY_FROM_STRIPE_DASHBOARD|g\" {} + 2>/dev/null || true" \
@@ -114,7 +114,7 @@ Pour éviter cela à l'avenir :
 
 2. **Ne jamais committer les vraies clés**
    - Utiliser uniquement placeholders dans les docs
-   - Configurer les secrets dans Firebase (pas dans Git)
+   - Configurer les secrets dans Firebase Secret Manager (pas dans Git)
 
 3. **GitHub Actions Secret Scanning**
    - Déjà activé pour ce repo

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Installation et déploiement des Cloud Functions avec Stripe
 
-set -e
+set -euo pipefail
 
 echo "🔧 Installation des dépendances Cloud Functions..."
 cd /workspaces/MASLIVE/functions
@@ -10,49 +10,44 @@ npm install
 echo ""
 echo "✅ Dépendances installées !"
 echo ""
-echo "⚠️  Configuration requise : Clé Stripe API"
+echo "⚠️  Configuration requise : secrets Stripe dans Firebase Secret Manager"
 echo ""
-echo "Comment obtenir ta clé Stripe :"
+echo "Comment obtenir tes clés Stripe :"
 echo "  1. Va sur https://dashboard.stripe.com/apikeys"
-echo "  2. Copie ta clé Secret (commence par sk_test_ ou sk_live_)"
-echo "  3. Exemple: sk_test_51Ssn0PCCIRtTE2nOkwOarKnrKijY1ejL54rugQOlxj0G0B4gb9ue..."
+echo "  2. Copie la Secret key (commence par sk_test_ ou sk_live_)"
+echo "  3. Si tu actives les webhooks, copie aussi le Signing secret (whsec_...)"
 echo ""
-read -p "Entre ta clé Stripe Secret Key : " STRIPE_KEY
-echo ""
+echo "📝 La CLI Firebase va maintenant te demander STRIPE_SECRET_KEY."
+cd /workspaces/MASLIVE
+firebase functions:secrets:set STRIPE_SECRET_KEY
 
-if [ -z "$STRIPE_KEY" ]; then
-    echo "❌ Erreur: Aucune clé fournie"
-    exit 1
+echo ""
+read -r -p "Configurer aussi STRIPE_WEBHOOK_SECRET maintenant ? [y/N] " CONFIGURE_WEBHOOK
+
+if [[ "$CONFIGURE_WEBHOOK" =~ ^[Yy]$ ]]; then
+    echo ""
+    echo "📝 La CLI Firebase va maintenant te demander STRIPE_WEBHOOK_SECRET."
+    firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
 fi
 
-# Vérifier que la clé commence par sk_test_ ou sk_live_
-if ! [[ "$STRIPE_KEY" =~ ^sk_(test|live)_ ]]; then
-    echo "❌ Erreur: La clé doit commencer par sk_test_ ou sk_live_"
-    exit 1
-fi
-
-# Configuration Firebase (méthode sécurisée)
-echo ""
-echo "📝 Configuration de la clé Stripe dans Firebase..."
-firebase functions:config:set stripe.secret_key="$STRIPE_KEY"
-
-echo ""
-echo "✅ Configuration Stripe sauvegardée dans Firebase !"
+echo "✅ Secrets Stripe enregistrés !"
 echo ""
 echo "🚀 Déploiement des Cloud Functions..."
-cd /workspaces/MASLIVE
 firebase deploy --only functions
 
 echo ""
 echo "✅ Déploiement terminé !"
 echo ""
-echo "🔗 Fonction déployée :"
-echo "   createCheckoutSessionForOrder"
+echo "🔗 Fonctions Stripe mises à jour :"
+echo "   createStorexPaymentIntent"
+echo "   createMixedCartPaymentIntent"
+echo "   createMediaMarketplaceCheckout"
+echo "   createPhotographerSubscriptionCheckoutSession"
+echo "   stripeWebhook"
 echo ""
-echo "🧪 Tu peux maintenant tester le paiement avec une carte de test :"
-echo "   Numéro : 4242 4242 4242 4242"
-echo "   Date : N'importe quelle date future (ex: 12/25)"
-echo "   CVC : 123"
+echo "🧪 Tu peux maintenant tester :"
+echo "   - Media / premium web : checkout Stripe externe"
+echo "   - Merch / mixed mobile : PaymentSheet natif"
 echo ""
 echo "📊 Vérifie les logs :"
 echo "   firebase functions:log"

@@ -5,7 +5,7 @@
 ### Changements effectués
 
 1. ✅ **Clés Stripe remplacées** (COPY_PASTE_COMMANDS.md)
-   - `sk_test_51Ssn0PCCIRtTE2nOkwOarKnrKijY1ejL54rugQOlxj0G0B4gb9ue202bHhPbDtoBQJcX74UB4xf31Jj8EHzmAA9P00NfLX4t6t` → `sk_test_YOUR_ACTUAL_KEY_FROM_STRIPE_DASHBOARD`
+   - `sk_test_EXPOSED_KEY_FROM_GITHUB_ALERT` → `sk_test_YOUR_ACTUAL_KEY_FROM_STRIPE_DASHBOARD`
 
 2. ✅ **Clés Stripe remplacées** (START_HERE_V21_STRIPE.md)
    - Même remplacement par placeholder

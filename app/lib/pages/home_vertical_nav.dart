@@ -106,6 +106,10 @@ class HomeVerticalNavMenu extends StatelessWidget {
 class HomeVerticalNavActionItem extends StatelessWidget {
   final HomeVerticalNavItem item;
 
+  static const double _buttonSize = 56;
+  static const double _iconSize = 26;
+  static const double _iconSizeNoLabel = 30;
+
   const HomeVerticalNavActionItem({super.key, required this.item});
 
   @override
@@ -116,8 +120,8 @@ class HomeVerticalNavActionItem extends StatelessWidget {
     return GestureDetector(
       onTap: item.onTap,
       child: Container(
-        width: 60,
-        height: 60,
+        width: _buttonSize,
+        height: _buttonSize,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: showSelectedBackground ? MasliveTheme.actionGradient : null,
@@ -153,7 +157,7 @@ class HomeVerticalNavActionItem extends StatelessWidget {
                       Center(
                         child: Icon(
                           item.icon,
-                          size: 28,
+                          size: _iconSize,
                           color: item.selected && item.tintOnSelected
                               ? Colors.white
                               : MasliveTheme.textPrimary,
@@ -167,8 +171,8 @@ class HomeVerticalNavActionItem extends StatelessWidget {
                 children: [
                   if (item.iconWidget != null)
                     SizedBox(
-                      width: item.label.isEmpty ? 32 : 28,
-                      height: item.label.isEmpty ? 32 : 28,
+                      width: item.label.isEmpty ? _iconSizeNoLabel : _iconSize,
+                      height: item.label.isEmpty ? _iconSizeNoLabel : _iconSize,
                       child: item.selected && item.tintOnSelected
                           ? ColorFiltered(
                               colorFilter: const ColorFilter.mode(
@@ -182,7 +186,7 @@ class HomeVerticalNavActionItem extends StatelessWidget {
                   else
                     Icon(
                       item.icon,
-                      size: item.label.isEmpty ? 32 : 28,
+                      size: item.label.isEmpty ? _iconSizeNoLabel : _iconSize,
                       color: item.selected && item.tintOnSelected
                           ? Colors.white
                           : MasliveTheme.textPrimary,
@@ -190,7 +194,7 @@ class HomeVerticalNavActionItem extends StatelessWidget {
                   if (item.label.isNotEmpty) const SizedBox(height: 4),
                   if (item.label.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
                       child: Text(
                         item.label,
                         textAlign: TextAlign.center,

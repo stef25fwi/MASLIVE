@@ -3,10 +3,10 @@
 ## 🎯 État actuel
 
 ✅ **Code V2.1** - Prêt (1945 lignes, aucune erreur)  
-✅ **Cloud Functions Stripe** - Corrigées (lazy init, Firebase Config)  
+✅ **Cloud Functions Stripe** - Corrigées (lazy init, Secret Manager)  
 ✅ **Scripts** - Simplifiés et testés  
 ✅ **Documentation** - Complète  
-✅ **Configuration .env** - Supprimée et remplacée par Firebase Config  
+✅ **Configuration .env** - Réduite au fallback local  
 
 ---
 
@@ -19,7 +19,8 @@ bash /workspaces/MASLIVE/activate_shop_v21.sh
 
 ### 2️⃣ Configurer Stripe (remplace ta clé)
 ```bash
-firebase functions:config:set stripe.secret_key="sk_test_YOUR_KEY"
+cd /workspaces/MASLIVE
+firebase functions:secrets:set STRIPE_SECRET_KEY
 ```
 
 ### 3️⃣ Déployer tout

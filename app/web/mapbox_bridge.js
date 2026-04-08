@@ -152,13 +152,15 @@
       ? options.compactAttribution
       : true;
     const forceCompactAttribution = (options && options.forceCompactAttribution === true);
+    const showAttributionControl = !(options && options.showAttributionControl === false);
+    const showMapboxLogo = !(options && options.showMapboxLogo === false);
     const requestedControlsPosition = (options && typeof options.controlsPosition === 'string')
       ? String(options.controlsPosition).trim()
       : 'top-right';
     const controlsPosition = ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(requestedControlsPosition)
       ? requestedControlsPosition
       : 'top-right';
-    const manageAttributionManually = forceCompactAttribution === true || compactAttribution === false;
+    const manageAttributionManually = showAttributionControl && (forceCompactAttribution === true || compactAttribution === false);
     const attributionCompact = forceCompactAttribution === true ? true : compactAttribution;
 
     const defaultOptions = {
@@ -171,9 +173,35 @@
       antialias: true,
     };
 
-    if (manageAttributionManually) {
+    if (!showAttributionControl || manageAttributionManually) {
       // Supprime le contrôle d'attribution par défaut pour injecter une variante maîtrisée.
       defaultOptions.attributionControl = false;
+    }
+
+    function hideBrandingControls() {
+      try {
+        if (!containerEl || typeof containerEl.querySelectorAll !== 'function') return;
+        const selectors = [];
+        if (!showMapboxLogo) {
+          selectors.push('.mapboxgl-ctrl-logo');
+        }
+        if (!showAttributionControl) {
+          selectors.push('.mapboxgl-ctrl-attrib', '.mapboxgl-ctrl-attrib-button', '.mapboxgl-ctrl-attrib-inner');
+        }
+        if (!selectors.length) return;
+        const nodes = containerEl.querySelectorAll(selectors.join(','));
+        Array.from(nodes).forEach((node) => {
+          try {
+            node.style.display = 'none';
+            node.style.visibility = 'hidden';
+            node.style.pointerEvents = 'none';
+          } catch (_) {
+            // ignore
+          }
+        });
+      } catch (_) {
+        // ignore
+      }
     }
 
     try {
@@ -199,7 +227,7 @@
 
         // Attribution officielle conservée, avec mode compact forcé si demandé.
         try {
-          if (manageAttributionManually) {
+          if (showAttributionControl && manageAttributionManually) {
             map.addControl(
               new mapboxgl.AttributionControl({ compact: attributionCompact === true }),
               'bottom-right'
@@ -207,6 +235,13 @@
           }
         } catch (_) {
           // ignore
+        }
+
+        if (!showMapboxLogo || !showAttributionControl) {
+          hideBrandingControls();
+          setTimeout(hideBrandingControls, 0);
+          setTimeout(hideBrandingControls, 180);
+          setTimeout(hideBrandingControls, 600);
         }
 
         // Ajouter le contrôle de géolocalisation
@@ -239,9 +274,8 @@
         }
 
         // Callback vers Flutter si disponible.
-        // NOTE: `load` = style prêt, mais les tuiles peuvent encore se charger.
-        // On attend un état stable (idle/tiles) pour éviter que l'utilisateur
-        // voie le chargement après le splash.
+        // `load` suffit ici: on privilégie un affichage rapide de la home,
+        // quitte à laisser les tuiles se stabiliser après la disparition du splash.
         let didNotify = false;
         const notify = () => {
           if (didNotify) return;
@@ -252,28 +286,7 @@
             }
           } catch (_) {}
         };
-        const isStable = () => {
-          try {
-            const styleOk = (map.isStyleLoaded && map.isStyleLoaded() === true);
-            const tilesOk = (typeof map.areTilesLoaded === 'function') ? (map.areTilesLoaded() === true) : true;
-            return styleOk && tilesOk;
-          } catch (_) {
-            return false;
-          }
-        };
-        if (isStable()) {
-          notify();
-        } else {
-          const onIdle = () => {
-            if (isStable()) {
-              try { map.off('idle', onIdle); } catch (_) {}
-              notify();
-            }
-          };
-          try { map.on('idle', onIdle); } catch (_) {}
-          // Fallback: ne jamais bloquer indéfiniment le callback legacy.
-          setTimeout(() => { notify(); }, 8000);
-        }
+        notify();
       });
 
       map.on('error', function(e) {
@@ -1228,23 +1241,8 @@
       didPostReady = true;
       _postToFlutter({ type: 'MASLIVE_MAP_READY', containerId });
     };
-    const isStable = () => {
-      try {
-        const styleOk = (map.isStyleLoaded && map.isStyleLoaded() === true);
-        const tilesOk = (typeof map.areTilesLoaded === 'function') ? (map.areTilesLoaded() === true) : true;
-        return styleOk && tilesOk;
-      } catch (_) { return false; }
-    };
-
     map.on('load', function() {
-      if (isStable()) { postReady(); return; }
-      const onIdle = function() {
-        if (!isStable()) return;
-        try { map.off('idle', onIdle); } catch (_) {}
-        postReady();
-      };
-      try { map.on('idle', onIdle); } catch (_) {}
-      setTimeout(() => { postReady(); }, 8000);
+      postReady();
     });
 
     try {

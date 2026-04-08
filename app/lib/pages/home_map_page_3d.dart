@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show File;
 import 'dart:math';
 import 'dart:ui' as ui;
 
@@ -13,6 +14,7 @@ import 'package:geolocator/geolocator.dart'
     as geo
     show Position, LocationSettings;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 
@@ -55,8 +57,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   // ========== CONSTANTES ==========
   static const Duration _resizeDebounceDelay = Duration(milliseconds: 80);
   static const Duration _menuAnimationDuration = Duration(milliseconds: 300);
-  static const Duration _mapReadyDelay = Duration(milliseconds: 300);
+  static const Duration _mapReadyDelay = Duration(milliseconds: 80);
   static const Duration _navCloseDelay = Duration(milliseconds: 2500);
+  static const Duration _deferredHomeInitDelay = Duration(milliseconds: 850);
   static const int _trackingIntervalSeconds = 15;
   static const int _gpsDistanceFilter = 8;
   static const Duration _gpsTimeout = Duration(seconds: 8);
@@ -77,6 +80,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   // ========== ÉTAT UI ==========
   bool _showActionsMenu = false;
+  bool _isResolvingMapboxToken = MapboxTokenService.getTokenSync().isEmpty;
+  bool _didScheduleReadySignal = false;
+  bool _didStartDeferredHomeInit = false;
   String _currentLanguageFlag = '';
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
@@ -117,7 +123,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   PolylineAnnotationManager? _circuitsAnnotationManager;
 
   // MarketMap POIs (wiring wizard)
-  final MarketMapService _marketMapService = MarketMapService();
+  MarketMapService? _marketMapService;
   MarketMapPoiSelection _marketPoiSelection =
       const MarketMapPoiSelection.disabled();
   StreamSubscription? _marketPoisSub;
@@ -161,6 +167,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       : MapboxTokenService.getTokenSync();
 
   bool get _useMapboxTiles => _effectiveMapboxToken.isNotEmpty;
+
+  MarketMapService get _marketMapServiceOrCreate =>
+      _marketMapService ??= MarketMapService();
 
   @override
   void initState() {
@@ -210,8 +219,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     ).animate(menuMotion);
 
     // Chargement asynchrone des données essentielles
-    _bootstrapLocation(); // Permissions GPS + position initiale
-    _loadUserGroupId(); // Données utilisateur Firebase
     _loadRuntimeMapboxToken(); // Token Mapbox dynamique
     // Préchargement des icônes pour éviter les retards d'affichage
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -219,19 +226,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         const AssetImage('assets/images/icon wc parking.png'),
         context,
       );
-    });
-
-    // Sécurité : si le token est absent dès le départ, on ne bloque pas le
-    // splash indéfiniment. On notifie la carte comme "prête" (même si c'est
-    // un écran d'erreur) pour que le splash puisse se fermer.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (!_useMapboxTiles) {
-        debugPrint(
-          '⚠️ HomeMapPage3D: token Mapbox absent au 1er frame, déblocage splash',
-        );
-        _notifyMapReadyFallback();
-      }
     });
 
     // Sécurité : si la carte a un token mais que le SDK Mapbox ne se charge
@@ -282,6 +276,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       );
       if (!mounted) return;
       setState(() {
+        _isResolvingMapboxToken = false;
         _runtimeMapboxToken = info.token;
         if (_runtimeMapboxToken.isNotEmpty) {
           MapboxOptions.setAccessToken(_runtimeMapboxToken);
@@ -298,6 +293,11 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     } catch (e) {
       StartupTrace.log('MAPBOX_NATIVE', '_loadRuntimeMapboxToken failed: $e');
       debugPrint('❌ HomeMapPage3D: erreur chargement token Mapbox: $e');
+      if (mounted) {
+        setState(() {
+          _isResolvingMapboxToken = false;
+        });
+      }
       // En cas d'erreur, on débloque le splash.
       if (mounted && !mapReadyNotifier.value) {
         _notifyMapReadyFallback();
@@ -340,8 +340,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     final raw = (value ?? '').toString().trim().toLowerCase();
     if (raw.isEmpty) return fallback;
     if (raw == 'true' || raw == '1' || raw == 'yes' || raw == 'on') return true;
-    if (raw == 'false' || raw == '0' || raw == 'no' || raw == 'off')
+    if (raw == 'false' || raw == '0' || raw == 'no' || raw == 'off') {
       return false;
+    }
     return fallback;
   }
 
@@ -416,7 +417,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   Future<void> _openMarketPoiSelector() async {
     final selection = await showMarketMapPoiSelectorSheet(
       context,
-      service: _marketMapService,
+      service: _marketMapServiceOrCreate,
       initial: _marketPoiSelection,
       disableKeyboardInput: true,
     );
@@ -477,7 +478,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       await _moveCameraTo(lng: lng, lat: lat, zoom: circuit.initialZoom);
     }
 
-    _marketPoisSub = _marketMapService
+    _marketPoisSub = _marketMapServiceOrCreate
         .watchVisiblePois(
           countryId: selection.country!.id,
           eventId: selection.event!.id,
@@ -1151,7 +1152,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     }
 
     try {
-      final ref = _marketMapService.circuitRef(
+      final ref = _marketMapServiceOrCreate.circuitRef(
         countryId: selection.country!.id,
         eventId: selection.event!.id,
         circuitId: selection.circuit!.id,
@@ -1949,6 +1950,17 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   /// 3. Met à jour le marqueur utilisateur
   /// 4. Démarre le stream de positions
   Future<void> _bootstrapLocation() async {
+    if (defaultTargetPlatform == TargetPlatform.linux &&
+        !File('/var/run/dbus/system_bus_socket').existsSync()) {
+      debugPrint('⚠️ GPS ignoré: DBus indisponible sur Linux headless');
+      if (mounted) {
+        setState(() => _isGpsReady = true);
+      } else {
+        _isGpsReady = true;
+      }
+      return;
+    }
+
     final ok = await _ensureLocationPermission(request: true);
 
     if (ok) {
@@ -1978,7 +1990,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     } else {
       _isGpsReady = true;
     }
-    _checkIfReady();
 
     if (!ok) return;
     _startUserPositionStream();
@@ -2036,75 +2047,83 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       distanceFilter: _gpsDistanceFilter, // Mise à jour tous les 8 mètres
     );
 
-    _positionSub = Geolocator.getPositionStream(locationSettings: settings)
-        .listen(
-          (pos) {
-            final p = Position(pos.longitude, pos.latitude);
-            if (!mounted) return;
+    try {
+      _positionSub = Geolocator.getPositionStream(locationSettings: settings)
+          .listen(
+            (pos) {
+              final p = Position(pos.longitude, pos.latitude);
+              if (!mounted) return;
 
-            setState(() {
-              _userPos = p;
-              if (!_isGpsReady) {
-                _isGpsReady = true;
-                _checkIfReady();
+              setState(() {
+                _userPos = p;
+                if (!_isGpsReady) {
+                  _isGpsReady = true;
+                }
+              });
+
+              _updateUserMarker();
+
+              if (_followUser) {
+                _mapboxMap?.flyTo(
+                  CameraOptions(
+                    center: Point(coordinates: p),
+                    zoom: _userZoom,
+                  ),
+                  MapAnimationOptions(
+                    duration: _cameraAnimationDuration.inMilliseconds,
+                    startDelay: 0,
+                  ),
+                );
               }
-            });
-
-            _updateUserMarker();
-
-            if (_followUser) {
-              _mapboxMap?.flyTo(
-                CameraOptions(
-                  center: Point(coordinates: p),
-                  zoom: _userZoom,
-                ),
-                MapAnimationOptions(
-                  duration: _cameraAnimationDuration.inMilliseconds,
-                  startDelay: 0,
-                ),
-              );
-            }
-          },
-          onError: (error) {
-            debugPrint('⚠️ Erreur stream position: $error');
-            if (mounted) {
-              setState(() => _isGpsReady = false);
-            }
-          },
-          cancelOnError: false, // Continue à écouter même après une erreur
-        );
+            },
+            onError: (error) {
+              debugPrint('⚠️ Erreur stream position: $error');
+              if (mounted) {
+                setState(() => _isGpsReady = false);
+              }
+            },
+            cancelOnError: false, // Continue à écouter même après une erreur
+          );
+    } catch (e) {
+      debugPrint('⚠️ Impossible de démarrer le stream GPS: $e');
+      if (mounted) {
+        setState(() => _isGpsReady = false);
+      }
+    }
   }
 
   /// Notifie que la carte est prête après un court délai.
   ///
   /// Utilisé par splash_wrapper_page pour masquer le splash screen.
   void _checkIfReady() {
-    if (_isMapReady && !mapReadyNotifier.value) {
+    if (!_isMapReady || mapReadyNotifier.value || _didScheduleReadySignal) {
+      return;
+    }
+    _didScheduleReadySignal = true;
+    StartupTrace.log('MAPBOX_NATIVE', '_checkIfReady scheduling notifier=true');
+    Future.delayed(_mapReadyDelay, () {
+      _didScheduleReadySignal = false;
+      if (!mounted || mapReadyNotifier.value) return;
       StartupTrace.log(
         'MAPBOX_NATIVE',
-        '_checkIfReady scheduling notifier=true',
+        '_checkIfReady set mapReadyNotifier=true',
       );
-      Future.delayed(_mapReadyDelay, () {
-        if (mounted) {
-          StartupTrace.log(
-            'MAPBOX_NATIVE',
-            '_checkIfReady set mapReadyNotifier=true',
-          );
-          mapReadyNotifier.value = true;
-        }
-      });
-    }
+      mapReadyNotifier.value = true;
+      _startDeferredHomeInit();
+    });
   }
 
   /// Débloque le splash même si la carte n'a pas pu être initialisée
   /// (ex: token Mapbox absent). Évite le loader infini.
   void _notifyMapReadyFallback() {
-    if (mapReadyNotifier.value) return;
+    if (mapReadyNotifier.value || _didScheduleReadySignal) return;
+    _didScheduleReadySignal = true;
     StartupTrace.log(
       'MAPBOX_NATIVE',
       '_notifyMapReadyFallback scheduling notifier=true',
     );
     Future.delayed(_mapReadyDelay, () {
+      _didScheduleReadySignal = false;
       if (mounted && !mapReadyNotifier.value) {
         StartupTrace.log(
           'MAPBOX_NATIVE',
@@ -2194,6 +2213,11 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     _mapboxMap = mapboxMap;
 
     try {
+      await mapboxMap.logo.updateSettings(LogoSettings(enabled: false));
+      await mapboxMap.attribution.updateSettings(
+        AttributionSettings(enabled: false, clickable: false),
+      );
+
       // 1. Activer tous les gestes 3D (rotation, inclinaison, zoom)
       await mapboxMap.gestures.updateSettings(
         GesturesSettings(
@@ -2209,25 +2233,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         StartupTrace.log('MAPBOX_NATIVE', '_onMapCreated stale after gestures');
         return;
       }
-
-      // 2. Ajouter les bâtiments 3D au style
-      await _add3dBuildings();
-
-      if (_mapboxMap != mapboxMap) {
-        StartupTrace.log(
-          'MAPBOX_NATIVE',
-          '_onMapCreated stale after 3d buildings',
-        );
-        return;
-      }
-
-      // 3. Créer les annotation managers pour les marqueurs
-      _userAnnotationManager = await mapboxMap.annotations
-          .createPointAnnotationManager();
-      _groupsAnnotationManager = await mapboxMap.annotations
-          .createPointAnnotationManager();
-      _circuitsAnnotationManager = await mapboxMap.annotations
-          .createPolylineAnnotationManager();
     } catch (e) {
       StartupTrace.log('MAPBOX_NATIVE', '_onMapCreated failed: $e');
       debugPrint('⚠️ Erreur configuration carte: $e');
@@ -2239,27 +2244,54 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       return;
     }
 
-    // 4. Marquer la carte comme prête
+    // 2. Marquer la carte comme prête dès que l'instance est interactive.
     if (mounted) {
       setState(() {
         _isMapReady = true;
-        _checkIfReady();
       });
+      _checkIfReady();
       StartupTrace.log('MAPBOX_NATIVE', '_onMapCreated map ready');
     }
 
-    // 5. Afficher le marqueur utilisateur si position disponible
-    await _updateUserMarker();
+    unawaited(_finishMapSetupAfterReady(mapboxMap));
+  }
 
-    // 5b. MarketMap POIs via GeoJSON layers (plus scalable)
+  Future<void> _finishMapSetupAfterReady(MapboxMap mapboxMap) async {
+    if (_mapboxMap != mapboxMap) return;
+
+    await _add3dBuildings();
+    if (_mapboxMap != mapboxMap) return;
+
+    try {
+      _userAnnotationManager = await mapboxMap.annotations
+          .createPointAnnotationManager();
+      _groupsAnnotationManager = await mapboxMap.annotations
+          .createPointAnnotationManager();
+      _circuitsAnnotationManager = await mapboxMap.annotations
+          .createPolylineAnnotationManager();
+    } catch (e) {
+      debugPrint('⚠️ Erreur création annotation managers: $e');
+    }
+
+    await _updateUserMarker();
     await _renderMarketPoiMarkers();
 
-    // 6. Appliquer le resize initial si LayoutBuilder a déjà capturé la taille
     if (_lastSize != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scheduleResize(_lastSize!);
       });
     }
+  }
+
+  void _startDeferredHomeInit() {
+    if (_didStartDeferredHomeInit) return;
+    _didStartDeferredHomeInit = true;
+
+    Future<void>.delayed(_deferredHomeInitDelay, () {
+      if (!mounted) return;
+      unawaited(_bootstrapLocation());
+      unawaited(_loadUserGroupId());
+    });
   }
 
   Future<void> _onStyleLoaded(StyleLoadedEventData data) async {
@@ -2704,6 +2736,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   Future<void> _loadUserGroupId() async {
     try {
+      if (Firebase.apps.isEmpty) return;
       final user = AuthService.instance.currentUser;
       if (user == null) return;
 
@@ -2801,7 +2834,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   Future<void> _showMapProjectsSelector() async {
     final selection = await showMarketMapCircuitSelectorSheet(
       context,
-      service: _marketMapService,
+      service: _marketMapServiceOrCreate,
       initial: _marketPoiSelection.enabled ? _marketPoiSelection : null,
       disableKeyboardInput: true,
     );
@@ -2878,12 +2911,24 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     final bottomDockOffset = bottomInset + 10.0;
 
     const bottomActionSize = 60.0;
-    const bottomActionIconSize = 28.0;
+    const bottomActionIconSize = 26.0;
     const bottomBarHeight = 84.0;
     const collapsedDockWidth = 84.0;
     final expandedDockWidth = (size.width - 24)
         .clamp(collapsedDockWidth, 304.0)
         .toDouble();
+
+    if (!_useMapboxTiles && _isResolvingMapboxToken) {
+      return const Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: 34,
+            height: 34,
+            child: CircularProgressIndicator(strokeWidth: 3),
+          ),
+        ),
+      );
+    }
 
     if (!_useMapboxTiles) {
       return Scaffold(
@@ -3017,7 +3062,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                       position: _menuSlideAnimation,
                       child: Container(
                         margin: const EdgeInsets.only(
-                          right: 12,
+                          right: -6,
                           top: _actionsMenuTopOffset,
                         ),
                         decoration: BoxDecoration(
@@ -3031,13 +3076,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                             Radius.circular(30),
                           ),
                           child: BackdropFilter(
-                            filter: ui.ImageFilter.blur(
-                              sigmaX: 16,
-                              sigmaY: 16,
-                            ),
+                            filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
+                                horizontal: 0,
                                 vertical: 12,
                               ),
                               decoration: BoxDecoration(
@@ -3119,7 +3161,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                                         context,
                                       )!.assistance,
                                       icon: Icons.shield_outlined,
-                                      selected: _selectedAction ==
+                                      selected:
+                                          _selectedAction ==
                                           _MapAction.assistance,
                                       onTap: () {
                                         _selectAction(
@@ -3158,7 +3201,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                                             : Text(
                                                 _currentLanguageFlag,
                                                 style: const TextStyle(
-                                                  fontSize: 34,
+                                                  fontSize: 32,
                                                   height: 1,
                                                 ),
                                               ),
@@ -3220,6 +3263,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                 },
                 child: MasliveFloatingGlassDock(
                   height: bottomBarHeight,
+                  padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
                   child: Row(
                     children: [
                       AnimatedBuilder(
@@ -3276,10 +3320,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                                   alignment: Alignment.centerLeft,
                                   widthFactor: reveal,
                                   child: Transform.translate(
-                                    offset: Offset(
-                                      -96.0 * (1.0 - reveal),
-                                      0,
-                                    ),
+                                    offset: Offset(-96.0 * (1.0 - reveal), 0),
                                     child: child,
                                   ),
                                 ),
@@ -3335,10 +3376,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                                   alignment: Alignment.centerRight,
                                   widthFactor: reveal,
                                   child: Transform.translate(
-                                    offset: Offset(
-                                      200.0 * (1.0 - reveal),
-                                      0,
-                                    ),
+                                    offset: Offset(200.0 * (1.0 - reveal), 0),
                                     child: child,
                                   ),
                                 ),
@@ -3379,6 +3417,10 @@ class _ActionItem extends StatelessWidget {
   final bool tintOnSelected;
   final bool showBorder;
 
+  static const double _buttonSize = 56;
+  static const double _iconSize = 26;
+  static const double _iconSizeNoLabel = 30;
+
   const _ActionItem({
     required this.label,
     this.icon,
@@ -3395,8 +3437,8 @@ class _ActionItem extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 60,
-        height: 60,
+        width: _buttonSize,
+        height: _buttonSize,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.white.withValues(alpha: 0.92),
@@ -3418,7 +3460,7 @@ class _ActionItem extends StatelessWidget {
                       Center(
                         child: Icon(
                           icon,
-                          size: 28,
+                          size: _iconSize,
                           color: selected && tintOnSelected
                               ? MasliveTheme.pink
                               : MasliveTheme.textPrimary,
@@ -3433,7 +3475,7 @@ class _ActionItem extends StatelessWidget {
                   if (iconWidget != null)
                     IconTheme(
                       data: IconThemeData(
-                        size: label.isEmpty ? 32 : 28,
+                        size: label.isEmpty ? _iconSizeNoLabel : _iconSize,
                         color: selected && tintOnSelected
                             ? MasliveTheme.pink
                             : MasliveTheme.textPrimary,
@@ -3443,7 +3485,7 @@ class _ActionItem extends StatelessWidget {
                   else
                     Icon(
                       icon,
-                      size: label.isEmpty ? 32 : 28,
+                      size: label.isEmpty ? _iconSizeNoLabel : _iconSize,
                       color: selected && tintOnSelected
                           ? MasliveTheme.pink
                           : MasliveTheme.textPrimary,
@@ -3451,7 +3493,7 @@ class _ActionItem extends StatelessWidget {
                   if (label.isNotEmpty) const SizedBox(height: 4),
                   if (label.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
                       child: Text(
                         label,
                         textAlign: TextAlign.center,

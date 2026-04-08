@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/cart_item.dart';
 import '../../providers/cart_provider.dart';
@@ -455,6 +457,11 @@ class _StorexPaymentPageState extends State<StorexPaymentPage> {
 
   String _money(int cents) => '€${(cents / 100).toStringAsFixed(2)}';
 
+  String _webRouteUrl(String route) {
+    final normalizedRoute = route.startsWith('/') ? route : '/$route';
+    return '${Uri.base.origin}/#$normalizedRoute';
+  }
+
   Future<void> _pay() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not signed in');
@@ -464,6 +471,38 @@ class _StorexPaymentPageState extends State<StorexPaymentPage> {
 
     setState(() => loading = true);
     try {
+      if (kIsWeb) {
+        final callable = FirebaseFunctions.instanceFor(region: 'us-east1')
+            .httpsCallable('createStorexCheckoutSession');
+
+        final res = await callable.call<Map<String, dynamic>>({
+          'currency': 'eur',
+          'shippingCents': widget.shippingCents,
+          'shippingMethod': widget.shippingMethodKey,
+          'address': widget.address.toMap(),
+          'checkoutPayload': CartProvider.instance.buildCheckoutPayload(),
+          'successUrl': _webRouteUrl(StorexRoutes.paymentComplete),
+          'cancelUrl': _webRouteUrl('/boutique'),
+          'continueToRoute': '/boutique',
+        });
+
+        final data = Map<String, dynamic>.from(res.data);
+        final checkoutUrl = (data['checkoutUrl'] ?? '').toString().trim();
+        final checkoutUri = Uri.tryParse(checkoutUrl);
+        if (checkoutUri == null || checkoutUrl.isEmpty) {
+          throw Exception('Missing checkoutUrl');
+        }
+
+        final opened = await launchUrl(
+          checkoutUri,
+          mode: LaunchMode.platformDefault,
+        );
+        if (!opened) {
+          throw Exception('Cannot open checkout url');
+        }
+        return;
+      }
+
       // 1) Server creates order + paymentIntent
       final callable = FirebaseFunctions.instanceFor(region: 'us-east1')
           .httpsCallable('createStorexPaymentIntent');

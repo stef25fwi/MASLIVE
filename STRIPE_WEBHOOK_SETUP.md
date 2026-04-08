@@ -101,7 +101,7 @@ firebase deploy --only functions:stripeWebhook
 ## 🔐 Sécurité
 
 - ✅ Vérification de signature webhook (via `stripe.webhooks.constructEvent`)
-- ✅ Secret stocké dans Firebase config (pas dans le code)
+- ✅ Secret stocké dans Firebase Secret Manager (pas dans le code)
 - ✅ Seules les requêtes POST sont acceptées
 - ✅ Validation des métadonnées (orderId, userId, uid)
 

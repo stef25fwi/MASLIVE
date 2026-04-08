@@ -1,6 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -11,6 +12,26 @@ import '../ui/snack/top_snack_bar.dart';
 
 class CartCheckoutService {
   const CartCheckoutService._();
+
+  static String _webRouteUrl(String route) {
+    final normalizedRoute = route.startsWith('/') ? route : '/$route';
+    return '${Uri.base.origin}/#$normalizedRoute';
+  }
+
+  static Future<void> _openStripeCheckoutUrl(String rawUrl) async {
+    final checkoutUri = Uri.tryParse(rawUrl);
+    if (checkoutUri == null || rawUrl.isEmpty) {
+      throw StateError('checkoutUrl Stripe manquante');
+    }
+
+    final launched = await launchUrl(
+      checkoutUri,
+      mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
+    );
+    if (!launched) {
+      throw StateError('Impossible d\'ouvrir Stripe');
+    }
+  }
 
   static Future<void> releaseMediaCheckoutLock({String? uid}) async {
     final resolvedUid = (uid ?? FirebaseAuth.instance.currentUser?.uid)?.trim();
@@ -59,18 +80,7 @@ class CartCheckoutService {
     final data = Map<String, dynamic>.from(response.data);
     try {
       final rawUrl = (data['checkoutUrl'] ?? '').toString().trim();
-      final checkoutUri = Uri.tryParse(rawUrl);
-      if (checkoutUri == null || rawUrl.isEmpty) {
-        throw StateError('checkoutUrl media manquante');
-      }
-
-      final launched = await launchUrl(
-        checkoutUri,
-        mode: LaunchMode.externalApplication,
-      );
-      if (!launched) {
-        throw StateError('Impossible d\'ouvrir Stripe');
-      }
+      await _openStripeCheckoutUrl(rawUrl);
     } catch (error) {
       await releaseMediaCheckoutLock();
       rethrow;
@@ -96,6 +106,34 @@ class CartCheckoutService {
     }
 
     final shippingAddress = await _loadSavedShippingAddress(user.uid);
+
+    if (kIsWeb) {
+      final callable = FirebaseFunctions.instanceFor(region: 'us-east1')
+          .httpsCallable('createMixedCartCheckoutSession');
+
+      final response = await callable.call<Map<String, dynamic>>(<String, dynamic>{
+        'currency': 'eur',
+        'shippingCents': shippingCents,
+        'shippingMethod': shippingMethod,
+        'address': shippingAddress,
+        'promoCode': promoCode ?? '',
+        'checkoutPayload': cart.buildCheckoutPayload(),
+        'successUrl': _webRouteUrl('/storex/paymentComplete'),
+        'cancelUrl': _webRouteUrl('/cart'),
+        'continueToRoute': '/cart',
+      });
+
+      final data = Map<String, dynamic>.from(response.data);
+      final rawUrl = (data['checkoutUrl'] ?? '').toString().trim();
+
+      try {
+        await _openStripeCheckoutUrl(rawUrl);
+      } catch (error) {
+        await releaseMediaCheckoutLock(uid: user.uid);
+        rethrow;
+      }
+      return;
+    }
 
     final callable = FirebaseFunctions.instanceFor(region: 'us-east1')
         .httpsCallable('createMixedCartPaymentIntent');

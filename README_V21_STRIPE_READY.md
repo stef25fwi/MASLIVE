@@ -100,10 +100,10 @@ Le script demandera ta clé automatiquement.
 | Composant | État | Détail |
 |-----------|------|--------|
 | **Code V2.1** | ✅ Prêt | 1945 lignes, aucune erreur |
-| **Cloud Functions Stripe** | ✅ Prêt | Callable `createCheckoutSessionForOrder` |
+| **Cloud Functions Stripe** | ✅ Prêt | PaymentIntent + Checkout Session + webhook |
 | **Scripts** | ✅ Prêt | 2 scripts d'activation/déploiement |
 | **Documentation** | ✅ Complète | 4 guides (setup, deploy, quick, checklist) |
-| **Firebase Config** | ⏳ Attente | Clé Stripe à ajouter manuellement |
+| **Secret Manager** | ⏳ Attente | Secrets Stripe à ajouter manuellement |
 | **App Live** | ⏳ Attente | À déployer avec V2.1 |
 
 ---

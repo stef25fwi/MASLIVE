@@ -64,6 +64,23 @@ module.exports = function createMediaMarketplaceStripe(deps) {
     )
   }
 
+  function normalizeCurrencyCode(value, fallback = "EUR") {
+    const raw = typeof value === "string" ? value.trim().toUpperCase() : ""
+    return raw || fallback
+  }
+
+  function assertSingleCurrency(items, fallback = "EUR") {
+    const currencies = uniqueStrings(
+      (items || []).map((item) => normalizeCurrencyCode(item?.currency, fallback))
+    )
+
+    if (currencies.length > 1) {
+      throw new HttpsError("failed-precondition", "Mixed currencies are not supported")
+    }
+
+    return currencies[0] || fallback
+  }
+
   function buildQuotaSnapshotFromPlan(plan) {
     return {
       maxPublishedPhotos: toInteger(plan?.maxPublishedPhotos, 0),
@@ -189,7 +206,7 @@ module.exports = function createMediaMarketplaceStripe(deps) {
   }
 
   function buildOrderLineItemFromPhoto(cartItem, photo, commissionRate) {
-    const quantity = Math.max(1, toInteger(cartItem.quantity, 1))
+    const quantity = 1
     const unitPrice = clampPositiveAmount(photo.unitPrice)
     const lineSubtotal = unitPrice * quantity
     return {
@@ -214,7 +231,7 @@ module.exports = function createMediaMarketplaceStripe(deps) {
   }
 
   function buildOrderLineItemFromPack(cartItem, pack, commissionRate) {
-    const quantity = Math.max(1, toInteger(cartItem.quantity, 1))
+    const quantity = 1
     const unitPrice = clampPositiveAmount(pack.price)
     const lineSubtotal = unitPrice * quantity
     return {
@@ -307,7 +324,7 @@ module.exports = function createMediaMarketplaceStripe(deps) {
       thumbnailUrl: typeof data.imageUrl === "string" && data.imageUrl.trim().length > 0 ? data.imageUrl.trim() : null,
       unitPrice: clampPositiveAmount(data.unitPrice),
       currency: typeof data.currency === "string" && data.currency.trim().length > 0 ? data.currency.trim() : "EUR",
-      quantity: Math.max(1, toInteger(data.quantity, 1)),
+      quantity: 1,
       photoIds: Array.isArray(metadata.photoIds) ? metadata.photoIds : [],
     }
   }
@@ -568,7 +585,7 @@ module.exports = function createMediaMarketplaceStripe(deps) {
     return true
   }
 
-  async function createMarketplaceOrderForPaymentIntent({ uid, checkoutPayload }) {
+  async function createMarketplaceOrderForPaymentIntent({ uid, checkoutPayload, source = "mixed_cart_payment_intent" }) {
     if (!uid) return null
 
     const unifiedCart = await loadUnifiedMediaCart(uid)
@@ -647,6 +664,7 @@ module.exports = function createMediaMarketplaceStripe(deps) {
       })
 
       const breakdown = computeOrderBreakdown(orderItems)
+      const orderCurrency = assertSingleCurrency(orderItems)
       const orderRef = db.collection(COLLECTIONS.orders).doc()
       const orderId = orderRef.id
       const photographerIds = uniqueStrings(orderItems.map((item) => item.photographerId))
@@ -658,7 +676,7 @@ module.exports = function createMediaMarketplaceStripe(deps) {
         photographerIds,
         photographerOwnerUids,
         items: orderItems,
-        currency: cartItems[0]?.currency || orderItems[0]?.currency || "EUR",
+        currency: orderCurrency,
         subtotal: breakdown.subtotal,
         stripeFee: breakdown.stripeFee,
         platformFee: breakdown.platformFee,
@@ -670,7 +688,7 @@ module.exports = function createMediaMarketplaceStripe(deps) {
         pricingBreakdown: breakdown,
         metadata: {
           kind: MEDIA_MARKETPLACE_KIND_ORDER,
-          source: "mixed_cart_payment_intent",
+          source,
           itemCount: orderItems.length,
           cartSource: "unified_cart_items",
         },
@@ -693,7 +711,8 @@ module.exports = function createMediaMarketplaceStripe(deps) {
       return {
         orderId,
         totalCents: amountToCents(breakdown.total),
-        currency: orderPayload.currency,
+        currency: orderCurrency,
+        itemsCount: orderItems.length,
       }
     } catch (error) {
       // Best effort unlock to avoid temporary denial of checkout after failures.
@@ -917,6 +936,7 @@ module.exports = function createMediaMarketplaceStripe(deps) {
         })
 
         const breakdown = computeOrderBreakdown(orderItems)
+        const orderCurrency = assertSingleCurrency(orderItems)
         const orderRef = db.collection(COLLECTIONS.orders).doc()
         const orderId = orderRef.id
         const photographerIds = uniqueStrings(orderItems.map((item) => item.photographerId))
@@ -927,7 +947,7 @@ module.exports = function createMediaMarketplaceStripe(deps) {
           photographerIds,
           photographerOwnerUids,
           items: orderItems,
-          currency: cartItems[0]?.currency || orderItems[0]?.currency || "EUR",
+          currency: orderCurrency,
           subtotal: breakdown.subtotal,
           stripeFee: breakdown.stripeFee,
           platformFee: breakdown.platformFee,

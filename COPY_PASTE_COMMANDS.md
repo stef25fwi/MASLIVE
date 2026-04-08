@@ -5,29 +5,34 @@
 bash /workspaces/MASLIVE/activate_shop_v21.sh
 ```
 
-## 2️⃣ Obtenir ta clé Stripe
-Ouvre https://dashboard.stripe.com/apikeys et copie la clé Secret (sk_test_...)
-
-## 3️⃣ Configurer Stripe dans Firebase
-Remplace `sk_test_YOUR_KEY_HERE` par ta vraie clé :
+## 2️⃣ Configurer le secret Stripe principal
 ```bash
-firebase functions:config:set stripe.secret_key="sk_test_YOUR_KEY_HERE"
+cd /workspaces/MASLIVE
+firebase functions:secrets:set STRIPE_SECRET_KEY
 ```
 
-Exemple complet :
+## 3️⃣ Optionnel : configurer le secret webhook
 ```bash
-# ⚠️ NE PARTAGE JAMAIS TA VRAIE CLÉ
-firebase functions:config:set stripe.secret_key="sk_test_YOUR_ACTUAL_KEY_FROM_STRIPE_DASHBOARD"
+cd /workspaces/MASLIVE
+firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
 ```
 
-## 4️⃣ Vérifier la configuration
+## 4️⃣ Déployer les functions
 ```bash
-firebase functions:config:get stripe.secret_key
+cd /workspaces/MASLIVE
+firebase deploy --only functions
 ```
 
-## 5️⃣ Déployer
+## 5️⃣ Déployer le hosting
 ```bash
-cd /workspaces/MASLIVE && firebase deploy --only hosting,functions
+cd /workspaces/MASLIVE
+firebase deploy --only hosting
+```
+
+## 6️⃣ Build mobile natif si tu testes merch ou mixed checkout
+```bash
+cd /workspaces/MASLIVE/app
+flutter build apk --release --dart-define=STRIPE_PUBLISHABLE_KEY=pk_test_YOUR_KEY_HERE
 ```
 
 ---
@@ -40,6 +45,8 @@ cd /workspaces/MASLIVE && firebase deploy --only hosting,functions
 4. Crée une commande
 5. Lance Stripe checkout
 6. Utilise : `4242 4242 4242 4242` (date: 12/25, CVC: 123)
+
+Note : le checkout merch principal et le mixed checkout restent des flows mobiles natifs.
 
 ---
 

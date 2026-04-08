@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/mapbox_token_service.dart';
@@ -62,6 +63,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   static const int _gpsDistanceFilter = 8;
   static const Duration _menuAnimationDuration = Duration(milliseconds: 300);
   static const Duration _navCloseDelay = Duration(milliseconds: 1500);
+  static const Duration _deferredHomeInitDelay = Duration(milliseconds: 850);
   static const int _trackingIntervalSeconds = 15;
 
   ui.Size? _lastMapSize;
@@ -78,6 +80,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   // UI
   bool _showActionsMenu = false;
   bool _showOnboardingTooltip = false;
+  bool _isResolvingMapboxToken = MapboxTokenService.getTokenSync().isEmpty;
+  bool _didStartDeferredHomeInit = false;
   String _currentLanguageFlag = '';
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
@@ -211,8 +215,39 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     if (!mounted) return;
     if (newToken == null) return;
     setState(() {
+      _isResolvingMapboxToken = false;
       // Le token est déjà stocké dans SharedPreferences via MapboxTokenDialog.
       // Un rebuild suffit pour que la page re-tente l'initialisation.
+    });
+  }
+
+  Future<void> _resolveStartupMapboxToken() async {
+    StartupTrace.log('MAPBOX_WEB', '_resolveStartupMapboxToken start');
+    final info = await MapboxTokenService.getTokenInfo();
+    if (!mounted) return;
+
+    setState(() {
+      _isResolvingMapboxToken = false;
+    });
+
+    StartupTrace.log(
+      'MAPBOX_WEB',
+      '_resolveStartupMapboxToken done source=${info.source} len=${info.token.length}',
+    );
+
+    if (info.token.isEmpty) {
+      _notifyMapReady();
+    }
+  }
+
+  void _startDeferredHomeInit() {
+    if (_didStartDeferredHomeInit) return;
+    _didStartDeferredHomeInit = true;
+
+    Future<void>.delayed(_deferredHomeInitDelay, () {
+      if (!mounted) return;
+      unawaited(_bootstrapLocation());
+      unawaited(_loadUserGroupId());
     });
   }
 
@@ -258,12 +293,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
     // Ouvrir la barre verticale uniquement à la toute première ouverture.
     unawaited(_autoOpenActionsMenuOnceIfNeeded());
-
-    final canShowMap = kIsWeb && MapboxTokenService.getTokenSync().isNotEmpty;
-    if (canShowMap) {
-      _bootstrapLocation();
-      _loadUserGroupId();
-    }
+    unawaited(_resolveStartupMapboxToken());
 
     // Préchargement des icônes pour éviter les retards d'affichage
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -271,15 +301,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         const AssetImage('assets/images/icon wc parking.png'),
         context,
       );
-    });
-
-    // Si la carte ne peut pas être affichée (non-web / token manquant),
-    // on ne bloque pas le splash indéfiniment.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (!kIsWeb || MapboxTokenService.getTokenSync().isEmpty) {
-        _notifyMapReady();
-      }
     });
   }
 
@@ -325,7 +346,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   void dispose() {
     _groupPublicPosSub?.cancel();
     _marketPoisSub?.cancel();
-    _marketRouteStyleProTimer?.cancel();
     _resizeDebounce?.cancel();
     _positionSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
@@ -952,6 +972,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   Future<void> _loadUserGroupId() async {
     try {
+      if (Firebase.apps.isEmpty) return;
       final user = AuthService.instance.currentUser;
       if (user == null) return;
 
@@ -1257,6 +1278,18 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       );
     }
 
+    if (_isResolvingMapboxToken && token.isEmpty) {
+      return const Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: 34,
+            height: 34,
+            child: CircularProgressIndicator(strokeWidth: 3),
+          ),
+        ),
+      );
+    }
+
     if (token.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('Carte par défaut')),
@@ -1290,9 +1323,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                   ),
                 ],
               ),
+                        ),
             ),
           ),
-        ),
       );
     }
 
@@ -1316,21 +1349,21 @@ class _DefaultMapPageState extends State<DefaultMapPage>
             final bottomInset = mediaQuery.padding.bottom;
             final menuTopOffset = topInset + 104;
             final bottomDockOffset = bottomInset + 10.0;
-            const navMenuRightOffset = 12.0;
+            const navMenuRightOffset = -6.0;
 
             const bottomActionSize = 60.0;
-            const bottomActionIconSize = 28.0;
+            const bottomActionIconSize = 26.0;
             const bottomBarHeight = 84.0;
             const collapsedDockWidth = 84.0;
             final expandedDockWidth = (size.width - 24)
-              .clamp(collapsedDockWidth, 304.0)
-              .toDouble();
+                .clamp(collapsedDockWidth, 304.0)
+                .toDouble();
 
             // Géométrie de la barre verticale (doit rester cohérente avec
             // `HomeVerticalNavMenu` et `HomeVerticalNavActionItem`).
-            const navItemSize = 60.0;
+            const navItemSize = 56.0;
             const navVerticalPadding = 10.0;
-            const navHorizontalPadding = 6.0;
+            const navHorizontalPadding = 0.0;
             const tooltipGapToMenu = 12.0;
             final navMenuWidth = navItemSize + (navHorizontalPadding * 2);
             final tooltipRight = navMenuWidth + tooltipGapToMenu;
@@ -1374,6 +1407,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                           showUserLocation: false,
                           controlsPosition: 'top-left',
                           forceCompactAttribution: true,
+                          showAttributionControl: false,
+                          showMapboxLogo: false,
                           onTap: (_) {
                             // Fermer la tooltip au premier clic
                             if (_showOnboardingTooltip) {
@@ -1383,6 +1418,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                           onMapReady: (_) {
                             _isMasLiveMapReady = true;
                             _notifyMapReady();
+                            _startDeferredHomeInit();
                             unawaited(_syncMarkersToMap());
                             unawaited(_applyCachedMarketRouteToMap());
                           },
@@ -1413,32 +1449,31 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                         alignment: Alignment.topRight,
                         child: SlideTransition(
                           position: _menuSlideAnimation,
-                          child: HomeVerticalNavMenu(
-                            margin: EdgeInsets.only(
-                              right: navMenuRightOffset,
-                              top: menuTopOffset,
-                            ),
-                            horizontalPadding: 8,
-                            verticalPadding: 12,
-                            backgroundAlpha: 0.58,
-                            blurSigma: 16,
-                            borderColor: Colors.white.withValues(alpha: 0.42),
-                            borderRadius: const BorderRadius.all(
-                              Radius.circular(30),
-                            ),
-                            items: [
-                              HomeVerticalNavItem(
-                                label: 'Carte',
-                                icon: Icons.layers_rounded,
-                                selected: _marketPoiSelection.enabled,
-                                onTap: () {
-                                  _showMapProjectsSelector();
-                                  _closeNavWithDelay();
-                                },
+                          child: Transform.translate(
+                            offset: Offset(navMenuRightOffset, 0),
+                            child: HomeVerticalNavMenu(
+                              margin: EdgeInsets.only(top: menuTopOffset),
+                              horizontalPadding: navHorizontalPadding,
+                              verticalPadding: 12,
+                              backgroundAlpha: 0.58,
+                              blurSigma: 16,
+                              borderColor: Colors.white.withValues(alpha: 0.42),
+                              borderRadius: const BorderRadius.all(
+                                Radius.circular(30),
                               ),
-                              HomeVerticalNavItem(
-                                label: 'Centrer',
-                                icon: Icons.my_location_rounded,
+                              items: [
+                                HomeVerticalNavItem(
+                                  label: 'Carte',
+                                  icon: Icons.layers_rounded,
+                                  selected: _marketPoiSelection.enabled,
+                                  onTap: () {
+                                    _showMapProjectsSelector();
+                                    _closeNavWithDelay();
+                                  },
+                                ),
+                                HomeVerticalNavItem(
+                                  label: 'Centrer',
+                                  icon: Icons.my_location_rounded,
                                 selected: false,
                                 onTap: () {
                                   _recenterOnUser();
@@ -1542,7 +1577,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                                       : Text(
                                           _currentLanguageFlag,
                                           style: const TextStyle(
-                                            fontSize: 34,
+                                            fontSize: 32,
                                             height: 1,
                                           ),
                                         ),
@@ -1563,6 +1598,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                       ),
                     ),
                   ),
+                ),
 
                 // Onboarding tooltip (sélectionner votre carte)
                 if (_showOnboardingTooltip && _showActionsMenu)
@@ -1609,6 +1645,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                     },
                     child: MasliveFloatingGlassDock(
                       height: bottomBarHeight,
+                      padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
                       child: Row(
                         children: [
                           AnimatedBuilder(
@@ -1660,7 +1697,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                             builder: (context, child) {
                               final progress =
                                   _bottomBarIconsTranslateAnimation.value;
-                              final reveal = progress.clamp(0.0, 1.0).toDouble();
+                              final reveal = progress
+                                  .clamp(0.0, 1.0)
+                                  .toDouble();
                               return IgnorePointer(
                                 ignoring: reveal < 0.95,
                                 child: Opacity(
@@ -1721,7 +1760,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                             builder: (context, child) {
                               final progress =
                                   _bottomBarIconsTranslateAnimation.value;
-                              final reveal = progress.clamp(0.0, 1.0).toDouble();
+                              final reveal = progress
+                                  .clamp(0.0, 1.0)
+                                  .toDouble();
                               return IgnorePointer(
                                 ignoring: reveal < 0.95,
                                 child: Opacity(

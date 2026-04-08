@@ -135,7 +135,7 @@ CVC      : N'importe quel 3 chiffres (ex: 123)
 
 ### Erreur : "STRIPE_SECRET_KEY not set"
 - Réexécute le script de déploiement : `bash /workspaces/MASLIVE/deploy_functions_stripe.sh`
-- Ou configure manuellement : `firebase functions:config:set stripe.secret_key="sk_test_..."`
+- Ou configure manuellement : `firebase functions:secrets:set STRIPE_SECRET_KEY`
 
 ### Paiement refused
 - Utilise la carte de test officielle

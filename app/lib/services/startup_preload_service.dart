@@ -5,15 +5,14 @@ import 'package:flutter/services.dart';
 class StartupPreloadService {
   const StartupPreloadService._();
 
-  static const List<String> _explicitImages = <String>[
-    'assets/images/icon wc parking.png',
-    'assets/images/maslivelogo.png',
-    'assets/images/maslivesmall.png',
-    'assets/splash/wom1.png',
-  ];
+  static const List<String> _splashImages = <String>['assets/splash/wom1.png'];
 
   static Future<Set<String>> collectSplashImageAssets() async {
-    final assets = <String>{..._explicitImages};
+    return <String>{..._splashImages};
+  }
+
+  static Future<Set<String>> collectDeferredImageAssets() async {
+    final assets = <String>{};
 
     try {
       final manifestJson = await rootBundle.loadString('AssetManifest.json');
@@ -24,11 +23,12 @@ class StartupPreloadService {
         if (!_isImageAsset(assetPath)) continue;
         if (assetPath.startsWith('assets/images/') ||
             assetPath.startsWith('assets/shop/')) {
+          if (_splashImages.contains(assetPath)) continue;
           assets.add(assetPath);
         }
       }
     } catch (_) {
-      // Le préchargement continue avec la liste explicite.
+      // Le préchargement différé reste optionnel.
     }
 
     return assets;

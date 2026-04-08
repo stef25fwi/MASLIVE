@@ -13,10 +13,10 @@ GitHub Push Protection a **bloqué le push**.
 ### 1️⃣ Secrets remplacés par des placeholders
 ```bash
 # ❌ AVANT (danger - clés exposées)
-firebase functions:config:set stripe.secret_key="sk_test_51Ssn0PCCIRtTE2nOkwOarKnrKijY1ejL54rugQOlxj0G0B4gb9ue202bHhPbDtoBQJcX74UB4xf31Jj8EHzmAA9P00NfLX4t6t"
+firebase functions:secrets:set STRIPE_SECRET_KEY
 
 # ✅ APRÈS (sécurisé - placeholder)
-firebase functions:config:set stripe.secret_key="sk_test_YOUR_ACTUAL_KEY_FROM_STRIPE_DASHBOARD"
+firebase functions:secrets:set STRIPE_SECRET_KEY
 ```
 
 ### 2️⃣ `.gitignore` renforcé
@@ -62,17 +62,19 @@ git push origin main
 ### JAMAIS faire ceci :
 ```bash
 # ❌ NE PAS COMMITTER LES VRAIES CLÉS
-firebase functions:config:set stripe.secret_key="sk_test_VOTRE_VRAIE_CLE"
+firebase functions:secrets:set STRIPE_SECRET_KEY
 # Puis git add -> git push
 ```
 
 ### Faire ceci à la place :
 ```bash
 # ✅ Configurer localement SANS committer
-firebase functions:config:set stripe.secret_key="sk_test_VOTRE_VRAIE_CLE"
+firebase functions:secrets:set STRIPE_SECRET_KEY
 
-# ✅ Les secrets sont dans Firebase Cloud (pas dans Git)
-firebase functions:config:get stripe.secret_key
+# ✅ Configurer aussi le webhook si nécessaire
+firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
+
+# ✅ Les secrets sont dans Firebase Secret Manager (pas dans Git)
 
 # ✅ Déployer - Firebase utilise les secrets automatiquement
 firebase deploy --only functions
@@ -98,7 +100,7 @@ git push origin main      # Repusher
 
 ### ✅ À faire
 1. Utiliser des **placeholders** dans la documentation (`YOUR_KEY_HERE`)
-2. Stocker les secrets dans **Firebase config** (pas dans Git)
+2. Stocker les secrets dans **Firebase Secret Manager** (pas dans Git)
 3. Utiliser **`.env` files** (et ajouter au `.gitignore`)
 4. Ajouter des **patterns de secret** au `.gitignore`
 5. Utiliser **GitHub Secrets** pour les CI/CD

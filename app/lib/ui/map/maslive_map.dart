@@ -117,6 +117,8 @@ class MasLiveMap extends StatelessWidget {
   /// - `false`: supprime le bouton compact et force l'affichage non-compact.
   final bool compactAttribution;
   final bool forceCompactAttribution;
+  final bool showAttributionControl;
+  final bool showMapboxLogo;
   final String controlsPosition;
   final ValueChanged<MapPoint>? onTap;
   final void Function(MasLiveMapController controller)? onMapReady;
@@ -136,6 +138,8 @@ class MasLiveMap extends StatelessWidget {
     this.userLat,
     this.compactAttribution = true,
     this.forceCompactAttribution = false,
+    this.showAttributionControl = true,
+    this.showMapboxLogo = true,
     this.controlsPosition = 'top-right',
     this.onTap,
     this.onMapReady,
@@ -159,6 +163,8 @@ class MasLiveMap extends StatelessWidget {
         userLat: userLat,
         compactAttribution: compactAttribution,
         forceCompactAttribution: forceCompactAttribution,
+        showAttributionControl: showAttributionControl,
+        showMapboxLogo: showMapboxLogo,
         controlsPosition: controlsPosition,
         onTap: onTap,
         onMapReady: onMapReady,
