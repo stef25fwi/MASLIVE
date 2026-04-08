@@ -6,14 +6,38 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
+is_placeholder_git_identity() {
+	local value="${1:-}"
+	case "$value" in
+		""|TON_EMAIL_GITHUB_ICI|TON_NOM_GITHUB_ICI|YOUR_GITHUB_EMAIL_HERE|YOUR_GITHUB_NAME_HERE|your@email.com|example@example.com|changeme)
+			return 0
+			;;
+		*)
+			return 1
+			;;
+	esac
+}
+
+is_valid_git_email() {
+	local value="${1:-}"
+	[[ "$value" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]]
+}
+
 # Ensure git identity exists (useful in devcontainers)
 NAME="$(git config --get user.name || true)"
 EMAIL="$(git config --get user.email || true)"
-if [[ -z "$NAME" ]]; then
+
+if is_placeholder_git_identity "$NAME"; then
 	git config user.name "MASLIVE Devcontainer"
+	NAME="MASLIVE Devcontainer"
 fi
-if [[ -z "$EMAIL" ]]; then
+
+if is_placeholder_git_identity "$EMAIL" || ! is_valid_git_email "$EMAIL"; then
+	if [[ -n "$EMAIL" ]]; then
+		echo "⚠️ user.email Git invalide ($EMAIL) -> fallback devcontainer"
+	fi
 	git config user.email "devcontainer@maslive.local"
+	EMAIL="devcontainer@maslive.local"
 fi
 
 commit_msg="${1:-}"
@@ -92,7 +116,20 @@ else
 	fi
 
 	echo "[2/5] 📦 Commit..."
-	git commit -m "$commit_msg"
+	commit_log="$(mktemp)"
+	if git commit -m "$commit_msg" >"$commit_log" 2>&1; then
+		cat "$commit_log"
+	else
+		cat "$commit_log"
+		if grep -Eqi 'gpg failed to sign the data|failed to write commit object|Author is invalid' "$commit_log"; then
+			echo "⚠️ Signature Git refusée, nouvelle tentative sans GPG pour ce commit..."
+			git -c commit.gpgsign=false commit -m "$commit_msg"
+		else
+			rm -f "$commit_log"
+			exit 1
+		fi
+	fi
+	rm -f "$commit_log"
 	echo "✅ Committé"
 	echo ""
 fi

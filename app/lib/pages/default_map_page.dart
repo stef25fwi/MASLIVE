@@ -15,9 +15,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/mapbox_token_service.dart';
 import '../services/auth_service.dart';
 import '../services/geolocation_service.dart';
+import '../services/home_controls_theme_service.dart';
 import '../services/language_service.dart';
 import '../ui/theme/maslive_theme.dart';
 import '../ui/widgets/home_bottom_bar.dart';
+import '../ui/widgets/home_ultra_premium_glass.dart';
 import '../ui/widgets/maslive_card.dart';
 import '../ui/widgets/maslive_profile_icon.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
@@ -83,17 +85,22 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   bool _didStartDeferredHomeInit = false;
   bool _didStartPostSplashUiWarmups = false;
   String _currentLanguageFlag = '';
+  int? _selectedBottomBarIndex;
+  HomeControlsThemeMode _homeControlsTheme = HomeControlsThemeMode.classic;
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
   _MapAction? _selectedAction;
 
   // Tracking
   final GeolocationService _geo = GeolocationService.instance;
+  final HomeControlsThemeService _homeControlsThemeService =
+      HomeControlsThemeService();
   bool _isTracking = false;
   String? _userGroupId;
 
   // Affichage position groupe (publiée par l'admin sur un circuit)
   StreamSubscription<List<GroupCircuitPublicPosition>>? _groupPublicPosSub;
+  StreamSubscription<HomeControlsThemeMode>? _homeControlsThemeSub;
   List<MapMarker> _groupPublicMarkers = const <MapMarker>[];
 
   // Projets cartographiques
@@ -124,6 +131,12 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   MarketMapService _getMarketMapService() {
     return _marketMapService ??= MarketMapService();
   }
+
+  bool get _useUltraPremiumHomeControls =>
+      _homeControlsTheme == HomeControlsThemeMode.ultraPremiumGlass;
+
+  int? get _activeBottomBarIndex =>
+      _showActionsMenu ? 3 : _selectedBottomBarIndex;
 
   List<MapMarker> _composeMarkers() {
     final markers = List<MapMarker>.from(_marketPoiMarkers);
@@ -274,6 +287,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     WidgetsBinding.instance.addObserver(this);
 
     _isTracking = _geo.isTracking;
+    _listenHomeControlsThemeConfig();
 
     // Initialiser le drapeau de langue dès initState (pas de délai)
     _updateLanguageFlag();
@@ -348,6 +362,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   @override
   void dispose() {
     _groupPublicPosSub?.cancel();
+    _homeControlsThemeSub?.cancel();
     _marketPoisSub?.cancel();
     _resizeDebounce?.cancel();
     _positionSub?.cancel();
@@ -1015,18 +1030,53 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     setState(() {});
   }
 
+  void _listenHomeControlsThemeConfig() {
+    _homeControlsThemeSub?.cancel();
+    _homeControlsThemeSub = _homeControlsThemeService.watchTheme().listen(
+      (theme) {
+        if (!mounted || _homeControlsTheme == theme) return;
+        setState(() => _homeControlsTheme = theme);
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        StartupTrace.log(
+          'MAPBOX_WEB',
+          'home theme config listen failed: $error',
+        );
+      },
+    );
+  }
+
+  void _dismissActionsMenu() {
+    _menuAnimController.reverse();
+    Future.delayed(_menuAnimationDuration, () {
+      if (mounted && _showActionsMenu) {
+        setState(() {
+          _showActionsMenu = false;
+          _showOnboardingTooltip = false;
+        });
+      }
+    });
+  }
+
+  void _toggleActionsMenu() {
+    if (_showActionsMenu) {
+      _dismissActionsMenu();
+      return;
+    }
+
+    setState(() => _showActionsMenu = true);
+    _menuAnimController.forward(from: 0.0);
+  }
+
+  void _selectBottomBarIndex(int index) {
+    if (!mounted) return;
+    setState(() => _selectedBottomBarIndex = index);
+  }
+
   void _closeNavWithDelay() {
     Future.delayed(_navCloseDelay, () {
       if (mounted && _showActionsMenu) {
-        _menuAnimController.reverse();
-        Future.delayed(_menuAnimationDuration, () {
-          if (mounted && _showActionsMenu) {
-            setState(() {
-              _showActionsMenu = false;
-              _showOnboardingTooltip = false;
-            });
-          }
-        });
+        _dismissActionsMenu();
       }
     });
   }
@@ -1049,6 +1099,393 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   void _selectAction(_MapAction action, String label) {
     setState(() => _selectedAction = action);
     _refreshMarketPoiMarkers();
+  }
+
+  List<HomeVerticalNavItem> _buildClassicVerticalNavItems(
+    BuildContext context,
+  ) {
+    final localizations = l10n.AppLocalizations.of(context)!;
+
+    return [
+      HomeVerticalNavItem(
+        label: 'Carte',
+        icon: Icons.layers_rounded,
+        selected: _marketPoiSelection.enabled,
+        onTap: () {
+          _showMapProjectsSelector();
+          _closeNavWithDelay();
+        },
+      ),
+      HomeVerticalNavItem(
+        label: 'Centrer',
+        icon: Icons.my_location_rounded,
+        selected: false,
+        onTap: () {
+          _recenterOnUser();
+          _closeNavWithDelay();
+        },
+      ),
+      HomeVerticalNavItem(
+        label: localizations.tracking,
+        icon: Icons.track_changes_rounded,
+        selected: _isTracking,
+        onTap: () {
+          _toggleTracking();
+          _closeNavWithDelay();
+        },
+      ),
+      HomeVerticalNavItem(
+        label: localizations.visit,
+        icon: Icons.map_outlined,
+        selected: _selectedAction == _MapAction.visiter,
+        onTap: () {
+          _selectAction(_MapAction.visiter, 'Visiter');
+          _closeNavWithDelay();
+        },
+      ),
+      HomeVerticalNavItem(
+        label: localizations.food,
+        icon: Icons.fastfood_rounded,
+        selected: _selectedAction == _MapAction.food,
+        onTap: () {
+          _selectAction(_MapAction.food, 'Food');
+          _closeNavWithDelay();
+        },
+      ),
+      HomeVerticalNavItem(
+        label: localizations.assistance,
+        icon: Icons.shield_outlined,
+        selected: _selectedAction == _MapAction.assistance,
+        onTap: () {
+          _selectAction(_MapAction.assistance, 'Assistance');
+          _closeNavWithDelay();
+        },
+      ),
+      HomeVerticalNavItem(
+        label: '',
+        fullBleed: true,
+        iconWidget: Row(
+          children: [
+            Expanded(
+              child: ColoredBox(
+                color: const Color(0xFF005BBB),
+                child: const Center(
+                  child: Text(
+                    'P',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 26,
+                      height: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: ColoredBox(
+                color: Colors.black,
+                child: const Center(
+                  child: Icon(Icons.wc_rounded, size: 22, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
+        selected: _selectedAction == _MapAction.parkingWc,
+        tintOnSelected: false,
+        highlightBackgroundOnSelected: false,
+        onTap: () {
+          _selectAction(_MapAction.parkingWc, 'P/WC');
+          _closeNavWithDelay();
+        },
+      ),
+      HomeVerticalNavItem(
+        label: '',
+        iconWidget: Center(
+          child: _currentLanguageFlag.isEmpty
+              ? const SizedBox.shrink()
+              : Text(
+                  _currentLanguageFlag,
+                  style: const TextStyle(fontSize: 32, height: 1),
+                ),
+        ),
+        fullBleed: true,
+        tintOnSelected: false,
+        highlightBackgroundOnSelected: false,
+        showBorder: false,
+        selected: false,
+        onTap: () {
+          _cycleLanguage();
+          _closeNavWithDelay();
+        },
+      ),
+    ];
+  }
+
+  List<MasliveVerticalNavItem> _buildPremiumVerticalNavItems(
+    BuildContext context,
+  ) {
+    final localizations = l10n.AppLocalizations.of(context)!;
+
+    return [
+      MasliveVerticalNavItem(
+        label: 'Carte',
+        icon: Icons.layers_rounded,
+        selected: _marketPoiSelection.enabled,
+        onTap: () {
+          _showMapProjectsSelector();
+          _closeNavWithDelay();
+        },
+      ),
+      MasliveVerticalNavItem(
+        label: 'Centrer',
+        icon: Icons.my_location_rounded,
+        selected: false,
+        onTap: () {
+          _recenterOnUser();
+          _closeNavWithDelay();
+        },
+      ),
+      MasliveVerticalNavItem(
+        label: localizations.tracking,
+        icon: Icons.track_changes_rounded,
+        selected: _isTracking,
+        onTap: () {
+          _toggleTracking();
+          _closeNavWithDelay();
+        },
+      ),
+      MasliveVerticalNavItem(
+        label: localizations.visit,
+        icon: Icons.map_outlined,
+        selected: _selectedAction == _MapAction.visiter,
+        onTap: () {
+          _selectAction(_MapAction.visiter, 'Visiter');
+          _closeNavWithDelay();
+        },
+      ),
+      MasliveVerticalNavItem(
+        label: localizations.food,
+        icon: Icons.fastfood_rounded,
+        selected: _selectedAction == _MapAction.food,
+        onTap: () {
+          _selectAction(_MapAction.food, 'Food');
+          _closeNavWithDelay();
+        },
+      ),
+      MasliveVerticalNavItem(
+        label: localizations.assistance,
+        icon: Icons.shield_outlined,
+        selected: _selectedAction == _MapAction.assistance,
+        onTap: () {
+          _selectAction(_MapAction.assistance, 'Assistance');
+          _closeNavWithDelay();
+        },
+      ),
+      MasliveVerticalNavItem(
+        label: '',
+        fullBleed: true,
+        tintOnSelected: false,
+        selected: _selectedAction == _MapAction.parkingWc,
+        iconWidget: Row(
+          children: [
+            Expanded(
+              child: ColoredBox(
+                color: const Color(0xFF005BBB),
+                child: const Center(
+                  child: Text(
+                    'P',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 26,
+                      height: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: ColoredBox(
+                color: Colors.black,
+                child: const Center(
+                  child: Icon(Icons.wc_rounded, size: 22, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
+        onTap: () {
+          _selectAction(_MapAction.parkingWc, 'P/WC');
+          _closeNavWithDelay();
+        },
+      ),
+      MasliveVerticalNavItem(
+        label: '',
+        iconWidget: Center(
+          child: _currentLanguageFlag.isEmpty
+              ? const SizedBox.shrink()
+              : Text(
+                  _currentLanguageFlag,
+                  style: const TextStyle(fontSize: 32, height: 1),
+                ),
+        ),
+        fullBleed: true,
+        tintOnSelected: false,
+        showBorder: false,
+        selected: false,
+        onTap: () {
+          _cycleLanguage();
+          _closeNavWithDelay();
+        },
+      ),
+    ];
+  }
+
+  Widget _buildActionsMenuOverlay(
+    BuildContext context, {
+    required double menuTopOffset,
+    required double navMenuRightOffset,
+    required double navHorizontalPadding,
+  }) {
+    final Widget menu = _useUltraPremiumHomeControls
+        ? Padding(
+            padding: EdgeInsets.only(right: 16, top: menuTopOffset),
+            child: MasliveOption1VerticalNav(
+              items: _buildPremiumVerticalNavItems(context),
+            ),
+          )
+        : Transform.translate(
+            offset: Offset(navMenuRightOffset, 0),
+            child: HomeVerticalNavMenu(
+              margin: EdgeInsets.only(top: menuTopOffset),
+              horizontalPadding: navHorizontalPadding,
+              verticalPadding: 12,
+              backgroundAlpha: 0.58,
+              blurSigma: 16,
+              borderColor: Colors.white.withValues(alpha: 0.42),
+              borderRadius: const BorderRadius.all(Radius.circular(30)),
+              items: _buildClassicVerticalNavItems(context),
+            ),
+          );
+
+    return Positioned.fill(
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: _dismissActionsMenu,
+        child: Align(
+          alignment: Alignment.topRight,
+          child: SlideTransition(position: _menuSlideAnimation, child: menu),
+        ),
+      ),
+    );
+  }
+
+  List<MasliveBottomBarEntry> _buildBottomBarEntries(
+    BuildContext context,
+    User? user,
+  ) {
+    final localizations = l10n.AppLocalizations.of(context)!;
+    final pseudo = (user?.displayName ?? user?.email ?? localizations.profile)
+        .trim();
+
+    return [
+      MasliveBottomBarEntry(
+        label: localizations.profile,
+        tooltip: pseudo.isEmpty ? localizations.profile : pseudo,
+        iconWidget: MasliveProfileIcon(
+          size: 38,
+          badgeSizeRatio: 0.22,
+          showBadge: user != null,
+        ),
+        onTap: () {
+          _selectBottomBarIndex(0);
+          if (user != null) {
+            Navigator.pushNamed(context, '/account-ui');
+          } else {
+            Navigator.pushNamed(context, '/login');
+          }
+        },
+      ),
+      MasliveBottomBarEntry(
+        label: localizations.shop,
+        tooltip: localizations.shop,
+        icon: Icons.storefront_rounded,
+        onTap: () {
+          _selectBottomBarIndex(1);
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) =>
+                  const StorexShopPage(shopId: 'global', groupId: 'MASLIVE'),
+            ),
+          );
+        },
+      ),
+      MasliveBottomBarEntry(
+        label: 'Boutique\nphotos',
+        tooltip: _marketPoiSelection.event != null
+            ? 'Boutique photos de l’événement'
+            : 'Boutique photos',
+        icon: Icons.photo_library_rounded,
+        onTap: () {
+          _selectBottomBarIndex(2);
+          _openMarketplaceForSelectedEvent();
+        },
+      ),
+      MasliveBottomBarEntry(
+        label: localizations.menu,
+        tooltip: localizations.menu,
+        icon: Icons.menu_rounded,
+        onTap: _toggleActionsMenu,
+      ),
+    ];
+  }
+
+  Widget _buildBottomBar(
+    BuildContext context, {
+    required double width,
+    required double height,
+    required User? user,
+  }) {
+    final entries = _buildBottomBarEntries(context, user);
+
+    if (_useUltraPremiumHomeControls) {
+      return SizedBox(
+        width: width,
+        child: MasliveOption1BottomBar(
+          items: entries,
+          selectedIndex: _activeBottomBarIndex,
+          height: height,
+        ),
+      );
+    }
+
+    final localizations = l10n.AppLocalizations.of(context)!;
+    final pseudo = (user?.displayName ?? user?.email ?? localizations.profile)
+        .trim();
+
+    return MasliveHomeBottomBar(
+      width: width,
+      height: height,
+      profileLabel: localizations.profile,
+      profileTooltip: pseudo.isEmpty ? localizations.profile : pseudo,
+      profileIcon: MasliveProfileIcon(
+        size: 38,
+        badgeSizeRatio: 0.22,
+        showBadge: user != null,
+      ),
+      onProfileTap: entries[0].onTap!,
+      shopLabel: localizations.shop,
+      shopTooltip: localizations.shop,
+      onShopTap: entries[1].onTap!,
+      photoLabel: 'Boutique\nphotos',
+      photoTooltip: entries[2].tooltip,
+      onPhotoTap: entries[2].onTap!,
+      menuLabel: localizations.menu,
+      menuTooltip: localizations.menu,
+      onMenuTap: entries[3].onTap!,
+    );
   }
 
   Future<void> _toggleTracking() async {
@@ -1326,9 +1763,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                   ),
                 ],
               ),
-                        ),
             ),
           ),
+        ),
       );
     }
 
@@ -1354,9 +1791,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
             final bottomDockOffset = bottomInset + 10.0;
             const navMenuRightOffset = -6.0;
 
-            const bottomBarHeight = 84.0;
-            final bottomDockWidth = math.min(size.width - 24, 344.0)
-              .toDouble();
+            final bottomBarHeight = _useUltraPremiumHomeControls ? 94.0 : 84.0;
+            final bottomDockWidth = math.min(size.width - 24, 344.0).toDouble();
 
             // Géométrie de la barre verticale (doit rester cohérente avec
             // `HomeVerticalNavMenu` et `HomeVerticalNavActionItem`).
@@ -1364,10 +1800,13 @@ class _DefaultMapPageState extends State<DefaultMapPage>
             const navVerticalPadding = 10.0;
             const navHorizontalPadding = 0.0;
             const tooltipGapToMenu = 12.0;
-            final navMenuWidth = navItemSize + (navHorizontalPadding * 2);
+            final navMenuWidth = _useUltraPremiumHomeControls
+                ? 86.0
+                : navItemSize + (navHorizontalPadding * 2);
             final tooltipRight = navMenuWidth + tooltipGapToMenu;
-            final carteIconCenterY =
-                menuTopOffset + navVerticalPadding + (navItemSize / 2);
+            final carteIconCenterY = _useUltraPremiumHomeControls
+                ? menuTopOffset + 39.0
+                : menuTopOffset + navVerticalPadding + (navItemSize / 2);
 
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _scheduleResize(size);
@@ -1432,174 +1871,12 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
                 // Overlay actions menu (vertical) + backdrop
                 if (_showActionsMenu)
-                  Positioned.fill(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onTap: () {
-                        if (_showOnboardingTooltip) {
-                          setState(() => _showOnboardingTooltip = false);
-                        }
-                        _menuAnimController.reverse();
-                        Future.delayed(_menuAnimationDuration, () {
-                          if (mounted) {
-                            setState(() => _showActionsMenu = false);
-                          }
-                        });
-                      },
-                      child: Align(
-                        alignment: Alignment.topRight,
-                        child: SlideTransition(
-                          position: _menuSlideAnimation,
-                          child: Transform.translate(
-                            offset: Offset(navMenuRightOffset, 0),
-                            child: HomeVerticalNavMenu(
-                              margin: EdgeInsets.only(top: menuTopOffset),
-                              horizontalPadding: navHorizontalPadding,
-                              verticalPadding: 12,
-                              backgroundAlpha: 0.58,
-                              blurSigma: 16,
-                              borderColor: Colors.white.withValues(alpha: 0.42),
-                              borderRadius: const BorderRadius.all(
-                                Radius.circular(30),
-                              ),
-                              items: [
-                                HomeVerticalNavItem(
-                                  label: 'Carte',
-                                  icon: Icons.layers_rounded,
-                                  selected: _marketPoiSelection.enabled,
-                                  onTap: () {
-                                    _showMapProjectsSelector();
-                                    _closeNavWithDelay();
-                                  },
-                                ),
-                                HomeVerticalNavItem(
-                                  label: 'Centrer',
-                                  icon: Icons.my_location_rounded,
-                                selected: false,
-                                onTap: () {
-                                  _recenterOnUser();
-                                  _closeNavWithDelay();
-                                },
-                              ),
-                              HomeVerticalNavItem(
-                                label: l10n.AppLocalizations.of(
-                                  context,
-                                )!.tracking,
-                                icon: Icons.track_changes_rounded,
-                                selected: _isTracking,
-                                onTap: () {
-                                  _toggleTracking();
-                                  _closeNavWithDelay();
-                                },
-                              ),
-                              HomeVerticalNavItem(
-                                label: l10n.AppLocalizations.of(context)!.visit,
-                                icon: Icons.map_outlined,
-                                selected: _selectedAction == _MapAction.visiter,
-                                onTap: () {
-                                  _selectAction(_MapAction.visiter, 'Visiter');
-                                  _closeNavWithDelay();
-                                },
-                              ),
-                              HomeVerticalNavItem(
-                                label: l10n.AppLocalizations.of(context)!.food,
-                                icon: Icons.fastfood_rounded,
-                                selected: _selectedAction == _MapAction.food,
-                                onTap: () {
-                                  _selectAction(_MapAction.food, 'Food');
-                                  _closeNavWithDelay();
-                                },
-                              ),
-                              HomeVerticalNavItem(
-                                label: l10n.AppLocalizations.of(
-                                  context,
-                                )!.assistance,
-                                icon: Icons.shield_outlined,
-                                selected:
-                                    _selectedAction == _MapAction.assistance,
-                                onTap: () {
-                                  _selectAction(
-                                    _MapAction.assistance,
-                                    'Assistance',
-                                  );
-                                  _closeNavWithDelay();
-                                },
-                              ),
-                              HomeVerticalNavItem(
-                                label: '',
-                                fullBleed: true,
-                                iconWidget: Row(
-                                  children: [
-                                    Expanded(
-                                      child: ColoredBox(
-                                        color: const Color(0xFF005BBB),
-                                        child: const Center(
-                                          child: Text(
-                                            'P',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w900,
-                                              fontSize: 26,
-                                              height: 1,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: ColoredBox(
-                                        color: Colors.black,
-                                        child: const Center(
-                                          child: Icon(
-                                            Icons.wc_rounded,
-                                            size: 22,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                selected:
-                                    _selectedAction == _MapAction.parkingWc,
-                                tintOnSelected: false,
-                                highlightBackgroundOnSelected: false,
-                                onTap: () {
-                                  _selectAction(_MapAction.parkingWc, 'P/WC');
-                                  _closeNavWithDelay();
-                                },
-                              ),
-                              HomeVerticalNavItem(
-                                label: '',
-                                // Affichage direct du drapeau sans délai Obx réactif
-                                iconWidget: Center(
-                                  child: _currentLanguageFlag.isEmpty
-                                      ? const SizedBox.shrink()
-                                      : Text(
-                                          _currentLanguageFlag,
-                                          style: const TextStyle(
-                                            fontSize: 32,
-                                            height: 1,
-                                          ),
-                                        ),
-                                ),
-                                fullBleed: true,
-                                tintOnSelected: false,
-                                highlightBackgroundOnSelected: false,
-                                showBorder: false,
-                                selected: false,
-                                onTap: () {
-                                  _cycleLanguage();
-                                  _closeNavWithDelay();
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                  _buildActionsMenuOverlay(
+                    context,
+                    menuTopOffset: menuTopOffset,
+                    navMenuRightOffset: navMenuRightOffset,
+                    navHorizontalPadding: navHorizontalPadding,
                   ),
-                ),
 
                 // Onboarding tooltip (sélectionner votre carte)
                 if (_showOnboardingTooltip && _showActionsMenu)
@@ -1634,67 +1911,11 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                     child: StreamBuilder<User?>(
                       stream: AuthService.instance.authStateChanges,
                       builder: (context, snap) {
-                        final user = snap.data;
-                        final localizations = l10n.AppLocalizations.of(
+                        return _buildBottomBar(
                           context,
-                        )!;
-                        final pseudo =
-                            (user?.displayName ??
-                                    user?.email ??
-                                    localizations.profile)
-                                .trim();
-
-                        return MasliveHomeBottomBar(
                           width: bottomDockWidth,
                           height: bottomBarHeight,
-                          profileLabel: localizations.profile,
-                          profileTooltip: pseudo.isEmpty
-                              ? localizations.profile
-                              : pseudo,
-                          profileIcon: MasliveProfileIcon(
-                            size: 38,
-                            badgeSizeRatio: 0.22,
-                            showBadge: user != null,
-                          ),
-                          onProfileTap: () {
-                            if (user != null) {
-                              Navigator.pushNamed(context, '/account-ui');
-                            } else {
-                              Navigator.pushNamed(context, '/login');
-                            }
-                          },
-                          shopLabel: localizations.shop,
-                          shopTooltip: localizations.shop,
-                          onShopTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const StorexShopPage(
-                                  shopId: 'global',
-                                  groupId: 'MASLIVE',
-                                ),
-                              ),
-                            );
-                          },
-                          photoLabel: 'Boutique\nphotos',
-                          photoTooltip: _marketPoiSelection.event != null
-                              ? 'Boutique photos de l’événement'
-                              : 'Boutique photos',
-                          onPhotoTap: _openMarketplaceForSelectedEvent,
-                          menuLabel: localizations.menu,
-                          menuTooltip: localizations.menu,
-                          onMenuTap: () {
-                            setState(() {
-                              _showActionsMenu = !_showActionsMenu;
-                              if (!_showActionsMenu) {
-                                _showOnboardingTooltip = false;
-                              }
-                            });
-                            if (_showActionsMenu) {
-                              _menuAnimController.forward();
-                            } else {
-                              _menuAnimController.reverse();
-                            }
-                          },
+                          user: snap.data,
                         );
                       },
                     ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/app_user.dart';
 import '../services/auth_claims_service.dart';
+import '../services/home_controls_theme_service.dart';
 import '../ui/snack/top_snack_bar.dart';
 
 /// Page de gestion des paramètres système (Super Admin uniquement)
@@ -9,7 +10,8 @@ class AdminSystemSettingsPage extends StatefulWidget {
   const AdminSystemSettingsPage({super.key});
 
   @override
-  State<AdminSystemSettingsPage> createState() => _AdminSystemSettingsPageState();
+  State<AdminSystemSettingsPage> createState() =>
+      _AdminSystemSettingsPageState();
 }
 
 class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
@@ -32,27 +34,33 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
 
     try {
       final user = await _authService.getCurrentAppUser();
-      final configDoc = await _firestore.collection('config').doc('system').get();
+      final configDoc = await _firestore
+          .collection('config')
+          .doc('system')
+          .get();
 
       setState(() {
         _currentUser = user;
-        _systemConfig = configDoc.data() ?? {
-          'maintenanceMode': false,
-          'allowRegistration': true,
-          'requireEmailVerification': true,
-          'maxUploadSize': 10, // MB
-          'sessionTimeout': 24, // heures
-          'enableNotifications': true,
-        };
+        _systemConfig =
+            configDoc.data() ??
+            {
+              'maintenanceMode': false,
+              'allowRegistration': true,
+              'requireEmailVerification': true,
+              'maxUploadSize': 10, // MB
+              'sessionTimeout': 24, // heures
+              'enableNotifications': true,
+              HomeControlsThemeService.fieldName:
+                  HomeControlsThemeService.toStorage(
+                    HomeControlsThemeMode.classic,
+                  ),
+            };
         _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        TopSnackBar.show(
-          context,
-          SnackBar(content: Text('Erreur: $e')),
-        );
+        TopSnackBar.show(context, SnackBar(content: Text('Erreur: $e')));
       }
     }
   }
@@ -61,10 +69,15 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
     setState(() => _isSaving = true);
 
     try {
-      await _firestore.collection('config').doc('system').set(
-            _systemConfig,
-            SetOptions(merge: true),
-          );
+      final homeTheme = HomeControlsThemeService.fromConfig(_systemConfig);
+      final payload = Map<String, dynamic>.from(_systemConfig)
+        ..[HomeControlsThemeService.fieldName] =
+            HomeControlsThemeService.toStorage(homeTheme);
+
+      await _firestore
+          .collection('config')
+          .doc('system')
+          .set(payload, SetOptions(merge: true));
 
       if (mounted) {
         TopSnackBar.show(
@@ -74,10 +87,7 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
       }
     } catch (e) {
       if (mounted) {
-        TopSnackBar.show(
-          context,
-          SnackBar(content: Text('Erreur: $e')),
-        );
+        TopSnackBar.show(context, SnackBar(content: Text('Erreur: $e')));
       }
     } finally {
       if (mounted) {
@@ -116,10 +126,7 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
     if (confirmed == true) {
       // Logique de vidage du cache
       if (mounted) {
-        TopSnackBar.show(
-          context,
-          const SnackBar(content: Text('Cache vidé')),
-        );
+        TopSnackBar.show(context, const SnackBar(content: Text('Cache vidé')));
       }
     }
   }
@@ -139,10 +146,7 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
       }
     } catch (e) {
       if (mounted) {
-        TopSnackBar.show(
-          context,
-          SnackBar(content: Text('Erreur: $e')),
-        );
+        TopSnackBar.show(context, SnackBar(content: Text('Erreur: $e')));
       }
     } finally {
       if (mounted) {
@@ -151,12 +155,26 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
     }
   }
 
+  bool get _isHomeUltraPremiumEnabled {
+    return HomeControlsThemeService.fromConfig(_systemConfig) ==
+        HomeControlsThemeMode.ultraPremiumGlass;
+  }
+
+  void _setHomeTheme(bool enabled) {
+    setState(() {
+      _systemConfig[HomeControlsThemeService.fieldName] =
+          HomeControlsThemeService.toStorage(
+            enabled
+                ? HomeControlsThemeMode.ultraPremiumGlass
+                : HomeControlsThemeMode.classic,
+          );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_currentUser?.isSuperAdmin != true) {
@@ -184,10 +202,7 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
               ),
             )
           else
-            IconButton(
-              icon: const Icon(Icons.save),
-              onPressed: _saveConfig,
-            ),
+            IconButton(icon: const Icon(Icons.save), onPressed: _saveConfig),
         ],
       ),
       body: SingleChildScrollView(
@@ -195,104 +210,113 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSection(
-              'Général',
-              [
-                SwitchListTile(
-                  title: const Text('Mode maintenance'),
-                  subtitle: const Text('Bloquer l\'accès à l\'application'),
-                  value: _systemConfig['maintenanceMode'] ?? false,
-                  onChanged: (value) {
-                    setState(() => _systemConfig['maintenanceMode'] = value);
-                  },
+            _buildSection('Général', [
+              SwitchListTile(
+                title: const Text('Mode maintenance'),
+                subtitle: const Text('Bloquer l\'accès à l\'application'),
+                value: _systemConfig['maintenanceMode'] ?? false,
+                onChanged: (value) {
+                  setState(() => _systemConfig['maintenanceMode'] = value);
+                },
+              ),
+              SwitchListTile(
+                title: const Text('Autoriser les inscriptions'),
+                subtitle: const Text(
+                  'Permettre la création de nouveaux comptes',
                 ),
-                SwitchListTile(
-                  title: const Text('Autoriser les inscriptions'),
-                  subtitle: const Text('Permettre la création de nouveaux comptes'),
-                  value: _systemConfig['allowRegistration'] ?? true,
-                  onChanged: (value) {
-                    setState(() => _systemConfig['allowRegistration'] = value);
-                  },
-                ),
-                SwitchListTile(
-                  title: const Text('Vérification email obligatoire'),
-                  subtitle: const Text('Exiger la vérification de l\'email'),
-                  value: _systemConfig['requireEmailVerification'] ?? true,
-                  onChanged: (value) {
-                    setState(() => _systemConfig['requireEmailVerification'] = value);
-                  },
-                ),
-              ],
-            ),
+                value: _systemConfig['allowRegistration'] ?? true,
+                onChanged: (value) {
+                  setState(() => _systemConfig['allowRegistration'] = value);
+                },
+              ),
+              SwitchListTile(
+                title: const Text('Vérification email obligatoire'),
+                subtitle: const Text('Exiger la vérification de l\'email'),
+                value: _systemConfig['requireEmailVerification'] ?? true,
+                onChanged: (value) {
+                  setState(
+                    () => _systemConfig['requireEmailVerification'] = value,
+                  );
+                },
+              ),
+            ]),
             const SizedBox(height: 24),
-            _buildSection(
-              'Sécurité',
-              [
-                ListTile(
-                  title: const Text('Timeout de session'),
-                  subtitle: Text('${_systemConfig['sessionTimeout'] ?? 24} heures'),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.edit),
-                    onPressed: () => _editSessionTimeout(),
-                  ),
+            _buildSection('Sécurité', [
+              ListTile(
+                title: const Text('Timeout de session'),
+                subtitle: Text(
+                  '${_systemConfig['sessionTimeout'] ?? 24} heures',
                 ),
-              ],
-            ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () => _editSessionTimeout(),
+                ),
+              ),
+            ]),
             const SizedBox(height: 24),
-            _buildSection(
-              'Fichiers',
-              [
-                ListTile(
-                  title: const Text('Taille max upload'),
-                  subtitle: Text('${_systemConfig['maxUploadSize'] ?? 10} MB'),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.edit),
-                    onPressed: () => _editMaxUploadSize(),
-                  ),
+            _buildSection('Fichiers', [
+              ListTile(
+                title: const Text('Taille max upload'),
+                subtitle: Text('${_systemConfig['maxUploadSize'] ?? 10} MB'),
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () => _editMaxUploadSize(),
                 ),
-              ],
-            ),
+              ),
+            ]),
             const SizedBox(height: 24),
-            _buildSection(
-              'Notifications',
-              [
-                SwitchListTile(
-                  title: const Text('Activer les notifications'),
-                  subtitle: const Text('Autoriser l\'envoi de notifications push'),
-                  value: _systemConfig['enableNotifications'] ?? true,
-                  onChanged: (value) {
-                    setState(() => _systemConfig['enableNotifications'] = value);
-                  },
+            _buildSection('Notifications', [
+              SwitchListTile(
+                title: const Text('Activer les notifications'),
+                subtitle: const Text(
+                  'Autoriser l\'envoi de notifications push',
                 ),
-              ],
-            ),
+                value: _systemConfig['enableNotifications'] ?? true,
+                onChanged: (value) {
+                  setState(() => _systemConfig['enableNotifications'] = value);
+                },
+              ),
+            ]),
             const SizedBox(height: 24),
-            _buildSection(
-              'Maintenance',
-              [
-                ListTile(
-                  leading: const Icon(Icons.cleaning_services, color: Colors.orange),
-                  title: const Text('Vider le cache'),
-                  subtitle: const Text('Supprimer tous les fichiers en cache'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _clearCache,
+            _buildSection('Accueil', [
+              SwitchListTile(
+                title: const Text('Style Ultra Premium Glass sur la home'),
+                subtitle: const Text(
+                  'Réglage global piloté par le super administrateur pour la bottom bar et la navigation verticale.',
                 ),
-                ListTile(
-                  leading: const Icon(Icons.backup, color: Colors.blue),
-                  title: const Text('Générer un backup'),
-                  subtitle: const Text('Créer une sauvegarde complète'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _generateBackup,
+                value: _isHomeUltraPremiumEnabled,
+                onChanged: _setHomeTheme,
+              ),
+            ]),
+            const SizedBox(height: 24),
+            _buildSection('Maintenance', [
+              ListTile(
+                leading: const Icon(
+                  Icons.cleaning_services,
+                  color: Colors.orange,
                 ),
-                ListTile(
-                  leading: const Icon(Icons.delete_forever, color: Colors.red),
-                  title: const Text('Purger les données anciennes'),
-                  subtitle: const Text('Supprimer les données de plus de 90 jours'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _showPurgeDialog(),
+                title: const Text('Vider le cache'),
+                subtitle: const Text('Supprimer tous les fichiers en cache'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _clearCache,
+              ),
+              ListTile(
+                leading: const Icon(Icons.backup, color: Colors.blue),
+                title: const Text('Générer un backup'),
+                subtitle: const Text('Créer une sauvegarde complète'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _generateBackup,
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_forever, color: Colors.red),
+                title: const Text('Purger les données anciennes'),
+                subtitle: const Text(
+                  'Supprimer les données de plus de 90 jours',
                 ),
-              ],
-            ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _showPurgeDialog(),
+              ),
+            ]),
             const SizedBox(height: 24),
             _buildDangerZone(),
           ],
@@ -309,16 +333,12 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
           padding: const EdgeInsets.only(bottom: 8),
           child: Text(
             title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
-        Card(
-          child: Column(
-            children: children,
-          ),
-        ),
+        Card(child: Column(children: children)),
       ],
     );
   }
@@ -332,9 +352,9 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
           child: Text(
             'Zone dangereuse',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red,
-                ),
+              fontWeight: FontWeight.bold,
+              color: Colors.red,
+            ),
           ),
         ),
         Card(
