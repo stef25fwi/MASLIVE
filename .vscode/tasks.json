@@ -406,6 +406,18 @@
       }
     },
     {
+      "label": "MASLIVE: 🚀 Commit + Push + Build + Deploy (wizard styleUrl home/public resolve)",
+      "type": "shell",
+      "command": "cd /workspaces/MASLIVE && bash commit_push_build_deploy.sh \"fix(mapbox): resolve wizard styleUrl across home and public circuits\"",
+      "problemMatcher": [],
+      "isBackground": false,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "MASLIVE: git rm --cached .env",
       "type": "shell",
       "command": "cd /workspaces/MASLIVE && git rm --cached .env 2>/dev/null && git commit -m \"chore(security): untrack .env from git index\" && git push origin main && echo '✅ .env désindexé et poussé' || echo '⚠️  .env déjà absent de l index git (rien à faire)'",

@@ -428,13 +428,19 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
     final circuit = selection.circuit!;
     final center = circuit.center;
+    final resolvedStyleUrl = normalizeMapboxStyleUrl(circuit.styleUrl);
+
+    StartupTrace.log(
+      'MAPBOX_WEB',
+      'market circuit selected id=${circuit.id} rawStyle=${circuit.styleUrl} resolvedStyle=$resolvedStyleUrl',
+    );
 
     // Recentrer la carte sur le circuit choisi (via rebuild key)
     setState(() {
       _projectCenterLat = center['lat'];
       _projectCenterLng = center['lng'];
       _projectZoom = circuit.initialZoom;
-      _styleUrl = normalizeMapboxStyleUrl(circuit.styleUrl);
+      _styleUrl = resolvedStyleUrl;
 
       // Nouveau circuit => reset affichage POIs.
       _marketPoiMarkers = const <MapMarker>[];

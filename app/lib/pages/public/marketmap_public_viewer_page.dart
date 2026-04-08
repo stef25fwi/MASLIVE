@@ -12,6 +12,7 @@ import '../../route_style_pro/services/map_buildings_style_service_native.dart';
 import '../../route_style_pro/services/route_style_pro_projection.dart';
 import '../../services/poi_popup_service.dart';
 import '../../ui/widgets/polaroid_poi_sheet.dart';
+import '../../utils/mapbox_style_url.dart';
 
 /// ===============================
 /// MarketMap Public Viewer (Mobile)
@@ -465,10 +466,8 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
     _cancelCircuitSubs();
 
     // Style URL par circuit
-    final styleUrl = (data['styleUrl'] as String?)?.trim();
-    final wantedStyle = (styleUrl != null && styleUrl.isNotEmpty)
-        ? styleUrl
-        : widget.defaultStyleUri;
+    final wantedStyle =
+        extractMapboxStyleUrlFromData(data) ?? widget.defaultStyleUri;
 
     if (_map != null &&
         wantedStyle != (_currentStyleUri ?? widget.defaultStyleUri)) {
@@ -497,7 +496,7 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
       _routeStyleProAnimTick = 0;
       _routeGeoJsonString =
           _buildRouteGeoJsonFromCircuitDoc(d) ?? _emptyFeatureCollection();
-        await _applyPerimeterConstraintFromCircuitDoc(d);
+      await _applyPerimeterConstraintFromCircuitDoc(d);
       await _applyRouteStyleFromCircuitDoc(d);
       await _applyBuildingsStyleFromCircuitDoc(d);
       _syncRouteStyleProTimer();
@@ -584,12 +583,10 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
                 website: (d['website'] ?? d['site'])?.toString(),
                 whatsapp: d['whatsapp']?.toString(),
                 email: d['email']?.toString(),
-                address:
-                    (d['address'] ?? d['adresse'] ?? d['locationLabel'])
-                        ?.toString(),
-                mapsUrl:
-                    (d['mapsUrl'] ?? d['googleMapsUrl'] ?? d['mapUrl'])
-                        ?.toString(),
+                address: (d['address'] ?? d['adresse'] ?? d['locationLabel'])
+                    ?.toString(),
+                mapsUrl: (d['mapsUrl'] ?? d['googleMapsUrl'] ?? d['mapUrl'])
+                    ?.toString(),
               ),
             );
 
@@ -641,17 +638,19 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
     }
 
     final perimeterMapCamera = data['perimeterMapCamera'];
-    final zoom = ((perimeterMapCamera is Map)
-            ? (perimeterMapCamera['initialZoom'] as num?)
-            : null)
-        ?.toDouble() ??
+    final zoom =
+        ((perimeterMapCamera is Map)
+                ? (perimeterMapCamera['initialZoom'] as num?)
+                : null)
+            ?.toDouble() ??
         (data['initialZoom'] as num?)?.toDouble() ??
         13.5;
 
-    final pitch = ((perimeterMapCamera is Map)
-            ? (perimeterMapCamera['pitchDegrees'] as num?)
-            : null)
-        ?.toDouble() ??
+    final pitch =
+        ((perimeterMapCamera is Map)
+                ? (perimeterMapCamera['pitchDegrees'] as num?)
+                : null)
+            ?.toDouble() ??
         45.0;
 
     if (lat != null && lng != null) {
@@ -692,17 +691,16 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
     final maxZoom = (cam is Map ? cam['maxZoom'] : null) as num?;
     try {
       await map.setBounds(
-        CameraBoundsOptions(
-          bounds: bounds,
-          maxZoom: maxZoom?.toDouble(),
-        ),
+        CameraBoundsOptions(bounds: bounds, maxZoom: maxZoom?.toDouble()),
       );
     } catch (_) {
       // ignore
     }
   }
 
-  List<Position> _parsePerimeterPointsFromCircuitDoc(Map<String, dynamic> data) {
+  List<Position> _parsePerimeterPointsFromCircuitDoc(
+    Map<String, dynamic> data,
+  ) {
     final raw = data['perimeter'];
     if (raw is! List) return const <Position>[];
 

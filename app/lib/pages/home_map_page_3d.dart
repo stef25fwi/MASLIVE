@@ -99,6 +99,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   // Fix universel rebuild + resize natif (iOS/Android/Web)
   int _mapTick = 0;
   bool _mapCanBeCreated = false;
+  String _currentStyleUri = kDefaultMapboxStyleUrl;
   ui.Size? _lastSize;
   Timer? _debounce;
 
@@ -456,6 +457,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         selection.country == null ||
         selection.event == null ||
         selection.circuit == null) {
+      await _applyHomeMapStyleUri(kDefaultMapboxStyleUrl);
       if (!mounted) return;
       setState(() {
         _marketPois = const <MarketPoi>[];
@@ -466,14 +468,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     }
 
     final circuit = selection.circuit!;
-    final styleUrl = normalizeMapboxStyleUrl(circuit.styleUrl);
-    if (styleUrl.isNotEmpty && _mapboxMap != null) {
-      try {
-        await _mapboxMap!.style.setStyleURI(styleUrl);
-      } catch (e) {
-        debugPrint('⚠️ Erreur chargement style circuit: $e');
-      }
-    }
+    final resolvedStyleUri = normalizeMapboxStyleUrl(circuit.styleUrl);
+    StartupTrace.log(
+      'MAPBOX_NATIVE',
+      'market circuit selected id=${circuit.id} rawStyle=${circuit.styleUrl} resolvedStyle=$resolvedStyleUri',
+    );
+    await _applyHomeMapStyleUri(resolvedStyleUri);
     // IMPORTANT: un changement de style supprime les sources/layers runtime
     await _ensureMarketPoiGeoJsonRuntime(forceRebuild: true);
 
@@ -498,6 +498,48 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           setState(() => _marketPois = pois);
           await _renderMarketPoiMarkers(); // GeoJSON update + visibility
         });
+  }
+
+  Future<void> _applyHomeMapStyleUri(String? rawStyleUrl) async {
+    final wantedStyleUri = normalizeMapboxStyleUrl(
+      rawStyleUrl,
+      fallback: kDefaultMapboxStyleUrl,
+    );
+    final styleChanged = _currentStyleUri != wantedStyleUri;
+
+    if (styleChanged) {
+      if (mounted) {
+        setState(() => _currentStyleUri = wantedStyleUri);
+      } else {
+        _currentStyleUri = wantedStyleUri;
+      }
+    }
+
+    final map = _mapboxMap;
+    if (!styleChanged || map == null) {
+      StartupTrace.log(
+        'MAPBOX_NATIVE',
+        'target home style uri=$wantedStyleUri mapReady=${map != null}',
+      );
+      return;
+    }
+
+    StartupTrace.log('MAPBOX_NATIVE', 'apply home style uri=$wantedStyleUri');
+    try {
+      await map.loadStyleURI(wantedStyleUri);
+    } catch (error) {
+      try {
+        await map.style.setStyleURI(wantedStyleUri);
+      } catch (fallbackError) {
+        debugPrint(
+          '⚠️ Erreur chargement style circuit ($wantedStyleUri): $fallbackError',
+        );
+        StartupTrace.log(
+          'MAPBOX_NATIVE',
+          'apply home style failed uri=$wantedStyleUri error=$fallbackError',
+        );
+      }
+    }
   }
 
   Future<void> _ensureCircuitRouteManager() async {
@@ -2303,6 +2345,11 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   }
 
   Future<void> _onStyleLoaded(StyleLoadedEventData data) async {
+    StartupTrace.log(
+      'MAPBOX_NATIVE',
+      '_onStyleLoaded activeHomeStyle=$_currentStyleUri',
+    );
+
     // Style reload => runtime layers/sources sont perdus
     _mmRouteRuntimeReady = false;
 
@@ -3277,7 +3324,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                             key: ValueKey(
                               'map_${size.width.toInt()}x${size.height.toInt()}_$_mapTick',
                             ),
-                            styleUri: 'mapbox://styles/mapbox/streets-v12',
+                            styleUri: _currentStyleUri,
                             cameraOptions: CameraOptions(
                               center: Point(
                                 coordinates: _userPos ?? _fallbackCenter,

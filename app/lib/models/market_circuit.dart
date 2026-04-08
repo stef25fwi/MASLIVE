@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../utils/mapbox_style_url.dart';
+
 class MarketCircuit {
   const MarketCircuit({
     required this.id,
@@ -94,6 +96,13 @@ class MarketCircuit {
       return const {'lat': 0.0, 'lng': 0.0};
     }
 
+    final current = map['current'];
+    final currentMap = current is Map<String, dynamic>
+        ? current
+        : current is Map
+        ? Map<String, dynamic>.from(current)
+        : null;
+
     return MarketCircuit(
       id: id,
       name: (map['name'] as String?) ?? '',
@@ -107,10 +116,12 @@ class MarketCircuit {
       center: parseCenter(map['center']),
       initialZoom: (map['initialZoom'] as num?)?.toDouble() ?? 14.0,
       bounds: map['bounds'] as Map<String, dynamic>?,
-      styleId: map['styleId'] as String?,
-      styleUrl: map['styleUrl'] as String?,
-        isVisible: (map['isVisible'] as bool?) ?? false,
-      wizardState: (map['wizardState'] as Map<String, dynamic>?) ??
+      styleId:
+          (map['styleId'] as String?) ?? (currentMap?['styleId'] as String?),
+      styleUrl: extractMapboxStyleUrlFromData(map),
+      isVisible: (map['isVisible'] as bool?) ?? false,
+      wizardState:
+          (map['wizardState'] as Map<String, dynamic>?) ??
           const <String, dynamic>{},
       createdAt: asDateTime(map['createdAt']),
       updatedAt: asDateTime(map['updatedAt']),
