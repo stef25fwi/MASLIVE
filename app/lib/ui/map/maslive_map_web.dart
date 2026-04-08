@@ -33,6 +33,7 @@ class MasLiveMapWeb extends StatefulWidget {
   final bool forceCompactAttribution;
   final bool showAttributionControl;
   final bool showMapboxLogo;
+  final bool prioritizeFirstFrame;
   final String controlsPosition;
   final ValueChanged<MapPoint>? onTap;
   final void Function(MasLiveMapController)? onMapReady;
@@ -54,6 +55,7 @@ class MasLiveMapWeb extends StatefulWidget {
     this.forceCompactAttribution = false,
     this.showAttributionControl = true,
     this.showMapboxLogo = true,
+    this.prioritizeFirstFrame = false,
     this.controlsPosition = 'top-right',
     this.onTap,
     this.onMapReady,
@@ -2246,6 +2248,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           forceCompactAttribution: widget.forceCompactAttribution,
           showAttributionControl: widget.showAttributionControl,
           showMapboxLogo: widget.showMapboxLogo,
+          prioritizeFirstFrame: widget.prioritizeFirstFrame,
           controlsPosition: widget.controlsPosition,
           onMapReady: _onMapReady,
           onTap: (lng, lat) {
@@ -2290,6 +2293,7 @@ class _MapboxWebViewCustom extends StatefulWidget {
   final bool forceCompactAttribution;
   final bool showAttributionControl;
   final bool showMapboxLogo;
+  final bool prioritizeFirstFrame;
   final String controlsPosition;
   final VoidCallback? onMapReady;
   final void Function(double lng, double lat)? onTap;
@@ -2309,6 +2313,7 @@ class _MapboxWebViewCustom extends StatefulWidget {
     this.forceCompactAttribution = false,
     this.showAttributionControl = true,
     this.showMapboxLogo = true,
+    this.prioritizeFirstFrame = false,
     this.controlsPosition = 'top-right',
     this.onMapReady,
     this.onTap,
@@ -2625,6 +2630,7 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
       'forceCompactAttribution': widget.forceCompactAttribution,
       'showAttributionControl': widget.showAttributionControl,
       'showMapboxLogo': widget.showMapboxLogo,
+      'prioritizeFirstFrame': widget.prioritizeFirstFrame,
       'controlsPosition': widget.controlsPosition,
       'accessToken': widget.accessToken,
     });

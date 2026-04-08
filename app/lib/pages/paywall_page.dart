@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:purchases_flutter/purchases_flutter.dart';
 
 import '../services/premium_service.dart';
 import '../ui/snack/top_snack_bar.dart';
@@ -13,7 +12,7 @@ class PaywallPage extends StatefulWidget {
 }
 
 class _PaywallPageState extends State<PaywallPage> {
-  Offerings? _offerings;
+  PremiumOfferings? _offerings;
   bool _loading = true;
   String? _error;
 
@@ -65,19 +64,21 @@ class _PaywallPageState extends State<PaywallPage> {
         foregroundColor: Colors.white,
         elevation: 0,
         title: const Text('Premium'),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              final nav = Navigator.of(context);
-              await premium.restorePurchases();
-              if (mounted) nav.pop();
-            },
-            child: const Text(
-              'Restaurer',
-              style: TextStyle(color: Colors.white70),
-            ),
-          ),
-        ],
+        actions: kIsWeb
+            ? const []
+            : [
+                TextButton(
+                  onPressed: () async {
+                    final nav = Navigator.of(context);
+                    await premium.restorePurchases();
+                    if (mounted) nav.pop();
+                  },
+                  child: const Text(
+                    'Restaurer',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ),
+              ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -175,8 +176,7 @@ class _PaywallPageState extends State<PaywallPage> {
       );
     }
 
-    final offering = _offerings?.current;
-    final packages = offering?.availablePackages ?? [];
+    final packages = _offerings?.availablePackages ?? const <PremiumPackage>[];
 
     return Padding(
       padding: const EdgeInsets.all(18),
@@ -203,9 +203,9 @@ class _PaywallPageState extends State<PaywallPage> {
               separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (_, i) {
                 final p = packages[i];
-                final price = p.storeProduct.priceString;
-                final title = p.storeProduct.title;
-                final desc = p.storeProduct.description;
+                final price = p.priceString;
+                final title = p.title;
+                final desc = p.description;
 
                 return _PackageTile(
                   title: title,

@@ -2,11 +2,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'dart:async';
 import 'dart:convert';
+
+import 'premium_service_models.dart';
+import 'premium_service_platform_interface.dart';
+import 'premium_service_platform_stub.dart'
+  if (dart.library.io) 'premium_service_platform_native.dart'
+  as premium_platform;
+
+export 'premium_service_models.dart';
 
 class PremiumService {
   PremiumService._();
@@ -17,6 +24,8 @@ class PremiumService {
   String _entitlementId = 'premium';
   bool _revenueCatConfigured = false;
   final ValueNotifier<bool> isPremium = ValueNotifier<bool>(false);
+  final PremiumServicePlatform _nativePlatform =
+    premium_platform.createPremiumServicePlatform();
 
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _webUserSub;
 
@@ -85,8 +94,7 @@ class PremiumService {
       return;
     }
 
-    await Purchases.setLogLevel(LogLevel.info);
-    await Purchases.configure(PurchasesConfiguration(revenueCatApiKey));
+    await _nativePlatform.configure(revenueCatApiKey);
     _revenueCatConfigured = true;
 
     // Sync user RevenueCat avec Firebase (si déjà loggué)
@@ -101,7 +109,7 @@ class PremiumService {
     FirebaseAuth.instance.authStateChanges().listen((u) async {
       if (u == null) {
         if (_revenueCatConfigured) {
-          await Purchases.logOut();
+          await _nativePlatform.logOut();
         }
         isPremium.value = false;
       } else {
@@ -112,31 +120,31 @@ class PremiumService {
 
   Future<void> logIn(String appUserId) async {
     _ensureRevenueCatAvailable();
-    await Purchases.logIn(appUserId);
+    await _nativePlatform.logIn(appUserId);
     await refresh();
   }
 
   Future<void> refresh() async {
     _ensureRevenueCatAvailable();
-    final info = await Purchases.getCustomerInfo();
-    final active = info.entitlements.active[_entitlementId] != null;
+    final active = await _nativePlatform.hasActiveEntitlement(_entitlementId);
     isPremium.value = active;
   }
 
-  Future<Offerings> getOfferings() {
+  Future<PremiumOfferings> getOfferings() {
     _ensureRevenueCatAvailable();
-    return Purchases.getOfferings();
+    return _nativePlatform.getOfferings();
   }
 
-  Future<void> purchasePackage(Package package) async {
+  Future<void> purchasePackage(PremiumPackage package) async {
     _ensureRevenueCatAvailable();
-    await Purchases.purchase(PurchaseParams.package(package));
+    await _nativePlatform.purchasePackage(package);
     await refresh();
   }
 
   Future<void> restorePurchases() async {
+    if (kIsWeb) return;
     _ensureRevenueCatAvailable();
-    await Purchases.restorePurchases();
+    await _nativePlatform.restorePurchases();
     await refresh();
   }
 

@@ -82,6 +82,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   bool _showOnboardingTooltip = false;
   bool _isResolvingMapboxToken = MapboxTokenService.getTokenSync().isEmpty;
   bool _didStartDeferredHomeInit = false;
+  bool _didStartPostSplashUiWarmups = false;
   String _currentLanguageFlag = '';
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
@@ -251,6 +252,24 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     });
   }
 
+  void _startPostSplashUiWarmups() {
+    if (_didStartPostSplashUiWarmups) return;
+    _didStartPostSplashUiWarmups = true;
+
+    Future<void>.delayed(const Duration(milliseconds: 700), () async {
+      if (!mounted) return;
+      unawaited(_autoOpenActionsMenuOnceIfNeeded());
+      try {
+        await precacheImage(
+          const AssetImage('assets/images/icon wc parking.png'),
+          context,
+        );
+      } catch (_) {
+        // Optionnel: ne jamais bloquer l'affichage initial.
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -291,17 +310,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       end: 1.0,
     ).animate(menuMotion);
 
-    // Ouvrir la barre verticale uniquement à la toute première ouverture.
-    unawaited(_autoOpenActionsMenuOnceIfNeeded());
     unawaited(_resolveStartupMapboxToken());
-
-    // Préchargement des icônes pour éviter les retards d'affichage
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      precacheImage(
-        const AssetImage('assets/images/icon wc parking.png'),
-        context,
-      );
-    });
   }
 
   Future<void> _autoOpenActionsMenuOnceIfNeeded() async {
@@ -1354,7 +1363,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
             const bottomActionSize = 60.0;
             const bottomActionIconSize = 26.0;
             const bottomBarHeight = 84.0;
-            const collapsedDockWidth = 84.0;
+            const collapsedDockWidth = 86.0;
             final expandedDockWidth = (size.width - 24)
                 .clamp(collapsedDockWidth, 304.0)
                 .toDouble();
@@ -1409,6 +1418,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                           forceCompactAttribution: true,
                           showAttributionControl: false,
                           showMapboxLogo: false,
+                          prioritizeFirstFrame: true,
                           onTap: (_) {
                             // Fermer la tooltip au premier clic
                             if (_showOnboardingTooltip) {
@@ -1419,6 +1429,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                             _isMasLiveMapReady = true;
                             _notifyMapReady();
                             _startDeferredHomeInit();
+                            _startPostSplashUiWarmups();
                             unawaited(_syncMarkersToMap());
                             unawaited(_applyCachedMarketRouteToMap());
                           },

@@ -160,16 +160,29 @@
     const controlsPosition = ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(requestedControlsPosition)
       ? requestedControlsPosition
       : 'top-right';
+    const prioritizeFirstFrame = !!(options && options.prioritizeFirstFrame === true);
     const manageAttributionManually = showAttributionControl && (forceCompactAttribution === true || compactAttribution === false);
     const attributionCompact = forceCompactAttribution === true ? true : compactAttribution;
+    const center = (options && Array.isArray(options.center) && options.center.length === 2)
+      ? options.center
+      : [-61.533, 16.241];
+    const zoom = (options && typeof options.zoom === 'number' && Number.isFinite(options.zoom))
+      ? options.zoom
+      : 13;
+    const pitch = (options && typeof options.pitch === 'number' && Number.isFinite(options.pitch))
+      ? options.pitch
+      : 45;
+    const bearing = (options && typeof options.bearing === 'number' && Number.isFinite(options.bearing))
+      ? options.bearing
+      : 0;
 
     const defaultOptions = {
       container: containerEl,
       style: style,
-      center: options.center || [-61.533, 16.241], // [lng, lat]
-      zoom: options.zoom || 13,
-      pitch: options.pitch || 45,
-      bearing: options.bearing || 0,
+      center: center, // [lng, lat]
+      zoom: zoom,
+      pitch: pitch,
+      bearing: bearing,
       antialias: true,
     };
 
@@ -220,62 +233,6 @@
       map.on('load', function() {
         console.log('✅ Mapbox GL JS map loaded');
 
-        // Ajouter les contrôles de navigation 3D
-        map.addControl(new mapboxgl.NavigationControl({
-          visualizePitch: true
-        }), controlsPosition);
-
-        // Attribution officielle conservée, avec mode compact forcé si demandé.
-        try {
-          if (showAttributionControl && manageAttributionManually) {
-            map.addControl(
-              new mapboxgl.AttributionControl({ compact: attributionCompact === true }),
-              'bottom-right'
-            );
-          }
-        } catch (_) {
-          // ignore
-        }
-
-        if (!showMapboxLogo || !showAttributionControl) {
-          hideBrandingControls();
-          setTimeout(hideBrandingControls, 0);
-          setTimeout(hideBrandingControls, 180);
-          setTimeout(hideBrandingControls, 600);
-        }
-
-        // Ajouter le contrôle de géolocalisation
-        const geolocate = new mapboxgl.GeolocateControl({
-          positionOptions: {
-            enableHighAccuracy: true
-          },
-          trackUserLocation: true,
-          showUserHeading: true
-        });
-        map.addControl(geolocate, controlsPosition);
-
-        // Activer les bâtiments 3D par défaut
-        if (options.enable3DBuildings !== false) {
-          add3DBuildings(map);
-        }
-
-        // IMPORTANT: un `map.setStyle(...)` supprime les layers custom.
-        // On ré-applique donc automatiquement les bâtiments 3D à chaque
-        // rechargement de style pour que les réglages (opacité/visibility)
-        // restent effectifs dans les écrans wizard/previews.
-        try {
-          map.on('style.load', () => {
-            if (options.enable3DBuildings !== false) {
-              add3DBuildings(map);
-            }
-          });
-        } catch (_) {
-          // ignore
-        }
-
-        // Callback vers Flutter si disponible.
-        // `load` suffit ici: on privilégie un affichage rapide de la home,
-        // quitte à laisser les tuiles se stabiliser après la disparition du splash.
         let didNotify = false;
         const notify = () => {
           if (didNotify) return;
@@ -286,6 +243,90 @@
             }
           } catch (_) {}
         };
+
+        const applyPostLoadEnhancements = () => {
+          // Ajouter les contrôles de navigation 3D
+          map.addControl(new mapboxgl.NavigationControl({
+            visualizePitch: true
+          }), controlsPosition);
+
+          // Attribution officielle conservée, avec mode compact forcé si demandé.
+          try {
+            if (showAttributionControl && manageAttributionManually) {
+              map.addControl(
+                new mapboxgl.AttributionControl({ compact: attributionCompact === true }),
+                'bottom-right'
+              );
+            }
+          } catch (_) {
+            // ignore
+          }
+
+          if (!showMapboxLogo || !showAttributionControl) {
+            hideBrandingControls();
+            setTimeout(hideBrandingControls, 0);
+            setTimeout(hideBrandingControls, 180);
+            setTimeout(hideBrandingControls, 600);
+          }
+
+          // Ajouter le contrôle de géolocalisation
+          const geolocate = new mapboxgl.GeolocateControl({
+            positionOptions: {
+              enableHighAccuracy: true
+            },
+            trackUserLocation: true,
+            showUserHeading: true
+          });
+          map.addControl(geolocate, controlsPosition);
+
+          // Activer les bâtiments 3D par défaut.
+          if (options.enable3DBuildings !== false) {
+            add3DBuildings(map);
+          }
+        };
+
+        // IMPORTANT: un `map.setStyle(...)` supprime les layers custom.
+        // On ré-applique donc automatiquement les bâtiments 3D à chaque
+        // rechargement de style pour que les réglages (opacité/visibility)
+        // restent effectifs dans les écrans wizard/previews.
+        try {
+          map.on('style.load', () => {
+            if (options.enable3DBuildings !== false) {
+              if (prioritizeFirstFrame) {
+                setTimeout(() => add3DBuildings(map), 120);
+              } else {
+                add3DBuildings(map);
+              }
+            }
+          });
+        } catch (_) {
+          // ignore
+        }
+
+        // En mode startup prioritaire, on laisse Flutter afficher la home dès que
+        // la map est chargée, puis on ajoute les décorations lourdes juste après.
+        if (prioritizeFirstFrame) {
+          notify();
+          const firstFrameDecorationDelayMs = 700;
+          const scheduleEnhancements = () => {
+            setTimeout(() => {
+              try {
+                applyPostLoadEnhancements();
+              } catch (_) {
+                // ignore
+              }
+            }, firstFrameDecorationDelayMs);
+          };
+
+          if (typeof window.requestAnimationFrame === 'function') {
+            window.requestAnimationFrame(() => scheduleEnhancements());
+          } else {
+            scheduleEnhancements();
+          }
+          return;
+        }
+
+        applyPostLoadEnhancements();
         notify();
       });
 

@@ -204,6 +204,8 @@ class _BootstrapRoot extends StatefulWidget {
 class _BootstrapRootState extends State<_BootstrapRoot> {
   final SessionController _session = SessionController();
   Future<void>? _backgroundBootstrap;
+  VoidCallback? _deferredWebBootstrapListener;
+  bool _didStartDeferredWebBootstrap = false;
 
   @override
   void initState() {
@@ -231,15 +233,27 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
     final firebaseReady = await _initializeFirebase();
 
     if (firebaseReady) {
-      _startFirebaseDependentServices();
+      _startImmediateFirebaseDependentServices();
+      if (kIsWeb) {
+        _scheduleDeferredWebBootstrap();
+      } else {
+        _startDeferredFirebaseDependentServices();
+      }
     }
 
-    await Future.wait<void>([
+    final startupTasks = <Future<void>>[
       _initializeStripe(),
       _warmMapboxToken(),
       _initializeLanguageService(),
-      _initializePremiumService(firebaseReady),
-    ]);
+      if (!kIsWeb) _initializePremiumService(firebaseReady),
+    ];
+
+    await Future.wait<void>(startupTasks);
+
+    if (kIsWeb && firebaseReady) {
+      StartupTrace.log('BOOT', 'background bootstrap core complete (web)');
+      return;
+    }
 
     StartupTrace.log('BOOT', 'background bootstrap complete');
   }
@@ -268,7 +282,7 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
     }
   }
 
-  void _startFirebaseDependentServices() {
+  void _startImmediateFirebaseDependentServices() {
     try {
       _session.start();
       StartupTrace.log('BOOT', 'SessionController started');
@@ -282,13 +296,55 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
     } catch (error) {
       debugPrint('⚠️ Bootstrap: CartService.start skipped: $error');
     }
+  }
 
+  void _startDeferredFirebaseDependentServices() {
     try {
       NotificationsService.instance.start(navigatorKey: _rootNavigatorKey);
       StartupTrace.log('BOOT', 'NotificationsService started');
     } catch (error) {
       debugPrint('⚠️ Bootstrap: NotificationsService.start skipped: $error');
     }
+  }
+
+  void _scheduleDeferredWebBootstrap() {
+    if (_didStartDeferredWebBootstrap) return;
+
+    void scheduleStart() {
+      if (_didStartDeferredWebBootstrap) return;
+      _didStartDeferredWebBootstrap = true;
+
+      final listener = _deferredWebBootstrapListener;
+      if (listener != null) {
+        mapReadyNotifier.removeListener(listener);
+        _deferredWebBootstrapListener = null;
+      }
+
+      Future<void>.delayed(const Duration(milliseconds: 650), () {
+        if (!mounted) return;
+        unawaited(_runDeferredWebBootstrap());
+      });
+    }
+
+    StartupTrace.log('BOOT', 'web post-splash bootstrap deferred');
+
+    if (mapReadyNotifier.value) {
+      scheduleStart();
+      return;
+    }
+
+    _deferredWebBootstrapListener = () {
+      if (!mapReadyNotifier.value) return;
+      scheduleStart();
+    };
+    mapReadyNotifier.addListener(_deferredWebBootstrapListener!);
+  }
+
+  Future<void> _runDeferredWebBootstrap() async {
+    StartupTrace.log('BOOT', 'web post-splash bootstrap start');
+    _startDeferredFirebaseDependentServices();
+    await _initializePremiumService(true);
+    StartupTrace.log('BOOT', 'web post-splash bootstrap complete');
   }
 
   Future<void> _initializeStripe() async {
@@ -377,6 +433,16 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
       StartupTrace.log('PREMIUM', 'PremiumService init failed: $error');
       debugPrint('⚠️ Bootstrap: PremiumService init skipped: $error');
     }
+  }
+
+  @override
+  void dispose() {
+    final listener = _deferredWebBootstrapListener;
+    if (listener != null) {
+      mapReadyNotifier.removeListener(listener);
+      _deferredWebBootstrapListener = null;
+    }
+    super.dispose();
   }
 
   @override
