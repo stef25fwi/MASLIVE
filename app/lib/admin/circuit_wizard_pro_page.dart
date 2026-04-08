@@ -35,6 +35,7 @@ import '../pages/home_vertical_nav.dart';
 import 'poi_bottom_popup.dart';
 import 'poi_edit_popup.dart';
 import '../features/wizard/presentation/sections/wizard_step2_map_style_section.dart';
+import '../services/image_optimization_service.dart';
 
 typedef LngLat = ({double lng, double lat});
 
@@ -7041,6 +7042,17 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     } on FirebaseException catch (e) {
       if (e.code == 'not-found') return;
       rethrow;
+    }
+
+    // Nettoyage Storage: si le POI avait une photo, supprimer le dossier.
+    if ((poi.imageUrl ?? '').trim().isNotEmpty) {
+      try {
+        final parentId = 'poi_${projectId}_$docId';
+        await ImageOptimizationService.instance
+            .deleteImageVariants('places/$parentId');
+      } catch (_) {
+        // Nettoyage best-effort: pas bloquant si Storage déjà vide.
+      }
     }
   }
 

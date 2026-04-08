@@ -9,6 +9,7 @@ import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'poi_edit_popup.dart';
 import '../models/market_circuit_models.dart';
 import '../services/circuit_repository.dart';
+import '../services/image_optimization_service.dart';
 import '../ui/map/maslive_map.dart';
 import '../ui/map/maslive_poi_style.dart';
 import '../ui/snack/top_snack_bar.dart';
@@ -773,11 +774,42 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
     await _persistPoiUpdate(updated);
   }
 
-  void _deletePoi(MarketMapPOI poi) {
+  Future<void> _deletePoi(MarketMapPOI poi) async {
     setState(() {
       _pois.removeWhere((p) => p.id == poi.id);
     });
     _refreshPoiMarkers();
+
+    // Suppression Firestore.
+    final docId = poi.id.trim().isEmpty
+        ? 'poi_${poi.layerType}_${poi.lng.toStringAsFixed(5)}_${poi.lat.toStringAsFixed(5)}'
+        : poi.id.trim();
+    try {
+      await FirebaseFirestore.instance
+          .collection('map_projects')
+          .doc(widget.projectId)
+          .collection('pois')
+          .doc(docId)
+          .delete();
+    } on FirebaseException catch (e) {
+      if (e.code != 'not-found' && mounted) {
+        TopSnackBar.show(
+          context,
+          SnackBar(content: Text('⚠️ POI retiré localement mais Firestore a refusé: $e')),
+        );
+      }
+    }
+
+    // Nettoyage Storage best-effort.
+    if ((poi.imageUrl ?? '').trim().isNotEmpty) {
+      try {
+        final parentId = 'poi_${widget.projectId}_$docId';
+        await ImageOptimizationService.instance
+            .deleteImageVariants('places/$parentId');
+      } catch (_) {
+        // Non bloquant.
+      }
+    }
   }
 
   Future<void> _addPoiAtCurrentCenter() async {
