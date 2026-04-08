@@ -1,16 +1,9 @@
-import 'dart:async';
 import 'dart:ui';
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import '../session/session_scope.dart';
 import 'auth/auth_action_runner.dart';
-import 'auth/google_sign_in_web_button_stub.dart'
-    if (dart.library.js_interop) 'auth/google_sign_in_web_button_web.dart'
-    as google_sign_in_web_button;
 import '../services/auth_service.dart';
-import '../services/premium_service.dart';
 import '../l10n/app_localizations.dart';
 import 'business_signup_page.dart';
 
@@ -29,10 +22,6 @@ class _LoginPageState extends State<LoginPage> {
   String? _error;
   bool _emailError = false;
   bool _passwordError = false;
-  bool _googleWebReady = false;
-  bool _googleWebLoading = false;
-  bool _handlingGoogleWebSignIn = false;
-  StreamSubscription<GoogleSignInAuthenticationEvent>? _googleAuthSub;
 
   bool get _supportsAppleSignInUi => AuthService.instance.supportsAppleSignInUi;
 
@@ -98,96 +87,8 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  Future<void> _prepareGoogleWeb() async {
-    if (!kIsWeb) return;
-
-    setState(() {
-      _googleWebLoading = true;
-      _googleWebReady = false;
-      _error = null;
-    });
-
-    try {
-      await AuthService.instance.ensureGoogleSignInInitialized();
-      await _googleAuthSub?.cancel();
-      _googleAuthSub = GoogleSignIn.instance.authenticationEvents.listen(
-        (event) async {
-          switch (event) {
-            case GoogleSignInAuthenticationEventSignIn():
-              await _completeGoogleWebSignIn(event.user);
-            case GoogleSignInAuthenticationEventSignOut():
-              break;
-          }
-        },
-        onError: (Object error) {
-          if (!mounted) return;
-          setState(() {
-            _error = error.toString();
-            _googleWebLoading = false;
-            _googleWebReady = true;
-          });
-        },
-      );
-
-      if (!mounted) return;
-      setState(() {
-        _googleWebLoading = false;
-        _googleWebReady = true;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _googleWebLoading = false;
-        _googleWebReady = false;
-      });
-    }
-  }
-
-  Future<void> _completeGoogleWebSignIn(GoogleSignInAccount googleUser) async {
-    if (_handlingGoogleWebSignIn) return;
-
-    setState(() {
-      _loading = true;
-      _error = null;
-      _handlingGoogleWebSignIn = true;
-    });
-
-    var navigated = false;
-    try {
-      await AuthService.instance.signInWithGoogleAccount(googleUser);
-      await _syncPremiumAfterLogin();
-
-      if (!mounted) return;
-      navigated = true;
-      Navigator.of(context).pushReplacementNamed('/account-ui');
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-      });
-    } finally {
-      if (mounted && !navigated) {
-        setState(() {
-          _loading = false;
-          _handlingGoogleWebSignIn = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _syncPremiumAfterLogin() async {
-    if (kIsWeb) return;
-
-    final uid = AuthService.instance.currentUser?.uid;
-    if (uid != null) {
-      await PremiumService.instance.logIn(uid);
-    }
-  }
-
   @override
   void dispose() {
-    _googleAuthSub?.cancel();
     _emailCtrl.dispose();
     _passCtrl.dispose();
     super.dispose();
@@ -207,10 +108,6 @@ class _LoginPageState extends State<LoginPage> {
         setState(() => _passwordError = false);
       }
     });
-
-    if (kIsWeb) {
-      unawaited(_prepareGoogleWeb());
-    }
   }
 
   @override
@@ -451,27 +348,17 @@ class _LoginPageState extends State<LoginPage> {
                                             ),
                                     ),
                                     const SizedBox(height: 12),
-                                    if (kIsWeb)
-                                      _GoogleWebButtonSlot(
-                                        isReady: _googleWebReady,
-                                        isLoading: _googleWebLoading,
-                                        isBusy:
-                                            _loading ||
-                                            _handlingGoogleWebSignIn,
-                                        onRetry: _prepareGoogleWeb,
-                                      )
-                                    else
-                                      _SocialButton(
-                                        label: AppLocalizations.of(
-                                          context,
-                                        )!.continueWithGoogle,
-                                        leading: const _GLogo(),
-                                        onPressed: _loading
-                                            ? () {}
-                                            : () => _runProvider(
-                                                AuthAction.google,
-                                              ),
-                                      ),
+                                    _SocialButton(
+                                      label: AppLocalizations.of(
+                                        context,
+                                      )!.continueWithGoogle,
+                                      leading: const _GLogo(),
+                                      onPressed: _loading
+                                          ? () {}
+                                          : () => _runProvider(
+                                              AuthAction.google,
+                                            ),
+                                    ),
                                     if (_supportsAppleSignInUi) ...[
                                       const SizedBox(height: 10),
                                       _SocialButton(
@@ -771,75 +658,6 @@ class _SocialButton extends StatelessWidget {
             const SizedBox(width: 10),
             Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GoogleWebButtonSlot extends StatelessWidget {
-  const _GoogleWebButtonSlot({
-    required this.isReady,
-    required this.isLoading,
-    required this.isBusy,
-    required this.onRetry,
-  });
-
-  final bool isReady;
-  final bool isLoading;
-  final bool isBusy;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    if (isLoading) {
-      return Container(
-        height: 52,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.white.withAlpha((0.70 * 255).round()),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: const Color(0x1A111827)),
-        ),
-        alignment: Alignment.center,
-        child: const SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(strokeWidth: 2.4),
-        ),
-      );
-    }
-
-    if (!isReady) {
-      return SizedBox(
-        width: double.infinity,
-        child: OutlinedButton(
-          onPressed: onRetry,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF111827),
-            side: const BorderSide(color: Color(0x1A111827)),
-            minimumSize: const Size.fromHeight(52),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(22),
-            ),
-          ),
-          child: const Text(
-            'Réessayer Google',
-            style: TextStyle(fontWeight: FontWeight.w700),
-          ),
-        ),
-      );
-    }
-
-    return IgnorePointer(
-      ignoring: isBusy,
-      child: Opacity(
-        opacity: isBusy ? 0.64 : 1,
-        child: SizedBox(
-          width: double.infinity,
-          child: Center(
-            child: google_sign_in_web_button.buildGoogleSignInButton(),
-          ),
         ),
       ),
     );

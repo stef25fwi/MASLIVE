@@ -283,14 +283,18 @@ class AuthService {
 
   Future<UserCredential> signInWithGoogle() async {
     try {
-      await ensureGoogleSignInInitialized();
-
       if (kIsWeb) {
-        throw const AuthException(
-          'Utilisez le bouton Google affiche dans la fenetre de connexion.',
-        );
+        final provider = GoogleAuthProvider()
+          ..addScope('email')
+          ..addScope('profile')
+          ..setCustomParameters({'prompt': 'select_account'});
+
+        final result = await _auth.signInWithPopup(provider);
+        await _syncSocialUserProfile(result.user);
+        return result;
       }
 
+      await ensureGoogleSignInInitialized();
       final googleUser = await GoogleSignIn.instance.authenticate();
       return _signInWithGoogleAccount(googleUser);
     } on GoogleSignInException catch (e) {
@@ -307,6 +311,12 @@ class AuthService {
   }
 
   Future<void> ensureGoogleSignInInitialized() {
+    if (kIsWeb) {
+      return _googleInitialization ??= GoogleSignIn.instance.initialize(
+        clientId: _resolvedGoogleClientId,
+      );
+    }
+
     return _googleInitialization ??= GoogleSignIn.instance.initialize(
       clientId: _resolvedGoogleClientId,
       serverClientId: _resolvedGoogleServerClientId,
@@ -470,8 +480,16 @@ class AuthService {
         return 'Ce compte existe déjà avec une autre méthode de connexion.';
       case 'invalid-credential':
         return 'Identifiants invalides. Réessayez.';
+      case 'popup-blocked':
+        return 'La fenêtre Google a été bloquée par le navigateur. Autorisez les popups puis réessayez.';
+      case 'popup-closed-by-user':
+        return 'Connexion Google annulée';
+      case 'cancelled-popup-request':
+        return 'Une tentative de connexion Google est déjà en cours.';
       case 'operation-not-allowed':
         return 'Méthode de connexion non activée côté Firebase.';
+      case 'unauthorized-domain':
+        return 'Ce domaine n\'est pas autorisé pour Google Sign-In dans Firebase.';
       case 'user-disabled':
         return 'Ce compte a été désactivé.';
       case 'user-not-found':
