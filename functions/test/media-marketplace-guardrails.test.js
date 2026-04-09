@@ -55,6 +55,36 @@ test("storex payment intents keep pinned Stripe version and order metadata", () 
   assert.match(mixedSection, /mediaOrderId: mediaOrder\.orderId/, "mixed cart payment intent metadata must keep media order id")
 })
 
+test("premium subscription checkout keeps backend allow-list and pending state", () => {
+  const indexSrc = readRepoFile("index.js")
+  const subscriptionSection = sliceBetween(
+    indexSrc,
+    "exports.createSubscriptionCheckoutSession = onRequest(",
+    "exports.createBusinessConnectOnboardingLink = onCall("
+  )
+
+  assert.match(subscriptionSection, /const allowedPriceIds = getAllowedPremiumPriceIds\(\)/, "premium checkout must validate price ids against the backend allow-list")
+  assert.match(subscriptionSection, /const missingEnvKeys = getMissingPremiumPriceIdEnvKeys\(\)/, "premium checkout must expose missing backend env keys when prices are not configured")
+  assert.match(subscriptionSection, /pendingCheckoutSessionId: session\.id/, "premium checkout must mark the pending Stripe session on the user profile")
+})
+
+test("premium subscription webhooks keep user premium state in sync", () => {
+  const indexSrc = readRepoFile("index.js")
+  const subscriptionUpdatedSection = sliceBetween(
+    indexSrc,
+    "async function handleCustomerSubscriptionUpdated(subscription) {",
+    "async function handleCustomerSubscriptionDeleted(subscription) {"
+  )
+  const invoicePaidSection = sliceBetween(
+    indexSrc,
+    "async function handleInvoicePaid(invoice) {",
+    "async function handleInvoicePaymentFailed(invoice) {"
+  )
+
+  assert.match(subscriptionUpdatedSection, /premium:\s*\{[\s\S]*status: isActive \? "active" : "inactive"/, "subscription updates must sync premium status")
+  assert.match(invoicePaidSection, /premium:\s*\{[\s\S]*status: "active"/, "invoice.paid must reactivate premium access")
+})
+
 test("payment intent fulfillment mirrors checkout finalization for storex orders", () => {
   const indexSrc = readRepoFile("index.js")
   const finalizeSection = sliceBetween(
@@ -74,6 +104,27 @@ test("payment intent fulfillment mirrors checkout finalization for storex orders
   assert.match(finalizeSection, /lastProcessedPaymentIntentId/, "successful payment must record the processed payment intent id for idempotency")
   assert.match(finalizeSection, /normalizedKind === "mixed_cart" \|\| normalizedKind === "mixed_cart_checkout"/, "successful payment must support both mixed cart confirmation paths")
   assert.match(paymentIntentSection, /await finalizeStorexOrderPayment\(/, "payment_intent.succeeded must reuse the shared Storex finalization path")
+})
+
+test("business connect onboarding resolves Stripe country instead of forcing France", () => {
+  const indexSrc = readRepoFile("index.js")
+  const connectSection = sliceBetween(
+    indexSrc,
+    "exports.createBusinessConnectOnboardingLink = onCall(",
+    "exports.refreshBusinessConnectStatus = onCall("
+  )
+
+  assert.match(connectSection, /const country = resolveStripeConnectCountry\(business\.country\)/, "connect onboarding must normalize the business country before Stripe account creation")
+  assert.match(connectSection, /Unsupported or missing business country for Stripe Connect/, "connect onboarding must reject missing or unsupported countries")
+  assert.match(connectSection, /accountCountry: country/, "connect onboarding must persist the resolved Stripe country")
+  assert.doesNotMatch(connectSection, /business\.country === "France" \? "FR" : "FR"/, "connect onboarding must not force every business to France")
+})
+
+test("functions env example documents premium Stripe price ids", () => {
+  const envExample = readRepoFile(".env.example")
+
+  assert.match(envExample, /STRIPE_PREMIUM_MONTHLY_PRICE_ID=price_\.\.\./, "functions env example must document the monthly premium price id")
+  assert.match(envExample, /STRIPE_PREMIUM_YEARLY_PRICE_ID=price_\.\.\./, "functions env example must document the yearly premium price id")
 })
 
 test("media checkout keeps unified cart items as single source of truth", () => {

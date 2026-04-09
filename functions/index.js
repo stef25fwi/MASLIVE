@@ -561,6 +561,48 @@ function getAllowedPremiumPriceIds() {
   );
 }
 
+function getMissingPremiumPriceIdEnvKeys() {
+  const envKeys = [
+    "STRIPE_PREMIUM_MONTHLY_PRICE_ID",
+    "STRIPE_PREMIUM_YEARLY_PRICE_ID",
+  ];
+
+  return envKeys.filter((envKey) => {
+    const value = process.env[envKey];
+    return !(typeof value === "string" && value.trim().length > 0);
+  });
+}
+
+function resolveStripeConnectCountry(rawCountry) {
+  const normalized = normalizeLowerString(rawCountry);
+  if (!normalized || normalized === "autre" || normalized === "other") {
+    return null;
+  }
+
+  const knownCountries = new Map([
+    ["fr", "FR"],
+    ["france", "FR"],
+    ["guadeloupe", "FR"],
+    ["martinique", "FR"],
+    ["guyane", "FR"],
+    ["guyane francaise", "FR"],
+    ["guyane française", "FR"],
+    ["reunion", "FR"],
+    ["réunion", "FR"],
+    ["mayotte", "FR"],
+  ]);
+
+  if (knownCountries.has(normalized)) {
+    return knownCountries.get(normalized);
+  }
+
+  if (/^[a-z]{2}$/.test(normalized)) {
+    return normalized.toUpperCase();
+  }
+
+  return null;
+}
+
 async function getUidFromAuthorizationHeader(req) {
   const h = req.headers.authorization || req.headers.Authorization;
   if (!h || typeof h !== "string") return null;
@@ -3031,9 +3073,11 @@ exports.createSubscriptionCheckoutSession = onRequest(
 
       const allowedPriceIds = getAllowedPremiumPriceIds();
       if (allowedPriceIds.size === 0) {
+        const missingEnvKeys = getMissingPremiumPriceIdEnvKeys();
         return res.status(500).json({
           error: "Premium price IDs are not configured",
           code: "PREMIUM_PRICES_NOT_CONFIGURED",
+          missingEnvKeys,
         });
       }
       if (!allowedPriceIds.has(priceId)) {
@@ -3143,7 +3187,13 @@ exports.createBusinessConnectOnboardingLink = onCall(
     // Crée le compte Stripe Express si absent
     if (!accountId) {
       const email = business.email || request.auth.token.email;
-      const country = business.country === "France" ? "FR" : "FR";
+      const country = resolveStripeConnectCountry(business.country);
+      if (!country) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Unsupported or missing business country for Stripe Connect"
+        );
+      }
       const companyName = business.companyName || undefined;
 
       const account = await stripeClient.accounts.create({
@@ -3169,6 +3219,7 @@ exports.createBusinessConnectOnboardingLink = onCall(
         {
           stripe: {
             accountId,
+            accountCountry: country,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           },
