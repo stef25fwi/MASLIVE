@@ -3396,6 +3396,188 @@ exports.stripeWebhook = onRequest(
 );
 
 /**
+ * Finalise une commande Storex/mixte après confirmation Stripe
+ * et applique les mêmes effets métier pour Checkout Session et PaymentIntent.
+ */
+async function finalizeStorexOrderPayment({
+  uid,
+  orderId,
+  kind,
+  mediaOrderId,
+  stripeSessionId,
+  paymentIntentId,
+  stripeCustomerId,
+  checkoutEventId,
+  stripeStatus,
+}) {
+  const normalizedUid = looksLikeNonEmptyString(uid) ? uid.trim() : "";
+  const normalizedOrderId = looksLikeNonEmptyString(orderId) ? orderId.trim() : "";
+  if (!normalizedUid || !normalizedOrderId) {
+    return false;
+  }
+
+  const normalizedKind = normalizeLowerString(kind);
+  const normalizedMediaOrderId = looksLikeNonEmptyString(mediaOrderId)
+    ? mediaOrderId.trim()
+    : null;
+  const normalizedStripeSessionId = looksLikeNonEmptyString(stripeSessionId)
+    ? stripeSessionId.trim()
+    : null;
+  const normalizedPaymentIntentId = looksLikeNonEmptyString(paymentIntentId)
+    ? paymentIntentId.trim()
+    : null;
+  const normalizedStripeCustomerId = looksLikeNonEmptyString(stripeCustomerId)
+    ? stripeCustomerId.trim()
+    : null;
+  const normalizedCheckoutEventId = looksLikeNonEmptyString(checkoutEventId)
+    ? checkoutEventId.trim()
+    : null;
+  const normalizedStripeStatus = looksLikeNonEmptyString(stripeStatus)
+    ? stripeStatus.trim()
+    : "succeeded";
+
+  const rootOrderRef = db.collection("orders").doc(normalizedOrderId);
+  const rootSnap = await rootOrderRef.get();
+  if (!rootSnap.exists) {
+    return false;
+  }
+
+  const userOrderRef = db
+    .collection("users")
+    .doc(normalizedUid)
+    .collection("orders")
+    .doc(normalizedOrderId);
+
+  let rootOrder = rootSnap.data() || {};
+  let userOrder = null;
+  let shouldProcessRootOrder = false;
+
+  await db.runTransaction(async (transaction) => {
+    const freshRootSnap = await transaction.get(rootOrderRef);
+    if (!freshRootSnap.exists) {
+      return;
+    }
+
+    const freshUserOrderSnap = await transaction.get(userOrderRef);
+    const freshOrder = freshRootSnap.data() || {};
+    const status = String(freshOrder.status || "").toLowerCase();
+    const stripeData =
+      freshOrder.stripe && typeof freshOrder.stripe === "object"
+        ? freshOrder.stripe
+        : {};
+    const alreadyProcessedSession =
+      typeof stripeData.sessionId === "string" &&
+      stripeData.sessionId === normalizedStripeSessionId;
+    const alreadyProcessedEvent =
+      typeof stripeData.lastProcessedCheckoutEventId === "string" &&
+      stripeData.lastProcessedCheckoutEventId === normalizedCheckoutEventId;
+    const alreadyProcessedPaymentIntent =
+      typeof stripeData.lastProcessedPaymentIntentId === "string" &&
+      stripeData.lastProcessedPaymentIntentId === normalizedPaymentIntentId;
+    const alreadyPaid = status === "paid" || status === "confirmed";
+
+    if (
+      !(
+        alreadyProcessedEvent ||
+        alreadyProcessedPaymentIntent ||
+        (alreadyPaid && (alreadyProcessedSession || alreadyProcessedPaymentIntent))
+      )
+    ) {
+      shouldProcessRootOrder = true;
+    } else {
+      console.log(
+        `Root order ${normalizedOrderId} already finalized for Stripe confirmation`
+      );
+    }
+
+    rootOrder = freshOrder;
+    userOrder = freshUserOrderSnap.exists ? (freshUserOrderSnap.data() || {}) : null;
+
+    transaction.set(
+      rootOrderRef,
+      {
+        status: "paid",
+        paidAt: admin.firestore.FieldValue.serverTimestamp(),
+        stripe: {
+          sessionId: normalizedStripeSessionId || stripeData.sessionId || null,
+          paymentIntentId:
+            normalizedPaymentIntentId || stripeData.paymentIntentId || null,
+          customerId: normalizedStripeCustomerId || stripeData.customerId || null,
+          lastProcessedCheckoutEventId:
+            normalizedCheckoutEventId || stripeData.lastProcessedCheckoutEventId || null,
+          lastProcessedPaymentIntentId:
+            normalizedPaymentIntentId || stripeData.lastProcessedPaymentIntentId || null,
+          kind: normalizedKind || stripeData.kind || null,
+          mediaOrderId: normalizedMediaOrderId || stripeData.mediaOrderId || null,
+          status: normalizedStripeStatus,
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    transaction.set(
+      userOrderRef,
+      {
+        status: "paid",
+        paidAt: admin.firestore.FieldValue.serverTimestamp(),
+        stripe: {
+          sessionId: normalizedStripeSessionId || null,
+          paymentIntentId: normalizedPaymentIntentId || null,
+          customerId: normalizedStripeCustomerId || null,
+          kind: normalizedKind || null,
+          mediaOrderId: normalizedMediaOrderId,
+          status: normalizedStripeStatus,
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
+
+  await db
+    .collection("users")
+    .doc(normalizedUid)
+    .collection("purchases")
+    .doc(normalizedOrderId)
+    .set(
+      {
+        orderId: normalizedOrderId,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+  await clearStorexCartItems(normalizedUid, userOrder?.items || []);
+
+  if (
+    (normalizedKind === "mixed_cart" || normalizedKind === "mixed_cart_checkout") &&
+    normalizedMediaOrderId
+  ) {
+    await mediaMarketplaceStripe.fulfillMarketplaceOrderFromPaymentIntent({
+      orderId: normalizedMediaOrderId,
+      buyerUid: normalizedUid,
+      paymentIntentId: normalizedPaymentIntentId,
+      stripeCustomerId: normalizedStripeCustomerId,
+    });
+  }
+
+  if (shouldProcessRootOrder) {
+    try {
+      await decrementStorexStockForRootOrder(rootOrder);
+    } catch (stockErr) {
+      console.error(
+        `Failed to decrement stock for root order ${normalizedOrderId}:`,
+        stockErr
+      );
+    }
+  }
+
+  console.log(`Root order ${normalizedOrderId} marked as paid`);
+  return true;
+}
+
+/**
  * Traite l'événement checkout.session.completed
  * Commande payée via le Media Shop
  */
@@ -3429,123 +3611,19 @@ async function handleCheckoutSessionCompleted(session, eventId) {
     return;
   }
 
-  // 1) Essaye d'abord /orders/{orderId}
-  const rootOrderRef = db.collection("orders").doc(orderId);
-  const rootSnap = await rootOrderRef.get();
-  if (rootSnap.exists) {
-    let rootOrder = rootSnap.data() || {};
-    let userOrder = null;
-    let shouldProcessRootOrder = false;
-    const userOrderRef = uid && typeof uid === "string"
-      ? db.collection("users").doc(uid).collection("orders").doc(orderId)
-      : null;
-
-    await db.runTransaction(async (transaction) => {
-      const freshSnap = await transaction.get(rootOrderRef);
-      if (!freshSnap.exists) {
-        return;
-      }
-
-      const freshOrder = freshSnap.data() || {};
-      const status = String(freshOrder.status || "").toLowerCase();
-      const stripeData =
-        freshOrder.stripe && typeof freshOrder.stripe === "object"
-          ? freshOrder.stripe
-          : {};
-      const alreadyProcessedSession =
-        typeof stripeData.sessionId === "string" && stripeData.sessionId === session.id;
-      const alreadyProcessedEvent =
-        typeof stripeData.lastProcessedCheckoutEventId === "string"
-        && typeof eventId === "string"
-        && stripeData.lastProcessedCheckoutEventId === eventId;
-
-      if (!(alreadyProcessedEvent || (status === "paid" && alreadyProcessedSession))) {
-        shouldProcessRootOrder = true;
-      } else {
-        console.log(`Root order ${orderId} already processed for session ${session.id}`);
-      }
-
-      rootOrder = freshOrder;
-      if (userOrderRef) {
-        const freshUserOrderSnap = await transaction.get(userOrderRef);
-        userOrder = freshUserOrderSnap.exists ? (freshUserOrderSnap.data() || {}) : null;
-      }
-
-      transaction.set(
-        rootOrderRef,
-        {
-          status: "paid",
-          paidAt: admin.firestore.FieldValue.serverTimestamp(),
-          stripe: {
-            sessionId: session.id,
-            paymentIntentId: session.payment_intent || null,
-            lastProcessedCheckoutEventId: typeof eventId === "string" ? eventId : null,
-            kind: kind || null,
-          },
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
-
-      if (userOrderRef) {
-        transaction.set(
-          userOrderRef,
-          {
-            status: "paid",
-            paidAt: admin.firestore.FieldValue.serverTimestamp(),
-            stripe: {
-              sessionId: session.id,
-              paymentIntentId: session.payment_intent || null,
-              kind: kind || null,
-              mediaOrderId: typeof mediaOrderId === "string" ? mediaOrderId : null,
-            },
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          { merge: true }
-        );
-      }
-    });
-
-    if (uid && typeof uid === "string") {
-      await db
-        .collection("users")
-        .doc(uid)
-        .collection("purchases")
-        .doc(orderId)
-        .set(
-          {
-            orderId,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          { merge: true }
-        );
-
-      await clearStorexCartItems(uid, userOrder?.items || []);
-    }
-
-    if (
-      kind === "mixed_cart_checkout" &&
-      uid &&
-      typeof mediaOrderId === "string" &&
-      mediaOrderId.trim().length > 0
-    ) {
-      await mediaMarketplaceStripe.fulfillMarketplaceOrderFromPaymentIntent({
-        orderId: mediaOrderId.trim(),
-        buyerUid: uid,
-        paymentIntentId: session.payment_intent || null,
-        stripeCustomerId: session.customer || null,
-      });
-    }
-
-    if (shouldProcessRootOrder) {
-      try {
-        await decrementStorexStockForRootOrder(rootOrder);
-      } catch (stockErr) {
-        console.error(`Failed to decrement stock for root order ${orderId}:`, stockErr);
-      }
-    }
-
-    console.log(`Root order ${orderId} marked as paid`);
+  if (
+    await finalizeStorexOrderPayment({
+      uid,
+      orderId,
+      kind,
+      mediaOrderId,
+      stripeSessionId: session.id,
+      paymentIntentId: session.payment_intent || null,
+      stripeCustomerId: session.customer || null,
+      checkoutEventId: eventId,
+      stripeStatus: session.payment_status || "paid",
+    })
+  ) {
     return;
   }
 
@@ -3838,50 +3916,23 @@ async function handlePaymentIntentSucceeded(paymentIntent) {
     return;
   }
 
-  const orderRef = db
-    .collection("users")
-    .doc(uid)
-    .collection("orders")
-    .doc(orderId);
-
-  await orderRef.set(
-    {
-      status: "confirmed",
-      paidAt: admin.firestore.FieldValue.serverTimestamp(),
-      stripe: {
-        paymentIntentId: paymentIntent.id,
-        status: paymentIntent.status || "succeeded",
-      },
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    },
-    { merge: true }
-  );
-
-  // Miroir root order (si présent)
-  const rootOrderRef = db.collection("orders").doc(orderId);
-  await rootOrderRef.set(
-    {
-      status: "confirmed",
-      paidAt: admin.firestore.FieldValue.serverTimestamp(),
-      stripe: {
-        paymentIntentId: paymentIntent.id,
-        status: paymentIntent.status || "succeeded",
-      },
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    },
-    { merge: true }
-  );
-
-  if (kind === "mixed_cart" && typeof mediaOrderId === "string" && mediaOrderId.trim().length > 0) {
-    await mediaMarketplaceStripe.fulfillMarketplaceOrderFromPaymentIntent({
-      orderId: mediaOrderId.trim(),
-      buyerUid: uid,
+  if (
+    !(await finalizeStorexOrderPayment({
+      uid,
+      orderId,
+      kind,
+      mediaOrderId,
       paymentIntentId: paymentIntent.id,
       stripeCustomerId: paymentIntent.customer || null,
+      stripeStatus: paymentIntent.status || "succeeded",
+    }))
+  ) {
+    console.warn("PaymentIntent succeeded but no root order was found", {
+      uid,
+      orderId,
+      paymentIntentId: paymentIntent.id,
     });
   }
-
-  console.log(`Order ${orderId} marked as paid via payment_intent.succeeded`);
 }
 
 /**

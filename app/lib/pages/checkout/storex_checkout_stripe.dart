@@ -536,7 +536,7 @@ class _StorexPaymentPageState extends State<StorexPaymentPage> {
       await Stripe.instance.presentPaymentSheet();
 
       // 5) Clear cart (local + Firestore sync)
-      CartService.instance.clear();
+      await CartService.instance.clearCart();
 
       if (!mounted) return;
       Navigator.of(context).pushNamedAndRemoveUntil(

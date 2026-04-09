@@ -34,6 +34,48 @@ test("storex checkout keeps unified merch cart as single source of truth", () =>
   assert.doesNotMatch(indexSrc, /legacy_cart/, "storex checkout metadata must not record a legacy cart source")
 })
 
+test("storex payment intents keep pinned Stripe version and order metadata", () => {
+  const indexSrc = readRepoFile("index.js")
+  const storexSection = sliceBetween(
+    indexSrc,
+    "exports.createStorexPaymentIntent = onCall(",
+    "exports.createStorexCheckoutSession = onCall("
+  )
+  const mixedSection = sliceBetween(
+    indexSrc,
+    "exports.createMixedCartPaymentIntent = onCall(",
+    "exports.createMixedCartCheckoutSession = onCall("
+  )
+
+  assert.match(storexSection, /const stripeClient = getStripeV20240620\(\)/, "storex payment intent must use the pinned Stripe API client")
+  assert.match(storexSection, /metadata: \{ uid, orderId: storeOrder\.orderId \}/, "storex payment intent metadata must keep uid and orderId")
+  assert.match(mixedSection, /const stripeClient = getStripeV20240620\(\)/, "mixed cart payment intent must use the pinned Stripe API client")
+  assert.match(mixedSection, /kind: "mixed_cart"/, "mixed cart payment intent metadata must identify the mixed cart kind")
+  assert.match(mixedSection, /storeOrderId: storeOrder\.orderId/, "mixed cart payment intent metadata must keep store order id")
+  assert.match(mixedSection, /mediaOrderId: mediaOrder\.orderId/, "mixed cart payment intent metadata must keep media order id")
+})
+
+test("payment intent fulfillment mirrors checkout finalization for storex orders", () => {
+  const indexSrc = readRepoFile("index.js")
+  const finalizeSection = sliceBetween(
+    indexSrc,
+    "async function finalizeStorexOrderPayment({",
+    "async function handleCheckoutSessionCompleted(session, eventId) {"
+  )
+  const paymentIntentSection = sliceBetween(
+    indexSrc,
+    "async function handlePaymentIntentSucceeded(paymentIntent) {",
+    "async function handleAccountUpdated(account) {"
+  )
+
+  assert.match(finalizeSection, /collection\("users"\)\s*\.doc\(normalizedUid\)\s*\.collection\("purchases"\)/, "successful payment must create a purchase record")
+  assert.match(finalizeSection, /await clearStorexCartItems\(normalizedUid, userOrder\?\.items \|\| \[\]\)/, "successful payment must clear the unified merch cart on the server")
+  assert.match(finalizeSection, /await decrementStorexStockForRootOrder\(rootOrder\)/, "successful payment must decrement Storex stock")
+  assert.match(finalizeSection, /lastProcessedPaymentIntentId/, "successful payment must record the processed payment intent id for idempotency")
+  assert.match(finalizeSection, /normalizedKind === "mixed_cart" \|\| normalizedKind === "mixed_cart_checkout"/, "successful payment must support both mixed cart confirmation paths")
+  assert.match(paymentIntentSection, /await finalizeStorexOrderPayment\(/, "payment_intent.succeeded must reuse the shared Storex finalization path")
+})
+
 test("media checkout keeps unified cart items as single source of truth", () => {
   const stripeSrc = readRepoFile("src/media-marketplace-stripe.js")
 
