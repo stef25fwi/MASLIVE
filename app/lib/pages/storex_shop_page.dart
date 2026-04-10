@@ -12,8 +12,8 @@ import '../services/cart_service.dart';
 import '../shop/widgets/shop_drawer.dart';
 import '../widgets/language_switcher.dart';
 import '../l10n/app_localizations.dart' as l10n;
+import 'home_vertical_nav.dart';
 import '../ui/snack/top_snack_bar.dart';
-import '../ui/widgets/maslive_standard_bottom_bar.dart';
 
 /// ===============================================================
 /// Storex-style Shop for MassLive (Firestore: products + categories)
@@ -66,6 +66,61 @@ class _ShopUi {
 class _StorexShopPageState extends State<StorexShopPage> {
   int tab = 0;
 
+  List<HomeVerticalNavItem> _buildShopNavItems(int cartCount) {
+    return [
+      HomeVerticalNavItem(
+        label: '',
+        icon: Icons.storefront_outlined,
+        selected: tab == 0,
+        onTap: () => setState(() => tab = 0),
+      ),
+      HomeVerticalNavItem(
+        label: '',
+        icon: Icons.grid_view_outlined,
+        selected: tab == 1,
+        onTap: () => setState(() => tab = 1),
+      ),
+      HomeVerticalNavItem(
+        label: '',
+        iconWidget: _StorexNavBadgeIcon(
+          icon: tab == 2 ? Icons.shopping_bag : Icons.shopping_bag_outlined,
+          badgeCount: cartCount,
+          selected: tab == 2,
+        ),
+        selected: tab == 2,
+        showBorder: false,
+        onTap: () => setState(() => tab = 2),
+      ),
+      HomeVerticalNavItem(
+        label: '',
+        icon: tab == 3 ? Icons.person : Icons.person_outline,
+        selected: tab == 3,
+        onTap: () => setState(() => tab = 3),
+      ),
+    ];
+  }
+
+  Widget _buildShopVerticalNav(int cartCount) {
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: HomeVerticalNavMenu(
+            items: _buildShopNavItems(cartCount),
+            margin: EdgeInsets.zero,
+            horizontalPadding: 6,
+            verticalPadding: 10,
+            backgroundAlpha: 0.82,
+            blurSigma: 14,
+            borderColor: const Color(0x1F0F172A),
+            boxShadow: _shopNavShadow,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -86,37 +141,114 @@ class _StorexShopPageState extends State<StorexShopPage> {
       style: const TextStyle(fontWeight: FontWeight.w600),
       child: Scaffold(
         backgroundColor: _ShopUi.pageBg,
-        body: pages[tab],
-        bottomNavigationBar: SafeArea(
-          top: false,
-          child: MasliveStandardBottomBar(
-            selectedIndex: tab,
-            items: [
-              MasliveStandardBottomBarItem(
-                icon: Icons.storefront_outlined,
-                activeIcon: Icons.storefront,
-                onTap: () => setState(() => tab = 0),
-              ),
-              MasliveStandardBottomBarItem(
-                icon: Icons.grid_view_outlined,
-                activeIcon: Icons.grid_view,
-                onTap: () => setState(() => tab = 1),
-              ),
-              MasliveStandardBottomBarItem(
-                icon: Icons.shopping_bag_outlined,
-                activeIcon: Icons.shopping_bag,
-                badgeCount: cartCount,
-                onTap: () => setState(() => tab = 2),
-              ),
-              MasliveStandardBottomBarItem(
-                icon: Icons.person_outline,
-                activeIcon: Icons.person,
-                onTap: () => setState(() => tab = 3),
-              ),
-            ],
-          ),
+        body: Stack(
+          children: [
+            pages[tab],
+            _buildShopVerticalNav(cartCount),
+          ],
         ),
       ),
+    );
+  }
+}
+
+class _StorexBrandTitle extends StatelessWidget {
+  const _StorexBrandTitle({required this.subtitle});
+
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: RichText(
+        textAlign: TextAlign.center,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        text: TextSpan(
+          children: <InlineSpan>[
+            const TextSpan(
+              text: "MAS'LIVE ",
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.9,
+                color: _ShopUi.textMain,
+                height: 1,
+              ),
+            ),
+            TextSpan(
+              text: subtitle,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.4,
+                color: _ShopUi.textMuted,
+                height: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+const List<BoxShadow> _shopNavShadow = <BoxShadow>[
+  BoxShadow(
+    color: Color(0x26000000),
+    blurRadius: 24,
+    offset: Offset(0, 14),
+  ),
+];
+
+class _StorexNavBadgeIcon extends StatelessWidget {
+  const _StorexNavBadgeIcon({
+    required this.icon,
+    required this.badgeCount,
+    required this.selected,
+  });
+
+  final IconData icon;
+  final int badgeCount;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final badgeValue = badgeCount > 99 ? '99+' : '$badgeCount';
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Icon(
+          icon,
+          size: 30,
+          color: selected ? Colors.white : _ShopUi.textMain,
+        ),
+        if (badgeCount > 0)
+          Positioned(
+            right: -7,
+            top: -7,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              decoration: BoxDecoration(
+                color: selected ? Colors.white : const Color(0xFFFF4D8D),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                badgeValue,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  color: selected ? const Color(0xFFFF4D8D) : Colors.white,
+                  height: 1,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -303,35 +435,7 @@ class _StorexHome extends StatelessWidget {
           ),
         ),
         centerTitle: true,
-        title: const Padding(
-          padding: EdgeInsets.only(top: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                "MAS'LIVE",
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.9,
-                  color: _ShopUi.textMain,
-                  height: 1,
-                ),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'LA BOUTIQUE',
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 2.2,
-                  color: _ShopUi.textMuted,
-                  height: 1,
-                ),
-              ),
-            ],
-          ),
-        ),
+        title: const _StorexBrandTitle(subtitle: 'LA BOUTIQUE'),
         actions: [
           IconButton(
             icon: const Icon(Icons.search, color: _ShopUi.textMain),
@@ -860,16 +964,10 @@ class _StorexCategory extends StatelessWidget {
           ),
         ),
         elevation: 0,
+        toolbarHeight: 88,
         centerTitle: true,
         iconTheme: const IconThemeData(color: _ShopUi.textMain),
-        title: Text(
-          l10n.AppLocalizations.of(context)!.categories,
-          style: const TextStyle(
-            color: _ShopUi.textMain,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.6,
-          ),
-        ),
+        title: const _StorexBrandTitle(subtitle: 'CATEGORIES'),
         actions: [
           LanguageSwitcher(textColor: _ShopUi.textMain),
           IconButton(
@@ -1053,19 +1151,14 @@ class _ListPageState extends State<_ListPage> {
           ),
         ),
         elevation: 0,
+        toolbarHeight: 88,
         iconTheme: const IconThemeData(color: _ShopUi.textMain),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
         centerTitle: true,
-        title: Text(
-          widget.title.toUpperCase(),
-          style: const TextStyle(
-            color: _ShopUi.textMain,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+        title: _StorexBrandTitle(subtitle: widget.title.toUpperCase()),
         actions: [
           IconButton(
             icon: Icon(grid ? Icons.view_list : Icons.grid_view),
@@ -1310,6 +1403,7 @@ class _StorexAccount extends StatelessWidget {
           ),
         ),
         elevation: 0,
+        toolbarHeight: 88,
         iconTheme: const IconThemeData(color: _ShopUi.textMain),
         leading: Builder(
           builder: (ctx) => IconButton(
@@ -1317,6 +1411,8 @@ class _StorexAccount extends StatelessWidget {
             onPressed: () => Scaffold.of(ctx).openDrawer(),
           ),
         ),
+        centerTitle: true,
+        title: const _StorexBrandTitle(subtitle: 'MON COMPTE'),
         actions: [
           LanguageSwitcher(textColor: _ShopUi.textMain),
           const SizedBox(width: 8),
@@ -1462,19 +1558,14 @@ class _WishlistPage extends StatelessWidget {
             ),
           ),
           elevation: 0,
+          toolbarHeight: 88,
           iconTheme: const IconThemeData(color: _ShopUi.textMain),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () => Navigator.of(context).pop(),
           ),
           centerTitle: true,
-          title: Text(
-            l10n.AppLocalizations.of(context)!.myFavorites,
-            style: const TextStyle(
-              color: _ShopUi.textMain,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          title: const _StorexBrandTitle(subtitle: 'MES FAVORIS'),
         ),
         body: Center(
           child: Padding(
@@ -1517,19 +1608,14 @@ class _WishlistPage extends StatelessWidget {
           ),
         ),
         elevation: 0,
+        toolbarHeight: 88,
         iconTheme: const IconThemeData(color: _ShopUi.textMain),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
         centerTitle: true,
-        title: Text(
-          l10n.AppLocalizations.of(context)!.myFavorites,
-          style: const TextStyle(
-            color: _ShopUi.textMain,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
+        title: const _StorexBrandTitle(subtitle: 'MES FAVORIS'),
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: repo.wishlistItems(),
@@ -1708,19 +1794,14 @@ class _OrdersPage extends StatelessWidget {
             ),
           ),
           elevation: 0,
+          toolbarHeight: 88,
           iconTheme: const IconThemeData(color: _ShopUi.textMain),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () => Navigator.of(context).pop(),
           ),
           centerTitle: true,
-          title: Text(
-            l10n.AppLocalizations.of(context)!.myOrders,
-            style: const TextStyle(
-              color: _ShopUi.textMain,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          title: const _StorexBrandTitle(subtitle: 'MES COMMANDES'),
         ),
         body: Center(
           child: Padding(
@@ -1763,19 +1844,14 @@ class _OrdersPage extends StatelessWidget {
           ),
         ),
         elevation: 0,
+        toolbarHeight: 88,
         iconTheme: const IconThemeData(color: _ShopUi.textMain),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
         centerTitle: true,
-        title: Text(
-          l10n.AppLocalizations.of(context)!.myOrders,
-          style: const TextStyle(
-            color: _ShopUi.textMain,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
+        title: const _StorexBrandTitle(subtitle: 'MES COMMANDES'),
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: repo.orders(),

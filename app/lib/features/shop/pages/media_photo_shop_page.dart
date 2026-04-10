@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../media_marketplace/data/repositories/photographer_repository.dart';
+import '../../../pages/home_vertical_nav.dart';
 import '../../../widgets/cart/cart_icon_badge.dart';
 import '../../../ui/theme/maslive_theme.dart';
 import '../../../utils/country_flag.dart';
@@ -171,6 +172,56 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
     Navigator.pushNamed(context, '/account');
   }
 
+  List<HomeVerticalNavItem> _buildShopNavItems() {
+    return [
+      HomeVerticalNavItem(
+        label: '',
+        icon: Icons.home_outlined,
+        selected: false,
+        onTap: _goHome,
+      ),
+      HomeVerticalNavItem(
+        label: '',
+        icon: Icons.photo_camera,
+        selected: true,
+        onTap: () {},
+      ),
+      HomeVerticalNavItem(
+        label: '',
+        icon: Icons.arrow_downward_rounded,
+        selected: false,
+        onTap: () => _openMarketplace(initialTab: 'downloads'),
+      ),
+      HomeVerticalNavItem(
+        label: '',
+        icon: Icons.person_outline,
+        selected: false,
+        onTap: _goAccount,
+      ),
+    ];
+  }
+
+  Widget _buildShopVerticalNav() {
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: HomeVerticalNavMenu(
+            items: _buildShopNavItems(),
+            margin: EdgeInsets.zero,
+            horizontalPadding: 6,
+            verticalPadding: 10,
+            backgroundAlpha: 0.82,
+            blurSigma: 14,
+            borderColor: const Color(0x1F0F172A),
+            boxShadow: MasliveTheme.floatingShadowStrong,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _photographerController.dispose();
@@ -181,17 +232,19 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: MasliveTheme.surfaceAlt,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 4),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 4),
 
                     // ---------------- TOP LOGO AREA ----------------
                     SizedBox(
@@ -335,63 +388,16 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                       onOpenPhoto: () => _openMarketplace(initialTab: 0),
                     ),
 
-                    const SizedBox(height: 18),
-                  ],
-                ),
-              ),
-            ),
-
-            // ---------------- BOTTOM NAV ----------------
-            SafeArea(
-              top: false,
-              child: Container(
-                height: 68,
-                decoration: const BoxDecoration(
-                  color: _ShopBottomTheme.navBg,
-                  border: Border(
-                    top: BorderSide(color: _ShopBottomTheme.strokeSoft),
+                        const SizedBox(height: 18),
+                      ],
+                    ),
                   ),
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: Color(0x14000000),
-                      blurRadius: 20,
-                      offset: Offset(0, -2),
-                    ),
-                  ],
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _BottomNavItem(
-                      icon: Icons.home_outlined,
-                      activeIcon: Icons.home,
-                      active: false,
-                      onTap: _goHome,
-                    ),
-                    _BottomNavItem(
-                      icon: Icons.photo_camera_outlined,
-                      activeIcon: Icons.photo_camera,
-                      active: true,
-                      onTap: () {},
-                    ),
-                    _BottomNavItem(
-                      icon: Icons.arrow_downward_rounded,
-                      activeIcon: Icons.arrow_downward_rounded,
-                      active: false,
-                      onTap: () => _openMarketplace(initialTab: 'downloads'),
-                    ),
-                    _BottomNavItem(
-                      icon: Icons.person_outline,
-                      activeIcon: Icons.person,
-                      active: false,
-                      onTap: _goAccount,
-                    ),
-                  ],
-                ),
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+          _buildShopVerticalNav(),
+        ],
       ),
     );
   }
@@ -921,61 +927,3 @@ class _PhotoCard extends StatelessWidget {
   }
 }
 
-class _ShopBottomTheme {
-  const _ShopBottomTheme._();
-
-  static const Color navBg = Color(0xF9FFFFFF);
-  static const Color strokeSoft = Color(0x1F0F172A);
-  static const LinearGradient chipGradient = LinearGradient(
-    colors: [Color(0xFFFFB26A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
-  );
-
-  static const BoxShadow cardShadow = BoxShadow(
-    color: Color(0x14000000),
-    blurRadius: 18,
-    offset: Offset(0, 8),
-  );
-}
-
-class _BottomNavItem extends StatelessWidget {
-  final IconData icon;
-  final IconData activeIcon;
-  final bool active;
-  final VoidCallback? onTap;
-
-  const _BottomNavItem({
-    required this.icon,
-    required this.activeIcon,
-    required this.active,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final iconChild = Icon(
-      active ? activeIcon : icon,
-      color: active ? Colors.white : const Color(0xFF98A2B3),
-      size: 24,
-    );
-
-    return InkResponse(
-      radius: 28,
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.all(8),
-        decoration: active
-            ? BoxDecoration(
-                gradient: _ShopBottomTheme.chipGradient,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: const <BoxShadow>[_ShopBottomTheme.cardShadow],
-              )
-            : null,
-        child: iconChild,
-      ),
-    );
-  }
-}

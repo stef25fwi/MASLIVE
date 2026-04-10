@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../../../../models/market_circuit.dart';
 import '../../../../models/market_country.dart';
 import '../../../../models/market_event.dart';
 import '../../../../pages/cart/unified_cart_page.dart';
-import '../../../../providers/cart_provider.dart';
 import '../../../../ui/theme/maslive_theme.dart';
 import '../../../../ui/widgets/marketmap_poi_selector_sheet.dart';
 import 'media_downloads_page.dart';
 import 'media_marketplace_home_page.dart';
 import 'photographer_dashboard_page.dart';
+import '../widgets/media_marketplace_shell.dart';
 
 class MediaMarketplaceEntryPage extends StatelessWidget {
   const MediaMarketplaceEntryPage({
@@ -47,87 +46,74 @@ class MediaMarketplaceEntryPage extends StatelessWidget {
       initialIndex: safeInitialTabIndex,
       child: Scaffold(
         backgroundColor: MasliveTheme.surfaceAlt,
-        bottomNavigationBar: SafeArea(
-          top: false,
-          child: Container(
-            height: 68,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.98),
-              border: const Border(top: BorderSide(color: Color(0x1F0F172A))),
-              boxShadow: const <BoxShadow>[
-                BoxShadow(
-                  color: Color(0x14000000),
-                  blurRadius: 20,
-                  offset: Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                // Catalogue (index 0)
-                _MediaBottomItem(tabIndex: 0, icon: Icons.photo_library_outlined, activeIcon: Icons.photo_library, label: 'Catalogue'),
-                // Photographe (index 3)
-                _MediaBottomItem(tabIndex: 3, icon: Icons.camera_alt_outlined, activeIcon: Icons.camera_alt, label: 'Photographe'),
-                // Panier (index 1)
-                _MediaBottomCartItem(),
-                // Téléchargements (index 2)
-                _MediaBottomItem(tabIndex: 2, icon: Icons.download_outlined, activeIcon: Icons.download, label: 'Téléchargements'),
-              ],
-            ),
-          ),
-        ),
         body: DecoratedBox(
           decoration: const BoxDecoration(gradient: MasliveTheme.backgroundWash),
           child: SafeArea(
-            child: Column(
+            child: Stack(
               children: <Widget>[
-                if (!embedded) ...<Widget>[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 16, 8, 12),
-                    child: _MarketplacePremiumHeader(onBack: () => Navigator.of(context).pop()),
-                  ),
-                ] else ...<Widget>[
-                  const SizedBox(height: 6),
-                ],
-                Expanded(
-                  child: TabBarView(
+                Padding(
+                  padding: EdgeInsets.only(left: embedded ? 0 : 84),
+                  child: Column(
                     children: <Widget>[
-                      MediaMarketplaceHomePage(
-                        key: ValueKey<String>(
-                          '${countryId ?? ''}|${eventId ?? ''}|${circuitId ?? ''}|${photographerId ?? ''}',
+                      if (!embedded) ...<Widget>[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 16, 8, 12),
+                          child: MediaMarketplaceBrandHeader(
+                            subtitle: 'LA BOUTIQUE PHOTO',
+                            onBack: () => Navigator.of(context).pop(),
+                          ),
                         ),
-                        countryId: countryId,
-                        countryName: countryName,
-                        eventId: eventId,
-                        eventName: eventName,
-                        circuitId: circuitId,
-                        circuitName: circuitName,
-                        photographerId: photographerId,
-                        showContextHeader: false,
-                        embedded: true,
-                        showBranding: embedded,
-                        onOpenFilters: () => _openCatalogFilters(context),
-                      ),
-                      const UnifiedCartPage(embedded: true),
-                      MediaDownloadsPage(
-                        eventId: eventId,
-                        eventName: eventName,
-                        circuitName: circuitName,
-                        showContextHeader: false,
-                        embedded: true,
-                      ),
-                      PhotographerDashboardPage(
-                        ownerUid: ownerUid,
-                        eventId: eventId,
-                        eventName: eventName,
-                        circuitName: circuitName,
-                        showContextHeader: false,
-                        embedded: true,
+                      ] else ...<Widget>[
+                        const SizedBox(height: 6),
+                      ],
+                      Expanded(
+                        child: TabBarView(
+                          children: <Widget>[
+                            MediaMarketplaceHomePage(
+                              key: ValueKey<String>(
+                                '${countryId ?? ''}|${eventId ?? ''}|${circuitId ?? ''}|${photographerId ?? ''}',
+                              ),
+                              countryId: countryId,
+                              countryName: countryName,
+                              eventId: eventId,
+                              eventName: eventName,
+                              circuitId: circuitId,
+                              circuitName: circuitName,
+                              photographerId: photographerId,
+                              showContextHeader: false,
+                              embedded: true,
+                              showBranding: embedded,
+                              onOpenFilters: () => _openCatalogFilters(context),
+                            ),
+                            const UnifiedCartPage(embedded: true),
+                            MediaDownloadsPage(
+                              eventId: eventId,
+                              eventName: eventName,
+                              circuitName: circuitName,
+                              showContextHeader: false,
+                              embedded: true,
+                            ),
+                            PhotographerDashboardPage(
+                              ownerUid: ownerUid,
+                              eventId: eventId,
+                              eventName: eventName,
+                              circuitName: circuitName,
+                              showContextHeader: false,
+                              embedded: true,
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
+                if (!embedded)
+                  _MediaMarketplaceEntryNav(
+                    onOpenCatalog: () => DefaultTabController.of(context).animateTo(0),
+                    onOpenCart: () => DefaultTabController.of(context).animateTo(1),
+                    onOpenDownloads: () => DefaultTabController.of(context).animateTo(2),
+                    onOpenPhotographer: () => DefaultTabController.of(context).animateTo(3),
+                  ),
               ],
             ),
           ),
@@ -208,245 +194,60 @@ class MediaMarketplaceEntryPage extends StatelessWidget {
   }
 }
 
-class _MarketplacePremiumHeader extends StatelessWidget {
-  const _MarketplacePremiumHeader({this.onBack});
-  final VoidCallback? onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // Back button
-        if (onBack != null)
-          InkResponse(
-            radius: 24,
-            onTap: onBack,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                size: 20,
-                color: MasliveTheme.textPrimary,
-              ),
-            ),
-          )
-        else
-          const SizedBox(width: 40),
-        const SizedBox(width: 12),
-        // Title (centered)
-        Expanded(
-          child: RichText(
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            text: const TextSpan(
-              children: <InlineSpan>[
-                TextSpan(
-                  text: "MAS'LIVE ",
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.8,
-                    color: MasliveTheme.textPrimary,
-                    height: 1,
-                  ),
-                ),
-                TextSpan(
-                  text: 'LA BOUTIQUE PHOTO',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.2,
-                    color: MasliveTheme.textSecondary,
-                    height: 1,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        // Right spacer (balance layout)
-        const SizedBox(width: 40),
-      ],
-    );
-  }
-}
-
-class _MediaBottomItem extends StatefulWidget {
-  const _MediaBottomItem({
-    required this.tabIndex,
-    required this.icon,
-    required this.activeIcon,
-    required this.label,
+class _MediaMarketplaceEntryNav extends StatefulWidget {
+  const _MediaMarketplaceEntryNav({
+    required this.onOpenCatalog,
+    required this.onOpenPhotographer,
+    required this.onOpenCart,
+    required this.onOpenDownloads,
   });
 
-  final int tabIndex;
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
+  final VoidCallback onOpenCatalog;
+  final VoidCallback onOpenPhotographer;
+  final VoidCallback onOpenCart;
+  final VoidCallback onOpenDownloads;
 
   @override
-  State<_MediaBottomItem> createState() => _MediaBottomItemState();
+  State<_MediaMarketplaceEntryNav> createState() => _MediaMarketplaceEntryNavState();
 }
 
-class _MediaBottomItemState extends State<_MediaBottomItem> {
+class _MediaMarketplaceEntryNavState extends State<_MediaMarketplaceEntryNav> {
   TabController? _controller;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _controller?.removeListener(_onTabChanged);
+    _controller?.removeListener(_handleTabChange);
     _controller = DefaultTabController.of(context);
-    _controller?.addListener(_onTabChanged);
+    _controller?.addListener(_handleTabChange);
   }
 
-  void _onTabChanged() {
+  void _handleTabChange() {
     if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    _controller?.removeListener(_onTabChanged);
+    _controller?.removeListener(_handleTabChange);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final isActive = (_controller?.index ?? -1) == widget.tabIndex;
-    return InkResponse(
-      radius: 28,
-      onTap: () => DefaultTabController.of(context).animateTo(widget.tabIndex),
-      child: Center(
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOut,
-          padding: const EdgeInsets.all(8),
-          decoration: isActive
-              ? BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFFB26A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: const <BoxShadow>[
-                    BoxShadow(
-                      color: Color(0x14000000),
-                      blurRadius: 18,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
-                )
-              : null,
-          child: Icon(
-            isActive ? widget.activeIcon : widget.icon,
-            color: isActive ? Colors.white : const Color(0xFF98A2B3),
-          ),
-        ),
-      ),
-    );
-  }
-}
+    final index = _controller?.index ?? 0;
+    final selected = switch (index) {
+      1 => MediaMarketplaceNavSection.cart,
+      2 => MediaMarketplaceNavSection.downloads,
+      3 => MediaMarketplaceNavSection.photographer,
+      _ => MediaMarketplaceNavSection.catalog,
+    };
 
-class _MediaBottomCartItem extends StatefulWidget {
-  const _MediaBottomCartItem();
-
-  @override
-  State<_MediaBottomCartItem> createState() => _MediaBottomCartItemState();
-}
-
-class _MediaBottomCartItemState extends State<_MediaBottomCartItem> {
-  TabController? _controller;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _controller?.removeListener(_onTabChanged);
-    _controller = DefaultTabController.of(context);
-    _controller?.addListener(_onTabChanged);
-  }
-
-  void _onTabChanged() {
-    if (mounted) setState(() {});
-  }
-
-  @override
-  void dispose() {
-    _controller?.removeListener(_onTabChanged);
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final count = context.watch<CartProvider>().totalQuantity;
-    final isActive = (_controller?.index ?? -1) == 1;
-
-    return InkResponse(
-      radius: 28,
-      onTap: () => DefaultTabController.of(context).animateTo(1),
-      child: Center(
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOut,
-              padding: const EdgeInsets.all(8),
-              decoration: isActive
-                  ? BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFFB26A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: const <BoxShadow>[
-                        BoxShadow(
-                          color: Color(0x14000000),
-                          blurRadius: 18,
-                          offset: Offset(0, 8),
-                        ),
-                      ],
-                    )
-                  : null,
-              child: Icon(
-                isActive ? Icons.shopping_bag : Icons.shopping_bag_outlined,
-                color: isActive ? Colors.white : const Color(0xFF98A2B3),
-              ),
-            ),
-            if (count > 0)
-              Positioned(
-                right: -10,
-                top: -8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFB26A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    count > 99 ? '99+' : '$count',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
+    return MediaMarketplaceVerticalNav(
+      selected: selected,
+      onOpenCatalog: widget.onOpenCatalog,
+      onOpenPhotographer: widget.onOpenPhotographer,
+      onOpenCart: widget.onOpenCart,
+      onOpenDownloads: widget.onOpenDownloads,
     );
   }
 }

@@ -12,6 +12,8 @@ import '../widgets/media_marketplace_context_chips.dart';
 import '../widgets/media_marketplace_message_card.dart';
 import '../widgets/media_marketplace_metric_card.dart';
 import '../widgets/media_marketplace_section_header.dart';
+import '../widgets/media_marketplace_shell.dart';
+import '../../../../ui/theme/maslive_theme.dart';
 
 class PhotographerDashboardPage extends StatelessWidget {
   const PhotographerDashboardPage({
@@ -182,16 +184,56 @@ class _PhotographerDashboardView extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Espace photographe'),
-        actions: <Widget>[
-          IconButton(
-            onPressed: controller.refresh,
-            icon: const Icon(Icons.refresh),
+      backgroundColor: MasliveTheme.surfaceAlt,
+      body: DecoratedBox(
+        decoration: const BoxDecoration(gradient: MasliveTheme.backgroundWash),
+        child: SafeArea(
+          child: Stack(
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.only(left: 84),
+                child: Column(
+                  children: <Widget>[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 16, 8, 12),
+                      child: MediaMarketplaceBrandHeader(
+                        subtitle: 'ESPACE PHOTOGRAPHE',
+                        onBack: () => Navigator.of(context).pop(),
+                        trailing: IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: controller.refresh,
+                          icon: const Icon(Icons.refresh, size: 20),
+                        ),
+                      ),
+                    ),
+                    Expanded(child: content),
+                  ],
+                ),
+              ),
+              MediaMarketplaceVerticalNav(
+                selected: MediaMarketplaceNavSection.photographer,
+                onOpenCatalog: () => Navigator.pushReplacementNamed(
+                  context,
+                  '/media-marketplace',
+                  arguments: <String, dynamic>{'initialTab': 0},
+                ),
+                onOpenPhotographer: () {},
+                onOpenCart: () => Navigator.pushReplacementNamed(
+                  context,
+                  '/media-marketplace',
+                  arguments: <String, dynamic>{'initialTab': 1},
+                ),
+                onOpenDownloads: () => Navigator.pushReplacementNamed(
+                  context,
+                  '/media-marketplace',
+                  arguments: <String, dynamic>{'initialTab': 2},
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-      body: content,
     );
   }
 }

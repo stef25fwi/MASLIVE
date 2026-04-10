@@ -8,6 +8,8 @@ import '../widgets/media_marketplace_back_to_catalog_button.dart';
 import '../widgets/media_marketplace_context_chips.dart';
 import '../widgets/media_marketplace_message_card.dart';
 import '../widgets/media_marketplace_section_header.dart';
+import '../widgets/media_marketplace_shell.dart';
+import '../../../../ui/theme/maslive_theme.dart';
 
 class MediaDownloadsPage extends StatelessWidget {
   const MediaDownloadsPage({
@@ -67,7 +69,7 @@ class _MediaDownloadsView extends StatelessWidget {
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(8, 16, 8, 24),
+            padding: const EdgeInsets.fromLTRB(8, 16, 8, 24),
               children: <Widget>[
                 if (controller.error != null)
                   MediaMarketplaceMessageCard.error(controller.error!),
@@ -160,8 +162,50 @@ class _MediaDownloadsView extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mes téléchargements')),
-      body: content,
+      backgroundColor: MasliveTheme.surfaceAlt,
+      body: DecoratedBox(
+        decoration: const BoxDecoration(gradient: MasliveTheme.backgroundWash),
+        child: SafeArea(
+          child: Stack(
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.only(left: 84),
+                child: Column(
+                  children: <Widget>[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 16, 8, 12),
+                      child: MediaMarketplaceBrandHeader(
+                        subtitle: 'MES TELECHARGEMENTS',
+                        onBack: () => Navigator.of(context).pop(),
+                      ),
+                    ),
+                    Expanded(child: content),
+                  ],
+                ),
+              ),
+              MediaMarketplaceVerticalNav(
+                selected: MediaMarketplaceNavSection.downloads,
+                onOpenCatalog: () => Navigator.pushReplacementNamed(
+                  context,
+                  '/media-marketplace',
+                  arguments: <String, dynamic>{'initialTab': 0},
+                ),
+                onOpenPhotographer: () => Navigator.pushReplacementNamed(
+                  context,
+                  '/media-marketplace',
+                  arguments: <String, dynamic>{'initialTab': 3},
+                ),
+                onOpenCart: () => Navigator.pushReplacementNamed(
+                  context,
+                  '/media-marketplace',
+                  arguments: <String, dynamic>{'initialTab': 1},
+                ),
+                onOpenDownloads: () {},
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
