@@ -3,6 +3,7 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -43,6 +44,7 @@ class AdminMainDashboard extends StatefulWidget {
 class _AdminMainDashboardState extends State<AdminMainDashboard> {
   final _authService = AuthClaimsService.instance;
   final _firestore = FirebaseFirestore.instance;
+  final _functions = FirebaseFunctions.instanceFor(region: 'us-east1');
   AppUser? _currentUser;
   bool _isLoading = true;
 
@@ -1458,6 +1460,94 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
     String status = 'Préparation du test...';
     String? result;
 
+    String formatFlowLine(
+      Map<String, dynamic> flows,
+      String key,
+      String label,
+    ) {
+      final raw = flows[key];
+      if (raw is! Map) return '- $label: inconnu';
+      final flow = Map<String, dynamic>.from(raw);
+      final details = <String>[];
+
+      final missingEnv = (flow['missingEnvKeys'] as List?)
+              ?.map((e) => e.toString())
+              .where((e) => e.trim().isNotEmpty)
+              .toList() ??
+          const <String>[];
+      if (missingEnv.isNotEmpty) {
+        details.add('env: ${missingEnv.join(', ')}');
+      }
+
+      final missingPriceCount = flow['missingPriceCount'];
+      if (missingPriceCount is int && missingPriceCount > 0) {
+        details.add('plans incomplets: $missingPriceCount');
+      }
+
+      final unsupportedBusinessCountryCount =
+          flow['unsupportedBusinessCountryCount'];
+      if (unsupportedBusinessCountryCount is int &&
+          unsupportedBusinessCountryCount > 0) {
+        details.add('pays business non supportés: $unsupportedBusinessCountryCount');
+      }
+
+      final requiresBuildDefine = flow['requiresBuildDefine'];
+      if (requiresBuildDefine is String && requiresBuildDefine.isNotEmpty) {
+        details.add('build mobile: $requiresBuildDefine');
+      }
+
+      final state = flow['ready'] == true ? 'OK' : 'À configurer';
+      return details.isEmpty
+          ? '- $label: $state'
+          : '- $label: $state (${details.join(' • ')})';
+    }
+
+    String formatReadiness(Map<String, dynamic> data) {
+      final flows = (data['flows'] is Map)
+          ? Map<String, dynamic>.from(data['flows'] as Map)
+          : <String, dynamic>{};
+      final config = (data['config'] is Map)
+          ? Map<String, dynamic>.from(data['config'] as Map)
+          : <String, dynamic>{};
+      final steps = (data['nextSteps'] as List?)
+              ?.map((e) => e.toString())
+              .where((e) => e.trim().isNotEmpty)
+              .toList() ??
+          const <String>[];
+
+      final lines = <String>[
+        'État global: ${data['ready'] == true ? 'PRÊT' : 'CONFIGURATION REQUISE'}',
+        '',
+        'Configuration:',
+        '- STRIPE_SECRET_KEY: ${config['secretKeyConfigured'] == true ? 'OK' : 'manquant'}',
+        '- STRIPE_WEBHOOK_SECRET: ${config['webhookSecretConfigured'] == true ? 'OK' : 'manquant'}',
+        '- Build mobile natif: --dart-define=STRIPE_PUBLISHABLE_KEY requis',
+        '',
+        'Flux:',
+        formatFlowLine(flows, 'storexWeb', 'Storex web checkout'),
+        formatFlowLine(flows, 'mixedCart', 'Panier mixte'),
+        formatFlowLine(flows, 'premiumWeb', 'Premium web'),
+        formatFlowLine(flows, 'mediaMarketplace', 'Media marketplace'),
+        formatFlowLine(flows, 'liveTables', 'Live tables'),
+        formatFlowLine(flows, 'stripeConnect', 'Stripe Connect'),
+        formatFlowLine(flows, 'mobilePaymentSheet', 'PaymentSheet mobile'),
+      ];
+
+      final webhookUrl = (data['webhookUrl'] ?? '').toString().trim();
+      if (webhookUrl.isNotEmpty) {
+        lines..add('')..add('Webhook: $webhookUrl');
+      }
+
+      if (steps.isNotEmpty) {
+        lines..add('')..add('Actions conseillées:');
+        for (final step in steps) {
+          lines.add('- $step');
+        }
+      }
+
+      return lines.join('\n');
+    }
+
     showDialog(
       context: context,
       builder: (_) => StatefulBuilder(
@@ -1478,7 +1568,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Ce test appelle la Cloud Function Stripe et vérifie la connexion au service de paiement.',
+                        'Ce test appelle la Cloud Function d’audit Stripe et vérifie la préparation réelle du setup paiement.',
                         textAlign: TextAlign.justify,
                         style: TextStyle(fontSize: 12),
                       ),
@@ -1584,21 +1674,26 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                     }
 
                     setState(() {
-                      status = 'Flow legacy média supprimé';
+                      status = 'Lecture du rapport Stripe...';
                     });
 
+                    final callable = _functions.httpsCallable(
+                      'getStripeReadinessReport',
+                    );
+                    final response = await callable.call<Map<String, dynamic>>(
+                      <String, dynamic>{},
+                    );
+                    final data = Map<String, dynamic>.from(response.data);
+                    final readiness = formatReadiness(data);
+                    final ready = data['ready'] == true;
+
                     setState(() {
-                      status = 'Information de migration affichée';
-                      result =
-                          '''Le test createCheckoutSessionForOrder a été supprimé.
-
-Le checkout média doit désormais passer par:
-- createMediaMarketplaceCheckout
-- carts/{uid}
-- orders/{orderId}
-- media_entitlements/{entitlementId}
-
-Le fallback legacy users/{uid}/orders n'est plus traité par le webhook.''';
+                      status = ready
+                          ? 'Stripe prêt à l’emploi'
+                          : 'Configuration Stripe incomplète';
+                      result = ready
+                          ? readiness
+                          : 'Erreur de configuration Stripe\n\n$readiness';
                       isLoading = false;
                     });
                   } catch (e) {

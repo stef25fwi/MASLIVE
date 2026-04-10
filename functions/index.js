@@ -573,6 +573,34 @@ function getMissingPremiumPriceIdEnvKeys() {
   });
 }
 
+function isConfiguredEnvValue(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function getRequiredLiveTablePriceEnvKeys() {
+  const keys = [];
+
+  for (const planCode of LIVE_TABLE_ALLOWED_PLAN_CODES) {
+    const upperPlanCode = String(planCode).toUpperCase();
+    keys.push(`STRIPE_PRICE_${upperPlanCode}_MONTHLY`);
+    keys.push(`STRIPE_PRICE_${upperPlanCode}_ANNUAL`);
+  }
+
+  return keys;
+}
+
+function getMissingLiveTablePriceEnvKeys() {
+  return getRequiredLiveTablePriceEnvKeys().filter((envKey) => {
+    const value = process.env[envKey];
+    return !isConfiguredEnvValue(value);
+  });
+}
+
+function isApprovedBusinessStatus(value) {
+  const normalized = normalizeLowerString(value);
+  return normalized === "approved" || normalized === "active";
+}
+
 function resolveStripeConnectCountry(rawCountry) {
   const normalized = normalizeLowerString(rawCountry);
   if (!normalized || normalized === "autre" || normalized === "other") {
@@ -3312,6 +3340,187 @@ exports.refreshBusinessConnectStatus = onCall(
     );
 
     return { accountId, detailsSubmitted, chargesEnabled, payoutsEnabled };
+  }
+);
+
+exports.getStripeReadinessReport = onCall(
+  {
+    region: "us-east1",
+    cpu: 0.083,
+    memory: "256MiB",
+    timeoutSeconds: 30,
+    secrets: [STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET],
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+
+    const uid = request.auth.uid;
+    const userSnap = await db.collection("users").doc(uid).get();
+    const userData = userSnap.exists ? (userSnap.data() || {}) : {};
+    const role = normalizeLowerString(userData.role || request.auth.token?.role || "");
+    const isAdmin =
+      request.auth.token?.admin === true ||
+      userData.isAdmin === true ||
+      role === "admin" ||
+      role === "superadmin" ||
+      role === "super-admin";
+
+    if (!isAdmin) {
+      throw new HttpsError("permission-denied", "Admin access required");
+    }
+
+    const secretKeyConfigured = isConfiguredEnvValue(
+      STRIPE_SECRET_KEY.value() || process.env.STRIPE_SECRET_KEY
+    );
+    const webhookSecretConfigured = isConfiguredEnvValue(getStripeWebhookSecret());
+    const missingPremiumEnvKeys = getMissingPremiumPriceIdEnvKeys();
+    const missingLiveTableEnvKeys = getMissingLiveTablePriceEnvKeys();
+
+    const photographerPlansSnap = await db
+      .collection("photographer_plans")
+      .where("isActive", "==", true)
+      .get();
+
+    const missingPhotographerPlanPrices = photographerPlansSnap.docs
+      .map((doc) => {
+        const data = doc.data() || {};
+        const missingPriceFields = [];
+        if (!isConfiguredEnvValue(data.stripePriceMonthlyId)) {
+          missingPriceFields.push("stripePriceMonthlyId");
+        }
+        if (!isConfiguredEnvValue(data.stripePriceAnnualId)) {
+          missingPriceFields.push("stripePriceAnnualId");
+        }
+        if (!missingPriceFields.length) {
+          return null;
+        }
+        return {
+          planId: doc.id,
+          planCode: isConfiguredEnvValue(data.code) ? String(data.code).trim() : doc.id,
+          missingPriceFields,
+        };
+      })
+      .filter(Boolean);
+
+    const businessesSnap = await db
+      .collection("businesses")
+      .where("status", "in", ["approved", "active"])
+      .get();
+
+    const unsupportedBusinessCountries = businessesSnap.docs
+      .map((doc) => {
+        const data = doc.data() || {};
+        if (!isApprovedBusinessStatus(data.status)) {
+          return null;
+        }
+
+        const rawCountry = isConfiguredEnvValue(data.country)
+          ? String(data.country).trim()
+          : "";
+        const resolvedCountry = resolveStripeConnectCountry(rawCountry);
+        if (resolvedCountry) {
+          return null;
+        }
+
+        return {
+          businessId: doc.id,
+          companyName: isConfiguredEnvValue(data.companyName)
+            ? String(data.companyName).trim()
+            : doc.id,
+          country: rawCountry || "(missing)",
+        };
+      })
+      .filter(Boolean);
+
+    const flows = {
+      storexWeb: {
+        ready: secretKeyConfigured && webhookSecretConfigured,
+      },
+      mixedCart: {
+        ready: secretKeyConfigured && webhookSecretConfigured,
+      },
+      premiumWeb: {
+        ready:
+          secretKeyConfigured &&
+          webhookSecretConfigured &&
+          missingPremiumEnvKeys.length === 0,
+        missingEnvKeys: missingPremiumEnvKeys,
+      },
+      mediaMarketplace: {
+        ready:
+          secretKeyConfigured &&
+          webhookSecretConfigured &&
+          missingPhotographerPlanPrices.length === 0,
+        activePlanCount: photographerPlansSnap.size,
+        missingPriceCount: missingPhotographerPlanPrices.length,
+      },
+      liveTables: {
+        ready:
+          secretKeyConfigured &&
+          webhookSecretConfigured &&
+          missingLiveTableEnvKeys.length === 0,
+        missingEnvKeys: missingLiveTableEnvKeys,
+      },
+      stripeConnect: {
+        ready:
+          secretKeyConfigured &&
+          unsupportedBusinessCountries.length === 0,
+        unsupportedBusinessCountryCount: unsupportedBusinessCountries.length,
+      },
+      mobilePaymentSheet: {
+        ready: secretKeyConfigured,
+        requiresBuildDefine: "STRIPE_PUBLISHABLE_KEY",
+      },
+    };
+
+    const ready = Object.values(flows).every((flow) => flow.ready === true);
+    const nextSteps = [];
+
+    if (!secretKeyConfigured) {
+      nextSteps.push("Configurer STRIPE_SECRET_KEY dans Firebase Secret Manager.");
+    }
+    if (!webhookSecretConfigured) {
+      nextSteps.push("Configurer STRIPE_WEBHOOK_SECRET pour finaliser les paiements via webhook.");
+    }
+    if (missingPremiumEnvKeys.length > 0) {
+      nextSteps.push(`Ajouter ${missingPremiumEnvKeys.join(", ")} dans functions/.env et dans .env racine pour le build web.`);
+    }
+    if (missingLiveTableEnvKeys.length > 0) {
+      nextSteps.push(`Ajouter ${missingLiveTableEnvKeys.join(", ")} dans functions/.env pour les abonnements live tables.`);
+    }
+    if (missingPhotographerPlanPrices.length > 0) {
+      nextSteps.push("Compléter stripePriceMonthlyId et stripePriceAnnualId sur les documents photographer_plans actifs.");
+    }
+    if (unsupportedBusinessCountries.length > 0) {
+      nextSteps.push("Normaliser le champ country des businesses approuvés en pays supporté ou code ISO2 pour Stripe Connect.");
+    }
+    nextSteps.push("Pour les builds mobiles natifs, fournir --dart-define=STRIPE_PUBLISHABLE_KEY=pk_... .");
+
+    return {
+      ready,
+      checkedAt: new Date().toISOString(),
+      config: {
+        secretKeyConfigured,
+        webhookSecretConfigured,
+        publishableKeyBuildDefineRequired: true,
+      },
+      flows,
+      missingPremiumEnvKeys,
+      missingLiveTableEnvKeys,
+      photographerPlans: {
+        activeCount: photographerPlansSnap.size,
+        missingPriceCount: missingPhotographerPlanPrices.length,
+        missingPricePlans: missingPhotographerPlanPrices.slice(0, 20),
+      },
+      stripeConnect: {
+        unsupportedBusinessCountryCount: unsupportedBusinessCountries.length,
+        unsupportedBusinesses: unsupportedBusinessCountries.slice(0, 20),
+      },
+      webhookUrl: "https://us-east1-maslive.cloudfunctions.net/stripeWebhook",
+      nextSteps,
+    };
   }
 );
 

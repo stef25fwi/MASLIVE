@@ -120,12 +120,41 @@ test("business connect onboarding resolves Stripe country instead of forcing Fra
   assert.doesNotMatch(connectSection, /business\.country === "France" \? "FR" : "FR"/, "connect onboarding must not force every business to France")
 })
 
+test("stripe readiness report checks runtime configuration coverage", () => {
+  const indexSrc = readRepoFile("index.js")
+  const readinessSection = sliceBetween(
+    indexSrc,
+    "exports.getStripeReadinessReport = onCall(",
+    "/**\n * stripeWebhook"
+  )
+
+  assert.match(readinessSection, /Admin access required/, "stripe readiness report must stay admin-only")
+  assert.match(readinessSection, /getMissingPremiumPriceIdEnvKeys\(\)/, "stripe readiness report must check premium env keys")
+  assert.match(readinessSection, /getMissingLiveTablePriceEnvKeys\(\)/, "stripe readiness report must check live table env keys")
+  assert.match(readinessSection, /photographer_plans/, "stripe readiness report must inspect photographer plan pricing")
+  assert.match(readinessSection, /resolveStripeConnectCountry\(rawCountry\)/, "stripe readiness report must flag unsupported Stripe Connect countries")
+  assert.match(readinessSection, /STRIPE_PUBLISHABLE_KEY/, "stripe readiness report must remind mobile publishable key build define")
+})
+
 test("functions env example documents premium Stripe price ids", () => {
   const envExample = readRepoFile(".env.example")
 
   assert.match(envExample, /STRIPE_PREMIUM_MONTHLY_PRICE_ID=price_\.\.\./, "functions env example must document the monthly premium price id")
   assert.match(envExample, /STRIPE_PREMIUM_YEARLY_PRICE_ID=price_\.\.\./, "functions env example must document the yearly premium price id")
+  assert.match(envExample, /STRIPE_PRICE_FOOD_PRO_LIVE_MONTHLY=price_\.\.\./, "functions env example must document live table monthly prices")
+  assert.match(envExample, /STRIPE_PRICE_RESTAURANT_LIVE_PLUS_ANNUAL=price_\.\.\./, "functions env example must document live table annual prices")
 })
+
+test("interactive stripe deploy script keeps runtime env setup steps", () => {
+  const script = readRepoFile("../deploy_functions_stripe.sh")
+
+  assert.match(script, /functions\/.env/, "stripe deploy script must write functions runtime env file")
+  assert.match(script, /ROOT_ENV_FILE/, "stripe deploy script must write the root env file when needed")
+  assert.match(script, /STRIPE_PREMIUM_MONTHLY_PRICE_ID/, "stripe deploy script must prompt premium web price ids")
+  assert.match(script, /STRIPE_PRICE_FOOD_PRO_LIVE_MONTHLY/, "stripe deploy script must prompt live table price ids")
+  assert.match(script, /STRIPE_PUBLISHABLE_KEY/, "stripe deploy script must mention the mobile publishable key requirement")
+})
+
 
 test("media checkout keeps unified cart items as single source of truth", () => {
   const stripeSrc = readRepoFile("src/media-marketplace-stripe.js")
