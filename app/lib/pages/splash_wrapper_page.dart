@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'splash_screen.dart';
 import 'default_map_page.dart';
-import 'home_map_page_3d.dart' deferred as _home3d;
+import 'home_map_page_3d.dart';
 import '../services/startup_preload_service.dart';
 import '../utils/startup_trace.dart';
 import '../utils/web_viewport_resize.dart';
@@ -22,42 +22,35 @@ class SplashWrapperPage extends StatefulWidget {
 }
 
 class _SplashWrapperPageState extends State<SplashWrapperPage> {
-  static const Duration _fadeDuration = Duration(milliseconds: 450);
-  static const Duration _minimumSplashDuration = Duration(milliseconds: 700);
+  static const Duration _fadeDuration = Duration(milliseconds: 220);
+  static const Duration _minimumSplashDuration = Duration(milliseconds: 280);
   static const Duration _deferredAssetPreloadDelay = Duration(
     milliseconds: 120,
+  );
+  static const Duration _mapPlaceholderFadeDuration = Duration(
+    milliseconds: 180,
   );
 
   final bool _showHome = true;
   bool _mapReady = false;
   bool _mapSignalReady = false;
   bool _assetsReady = false;
+  bool _homeFrameReady = false;
   bool _didHideSplash = false;
   bool _showSplashOverlay = true;
   bool _didStartDeferredAssetPreload = false;
   late DateTime _splashStartTime;
 
-  bool _home3dLoaded = false;
-
   Widget get _homeAfterSplash {
     if (kIsWeb) return const DefaultMapPage();
-    if (_home3dLoaded) return _home3d.HomeMapPage3D();
-    return FutureBuilder<void>(
-      future: _home3d.loadLibrary(),
-      builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.done && !snap.hasError) {
-          _home3dLoaded = true;
-          return _home3d.HomeMapPage3D();
-        }
-        return const SizedBox.shrink();
-      },
-    );
+    return const HomeMapPage3D();
   }
 
   @override
   void initState() {
     super.initState();
     _splashStartTime = DateTime.now();
+    StartupTrace.mark('splash_init');
     StartupTrace.log('SPLASH', 'initState');
     debugPrint('🚀 SplashWrapperPage: initState - preparing home page');
 
@@ -72,22 +65,12 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
     // Écouter quand la carte est prête
     mapReadyNotifier.addListener(_onMapReady);
 
-    // Précharger les assets visuels pendant le splash.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _homeFrameReady = true;
+      StartupTrace.mark('splash_first_frame');
+      StartupTrace.log('SPLASH', 'first frame rendered');
       _startAssetPreload();
-    });
-
-    // Timeout de secours : si la carte ne notifie pas dans les 5 secondes, on affiche quand même
-    final timeout = kIsWeb
-        ? const Duration(seconds: 12)
-        : const Duration(seconds: 10);
-    Future.delayed(timeout, () {
-      if (mounted && !_didHideSplash) {
-        debugPrint(
-          '⚠️ SplashWrapperPage: Timeout - forçage du masquage du splash après ${timeout.inSeconds} secondes',
-        );
-        _hideSplash(force: true);
-      }
+      _tryHideSplash();
     });
   }
 
@@ -100,8 +83,16 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
   void _onMapReady() {
     if (!mapReadyNotifier.value || _mapSignalReady) return;
     _mapSignalReady = true;
-    StartupTrace.log('SPLASH', 'mapReadyNotifier observed true');
-    _tryHideSplash();
+    final totalMs = StartupTrace.elapsedSince('splash_init');
+    final afterHideMs = StartupTrace.elapsedSince('splash_hidden');
+    StartupTrace.mark('map_ready_signal');
+    StartupTrace.log(
+      'SPLASH',
+      'mapReadyNotifier observed true total=${totalMs ?? -1}ms afterHide=${afterHideMs ?? -1}ms',
+    );
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _startAssetPreload() async {
@@ -138,10 +129,10 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
 
   void _tryHideSplash() {
     if (_didHideSplash) return;
-    if (!_mapSignalReady || !_assetsReady) {
+    if (!_homeFrameReady || !_assetsReady) {
       StartupTrace.log(
         'SPLASH',
-        'gate blocked mapSignalReady=$_mapSignalReady assetsReady=$_assetsReady',
+        'gate blocked homeFrameReady=$_homeFrameReady assetsReady=$_assetsReady mapSignalReady=$_mapSignalReady',
       );
       return;
     }
@@ -166,10 +157,12 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
 
   void _hideSplash({bool force = false}) {
     if (_didHideSplash) return;
+    final totalMs = StartupTrace.elapsedSince('splash_init');
     StartupTrace.log(
       'SPLASH',
-      'hideSplash force=$force mapSignalReady=$_mapSignalReady assetsReady=$_assetsReady',
+      'hideSplash force=$force mapSignalReady=$_mapSignalReady assetsReady=$_assetsReady total=${totalMs ?? -1}ms',
     );
+    StartupTrace.mark('splash_hide_start');
     _didHideSplash = true;
     setState(() {
       _mapReady = true;
@@ -185,6 +178,7 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
       setState(() {
         _showSplashOverlay = false;
       });
+      StartupTrace.mark('splash_hidden');
       StartupTrace.log('SPLASH', 'splash overlay removed');
       unawaited(_startDeferredAssetPreload());
     });
@@ -273,7 +267,46 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
                   ),
                 ),
               ),
+
+            Positioned.fill(
+              child: IgnorePointer(
+                ignoring: true,
+                child: AnimatedOpacity(
+                  duration: _mapPlaceholderFadeDuration,
+                  opacity: (!_showSplashOverlay && !_mapSignalReady) ? 1.0 : 0.0,
+                  child: const _MapWarmupOverlay(),
+                ),
+              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MapWarmupOverlay extends StatelessWidget {
+  const _MapWarmupOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+      ),
+      child: const Align(
+        alignment: Alignment.bottomCenter,
+        child: SafeArea(
+          top: false,
+          minimum: EdgeInsets.only(bottom: 28),
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0x66FF6FB1)),
+            ),
+          ),
         ),
       ),
     );

@@ -351,10 +351,11 @@ class _StorexHome extends StatelessWidget {
           return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: repo.bestSeller(limit: 200).snapshots(),
             builder: (context, snap) {
-              if (!snap.hasData)
+              if (!snap.hasData) {
                 return const Center(
                   child: CircularProgressIndicator(strokeWidth: 2),
                 );
+              }
               final docs = snap.data!.docs
                   .where((d) => StorexRepo.onlyApproved(d.data()))
                   .toList();
@@ -743,10 +744,11 @@ class _SearchPageState extends State<_SearchPage> {
               child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                 stream: repo.bestSeller(limit: 250).snapshots(),
                 builder: (context, snap) {
-                  if (!snap.hasData)
+                  if (!snap.hasData) {
                     return const Center(
                       child: CircularProgressIndicator(strokeWidth: 2),
                     );
+                  }
                   final docs = snap.data!.docs
                       .where((d) => StorexRepo.onlyApproved(d.data()))
                       .toList();
@@ -883,10 +885,11 @@ class _StorexCategory extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: repo.bestSeller(limit: 250).snapshots(),
         builder: (context, snap) {
-          if (!snap.hasData)
+          if (!snap.hasData) {
             return const Center(
               child: CircularProgressIndicator(strokeWidth: 2),
             );
+          }
           final docs = snap.data!.docs
               .where((d) => StorexRepo.onlyApproved(d.data()))
               .toList();
@@ -1087,10 +1090,11 @@ class _ListPageState extends State<_ListPage> {
           return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: stream,
             builder: (context, snap) {
-              if (!snap.hasData)
+              if (!snap.hasData) {
                 return const Center(
                   child: CircularProgressIndicator(strokeWidth: 2),
                 );
+              }
               final docs = snap.data!.docs
                   .where((d) => StorexRepo.onlyApproved(d.data()))
                   .toList();
@@ -1530,10 +1534,11 @@ class _WishlistPage extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: repo.wishlistItems(),
         builder: (context, snap) {
-          if (!snap.hasData)
+          if (!snap.hasData) {
             return const Center(
               child: CircularProgressIndicator(strokeWidth: 2),
             );
+          }
           final docs = snap.data!.docs;
           if (docs.isEmpty) {
             return _Empty(l10n.AppLocalizations.of(context)!.noFavoritesYet);
@@ -1775,10 +1780,11 @@ class _OrdersPage extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: repo.orders(),
         builder: (context, snap) {
-          if (!snap.hasData)
+          if (!snap.hasData) {
             return const Center(
               child: CircularProgressIndicator(strokeWidth: 2),
             );
+          }
           final docs = snap.data!.docs;
 
           return ListView(

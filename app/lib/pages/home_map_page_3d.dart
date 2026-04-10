@@ -3191,29 +3191,13 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   Widget _buildBottomBar(
     BuildContext context, {
-    required double width,
-    required double height,
     required User? user,
   }) {
     final items = _buildBottomBarItems(context, user);
 
-    return SizedBox(
-      width: width,
-      child: MasliveStandardBottomBar(
-        items: items,
-        selectedIndex: _activeBottomBarIndex,
-        height: height,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0x1F0F172A)),
-        boxShadow: const <BoxShadow>[
-          BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
+    return MasliveStandardBottomBar(
+      items: items,
+      selectedIndex: _activeBottomBarIndex,
     );
   }
 
@@ -3237,10 +3221,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   Widget _buildContent(BuildContext context, ui.Size size) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
-    final bottomDockOffset = bottomInset + 10.0;
 
     const bottomBarHeight = MasliveStandardBottomBar.defaultHeight;
-    final bottomDockWidth = min(size.width - 24, 344.0).toDouble();
 
     if (!_useMapboxTiles && _isResolvingMapboxToken) {
       return const Scaffold(
@@ -3306,6 +3288,15 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
             true, // Permet à la carte de passer SOUS la barre de navigation
         extendBodyBehindAppBar:
             true, // IMPORTANT : la carte passera sous la barre d'état
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: StreamBuilder<User?>(
+            stream: AuthService.instance.authStateChanges,
+            builder: (context, snap) {
+              return _buildBottomBar(context, user: snap.data);
+            },
+          ),
+        ),
         body: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -3375,33 +3366,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
               Positioned(
                 left: 16,
                 right: 16,
-                bottom: bottomDockOffset + bottomBarHeight + 12,
+                bottom: bottomInset + bottomBarHeight + 12,
                 child: _TrackingPill(
                   isTracking: _isTracking,
                   onToggle: _toggleTracking,
                 ),
               ),
-
-            // Bottom bar
-            Positioned(
-              left: 12,
-              right: 12,
-              bottom: bottomDockOffset,
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: StreamBuilder<User?>(
-                  stream: AuthService.instance.authStateChanges,
-                  builder: (context, snap) {
-                    return _buildBottomBar(
-                      context,
-                      width: bottomDockWidth,
-                      height: bottomBarHeight,
-                      user: snap.data,
-                    );
-                  },
-                ),
-              ),
-            ),
           ],
         ),
       ),

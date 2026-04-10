@@ -240,31 +240,34 @@ class _MarketplacePremiumHeader extends StatelessWidget {
         const SizedBox(width: 12),
         // Title (centered)
         Expanded(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              const Text(
-                "MAS'LIVE",
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.8,
-                  color: MasliveTheme.textPrimary,
-                  height: 1,
+          child: RichText(
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            text: const TextSpan(
+              children: <InlineSpan>[
+                TextSpan(
+                  text: "MAS'LIVE ",
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.8,
+                    color: MasliveTheme.textPrimary,
+                    height: 1,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'LA BOUTIQUE PHOTO',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.2,
-                  color: MasliveTheme.textSecondary,
-                  height: 1,
+                TextSpan(
+                  text: 'LA BOUTIQUE PHOTO',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
+                    color: MasliveTheme.textSecondary,
+                    height: 1,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         const SizedBox(width: 12),
