@@ -58,7 +58,6 @@ import 'pages/paywall_page.dart';
 import 'pages/pending_products_page.dart';
 import 'pages/public/marketmap_public_viewer_page.dart';
 import 'pages/purchase_history_page.dart';
-import 'pages/role_router_page.dart';
 import 'pages/search_page.dart';
 import 'pages/seller/seller_inbox_page.dart';
 import 'pages/seller/seller_order_detail_page.dart';
@@ -476,7 +475,6 @@ class MasLiveApp extends StatelessWidget {
               initialRoute: '/splash',
               routes: {
                 '/splash': (_) => const SplashWrapperPage(),
-                '/router': (_) => const RoleRouterPage(),
                 '/': (_) =>
                     kIsWeb ? const DefaultMapPage() : const HomeMapPage3D(),
                 '/map-web': (_) => const DefaultMapPage(),
