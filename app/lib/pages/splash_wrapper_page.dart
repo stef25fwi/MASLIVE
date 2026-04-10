@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'splash_screen.dart';
 import 'default_map_page.dart';
-import 'home_map_page_3d.dart';
+import 'home_map_page_3d.dart' deferred as _home3d;
 import '../services/startup_preload_service.dart';
 import '../utils/startup_trace.dart';
 import '../utils/web_viewport_resize.dart';
@@ -37,8 +37,22 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
   bool _didStartDeferredAssetPreload = false;
   late DateTime _splashStartTime;
 
-  Widget get _homeAfterSplash =>
-      kIsWeb ? const DefaultMapPage() : const HomeMapPage3D();
+  bool _home3dLoaded = false;
+
+  Widget get _homeAfterSplash {
+    if (kIsWeb) return const DefaultMapPage();
+    if (_home3dLoaded) return _home3d.HomeMapPage3D();
+    return FutureBuilder<void>(
+      future: _home3d.loadLibrary(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.done && !snap.hasError) {
+          _home3dLoaded = true;
+          return _home3d.HomeMapPage3D();
+        }
+        return const SizedBox.shrink();
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -100,15 +114,9 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
       );
       if (!mounted) return;
 
-      for (final path in assets) {
-        if (!mounted) return;
-        try {
-          await precacheImage(AssetImage(path), context);
-        } catch (e) {
-          debugPrint('⚠️ SplashWrapper: précache échoué pour $path: $e');
-          // Continue les autres assets — ne bloque jamais le démarrage.
-        }
-      }
+      await Future.wait(
+        assets.map((path) => precacheImage(AssetImage(path), context).catchError((_) {})),
+      );
 
       try {
         await StartupPreloadService.warmupMapStyleAsset();

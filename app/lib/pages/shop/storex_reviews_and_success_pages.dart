@@ -2,6 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+// Re-export + import des constantes de routes et arguments depuis le fichier léger
+export 'storex_route_args.dart';
+import 'storex_route_args.dart';
+
 /// ===============================================================
 /// ROUTES (a enregistrer dans MaterialApp.routes)
 /// ===============================================================
@@ -9,36 +13,6 @@ import 'package:flutter/material.dart';
 /// StorexRoutes.reviews         -> args: ReviewsArgs
 /// StorexRoutes.addReview       -> args: AddReviewArgs
 /// StorexRoutes.orderTracker    -> args: OrderTrackerArgs
-class StorexRoutes {
-  static const paymentComplete = '/storex/paymentComplete';
-  static const reviews = '/storex/reviews';
-  static const addReview = '/storex/addReview';
-  static const orderTracker = '/storex/orderTracker';
-}
-
-/// Pour pouvoir push avec arguments type-safe
-class PaymentCompleteArgs {
-  final String orderCode; // ex: SX133
-  final String? continueToRoute; // ex: '/shop'
-  const PaymentCompleteArgs({required this.orderCode, this.continueToRoute});
-}
-
-class ReviewsArgs {
-  final String productId;
-  final String productTitle;
-  const ReviewsArgs({required this.productId, required this.productTitle});
-}
-
-class AddReviewArgs {
-  final String productId;
-  final String productTitle;
-  const AddReviewArgs({required this.productId, required this.productTitle});
-}
-
-class OrderTrackerArgs {
-  final String orderId;
-  const OrderTrackerArgs({required this.orderId});
-}
 
 /// ===============================================================
 /// FIRESTORE SCHEMA RECOMMANDE (simple & clean)

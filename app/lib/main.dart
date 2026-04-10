@@ -9,67 +9,73 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 
-import 'admin/admin_main_dashboard.dart';
-import 'admin/admin_circuits_page.dart';
-import 'admin/admin_moderation_page.dart';
-import 'admin/business_requests_page.dart';
-import 'admin/category_management_page.dart';
-import 'admin/circuit_wizard_entry_page.dart';
-import 'admin/commerce_analytics_page.dart';
-import 'admin/map_projects_library_page.dart';
-import 'admin/map_project_wizard_entry_page.dart';
-import 'admin/marketmap_debug_page.dart';
-import 'admin/mapmarket_projects_page.dart';
-import 'admin/role_management_page.dart';
-import 'admin/super_admin_space.dart';
-import 'commerce_module_single_file.dart';
-import 'features/map_style/presentation/pages/mapbox_style_studio_page.dart';
-import 'features/media_marketplace/presentation/pages/media_marketplace_pages.dart';
-import 'features/shop/pages/media_photo_shop_page.dart';
+// ── Deferred: chargés à la demande (allège le bundle JS initial) ──
+import 'admin/admin_main_dashboard.dart' deferred as _admMain;
+import 'admin/admin_circuits_page.dart' deferred as _admCircuits;
+import 'admin/admin_moderation_page.dart' deferred as _admModeration;
+import 'admin/business_requests_page.dart' deferred as _admBizReq;
+import 'admin/category_management_page.dart' deferred as _admCategories;
+import 'admin/circuit_wizard_entry_page.dart' deferred as _admCircuitWiz;
+import 'admin/commerce_analytics_page.dart' deferred as _admComAnalytics;
+import 'admin/map_projects_library_page.dart' deferred as _admMapLib;
+import 'admin/map_project_wizard_entry_page.dart' deferred as _admMapWiz;
+import 'admin/marketmap_debug_page.dart' deferred as _admMarketDebug;
+import 'admin/mapmarket_projects_page.dart' deferred as _admMapmarket;
+import 'admin/role_management_page.dart' deferred as _admRoles;
+import 'admin/super_admin_space.dart' deferred as _admSuper;
+import 'commerce_module_single_file.dart' deferred as _commerce;
+import 'features/map_style/presentation/pages/mapbox_style_studio_page.dart' deferred as _mapStyleStudio;
+import 'features/media_marketplace/presentation/pages/media_marketplace_pages.dart' deferred as _mediaMarket;
+import 'features/shop/pages/media_photo_shop_page.dart' deferred as _photoShop;
 import 'firebase_options.dart';
 import 'l10n/app_localizations.dart';
-import 'pages/account_admin_page.dart';
-import 'pages/account_page.dart';
-import 'pages/app_shell.dart';
-import 'pages/business_account_page.dart';
-import 'pages/business_request_page.dart';
-import 'pages/cart/unified_cart_page.dart';
-import 'pages/circuit_calculs_validation_page.dart';
-import 'pages/circuit_draw_page.dart';
-import 'pages/circuit_editor_workflow_page.dart';
-import 'pages/circuit_import_export_page.dart';
-import 'pages/circuit_save_page.dart';
+// ── Eager: léger, args/routes constants ──
+import 'pages/shop/storex_route_args.dart';
+import 'route_style_pro/ui/route_style_pro_args.dart';
+// ── Eager: pages critiques au démarrage ──
 import 'pages/default_map_page.dart';
-import 'pages/favorites_page.dart';
-import 'pages/group/admin_group_dashboard_page.dart';
-import 'pages/group/group_export_page.dart';
-import 'pages/group/group_map_live_page.dart';
-import 'pages/group/group_track_history_page.dart';
-import 'pages/group/tracker_group_profile_page.dart';
-import 'pages/group_member_page.dart';
-import 'pages/group_profile_page.dart';
-import 'pages/group_shop_page.dart';
-import 'pages/home_map_page_3d.dart';
-import 'pages/login_page.dart';
-import 'pages/map_admin_editor_page.dart';
-import 'pages/mapbox_web_map_page.dart';
-import 'pages/orders_page.dart';
-import 'pages/paywall_page.dart';
-import 'pages/pending_products_page.dart';
-import 'pages/public/marketmap_public_viewer_page.dart';
-import 'pages/purchase_history_page.dart';
-import 'pages/search_page.dart';
-import 'pages/seller/seller_inbox_page.dart';
-import 'pages/seller/seller_order_detail_page.dart';
-import 'pages/shop/storex_reviews_and_success_pages.dart';
 import 'pages/splash_wrapper_page.dart';
-import 'pages/storex_shop_page.dart';
-import 'pages/tracking_live_page.dart';
-import 'pages/commerce/create_media_page.dart';
-import 'pages/commerce/create_product_page.dart';
-import 'pages/commerce/my_submissions_page.dart';
+// ── Deferred: toutes les autres pages (chargées à la demande) ──
+import 'pages/account_admin_page.dart' deferred as _account;
+import 'pages/account_page.dart' deferred as _accountUi;
+import 'pages/app_shell.dart' deferred as _appShell;
+import 'pages/business_account_page.dart' deferred as _bizAccount;
+import 'pages/business_request_page.dart' deferred as _bizRequest;
+import 'pages/cart/unified_cart_page.dart' deferred as _cart;
+import 'pages/circuit_calculs_validation_page.dart' deferred as _circuitCalc;
+import 'pages/circuit_draw_page.dart' deferred as _circuitDraw;
+import 'pages/circuit_editor_workflow_page.dart' deferred as _circuitEditor;
+import 'pages/circuit_import_export_page.dart' deferred as _circuitIO;
+import 'pages/circuit_save_page.dart' deferred as _circuitSave;
+import 'pages/favorites_page.dart' deferred as _favorites;
+import 'pages/group/admin_group_dashboard_page.dart' deferred as _grpAdmin;
+import 'pages/group/group_export_page.dart' deferred as _grpExport;
+import 'pages/group/group_map_live_page.dart' deferred as _grpLive;
+import 'pages/group/group_track_history_page.dart' deferred as _grpHistory;
+import 'pages/group/tracker_group_profile_page.dart' deferred as _grpTracker;
+import 'pages/group_member_page.dart' deferred as _grpMember;
+import 'pages/group_profile_page.dart' deferred as _grpProfile;
+import 'pages/group_shop_page.dart' deferred as _grpShop;
+import 'pages/home_map_page_3d.dart' deferred as _home3d;
+import 'pages/login_page.dart' deferred as _login;
+import 'pages/map_admin_editor_page.dart' deferred as _mapAdmin;
+import 'pages/mapbox_web_map_page.dart' deferred as _mapboxWeb;
+import 'pages/orders_page.dart' deferred as _orders;
+import 'pages/paywall_page.dart' deferred as _paywall;
+import 'pages/pending_products_page.dart' deferred as _pendingProd;
+import 'pages/public/marketmap_public_viewer_page.dart' deferred as _publicMap;
+import 'pages/purchase_history_page.dart' deferred as _purchaseHist;
+import 'pages/search_page.dart' deferred as _search;
+import 'pages/seller/seller_inbox_page.dart' deferred as _sellerInbox;
+import 'pages/seller/seller_order_detail_page.dart' deferred as _sellerOrder;
+import 'pages/shop/storex_reviews_and_success_pages.dart' deferred as _storexReviews;
+import 'pages/storex_shop_page.dart' deferred as _storexShop;
+import 'pages/tracking_live_page.dart' deferred as _tracking;
+import 'pages/commerce/create_media_page.dart' deferred as _createMedia;
+import 'pages/commerce/create_product_page.dart' deferred as _createProduct;
+import 'pages/commerce/my_submissions_page.dart' deferred as _mySubmissions;
+import 'route_style_pro/ui/route_style_wizard_pro_page.dart' deferred as _routeStylePro;
 import 'providers/cart_provider.dart';
-import 'route_style_pro/ui/route_style_wizard_pro_page.dart';
 import 'services/cart_checkout_service.dart';
 import 'services/cart_service.dart';
 import 'services/language_service.dart';
@@ -270,7 +276,7 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
       StartupTrace.log('FIREBASE', 'initializeApp start');
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
-      );
+      ).timeout(const Duration(seconds: 5));
       StartupTrace.log('FIREBASE', 'initializeApp success');
       return true;
     } catch (error, stackTrace) {
@@ -474,281 +480,17 @@ class MasLiveApp extends StatelessWidget {
               supportedLocales: AppLocalizations.supportedLocales,
               initialRoute: '/splash',
               routes: {
+                // ── Seules les routes critiques startup restent ici ──
                 '/splash': (_) => const SplashWrapperPage(),
-                '/': (_) =>
-                    kIsWeb ? const DefaultMapPage() : const HomeMapPage3D(),
-                '/map-web': (_) => const DefaultMapPage(),
-                '/mapbox-web': (_) => const MapboxWebMapPage(),
-                '/map-3d': (_) => const MapboxWebMapPage(),
-                '/account-ui': (_) => const AccountUiPage(),
-                '/shop-ui': (_) =>
-                    const StorexShopPage(shopId: 'global', groupId: 'MASLIVE'),
-                '/group-ui': (_) => const GroupProfilePage(groupId: 'demo'),
-                '/app': (ctx) {
-                  final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
-                  final groupId = args != null
-                      ? args['groupId'] as String?
-                      : null;
-                  return AppShell(groupId: groupId ?? 'groupe_demo');
-                },
-                '/group': (_) => const GroupProfilePage(groupId: 'groupe_demo'),
-                '/shop': (ctx) {
-                  final groupId =
-                      ModalRoute.of(ctx)?.settings.arguments as String?;
-                  return GroupShopPage(groupId: groupId ?? 'groupe_demo');
-                },
-                '/admin/commerce': (_) => AdminRouteGuard(
-                  child: ProductManagementPage(shopId: 'global'),
-                ),
-                '/boutique': (_) =>
-                    const StorexShopPage(shopId: 'global', groupId: 'MASLIVE'),
-                '/boutique-photo': (_) => const MediaPhotoShopPage(),
-                StorexRoutes.paymentComplete: (ctx) {
-                  final args = ModalRoute.of(ctx)?.settings.arguments;
-                  if (args is PaymentCompleteArgs) {
-                    return PaymentCompletePage(
-                      orderCode: args.orderCode,
-                      continueToRoute: args.continueToRoute,
-                    );
-                  }
-                  return const _RouteArgsErrorPage(
-                    routeName: StorexRoutes.paymentComplete,
-                  );
-                },
-                StorexRoutes.reviews: (ctx) {
-                  final args = ModalRoute.of(ctx)?.settings.arguments;
-                  if (args is ReviewsArgs) {
-                    return ReviewsPage(
-                      productId: args.productId,
-                      productTitle: args.productTitle,
-                    );
-                  }
-                  return const _RouteArgsErrorPage(
-                    routeName: StorexRoutes.reviews,
-                  );
-                },
-                StorexRoutes.addReview: (ctx) {
-                  final args = ModalRoute.of(ctx)?.settings.arguments;
-                  if (args is AddReviewArgs) {
-                    return AddReviewPage(
-                      productId: args.productId,
-                      productTitle: args.productTitle,
-                    );
-                  }
-                  return const _RouteArgsErrorPage(
-                    routeName: StorexRoutes.addReview,
-                  );
-                },
-                StorexRoutes.orderTracker: (ctx) {
-                  final args = ModalRoute.of(ctx)?.settings.arguments;
-                  if (args is OrderTrackerArgs) {
-                    return OrderTrackerPage(orderId: args.orderId);
-                  }
-                  return const _RouteArgsErrorPage(
-                    routeName: StorexRoutes.orderTracker,
-                  );
-                },
-                '/account': (_) => const AccountAndAdminPage(),
-                '/account-admin': (_) => const AccountAndAdminPage(),
-                '/orders': (_) => const OrdersPage(),
-                '/seller-inbox': (_) => const SellerInboxPage(),
-                '/seller-order': (ctx) {
-                  final args = ModalRoute.of(ctx)?.settings.arguments;
-                  final orderId = args is String ? args : null;
-                  if (orderId == null || orderId.trim().isEmpty) {
-                    return const _RouteArgsErrorPage(
-                      routeName: '/seller-order',
-                    );
-                  }
-                  return SellerOrderDetailPage(orderId: orderId);
-                },
-                '/map-admin': (_) =>
-                    const AdminRouteGuard(child: MapAdminEditorPage()),
-                '/group-member': (ctx) {
-                  final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
-                  final groupId = args != null
-                      ? args['groupId'] as String?
-                      : null;
-                  return GroupMemberPage(groupId: groupId);
-                },
-                '/admin': (_) =>
-                    const AdminRouteGuard(child: AdminMainDashboard()),
-                '/admin/circuits': (_) =>
-                    const AdminRouteGuard(child: AdminCircuitsPage()),
-                '/admin/track-editor': (_) =>
-                    const AdminRouteGuard(child: CircuitEditorWorkflowPage()),
-                '/admin/map-library': (_) =>
-                    const AdminRouteGuard(child: MapProjectsLibraryPage()),
-                '/admin/mapmarket': (_) =>
-                    const AdminRouteGuard(child: MapMarketProjectsPage()),
-                '/admin/mapmarket/wizard': (_) =>
-                    const AdminRouteGuard(child: MapProjectWizardEntryPage()),
-                '/admin/marketmap-debug': (_) =>
-                    const AdminRouteGuard(child: MarketMapDebugPage()),
-                '/admin/circuit-wizard': (_) =>
-                    const AdminRouteGuard(child: CircuitWizardEntryPage()),
-                '/admin/mapbox-style-studio': (_) =>
-                    const AdminRouteGuard(child: MapboxStyleStudioPage()),
-                '/admin/route-style-pro': (ctx) {
-                  final args = ModalRoute.of(ctx)?.settings.arguments;
-                  if (args is RouteStyleProArgs) {
-                    return AdminRouteGuard(
-                      child: RouteStyleWizardProPage(
-                        projectId: args.projectId,
-                        circuitId: args.circuitId,
-                        initialRoute: args.initialRoute,
-                        initialStyleUrl: args.initialStyleUrl,
+                '/': (_) => kIsWeb
+                    ? const DefaultMapPage()
+                    : _DeferredLoader(
+                        load: _home3d.loadLibrary,
+                        build: () => _home3d.HomeMapPage3D(),
                       ),
-                    );
-                  }
-                  return const AdminRouteGuard(
-                    child: RouteStyleWizardProPage(),
-                  );
-                },
-                '/admin/superadmin': (_) =>
-                    const AdminRouteGuard(child: SuperAdminSpace()),
-                '/admin/categories': (_) =>
-                    const AdminRouteGuard(child: CategoryManagementPage()),
-                '/admin/roles': (_) =>
-                    const AdminRouteGuard(child: RoleManagementPage()),
-                '/login': (_) => const LoginPage(),
-                '/tracking': (_) => const TrackingLivePage(),
-                '/search': (_) => const SearchPage(),
-                '/circuit-import-export': (_) =>
-                    const CircuitImportExportPage(),
-                '/circuit-calculs': (_) => const CircuitCalculsValidationPage(),
-                '/circuit-save': (_) => const CircuitSavePage(),
-                '/circuit-draw': (_) => const CircuitDrawPage(),
-                '/favorites': (_) => const FavoritesPage(),
-                '/cart': (_) => const UnifiedCartPage(),
-                '/paywall': (_) => const PaywallPage(),
-                '/pending-products': (_) => const PendingProductsPage(),
-                '/purchase-history': (_) => const PurchaseHistoryPage(),
-                '/business': (_) => const BusinessAccountPage(),
-                '/business-request': (_) => const BusinessRequestPage(),
-                '/admin/business-requests': (_) =>
-                    const AdminRouteGuard(child: BusinessRequestsPage()),
-                '/commerce/create-product': (_) => const CreateProductPage(),
-                '/commerce/create-media': (_) => const CreateMediaPage(),
-                '/commerce/my-submissions': (_) => const MySubmissionsPage(),
-                '/admin/moderation': (_) =>
-                    const AdminRouteGuard(child: AdminModerationPage()),
-                '/admin/commerce-analytics': (_) =>
-                    const AdminRouteGuard(child: CommerceAnalyticsPage()),
-                '/media-marketplace': (ctx) {
-                  final args = ModalRoute.of(ctx)?.settings.arguments;
-                  int initialTabIndex = 0;
-                  if (args is Map) {
-                    final countryId = args['countryId'] as String?;
-                    final countryName = args['countryName'] as String?;
-                    final eventId = args['eventId'] as String?;
-                    final eventName = args['eventName'] as String?;
-                    final circuitId = args['circuitId'] as String?;
-                    final circuitName = args['circuitName'] as String?;
-                    final photographerId = args['photographerId'] as String?;
-                    final ownerUid = args['ownerUid'] as String?;
-                    final initialTab = args['initialTab'];
-                    if (initialTab is int) {
-                      initialTabIndex = initialTab;
-                    } else if (initialTab is String) {
-                      switch (initialTab) {
-                        case 'cart':
-                          initialTabIndex = 1;
-                          break;
-                        case 'downloads':
-                          initialTabIndex = 2;
-                          break;
-                        case 'photographer':
-                          initialTabIndex = 3;
-                          break;
-                        default:
-                          initialTabIndex = 0;
-                      }
-                    }
-                    return MediaMarketplaceEntryPage(
-                      countryId: countryId,
-                      countryName: countryName,
-                      eventId: eventId,
-                      eventName: eventName,
-                      circuitId: circuitId,
-                      circuitName: circuitName,
-                      photographerId: photographerId,
-                      ownerUid: ownerUid,
-                      initialTabIndex: initialTabIndex,
-                    );
-                  }
-                  return const MediaMarketplaceEntryPage();
-                },
-                '/media-marketplace/cart': (_) => const UnifiedCartPage(),
-                '/media-marketplace/success': (_) =>
-                    _MediaMarketplaceCheckoutReturnPage(
-                      succeeded: true,
-                      orderId: _routeQueryParam('orderId'),
-                    ),
-                '/media-marketplace/cancel': (_) =>
-                    _MediaMarketplaceCheckoutReturnPage(
-                      succeeded: false,
-                      orderId: _routeQueryParam('orderId'),
-                    ),
-                '/media-marketplace/downloads': (_) =>
-                    const MediaDownloadsPage(),
-                '/media-marketplace/photographer': (_) =>
-                    const PhotographerDashboardPage(),
-                '/media-marketplace/subscription': (_) =>
-                    const PhotographerSubscriptionPage(),
-                '/admin/media-marketplace/moderation': (_) =>
-                    const AdminRouteGuard(child: AdminModerationQueuePage()),
-                '/public/marketmap': (ctx) {
-                  final args = ModalRoute.of(ctx)?.settings.arguments;
-                  if (args is Map) {
-                    final countryId = args['countryId'] as String?;
-                    final eventId = args['eventId'] as String?;
-                    final initialCircuitId =
-                        args['initialCircuitId'] as String?;
-                    final accessToken = args['accessToken'] as String?;
-
-                    if (countryId != null && eventId != null) {
-                      return MarketMapPublicViewerPage(
-                        countryId: countryId,
-                        eventId: eventId,
-                        initialCircuitId: initialCircuitId,
-                        accessToken: accessToken,
-                      );
-                    }
-                  }
-                  return const _RouteArgsErrorPage(
-                    routeName: '/public/marketmap',
-                  );
-                },
-                '/group-admin': (_) => const AdminGroupDashboardPage(),
-                '/group-tracker': (_) => const TrackerGroupProfilePage(),
-                '/group-live': (ctx) {
-                  final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
-                  final adminGroupId =
-                      (args?['adminGroupId'] as String?) ?? '000000';
-                  return GroupMapLivePage(adminGroupId: adminGroupId);
-                },
-                '/group-history': (ctx) {
-                  final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
-                  final adminGroupId =
-                      (args?['adminGroupId'] as String?) ?? '000000';
-                  final uid = args?['uid'] as String?;
-                  return GroupTrackHistoryPage(
-                    adminGroupId: adminGroupId,
-                    uid: uid,
-                  );
-                },
-                '/group-export': (ctx) {
-                  final args = ModalRoute.of(ctx)?.settings.arguments as Map?;
-                  final adminGroupId =
-                      (args?['adminGroupId'] as String?) ?? '000000';
-                  final uid = args?['uid'] as String?;
-                  return GroupExportPage(adminGroupId: adminGroupId, uid: uid);
-                },
+                '/map-web': (_) => const DefaultMapPage(),
               },
-              onGenerateRoute: (settings) {
-                return null;
-              },
+              onGenerateRoute: _onGenerateRoute,
               builder: (context, child) => HoneycombBackground(
                 opacity: 0.08,
                 child: LocalizedApp(
@@ -760,6 +502,358 @@ class MasLiveApp extends StatelessWidget {
           },
         ),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// onGenerateRoute — toutes les routes secondaires, chargées à la demande.
+// ─────────────────────────────────────────────────────────────────────────────
+Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
+  final name = settings.name;
+  final args = settings.arguments;
+  Widget? page;
+
+  switch (name) {
+    // ── Maps ──
+    case '/mapbox-web':
+    case '/map-3d':
+      page = _DeferredLoader(load: _mapboxWeb.loadLibrary, build: () => _mapboxWeb.MapboxWebMapPage());
+      break;
+
+    // ── Account ──
+    case '/account-ui':
+      page = _DeferredLoader(load: _accountUi.loadLibrary, build: () => _accountUi.AccountUiPage());
+      break;
+    case '/account':
+    case '/account-admin':
+      page = _DeferredLoader(load: _account.loadLibrary, build: () => _account.AccountAndAdminPage());
+      break;
+    case '/login':
+      page = _DeferredLoader(load: _login.loadLibrary, build: () => _login.LoginPage());
+      break;
+
+    // ── Shop / Boutique ──
+    case '/shop-ui':
+    case '/boutique':
+      page = _DeferredLoader(load: _storexShop.loadLibrary, build: () => _storexShop.StorexShopPage(shopId: 'global', groupId: 'MASLIVE'));
+      break;
+    case '/shop':
+      final groupId = args is String ? args : 'groupe_demo';
+      page = _DeferredLoader(load: _grpShop.loadLibrary, build: () => _grpShop.GroupShopPage(groupId: groupId));
+      break;
+    case '/boutique-photo':
+      page = _DeferredLoader(load: _photoShop.loadLibrary, build: () => _photoShop.MediaPhotoShopPage());
+      break;
+
+    // ── Storex (reviews / payment / tracker) ──
+    case StorexRoutes.paymentComplete:
+      page = _DeferredLoader(load: _storexReviews.loadLibrary, build: () {
+        if (args is PaymentCompleteArgs) {
+          return _storexReviews.PaymentCompletePage(orderCode: args.orderCode, continueToRoute: args.continueToRoute);
+        }
+        return const _RouteArgsErrorPage(routeName: '/storex/paymentComplete');
+      });
+      break;
+    case StorexRoutes.reviews:
+      page = _DeferredLoader(load: _storexReviews.loadLibrary, build: () {
+        if (args is ReviewsArgs) {
+          return _storexReviews.ReviewsPage(productId: args.productId, productTitle: args.productTitle);
+        }
+        return const _RouteArgsErrorPage(routeName: '/storex/reviews');
+      });
+      break;
+    case StorexRoutes.addReview:
+      page = _DeferredLoader(load: _storexReviews.loadLibrary, build: () {
+        if (args is AddReviewArgs) {
+          return _storexReviews.AddReviewPage(productId: args.productId, productTitle: args.productTitle);
+        }
+        return const _RouteArgsErrorPage(routeName: '/storex/addReview');
+      });
+      break;
+    case StorexRoutes.orderTracker:
+      page = _DeferredLoader(load: _storexReviews.loadLibrary, build: () {
+        if (args is OrderTrackerArgs) {
+          return _storexReviews.OrderTrackerPage(orderId: args.orderId);
+        }
+        return const _RouteArgsErrorPage(routeName: '/storex/orderTracker');
+      });
+      break;
+
+    // ── App / Group ──
+    case '/app':
+      final m = args is Map ? args : null;
+      final groupId = m?['groupId'] as String? ?? 'groupe_demo';
+      page = _DeferredLoader(load: _appShell.loadLibrary, build: () => _appShell.AppShell(groupId: groupId));
+      break;
+    case '/group':
+    case '/group-ui':
+      page = _DeferredLoader(load: _grpProfile.loadLibrary, build: () => _grpProfile.GroupProfilePage(groupId: 'groupe_demo'));
+      break;
+    case '/group-member':
+      final m = args is Map ? args : null;
+      final groupId = m?['groupId'] as String?;
+      page = _DeferredLoader(load: _grpMember.loadLibrary, build: () => _grpMember.GroupMemberPage(groupId: groupId));
+      break;
+    case '/group-admin':
+      page = _DeferredLoader(load: _grpAdmin.loadLibrary, build: () => _grpAdmin.AdminGroupDashboardPage());
+      break;
+    case '/group-tracker':
+      page = _DeferredLoader(load: _grpTracker.loadLibrary, build: () => _grpTracker.TrackerGroupProfilePage());
+      break;
+    case '/group-live':
+      final m = args is Map ? args : null;
+      final adminGroupId = (m?['adminGroupId'] as String?) ?? '000000';
+      page = _DeferredLoader(load: _grpLive.loadLibrary, build: () => _grpLive.GroupMapLivePage(adminGroupId: adminGroupId));
+      break;
+    case '/group-history':
+      final m = args is Map ? args : null;
+      final adminGroupId = (m?['adminGroupId'] as String?) ?? '000000';
+      final uid = m?['uid'] as String?;
+      page = _DeferredLoader(load: _grpHistory.loadLibrary, build: () => _grpHistory.GroupTrackHistoryPage(adminGroupId: adminGroupId, uid: uid));
+      break;
+    case '/group-export':
+      final m = args is Map ? args : null;
+      final adminGroupId = (m?['adminGroupId'] as String?) ?? '000000';
+      final uid = m?['uid'] as String?;
+      page = _DeferredLoader(load: _grpExport.loadLibrary, build: () => _grpExport.GroupExportPage(adminGroupId: adminGroupId, uid: uid));
+      break;
+
+    // ── Orders / Seller ──
+    case '/orders':
+      page = _DeferredLoader(load: _orders.loadLibrary, build: () => _orders.OrdersPage());
+      break;
+    case '/seller-inbox':
+      page = _DeferredLoader(load: _sellerInbox.loadLibrary, build: () => _sellerInbox.SellerInboxPage());
+      break;
+    case '/seller-order':
+      final orderId = args is String ? args : null;
+      if (orderId == null || orderId.trim().isEmpty) {
+        page = const _RouteArgsErrorPage(routeName: '/seller-order');
+      } else {
+        page = _DeferredLoader(load: _sellerOrder.loadLibrary, build: () => _sellerOrder.SellerOrderDetailPage(orderId: orderId));
+      }
+      break;
+
+    // ── Circuits ──
+    case '/circuit-import-export':
+      page = _DeferredLoader(load: _circuitIO.loadLibrary, build: () => _circuitIO.CircuitImportExportPage());
+      break;
+    case '/circuit-calculs':
+      page = _DeferredLoader(load: _circuitCalc.loadLibrary, build: () => _circuitCalc.CircuitCalculsValidationPage());
+      break;
+    case '/circuit-save':
+      page = _DeferredLoader(load: _circuitSave.loadLibrary, build: () => _circuitSave.CircuitSavePage());
+      break;
+    case '/circuit-draw':
+      page = _DeferredLoader(load: _circuitDraw.loadLibrary, build: () => _circuitDraw.CircuitDrawPage());
+      break;
+
+    // ── Tracking / Search / Favorites ──
+    case '/tracking':
+      page = _DeferredLoader(load: _tracking.loadLibrary, build: () => _tracking.TrackingLivePage());
+      break;
+    case '/search':
+      page = _DeferredLoader(load: _search.loadLibrary, build: () => _search.SearchPage());
+      break;
+    case '/favorites':
+      page = _DeferredLoader(load: _favorites.loadLibrary, build: () => _favorites.FavoritesPage());
+      break;
+
+    // ── Cart / Paywall / Purchase ──
+    case '/cart':
+    case '/media-marketplace/cart':
+      page = _DeferredLoader(load: _cart.loadLibrary, build: () => _cart.UnifiedCartPage());
+      break;
+    case '/paywall':
+      page = _DeferredLoader(load: _paywall.loadLibrary, build: () => _paywall.PaywallPage());
+      break;
+    case '/pending-products':
+      page = _DeferredLoader(load: _pendingProd.loadLibrary, build: () => _pendingProd.PendingProductsPage());
+      break;
+    case '/purchase-history':
+      page = _DeferredLoader(load: _purchaseHist.loadLibrary, build: () => _purchaseHist.PurchaseHistoryPage());
+      break;
+
+    // ── Business ──
+    case '/business':
+      page = _DeferredLoader(load: _bizAccount.loadLibrary, build: () => _bizAccount.BusinessAccountPage());
+      break;
+    case '/business-request':
+      page = _DeferredLoader(load: _bizRequest.loadLibrary, build: () => _bizRequest.BusinessRequestPage());
+      break;
+
+    // ── Commerce ──
+    case '/commerce/create-product':
+      page = _DeferredLoader(load: _createProduct.loadLibrary, build: () => _createProduct.CreateProductPage());
+      break;
+    case '/commerce/create-media':
+      page = _DeferredLoader(load: _createMedia.loadLibrary, build: () => _createMedia.CreateMediaPage());
+      break;
+    case '/commerce/my-submissions':
+      page = _DeferredLoader(load: _mySubmissions.loadLibrary, build: () => _mySubmissions.MySubmissionsPage());
+      break;
+
+    // ── Admin ──
+    case '/admin':
+      page = AdminRouteGuard(child: _DeferredLoader(load: _admMain.loadLibrary, build: () => _admMain.AdminMainDashboard()));
+      break;
+    case '/admin/circuits':
+      page = AdminRouteGuard(child: _DeferredLoader(load: _admCircuits.loadLibrary, build: () => _admCircuits.AdminCircuitsPage()));
+      break;
+    case '/admin/track-editor':
+      page = AdminRouteGuard(child: _DeferredLoader(load: _circuitEditor.loadLibrary, build: () => _circuitEditor.CircuitEditorWorkflowPage()));
+      break;
+    case '/admin/map-library':
+      page = AdminRouteGuard(child: _DeferredLoader(load: _admMapLib.loadLibrary, build: () => _admMapLib.MapProjectsLibraryPage()));
+      break;
+    case '/admin/mapmarket':
+      page = AdminRouteGuard(child: _DeferredLoader(load: _admMapmarket.loadLibrary, build: () => _admMapmarket.MapMarketProjectsPage()));
+      break;
+    case '/admin/mapmarket/wizard':
+      page = AdminRouteGuard(child: _DeferredLoader(load: _admMapWiz.loadLibrary, build: () => _admMapWiz.MapProjectWizardEntryPage()));
+      break;
+    case '/admin/marketmap-debug':
+      page = AdminRouteGuard(child: _DeferredLoader(load: _admMarketDebug.loadLibrary, build: () => _admMarketDebug.MarketMapDebugPage()));
+      break;
+    case '/admin/circuit-wizard':
+      page = AdminRouteGuard(child: _DeferredLoader(load: _admCircuitWiz.loadLibrary, build: () => _admCircuitWiz.CircuitWizardEntryPage()));
+      break;
+    case '/admin/mapbox-style-studio':
+      page = AdminRouteGuard(child: _DeferredLoader(load: _mapStyleStudio.loadLibrary, build: () => _mapStyleStudio.MapboxStyleStudioPage()));
+      break;
+    case '/admin/route-style-pro':
+      page = AdminRouteGuard(child: _DeferredLoader(load: _routeStylePro.loadLibrary, build: () {
+        if (args is RouteStyleProArgs) {
+          return _routeStylePro.RouteStyleWizardProPage(
+            projectId: args.projectId,
+            circuitId: args.circuitId,
+            initialRoute: args.initialRoute,
+            initialStyleUrl: args.initialStyleUrl,
+          );
+        }
+        return _routeStylePro.RouteStyleWizardProPage();
+      }));
+      break;
+    case '/admin/superadmin':
+      page = AdminRouteGuard(child: _DeferredLoader(load: _admSuper.loadLibrary, build: () => _admSuper.SuperAdminSpace()));
+      break;
+    case '/admin/categories':
+      page = AdminRouteGuard(child: _DeferredLoader(load: _admCategories.loadLibrary, build: () => _admCategories.CategoryManagementPage()));
+      break;
+    case '/admin/roles':
+      page = AdminRouteGuard(child: _DeferredLoader(load: _admRoles.loadLibrary, build: () => _admRoles.RoleManagementPage()));
+      break;
+    case '/admin/business-requests':
+      page = AdminRouteGuard(child: _DeferredLoader(load: _admBizReq.loadLibrary, build: () => _admBizReq.BusinessRequestsPage()));
+      break;
+    case '/admin/commerce':
+      page = AdminRouteGuard(child: _DeferredLoader(load: _commerce.loadLibrary, build: () => _commerce.ProductManagementPage(shopId: 'global')));
+      break;
+    case '/admin/moderation':
+      page = AdminRouteGuard(child: _DeferredLoader(load: _admModeration.loadLibrary, build: () => _admModeration.AdminModerationPage()));
+      break;
+    case '/admin/commerce-analytics':
+      page = AdminRouteGuard(child: _DeferredLoader(load: _admComAnalytics.loadLibrary, build: () => _admComAnalytics.CommerceAnalyticsPage()));
+      break;
+    case '/admin/media-marketplace/moderation':
+      page = AdminRouteGuard(child: _DeferredLoader(load: _mediaMarket.loadLibrary, build: () => _mediaMarket.AdminModerationQueuePage()));
+      break;
+    case '/map-admin':
+      page = AdminRouteGuard(child: _DeferredLoader(load: _mapAdmin.loadLibrary, build: () => _mapAdmin.MapAdminEditorPage()));
+      break;
+
+    // ── Media Marketplace ──
+    case '/media-marketplace':
+      page = _DeferredLoader(load: _mediaMarket.loadLibrary, build: () {
+        int initialTabIndex = 0;
+        if (args is Map) {
+          final initialTab = args['initialTab'];
+          if (initialTab is int) {
+            initialTabIndex = initialTab;
+          } else if (initialTab is String) {
+            switch (initialTab) {
+              case 'cart': initialTabIndex = 1; break;
+              case 'downloads': initialTabIndex = 2; break;
+              case 'photographer': initialTabIndex = 3; break;
+              default: initialTabIndex = 0;
+            }
+          }
+          return _mediaMarket.MediaMarketplaceEntryPage(
+            countryId: args['countryId'] as String?,
+            countryName: args['countryName'] as String?,
+            eventId: args['eventId'] as String?,
+            eventName: args['eventName'] as String?,
+            circuitId: args['circuitId'] as String?,
+            circuitName: args['circuitName'] as String?,
+            photographerId: args['photographerId'] as String?,
+            ownerUid: args['ownerUid'] as String?,
+            initialTabIndex: initialTabIndex,
+          );
+        }
+        return _mediaMarket.MediaMarketplaceEntryPage();
+      });
+      break;
+    case '/media-marketplace/success':
+      page = _MediaMarketplaceCheckoutReturnPage(succeeded: true, orderId: _routeQueryParam('orderId'));
+      break;
+    case '/media-marketplace/cancel':
+      page = _MediaMarketplaceCheckoutReturnPage(succeeded: false, orderId: _routeQueryParam('orderId'));
+      break;
+    case '/media-marketplace/downloads':
+      page = _DeferredLoader(load: _mediaMarket.loadLibrary, build: () => _mediaMarket.MediaDownloadsPage());
+      break;
+    case '/media-marketplace/photographer':
+      page = _DeferredLoader(load: _mediaMarket.loadLibrary, build: () => _mediaMarket.PhotographerDashboardPage());
+      break;
+    case '/media-marketplace/subscription':
+      page = _DeferredLoader(load: _mediaMarket.loadLibrary, build: () => _mediaMarket.PhotographerSubscriptionPage());
+      break;
+
+    // ── Public ──
+    case '/public/marketmap':
+      page = _DeferredLoader(load: _publicMap.loadLibrary, build: () {
+        if (args is Map) {
+          final countryId = args['countryId'] as String?;
+          final eventId = args['eventId'] as String?;
+          if (countryId != null && eventId != null) {
+            return _publicMap.MarketMapPublicViewerPage(
+              countryId: countryId,
+              eventId: eventId,
+              initialCircuitId: args['initialCircuitId'] as String?,
+              accessToken: args['accessToken'] as String?,
+            );
+          }
+        }
+        return const _RouteArgsErrorPage(routeName: '/public/marketmap');
+      });
+      break;
+  }
+
+  if (page == null) return null;
+  return MaterialPageRoute<dynamic>(builder: (_) => page!, settings: settings);
+}
+
+/// Widget helper pour le chargement différé d'un module (deferred import).
+/// Affiche un spinner le temps que le code soit téléchargé, puis construit
+/// le widget final via [build].
+class _DeferredLoader extends StatelessWidget {
+  const _DeferredLoader({required this.load, required Widget Function() build})
+      : _buildPage = build;
+  final Future<void> Function() load;
+  final Widget Function() _buildPage;
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<void>(
+      future: load(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.done && !snap.hasError) {
+          return _buildPage();
+        }
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
+      },
     );
   }
 }

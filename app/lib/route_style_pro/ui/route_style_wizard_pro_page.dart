@@ -10,26 +10,14 @@ import '../services/route_style_persistence.dart';
 import 'widgets/route_style_controls_panel.dart';
 import 'widgets/route_style_preview_map.dart';
 
+export 'route_style_pro_args.dart';
+
 class RouteStyleWizardProController {
   Future<void> Function()? _flushPendingChanges;
 
   Future<void> flushPendingChanges() async {
     await (_flushPendingChanges?.call() ?? Future<void>.value());
   }
-}
-
-class RouteStyleProArgs {
-  final String? projectId;
-  final String? circuitId;
-  final List<LatLng>? initialRoute;
-  final String? initialStyleUrl;
-
-  const RouteStyleProArgs({
-    this.projectId,
-    this.circuitId,
-    this.initialRoute,
-    this.initialStyleUrl,
-  });
 }
 
 class RouteStyleWizardProPage extends StatefulWidget {
