@@ -160,35 +160,35 @@ class _StorexBrandTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: RichText(
-        textAlign: TextAlign.center,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        text: TextSpan(
-          children: <InlineSpan>[
-            const TextSpan(
-              text: "MAS'LIVE ",
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.9,
-                color: _ShopUi.textMain,
-                height: 1,
-              ),
+      padding: const EdgeInsets.only(top: 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          const Text(
+            "MAS'LIVE",
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.9,
+              color: _ShopUi.textMain,
+              height: 1,
             ),
-            TextSpan(
-              text: subtitle,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.4,
-                color: _ShopUi.textMuted,
-                height: 1,
-              ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 2.2,
+              color: _ShopUi.textMuted,
+              height: 1,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -953,6 +953,47 @@ class _StorexCategory extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: _ShopUi.pageBg,
+      drawer: ShopDrawer(
+        shopId: shopId,
+        groupId: groupId,
+        onNavigateHome: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => _StorexHome(shopId: shopId, groupId: groupId),
+            ),
+          );
+        },
+        onNavigateSearch: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => _SearchPage(shopId: shopId, groupId: groupId),
+            ),
+          );
+        },
+        onNavigateProfile: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => _StorexAccount(shopId: shopId, groupId: groupId),
+            ),
+          );
+        },
+        onNavigateCategory: (categoryId, title) {
+          Navigator.of(context).pop();
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => _ListPage(
+                shopId: shopId,
+                groupId: groupId,
+                categoryId: categoryId,
+                title: title,
+              ),
+            ),
+          );
+        },
+      ),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
@@ -967,6 +1008,12 @@ class _StorexCategory extends StatelessWidget {
         toolbarHeight: 88,
         centerTitle: true,
         iconTheme: const IconThemeData(color: _ShopUi.textMain),
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+          ),
+        ),
         title: const _StorexBrandTitle(subtitle: 'CATEGORIES'),
         actions: [
           LanguageSwitcher(textColor: _ShopUi.textMain),
@@ -1140,6 +1187,56 @@ class _ListPageState extends State<_ListPage> {
 
     return Scaffold(
       backgroundColor: _ShopUi.pageBg,
+      drawer: ShopDrawer(
+        shopId: widget.shopId,
+        groupId: widget.groupId,
+        onNavigateHome: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => _StorexHome(
+                shopId: widget.shopId,
+                groupId: widget.groupId,
+              ),
+            ),
+          );
+        },
+        onNavigateSearch: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => _SearchPage(
+                shopId: widget.shopId,
+                groupId: widget.groupId,
+              ),
+            ),
+          );
+        },
+        onNavigateProfile: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => _StorexAccount(
+                shopId: widget.shopId,
+                groupId: widget.groupId,
+              ),
+            ),
+          );
+        },
+        onNavigateCategory: (categoryId, title) {
+          Navigator.of(context).pop();
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => _ListPage(
+                shopId: widget.shopId,
+                groupId: widget.groupId,
+                categoryId: categoryId,
+                title: title,
+              ),
+            ),
+          );
+        },
+      ),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
@@ -1153,9 +1250,11 @@ class _ListPageState extends State<_ListPage> {
         elevation: 0,
         toolbarHeight: 88,
         iconTheme: const IconThemeData(color: _ShopUi.textMain),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+          ),
         ),
         centerTitle: true,
         title: _StorexBrandTitle(subtitle: widget.title.toUpperCase()),
@@ -1547,6 +1646,48 @@ class _WishlistPage extends StatelessWidget {
     if (user == null) {
       return Scaffold(
         backgroundColor: _ShopUi.pageBg,
+        drawer: ShopDrawer(
+          shopId: repo.shopId,
+          groupId: repo.groupId,
+          onNavigateHome: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => _StorexHome(
+                  shopId: repo.shopId,
+                  groupId: repo.groupId,
+                ),
+              ),
+            );
+          },
+          onNavigateSearch: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => _SearchPage(
+                  shopId: repo.shopId,
+                  groupId: repo.groupId,
+                ),
+              ),
+            );
+          },
+          onNavigateProfile: () {
+            Navigator.of(context).pop();
+          },
+          onNavigateCategory: (categoryId, title) {
+            Navigator.of(context).pop();
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => _ListPage(
+                  shopId: repo.shopId,
+                  groupId: repo.groupId,
+                  categoryId: categoryId,
+                  title: title,
+                ),
+              ),
+            );
+          },
+        ),
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
@@ -1560,9 +1701,11 @@ class _WishlistPage extends StatelessWidget {
           elevation: 0,
           toolbarHeight: 88,
           iconTheme: const IconThemeData(color: _ShopUi.textMain),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.of(context).pop(),
+          leading: Builder(
+            builder: (ctx) => IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () => Scaffold.of(ctx).openDrawer(),
+            ),
           ),
           centerTitle: true,
           title: const _StorexBrandTitle(subtitle: 'MES FAVORIS'),
@@ -1597,6 +1740,48 @@ class _WishlistPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: _ShopUi.pageBg,
+      drawer: ShopDrawer(
+        shopId: repo.shopId,
+        groupId: repo.groupId,
+        onNavigateHome: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => _StorexHome(
+                shopId: repo.shopId,
+                groupId: repo.groupId,
+              ),
+            ),
+          );
+        },
+        onNavigateSearch: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => _SearchPage(
+                shopId: repo.shopId,
+                groupId: repo.groupId,
+              ),
+            ),
+          );
+        },
+        onNavigateProfile: () {
+          Navigator.of(context).pop();
+        },
+        onNavigateCategory: (categoryId, title) {
+          Navigator.of(context).pop();
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => _ListPage(
+                shopId: repo.shopId,
+                groupId: repo.groupId,
+                categoryId: categoryId,
+                title: title,
+              ),
+            ),
+          );
+        },
+      ),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
@@ -1610,9 +1795,11 @@ class _WishlistPage extends StatelessWidget {
         elevation: 0,
         toolbarHeight: 88,
         iconTheme: const IconThemeData(color: _ShopUi.textMain),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+          ),
         ),
         centerTitle: true,
         title: const _StorexBrandTitle(subtitle: 'MES FAVORIS'),
@@ -1783,6 +1970,48 @@ class _OrdersPage extends StatelessWidget {
     if (user == null) {
       return Scaffold(
         backgroundColor: _ShopUi.pageBg,
+        drawer: ShopDrawer(
+          shopId: repo.shopId,
+          groupId: repo.groupId,
+          onNavigateHome: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => _StorexHome(
+                  shopId: repo.shopId,
+                  groupId: repo.groupId,
+                ),
+              ),
+            );
+          },
+          onNavigateSearch: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => _SearchPage(
+                  shopId: repo.shopId,
+                  groupId: repo.groupId,
+                ),
+              ),
+            );
+          },
+          onNavigateProfile: () {
+            Navigator.of(context).pop();
+          },
+          onNavigateCategory: (categoryId, title) {
+            Navigator.of(context).pop();
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => _ListPage(
+                  shopId: repo.shopId,
+                  groupId: repo.groupId,
+                  categoryId: categoryId,
+                  title: title,
+                ),
+              ),
+            );
+          },
+        ),
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
@@ -1796,9 +2025,11 @@ class _OrdersPage extends StatelessWidget {
           elevation: 0,
           toolbarHeight: 88,
           iconTheme: const IconThemeData(color: _ShopUi.textMain),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.of(context).pop(),
+          leading: Builder(
+            builder: (ctx) => IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () => Scaffold.of(ctx).openDrawer(),
+            ),
           ),
           centerTitle: true,
           title: const _StorexBrandTitle(subtitle: 'MES COMMANDES'),
@@ -1833,6 +2064,48 @@ class _OrdersPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: _ShopUi.pageBg,
+      drawer: ShopDrawer(
+        shopId: repo.shopId,
+        groupId: repo.groupId,
+        onNavigateHome: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => _StorexHome(
+                shopId: repo.shopId,
+                groupId: repo.groupId,
+              ),
+            ),
+          );
+        },
+        onNavigateSearch: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => _SearchPage(
+                shopId: repo.shopId,
+                groupId: repo.groupId,
+              ),
+            ),
+          );
+        },
+        onNavigateProfile: () {
+          Navigator.of(context).pop();
+        },
+        onNavigateCategory: (categoryId, title) {
+          Navigator.of(context).pop();
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => _ListPage(
+                shopId: repo.shopId,
+                groupId: repo.groupId,
+                categoryId: categoryId,
+                title: title,
+              ),
+            ),
+          );
+        },
+      ),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
@@ -1846,9 +2119,11 @@ class _OrdersPage extends StatelessWidget {
         elevation: 0,
         toolbarHeight: 88,
         iconTheme: const IconThemeData(color: _ShopUi.textMain),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+          ),
         ),
         centerTitle: true,
         title: const _StorexBrandTitle(subtitle: 'MES COMMANDES'),

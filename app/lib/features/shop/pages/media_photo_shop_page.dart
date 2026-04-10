@@ -278,33 +278,14 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                     ),
                     const SizedBox(height: 8),
                     Center(
-                      child: RichText(
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        text: TextSpan(
-                          children: <InlineSpan>[
-                            TextSpan(
-                              text: "MAS'LIVE ",
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.8,
-                                color: MasliveTheme.textPrimary,
-                                height: 1,
-                              ),
-                            ),
-                            TextSpan(
-                              text: 'LA BOUTIQUE PHOTO',
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w500,
-                                letterSpacing: 2.2,
-                                color: MasliveTheme.textSecondary,
-                                height: 1,
-                              ),
-                            ),
-                          ],
+                      child: Text(
+                        'LA BOUTIQUE PHOTO',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 2.2,
+                          color: MasliveTheme.textSecondary,
+                          height: 1,
                         ),
                       ),
                     ),

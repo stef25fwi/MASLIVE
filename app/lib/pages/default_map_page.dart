@@ -18,7 +18,6 @@ import '../services/geolocation_service.dart';
 import '../services/home_controls_theme_service.dart';
 import '../services/language_service.dart';
 import '../ui/theme/maslive_theme.dart';
-import '../ui/widgets/home_ultra_premium_glass.dart';
 import '../ui/widgets/maslive_card.dart';
 import '../ui/widgets/maslive_standard_bottom_bar.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
@@ -65,6 +64,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   static const Duration _navCloseDelay = Duration(milliseconds: 1500);
   static const Duration _deferredHomeInitDelay = Duration(milliseconds: 850);
   static const int _trackingIntervalSeconds = 15;
+  static const double _homeBottomBarHeight = 60;
 
   ui.Size? _lastMapSize;
   int _mapRebuildTick = 0;
@@ -131,11 +131,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     return _marketMapService ??= MarketMapService();
   }
 
-  bool get _useUltraPremiumHomeControls =>
-      _homeControlsTheme == HomeControlsThemeMode.ultraPremiumGlass;
-
   int? get _activeBottomBarIndex =>
-      _showActionsMenu ? 3 : _selectedBottomBarIndex;
+      _showActionsMenu ? 4 : (_selectedBottomBarIndex ?? 2);
 
   List<MapMarker> _composeMarkers() {
     final markers = List<MapMarker>.from(_marketPoiMarkers);
@@ -1228,153 +1225,25 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     ];
   }
 
-  List<MasliveVerticalNavItem> _buildPremiumVerticalNavItems(
-    BuildContext context,
-  ) {
-    final localizations = l10n.AppLocalizations.of(context)!;
-
-    return [
-      MasliveVerticalNavItem(
-        label: 'Carte',
-        icon: Icons.layers_rounded,
-        selected: _marketPoiSelection.enabled,
-        onTap: () {
-          _showMapProjectsSelector();
-          _closeNavWithDelay();
-        },
-      ),
-      MasliveVerticalNavItem(
-        label: 'Centrer',
-        icon: Icons.my_location_rounded,
-        selected: false,
-        onTap: () {
-          _recenterOnUser();
-          _closeNavWithDelay();
-        },
-      ),
-      MasliveVerticalNavItem(
-        label: localizations.tracking,
-        icon: Icons.track_changes_rounded,
-        selected: _isTracking,
-        onTap: () {
-          _toggleTracking();
-          _closeNavWithDelay();
-        },
-      ),
-      MasliveVerticalNavItem(
-        label: localizations.visit,
-        icon: Icons.map_outlined,
-        selected: _selectedAction == _MapAction.visiter,
-        onTap: () {
-          _selectAction(_MapAction.visiter, 'Visiter');
-          _closeNavWithDelay();
-        },
-      ),
-      MasliveVerticalNavItem(
-        label: localizations.food,
-        icon: Icons.fastfood_rounded,
-        selected: _selectedAction == _MapAction.food,
-        onTap: () {
-          _selectAction(_MapAction.food, 'Food');
-          _closeNavWithDelay();
-        },
-      ),
-      MasliveVerticalNavItem(
-        label: localizations.assistance,
-        icon: Icons.shield_outlined,
-        selected: _selectedAction == _MapAction.assistance,
-        onTap: () {
-          _selectAction(_MapAction.assistance, 'Assistance');
-          _closeNavWithDelay();
-        },
-      ),
-      MasliveVerticalNavItem(
-        label: '',
-        fullBleed: true,
-        tintOnSelected: false,
-        selected: _selectedAction == _MapAction.parkingWc,
-        iconWidget: Row(
-          children: [
-            Expanded(
-              child: ColoredBox(
-                color: const Color(0xFF005BBB),
-                child: const Center(
-                  child: Text(
-                    'P',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 26,
-                      height: 1,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Expanded(
-              child: ColoredBox(
-                color: Colors.black,
-                child: const Center(
-                  child: Icon(Icons.wc_rounded, size: 22, color: Colors.white),
-                ),
-              ),
-            ),
-          ],
-        ),
-        onTap: () {
-          _selectAction(_MapAction.parkingWc, 'P/WC');
-          _closeNavWithDelay();
-        },
-      ),
-      MasliveVerticalNavItem(
-        label: '',
-        iconWidget: Center(
-          child: _currentLanguageFlag.isEmpty
-              ? const SizedBox.shrink()
-              : Text(
-                  _currentLanguageFlag,
-                  style: const TextStyle(fontSize: 32, height: 1),
-                ),
-        ),
-        fullBleed: true,
-        tintOnSelected: false,
-        showBorder: false,
-        selected: false,
-        onTap: () {
-          _cycleLanguage();
-          _closeNavWithDelay();
-        },
-      ),
-    ];
-  }
-
   Widget _buildActionsMenuOverlay(
     BuildContext context, {
     required double menuTopOffset,
     required double navMenuRightOffset,
     required double navHorizontalPadding,
   }) {
-    final Widget menu = _useUltraPremiumHomeControls
-        ? Padding(
-            padding: EdgeInsets.only(right: 16, top: menuTopOffset),
-            child: MasliveOption1VerticalNav(
-              items: _buildPremiumVerticalNavItems(context),
-            ),
-          )
-        : Transform.translate(
-            offset: Offset(navMenuRightOffset, 0),
-            child: HomeVerticalNavMenu(
-              margin: EdgeInsets.only(top: menuTopOffset),
-              horizontalPadding: navHorizontalPadding,
-              verticalPadding: 12,
-              backgroundAlpha: 0.58,
-              blurSigma: 16,
-              boxShadow: MasliveTheme.floatingShadowStrong,
-              borderColor: Colors.white.withValues(alpha: 0.42),
-              borderRadius: const BorderRadius.all(Radius.circular(30)),
-              items: _buildClassicVerticalNavItems(context),
-            ),
-          );
+    final Widget menu = Transform.translate(
+      offset: Offset(navMenuRightOffset, 0),
+      child: HomeVerticalNavMenu(
+        margin: EdgeInsets.only(top: menuTopOffset),
+        horizontalPadding: navHorizontalPadding,
+        verticalPadding: 10,
+        backgroundAlpha: 0.82,
+        blurSigma: 14,
+        boxShadow: MasliveTheme.floatingShadowStrong,
+        borderColor: const Color(0x1F0F172A),
+        items: _buildClassicVerticalNavItems(context),
+      ),
+    );
 
     return Positioned.fill(
       child: GestureDetector(
@@ -1411,8 +1280,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         },
       ),
       MasliveStandardBottomBarItem(
-        icon: Icons.storefront_outlined,
-        activeIcon: Icons.storefront,
+        icon: Icons.checkroom_outlined,
+        activeIcon: Icons.checkroom,
         tooltip: localizations.shop,
         onTap: () {
           _selectBottomBarIndex(1);
@@ -1425,21 +1294,33 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         },
       ),
       MasliveStandardBottomBarItem(
-        icon: Icons.photo_library_outlined,
-        activeIcon: Icons.photo_library,
-        tooltip: _marketPoiSelection.event != null
-            ? 'Boutique photos de l’événement'
-            : 'Boutique photos',
+        icon: Icons.map_outlined,
+        activeIcon: Icons.map,
+        tooltip: 'Carte',
         onTap: () {
           _selectBottomBarIndex(2);
-          _openMarketplaceForSelectedEvent();
+          if (_showActionsMenu) {
+            _dismissActionsMenu();
+          }
+        },
+      ),
+      MasliveStandardBottomBarItem(
+        icon: Icons.shopping_bag_outlined,
+        activeIcon: Icons.shopping_bag,
+        tooltip: 'Panier',
+        onTap: () {
+          _selectBottomBarIndex(3);
+          Navigator.pushNamed(context, '/cart');
         },
       ),
       MasliveStandardBottomBarItem(
         icon: Icons.menu_rounded,
         activeIcon: Icons.menu_rounded,
         tooltip: localizations.menu,
-        onTap: _toggleActionsMenu,
+        onTap: () {
+          _selectBottomBarIndex(4);
+          _toggleActionsMenu();
+        },
       ),
     ];
   }
@@ -1453,6 +1334,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     return MasliveStandardBottomBar(
       items: items,
       selectedIndex: _activeBottomBarIndex,
+      height: _homeBottomBarHeight,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
     );
   }
 
@@ -1503,33 +1386,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     _restartGroupPublicPositionStream();
 
     await _applyMarketPoiSelection(selection, resetPoiFilter: true);
-  }
-
-  void _openMarketplaceForSelectedEvent() {
-    final countryId = _marketPoiSelection.country?.id;
-    final countryName = _marketPoiSelection.country?.name;
-    final eventId = _marketPoiSelection.event?.id;
-    final eventName = _marketPoiSelection.event?.name;
-    final circuitId = _marketPoiSelection.circuit?.id;
-    final circuitName = _marketPoiSelection.circuit?.name;
-
-    Navigator.pushNamed(
-      context,
-      '/boutique-photo',
-      arguments: <String, dynamic>{
-        if (countryId != null && countryId.trim().isNotEmpty)
-          'countryId': countryId,
-        if (countryName != null && countryName.trim().isNotEmpty)
-          'countryName': countryName,
-        if (eventId != null && eventId.trim().isNotEmpty) 'eventId': eventId,
-        if (eventName != null && eventName.trim().isNotEmpty)
-          'eventName': eventName,
-        if (circuitId != null && circuitId.trim().isNotEmpty)
-          'circuitId': circuitId,
-        if (circuitName != null && circuitName.trim().isNotEmpty)
-          'circuitName': circuitName,
-      },
-    );
   }
 
   @override
@@ -1767,21 +1623,18 @@ class _DefaultMapPageState extends State<DefaultMapPage>
             final menuTopOffset = topInset + 104;
             const navMenuRightOffset = -6.0;
 
-            const bottomBarHeight = MasliveStandardBottomBar.defaultHeight;
+            const bottomBarHeight = _homeBottomBarHeight;
 
             // Géométrie de la barre verticale (doit rester cohérente avec
             // `HomeVerticalNavMenu` et `HomeVerticalNavActionItem`).
             const navItemSize = 56.0;
             const navVerticalPadding = 10.0;
-            const navHorizontalPadding = 0.0;
+            const navHorizontalPadding = 6.0;
             const tooltipGapToMenu = 12.0;
-            final navMenuWidth = _useUltraPremiumHomeControls
-                ? 86.0
-                : navItemSize + (navHorizontalPadding * 2);
+            final navMenuWidth = navItemSize + (navHorizontalPadding * 2);
             final tooltipRight = navMenuWidth + tooltipGapToMenu;
-            final carteIconCenterY = _useUltraPremiumHomeControls
-                ? menuTopOffset + 39.0
-                : menuTopOffset + navVerticalPadding + (navItemSize / 2);
+            final carteIconCenterY =
+              menuTopOffset + navVerticalPadding + (navItemSize / 2);
 
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _scheduleResize(size);

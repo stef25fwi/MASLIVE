@@ -19,7 +19,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 
 import '../ui/theme/maslive_theme.dart';
-import '../ui/widgets/home_ultra_premium_glass.dart';
 import '../ui/widgets/maslive_card.dart';
 import '../ui/widgets/maslive_standard_bottom_bar.dart';
 import '../ui/widgets/polaroid_poi_sheet.dart';
@@ -39,6 +38,7 @@ import '../utils/startup_trace.dart';
 import '../route_style_pro/services/route_style_pro_projection.dart';
 import '../route_style_pro/models/route_style_config.dart';
 import '../l10n/app_localizations.dart' as l10n;
+import 'home_vertical_nav.dart';
 import 'storex_shop_page.dart';
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
 
@@ -63,6 +63,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   static const int _trackingIntervalSeconds = 15;
   static const int _gpsDistanceFilter = 8;
   static const Duration _gpsTimeout = Duration(seconds: 8);
+  static const double _homeBottomBarHeight = 60;
   static const double _userMarkerIconSize = 1.5;
   static const Duration _cameraAnimationDuration = Duration(milliseconds: 800);
   static const double _defaultZoom = 13.0;
@@ -173,11 +174,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   bool get _useMapboxTiles => _effectiveMapboxToken.isNotEmpty;
 
-  bool get _useUltraPremiumHomeControls =>
-      _homeControlsTheme == HomeControlsThemeMode.ultraPremiumGlass;
-
   int? get _activeBottomBarIndex =>
-      _showActionsMenu ? 3 : _selectedBottomBarIndex;
+      _showActionsMenu ? 4 : (_selectedBottomBarIndex ?? 2);
 
   MarketMapService get _marketMapServiceOrCreate =>
       _marketMapService ??= MarketMapService();
@@ -2924,33 +2922,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     await _applyMarketPoiSelection(selection, resetPoiFilter: true);
   }
 
-  void _openMarketplaceForSelectedEvent() {
-    final countryId = _marketPoiSelection.country?.id;
-    final countryName = _marketPoiSelection.country?.name;
-    final eventId = _marketPoiSelection.event?.id;
-    final eventName = _marketPoiSelection.event?.name;
-    final circuitId = _marketPoiSelection.circuit?.id;
-    final circuitName = _marketPoiSelection.circuit?.name;
-
-    Navigator.pushNamed(
-      context,
-      '/boutique-photo',
-      arguments: <String, dynamic>{
-        if (countryId != null && countryId.trim().isNotEmpty)
-          'countryId': countryId,
-        if (countryName != null && countryName.trim().isNotEmpty)
-          'countryName': countryName,
-        if (eventId != null && eventId.trim().isNotEmpty) 'eventId': eventId,
-        if (eventName != null && eventName.trim().isNotEmpty)
-          'eventName': eventName,
-        if (circuitId != null && circuitId.trim().isNotEmpty)
-          'circuitId': circuitId,
-        if (circuitName != null && circuitName.trim().isNotEmpty)
-          'circuitName': circuitName,
-      },
-    );
-  }
-
   /// Ferme automatiquement le menu de navigation après un délai.
   void _closeNavWithDelay() {
     Future.delayed(_navCloseDelay, () {
@@ -2960,11 +2931,11 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     });
   }
 
-  List<MasliveVerticalNavItem> _buildVerticalNavItems(BuildContext context) {
+  List<HomeVerticalNavItem> _buildVerticalNavItems(BuildContext context) {
     final localizations = l10n.AppLocalizations.of(context)!;
 
     return [
-      MasliveVerticalNavItem(
+      HomeVerticalNavItem(
         label: 'Carte',
         icon: Icons.layers_rounded,
         selected: _marketPoiSelection.enabled,
@@ -2973,7 +2944,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           _closeNavWithDelay();
         },
       ),
-      MasliveVerticalNavItem(
+      HomeVerticalNavItem(
         label: 'POIs',
         icon: Icons.place_rounded,
         selected: _marketPoiSelection.enabled,
@@ -2982,7 +2953,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           _closeNavWithDelay();
         },
       ),
-      MasliveVerticalNavItem(
+      HomeVerticalNavItem(
         label: localizations.tracking,
         icon: Icons.track_changes_rounded,
         selected: _isTracking,
@@ -2991,7 +2962,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           _closeNavWithDelay();
         },
       ),
-      MasliveVerticalNavItem(
+      HomeVerticalNavItem(
         label: localizations.visit,
         icon: Icons.map_outlined,
         selected: _selectedAction == _MapAction.visiter,
@@ -3000,7 +2971,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           _closeNavWithDelay();
         },
       ),
-      MasliveVerticalNavItem(
+      HomeVerticalNavItem(
         label: localizations.food,
         icon: Icons.fastfood_rounded,
         selected: _selectedAction == _MapAction.food,
@@ -3009,7 +2980,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           _closeNavWithDelay();
         },
       ),
-      MasliveVerticalNavItem(
+      HomeVerticalNavItem(
         label: localizations.assistance,
         icon: Icons.shield_outlined,
         selected: _selectedAction == _MapAction.assistance,
@@ -3018,7 +2989,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           _closeNavWithDelay();
         },
       ),
-      MasliveVerticalNavItem(
+      HomeVerticalNavItem(
         label: '',
         iconWidget: Image.asset(
           'assets/images/icon wc parking.png',
@@ -3034,7 +3005,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           _closeNavWithDelay();
         },
       ),
-      MasliveVerticalNavItem(
+      HomeVerticalNavItem(
         label: '',
         iconWidget: Center(
           child: _currentLanguageFlag.isEmpty
@@ -3059,64 +3030,19 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   Widget _buildActionsMenuOverlay(BuildContext context) {
     final items = _buildVerticalNavItems(context);
-    final Widget menu = _useUltraPremiumHomeControls
-        ? Padding(
-            padding: const EdgeInsets.only(
-              right: 16,
-              top: _actionsMenuTopOffset,
-            ),
-            child: MasliveOption1VerticalNav(items: items),
-          )
-        : Container(
-            margin: const EdgeInsets.only(
-              right: -6,
-              top: _actionsMenuTopOffset,
-            ),
-            decoration: BoxDecoration(
-              borderRadius: const BorderRadius.all(Radius.circular(30)),
-              boxShadow: MasliveTheme.floatingShadowStrong,
-            ),
-            child: ClipRRect(
-              borderRadius: const BorderRadius.all(Radius.circular(30)),
-              child: BackdropFilter(
-                filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 0,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.58),
-                    borderRadius: const BorderRadius.all(Radius.circular(30)),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.42),
-                    ),
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (int index = 0; index < items.length; index++) ...[
-                          _ActionItem(
-                            label: items[index].label,
-                            icon: items[index].icon,
-                            iconWidget: items[index].iconWidget,
-                            selected: items[index].selected,
-                            onTap: items[index].onTap ?? () {},
-                            fullBleed: items[index].fullBleed,
-                            tintOnSelected: items[index].tintOnSelected,
-                            showBorder: items[index].showBorder,
-                          ),
-                          if (index != items.length - 1)
-                            const SizedBox(height: 8),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
+    final Widget menu = Transform.translate(
+      offset: const Offset(-6, 0),
+      child: HomeVerticalNavMenu(
+        margin: EdgeInsets.only(top: _actionsMenuTopOffset),
+        horizontalPadding: 6,
+        verticalPadding: 10,
+        backgroundAlpha: 0.82,
+        blurSigma: 14,
+        boxShadow: MasliveTheme.floatingShadowStrong,
+        borderColor: const Color(0x1F0F172A),
+        items: items,
+      ),
+    );
 
     return Positioned.fill(
       child: GestureDetector(
@@ -3153,8 +3079,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         },
       ),
       MasliveStandardBottomBarItem(
-        icon: Icons.storefront_outlined,
-        activeIcon: Icons.storefront,
+        icon: Icons.checkroom_outlined,
+        activeIcon: Icons.checkroom,
         tooltip: localizations.shop,
         onTap: () {
           _selectBottomBarIndex(1);
@@ -3167,14 +3093,23 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         },
       ),
       MasliveStandardBottomBarItem(
-        icon: Icons.photo_library_outlined,
-        activeIcon: Icons.photo_library,
-        tooltip: _marketPoiSelection.event != null
-            ? 'Boutique photos de l’événement'
-            : 'Boutique photos',
+        icon: Icons.map_outlined,
+        activeIcon: Icons.map,
+        tooltip: 'Carte',
         onTap: () {
           _selectBottomBarIndex(2);
-          _openMarketplaceForSelectedEvent();
+          if (_showActionsMenu) {
+            _dismissActionsMenu();
+          }
+        },
+      ),
+      MasliveStandardBottomBarItem(
+        icon: Icons.shopping_bag_outlined,
+        activeIcon: Icons.shopping_bag,
+        tooltip: 'Panier',
+        onTap: () {
+          _selectBottomBarIndex(3);
+          Navigator.pushNamed(context, '/cart');
         },
       ),
       MasliveStandardBottomBarItem(
@@ -3182,7 +3117,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         activeIcon: Icons.menu_rounded,
         tooltip: localizations.menu,
         onTap: () {
-          _selectBottomBarIndex(3);
+          _selectBottomBarIndex(4);
           _toggleActionsMenu();
         },
       ),
@@ -3198,6 +3133,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     return MasliveStandardBottomBar(
       items: items,
       selectedIndex: _activeBottomBarIndex,
+      height: _homeBottomBarHeight,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
     );
   }
 
@@ -3222,7 +3159,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   Widget _buildContent(BuildContext context, ui.Size size) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
-    const bottomBarHeight = MasliveStandardBottomBar.defaultHeight;
+    const bottomBarHeight = _homeBottomBarHeight;
 
     if (!_useMapboxTiles && _isResolvingMapboxToken) {
       return const Scaffold(
@@ -3374,114 +3311,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
               ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _ActionItem extends StatelessWidget {
-  final String label;
-  final IconData? icon;
-  final Widget? iconWidget;
-  final bool selected;
-  final VoidCallback onTap;
-  final bool fullBleed;
-  final bool tintOnSelected;
-  final bool showBorder;
-
-  static const double _buttonSize = 56;
-  static const double _iconSize = 26;
-  static const double _iconSizeNoLabel = 30;
-
-  const _ActionItem({
-    required this.label,
-    this.icon,
-    this.iconWidget,
-    required this.selected,
-    required this.onTap,
-    this.fullBleed = false,
-    this.tintOnSelected = true,
-    this.showBorder = true,
-  }) : assert(icon != null || iconWidget != null);
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: _buttonSize,
-        height: _buttonSize,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white.withValues(alpha: 0.92),
-          border: showBorder
-              ? Border.all(
-                  color: selected ? MasliveTheme.pink : MasliveTheme.divider,
-                  width: selected ? 2.0 : 1.0,
-                )
-              : null,
-          boxShadow: selected ? MasliveTheme.cardShadow : const [],
-        ),
-        child: fullBleed
-            ? ClipOval(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ?iconWidget,
-                    if (icon != null)
-                      Center(
-                        child: Icon(
-                          icon,
-                          size: _iconSize,
-                          color: selected && tintOnSelected
-                              ? MasliveTheme.pink
-                              : MasliveTheme.textPrimary,
-                        ),
-                      ),
-                  ],
-                ),
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (iconWidget != null)
-                    IconTheme(
-                      data: IconThemeData(
-                        size: label.isEmpty ? _iconSizeNoLabel : _iconSize,
-                        color: selected && tintOnSelected
-                            ? MasliveTheme.pink
-                            : MasliveTheme.textPrimary,
-                      ),
-                      child: iconWidget!,
-                    )
-                  else
-                    Icon(
-                      icon,
-                      size: label.isEmpty ? _iconSizeNoLabel : _iconSize,
-                      color: selected && tintOnSelected
-                          ? MasliveTheme.pink
-                          : MasliveTheme.textPrimary,
-                    ),
-                  if (label.isNotEmpty) const SizedBox(height: 4),
-                  if (label.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2),
-                      child: Text(
-                        label,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: selected
-                              ? Colors.white
-                              : MasliveTheme.textSecondary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 8,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
       ),
     );
   }
