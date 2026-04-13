@@ -6,6 +6,15 @@ import '../../providers/cart_provider.dart';
 import '../../utils/cart_constants.dart';
 
 class CartIconBadge extends StatelessWidget {
+  static const LinearGradient _badgeGradient = LinearGradient(
+    colors: <Color>[
+      Color(0xFFFF7BC5),
+      Color(0xFFFF4D8D),
+    ],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
   const CartIconBadge({
     super.key,
     this.iconColor,
@@ -61,7 +70,7 @@ class CartIconBadge extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF111827),
+                    gradient: _badgeGradient,
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(color: Colors.white, width: 1),
                   ),

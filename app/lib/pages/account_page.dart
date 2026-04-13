@@ -215,7 +215,7 @@ class _AccountUiPageState extends State<AccountUiPage> {
                   icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
                 ),
                 trailing: CartIconBadge(
-                  iconColor: Colors.white,
+                  iconColor: const Color(0xFF111827),
                   backgroundColor: Colors.white.withValues(alpha: 0.16),
                   borderColor: Colors.white.withValues(alpha: 0.22),
                 ),

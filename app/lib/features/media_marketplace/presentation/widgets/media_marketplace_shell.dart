@@ -167,6 +167,15 @@ class MediaMarketplaceVerticalNav extends StatelessWidget {
 class _MediaMarketplaceCartNavIcon extends StatelessWidget {
   const _MediaMarketplaceCartNavIcon({required this.selected});
 
+  static const LinearGradient _badgeGradient = LinearGradient(
+    colors: <Color>[
+      Color(0xFFFF7BC5),
+      Color(0xFFFF4D8D),
+    ],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
   final bool selected;
 
   @override
@@ -188,13 +197,14 @@ class _MediaMarketplaceCartNavIcon extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: selected ? Colors.white : MasliveTheme.pink,
+                gradient: _badgeGradient,
                 borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: Colors.white, width: 1),
               ),
               child: Text(
                 count > 99 ? '99+' : '$count',
                 style: TextStyle(
-                  color: selected ? MasliveTheme.pink : Colors.white,
+                  color: Colors.white,
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
                 ),

@@ -1064,6 +1064,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         setState(() {
           _showActionsMenu = false;
           _showOnboardingTooltip = false;
+          if (_selectedBottomBarIndex == 4) {
+            _selectedBottomBarIndex = 2;
+          }
         });
       }
     });

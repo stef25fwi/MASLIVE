@@ -12,7 +12,6 @@ import '../services/cart_service.dart';
 import '../shop/widgets/shop_drawer.dart';
 import '../widgets/language_switcher.dart';
 import '../l10n/app_localizations.dart' as l10n;
-import 'home_vertical_nav.dart';
 import '../ui/snack/top_snack_bar.dart';
 
 /// ===============================================================
@@ -66,61 +65,6 @@ class _ShopUi {
 class _StorexShopPageState extends State<StorexShopPage> {
   int tab = 0;
 
-  List<HomeVerticalNavItem> _buildShopNavItems(int cartCount) {
-    return [
-      HomeVerticalNavItem(
-        label: '',
-        icon: Icons.storefront_outlined,
-        selected: tab == 0,
-        onTap: () => setState(() => tab = 0),
-      ),
-      HomeVerticalNavItem(
-        label: '',
-        icon: Icons.grid_view_outlined,
-        selected: tab == 1,
-        onTap: () => setState(() => tab = 1),
-      ),
-      HomeVerticalNavItem(
-        label: '',
-        iconWidget: _StorexNavBadgeIcon(
-          icon: tab == 2 ? Icons.shopping_bag : Icons.shopping_bag_outlined,
-          badgeCount: cartCount,
-          selected: tab == 2,
-        ),
-        selected: tab == 2,
-        showBorder: false,
-        onTap: () => setState(() => tab = 2),
-      ),
-      HomeVerticalNavItem(
-        label: '',
-        icon: tab == 3 ? Icons.person : Icons.person_outline,
-        selected: tab == 3,
-        onTap: () => setState(() => tab = 3),
-      ),
-    ];
-  }
-
-  Widget _buildShopVerticalNav(int cartCount) {
-    return SafeArea(
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Padding(
-          padding: const EdgeInsets.only(left: 12),
-          child: HomeVerticalNavMenu(
-            items: _buildShopNavItems(cartCount),
-            margin: EdgeInsets.zero,
-            horizontalPadding: 6,
-            verticalPadding: 10,
-            backgroundAlpha: HomeVerticalNavMenu.boutiqueBackgroundAlpha,
-            blurSigma: HomeVerticalNavMenu.boutiqueBlurSigma,
-            borderColor: HomeVerticalNavMenu.boutiqueBorderColor,
-            boxShadow: HomeVerticalNavMenu.boutiqueShadow,
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   void initState() {
     super.initState();
@@ -129,7 +73,6 @@ class _StorexShopPageState extends State<StorexShopPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cartCount = context.watch<CartProvider>().totalQuantity;
     final pages = [
       _StorexHome(shopId: widget.shopId, groupId: widget.groupId),
       _StorexCategory(shopId: widget.shopId, groupId: widget.groupId),
@@ -141,12 +84,7 @@ class _StorexShopPageState extends State<StorexShopPage> {
       style: const TextStyle(fontWeight: FontWeight.w600),
       child: Scaffold(
         backgroundColor: _ShopUi.pageBg,
-        body: Stack(
-          children: [
-            pages[tab],
-            _buildShopVerticalNav(cartCount),
-          ],
-        ),
+        body: pages[tab],
       ),
     );
   }
@@ -159,37 +97,34 @@ class _StorexBrandTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          const Text(
-            "MAS'LIVE",
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.9,
-              color: _ShopUi.textMain,
-              height: 1,
-            ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        const Text(
+          "MAS'LIVE",
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.8,
+            color: _ShopUi.textMain,
+            height: 1,
           ),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w500,
-              letterSpacing: 2.2,
-              color: _ShopUi.textMuted,
-              height: 1,
-            ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 2.2,
+            color: _ShopUi.textMuted,
+            height: 1,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -200,6 +135,15 @@ class _StorexNavBadgeIcon extends StatelessWidget {
     required this.badgeCount,
     required this.selected,
   });
+
+  static const LinearGradient _badgeGradient = LinearGradient(
+    colors: <Color>[
+      Color(0xFFFF7BC5),
+      Color(0xFFFF4D8D),
+    ],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 
   final IconData icon;
   final int badgeCount;
@@ -225,8 +169,9 @@ class _StorexNavBadgeIcon extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
               constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
               decoration: BoxDecoration(
-                color: selected ? Colors.white : const Color(0xFFFF4D8D),
+                gradient: _badgeGradient,
                 borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: Colors.white, width: 1),
               ),
               child: Text(
                 badgeValue,
@@ -234,7 +179,7 @@ class _StorexNavBadgeIcon extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w800,
-                  color: selected ? const Color(0xFFFF4D8D) : Colors.white,
+                  color: Colors.white,
                   height: 1,
                 ),
               ),

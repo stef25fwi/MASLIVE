@@ -2888,7 +2888,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     _menuAnimController.reverse();
     Future.delayed(_menuAnimationDuration, () {
       if (mounted && _showActionsMenu) {
-        setState(() => _showActionsMenu = false);
+        setState(() {
+          _showActionsMenu = false;
+          if (_selectedBottomBarIndex == 4) {
+            _selectedBottomBarIndex = 2;
+          }
+        });
       }
     });
   }

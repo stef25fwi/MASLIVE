@@ -77,7 +77,7 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                     trailing: CartIconBadge(
-                      iconColor: Colors.white,
+                      iconColor: const Color(0xFF111827),
                       backgroundColor: Colors.white.withValues(alpha: 0.16),
                       borderColor: Colors.white.withValues(alpha: 0.22),
                     ),

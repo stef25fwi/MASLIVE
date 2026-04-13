@@ -799,7 +799,7 @@ class _CartButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return CartIconBadge(
       onPressed: onTap,
-      iconColor: Colors.white,
+      iconColor: const Color(0xFF111827),
       backgroundColor: Colors.white.withValues(alpha: 0.16),
       borderColor: Colors.white.withValues(alpha: 0.22),
     );
