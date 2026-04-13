@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../user_facing_bottom_bar.dart';
 
 // Re-export + import des constantes de routes et arguments depuis le fichier léger
 export 'storex_route_args.dart';
@@ -175,6 +176,9 @@ class PaymentCompletePage extends StatelessWidget {
           ],
         ),
       ),
+      bottomNavigationBar: const UserFacingBottomBar(
+        currentTab: UserFacingBottomBarTab.boutique,
+      ),
     );
   }
 }
@@ -284,6 +288,9 @@ class OrderTrackerPage extends StatelessWidget {
           );
         },
       ),
+      bottomNavigationBar: const UserFacingBottomBar(
+        currentTab: UserFacingBottomBarTab.boutique,
+      ),
     );
   }
 
@@ -385,6 +392,9 @@ class ReviewsPage extends StatelessWidget {
             },
           );
         },
+      ),
+      bottomNavigationBar: const UserFacingBottomBar(
+        currentTab: UserFacingBottomBarTab.boutique,
       ),
     );
   }
@@ -598,6 +608,9 @@ class _AddReviewPageState extends State<AddReviewPage> {
             ),
           ),
         ],
+      ),
+      bottomNavigationBar: const UserFacingBottomBar(
+        currentTab: UserFacingBottomBarTab.boutique,
       ),
     );
   }

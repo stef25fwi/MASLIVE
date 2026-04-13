@@ -9,6 +9,7 @@ import 'product_detail_page.dart';
 import '../models/group_product.dart';
 import '../services/cart_service.dart';
 import '../ui/snack/top_snack_bar.dart';
+import 'user_facing_bottom_bar.dart';
 import '../widgets/cart/cart_icon_badge.dart';
 import '../widgets/language_switcher.dart';
 import '../l10n/app_localizations.dart';
@@ -681,6 +682,9 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
 
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
+        ),
+        bottomNavigationBar: const UserFacingBottomBar(
+          currentTab: UserFacingBottomBarTab.boutique,
         ),
       ),
     );

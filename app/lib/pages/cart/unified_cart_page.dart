@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/cart_provider.dart';
 import '../checkout/maslive_ultra_premium_checkout_page.dart';
+import '../user_facing_bottom_bar.dart';
 import '../../widgets/cart/cart_group_section.dart';
 import '../../widgets/cart/cart_item_tile.dart';
 import '../../widgets/cart/cart_summary_card.dart';
@@ -182,6 +183,9 @@ class _UnifiedCartPageState extends State<UnifiedCartPage> {
         ],
       ),
       body: body,
+      bottomNavigationBar: const UserFacingBottomBar(
+        currentTab: UserFacingBottomBarTab.boutique,
+      ),
     );
   }
 

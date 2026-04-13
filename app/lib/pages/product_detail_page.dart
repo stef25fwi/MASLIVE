@@ -6,6 +6,7 @@ import '../services/cart_service.dart';
 import 'cart/unified_cart_page.dart';
 import '../widgets/rainbow_header.dart';
 import 'shop/storex_reviews_and_success_pages.dart';
+import 'user_facing_bottom_bar.dart';
 
 class ProductDetailPage extends StatefulWidget {
   final String groupId;
@@ -350,7 +351,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 120),
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 196),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -541,18 +542,29 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           ],
         ),
 
-      // Bottom “sticky” achat
-      bottomSheet: _buyBar(context, p),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buyBar(context, p, includeSafeAreaInset: false),
+          const UserFacingBottomBar(
+            currentTab: UserFacingBottomBarTab.boutique,
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buyBar(BuildContext context, GroupProduct p) {
+  Widget _buyBar(
+    BuildContext context,
+    GroupProduct p, {
+    bool includeSafeAreaInset = true,
+  }) {
     return Container(
       padding: EdgeInsets.only(
         left: 16,
         right: 16,
         top: 12,
-        bottom: 12 + MediaQuery.of(context).padding.bottom,
+        bottom: 12 + (includeSafeAreaInset ? MediaQuery.of(context).padding.bottom : 0),
       ),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.72),

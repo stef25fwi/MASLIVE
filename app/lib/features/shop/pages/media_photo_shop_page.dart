@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../media_marketplace/data/repositories/photographer_repository.dart';
 import '../../../shop/widgets/shop_drawer.dart';
+import '../../../pages/user_facing_bottom_bar.dart';
 import '../../../pages/home_vertical_nav.dart';
 import '../../../widgets/cart/cart_icon_badge.dart';
 import '../../../ui/theme/maslive_theme.dart';
@@ -405,6 +406,10 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
           ),
           _buildShopVerticalNav(),
         ],
+      ),
+      bottomNavigationBar: const UserFacingBottomBar(
+        currentTab: UserFacingBottomBarTab.media,
+        explorerRoute: '/media-marketplace',
       ),
     );
   }

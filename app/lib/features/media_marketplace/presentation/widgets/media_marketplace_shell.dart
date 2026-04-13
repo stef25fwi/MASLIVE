@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../../pages/home_vertical_nav.dart';
 import '../../../../providers/cart_provider.dart';
 import '../../../../ui/theme/maslive_theme.dart';
+import '../../../../widgets/cart/cart_icon_badge.dart';
 
 enum MediaMarketplaceNavSection {
   catalog,
@@ -167,51 +168,19 @@ class MediaMarketplaceVerticalNav extends StatelessWidget {
 class _MediaMarketplaceCartNavIcon extends StatelessWidget {
   const _MediaMarketplaceCartNavIcon({required this.selected});
 
-  static const LinearGradient _badgeGradient = LinearGradient(
-    colors: <Color>[
-      Color(0xFFFF7BC5),
-      Color(0xFFFF4D8D),
-    ],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-
   final bool selected;
 
   @override
   Widget build(BuildContext context) {
     final count = context.watch<CartProvider>().totalQuantity;
-
-    return Stack(
-      clipBehavior: Clip.none,
-      children: <Widget>[
-        Icon(
-          selected ? Icons.shopping_bag : Icons.shopping_bag_outlined,
-          size: 30,
-          color: selected ? Colors.white : MasliveTheme.textPrimary,
-        ),
-        if (count > 0)
-          Positioned(
-            right: -8,
-            top: -8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                gradient: _badgeGradient,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: Colors.white, width: 1),
-              ),
-              child: Text(
-                count > 99 ? '99+' : '$count',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ),
-      ],
+    return CartBadgeGlyph(
+      count: count,
+      iconColor: selected ? Colors.white : MasliveTheme.textPrimary,
+      iconSize: 30,
+      containerSize: 30,
+      showContainer: false,
+      badgeRight: -8,
+      badgeTop: -8,
     );
   }
 }

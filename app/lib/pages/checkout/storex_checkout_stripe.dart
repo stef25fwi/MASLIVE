@@ -11,6 +11,7 @@ import '../../providers/cart_provider.dart';
 import '../../services/cart_service.dart';
 import '../../ui/snack/top_snack_bar.dart';
 import '../../ui/widgets/country_autocomplete_field.dart';
+import '../user_facing_bottom_bar.dart';
 import '../shop/storex_reviews_and_success_pages.dart';
 
 enum ShippingMethod { free, flatRate, localPickup }
@@ -421,6 +422,9 @@ class _StorexDeliveryPageState extends State<StorexDeliveryPage> {
             ),
         ],
       ),
+      bottomNavigationBar: const UserFacingBottomBar(
+        currentTab: UserFacingBottomBarTab.boutique,
+      ),
     );
   }
 }
@@ -646,6 +650,9 @@ class _StorexPaymentPageState extends State<StorexPaymentPage> {
             ),
           ),
         ],
+      ),
+      bottomNavigationBar: const UserFacingBottomBar(
+        currentTab: UserFacingBottomBarTab.boutique,
       ),
     );
   }

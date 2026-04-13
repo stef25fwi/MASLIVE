@@ -10,6 +10,8 @@ import '../models/group_product.dart';
 import '../providers/cart_provider.dart';
 import '../services/cart_service.dart';
 import '../shop/widgets/shop_drawer.dart';
+import 'user_facing_bottom_bar.dart';
+import '../widgets/cart/cart_icon_badge.dart';
 import '../widgets/language_switcher.dart';
 import '../l10n/app_localizations.dart' as l10n;
 import '../ui/snack/top_snack_bar.dart';
@@ -85,6 +87,9 @@ class _StorexShopPageState extends State<StorexShopPage> {
       child: Scaffold(
         backgroundColor: _ShopUi.pageBg,
         body: pages[tab],
+        bottomNavigationBar: const UserFacingBottomBar(
+          currentTab: UserFacingBottomBarTab.boutique,
+        ),
       ),
     );
   }
@@ -131,66 +136,27 @@ class _StorexBrandTitle extends StatelessWidget {
 
 class _StorexNavBadgeIcon extends StatelessWidget {
   const _StorexNavBadgeIcon({
-    required this.icon,
     required this.badgeCount,
     required this.selected,
   });
 
-  static const LinearGradient _badgeGradient = LinearGradient(
-    colors: <Color>[
-      Color(0xFFFF7BC5),
-      Color(0xFFFF4D8D),
-    ],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-
-  final IconData icon;
   final int badgeCount;
   final bool selected;
 
   @override
   Widget build(BuildContext context) {
-    final badgeValue = badgeCount > 99 ? '99+' : '$badgeCount';
-
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Icon(
-          icon,
-          size: 30,
-          color: selected ? Colors.white : _ShopUi.textMain,
-        ),
-        if (badgeCount > 0)
-          Positioned(
-            right: -7,
-            top: -7,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-              decoration: BoxDecoration(
-                gradient: _badgeGradient,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: Colors.white, width: 1),
-              ),
-              child: Text(
-                badgeValue,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                  height: 1,
-                ),
-              ),
-            ),
-          ),
-      ],
+    return CartBadgeGlyph(
+      count: badgeCount,
+      iconColor: selected ? Colors.white : _ShopUi.textMain,
+      iconSize: 30,
+      containerSize: 30,
+      showContainer: false,
+      badgeRight: -7,
+      badgeTop: -7,
     );
   }
 }
 
-/// =======================
 /// FIRESTORE QUERIES (MassLive)
 /// =======================
 
@@ -377,7 +343,6 @@ class _StorexHome extends StatelessWidget {
         actions: [
           IconButton(
             icon: _StorexNavBadgeIcon(
-              icon: Icons.shopping_bag_outlined,
               badgeCount: cartCount,
               selected: false,
             ),
