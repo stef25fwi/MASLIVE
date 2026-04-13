@@ -111,10 +111,10 @@ class _StorexShopPageState extends State<StorexShopPage> {
             margin: EdgeInsets.zero,
             horizontalPadding: 6,
             verticalPadding: 10,
-            backgroundAlpha: 0.82,
-            blurSigma: 14,
-            borderColor: const Color(0x1F0F172A),
-            boxShadow: _shopNavShadow,
+            backgroundAlpha: HomeVerticalNavMenu.boutiqueBackgroundAlpha,
+            blurSigma: HomeVerticalNavMenu.boutiqueBlurSigma,
+            borderColor: HomeVerticalNavMenu.boutiqueBorderColor,
+            boxShadow: HomeVerticalNavMenu.boutiqueShadow,
           ),
         ),
       ),
@@ -193,14 +193,6 @@ class _StorexBrandTitle extends StatelessWidget {
     );
   }
 }
-
-const List<BoxShadow> _shopNavShadow = <BoxShadow>[
-  BoxShadow(
-    color: Color(0x26000000),
-    blurRadius: 24,
-    offset: Offset(0, 14),
-  ),
-];
 
 class _StorexNavBadgeIcon extends StatelessWidget {
   const _StorexNavBadgeIcon({

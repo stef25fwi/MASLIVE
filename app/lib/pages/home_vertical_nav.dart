@@ -29,6 +29,17 @@ class HomeVerticalNavItem {
 }
 
 class HomeVerticalNavMenu extends StatelessWidget {
+  static const double boutiqueBackgroundAlpha = 0.82;
+  static const double boutiqueBlurSigma = 14;
+  static const Color boutiqueBorderColor = Color(0x1F0F172A);
+  static const List<BoxShadow> boutiqueShadow = <BoxShadow>[
+    BoxShadow(
+      color: Color(0x26000000),
+      blurRadius: 24,
+      offset: Offset(0, 14),
+    ),
+  ];
+
   final EdgeInsets margin;
   final double horizontalPadding;
   final double verticalPadding;
