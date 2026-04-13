@@ -105,6 +105,7 @@ class HomeVerticalNavMenu extends StatelessWidget {
 
 class HomeVerticalNavActionItem extends StatelessWidget {
   final HomeVerticalNavItem item;
+  static const Color _inactiveColor = Color(0xFF98A2B3);
 
   static const double _buttonSize = 56;
   static const double _iconSize = 26;
@@ -160,7 +161,7 @@ class HomeVerticalNavActionItem extends StatelessWidget {
                           size: _iconSize,
                           color: item.selected && item.tintOnSelected
                               ? Colors.white
-                              : MasliveTheme.textPrimary,
+                              : _inactiveColor,
                         ),
                       ),
                   ],
@@ -189,7 +190,7 @@ class HomeVerticalNavActionItem extends StatelessWidget {
                       size: item.label.isEmpty ? _iconSizeNoLabel : _iconSize,
                       color: item.selected && item.tintOnSelected
                           ? Colors.white
-                          : MasliveTheme.textPrimary,
+                          : _inactiveColor,
                     ),
                   if (item.label.isNotEmpty) const SizedBox(height: 4),
                   if (item.label.isNotEmpty)
@@ -203,7 +204,7 @@ class HomeVerticalNavActionItem extends StatelessWidget {
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: item.selected && item.tintOnSelected
                               ? Colors.white
-                              : MasliveTheme.textSecondary,
+                              : _inactiveColor,
                           fontWeight: FontWeight.w700,
                           fontSize: 8,
                         ),

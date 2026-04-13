@@ -64,7 +64,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   static const Duration _navCloseDelay = Duration(milliseconds: 1500);
   static const Duration _deferredHomeInitDelay = Duration(milliseconds: 850);
   static const int _trackingIntervalSeconds = 15;
-  static const double _homeBottomBarHeight = 60;
+  static const double _homeBottomBarHeight = 58;
 
   ui.Size? _lastMapSize;
   int _mapRebuildTick = 0;
@@ -132,7 +132,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   }
 
   int? get _activeBottomBarIndex =>
-      _showActionsMenu ? 4 : (_selectedBottomBarIndex ?? 2);
+      _showActionsMenu ? 3 : (_selectedBottomBarIndex ?? 2);
 
   List<MapMarker> _composeMarkers() {
     final markers = List<MapMarker>.from(_marketPoiMarkers);
@@ -1269,6 +1269,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       MasliveStandardBottomBarItem(
         icon: Icons.person_outline_rounded,
         activeIcon: Icons.person_rounded,
+        label: 'Profil',
         tooltip: pseudo.isEmpty ? localizations.profile : pseudo,
         onTap: () {
           _selectBottomBarIndex(0);
@@ -1280,8 +1281,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         },
       ),
       MasliveStandardBottomBarItem(
-        icon: Icons.checkroom_outlined,
-        activeIcon: Icons.checkroom,
+        icon: Icons.dry_cleaning_outlined,
+        activeIcon: Icons.dry_cleaning,
+        label: 'Boutique',
         tooltip: localizations.shop,
         onTap: () {
           _selectBottomBarIndex(1);
@@ -1296,6 +1298,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       MasliveStandardBottomBarItem(
         icon: Icons.map_outlined,
         activeIcon: Icons.map,
+        label: 'Carte',
         tooltip: 'Carte',
         onTap: () {
           _selectBottomBarIndex(2);
@@ -1305,20 +1308,12 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         },
       ),
       MasliveStandardBottomBarItem(
-        icon: Icons.shopping_bag_outlined,
-        activeIcon: Icons.shopping_bag,
-        tooltip: 'Panier',
-        onTap: () {
-          _selectBottomBarIndex(3);
-          Navigator.pushNamed(context, '/cart');
-        },
-      ),
-      MasliveStandardBottomBarItem(
         icon: Icons.menu_rounded,
         activeIcon: Icons.menu_rounded,
+        label: 'Menu',
         tooltip: localizations.menu,
         onTap: () {
-          _selectBottomBarIndex(4);
+          _selectBottomBarIndex(3);
           _toggleActionsMenu();
         },
       ),
@@ -1335,7 +1330,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       items: items,
       selectedIndex: _activeBottomBarIndex,
       height: _homeBottomBarHeight,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
     );
   }
 

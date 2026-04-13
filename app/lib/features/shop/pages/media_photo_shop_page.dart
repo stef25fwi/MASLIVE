@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../media_marketplace/data/repositories/photographer_repository.dart';
+import '../../../shop/widgets/shop_drawer.dart';
 import '../../../pages/home_vertical_nav.dart';
 import '../../../widgets/cart/cart_icon_badge.dart';
 import '../../../ui/theme/maslive_theme.dart';
@@ -232,6 +233,12 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: MasliveTheme.surfaceAlt,
+      drawer: ShopDrawer(
+        onNavigateHome: _goHome,
+        onNavigateSearch: () => _openMarketplace(initialTab: 0),
+        onNavigateProfile: _goAccount,
+        onNavigateCategory: (categoryId, title) => _openMarketplace(initialTab: 0),
+      ),
       body: Stack(
         children: [
           SafeArea(
@@ -251,6 +258,25 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                       height: 54,
                       child: Stack(
                         children: [
+                          Positioned(
+                            left: 0,
+                            top: 0,
+                            child: Builder(
+                              builder: (ctx) => DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: MasliveTheme.surface,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: MasliveTheme.divider),
+                                ),
+                                child: IconButton(
+                                  onPressed: () => Scaffold.of(ctx).openDrawer(),
+                                  icon: const Icon(Icons.menu_rounded),
+                                  color: MasliveTheme.textPrimary,
+                                  tooltip: 'Menu',
+                                ),
+                              ),
+                            ),
+                          ),
                           const Align(
                             alignment: Alignment.topCenter,
                             child: Text(

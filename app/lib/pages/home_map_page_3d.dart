@@ -63,7 +63,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   static const int _trackingIntervalSeconds = 15;
   static const int _gpsDistanceFilter = 8;
   static const Duration _gpsTimeout = Duration(seconds: 8);
-  static const double _homeBottomBarHeight = 60;
+  static const double _homeBottomBarHeight = 58;
   static const double _userMarkerIconSize = 1.5;
   static const Duration _cameraAnimationDuration = Duration(milliseconds: 800);
   static const double _defaultZoom = 13.0;
@@ -175,7 +175,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   bool get _useMapboxTiles => _effectiveMapboxToken.isNotEmpty;
 
   int? get _activeBottomBarIndex =>
-      _showActionsMenu ? 4 : (_selectedBottomBarIndex ?? 2);
+      _showActionsMenu ? 3 : (_selectedBottomBarIndex ?? 2);
 
   MarketMapService get _marketMapServiceOrCreate =>
       _marketMapService ??= MarketMapService();
@@ -3068,6 +3068,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       MasliveStandardBottomBarItem(
         icon: Icons.person_outline_rounded,
         activeIcon: Icons.person_rounded,
+        label: 'Profil',
         tooltip: pseudo.isEmpty ? localizations.profile : pseudo,
         onTap: () {
           _selectBottomBarIndex(0);
@@ -3079,8 +3080,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         },
       ),
       MasliveStandardBottomBarItem(
-        icon: Icons.checkroom_outlined,
-        activeIcon: Icons.checkroom,
+        icon: Icons.dry_cleaning_outlined,
+        activeIcon: Icons.dry_cleaning,
+        label: 'Boutique',
         tooltip: localizations.shop,
         onTap: () {
           _selectBottomBarIndex(1);
@@ -3095,6 +3097,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       MasliveStandardBottomBarItem(
         icon: Icons.map_outlined,
         activeIcon: Icons.map,
+        label: 'Carte',
         tooltip: 'Carte',
         onTap: () {
           _selectBottomBarIndex(2);
@@ -3104,20 +3107,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         },
       ),
       MasliveStandardBottomBarItem(
-        icon: Icons.shopping_bag_outlined,
-        activeIcon: Icons.shopping_bag,
-        tooltip: 'Panier',
-        onTap: () {
-          _selectBottomBarIndex(3);
-          Navigator.pushNamed(context, '/cart');
-        },
-      ),
-      MasliveStandardBottomBarItem(
         icon: Icons.menu_rounded,
         activeIcon: Icons.menu_rounded,
+        label: 'Menu',
         tooltip: localizations.menu,
         onTap: () {
-          _selectBottomBarIndex(4);
+          _selectBottomBarIndex(3);
           _toggleActionsMenu();
         },
       ),
@@ -3134,7 +3129,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       items: items,
       selectedIndex: _activeBottomBarIndex,
       height: _homeBottomBarHeight,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
     );
   }
 

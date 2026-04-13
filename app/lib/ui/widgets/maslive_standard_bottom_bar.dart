@@ -73,6 +73,7 @@ class MasliveStandardBottomBarItem {
     this.icon,
     this.activeIcon,
     this.iconBuilder,
+    this.label,
     this.tooltip,
     this.badgeCount = 0,
     required this.onTap,
@@ -84,6 +85,7 @@ class MasliveStandardBottomBarItem {
   final IconData? icon;
   final IconData? activeIcon;
   final MasliveStandardBottomBarIconBuilder? iconBuilder;
+  final String? label;
   final String? tooltip;
   final int badgeCount;
   final VoidCallback onTap;
@@ -106,17 +108,21 @@ class _MasliveStandardBottomBarAction extends StatelessWidget {
     blurRadius: 18,
     offset: Offset(0, 8),
   );
+  static const Color _inactiveColor = Color(0xFF98A2B3);
 
   final MasliveStandardBottomBarItem item;
   final bool active;
 
   @override
   Widget build(BuildContext context) {
+    final label = item.label?.trim() ?? '';
+    final hasLabel = label.isNotEmpty;
     final iconChild =
         item.iconBuilder?.call(context, active) ??
         Icon(
           active ? item.activeIcon : item.icon,
-          color: active ? Colors.white : const Color(0xFF98A2B3),
+          color: active ? Colors.white : _inactiveColor,
+          size: hasLabel ? 22 : 24,
         );
 
     return InkResponse(
@@ -128,7 +134,10 @@ class _MasliveStandardBottomBarAction extends StatelessWidget {
           AnimatedContainer(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOut,
-            padding: const EdgeInsets.all(8),
+            padding: EdgeInsets.symmetric(
+              horizontal: hasLabel ? 8 : 8,
+              vertical: hasLabel ? 5 : 8,
+            ),
             decoration: active
                 ? BoxDecoration(
                     gradient: _activeGradient,
@@ -137,9 +146,32 @@ class _MasliveStandardBottomBarAction extends StatelessWidget {
                   )
                 : null,
             child: SizedBox(
-              width: 24,
-              height: 24,
-              child: Center(child: iconChild),
+              width: hasLabel ? 42 : 24,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Center(child: iconChild),
+                  ),
+                  if (hasLabel) ...<Widget>[
+                    const SizedBox(height: 3),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: active ? Colors.white : _inactiveColor,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        height: 1,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
           if (item.badgeCount > 0)
