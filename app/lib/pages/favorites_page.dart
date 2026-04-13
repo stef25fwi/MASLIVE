@@ -3,6 +3,7 @@ import '../session/session_scope.dart';
 import '../session/require_signin.dart';
 import '../services/favorites_service.dart';
 import '../l10n/app_localizations.dart';
+import 'user_facing_bottom_bar.dart';
 
 class FavoritesPage extends StatelessWidget {
   const FavoritesPage({super.key});
@@ -14,6 +15,9 @@ class FavoritesPage extends StatelessWidget {
     if (session.isGuest) {
       return Scaffold(
         appBar: AppBar(title: Text(AppLocalizations.of(context)!.myFavorites)),
+        bottomNavigationBar: const UserFacingBottomBar(
+          currentTab: UserFacingBottomBarTab.profile,
+        ),
         body: Center(
           child: FilledButton(
             onPressed: () => requireSignIn(context, session: session),
@@ -25,6 +29,9 @@ class FavoritesPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(AppLocalizations.of(context)!.myFavorites)),
+      bottomNavigationBar: const UserFacingBottomBar(
+        currentTab: UserFacingBottomBarTab.profile,
+      ),
       body: StreamBuilder<Set<String>>(
         stream: FavoritesService.instance.favoritesIdsStream(),
         builder: (context, snap) {

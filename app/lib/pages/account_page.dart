@@ -12,6 +12,7 @@ import '../widgets/cart/cart_icon_badge.dart';
 import '../ui/widgets/honeycomb_background.dart';
 import '../ui/widgets/maslive_card.dart';
 import '../l10n/app_localizations.dart';
+import 'user_facing_bottom_bar.dart';
 
 class AccountUiPage extends StatefulWidget {
   const AccountUiPage({super.key});
@@ -200,6 +201,9 @@ class _AccountUiPageState extends State<AccountUiPage> {
     }
 
     return Scaffold(
+      bottomNavigationBar: const UserFacingBottomBar(
+        currentTab: UserFacingBottomBarTab.profile,
+      ),
       body: HoneycombBackground(
         child: CustomScrollView(
           slivers: [

@@ -8,6 +8,7 @@ import '../widgets/rainbow_header.dart';
 import '../ui/widgets/honeycomb_background.dart';
 import '../ui/widgets/maslive_card.dart';
 import '../ui/theme/maslive_theme.dart';
+import 'user_facing_bottom_bar.dart';
 
 class PurchaseHistoryPage extends StatefulWidget {
   const PurchaseHistoryPage({super.key});
@@ -35,6 +36,9 @@ class _PurchaseHistoryPageState extends State<PurchaseHistoryPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      bottomNavigationBar: const UserFacingBottomBar(
+        currentTab: UserFacingBottomBarTab.profile,
+      ),
       body: HoneycombBackground(
         child: CustomScrollView(
           slivers: [

@@ -19,6 +19,7 @@ import '../services/home_controls_theme_service.dart';
 import '../services/language_service.dart';
 import '../ui/theme/maslive_theme.dart';
 import '../ui/widgets/maslive_card.dart';
+import '../ui/widgets/active_circuit_header_banner.dart';
 import '../ui/widgets/maslive_standard_bottom_bar.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
 import '../ui/widgets/marketmap_poi_selector_sheet.dart';
@@ -133,6 +134,14 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   int? get _activeBottomBarIndex =>
       _showActionsMenu ? 3 : (_selectedBottomBarIndex ?? 2);
+
+  String? get _activeCircuitName {
+    final circuitName = _marketPoiSelection.circuit?.name.trim();
+    if (!_marketPoiSelection.enabled || circuitName == null || circuitName.isEmpty) {
+      return null;
+    }
+    return circuitName;
+  }
 
   List<MapMarker> _composeMarkers() {
     final markers = List<MapMarker>.from(_marketPoiMarkers);
@@ -1237,7 +1246,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         margin: EdgeInsets.only(top: menuTopOffset),
         horizontalPadding: navHorizontalPadding,
         verticalPadding: 10,
-        backgroundAlpha: HomeVerticalNavMenu.boutiqueBackgroundAlpha,
+        backgroundAlpha: 0.88,
         blurSigma: HomeVerticalNavMenu.boutiqueBlurSigma,
         boxShadow: HomeVerticalNavMenu.boutiqueShadow,
         borderColor: HomeVerticalNavMenu.boutiqueBorderColor,
@@ -1296,10 +1305,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         },
       ),
       MasliveStandardBottomBarItem(
-        icon: Icons.map_outlined,
-        activeIcon: Icons.map,
-        label: 'Carte',
-        tooltip: 'Carte',
+        icon: Icons.home_outlined,
+        activeIcon: Icons.home,
+        label: 'Home',
+        tooltip: 'Home',
         onTap: () {
           _selectBottomBarIndex(2);
           if (_showActionsMenu) {
@@ -1308,10 +1317,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         },
       ),
       MasliveStandardBottomBarItem(
-        icon: Icons.menu_rounded,
-        activeIcon: Icons.menu_rounded,
-        label: 'Menu',
-        tooltip: localizations.menu,
+        icon: Icons.search_rounded,
+        activeIcon: Icons.search,
+        label: 'Explorer',
+        tooltip: 'Explorer',
         onTap: () {
           _selectBottomBarIndex(3);
           _toggleActionsMenu();
@@ -1630,6 +1639,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
             final tooltipRight = navMenuWidth + tooltipGapToMenu;
             final carteIconCenterY =
               menuTopOffset + navVerticalPadding + (navItemSize / 2);
+            final activeCircuitName = _activeCircuitName;
 
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _scheduleResize(size);
@@ -1704,12 +1714,26 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                 // Onboarding tooltip (sélectionner votre carte)
                 if (_showOnboardingTooltip && _showActionsMenu)
                   _OnboardingTooltip(
-                    message: l10n.AppLocalizations.of(context)!.selectMap,
+                    message: 'Sélectionnez votre carte ici',
                     anchorCenterY: carteIconCenterY,
                     right: tooltipRight,
                     onDismiss: () {
                       setState(() => _showOnboardingTooltip = false);
                     },
+                  ),
+
+                if (activeCircuitName != null)
+                  Positioned(
+                    top: topInset + 10,
+                    left: 88,
+                    right: 88,
+                    child: IgnorePointer(
+                      child: Center(
+                        child: ActiveCircuitHeaderBanner(
+                          circuitName: activeCircuitName,
+                        ),
+                      ),
+                    ),
                   ),
 
                 // Tracking pill
@@ -1747,76 +1771,67 @@ class _OnboardingTooltip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Flèche personnalisée pointant vers le haut-droit
-    const arrowSize = 12.0;
-    const arrowBoxHeight = arrowSize + 4;
+    const borderRadius = 16.0;
+    const arrowWidth = 18.0;
+    const arrowHeight = 24.0;
 
     return Positioned(
-      // Centrage vertical sur l'icône "Carte" (barre verticale)
       top: anchorCenterY,
       right: right,
       child: GestureDetector(
         onTap: onDismiss,
         child: FractionalTranslation(
           translation: const Offset(0.0, -0.5),
-          // On centre la boîte, et on laisse le triangle en overflow
-          // (sinon il décale le centrage vertical).
           child: Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.centerRight,
             children: [
-              // Boîte de texte
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+              CustomPaint(
+                painter: const _DashedTooltipBorderPainter(
+                  borderRadius: borderRadius,
                 ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        message,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                          height: 1.3,
-                        ),
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 230),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(borderRadius),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.28),
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
                       ),
+                    ],
+                  ),
+                  child: Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      height: 1.3,
                     ),
-                    const SizedBox(width: 12),
-                    // Flèche vers le bas
-                    Transform.rotate(
-                      angle: 3.14159, // 180 degrés pour pointer vers le bas
-                      child: const Icon(
-                        Icons.arrow_upward_rounded,
-                        size: 18,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-              // Triangle pointeur (flèche)
               Positioned(
-                right: 0,
-                bottom: -arrowBoxHeight,
+                right: -(arrowWidth - 3),
+                top: 0,
+                bottom: 0,
                 child: SizedBox(
-                  width: 40,
-                  height: arrowBoxHeight,
-                  child: CustomPaint(painter: _ArrowPainter()),
+                  width: arrowWidth,
+                  height: arrowHeight,
+                  child: Center(
+                    child: CustomPaint(
+                      size: const Size(arrowWidth, arrowHeight),
+                      painter: const _TooltipArrowPainter(),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -1827,32 +1842,67 @@ class _OnboardingTooltip extends StatelessWidget {
   }
 }
 
-class _ArrowPainter extends CustomPainter {
+class _DashedTooltipBorderPainter extends CustomPainter {
+  const _DashedTooltipBorderPainter({required this.borderRadius});
+
+  final double borderRadius;
+
   @override
   void paint(Canvas canvas, Size size) {
+    final rect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      Radius.circular(borderRadius),
+    );
+    final path = Path()..addRRect(rect);
     final paint = Paint()
       ..color = Colors.white
-      ..style = PaintingStyle.fill;
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4;
 
-    final shadowPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.15)
-      ..style = PaintingStyle.fill;
-
-    // Points du triangle pointant vers le bas
-    final path = Path();
-    path.moveTo(size.width * 0.7, 0); // Point haut-gauche
-    path.lineTo(size.width, size.height); // Point bas-droit
-    path.lineTo(size.width * 0.7 - 8, size.height); // Point bas-gauche
-    path.close();
-
-    // Ombre
-    canvas.drawPath(path, shadowPaint);
-    // Triangle
-    canvas.drawPath(path, paint);
+    const dashWidth = 7.0;
+    const dashGap = 5.0;
+    for (final metric in path.computeMetrics()) {
+      double distance = 0;
+      while (distance < metric.length) {
+        final end = (distance + dashWidth).clamp(0.0, metric.length).toDouble();
+        canvas.drawPath(metric.extractPath(distance, end), paint);
+        distance += dashWidth + dashGap;
+      }
+    }
   }
 
   @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _DashedTooltipBorderPainter oldDelegate) {
+    return oldDelegate.borderRadius != borderRadius;
+  }
+}
+
+class _TooltipArrowPainter extends CustomPainter {
+  const _TooltipArrowPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final fillPaint = Paint()
+      ..color = Colors.black
+      ..style = PaintingStyle.fill;
+
+    final strokePaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4;
+
+    final path = Path();
+    path.moveTo(0, 0);
+    path.lineTo(size.width, size.height / 2);
+    path.lineTo(0, size.height);
+    path.close();
+
+    canvas.drawPath(path, fillPaint);
+    canvas.drawPath(path, strokePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _TrackingPill extends StatelessWidget {

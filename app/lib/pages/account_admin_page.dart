@@ -13,6 +13,7 @@ import '../widgets/admin_route_guard.dart';
 import '../admin/admin_stock_page.dart';
 import '../admin/admin_product_categories_page.dart';
 import 'storex_shop_page.dart';
+import 'user_facing_bottom_bar.dart';
 
 const Color _adminAccent = Color(0xFF1E88E5);
 
@@ -63,6 +64,9 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
         final showSuperAdminCommerce = isSuperAdmin || isStephane;
 
         return Scaffold(
+          bottomNavigationBar: const UserFacingBottomBar(
+            currentTab: UserFacingBottomBarTab.profile,
+          ),
           body: CustomScrollView(
             slivers: [
                 SliverToBoxAdapter(

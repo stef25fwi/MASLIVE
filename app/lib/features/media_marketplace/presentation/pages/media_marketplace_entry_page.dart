@@ -4,6 +4,7 @@ import '../../../../models/market_circuit.dart';
 import '../../../../models/market_country.dart';
 import '../../../../models/market_event.dart';
 import '../../../../pages/cart/unified_cart_page.dart';
+import '../../../../pages/user_facing_bottom_bar.dart';
 import '../../../../ui/theme/maslive_theme.dart';
 import '../../../../ui/widgets/marketmap_poi_selector_sheet.dart';
 import 'media_downloads_page.dart';
@@ -46,6 +47,12 @@ class MediaMarketplaceEntryPage extends StatelessWidget {
       initialIndex: safeInitialTabIndex,
       child: Scaffold(
         backgroundColor: MasliveTheme.surfaceAlt,
+        bottomNavigationBar: embedded
+            ? null
+            : const UserFacingBottomBar(
+                currentTab: UserFacingBottomBarTab.explorer,
+                explorerRoute: '/media-marketplace',
+              ),
         body: DecoratedBox(
           decoration: const BoxDecoration(gradient: MasliveTheme.backgroundWash),
           child: SafeArea(

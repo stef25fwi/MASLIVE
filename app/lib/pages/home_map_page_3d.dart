@@ -19,6 +19,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 
 import '../ui/theme/maslive_theme.dart';
+import '../ui/widgets/active_circuit_header_banner.dart';
 import '../ui/widgets/maslive_card.dart';
 import '../ui/widgets/maslive_standard_bottom_bar.dart';
 import '../ui/widgets/polaroid_poi_sheet.dart';
@@ -176,6 +177,14 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   int? get _activeBottomBarIndex =>
       _showActionsMenu ? 3 : (_selectedBottomBarIndex ?? 2);
+
+  String? get _activeCircuitName {
+    final circuitName = _marketPoiSelection.circuit?.name.trim();
+    if (!_marketPoiSelection.enabled || circuitName == null || circuitName.isEmpty) {
+      return null;
+    }
+    return circuitName;
+  }
 
   MarketMapService get _marketMapServiceOrCreate =>
       _marketMapService ??= MarketMapService();
@@ -3036,7 +3045,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         margin: EdgeInsets.only(top: _actionsMenuTopOffset),
         horizontalPadding: 6,
         verticalPadding: 10,
-        backgroundAlpha: HomeVerticalNavMenu.boutiqueBackgroundAlpha,
+        backgroundAlpha: 0.88,
         blurSigma: HomeVerticalNavMenu.boutiqueBlurSigma,
         boxShadow: HomeVerticalNavMenu.boutiqueShadow,
         borderColor: HomeVerticalNavMenu.boutiqueBorderColor,
@@ -3095,10 +3104,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         },
       ),
       MasliveStandardBottomBarItem(
-        icon: Icons.map_outlined,
-        activeIcon: Icons.map,
-        label: 'Carte',
-        tooltip: 'Carte',
+        icon: Icons.home_outlined,
+        activeIcon: Icons.home,
+        label: 'Home',
+        tooltip: 'Home',
         onTap: () {
           _selectBottomBarIndex(2);
           if (_showActionsMenu) {
@@ -3107,10 +3116,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         },
       ),
       MasliveStandardBottomBarItem(
-        icon: Icons.menu_rounded,
-        activeIcon: Icons.menu_rounded,
-        label: 'Menu',
-        tooltip: localizations.menu,
+        icon: Icons.search_rounded,
+        activeIcon: Icons.search,
+        label: 'Explorer',
+        tooltip: 'Explorer',
         onTap: () {
           _selectBottomBarIndex(3);
           _toggleActionsMenu();
@@ -3267,6 +3276,20 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                 ),
               ),
             ),
+
+            if (_activeCircuitName != null)
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 10,
+                left: 88,
+                right: 88,
+                child: IgnorePointer(
+                  child: Center(
+                    child: ActiveCircuitHeaderBanner(
+                      circuitName: _activeCircuitName!,
+                    ),
+                  ),
+                ),
+              ),
 
             // Boussole (demi-flèche rouge)
             const Positioned(top: 104, right: 14, child: _HalfRedCompass()),
