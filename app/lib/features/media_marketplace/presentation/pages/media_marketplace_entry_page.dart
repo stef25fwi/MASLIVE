@@ -50,7 +50,7 @@ class MediaMarketplaceEntryPage extends StatelessWidget {
         bottomNavigationBar: embedded
             ? null
             : const UserFacingBottomBar(
-                currentTab: UserFacingBottomBarTab.explorer,
+                currentTab: UserFacingBottomBarTab.media,
                 explorerRoute: '/media-marketplace',
               ),
         body: DecoratedBox(

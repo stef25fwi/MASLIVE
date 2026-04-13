@@ -375,6 +375,7 @@ class _StorexHome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final repo = StorexRepo(shopId: shopId, groupId: groupId);
+    final cartCount = context.watch<CartProvider>().totalQuantity;
 
     return Scaffold(
       backgroundColor: _ShopUi.pageBg,
@@ -430,10 +431,14 @@ class _StorexHome extends StatelessWidget {
         title: const _StorexBrandTitle(subtitle: 'LA BOUTIQUE'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search, color: _ShopUi.textMain),
+            icon: _StorexNavBadgeIcon(
+              icon: Icons.shopping_bag_outlined,
+              badgeCount: cartCount,
+              selected: false,
+            ),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => _SearchPage(shopId: shopId, groupId: groupId),
+                builder: (_) => const UnifiedCartPage(),
               ),
             ),
           ),

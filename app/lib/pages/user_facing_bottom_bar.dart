@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../ui/widgets/maslive_standard_bottom_bar.dart';
 import 'storex_shop_page.dart';
 
-enum UserFacingBottomBarTab { profile, boutique, home, explorer }
+enum UserFacingBottomBarTab { profile, boutique, home, media, explorer }
 
 class UserFacingBottomBar extends StatelessWidget {
   const UserFacingBottomBar({
@@ -60,6 +60,16 @@ class UserFacingBottomBar extends StatelessWidget {
             onTap: () {
               if (currentTab == UserFacingBottomBarTab.home) return;
               Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+            },
+          ),
+          MasliveStandardBottomBarItem(
+            icon: Icons.photo_library_outlined,
+            activeIcon: Icons.photo_library,
+            label: 'Media',
+            tooltip: 'Ouvrir les médias',
+            onTap: () {
+              if (currentTab == UserFacingBottomBarTab.media) return;
+              Navigator.of(context).pushReplacementNamed('/media-marketplace');
             },
           ),
           MasliveStandardBottomBarItem(

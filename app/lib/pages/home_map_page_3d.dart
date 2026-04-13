@@ -176,7 +176,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   bool get _useMapboxTiles => _effectiveMapboxToken.isNotEmpty;
 
   int? get _activeBottomBarIndex =>
-      _showActionsMenu ? 3 : (_selectedBottomBarIndex ?? 2);
+      _showActionsMenu ? 4 : (_selectedBottomBarIndex ?? 2);
 
   String? get _activeCircuitName {
     final circuitName = _marketPoiSelection.circuit?.name.trim();
@@ -2954,6 +2954,15 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         },
       ),
       HomeVerticalNavItem(
+        label: 'Centrer',
+        icon: Icons.my_location_rounded,
+        selected: false,
+        onTap: () {
+          _recenterOnUser();
+          _closeNavWithDelay();
+        },
+      ),
+      HomeVerticalNavItem(
         label: 'POIs',
         icon: Icons.place_rounded,
         selected: _marketPoiSelection.enabled,
@@ -3089,8 +3098,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         },
       ),
       MasliveStandardBottomBarItem(
-        icon: Icons.dry_cleaning_outlined,
-        activeIcon: Icons.dry_cleaning,
+        icon: Icons.storefront_outlined,
+        activeIcon: Icons.storefront,
         label: 'Boutique',
         tooltip: localizations.shop,
         onTap: () {
@@ -3116,12 +3125,22 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         },
       ),
       MasliveStandardBottomBarItem(
+        icon: Icons.photo_library_outlined,
+        activeIcon: Icons.photo_library,
+        label: 'Media',
+        tooltip: 'Media',
+        onTap: () {
+          _selectBottomBarIndex(3);
+          Navigator.pushNamed(context, '/media-marketplace');
+        },
+      ),
+      MasliveStandardBottomBarItem(
         icon: Icons.search_rounded,
         activeIcon: Icons.search,
         label: 'Explorer',
         tooltip: 'Explorer',
         onTap: () {
-          _selectBottomBarIndex(3);
+          _selectBottomBarIndex(4);
           _toggleActionsMenu();
         },
       ),
@@ -3299,10 +3318,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
               top: 10,
               child: SafeArea(
                 child: _MapTopLeftControls(
-                  canRecenter: _userPos != null,
-                  onRecenter: () {
-                    _recenterOnUser();
-                  },
                   onZoomIn: () {
                     _adjustZoom(1.0);
                   },
@@ -3376,14 +3391,10 @@ class _HalfRedCompass extends StatelessWidget {
 
 class _MapTopLeftControls extends StatelessWidget {
   const _MapTopLeftControls({
-    required this.canRecenter,
-    required this.onRecenter,
     required this.onZoomIn,
     required this.onZoomOut,
   });
 
-  final bool canRecenter;
-  final VoidCallback onRecenter;
   final VoidCallback onZoomIn;
   final VoidCallback onZoomOut;
 
@@ -3392,11 +3403,6 @@ class _MapTopLeftControls extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _MapOverlayControlButton(
-          icon: Icons.my_location_rounded,
-          onTap: canRecenter ? onRecenter : null,
-        ),
-        const SizedBox(height: 10),
         DecoratedBox(
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.92),

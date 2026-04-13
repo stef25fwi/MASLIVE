@@ -133,7 +133,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   }
 
   int? get _activeBottomBarIndex =>
-      _showActionsMenu ? 3 : (_selectedBottomBarIndex ?? 2);
+      _showActionsMenu ? 4 : (_selectedBottomBarIndex ?? 2);
 
   String? get _activeCircuitName {
     final circuitName = _marketPoiSelection.circuit?.name.trim();
@@ -1290,8 +1290,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         },
       ),
       MasliveStandardBottomBarItem(
-        icon: Icons.dry_cleaning_outlined,
-        activeIcon: Icons.dry_cleaning,
+        icon: Icons.storefront_outlined,
+        activeIcon: Icons.storefront,
         label: 'Boutique',
         tooltip: localizations.shop,
         onTap: () {
@@ -1317,12 +1317,22 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         },
       ),
       MasliveStandardBottomBarItem(
+        icon: Icons.photo_library_outlined,
+        activeIcon: Icons.photo_library,
+        label: 'Media',
+        tooltip: 'Media',
+        onTap: () {
+          _selectBottomBarIndex(3);
+          Navigator.pushNamed(context, '/media-marketplace');
+        },
+      ),
+      MasliveStandardBottomBarItem(
         icon: Icons.search_rounded,
         activeIcon: Icons.search,
         label: 'Explorer',
         tooltip: 'Explorer',
         onTap: () {
-          _selectBottomBarIndex(3);
+          _selectBottomBarIndex(4);
           _toggleActionsMenu();
         },
       ),
