@@ -381,7 +381,7 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
   Future<void> _warmMapboxToken() async {
     try {
       StartupTrace.log('MAPBOX', 'warmUp start');
-      await MapboxTokenService.warmUp().timeout(const Duration(seconds: 4));
+      await MapboxTokenService.warmUp().timeout(const Duration(seconds: 10));
       StartupTrace.log(
         'MAPBOX',
         'warmUp success source=${MapboxTokenService.cachedSource} len=${MapboxTokenService.cachedToken.length}',

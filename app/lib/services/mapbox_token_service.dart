@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/mapbox_token_web_stub.dart'
   if (dart.library.html) '../utils/mapbox_token_web_web.dart';
@@ -182,7 +183,7 @@ class MapboxTokenService {
       );
     }
 
-    // Fallback legacy web (dernier recours uniquement).
+    // Fallback legacy web.
     final webToken = readWebMapboxToken();
     if (webToken.isNotEmpty) {
       return _remember(
@@ -191,6 +192,31 @@ class MapboxTokenService {
           source: 'window.__MAPBOX_TOKEN__ (fallback)',
         ),
       );
+    }
+
+    // Fallback Firestore: config/mapbox -> champ 'accessToken'.
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('config')
+          .doc('mapbox')
+          .get()
+          .timeout(const Duration(seconds: 5));
+      final firestoreToken =
+          ((doc.data()?['accessToken'] ?? '') as String).trim();
+      if (firestoreToken.isNotEmpty) {
+        debugPrint('[MAPBOX][TOKEN] Firestore fallback len=${firestoreToken.length}');
+        // Persist locally for next cold start.
+        final p = await SharedPreferences.getInstance();
+        await p.setString(_prefsKey, firestoreToken);
+        return _remember(
+          _buildInfo(
+            rawToken: firestoreToken,
+            source: 'Firestore config/mapbox',
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ MapboxTokenService: Firestore fallback failed: $e');
     }
 
     return _remember(const MapboxTokenInfo.empty());

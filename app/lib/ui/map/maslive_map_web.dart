@@ -1810,12 +1810,15 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     widget.onTap?.call(MapPoint(lng, lat));
   }
 
+  int _tokenRetryCount = 0;
+  static const int _maxTokenRetries = 2;
+
   Future<void> _loadMapboxToken() async {
     try {
       final info = await MapboxTokenService.getTokenInfo().timeout(
-        const Duration(seconds: 6),
+        const Duration(seconds: 8),
         onTimeout: () {
-          debugPrint('⚠️ _loadMapboxToken: timeout 6s -> fallback empty');
+          debugPrint('⚠️ _loadMapboxToken: timeout 8s -> fallback empty');
           return const MapboxTokenInfo.empty();
         },
       );
@@ -1823,6 +1826,17 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         '[MAPBOX][TOKEN] source=${info.source} len=${info.token.length} publicPk=${info.isPublicPkToken} valid=${info.isValidFormat}',
       );
       if (mounted) {
+        if (!info.isValidFormat && _tokenRetryCount < _maxTokenRetries) {
+          // Token not found yet — retry after a short delay
+          // (Firestore fallback may need more time on cold start).
+          _tokenRetryCount++;
+          debugPrint('[MAPBOX][TOKEN] retry $_tokenRetryCount/$_maxTokenRetries');
+          Future.delayed(
+            Duration(seconds: _tokenRetryCount * 2),
+            () { if (mounted) _loadMapboxToken(); },
+          );
+          return;
+        }
         setState(() {
           _resolvedTokenInfo = info;
           _mapboxToken = info.token;
@@ -1833,6 +1847,15 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         });
       }
     } catch (e) {
+      if (mounted && _tokenRetryCount < _maxTokenRetries) {
+        _tokenRetryCount++;
+        debugPrint('[MAPBOX][TOKEN] retry $_tokenRetryCount/$_maxTokenRetries (error: $e)');
+        Future.delayed(
+          Duration(seconds: _tokenRetryCount * 2),
+          () { if (mounted) _loadMapboxToken(); },
+        );
+        return;
+      }
       if (mounted) {
         setState(() {
           _resolvedTokenInfo = const MapboxTokenInfo.empty();

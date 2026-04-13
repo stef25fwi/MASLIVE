@@ -171,8 +171,8 @@
   <script>
     // Fallback legacy uniquement.
     // La source prioritaire doit venir de Dart (MAPBOX_ACCESS_TOKEN -> bridge JS).
-    // Ne mets pas de token hardcodé ici.
-    window.__MAPBOX_TOKEN__ = "";
+    // Ne pas écraser si déjà défini par un autre script.
+    if (!window.__MAPBOX_TOKEN__) window.__MAPBOX_TOKEN__ = "";
 
     // Style par défaut (ton style "box")
     window.__MAPBOX_STYLE__ = "mapbox://styles/mapbox/streets-v12";
