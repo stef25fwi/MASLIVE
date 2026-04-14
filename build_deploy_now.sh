@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+FLUTTER_BIN=/workspaces/MASLIVE/.flutter_sdk/bin/flutter
+
 echo "📱 Building Flutter web app..."
 cd /workspaces/MASLIVE/app
 { [ -f /workspaces/MASLIVE/.env ] && source /workspaces/MASLIVE/.env; } 2>/dev/null || true
@@ -19,7 +21,7 @@ if [ -n "${STRIPE_PREMIUM_MONTHLY_PRICE_ID:-}" ] && [ -n "${STRIPE_PREMIUM_YEARL
 else
 	echo "⚠️ Price IDs premium web absents: le paywall web restera en configuration manquante."
 fi
-flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN="$TOKEN" "${STRIPE_PREMIUM_ARGS[@]}"
+"$FLUTTER_BIN" build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN="$TOKEN" "${STRIPE_PREMIUM_ARGS[@]}"
 
 echo "🚀 Deploying to Firebase hosting..."
 cd /workspaces/MASLIVE

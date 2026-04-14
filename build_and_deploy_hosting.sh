@@ -4,6 +4,8 @@
 
 set -e
 
+FLUTTER_BIN=/workspaces/MASLIVE/.flutter_sdk/bin/flutter
+
 echo "🚀 Build Flutter Web + Deploy Hosting"
 echo "====================================="
 
@@ -20,7 +22,7 @@ if [ -z "$TOKEN" ]; then
 	exit 1
 fi
 echo "🗺️  Token Mapbox détecté: OK (redacted)"
-flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN="$TOKEN"
+"$FLUTTER_BIN" build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN="$TOKEN"
 cd ..
 
 echo ""
