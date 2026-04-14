@@ -53,8 +53,8 @@ class UserFacingBottomBar extends StatelessWidget {
                 },
               ),
               MasliveStandardBottomBarItem(
-                icon: Icons.dry_cleaning_outlined,
-                activeIcon: Icons.dry_cleaning,
+                icon: Icons.storefront_outlined,
+                activeIcon: Icons.storefront,
                 label: 'Boutique',
                 tooltip: 'Ouvrir la boutique',
                 onTap: () {
