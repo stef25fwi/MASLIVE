@@ -8,7 +8,9 @@ import '../widgets/media_marketplace_back_to_catalog_button.dart';
 import '../widgets/media_marketplace_context_chips.dart';
 import '../widgets/media_marketplace_message_card.dart';
 import '../widgets/media_marketplace_section_header.dart';
-import '../widgets/media_marketplace_shell.dart';
+import '../../../../providers/cart_provider.dart';
+import '../../../../shop/widgets/shop_drawer.dart';
+import '../../../../shop/widgets/storex_page_header.dart';
 import '../../../../ui/theme/maslive_theme.dart';
 
 class MediaDownloadsPage extends StatelessWidget {
@@ -64,12 +66,16 @@ class _MediaDownloadsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<MediaDownloadController>();
+    final cartCount = context.watch<CartProvider>().totalQuantity;
+    final listPadding = embedded
+        ? const EdgeInsets.fromLTRB(8, 16, 8, 24)
+        : const EdgeInsets.fromLTRB(18, 14, 18, 24);
 
     final content = controller.loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(8, 16, 8, 24),
+            padding: listPadding,
               children: <Widget>[
                 if (controller.error != null)
                   MediaMarketplaceMessageCard.error(controller.error!),
@@ -163,49 +169,49 @@ class _MediaDownloadsView extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: MasliveTheme.surfaceAlt,
-      body: DecoratedBox(
-        decoration: const BoxDecoration(gradient: MasliveTheme.backgroundWash),
-        child: SafeArea(
-          child: Stack(
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.only(left: 84),
-                child: Column(
-                  children: <Widget>[
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(8, 16, 8, 12),
-                      child: MediaMarketplaceBrandHeader(
-                        subtitle: 'MES TELECHARGEMENTS',
-                        onBack: () => Navigator.of(context).pop(),
-                      ),
-                    ),
-                    Expanded(child: content),
-                  ],
-                ),
-              ),
-              MediaMarketplaceVerticalNav(
-                selected: MediaMarketplaceNavSection.downloads,
-                onOpenCatalog: () => Navigator.pushReplacementNamed(
-                  context,
-                  '/media-marketplace',
-                  arguments: <String, dynamic>{'initialTab': 0},
-                ),
-                onOpenPhotographer: () => Navigator.pushReplacementNamed(
-                  context,
-                  '/media-marketplace',
-                  arguments: <String, dynamic>{'initialTab': 3},
-                ),
-                onOpenCart: () => Navigator.pushReplacementNamed(
-                  context,
-                  '/media-marketplace',
-                  arguments: <String, dynamic>{'initialTab': 1},
-                ),
-                onOpenDownloads: () {},
-              ),
-            ],
-          ),
+      drawer: ShopDrawer(
+        onNavigateHome: () => Navigator.of(context).pushReplacementNamed('/'),
+        onNavigateSearch: () => Navigator.of(context).pushReplacementNamed(
+          '/media-marketplace',
+          arguments: <String, dynamic>{'initialTab': 0},
+        ),
+        onNavigateProfile: () => Navigator.of(context).pushReplacementNamed('/account-ui'),
+        onNavigateCategory: (categoryId, title) => Navigator.of(context).pushReplacementNamed(
+          '/media-marketplace',
+          arguments: <String, dynamic>{'initialTab': 0},
         ),
       ),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF6F7FB),
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        toolbarHeight: 88,
+        iconTheme: const IconThemeData(color: Color(0xFF101828)),
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+          ),
+        ),
+        centerTitle: true,
+        title: const StorexPageHeaderTitle(subtitle: 'MES TELECHARGEMENTS'),
+        actions: [
+          IconButton(
+            icon: StorexHeaderCartIcon(
+              badgeCount: cartCount,
+              selected: false,
+            ),
+            onPressed: () => Navigator.of(context).pushReplacementNamed(
+              '/media-marketplace',
+              arguments: <String, dynamic>{'initialTab': 1},
+            ),
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
+      body: content,
     );
   }
 }

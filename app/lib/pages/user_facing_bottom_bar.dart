@@ -9,12 +9,10 @@ class UserFacingBottomBar extends StatelessWidget {
   const UserFacingBottomBar({
     super.key,
     required this.currentTab,
-    this.explorerRoute = '/search',
     this.onTabSelected,
   });
 
   final UserFacingBottomBarTab currentTab;
-  final String explorerRoute;
   final ValueChanged<UserFacingBottomBarTab>? onTabSelected;
 
   void _openShellTab(BuildContext context, UserFacingBottomBarTab tab) {
@@ -90,12 +88,7 @@ class UserFacingBottomBar extends StatelessWidget {
                 label: 'Explorer',
                 tooltip: 'Explorer',
                 onTap: () {
-                  if (currentTab == UserFacingBottomBarTab.explorer) return;
-                  if (explorerRoute == '/search') {
-                    _openShellTab(context, UserFacingBottomBarTab.explorer);
-                    return;
-                  }
-                  Navigator.of(context).pushReplacementNamed(explorerRoute);
+                  _openShellTab(context, UserFacingBottomBarTab.explorer);
                 },
               ),
             ],

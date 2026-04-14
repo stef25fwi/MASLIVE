@@ -5,7 +5,6 @@ import '../features/shop/pages/media_photo_shop_page.dart';
 import 'account_page.dart';
 import 'default_map_page.dart';
 import 'login_page.dart';
-import 'search_page.dart';
 import 'storex_shop_page.dart';
 import 'user_facing_bottom_bar.dart';
 
@@ -24,6 +23,7 @@ class UserFacingShellPage extends StatefulWidget {
 class _UserFacingShellPageState extends State<UserFacingShellPage> {
   late UserFacingBottomBarTab _currentTab;
   Map<String, dynamic> _mediaArgs = const <String, dynamic>{};
+  int _explorerOpenTick = 0;
   final Map<UserFacingBottomBarTab, Widget> _tabCache =
       <UserFacingBottomBarTab, Widget>{};
 
@@ -112,9 +112,21 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
     );
   }
 
+  Widget _buildExplorerPage() {
+    return DefaultMapPage(
+      key: ValueKey<String>('explorer-home-$_explorerOpenTick'),
+      showBottomBar: false,
+      openActionsMenuOnLoad: true,
+    );
+  }
+
   Widget _buildCachedPage(UserFacingBottomBarTab tab) {
     if (tab == UserFacingBottomBarTab.media) {
       return _buildMediaPage();
+    }
+
+    if (tab == UserFacingBottomBarTab.explorer) {
+      return _buildExplorerPage();
     }
 
     return _tabCache.putIfAbsent(tab, () {
@@ -130,7 +142,7 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
         case UserFacingBottomBarTab.media:
           return _buildMediaPage();
         case UserFacingBottomBarTab.explorer:
-          return const SearchPage(showBottomBar: false);
+          return _buildExplorerPage();
         case UserFacingBottomBarTab.profile:
           return const SizedBox.shrink();
       }
@@ -170,8 +182,14 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
           ),
           bottomNavigationBar: UserFacingBottomBar(
             currentTab: _currentTab,
-            explorerRoute: '/search',
             onTabSelected: (tab) {
+              if (tab == UserFacingBottomBarTab.explorer) {
+                setState(() {
+                  _explorerOpenTick++;
+                  _currentTab = UserFacingBottomBarTab.explorer;
+                });
+                return;
+              }
               if (tab == _currentTab) return;
               setState(() => _currentTab = tab);
             },

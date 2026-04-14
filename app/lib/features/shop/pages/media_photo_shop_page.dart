@@ -430,7 +430,6 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
           ? null
           : const UserFacingBottomBar(
               currentTab: UserFacingBottomBarTab.media,
-              explorerRoute: '/media-marketplace',
             ),
     );
   }

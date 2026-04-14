@@ -46,9 +46,14 @@ enum _MapAction { visiter, food, assistance, parking, wc, parkingWc }
 
 /// Page de carte par défaut avec Mapbox en plein écran
 class DefaultMapPage extends StatefulWidget {
-  const DefaultMapPage({super.key, this.showBottomBar = true});
+  const DefaultMapPage({
+    super.key,
+    this.showBottomBar = true,
+    this.openActionsMenuOnLoad = false,
+  });
 
   final bool showBottomBar;
+  final bool openActionsMenuOnLoad;
 
   @override
   State<DefaultMapPage> createState() => _DefaultMapPageState();
@@ -276,7 +281,11 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
     Future<void>.delayed(const Duration(milliseconds: 700), () async {
       if (!mounted) return;
-      unawaited(_autoOpenActionsMenuOnceIfNeeded());
+      if (widget.openActionsMenuOnLoad) {
+        _showActionsMenuImmediately();
+      } else {
+        unawaited(_autoOpenActionsMenuOnceIfNeeded());
+      }
       try {
         await precacheImage(
           const AssetImage('assets/images/icon wc parking.png'),
@@ -286,6 +295,15 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         // Optionnel: ne jamais bloquer l'affichage initial.
       }
     });
+  }
+
+  void _showActionsMenuImmediately({bool showTooltip = false}) {
+    if (!mounted) return;
+    setState(() {
+      _showActionsMenu = true;
+      _showOnboardingTooltip = showTooltip;
+    });
+    _menuAnimController.value = 1.0;
   }
 
   @override
@@ -343,12 +361,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       if (!mounted) return;
     }
 
-    setState(() {
-      _showActionsMenu = true;
-      _showOnboardingTooltip = showTooltip;
-    });
-    // Sans animation d'entrée pour être immédiatement visible.
-    _menuAnimController.value = 1.0;
+    _showActionsMenuImmediately(showTooltip: showTooltip);
   }
 
   void _notifyMapReady() {
