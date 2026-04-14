@@ -8,7 +8,12 @@ import '../l10n/app_localizations.dart';
 import 'business_signup_page.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  const LoginPage({
+    super.key,
+    this.onLoginSuccess,
+  });
+
+  final VoidCallback? onLoginSuccess;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -46,7 +51,11 @@ class _LoginPageState extends State<LoginPage> {
     try {
       await fn();
       if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed('/account-ui');
+      if (widget.onLoginSuccess != null) {
+        widget.onLoginSuccess!();
+      } else {
+        Navigator.of(context).pushReplacementNamed('/account-ui');
+      }
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
@@ -74,7 +83,11 @@ class _LoginPageState extends State<LoginPage> {
 
       final session = SessionScope.of(context);
       if (session.isSignedIn) {
-        Navigator.of(context).pushReplacementNamed('/account-ui');
+        if (widget.onLoginSuccess != null) {
+          widget.onLoginSuccess!();
+        } else {
+          Navigator.of(context).pushReplacementNamed('/account-ui');
+        }
       } else {
         setState(() {
           _error = 'Connexion échouée, veuillez réessayer.';

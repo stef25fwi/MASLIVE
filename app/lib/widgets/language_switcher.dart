@@ -13,53 +13,57 @@ class LanguageSwitcher extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(
-      () => PopupMenuButton<String>(
-        icon: Icon(Icons.language, color: textColor),
-        tooltip: AppLocalizations.of(context)!.changeLanguage,
-        onSelected: (languageCode) async {
-          await languageService.changeLanguage(languageCode);
-          
-          if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                AppLocalizations.of(context)!.languageChanged(
-                  languageService.getLanguageName(languageCode),
+      () {
+        final currentLanguageCode = languageService.currentLanguageCode;
+        final languages = languageService.getAvailableLanguages();
+
+        return PopupMenuButton<String>(
+          icon: Icon(Icons.language, color: textColor),
+          tooltip: AppLocalizations.of(context)!.changeLanguage,
+          onSelected: (languageCode) async {
+            await languageService.changeLanguage(languageCode);
+
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  AppLocalizations.of(context)!.languageChanged(
+                    languageService.getLanguageName(languageCode),
+                  ),
                 ),
-              ),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        },
-        itemBuilder: (BuildContext context) {
-          final languages = languageService.getAvailableLanguages();
-          return languages.map((lang) {
-            final code = lang['code']!;
-            final name = lang['name']!;
-            final flag = lang['flag']!;
-            final isSelected = languageService.currentLanguageCode == code;
-            
-            return PopupMenuItem<String>(
-              value: code,
-              child: Row(
-                children: [
-                  Text(flag, style: const TextStyle(fontSize: 18)),
-                  const SizedBox(width: 12),
-                  Text(name),
-                  if (isSelected) ...[
-                    const SizedBox(width: 12),
-                    const Icon(
-                      Icons.check,
-                      color: Colors.green,
-                      size: 18,
-                    ),
-                  ],
-                ],
+                duration: const Duration(seconds: 2),
               ),
             );
-          }).toList();
-        },
-      ),
+          },
+          itemBuilder: (BuildContext context) {
+            return languages.map((lang) {
+              final code = lang['code']!;
+              final name = lang['name']!;
+              final flag = lang['flag']!;
+              final isSelected = currentLanguageCode == code;
+
+              return PopupMenuItem<String>(
+                value: code,
+                child: Row(
+                  children: [
+                    Text(flag, style: const TextStyle(fontSize: 18)),
+                    const SizedBox(width: 12),
+                    Text(name),
+                    if (isSelected) ...[
+                      const SizedBox(width: 12),
+                      const Icon(
+                        Icons.check,
+                        color: Colors.green,
+                        size: 18,
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }).toList();
+          },
+        );
+      },
     );
   }
 }
@@ -86,50 +90,52 @@ class LanguageSelectionPage extends StatelessWidget {
           final code = lang['code']!;
           final name = lang['name']!;
           final flag = lang['flag']!;
-          final isSelected = languageService.currentLanguageCode == code;
-          
+
           return Obx(
-            () => Card(
-              elevation: isSelected ? 4 : 0,
-              color: isSelected
-                  ? Colors.blue.withValues(alpha: 0.1)
-                  : Colors.transparent,
-              child: ListTile(
-                leading: Text(
-                  flag,
-                  style: const TextStyle(fontSize: 28),
-                ),
-                title: Text(
-                  name,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            () {
+              final isSelected = languageService.currentLanguageCode == code;
+
+              return Card(
+                elevation: isSelected ? 4 : 0,
+                color: isSelected
+                    ? Colors.blue.withValues(alpha: 0.1)
+                    : Colors.transparent,
+                child: ListTile(
+                  leading: Text(
+                    flag,
+                    style: const TextStyle(fontSize: 28),
                   ),
-                ),
-                trailing: isSelected
-                    ? const Icon(
-                        Icons.check_circle,
-                        color: Colors.green,
-                        size: 24,
-                      )
-                    : null,
-                onTap: () async {
-                  await languageService.changeLanguage(code);
-                  if (!context.mounted) return;
-                  
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        AppLocalizations.of(context)!.languageChanged(name),
-                      ),
+                  title: Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                     ),
-                  );
-                  
-                  // Retour à la page précédente
-                  Navigator.pop(context);
-                },
-              ),
-            ),
+                  ),
+                  trailing: isSelected
+                      ? const Icon(
+                          Icons.check_circle,
+                          color: Colors.green,
+                          size: 24,
+                        )
+                      : null,
+                  onTap: () async {
+                    await languageService.changeLanguage(code);
+                    if (!context.mounted) return;
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          AppLocalizations.of(context)!.languageChanged(name),
+                        ),
+                      ),
+                    );
+
+                    Navigator.pop(context);
+                  },
+                ),
+              );
+            },
           );
         },
       ),
@@ -155,50 +161,53 @@ class LanguageSelectionDialog extends StatelessWidget {
           final code = lang['code']!;
           final name = lang['name']!;
           final flag = lang['flag']!;
-          final isSelected = languageService.currentLanguageCode == code;
-          
+
           return Obx(
-            () => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: GestureDetector(
-                onTap: () async {
-                  await languageService.changeLanguage(code);
-                  if (!context.mounted) return;
-                  Navigator.pop(context);
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                      ? Colors.blue.withValues(alpha: 0.2)
-                      : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: isSelected ? Colors.blue : Colors.grey[300]!,
+            () {
+              final isSelected = languageService.currentLanguageCode == code;
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: GestureDetector(
+                  onTap: () async {
+                    await languageService.changeLanguage(code);
+                    if (!context.mounted) return;
+                    Navigator.pop(context);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Colors.blue.withValues(alpha: 0.2)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isSelected ? Colors.blue : Colors.grey[300]!,
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(flag, style: const TextStyle(fontSize: 24)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          name,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
+                    child: Row(
+                      children: [
+                        Text(flag, style: const TextStyle(fontSize: 24)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            name,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
                           ),
                         ),
-                      ),
-                      if (isSelected)
-                        const Icon(Icons.check, color: Colors.green),
-                    ],
+                        if (isSelected)
+                          const Icon(Icons.check, color: Colors.green),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           );
         }).toList(),
       ),

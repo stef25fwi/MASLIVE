@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/group_product.dart';
 import '../../widgets/language_switcher.dart';
 import '../../l10n/app_localizations.dart' as l10n;
+import '../../pages/media_gallery_maslive_instagram_page.dart';
 
 /// Drawer standardisé pour toutes les pages boutique
 /// 
@@ -54,6 +55,15 @@ class ShopDrawer extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               ShopDrawerItem(
+                localizations.profile,
+                () {
+                  Navigator.of(context).pop();
+                  onNavigateProfile();
+                },
+                icon: Icons.person_rounded,
+              ),
+              const SizedBox(height: 4),
+              ShopDrawerItem(
                 localizations.search,
                 () {
                   Navigator.of(context).pop();
@@ -63,12 +73,12 @@ class ShopDrawer extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               ShopDrawerItem(
-                localizations.profile,
+                'Téléchargements',
                 () {
                   Navigator.of(context).pop();
-                  onNavigateProfile();
+                  Navigator.of(context).pushNamed('/media-marketplace/downloads');
                 },
-                icon: Icons.person_rounded,
+                icon: Icons.download_rounded,
               ),
               
               const Divider(height: 32, thickness: 1),
@@ -131,6 +141,21 @@ class ShopDrawer extends StatelessWidget {
                     ],
                   ),
                 ),
+              ),
+
+              const SizedBox(height: 10),
+
+              ShopDrawerItem(
+                'Galerie BLoOm ArT',
+                () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const MediaGalleryMasliveInstagramPage(),
+                    ),
+                  );
+                },
+                icon: Icons.photo_library_rounded,
               ),
               
               const SizedBox(height: 24),

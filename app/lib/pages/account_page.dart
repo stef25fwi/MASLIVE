@@ -15,7 +15,9 @@ import '../l10n/app_localizations.dart';
 import 'user_facing_bottom_bar.dart';
 
 class AccountUiPage extends StatefulWidget {
-  const AccountUiPage({super.key});
+  const AccountUiPage({super.key, this.showBottomBar = true});
+
+  final bool showBottomBar;
 
   @override
   State<AccountUiPage> createState() => _AccountUiPageState();
@@ -201,9 +203,11 @@ class _AccountUiPageState extends State<AccountUiPage> {
     }
 
     return Scaffold(
-      bottomNavigationBar: const UserFacingBottomBar(
-        currentTab: UserFacingBottomBarTab.profile,
-      ),
+      bottomNavigationBar: widget.showBottomBar
+          ? const UserFacingBottomBar(
+              currentTab: UserFacingBottomBarTab.profile,
+            )
+          : null,
       body: HoneycombBackground(
         child: CustomScrollView(
           slivers: [

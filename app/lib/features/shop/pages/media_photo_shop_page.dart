@@ -29,6 +29,7 @@ class MediaPhotoShopPage extends StatefulWidget {
     this.ownerUid,
     this.initialTabIndex,
     this.embedded = false,
+    this.showBottomBar = true,
   });
 
   final String? countryId;
@@ -41,6 +42,7 @@ class MediaPhotoShopPage extends StatefulWidget {
   final String? ownerUid;
   final int? initialTabIndex;
   final bool embedded;
+  final bool showBottomBar;
 
   @override
   State<MediaPhotoShopPage> createState() => _MediaPhotoShopPageState();
@@ -535,7 +537,7 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
           if (!widget.embedded) _buildShopVerticalNav(),
         ],
       ),
-      bottomNavigationBar: widget.embedded
+      bottomNavigationBar: widget.embedded || !widget.showBottomBar
           ? null
           : const UserFacingBottomBar(
               currentTab: UserFacingBottomBarTab.media,

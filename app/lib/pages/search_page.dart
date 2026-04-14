@@ -4,7 +4,9 @@ import '../l10n/app_localizations.dart';
 import 'user_facing_bottom_bar.dart';
 
 class SearchPage extends StatefulWidget {
-  const SearchPage({super.key});
+  const SearchPage({super.key, this.showBottomBar = true});
+
+  final bool showBottomBar;
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -25,9 +27,11 @@ class _SearchPageState extends State<SearchPage> {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(title: Text(l10n.searchLocation)),
-      bottomNavigationBar: const UserFacingBottomBar(
-        currentTab: UserFacingBottomBarTab.explorer,
-      ),
+      bottomNavigationBar: widget.showBottomBar
+          ? const UserFacingBottomBar(
+              currentTab: UserFacingBottomBarTab.explorer,
+            )
+          : null,
       body: Column(
         children: [
           Padding(

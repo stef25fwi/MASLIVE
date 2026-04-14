@@ -2,7 +2,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../ui/widgets/maslive_standard_bottom_bar.dart';
-import 'storex_shop_page.dart';
 
 enum UserFacingBottomBarTab { profile, boutique, home, media, explorer }
 
@@ -11,10 +10,24 @@ class UserFacingBottomBar extends StatelessWidget {
     super.key,
     required this.currentTab,
     this.explorerRoute = '/search',
+    this.onTabSelected,
   });
 
   final UserFacingBottomBarTab currentTab;
   final String explorerRoute;
+  final ValueChanged<UserFacingBottomBarTab>? onTabSelected;
+
+  void _openShellTab(BuildContext context, UserFacingBottomBarTab tab) {
+    if (onTabSelected != null) {
+      onTabSelected!(tab);
+      return;
+    }
+
+    Navigator.of(context).pushReplacementNamed(
+      '/user-shell',
+      arguments: <String, dynamic>{'tab': tab.name},
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,9 +51,7 @@ class UserFacingBottomBar extends StatelessWidget {
                 tooltip: pseudo.isEmpty ? 'Profil' : pseudo,
                 onTap: () {
                   if (currentTab == UserFacingBottomBarTab.profile) return;
-                  Navigator.of(context).pushReplacementNamed(
-                    user != null ? '/account-ui' : '/login',
-                  );
+                  _openShellTab(context, UserFacingBottomBarTab.profile);
                 },
               ),
               MasliveStandardBottomBarItem(
@@ -50,14 +61,7 @@ class UserFacingBottomBar extends StatelessWidget {
                 tooltip: 'Ouvrir la boutique',
                 onTap: () {
                   if (currentTab == UserFacingBottomBarTab.boutique) return;
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(
-                      builder: (_) => const StorexShopPage(
-                        shopId: 'global',
-                        groupId: 'MASLIVE',
-                      ),
-                    ),
-                  );
+                  _openShellTab(context, UserFacingBottomBarTab.boutique);
                 },
               ),
               MasliveStandardBottomBarItem(
@@ -67,7 +71,7 @@ class UserFacingBottomBar extends StatelessWidget {
                 tooltip: 'Revenir à l’accueil',
                 onTap: () {
                   if (currentTab == UserFacingBottomBarTab.home) return;
-                  Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                  _openShellTab(context, UserFacingBottomBarTab.home);
                 },
               ),
               MasliveStandardBottomBarItem(
@@ -77,7 +81,7 @@ class UserFacingBottomBar extends StatelessWidget {
                 tooltip: 'Ouvrir les médias',
                 onTap: () {
                   if (currentTab == UserFacingBottomBarTab.media) return;
-                  Navigator.of(context).pushReplacementNamed('/media-marketplace');
+                  _openShellTab(context, UserFacingBottomBarTab.media);
                 },
               ),
               MasliveStandardBottomBarItem(
@@ -87,6 +91,10 @@ class UserFacingBottomBar extends StatelessWidget {
                 tooltip: 'Explorer',
                 onTap: () {
                   if (currentTab == UserFacingBottomBarTab.explorer) return;
+                  if (explorerRoute == '/search') {
+                    _openShellTab(context, UserFacingBottomBarTab.explorer);
+                    return;
+                  }
                   Navigator.of(context).pushReplacementNamed(explorerRoute);
                 },
               ),

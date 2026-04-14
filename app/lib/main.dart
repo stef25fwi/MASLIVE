@@ -37,7 +37,6 @@ import 'pages/default_map_page.dart';
 import 'pages/splash_wrapper_page.dart';
 // ── Deferred: toutes les autres pages (chargées à la demande) ──
 import 'pages/account_admin_page.dart' deferred as account;
-import 'pages/account_page.dart' deferred as account_ui;
 import 'pages/app_shell.dart' deferred as app_shell;
 import 'pages/business_account_page.dart' deferred as biz_account;
 import 'pages/business_request_page.dart' deferred as biz_request;
@@ -57,7 +56,6 @@ import 'pages/group_member_page.dart' deferred as grp_member;
 import 'pages/group_profile_page.dart' deferred as grp_profile;
 import 'pages/group_shop_page.dart' deferred as grp_shop;
 import 'pages/home_map_page_3d.dart' deferred as home3d;
-import 'pages/login_page.dart' deferred as login;
 import 'pages/map_admin_editor_page.dart' deferred as map_admin;
 import 'pages/mapbox_web_map_page.dart' deferred as mapbox_web;
 import 'pages/orders_page.dart' deferred as orders;
@@ -65,12 +63,11 @@ import 'pages/paywall_page.dart' deferred as paywall;
 import 'pages/pending_products_page.dart' deferred as pending_prod;
 import 'pages/public/marketmap_public_viewer_page.dart' deferred as public_map;
 import 'pages/purchase_history_page.dart' deferred as purchase_hist;
-import 'pages/search_page.dart' deferred as search;
 import 'pages/seller/seller_inbox_page.dart' deferred as seller_inbox;
 import 'pages/seller/seller_order_detail_page.dart' deferred as seller_order;
 import 'pages/shop/storex_reviews_and_success_pages.dart' deferred as storex_reviews;
-import 'pages/storex_shop_page.dart' deferred as storex_shop;
 import 'pages/tracking_live_page.dart' deferred as tracking;
+import 'pages/user_facing_shell_page.dart' deferred as user_shell;
 import 'pages/commerce/create_media_page.dart' deferred as create_media;
 import 'pages/commerce/create_product_page.dart' deferred as create_product;
 import 'pages/commerce/my_submissions_page.dart' deferred as my_submissions;
@@ -522,21 +519,42 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
       break;
 
     // ── Account ──
+    case '/user-shell':
+      page = _DeferredLoader(
+        load: user_shell.loadLibrary,
+        build: () => user_shell.UserFacingShellPage(initialTab: args),
+      );
+      break;
     case '/account-ui':
-      page = _DeferredLoader(load: account_ui.loadLibrary, build: () => account_ui.AccountUiPage());
+      page = _DeferredLoader(
+        load: user_shell.loadLibrary,
+        build: () => user_shell.UserFacingShellPage(
+          initialTab: <String, dynamic>{'tab': 'profile'},
+        ),
+      );
       break;
     case '/account':
     case '/account-admin':
       page = _DeferredLoader(load: account.loadLibrary, build: () => account.AccountAndAdminPage());
       break;
     case '/login':
-      page = _DeferredLoader(load: login.loadLibrary, build: () => login.LoginPage());
+      page = _DeferredLoader(
+        load: user_shell.loadLibrary,
+        build: () => user_shell.UserFacingShellPage(
+          initialTab: <String, dynamic>{'tab': 'profile'},
+        ),
+      );
       break;
 
     // ── Shop / Boutique ──
     case '/shop-ui':
     case '/boutique':
-      page = _DeferredLoader(load: storex_shop.loadLibrary, build: () => storex_shop.StorexShopPage(shopId: 'global', groupId: 'MASLIVE'));
+      page = _DeferredLoader(
+        load: user_shell.loadLibrary,
+        build: () => user_shell.UserFacingShellPage(
+          initialTab: <String, dynamic>{'tab': 'boutique'},
+        ),
+      );
       break;
     case '/shop':
       final groupId = args is String ? args : 'groupe_demo';
@@ -654,7 +672,12 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
       page = _DeferredLoader(load: tracking.loadLibrary, build: () => tracking.TrackingLivePage());
       break;
     case '/search':
-      page = _DeferredLoader(load: search.loadLibrary, build: () => search.SearchPage());
+      page = _DeferredLoader(
+        load: user_shell.loadLibrary,
+        build: () => user_shell.UserFacingShellPage(
+          initialTab: <String, dynamic>{'tab': 'explorer'},
+        ),
+      );
       break;
     case '/favorites':
       page = _DeferredLoader(load: favorites.loadLibrary, build: () => favorites.FavoritesPage());
@@ -765,7 +788,12 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
 
     // ── Media Marketplace ──
     case '/media-marketplace':
-      page = _DeferredLoader(load: photo_shop.loadLibrary, build: () => photo_shop.MediaPhotoShopPage());
+      page = _DeferredLoader(
+        load: user_shell.loadLibrary,
+        build: () => user_shell.UserFacingShellPage(
+          initialTab: <String, dynamic>{'tab': 'media'},
+        ),
+      );
       break;
     case '/media-marketplace/success':
       page = _MediaMarketplaceCheckoutReturnPage(succeeded: true, orderId: _routeQueryParam('orderId'));
@@ -804,6 +832,14 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
   }
 
   if (page == null) return null;
+  if (settings.name == '/user-shell') {
+    return PageRouteBuilder<dynamic>(
+      settings: settings,
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
+      pageBuilder: (context, animation, secondaryAnimation) => page!,
+    );
+  }
   return MaterialPageRoute<dynamic>(builder: (_) => page!, settings: settings);
 }
 

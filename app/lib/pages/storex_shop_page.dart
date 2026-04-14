@@ -29,9 +29,11 @@ class StorexShopPage extends StatefulWidget {
     super.key,
     this.shopId = 'global',
     this.groupId = 'MASLIVE',
+    this.showBottomBar = true,
   });
   final String? shopId;
   final String? groupId;
+  final bool showBottomBar;
 
   // Gradient rainbow (référence historique du header panier)
   static const rainbowGradient = LinearGradient(
@@ -87,9 +89,11 @@ class _StorexShopPageState extends State<StorexShopPage> {
       child: Scaffold(
         backgroundColor: _ShopUi.pageBg,
         body: pages[tab],
-        bottomNavigationBar: const UserFacingBottomBar(
-          currentTab: UserFacingBottomBarTab.boutique,
-        ),
+        bottomNavigationBar: widget.showBottomBar
+            ? const UserFacingBottomBar(
+                currentTab: UserFacingBottomBarTab.boutique,
+              )
+            : null,
       ),
     );
   }

@@ -46,7 +46,9 @@ enum _MapAction { visiter, food, assistance, parking, wc, parkingWc }
 
 /// Page de carte par défaut avec Mapbox en plein écran
 class DefaultMapPage extends StatefulWidget {
-  const DefaultMapPage({super.key});
+  const DefaultMapPage({super.key, this.showBottomBar = true});
+
+  final bool showBottomBar;
 
   @override
   State<DefaultMapPage> createState() => _DefaultMapPageState();
@@ -1622,15 +1624,17 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       child: Scaffold(
         extendBody: true,
         extendBodyBehindAppBar: true,
-        bottomNavigationBar: SafeArea(
-          top: false,
-          child: StreamBuilder<User?>(
-            stream: AuthService.instance.authStateChanges,
-            builder: (context, snap) {
-              return _buildBottomBar(context, user: snap.data);
-            },
-          ),
-        ),
+        bottomNavigationBar: widget.showBottomBar
+            ? SafeArea(
+                top: false,
+                child: StreamBuilder<User?>(
+                  stream: AuthService.instance.authStateChanges,
+                  builder: (context, snap) {
+                    return _buildBottomBar(context, user: snap.data);
+                  },
+                ),
+              )
+            : null,
         body: LayoutBuilder(
           builder: (context, constraints) {
             final size = ui.Size(constraints.maxWidth, constraints.maxHeight);
