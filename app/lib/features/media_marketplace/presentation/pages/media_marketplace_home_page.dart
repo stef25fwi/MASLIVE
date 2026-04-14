@@ -29,6 +29,7 @@ class MediaMarketplaceHomePage extends StatelessWidget {
     this.embedded = false,
     this.showBranding = true,
     this.onOpenFilters,
+    this.useParentScroll = false,
   });
 
   final String? countryId;
@@ -42,6 +43,7 @@ class MediaMarketplaceHomePage extends StatelessWidget {
   final bool embedded;
   final bool showBranding;
   final VoidCallback? onOpenFilters;
+  final bool useParentScroll;
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +74,7 @@ class MediaMarketplaceHomePage extends StatelessWidget {
         showContextHeader: showContextHeader,
         showBranding: showBranding,
         onOpenFilters: onOpenFilters,
+        useParentScroll: useParentScroll,
       ),
     );
   }
@@ -89,6 +92,7 @@ class _MediaMarketplaceHomeView extends StatefulWidget {
     required this.showContextHeader,
     required this.showBranding,
     required this.onOpenFilters,
+    required this.useParentScroll,
   });
 
   final bool embedded;
@@ -101,6 +105,7 @@ class _MediaMarketplaceHomeView extends StatefulWidget {
   final bool showContextHeader;
   final bool showBranding;
   final VoidCallback? onOpenFilters;
+  final bool useParentScroll;
 
   @override
   State<_MediaMarketplaceHomeView> createState() =>
@@ -408,9 +413,203 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
                     ? catalog.packs.first.coverUrl
                     : null));
 
+    final content = Padding(
+      padding: const EdgeInsets.fromLTRB(8, 18, 8, 10),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const SizedBox(height: 4),
+          if (widget.showBranding) ...<Widget>[
+            Center(
+              child: Text(
+                "MAS'LIVE",
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.8,
+                  color: MasliveTheme.textPrimary,
+                  height: 1,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: Text(
+                'LA BOUTIQUE PHOTO',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 2.2,
+                  color: MasliveTheme.textSecondary,
+                  height: 1,
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
+          _CatalogFilterTrigger(
+            countryFieldLabel: _countryFieldLabel(
+              _selectedCountryId,
+              _selectedCountryId == widget.countryId ? widget.countryName : null,
+            ),
+            eventFieldLabel: _selectedEventId == widget.eventId
+                ? _upperText(widget.eventName, fallback: 'SELECTIONNER UN EVENEMENT')
+                : _upperText(
+                    _selectedEventId,
+                    fallback: 'SELECTIONNER UN EVENEMENT',
+                  ),
+            circuitFieldLabel: _selectedCircuitId == widget.circuitId
+                ? _upperText(widget.circuitName, fallback: 'SELECTIONNER UN CIRCUIT')
+                : _upperText(
+                    _selectedCircuitId,
+                    fallback: 'SELECTIONNER UN CIRCUIT',
+                  ),
+            photographerController: _photographerController,
+            isExpanded: _catalogMenuExpanded,
+            onToggleExpanded: () {
+              setState(() {
+                _catalogMenuExpanded = !_catalogMenuExpanded;
+              });
+            },
+            onSelectCountry: (anchorKey) => _openInlineOptionMenu(
+              context: context,
+              anchorKey: anchorKey,
+              options: countryOptions,
+              onSelected: (value) {
+                setState(() {
+                  _selectedCountryId = value;
+                });
+              },
+            ),
+            onSelectEvent: (anchorKey) => _openInlineOptionMenu(
+              context: context,
+              anchorKey: anchorKey,
+              options: eventOptions,
+              onSelected: (value) {
+                setState(() {
+                  _selectedEventId = value;
+                });
+              },
+            ),
+            onSelectCircuit: (anchorKey) => _openInlineOptionMenu(
+              context: context,
+              anchorKey: anchorKey,
+              options: circuitOptions,
+              onSelected: (value) {
+                setState(() {
+                  _selectedCircuitId = value;
+                });
+              },
+            ),
+          ),
+          const SizedBox(height: 14),
+          if (widget.showContextHeader && catalog.currentEventId != null) ...<Widget>[
+            MediaMarketplaceContextChips(
+              eventId: catalog.currentEventId!,
+              circuitName: widget.circuitName,
+            ),
+            const SizedBox(height: 14),
+          ],
+          if (!(catalog.galleries.isEmpty && !catalog.loading))
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: filteredGalleries
+                    .map(
+                      (MediaGalleryModel gallery) => Padding(
+                        padding: const EdgeInsets.only(right: 12),
+                        child: _CategoryChip(
+                          label: gallery.title.isEmpty
+                              ? 'GALERIE'
+                              : gallery.title.toUpperCase(),
+                          selected: catalog.selectedGalleryId == gallery.galleryId,
+                          onTap: () => catalog.selectGallery(gallery.galleryId),
+                        ),
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
+            ),
+          const SizedBox(height: 20),
+          _HeroGalleryCard(
+            title: selectedGallery?.title.trim().isNotEmpty == true
+                ? selectedGallery!.title.trim().toUpperCase()
+                : (widget.eventName?.trim().isNotEmpty == true
+                    ? widget.eventName!.trim().toUpperCase()
+                    : 'GALERIE'),
+            imageUrl: heroImageUrl,
+            onTap: catalog.selectedGalleryId == null ? null : () {},
+          ),
+          const SizedBox(height: 22),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              const Text(
+                'PHOTOS POPULAIRES',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.2,
+                  color: MasliveTheme.textPrimary,
+                  height: 1.1,
+                ),
+              ),
+              const Spacer(),
+              InkWell(
+                onTap: canOpenAllMedia
+                    ? () => _openAllGalleryMedia(
+                          context,
+                          gallery: selectedGallery,
+                          photos: catalog.photos,
+                          packs: catalog.packs,
+                          cart: cart,
+                        )
+                    : null,
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  child: Text(
+                    'Voir tout',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w500,
+                      color: canOpenAllMedia
+                          ? MasliveTheme.textPrimary
+                          : MasliveTheme.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (selectedGallery == null)
+            MediaMarketplaceMessageCard.empty(
+              title: filteredGalleries.isEmpty ? 'Aucun resultat' : 'Sélectionne une galerie',
+              message: filteredGalleries.isEmpty
+                  ? 'Aucune galerie ne correspond aux filtres actifs.'
+                  : 'Choisis une catégorie ci-dessus pour afficher les médias disponibles.',
+              icon: Icons.photo_library_outlined,
+            )
+          else
+            _PhotosMosaic(
+              photos: catalog.photos,
+              packs: catalog.packs,
+              cart: cart,
+              onAddPhoto: (photo) => _openMediaPhotoDetails(context, photo),
+              onAddPack: (pack) => _addMediaPack(context, pack),
+            ),
+          const SizedBox(height: 18),
+        ],
+      ),
+    );
+
     final body = DecoratedBox(
       decoration: const BoxDecoration(color: MasliveTheme.surfaceAlt),
       child: Column(
+        mainAxisSize: widget.useParentScroll ? MainAxisSize.min : MainAxisSize.max,
         children: <Widget>[
           if (catalog.loading) const LinearProgressIndicator(minHeight: 2),
           if (catalog.error != null)
@@ -418,212 +617,15 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
               padding: const EdgeInsets.fromLTRB(8, 16, 8, 0),
               child: MediaMarketplaceMessageCard.error(catalog.error!),
             ),
-          Expanded(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(8, 18, 8, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  const SizedBox(height: 4),
-                  if (widget.showBranding) ...<Widget>[
-                    Center(
-                      child: Text(
-                        "MAS'LIVE",
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.8,
-                          color: MasliveTheme.textPrimary,
-                          height: 1,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Center(
-                      child: Text(
-                        'LA BOUTIQUE PHOTO',
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 2.2,
-                          color: MasliveTheme.textSecondary,
-                          height: 1,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                  ],
-                  _CatalogFilterTrigger(
-                    countryFieldLabel: _countryFieldLabel(
-                      _selectedCountryId,
-                      _selectedCountryId == widget.countryId
-                          ? widget.countryName
-                          : null,
-                    ),
-                    eventFieldLabel: _selectedEventId == widget.eventId
-                        ? _upperText(widget.eventName, fallback: 'SELECTIONNER UN EVENEMENT')
-                        : _upperText(
-                            _selectedEventId,
-                            fallback: 'SELECTIONNER UN EVENEMENT',
-                          ),
-                    circuitFieldLabel: _selectedCircuitId == widget.circuitId
-                        ? _upperText(widget.circuitName, fallback: 'SELECTIONNER UN CIRCUIT')
-                        : _upperText(
-                            _selectedCircuitId,
-                            fallback: 'SELECTIONNER UN CIRCUIT',
-                          ),
-                    photographerController: _photographerController,
-                    isExpanded: _catalogMenuExpanded,
-                    onToggleExpanded: () {
-                      setState(() {
-                        _catalogMenuExpanded = !_catalogMenuExpanded;
-                      });
-                    },
-                    onSelectCountry: (anchorKey) => _openInlineOptionMenu(
-                      context: context,
-                      anchorKey: anchorKey,
-                      options: countryOptions,
-                      onSelected: (value) {
-                        setState(() {
-                          _selectedCountryId = value;
-                        });
-                      },
-                    ),
-                    onSelectEvent: (anchorKey) => _openInlineOptionMenu(
-                      context: context,
-                      anchorKey: anchorKey,
-                      options: eventOptions,
-                      onSelected: (value) {
-                        setState(() {
-                          _selectedEventId = value;
-                        });
-                      },
-                    ),
-                    onSelectCircuit: (anchorKey) => _openInlineOptionMenu(
-                      context: context,
-                      anchorKey: anchorKey,
-                      options: circuitOptions,
-                      onSelected: (value) {
-                        setState(() {
-                          _selectedCircuitId = value;
-                        });
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  if (widget.showContextHeader &&
-                      catalog.currentEventId != null) ...<Widget>[
-                    MediaMarketplaceContextChips(
-                      eventId: catalog.currentEventId!,
-                      circuitName: widget.circuitName,
-                    ),
-                    const SizedBox(height: 14),
-                  ],
-                  if (!(catalog.galleries.isEmpty && !catalog.loading))
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      child: Row(
-                        children: filteredGalleries
-                            .map(
-                              (MediaGalleryModel gallery) => Padding(
-                                padding: const EdgeInsets.only(right: 12),
-                                child: _CategoryChip(
-                                  label: gallery.title.isEmpty
-                                      ? 'GALERIE'
-                                      : gallery.title.toUpperCase(),
-                                  selected:
-                                      catalog.selectedGalleryId ==
-                                      gallery.galleryId,
-                                  onTap: () =>
-                                      catalog.selectGallery(gallery.galleryId),
-                                ),
-                              ),
-                            )
-                            .toList(growable: false),
-                      ),
-                    ),
-                  const SizedBox(height: 20),
-                  _HeroGalleryCard(
-                    title: selectedGallery?.title.trim().isNotEmpty == true
-                        ? selectedGallery!.title.trim().toUpperCase()
-                      : (widget.eventName?.trim().isNotEmpty == true
-                        ? widget.eventName!.trim().toUpperCase()
-                              : 'GALERIE'),
-                    imageUrl: heroImageUrl,
-                    onTap: catalog.selectedGalleryId == null ? null : () {},
-                  ),
-                  const SizedBox(height: 22),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: <Widget>[
-                      const Text(
-                        'PHOTOS POPULAIRES',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.2,
-                          color: MasliveTheme.textPrimary,
-                          height: 1.1,
-                        ),
-                      ),
-                      const Spacer(),
-                      InkWell(
-                        onTap: canOpenAllMedia
-                            ? () => _openAllGalleryMedia(
-                                  context,
-                                  gallery: selectedGallery,
-                                  photos: catalog.photos,
-                                  packs: catalog.packs,
-                                  cart: cart,
-                                )
-                            : null,
-                        borderRadius: BorderRadius.circular(10),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 4,
-                          ),
-                          child: Text(
-                            'Voir tout',
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w500,
-                              color: canOpenAllMedia
-                                  ? MasliveTheme.textPrimary
-                                  : MasliveTheme.textSecondary,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  if (selectedGallery == null)
-                    MediaMarketplaceMessageCard.empty(
-                      title: filteredGalleries.isEmpty
-                          ? 'Aucun resultat'
-                          : 'Sélectionne une galerie',
-                      message: filteredGalleries.isEmpty
-                          ? 'Aucune galerie ne correspond aux filtres actifs.'
-                          : 'Choisis une catégorie ci-dessus pour afficher les médias disponibles.',
-                      icon: Icons.photo_library_outlined,
-                    )
-                  else
-                    _PhotosMosaic(
-                      photos: catalog.photos,
-                      packs: catalog.packs,
-                      cart: cart,
-                      onAddPhoto: (photo) =>
-                          _openMediaPhotoDetails(context, photo),
-                      onAddPack: (pack) => _addMediaPack(context, pack),
-                    ),
-                  const SizedBox(height: 18),
-                ],
+          if (widget.useParentScroll)
+            content
+          else
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: content,
               ),
             ),
-          ),
         ],
       ),
     );
