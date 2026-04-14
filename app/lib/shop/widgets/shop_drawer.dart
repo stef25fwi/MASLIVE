@@ -77,7 +77,7 @@ class ShopDrawer extends StatelessWidget {
               InkWell(
                 onTap: () {
                   Navigator.of(context).pop();
-                  Navigator.of(context).pushNamed('/boutique-photo');
+                  Navigator.of(context).pushNamed('/media-marketplace');
                 },
                 borderRadius: BorderRadius.circular(12),
                 child: Container(

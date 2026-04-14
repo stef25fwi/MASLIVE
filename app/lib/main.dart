@@ -765,34 +765,7 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
 
     // ── Media Marketplace ──
     case '/media-marketplace':
-      page = _DeferredLoader(load: media_market.loadLibrary, build: () {
-        int initialTabIndex = 0;
-        if (args is Map) {
-          final initialTab = args['initialTab'];
-          if (initialTab is int) {
-            initialTabIndex = initialTab;
-          } else if (initialTab is String) {
-            switch (initialTab) {
-              case 'cart': initialTabIndex = 1; break;
-              case 'downloads': initialTabIndex = 2; break;
-              case 'photographer': initialTabIndex = 3; break;
-              default: initialTabIndex = 0;
-            }
-          }
-          return media_market.MediaMarketplaceEntryPage(
-            countryId: args['countryId'] as String?,
-            countryName: args['countryName'] as String?,
-            eventId: args['eventId'] as String?,
-            eventName: args['eventName'] as String?,
-            circuitId: args['circuitId'] as String?,
-            circuitName: args['circuitName'] as String?,
-            photographerId: args['photographerId'] as String?,
-            ownerUid: args['ownerUid'] as String?,
-            initialTabIndex: initialTabIndex,
-          );
-        }
-        return media_market.MediaMarketplaceEntryPage();
-      });
+      page = _DeferredLoader(load: photo_shop.loadLibrary, build: () => photo_shop.MediaPhotoShopPage());
       break;
     case '/media-marketplace/success':
       page = _MediaMarketplaceCheckoutReturnPage(succeeded: true, orderId: _routeQueryParam('orderId'));

@@ -1,15 +1,46 @@
 import 'package:flutter/material.dart';
 
+import '../../../models/market_circuit.dart';
+import '../../../models/market_country.dart';
+import '../../../models/market_event.dart';
 import '../../media_marketplace/data/repositories/photographer_repository.dart';
+import '../../media_marketplace/presentation/pages/media_downloads_page.dart';
+import '../../media_marketplace/presentation/pages/media_marketplace_home_page.dart';
+import '../../media_marketplace/presentation/pages/photographer_dashboard_page.dart';
 import '../../../shop/widgets/shop_drawer.dart';
 import '../../../pages/user_facing_bottom_bar.dart';
+import '../../../pages/cart/unified_cart_page.dart';
 import '../../../pages/home_vertical_nav.dart';
 import '../../../widgets/cart/cart_icon_badge.dart';
 import '../../../ui/theme/maslive_theme.dart';
+import '../../../ui/widgets/marketmap_poi_selector_sheet.dart';
 import '../../../utils/country_flag.dart';
 
 class MediaPhotoShopPage extends StatefulWidget {
-  const MediaPhotoShopPage({super.key});
+  const MediaPhotoShopPage({
+    super.key,
+    this.countryId,
+    this.countryName,
+    this.eventId,
+    this.eventName,
+    this.circuitId,
+    this.circuitName,
+    this.photographerId,
+    this.ownerUid,
+    this.initialTabIndex,
+    this.embedded = false,
+  });
+
+  final String? countryId;
+  final String? countryName;
+  final String? eventId;
+  final String? eventName;
+  final String? circuitId;
+  final String? circuitName;
+  final String? photographerId;
+  final String? ownerUid;
+  final int? initialTabIndex;
+  final bool embedded;
 
   @override
   State<MediaPhotoShopPage> createState() => _MediaPhotoShopPageState();
@@ -26,9 +57,19 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
   String? _eventName;
   String? _circuitId;
   String? _circuitName;
+  String? _photographerId;
+  String? _ownerUid;
+  int _activeTabIndex = 0;
   bool _didLoadRouteArgs = false;
   bool _catalogMenuExpanded = false;
   bool _updatingPhotographerField = false;
+
+  static const List<String> _tabTitles = <String>[
+    'PHOTOS POPULAIRES',
+    'VOTRE PANIER',
+    'VOS TELECHARGEMENTS',
+    'ESPACE PHOTOGRAPHE',
+  ];
 
   String _upperText(String? value, {String fallback = '--'}) {
     final trimmed = value?.trim();
@@ -98,20 +139,25 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
     _didLoadRouteArgs = true;
 
     final rawArgs = ModalRoute.of(context)?.settings.arguments;
-    if (rawArgs is! Map) return;
+    final args = rawArgs is Map ? rawArgs : const <String, dynamic>{};
 
-    _countryId = (rawArgs['countryId'] as String?)?.trim();
-    _countryName = (rawArgs['countryName'] as String?)?.trim();
-    _eventId = (rawArgs['eventId'] as String?)?.trim();
-    _eventName = (rawArgs['eventName'] as String?)?.trim();
-    _circuitId = (rawArgs['circuitId'] as String?)?.trim();
-    _circuitName = (rawArgs['circuitName'] as String?)?.trim();
+    _countryId = widget.countryId?.trim() ?? (args['countryId'] as String?)?.trim();
+    _countryName = widget.countryName?.trim() ?? (args['countryName'] as String?)?.trim();
+    _eventId = widget.eventId?.trim() ?? (args['eventId'] as String?)?.trim();
+    _eventName = widget.eventName?.trim() ?? (args['eventName'] as String?)?.trim();
+    _circuitId = widget.circuitId?.trim() ?? (args['circuitId'] as String?)?.trim();
+    _circuitName = widget.circuitName?.trim() ?? (args['circuitName'] as String?)?.trim();
+    _photographerId = widget.photographerId?.trim() ?? (args['photographerId'] as String?)?.trim();
+    _ownerUid = widget.ownerUid?.trim() ?? (args['ownerUid'] as String?)?.trim();
+
+    final initialTab = widget.initialTabIndex ?? args['initialTab'];
+    _activeTabIndex = _resolveInitialTabIndex(initialTab);
   }
 
   Future<void> _openMarketplace({Object? initialTab}) async {
     final photographerQuery = _photographerController.text.trim();
-    String? photographerId;
-    String? ownerUid;
+    String? photographerId = _photographerId;
+    String? ownerUid = _ownerUid;
 
     if (photographerQuery.isNotEmpty) {
       final profile = await PhotographerRepository().findByQuery(photographerQuery);
@@ -129,41 +175,11 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
       }
     }
 
-    final arguments = <String, dynamic>{};
-    if (initialTab != null) {
-      arguments['initialTab'] = initialTab;
-    }
-    if (_countryId case final countryId? when countryId.isNotEmpty) {
-      arguments['countryId'] = countryId;
-    }
-    if (_countryName case final countryName? when countryName.isNotEmpty) {
-      arguments['countryName'] = countryName;
-    }
-    if (_eventId case final eventId? when eventId.isNotEmpty) {
-      arguments['eventId'] = eventId;
-    }
-    if (_eventName case final eventName? when eventName.isNotEmpty) {
-      arguments['eventName'] = eventName;
-    }
-    if (_circuitId case final circuitId? when circuitId.isNotEmpty) {
-      arguments['circuitId'] = circuitId;
-    }
-    if (_circuitName case final circuitName? when circuitName.isNotEmpty) {
-      arguments['circuitName'] = circuitName;
-    }
-    if (photographerId case final effectivePhotographerId?
-        when effectivePhotographerId.isNotEmpty) {
-      arguments['photographerId'] = effectivePhotographerId;
-    }
-    if (ownerUid case final effectiveOwnerUid? when effectiveOwnerUid.isNotEmpty) {
-      arguments['ownerUid'] = effectiveOwnerUid;
-    }
-
-    Navigator.pushNamed(
-      context,
-      '/media-marketplace',
-      arguments: arguments,
-    );
+    setState(() {
+      _photographerId = photographerId;
+      _ownerUid = ownerUid;
+      _activeTabIndex = _resolveInitialTabIndex(initialTab);
+    });
   }
 
   void _goHome() {
@@ -174,31 +190,127 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
     Navigator.pushNamed(context, '/account');
   }
 
+  int _resolveInitialTabIndex(Object? initialTab) {
+    if (initialTab is int) {
+      return initialTab.clamp(0, 3);
+    }
+    if (initialTab is String) {
+      switch (initialTab) {
+        case 'cart':
+          return 1;
+        case 'downloads':
+          return 2;
+        case 'photographer':
+          return 3;
+      }
+    }
+    return 0;
+  }
+
+  Future<void> _openCatalogFilters() async {
+    final initial = _buildInitialSelection();
+    final selection = await showMarketMapCircuitSelectorSheet(
+      context,
+      initial: initial,
+      disableKeyboardInput: true,
+    );
+    if (selection == null || !mounted) return;
+
+    setState(() {
+      _countryId = selection.country?.id;
+      _countryName = selection.country?.name;
+      _eventId = selection.event?.id;
+      _eventName = selection.event?.name;
+      _circuitId = selection.circuit?.id;
+      _circuitName = selection.circuit?.name;
+      _activeTabIndex = 0;
+    });
+  }
+
+  MarketMapPoiSelection? _buildInitialSelection() {
+    final resolvedCountryId = _countryId?.trim();
+    final resolvedEventId = _eventId?.trim();
+    final resolvedCircuitId = _circuitId?.trim();
+    if (resolvedCountryId == null ||
+        resolvedCountryId.isEmpty ||
+        resolvedEventId == null ||
+        resolvedEventId.isEmpty ||
+        resolvedCircuitId == null ||
+        resolvedCircuitId.isEmpty) {
+      return null;
+    }
+
+    return MarketMapPoiSelection.enabled(
+      country: MarketCountry(
+        id: resolvedCountryId,
+        name: (_countryName?.trim().isNotEmpty == true)
+            ? _countryName!.trim()
+            : resolvedCountryId,
+        slug: resolvedCountryId,
+      ),
+      event: MarketEvent(
+        id: resolvedEventId,
+        countryId: resolvedCountryId,
+        name: (_eventName?.trim().isNotEmpty == true)
+            ? _eventName!.trim()
+            : resolvedEventId,
+        slug: resolvedEventId,
+      ),
+      circuit: MarketCircuit(
+        id: resolvedCircuitId,
+        countryId: resolvedCountryId,
+        eventId: resolvedEventId,
+        name: (_circuitName?.trim().isNotEmpty == true)
+            ? _circuitName!.trim()
+            : resolvedCircuitId,
+        slug: resolvedCircuitId,
+        status: 'published',
+        createdByUid: '',
+        perimeterLocked: false,
+        zoomLocked: false,
+        center: const <String, double>{'lat': 0, 'lng': 0},
+        initialZoom: 14,
+        isVisible: true,
+        wizardState: const <String, dynamic>{},
+      ),
+      layerIds: const <String>{},
+    );
+  }
+
   List<HomeVerticalNavItem> _buildShopNavItems() {
     return [
       HomeVerticalNavItem(
         label: '',
-        icon: Icons.home_outlined,
-        selected: false,
-        onTap: _goHome,
+        icon: _activeTabIndex == 0 ? Icons.photo_camera : Icons.photo_camera_outlined,
+        selected: _activeTabIndex == 0,
+        onTap: () => setState(() => _activeTabIndex = 0),
       ),
       HomeVerticalNavItem(
         label: '',
-        icon: Icons.photo_camera,
-        selected: true,
-        onTap: () {},
+        iconWidget: CartBadgeGlyph(
+          count: 0,
+          iconColor: _activeTabIndex == 1 ? Colors.white : MasliveTheme.textPrimary,
+          iconSize: 24,
+          containerSize: 24,
+          showContainer: false,
+          badgeRight: -6,
+          badgeTop: -6,
+        ),
+        selected: _activeTabIndex == 1,
+        showBorder: false,
+        onTap: () => setState(() => _activeTabIndex = 1),
       ),
       HomeVerticalNavItem(
         label: '',
         icon: Icons.arrow_downward_rounded,
-        selected: false,
-        onTap: () => _openMarketplace(initialTab: 'downloads'),
+        selected: _activeTabIndex == 2,
+        onTap: () => setState(() => _activeTabIndex = 2),
       ),
       HomeVerticalNavItem(
         label: '',
-        icon: Icons.person_outline,
-        selected: false,
-        onTap: _goAccount,
+        icon: _activeTabIndex == 3 ? Icons.camera_alt : Icons.camera_alt_outlined,
+        selected: _activeTabIndex == 3,
+        onTap: () => setState(() => _activeTabIndex = 3),
       ),
     ];
   }
@@ -245,14 +357,12 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
           SafeArea(
             child: Column(
               children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 4),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
 
                     // ---------------- TOP LOGO AREA ----------------
                     SizedBox(
@@ -298,6 +408,7 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                               iconColor: MasliveTheme.textPrimary,
                               backgroundColor: MasliveTheme.surface,
                               borderColor: MasliveTheme.divider,
+                              onPressed: () => setState(() => _activeTabIndex = 1),
                             ),
                           ),
                         ],
@@ -342,6 +453,7 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                           _catalogMenuExpanded = !_catalogMenuExpanded;
                         });
                       },
+                      onTapContext: _openCatalogFilters,
                     ),
 
                     const SizedBox(height: 22),
@@ -350,9 +462,9 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        const Text(
-                          'PHOTOS POPULAIRES',
-                          style: TextStyle(
+                        Text(
+                          _tabTitles[_activeTabIndex],
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 0.2,
@@ -361,56 +473,114 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                           ),
                         ),
                         const Spacer(),
-                        InkWell(
-                          onTap: () => _openMarketplace(initialTab: 0),
-                          borderRadius: BorderRadius.circular(10),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                            child: Text(
-                              'Voir tout',
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w500,
-                                color: MasliveTheme.textSecondary,
+                        if (_activeTabIndex == 0)
+                          InkWell(
+                            onTap: () => setState(() => _activeTabIndex = 0),
+                            borderRadius: BorderRadius.circular(10),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                              child: Text(
+                                'Catalogue complet',
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: MasliveTheme.textSecondary,
+                                ),
                               ),
                             ),
                           ),
-                        ),
                       ],
                     ),
 
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
 
-                    // ---------------- PHOTO MOSAIC ----------------
-                    _PhotosMosaic(
-                      likedPhotoIds: _likedPhotoIds,
-                      onToggleLike: (photoId) {
-                        setState(() {
-                          if (_likedPhotoIds.contains(photoId)) {
-                            _likedPhotoIds.remove(photoId);
-                          } else {
-                            _likedPhotoIds.add(photoId);
-                          }
-                        });
-                      },
-                      onOpenPhoto: () => _openMarketplace(initialTab: 0),
+                    _MediaSectionTabs(
+                      activeIndex: _activeTabIndex,
+                      onChanged: (index) => setState(() => _activeTabIndex = index),
                     ),
 
-                        const SizedBox(height: 18),
-                      ],
-                    ),
+                    if (_activeTabIndex == 0) ...[
+                      const SizedBox(height: 14),
+
+                      // ---------------- PHOTO MOSAIC ----------------
+                      _PhotosMosaic(
+                        likedPhotoIds: _likedPhotoIds,
+                        onToggleLike: (photoId) {
+                          setState(() {
+                            if (_likedPhotoIds.contains(photoId)) {
+                              _likedPhotoIds.remove(photoId);
+                            } else {
+                              _likedPhotoIds.add(photoId);
+                            }
+                          });
+                        },
+                        onOpenPhoto: () => setState(() => _activeTabIndex = 0),
+                      ),
+
+                      const SizedBox(height: 18),
+                    ],
+                    ],
+                  ),
+                ),
+
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(84, 0, 18, 0),
+                    child: _buildActiveMarketplaceContent(),
                   ),
                 ),
               ],
             ),
           ),
-          _buildShopVerticalNav(),
+          if (!widget.embedded) _buildShopVerticalNav(),
         ],
       ),
-      bottomNavigationBar: const UserFacingBottomBar(
-        currentTab: UserFacingBottomBarTab.media,
-        explorerRoute: '/media-marketplace',
-      ),
+      bottomNavigationBar: widget.embedded
+          ? null
+          : const UserFacingBottomBar(
+              currentTab: UserFacingBottomBarTab.media,
+              explorerRoute: '/media-marketplace',
+            ),
+    );
+  }
+
+  Widget _buildActiveMarketplaceContent() {
+    return IndexedStack(
+      index: _activeTabIndex,
+      children: <Widget>[
+        MediaMarketplaceHomePage(
+          key: ValueKey<String>(
+            '${_countryId ?? ''}|${_eventId ?? ''}|${_circuitId ?? ''}|${_photographerId ?? ''}',
+          ),
+          countryId: _countryId,
+          countryName: _countryName,
+          eventId: _eventId,
+          eventName: _eventName,
+          circuitId: _circuitId,
+          circuitName: _circuitName,
+          photographerId: _photographerId,
+          showContextHeader: false,
+          embedded: true,
+          showBranding: false,
+          onOpenFilters: _openCatalogFilters,
+        ),
+        const UnifiedCartPage(embedded: true),
+        MediaDownloadsPage(
+          eventId: _eventId,
+          eventName: _eventName,
+          circuitName: _circuitName,
+          showContextHeader: false,
+          embedded: true,
+        ),
+        PhotographerDashboardPage(
+          ownerUid: _ownerUid,
+          eventId: _eventId,
+          eventName: _eventName,
+          circuitName: _circuitName,
+          showContextHeader: false,
+          embedded: true,
+        ),
+      ],
     );
   }
 }
@@ -520,6 +690,7 @@ class _MediaCatalogFilter extends StatelessWidget {
   final String circuitLabel;
   final bool isExpanded;
   final VoidCallback onToggleExpanded;
+  final VoidCallback onTapContext;
 
   const _MediaCatalogFilter({
     required this.photographerController,
@@ -528,6 +699,7 @@ class _MediaCatalogFilter extends StatelessWidget {
     required this.circuitLabel,
     required this.isExpanded,
     required this.onToggleExpanded,
+    required this.onTapContext,
   });
 
   @override
@@ -615,18 +787,21 @@ class _MediaCatalogFilter extends StatelessWidget {
                     label: 'PAYS',
                     value: countryLabel,
                     hintText: 'Selectionner un pays',
+                    onTap: onTapContext,
                   ),
                   const SizedBox(height: 10),
                   _FilterReadOnlyField(
                     label: 'EVENEMENT',
                     value: eventLabel,
                     hintText: 'Selectionner un evenement',
+                    onTap: onTapContext,
                   ),
                   const SizedBox(height: 10),
                   _FilterReadOnlyField(
                     label: 'CIRCUIT',
                     value: circuitLabel,
                     hintText: 'Selectionner un circuit',
+                    onTap: onTapContext,
                   ),
                   const SizedBox(height: 10),
                   Container(
@@ -677,47 +852,109 @@ class _FilterReadOnlyField extends StatelessWidget {
     required this.label,
     required this.value,
     required this.hintText,
+    required this.onTap,
   });
 
   final String label;
   final String? value;
   final String hintText;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 46,
-      alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        color: MasliveTheme.surfaceAlt,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: MasliveTheme.divider),
-      ),
-      child: RichText(
-        overflow: TextOverflow.ellipsis,
-        text: TextSpan(
-          style: const TextStyle(
-            color: MasliveTheme.textPrimary,
-            fontSize: 13.5,
-            fontWeight: FontWeight.w600,
+        child: Container(
+          height: 46,
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: MasliveTheme.surfaceAlt,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: MasliveTheme.divider),
           ),
-          children: [
-            TextSpan(
-              text: '$label: ',
+          child: RichText(
+            overflow: TextOverflow.ellipsis,
+            text: TextSpan(
               style: const TextStyle(
-                color: MasliveTheme.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+                color: MasliveTheme.textPrimary,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+              ),
+              children: [
+                TextSpan(
+                  text: '$label: ',
+                  style: const TextStyle(
+                    color: MasliveTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                TextSpan(
+                  text: (value?.trim().isNotEmpty == true)
+                      ? value!.trim().toUpperCase()
+                      : hintText.toUpperCase(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MediaSectionTabs extends StatelessWidget {
+  const _MediaSectionTabs({
+    required this.activeIndex,
+    required this.onChanged,
+  });
+
+  final int activeIndex;
+  final ValueChanged<int> onChanged;
+
+  static const List<String> _labels = <String>[
+    'Catalogue',
+    'Panier',
+    'Downloads',
+    'Photographe',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: List<Widget>.generate(_labels.length, (index) {
+          final isActive = index == activeIndex;
+          return Padding(
+            padding: EdgeInsets.only(right: index == _labels.length - 1 ? 0 : 8),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(999),
+              onTap: () => onChanged(index),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isActive ? MasliveTheme.textPrimary : MasliveTheme.surface,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: MasliveTheme.divider),
+                ),
+                child: Text(
+                  _labels[index],
+                  style: TextStyle(
+                    color: isActive ? Colors.white : MasliveTheme.textPrimary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
-            TextSpan(
-              text: (value?.trim().isNotEmpty == true)
-                  ? value!.trim().toUpperCase()
-                  : hintText.toUpperCase(),
-            ),
-          ],
-        ),
+          );
+        }),
       ),
     );
   }
