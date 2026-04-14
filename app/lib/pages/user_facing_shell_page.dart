@@ -23,6 +23,7 @@ class UserFacingShellPage extends StatefulWidget {
 
 class _UserFacingShellPageState extends State<UserFacingShellPage> {
   late UserFacingBottomBarTab _currentTab;
+  Map<String, dynamic> _mediaArgs = const <String, dynamic>{};
   final Map<UserFacingBottomBarTab, Widget> _tabCache =
       <UserFacingBottomBarTab, Widget>{};
 
@@ -38,6 +39,7 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
   void initState() {
     super.initState();
     _currentTab = _resolveTab(widget.initialTab);
+    _mediaArgs = _resolveMediaArgs(widget.initialTab);
   }
 
   @override
@@ -45,6 +47,7 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialTab != widget.initialTab) {
       _currentTab = _resolveTab(widget.initialTab);
+      _mediaArgs = _resolveMediaArgs(widget.initialTab);
     }
   }
 
@@ -62,7 +65,58 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
     return UserFacingBottomBarTab.home;
   }
 
+  Map<String, dynamic> _resolveMediaArgs(Object? raw) {
+    if (raw is! Map) return const <String, dynamic>{};
+
+    final resolved = <String, dynamic>{};
+    for (final entry in raw.entries) {
+      final key = entry.key?.toString();
+      if (key == null || key.isEmpty || key == 'tab') continue;
+      resolved[key] = entry.value;
+    }
+    return resolved;
+  }
+
+  int? _resolveMediaInitialTabIndex(Object? raw) {
+    if (raw is int) {
+      return raw.clamp(0, 3);
+    }
+    if (raw is String) {
+      switch (raw) {
+        case 'cart':
+          return 1;
+        case 'downloads':
+          return 2;
+        case 'photographer':
+          return 3;
+        default:
+          return 0;
+      }
+    }
+    return null;
+  }
+
+  Widget _buildMediaPage() {
+    return MediaPhotoShopPage(
+      key: ValueKey<String>(_mediaArgs.toString()),
+      countryId: _mediaArgs['countryId'] as String?,
+      countryName: _mediaArgs['countryName'] as String?,
+      eventId: _mediaArgs['eventId'] as String?,
+      eventName: _mediaArgs['eventName'] as String?,
+      circuitId: _mediaArgs['circuitId'] as String?,
+      circuitName: _mediaArgs['circuitName'] as String?,
+      photographerId: _mediaArgs['photographerId'] as String?,
+      ownerUid: _mediaArgs['ownerUid'] as String?,
+      initialTabIndex: _resolveMediaInitialTabIndex(_mediaArgs['initialTab']),
+      showBottomBar: false,
+    );
+  }
+
   Widget _buildCachedPage(UserFacingBottomBarTab tab) {
+    if (tab == UserFacingBottomBarTab.media) {
+      return _buildMediaPage();
+    }
+
     return _tabCache.putIfAbsent(tab, () {
       switch (tab) {
         case UserFacingBottomBarTab.boutique:
@@ -74,7 +128,7 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
         case UserFacingBottomBarTab.home:
           return const DefaultMapPage(showBottomBar: false);
         case UserFacingBottomBarTab.media:
-          return const MediaPhotoShopPage(showBottomBar: false);
+          return _buildMediaPage();
         case UserFacingBottomBarTab.explorer:
           return const SearchPage(showBottomBar: false);
         case UserFacingBottomBarTab.profile:

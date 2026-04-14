@@ -788,10 +788,18 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
 
     // ── Media Marketplace ──
     case '/media-marketplace':
+      final mediaInitialTab = args is Map
+          ? <String, dynamic>{
+              ...args.cast<Object?, Object?>().map(
+                (key, value) => MapEntry(key.toString(), value),
+              ),
+              'tab': 'media',
+            }
+          : <String, dynamic>{'tab': 'media'};
       page = _DeferredLoader(
         load: user_shell.loadLibrary,
         build: () => user_shell.UserFacingShellPage(
-          initialTab: <String, dynamic>{'tab': 'media'},
+          initialTab: mediaInitialTab,
         ),
       );
       break;
