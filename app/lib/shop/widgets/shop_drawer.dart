@@ -78,7 +78,7 @@ class ShopDrawer extends StatelessWidget {
                   Navigator.of(context).pop();
                   Navigator.of(context).pushNamed('/media-marketplace/downloads');
                 },
-                icon: Icons.download_rounded,
+                icon: Icons.download_for_offline_rounded,
               ),
               
               const Divider(height: 32, thickness: 1),

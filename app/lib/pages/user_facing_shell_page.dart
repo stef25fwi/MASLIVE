@@ -23,7 +23,7 @@ class UserFacingShellPage extends StatefulWidget {
 class _UserFacingShellPageState extends State<UserFacingShellPage> {
   late UserFacingBottomBarTab _currentTab;
   Map<String, dynamic> _mediaArgs = const <String, dynamic>{};
-  int _explorerOpenTick = 0;
+  final ValueNotifier<int> _homeActionsMenuSignal = ValueNotifier<int>(0);
   final Map<UserFacingBottomBarTab, Widget> _tabCache =
       <UserFacingBottomBarTab, Widget>{};
 
@@ -48,7 +48,16 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
     if (oldWidget.initialTab != widget.initialTab) {
       _currentTab = _resolveTab(widget.initialTab);
       _mediaArgs = _resolveMediaArgs(widget.initialTab);
+      if (_currentTab == UserFacingBottomBarTab.explorer) {
+        _homeActionsMenuSignal.value++;
+      }
     }
+  }
+
+  @override
+  void dispose() {
+    _homeActionsMenuSignal.dispose();
+    super.dispose();
   }
 
   UserFacingBottomBarTab _resolveTab(Object? raw) {
@@ -112,21 +121,24 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
     );
   }
 
-  Widget _buildExplorerPage() {
-    return DefaultMapPage(
-      key: ValueKey<String>('explorer-home-$_explorerOpenTick'),
-      showBottomBar: false,
-      openActionsMenuOnLoad: true,
+  Widget _buildHomePage() {
+    return _tabCache.putIfAbsent(
+      UserFacingBottomBarTab.home,
+      () => DefaultMapPage(
+        showBottomBar: false,
+        openActionsMenuOnLoad: _currentTab == UserFacingBottomBarTab.explorer,
+        actionsMenuOpenSignal: _homeActionsMenuSignal,
+      ),
     );
   }
 
   Widget _buildCachedPage(UserFacingBottomBarTab tab) {
-    if (tab == UserFacingBottomBarTab.media) {
-      return _buildMediaPage();
+    if (tab == UserFacingBottomBarTab.home) {
+      return _buildHomePage();
     }
 
-    if (tab == UserFacingBottomBarTab.explorer) {
-      return _buildExplorerPage();
+    if (tab == UserFacingBottomBarTab.media) {
+      return _buildMediaPage();
     }
 
     return _tabCache.putIfAbsent(tab, () {
@@ -138,11 +150,11 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
             showBottomBar: false,
           );
         case UserFacingBottomBarTab.home:
-          return const DefaultMapPage(showBottomBar: false);
+          return const SizedBox.shrink();
         case UserFacingBottomBarTab.media:
           return _buildMediaPage();
         case UserFacingBottomBarTab.explorer:
-          return _buildExplorerPage();
+          return const SizedBox.shrink();
         case UserFacingBottomBarTab.profile:
           return const SizedBox.shrink();
       }
@@ -169,15 +181,19 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
         final children = <Widget>[
           _buildProfilePage(snapshot.data),
           _buildCachedPage(UserFacingBottomBarTab.boutique),
-          _buildCachedPage(UserFacingBottomBarTab.home),
+          _buildHomePage(),
           _buildCachedPage(UserFacingBottomBarTab.media),
           _buildCachedPage(UserFacingBottomBarTab.explorer),
         ];
 
+        final visibleIndex = _currentTab == UserFacingBottomBarTab.explorer
+            ? _tabs.indexOf(UserFacingBottomBarTab.home)
+            : _tabs.indexOf(_currentTab);
+
         return Scaffold(
           resizeToAvoidBottomInset: false,
           body: IndexedStack(
-            index: _tabs.indexOf(_currentTab),
+            index: visibleIndex,
             children: children,
           ),
           bottomNavigationBar: UserFacingBottomBar(
@@ -185,9 +201,9 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
             onTabSelected: (tab) {
               if (tab == UserFacingBottomBarTab.explorer) {
                 setState(() {
-                  _explorerOpenTick++;
                   _currentTab = UserFacingBottomBarTab.explorer;
                 });
+                _homeActionsMenuSignal.value++;
                 return;
               }
               if (tab == _currentTab) return;

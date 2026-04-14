@@ -4,7 +4,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show ValueListenable, kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -50,10 +50,12 @@ class DefaultMapPage extends StatefulWidget {
     super.key,
     this.showBottomBar = true,
     this.openActionsMenuOnLoad = false,
+    this.actionsMenuOpenSignal,
   });
 
   final bool showBottomBar;
   final bool openActionsMenuOnLoad;
+  final ValueListenable<int>? actionsMenuOpenSignal;
 
   @override
   State<DefaultMapPage> createState() => _DefaultMapPageState();
@@ -134,6 +136,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   Timer? _marketRouteStyleProTimer;
   int _marketRouteStyleProAnimTick = 0;
   bool _isApplyingMarketRoute = false;
+  ValueListenable<int>? _boundActionsMenuSignal;
 
   MarketMapService _getMarketMapService() {
     return _marketMapService ??= MarketMapService();
@@ -306,10 +309,26 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     _menuAnimController.value = 1.0;
   }
 
+  void _bindActionsMenuSignal(ValueListenable<int>? signal) {
+    if (identical(_boundActionsMenuSignal, signal)) return;
+    _boundActionsMenuSignal?.removeListener(_handleExternalActionsMenuOpen);
+    _boundActionsMenuSignal = signal;
+    _boundActionsMenuSignal?.addListener(_handleExternalActionsMenuOpen);
+  }
+
+  void _handleExternalActionsMenuOpen() {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _showActionsMenuImmediately();
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _bindActionsMenuSignal(widget.actionsMenuOpenSignal);
 
     _isTracking = _geo.isTracking;
     _listenHomeControlsThemeConfig();
@@ -344,6 +363,14 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     ).animate(menuMotion);
 
     unawaited(_resolveStartupMapboxToken());
+  }
+
+  @override
+  void didUpdateWidget(covariant DefaultMapPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.actionsMenuOpenSignal, widget.actionsMenuOpenSignal)) {
+      _bindActionsMenuSignal(widget.actionsMenuOpenSignal);
+    }
   }
 
   Future<void> _autoOpenActionsMenuOnceIfNeeded() async {
@@ -381,6 +408,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   @override
   void dispose() {
+    _boundActionsMenuSignal?.removeListener(_handleExternalActionsMenuOpen);
     _groupPublicPosSub?.cancel();
     _homeControlsThemeSub?.cancel();
     _marketPoisSub?.cancel();
