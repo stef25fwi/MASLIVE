@@ -357,181 +357,166 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
       body: Stack(
         children: [
           SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 4),
-
-                    // ---------------- TOP LOGO AREA ----------------
-                    SizedBox(
-                      height: 54,
-                      child: Stack(
+            child: NestedScrollView(
+              physics: const BouncingScrollPhysics(),
+              headerSliverBuilder: (context, innerBoxIsScrolled) {
+                return <Widget>[
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Positioned(
-                            left: 0,
-                            top: 0,
-                            child: Builder(
-                              builder: (ctx) => DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: MasliveTheme.surface,
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: MasliveTheme.divider),
+                          const SizedBox(height: 4),
+                          SizedBox(
+                            height: 54,
+                            child: Stack(
+                              children: [
+                                Positioned(
+                                  left: 0,
+                                  top: 0,
+                                  child: Builder(
+                                    builder: (ctx) => DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: MasliveTheme.surface,
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(color: MasliveTheme.divider),
+                                      ),
+                                      child: IconButton(
+                                        onPressed: () => Scaffold.of(ctx).openDrawer(),
+                                        icon: const Icon(Icons.menu_rounded),
+                                        color: MasliveTheme.textPrimary,
+                                        tooltip: 'Menu',
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                                child: IconButton(
-                                  onPressed: () => Scaffold.of(ctx).openDrawer(),
-                                  icon: const Icon(Icons.menu_rounded),
-                                  color: MasliveTheme.textPrimary,
-                                  tooltip: 'Menu',
+                                const Align(
+                                  alignment: Alignment.topCenter,
+                                  child: Text(
+                                    "MAS'LIVE",
+                                    style: TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: -0.8,
+                                      color: MasliveTheme.textPrimary,
+                                      height: 1,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: CartIconBadge(
+                                    iconColor: MasliveTheme.textPrimary,
+                                    backgroundColor: MasliveTheme.surface,
+                                    borderColor: MasliveTheme.divider,
+                                    onPressed: () => setState(() => _activeTabIndex = 1),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const Align(
-                            alignment: Alignment.topCenter,
+                          const SizedBox(height: 8),
+                          Center(
                             child: Text(
-                              "MAS'LIVE",
+                              'LA BOUTIQUE PHOTO',
                               style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.8,
-                                color: MasliveTheme.textPrimary,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w500,
+                                letterSpacing: 2.2,
+                                color: MasliveTheme.textSecondary,
                                 height: 1,
                               ),
                             ),
                           ),
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: CartIconBadge(
-                              iconColor: MasliveTheme.textPrimary,
-                              backgroundColor: MasliveTheme.surface,
-                              borderColor: MasliveTheme.divider,
-                              onPressed: () => setState(() => _activeTabIndex = 1),
+                          const SizedBox(height: 22),
+                          _HeroCarnavalCard(onTap: () => _openMarketplace(initialTab: 0)),
+                          const SizedBox(height: 18),
+                          _MediaCatalogFilter(
+                            photographerController: _photographerController,
+                            countryLabel: _countryFieldLabel(),
+                            eventLabel: _upperText(
+                              _eventName,
+                              fallback: 'SELECTIONNER UN EVENEMENT',
                             ),
+                            circuitLabel: _upperText(
+                              _circuitName,
+                              fallback: 'SELECTIONNER UN CIRCUIT',
+                            ),
+                            isExpanded: _catalogMenuExpanded,
+                            onToggleExpanded: () {
+                              setState(() {
+                                _catalogMenuExpanded = !_catalogMenuExpanded;
+                              });
+                            },
+                            onTapContext: _openCatalogFilters,
                           ),
+                          const SizedBox(height: 22),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(
+                                _tabTitles[_activeTabIndex],
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.2,
+                                  color: MasliveTheme.textPrimary,
+                                  height: 1.1,
+                                ),
+                              ),
+                              const Spacer(),
+                              if (_activeTabIndex == 0)
+                                InkWell(
+                                  onTap: () => setState(() => _activeTabIndex = 0),
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: const Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                    child: Text(
+                                      'Catalogue complet',
+                                      style: TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w500,
+                                        color: MasliveTheme.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _MediaSectionTabs(
+                            activeIndex: _activeTabIndex,
+                            onChanged: (index) => setState(() => _activeTabIndex = index),
+                          ),
+                          if (_activeTabIndex == 0) ...[
+                            const SizedBox(height: 14),
+                            _PhotosMosaic(
+                              likedPhotoIds: _likedPhotoIds,
+                              onToggleLike: (photoId) {
+                                setState(() {
+                                  if (_likedPhotoIds.contains(photoId)) {
+                                    _likedPhotoIds.remove(photoId);
+                                  } else {
+                                    _likedPhotoIds.add(photoId);
+                                  }
+                                });
+                              },
+                              onOpenPhoto: () => setState(() => _activeTabIndex = 0),
+                            ),
+                            const SizedBox(height: 18),
+                          ],
                         ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Center(
-                      child: Text(
-                        'LA BOUTIQUE PHOTO',
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 2.2,
-                          color: MasliveTheme.textSecondary,
-                          height: 1,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 22),
-
-                    // ---------------- HERO CARD ----------------
-                    _HeroCarnavalCard(onTap: () => _openMarketplace(initialTab: 0)),
-
-                    const SizedBox(height: 18),
-
-                    // ---------------- MEDIA FILTER ----------------
-                    _MediaCatalogFilter(
-                      photographerController: _photographerController,
-                      countryLabel: _countryFieldLabel(),
-                      eventLabel: _upperText(
-                        _eventName,
-                        fallback: 'SELECTIONNER UN EVENEMENT',
-                      ),
-                      circuitLabel: _upperText(
-                        _circuitName,
-                        fallback: 'SELECTIONNER UN CIRCUIT',
-                      ),
-                      isExpanded: _catalogMenuExpanded,
-                      onToggleExpanded: () {
-                        setState(() {
-                          _catalogMenuExpanded = !_catalogMenuExpanded;
-                        });
-                      },
-                      onTapContext: _openCatalogFilters,
-                    ),
-
-                    const SizedBox(height: 22),
-
-                    // ---------------- SECTION HEADER ----------------
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          _tabTitles[_activeTabIndex],
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.2,
-                            color: MasliveTheme.textPrimary,
-                            height: 1.1,
-                          ),
-                        ),
-                        const Spacer(),
-                        if (_activeTabIndex == 0)
-                          InkWell(
-                            onTap: () => setState(() => _activeTabIndex = 0),
-                            borderRadius: BorderRadius.circular(10),
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                              child: Text(
-                                'Catalogue complet',
-                                style: TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w500,
-                                  color: MasliveTheme.textSecondary,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    _MediaSectionTabs(
-                      activeIndex: _activeTabIndex,
-                      onChanged: (index) => setState(() => _activeTabIndex = index),
-                    ),
-
-                    if (_activeTabIndex == 0) ...[
-                      const SizedBox(height: 14),
-
-                      // ---------------- PHOTO MOSAIC ----------------
-                      _PhotosMosaic(
-                        likedPhotoIds: _likedPhotoIds,
-                        onToggleLike: (photoId) {
-                          setState(() {
-                            if (_likedPhotoIds.contains(photoId)) {
-                              _likedPhotoIds.remove(photoId);
-                            } else {
-                              _likedPhotoIds.add(photoId);
-                            }
-                          });
-                        },
-                        onOpenPhoto: () => setState(() => _activeTabIndex = 0),
-                      ),
-
-                      const SizedBox(height: 18),
-                    ],
-                    ],
                   ),
-                ),
-
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(84, 0, 18, 0),
-                    child: _buildActiveMarketplaceContent(),
-                  ),
-                ),
-              ],
+                ];
+              },
+              body: Padding(
+                padding: const EdgeInsets.fromLTRB(84, 0, 18, 0),
+                child: _buildActiveMarketplaceContent(),
+              ),
             ),
           ),
           if (!widget.embedded) _buildShopVerticalNav(),
