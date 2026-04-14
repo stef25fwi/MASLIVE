@@ -84,70 +84,21 @@ class ShopDrawer extends StatelessWidget {
               const Divider(height: 32, thickness: 1),
               
               // Media Shop section
-              InkWell(
+              _FeaturedDrawerAction(
+                label: 'La boutique photo',
+                icon: Icons.shopping_bag_rounded,
                 onTap: () {
                   Navigator.of(context).pop();
                   Navigator.of(context).pushNamed('/media-marketplace');
                 },
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFB26A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0x22000000),
-                        blurRadius: 14,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.shopping_bag_rounded,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Text(
-                          'La boutique photo',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                      const Icon(
-                        Icons.arrow_forward_ios,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                    ],
-                  ),
-                ),
               ),
 
               const SizedBox(height: 10),
 
-              ShopDrawerItem(
-                'Galerie BLoOm ArT',
-                () {
+              _FeaturedDrawerAction(
+                label: 'Galerie BLoOm ArT',
+                icon: Icons.palette_rounded,
+                onTap: () {
                   Navigator.of(context).pop();
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
@@ -155,7 +106,6 @@ class ShopDrawer extends StatelessWidget {
                     ),
                   );
                 },
-                icon: Icons.photo_library_rounded,
               ),
               
               const SizedBox(height: 24),
@@ -169,6 +119,91 @@ class ShopDrawer extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FeaturedDrawerAction extends StatelessWidget {
+  const _FeaturedDrawerAction({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFFB26A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.22),
+            width: 1.1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0x330F172A),
+              blurRadius: 24,
+              offset: const Offset(0, 14),
+            ),
+            BoxShadow(
+              color: Colors.white.withValues(alpha: 0.14),
+              blurRadius: 6,
+              offset: const Offset(0, -2),
+            ),
+            BoxShadow(
+              color: const Color(0x18000000),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.white,
+              size: 16,
+            ),
+          ],
         ),
       ),
     );

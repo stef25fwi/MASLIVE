@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../models/market_circuit.dart';
 import '../../../models/market_country.dart';
 import '../../../models/market_event.dart';
+import '../../../providers/cart_provider.dart';
 import '../../media_marketplace/data/repositories/photographer_repository.dart';
 import '../../media_marketplace/presentation/pages/media_downloads_page.dart';
 import '../../media_marketplace/presentation/pages/media_marketplace_home_page.dart';
 import '../../media_marketplace/presentation/pages/photographer_dashboard_page.dart';
+import '../../../shop/widgets/storex_page_header.dart';
 import '../../../shop/widgets/shop_drawer.dart';
 import '../../../pages/user_facing_bottom_bar.dart';
 import '../../../pages/cart/unified_cart_page.dart';
-import '../../../pages/home_vertical_nav.dart';
-import '../../../widgets/cart/cart_icon_badge.dart';
 import '../../../ui/theme/maslive_theme.dart';
 import '../../../ui/widgets/marketmap_poi_selector_sheet.dart';
 import '../../../utils/country_flag.dart';
@@ -279,65 +280,6 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
     );
   }
 
-  List<HomeVerticalNavItem> _buildShopNavItems() {
-    return [
-      HomeVerticalNavItem(
-        label: '',
-        icon: _activeTabIndex == 0 ? Icons.photo_camera : Icons.photo_camera_outlined,
-        selected: _activeTabIndex == 0,
-        onTap: () => setState(() => _activeTabIndex = 0),
-      ),
-      HomeVerticalNavItem(
-        label: '',
-        iconWidget: CartBadgeGlyph(
-          count: 0,
-          iconColor: _activeTabIndex == 1 ? Colors.white : MasliveTheme.textPrimary,
-          iconSize: 24,
-          containerSize: 24,
-          showContainer: false,
-          badgeRight: -6,
-          badgeTop: -6,
-        ),
-        selected: _activeTabIndex == 1,
-        showBorder: false,
-        onTap: () => setState(() => _activeTabIndex = 1),
-      ),
-      HomeVerticalNavItem(
-        label: '',
-        icon: Icons.arrow_downward_rounded,
-        selected: _activeTabIndex == 2,
-        onTap: () => setState(() => _activeTabIndex = 2),
-      ),
-      HomeVerticalNavItem(
-        label: '',
-        icon: _activeTabIndex == 3 ? Icons.camera_alt : Icons.camera_alt_outlined,
-        selected: _activeTabIndex == 3,
-        onTap: () => setState(() => _activeTabIndex = 3),
-      ),
-    ];
-  }
-
-  Widget _buildShopVerticalNav() {
-    return SafeArea(
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Padding(
-          padding: const EdgeInsets.only(left: 12),
-          child: HomeVerticalNavMenu(
-            items: _buildShopNavItems(),
-            margin: EdgeInsets.zero,
-            horizontalPadding: 6,
-            verticalPadding: 10,
-            backgroundAlpha: 0.82,
-            blurSigma: 14,
-            borderColor: const Color(0x1F0F172A),
-            boxShadow: MasliveTheme.floatingShadowStrong,
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   void dispose() {
     _photographerController.dispose();
@@ -346,181 +288,143 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
 
   @override
   Widget build(BuildContext context) {
+    final cartCount = context.watch<CartProvider>().totalQuantity;
+
     return Scaffold(
       backgroundColor: MasliveTheme.surfaceAlt,
-      drawer: ShopDrawer(
-        onNavigateHome: _goHome,
-        onNavigateSearch: () => _openMarketplace(initialTab: 0),
-        onNavigateProfile: _goAccount,
-        onNavigateCategory: (categoryId, title) => _openMarketplace(initialTab: 0),
-      ),
-      body: Stack(
-        children: [
-          SafeArea(
-            child: NestedScrollView(
-              physics: const BouncingScrollPhysics(),
-              headerSliverBuilder: (context, innerBoxIsScrolled) {
-                return <Widget>[
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 4),
-                          SizedBox(
-                            height: 54,
-                            child: Stack(
-                              children: [
-                                Positioned(
-                                  left: 0,
-                                  top: 0,
-                                  child: Builder(
-                                    builder: (ctx) => DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        color: MasliveTheme.surface,
-                                        borderRadius: BorderRadius.circular(14),
-                                        border: Border.all(color: MasliveTheme.divider),
-                                      ),
-                                      child: IconButton(
-                                        onPressed: () => Scaffold.of(ctx).openDrawer(),
-                                        icon: const Icon(Icons.menu_rounded),
-                                        color: MasliveTheme.textPrimary,
-                                        tooltip: 'Menu',
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const Align(
-                                  alignment: Alignment.topCenter,
-                                  child: Text(
-                                    "MAS'LIVE",
-                                    style: TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: -0.8,
-                                      color: MasliveTheme.textPrimary,
-                                      height: 1,
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  right: 0,
-                                  top: 0,
-                                  child: CartIconBadge(
-                                    iconColor: MasliveTheme.textPrimary,
-                                    backgroundColor: MasliveTheme.surface,
-                                    borderColor: MasliveTheme.divider,
-                                    onPressed: () => setState(() => _activeTabIndex = 1),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Center(
-                            child: Text(
-                              'LA BOUTIQUE PHOTO',
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w500,
-                                letterSpacing: 2.2,
-                                color: MasliveTheme.textSecondary,
-                                height: 1,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 22),
-                          _HeroCarnavalCard(onTap: () => _openMarketplace(initialTab: 0)),
-                          const SizedBox(height: 18),
-                          _MediaCatalogFilter(
-                            photographerController: _photographerController,
-                            countryLabel: _countryFieldLabel(),
-                            eventLabel: _upperText(
-                              _eventName,
-                              fallback: 'SELECTIONNER UN EVENEMENT',
-                            ),
-                            circuitLabel: _upperText(
-                              _circuitName,
-                              fallback: 'SELECTIONNER UN CIRCUIT',
-                            ),
-                            isExpanded: _catalogMenuExpanded,
-                            onToggleExpanded: () {
-                              setState(() {
-                                _catalogMenuExpanded = !_catalogMenuExpanded;
-                              });
-                            },
-                            onTapContext: _openCatalogFilters,
-                          ),
-                          const SizedBox(height: 22),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text(
-                                _tabTitles[_activeTabIndex],
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.2,
-                                  color: MasliveTheme.textPrimary,
-                                  height: 1.1,
-                                ),
-                              ),
-                              const Spacer(),
-                              if (_activeTabIndex == 0)
-                                InkWell(
-                                  onTap: () => setState(() => _activeTabIndex = 0),
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: const Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                    child: Text(
-                                      'Catalogue complet',
-                                      style: TextStyle(
-                                        fontSize: 13.5,
-                                        fontWeight: FontWeight.w500,
-                                        color: MasliveTheme.textSecondary,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          _MediaSectionTabs(
-                            activeIndex: _activeTabIndex,
-                            onChanged: (index) => setState(() => _activeTabIndex = index),
-                          ),
-                          if (_activeTabIndex == 0) ...[
-                            const SizedBox(height: 14),
-                            _PhotosMosaic(
-                              likedPhotoIds: _likedPhotoIds,
-                              onToggleLike: (photoId) {
-                                setState(() {
-                                  if (_likedPhotoIds.contains(photoId)) {
-                                    _likedPhotoIds.remove(photoId);
-                                  } else {
-                                    _likedPhotoIds.add(photoId);
-                                  }
-                                });
-                              },
-                              onOpenPhoto: () => setState(() => _activeTabIndex = 0),
-                            ),
-                            const SizedBox(height: 18),
-                          ],
-                        ],
-                      ),
-                    ),
+      drawer: widget.embedded
+          ? null
+          : ShopDrawer(
+              onNavigateHome: _goHome,
+              onNavigateSearch: () => _openMarketplace(initialTab: 0),
+              onNavigateProfile: _goAccount,
+              onNavigateCategory: (categoryId, title) => _openMarketplace(initialTab: 0),
+            ),
+      appBar: widget.embedded
+          ? null
+          : AppBar(
+              backgroundColor: const Color(0xFFF6F7FB),
+              surfaceTintColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              scrolledUnderElevation: 0,
+              elevation: 0,
+              toolbarHeight: 88,
+              iconTheme: const IconThemeData(color: Color(0xFF101828)),
+              leading: Builder(
+                builder: (ctx) => IconButton(
+                  icon: const Icon(Icons.menu),
+                  onPressed: () => Scaffold.of(ctx).openDrawer(),
+                ),
+              ),
+              centerTitle: true,
+              title: const StorexPageHeaderTitle(subtitle: 'LA BOUTIQUE PHOTO'),
+              actions: [
+                IconButton(
+                  icon: StorexHeaderCartIcon(
+                    badgeCount: cartCount,
+                    selected: false,
                   ),
-                ];
-              },
-              body: Padding(
-                padding: const EdgeInsets.fromLTRB(84, 0, 18, 0),
-                child: _buildActiveMarketplaceContent(),
+                  onPressed: () => setState(() => _activeTabIndex = 1),
+                ),
+                const SizedBox(width: 4),
+              ],
+            ),
+      body: NestedScrollView(
+        physics: const BouncingScrollPhysics(),
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return <Widget>[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(18, widget.embedded ? 18 : 14, 18, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _HeroCarnavalCard(onTap: () => _openMarketplace(initialTab: 0)),
+                    const SizedBox(height: 18),
+                    _MediaCatalogFilter(
+                      photographerController: _photographerController,
+                      countryLabel: _countryFieldLabel(),
+                      eventLabel: _upperText(
+                        _eventName,
+                        fallback: 'SELECTIONNER UN EVENEMENT',
+                      ),
+                      circuitLabel: _upperText(
+                        _circuitName,
+                        fallback: 'SELECTIONNER UN CIRCUIT',
+                      ),
+                      isExpanded: _catalogMenuExpanded,
+                      onToggleExpanded: () {
+                        setState(() {
+                          _catalogMenuExpanded = !_catalogMenuExpanded;
+                        });
+                      },
+                      onTapContext: _openCatalogFilters,
+                    ),
+                    const SizedBox(height: 22),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          _tabTitles[_activeTabIndex],
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.2,
+                            color: MasliveTheme.textPrimary,
+                            height: 1.1,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (_activeTabIndex == 0)
+                          InkWell(
+                            onTap: () => setState(() => _activeTabIndex = 0),
+                            borderRadius: BorderRadius.circular(10),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                              child: Text(
+                                'Catalogue complet',
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: MasliveTheme.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _MediaSectionTabs(
+                      activeIndex: _activeTabIndex,
+                      onChanged: (index) => setState(() => _activeTabIndex = index),
+                    ),
+                    if (_activeTabIndex == 0) ...[
+                      const SizedBox(height: 14),
+                      _PhotosMosaic(
+                        likedPhotoIds: _likedPhotoIds,
+                        onToggleLike: (photoId) {
+                          setState(() {
+                            if (_likedPhotoIds.contains(photoId)) {
+                              _likedPhotoIds.remove(photoId);
+                            } else {
+                              _likedPhotoIds.add(photoId);
+                            }
+                          });
+                        },
+                        onOpenPhoto: () => setState(() => _activeTabIndex = 0),
+                      ),
+                      const SizedBox(height: 18),
+                    ],
+                  ],
+                ),
               ),
             ),
-          ),
-          if (!widget.embedded) _buildShopVerticalNav(),
-        ],
+          ];
+        },
+        body: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
+          child: _buildActiveMarketplaceContent(),
+        ),
       ),
       bottomNavigationBar: widget.embedded || !widget.showBottomBar
           ? null

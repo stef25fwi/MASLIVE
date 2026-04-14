@@ -9,9 +9,9 @@ import 'product_detail_page.dart';
 import '../models/group_product.dart';
 import '../providers/cart_provider.dart';
 import '../services/cart_service.dart';
+import '../shop/widgets/storex_page_header.dart';
 import '../shop/widgets/shop_drawer.dart';
 import 'user_facing_bottom_bar.dart';
-import '../widgets/cart/cart_icon_badge.dart';
 import '../widgets/language_switcher.dart';
 import '../l10n/app_localizations.dart' as l10n;
 import '../ui/snack/top_snack_bar.dart';
@@ -95,68 +95,6 @@ class _StorexShopPageState extends State<StorexShopPage> {
               )
             : null,
       ),
-    );
-  }
-}
-
-class _StorexBrandTitle extends StatelessWidget {
-  const _StorexBrandTitle({required this.subtitle});
-
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        const Text(
-          "MAS'LIVE",
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.8,
-            color: _ShopUi.textMain,
-            height: 1,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          subtitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 13.5,
-            fontWeight: FontWeight.w500,
-            letterSpacing: 2.2,
-            color: _ShopUi.textMuted,
-            height: 1,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StorexNavBadgeIcon extends StatelessWidget {
-  const _StorexNavBadgeIcon({
-    required this.badgeCount,
-    required this.selected,
-  });
-
-  final int badgeCount;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    return CartBadgeGlyph(
-      count: badgeCount,
-      iconColor: selected ? Colors.white : _ShopUi.textMain,
-      iconSize: 30,
-      containerSize: 30,
-      showContainer: false,
-      badgeRight: -7,
-      badgeTop: -7,
     );
   }
 }
@@ -343,10 +281,10 @@ class _StorexHome extends StatelessWidget {
           ),
         ),
         centerTitle: true,
-        title: const _StorexBrandTitle(subtitle: 'LA BOUTIQUE'),
+        title: const StorexPageHeaderTitle(subtitle: 'LA BOUTIQUE'),
         actions: [
           IconButton(
-            icon: _StorexNavBadgeIcon(
+            icon: StorexHeaderCartIcon(
               badgeCount: cartCount,
               selected: false,
             ),
@@ -925,7 +863,7 @@ class _StorexCategory extends StatelessWidget {
             onPressed: () => Scaffold.of(ctx).openDrawer(),
           ),
         ),
-        title: const _StorexBrandTitle(subtitle: 'CATEGORIES'),
+        title: const StorexPageHeaderTitle(subtitle: 'CATEGORIES'),
         actions: [
           LanguageSwitcher(textColor: _ShopUi.textMain),
           IconButton(
@@ -1168,7 +1106,7 @@ class _ListPageState extends State<_ListPage> {
           ),
         ),
         centerTitle: true,
-        title: _StorexBrandTitle(subtitle: widget.title.toUpperCase()),
+        title: StorexPageHeaderTitle(subtitle: widget.title.toUpperCase()),
         actions: [
           IconButton(
             icon: Icon(grid ? Icons.view_list : Icons.grid_view),
@@ -1422,7 +1360,7 @@ class _StorexAccount extends StatelessWidget {
           ),
         ),
         centerTitle: true,
-        title: const _StorexBrandTitle(subtitle: 'MON COMPTE'),
+        title: const StorexPageHeaderTitle(subtitle: 'MON COMPTE'),
         actions: [
           LanguageSwitcher(textColor: _ShopUi.textMain),
           const SizedBox(width: 8),
@@ -1619,7 +1557,7 @@ class _WishlistPage extends StatelessWidget {
             ),
           ),
           centerTitle: true,
-          title: const _StorexBrandTitle(subtitle: 'MES FAVORIS'),
+          title: const StorexPageHeaderTitle(subtitle: 'MES FAVORIS'),
         ),
         body: Center(
           child: Padding(
@@ -1713,7 +1651,7 @@ class _WishlistPage extends StatelessWidget {
           ),
         ),
         centerTitle: true,
-        title: const _StorexBrandTitle(subtitle: 'MES FAVORIS'),
+        title: const StorexPageHeaderTitle(subtitle: 'MES FAVORIS'),
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: repo.wishlistItems(),
@@ -1943,7 +1881,7 @@ class _OrdersPage extends StatelessWidget {
             ),
           ),
           centerTitle: true,
-          title: const _StorexBrandTitle(subtitle: 'MES COMMANDES'),
+          title: const StorexPageHeaderTitle(subtitle: 'MES COMMANDES'),
         ),
         body: Center(
           child: Padding(
@@ -2037,7 +1975,7 @@ class _OrdersPage extends StatelessWidget {
           ),
         ),
         centerTitle: true,
-        title: const _StorexBrandTitle(subtitle: 'MES COMMANDES'),
+        title: const StorexPageHeaderTitle(subtitle: 'MES COMMANDES'),
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: repo.orders(),

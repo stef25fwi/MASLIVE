@@ -1866,18 +1866,26 @@ class _DashedTooltipBorderPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    const strokeWidth = 1.8;
+    const inset = 2.2;
     final rect = RRect.fromRectAndRadius(
-      Offset.zero & size,
-      Radius.circular(borderRadius),
+      Rect.fromLTWH(
+        inset,
+        inset,
+        size.width - (inset * 2),
+        size.height - (inset * 2),
+      ),
+      Radius.circular(borderRadius - inset),
     );
     final path = Path()..addRRect(rect);
     final paint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4;
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
 
-    const dashWidth = 7.0;
-    const dashGap = 5.0;
+    const dashWidth = 8.0;
+    const dashGap = 4.0;
     for (final metric in path.computeMetrics()) {
       double distance = 0;
       while (distance < metric.length) {
