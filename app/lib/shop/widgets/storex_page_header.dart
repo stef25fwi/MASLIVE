@@ -15,14 +15,21 @@ class StorexPageHeaderTitle extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        const Text(
+        Text(
           "MAS'LIVE",
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w900,
             letterSpacing: -0.8,
-            color: Color(0xFF101828),
+            color: const Color(0xFF101828),
             height: 1,
+            shadows: <Shadow>[
+              Shadow(
+                offset: const Offset(0, 2),
+                blurRadius: 6,
+                color: Colors.black.withValues(alpha: 0.25),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 8),
