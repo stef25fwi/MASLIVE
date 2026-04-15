@@ -3,8 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/app_user.dart';
 import '../models/user_category_model.dart';
 import '../services/auth_claims_service.dart';
+import '../services/startup_map_style_service.dart';
 import '../services/user_category_service.dart';
 import '../ui/snack/top_snack_bar.dart';
+import '../utils/mapbox_style_url.dart';
 import 'admin_gate.dart';
 
 /// Espace SuperAdmin - Fonctionnalités avancées réservées aux superadmins
@@ -18,8 +20,12 @@ class SuperAdminSpace extends StatefulWidget {
 class _SuperAdminSpaceState extends State<SuperAdminSpace> {
   final _authService = AuthClaimsService.instance;
   final _categoryService = UserCategoryService.instance;
+  final _startupMapStyleService = StartupMapStyleService.instance;
+  final TextEditingController _startupMapStyleController =
+      TextEditingController();
   AppUser? _currentUser;
   bool _isLoading = true;
+  bool _isSavingStartupMapStyle = false;
 
   // Statistiques
   int _totalUsers = 0;
@@ -27,23 +33,113 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
   int _pendingApprovals = 0;
   Map<String, int> _usersByRole = {};
 
+  static const List<({String label, String url})> _startupMapStylePresets = <({
+    String label,
+    String url,
+  })>[
+    (label: 'Effacer', url: ''),
+    (label: 'Streets', url: 'mapbox://styles/mapbox/streets-v12'),
+    (label: 'Outdoors', url: 'mapbox://styles/mapbox/outdoors-v12'),
+    (
+      label: 'Satellite',
+      url: 'mapbox://styles/mapbox/satellite-streets-v12',
+    ),
+    (label: 'Light', url: 'mapbox://styles/mapbox/light-v11'),
+    (label: 'Dark', url: 'mapbox://styles/mapbox/dark-v11'),
+    (label: 'Perso', url: kMasliveProMapboxStyleUrl),
+  ];
+
   @override
   void initState() {
     super.initState();
     _loadData();
   }
 
+  @override
+  void dispose() {
+    _startupMapStyleController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
       final user = await _authService.getCurrentAppUser();
-      await _loadStats();
+      await Future.wait<void>([
+        _loadStats(),
+        _loadStartupMapStyle(),
+      ]);
       setState(() {
         _currentUser = user;
         _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadStartupMapStyle() async {
+    try {
+      final styleUrl = await _startupMapStyleService.getDefaultStyleUrl();
+      if (!mounted) return;
+      _startupMapStyleController.text = styleUrl ?? '';
+    } catch (e) {
+      debugPrint('Erreur chargement style de démarrage: $e');
+    }
+  }
+
+  String get _normalizedStartupMapStyle {
+    return tryNormalizeMapboxStyleUrl(_startupMapStyleController.text) ?? '';
+  }
+
+  void _applyStartupMapStylePreset(String url) {
+    _startupMapStyleController.text = url;
+    setState(() {});
+  }
+
+  Future<void> _saveStartupMapStyle() async {
+    final rawValue = _startupMapStyleController.text.trim();
+    final normalized = tryNormalizeMapboxStyleUrl(rawValue);
+    final isClearing = rawValue.isEmpty;
+
+    if (!isClearing && normalized == null) {
+      TopSnackBar.show(
+        context,
+        const SnackBar(
+          content: Text('❌ URL de style Mapbox invalide'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSavingStartupMapStyle = true);
+    try {
+      await _startupMapStyleService.saveDefaultStyleUrl(normalized);
+      if (!mounted) return;
+      _startupMapStyleController.text = normalized ?? '';
+      setState(() => _isSavingStartupMapStyle = false);
+      TopSnackBar.show(
+        context,
+        SnackBar(
+          content: Text(
+            normalized == null
+                ? '✅ Style de démarrage supprimé'
+                : '✅ Style de démarrage enregistré',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSavingStartupMapStyle = false);
+      TopSnackBar.show(
+        context,
+        SnackBar(
+          content: Text('❌ Erreur: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -118,6 +214,10 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
 
                     // Actions principales
                     _buildQuickActions(),
+                    const SizedBox(height: 24),
+
+                    // Style de carte de démarrage
+                    _buildStartupMapStyleTile(),
                     const SizedBox(height: 24),
 
                     // Gestion système
@@ -434,6 +534,154 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
           () => Navigator.pushNamed(context, '/admin/settings'),
         ),
       ],
+    );
+  }
+
+  Widget _buildStartupMapStyleTile() {
+    final selectedStyle = _normalizedStartupMapStyle;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0EA5E9).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.map_outlined,
+                  color: Color(0xFF0EA5E9),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Style de carte au démarrage',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Définit le fond Mapbox affiché par défaut à l’ouverture de l’app.',
+                      style: TextStyle(color: Colors.black54),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _startupMapStylePresets.map((preset) {
+              final normalizedPreset = tryNormalizeMapboxStyleUrl(preset.url) ?? '';
+              final isSelected = (normalizedPreset.isEmpty && selectedStyle.isEmpty) ||
+                  (normalizedPreset.isNotEmpty && normalizedPreset == selectedStyle);
+              return InkWell(
+                onTap: () => _applyStartupMapStylePreset(preset.url),
+                borderRadius: BorderRadius.circular(999),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? const Color(0xFF0EA5E9).withValues(alpha: 0.14)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: isSelected
+                          ? const Color(0xFF0EA5E9)
+                          : Colors.grey.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Text(
+                    preset.label,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: isSelected
+                          ? const Color(0xFF0369A1)
+                          : Colors.grey[800],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _startupMapStyleController,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              labelText: 'URL du style Mapbox',
+              hintText: 'mapbox://styles/username/style-id',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isSavingStartupMapStyle
+                      ? null
+                      : () => _applyStartupMapStylePreset(''),
+                  icon: const Icon(Icons.restart_alt),
+                  label: const Text('Réinitialiser'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _isSavingStartupMapStyle ? null : _saveStartupMapStyle,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0EA5E9),
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: _isSavingStartupMapStyle
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.save_outlined),
+                  label: Text(
+                    _isSavingStartupMapStyle ? 'Enregistrement...' : 'Enregistrer',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

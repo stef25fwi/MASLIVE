@@ -5,6 +5,7 @@ import '../../../models/market_circuit.dart';
 import '../../../models/market_country.dart';
 import '../../../models/market_event.dart';
 import '../../../providers/cart_provider.dart';
+import '../../../services/market_map_service.dart';
 import '../../media_marketplace/data/repositories/photographer_repository.dart';
 import '../../media_marketplace/presentation/pages/media_downloads_page.dart';
 import '../../media_marketplace/presentation/pages/media_marketplace_home_page.dart';
@@ -53,6 +54,7 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
   final Set<String> _likedPhotoIds = <String>{
     'photo_2',
   };
+  final MarketMapService _marketMapService = MarketMapService();
   final TextEditingController _photographerController = TextEditingController();
   String? _countryId;
   String? _countryName;
@@ -230,6 +232,46 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
     });
   }
 
+  void _handleCountryChanged(MarketCountry? country) {
+    setState(() {
+      _countryId = country?.id;
+      _countryName = country?.name;
+      _eventId = null;
+      _eventName = null;
+      _circuitId = null;
+      _circuitName = null;
+      _activeTabIndex = 0;
+    });
+  }
+
+  void _handleEventChanged(MarketEvent? event) {
+    setState(() {
+      _eventId = event?.id;
+      _eventName = event?.name;
+      _circuitId = null;
+      _circuitName = null;
+      _activeTabIndex = 0;
+    });
+  }
+
+  void _handleCircuitChanged(MarketCircuit? circuit) {
+    setState(() {
+      _circuitId = circuit?.id;
+      _circuitName = circuit?.name;
+      _activeTabIndex = 0;
+    });
+  }
+
+  Future<void> _handleBottomBarExplorerTap() async {
+    if (_activeTabIndex != 0) {
+      setState(() {
+        _activeTabIndex = 0;
+        _catalogMenuExpanded = true;
+      });
+    }
+    await _openCatalogFilters();
+  }
+
   MarketMapPoiSelection? _buildInitialSelection() {
     final resolvedCountryId = _countryId?.trim();
     final resolvedEventId = _eventId?.trim();
@@ -342,6 +384,10 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                     _HeroCarnavalCard(onTap: () => _openMarketplace(initialTab: 0)),
                     const SizedBox(height: 18),
                     _MediaCatalogFilter(
+                      marketMapService: _marketMapService,
+                      selectedCountryId: _countryId,
+                      selectedEventId: _eventId,
+                      selectedCircuitId: _circuitId,
                       photographerController: _photographerController,
                       countryLabel: _countryFieldLabel(),
                       eventLabel: _upperText(
@@ -358,7 +404,9 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                           _catalogMenuExpanded = !_catalogMenuExpanded;
                         });
                       },
-                      onTapContext: _openCatalogFilters,
+                      onCountryChanged: _handleCountryChanged,
+                      onEventChanged: _handleEventChanged,
+                      onCircuitChanged: _handleCircuitChanged,
                     ),
                     const SizedBox(height: 22),
                     Row(
@@ -428,8 +476,9 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
       ),
       bottomNavigationBar: widget.embedded || !widget.showBottomBar
           ? null
-          : const UserFacingBottomBar(
+          : UserFacingBottomBar(
               currentTab: UserFacingBottomBarTab.media,
+              onExplorerTap: _handleBottomBarExplorerTap,
             ),
     );
   }
@@ -452,6 +501,8 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
           showContextHeader: false,
           embedded: true,
           showBranding: false,
+          showCatalogFilter: false,
+          showHeroCard: false,
           onOpenFilters: _openCatalogFilters,
         ),
         const UnifiedCartPage(embedded: true),
@@ -574,22 +625,34 @@ class _HeroCarnavalCard extends StatelessWidget {
 }
 
 class _MediaCatalogFilter extends StatelessWidget {
+  final MarketMapService marketMapService;
+  final String? selectedCountryId;
+  final String? selectedEventId;
+  final String? selectedCircuitId;
   final TextEditingController photographerController;
   final String countryLabel;
   final String eventLabel;
   final String circuitLabel;
   final bool isExpanded;
   final VoidCallback onToggleExpanded;
-  final VoidCallback onTapContext;
+  final ValueChanged<MarketCountry?> onCountryChanged;
+  final ValueChanged<MarketEvent?> onEventChanged;
+  final ValueChanged<MarketCircuit?> onCircuitChanged;
 
   const _MediaCatalogFilter({
+    required this.marketMapService,
+    required this.selectedCountryId,
+    required this.selectedEventId,
+    required this.selectedCircuitId,
     required this.photographerController,
     required this.countryLabel,
     required this.eventLabel,
     required this.circuitLabel,
     required this.isExpanded,
     required this.onToggleExpanded,
-    required this.onTapContext,
+    required this.onCountryChanged,
+    required this.onEventChanged,
+    required this.onCircuitChanged,
   });
 
   @override
@@ -669,62 +732,217 @@ class _MediaCatalogFilter extends StatelessWidget {
           ),
           AnimatedCrossFade(
             firstChild: const SizedBox.shrink(),
-            secondChild: Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Column(
-                children: [
-                  _FilterReadOnlyField(
-                    label: 'PAYS',
-                    value: countryLabel,
-                    hintText: 'Selectionner un pays',
-                    onTap: onTapContext,
-                  ),
-                  const SizedBox(height: 10),
-                  _FilterReadOnlyField(
-                    label: 'EVENEMENT',
-                    value: eventLabel,
-                    hintText: 'Selectionner un evenement',
-                    onTap: onTapContext,
-                  ),
-                  const SizedBox(height: 10),
-                  _FilterReadOnlyField(
-                    label: 'CIRCUIT',
-                    value: circuitLabel,
-                    hintText: 'Selectionner un circuit',
-                    onTap: onTapContext,
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: MasliveTheme.surfaceAlt,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: MasliveTheme.divider),
-                    ),
-                    child: TextField(
-                      controller: photographerController,
-                      textInputAction: TextInputAction.search,
-                      textCapitalization: TextCapitalization.characters,
-                      decoration: const InputDecoration(
-                        labelText: 'PHOTOGRAPHE (optionnel)',
-                        labelStyle: TextStyle(
-                          color: MasliveTheme.textSecondary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+            secondChild: StreamBuilder<VisibleCircuitsIndex>(
+              stream: marketMapService.watchVisibleCircuitsIndex(),
+              builder: (context, visibleSnapshot) {
+                final hasVisibleIndex = visibleSnapshot.hasData;
+                final visibleIndex = visibleSnapshot.data;
+                final visibleCountryIds = hasVisibleIndex
+                    ? visibleIndex?.countryIds ?? const <String>{}
+                    : const <String>{};
+
+                if (hasVisibleIndex &&
+                    selectedCountryId != null &&
+                    !visibleCountryIds.contains(selectedCountryId)) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    onCountryChanged(null);
+                  });
+                }
+
+                final visibleEventIds = hasVisibleIndex &&
+                        selectedCountryId != null &&
+                        visibleCountryIds.contains(selectedCountryId)
+                    ? visibleIndex?.eventIdsForCountry(selectedCountryId!) ??
+                        const <String>{}
+                    : const <String>{};
+
+                if (hasVisibleIndex &&
+                    selectedEventId != null &&
+                    !visibleEventIds.contains(selectedEventId)) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    onEventChanged(null);
+                  });
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Column(
+                    children: [
+                      if (!hasVisibleIndex)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 10),
+                          child: LinearProgressIndicator(minHeight: 2),
                         ),
-                        prefixIcon: Icon(
-                          Icons.person_search_rounded,
-                          size: 20,
-                          color: MasliveTheme.textSecondary,
-                        ),
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(vertical: 12),
+                      StreamBuilder<List<MarketCountry>>(
+                        stream: marketMapService.watchCountries(),
+                        builder: (context, snapshot) {
+                          final countries = (snapshot.data ?? const <MarketCountry>[])
+                              .where((country) => visibleCountryIds.contains(country.id))
+                              .toList(growable: false);
+                          return _FilterDropdownField<String>(
+                            label: 'PAYS',
+                            value: countries.any((country) => country.id == selectedCountryId)
+                                ? selectedCountryId
+                                : null,
+                            hintText: 'Selectionner un pays',
+                            enabled: hasVisibleIndex,
+                            items: countries
+                                .map(
+                                  (country) => DropdownMenuItem<String>(
+                                    value: country.id,
+                                    child: Text(_countryDropdownLabel(country)),
+                                  ),
+                                )
+                                .toList(growable: false),
+                            onChanged: (value) {
+                              MarketCountry? country;
+                              for (final item in countries) {
+                                if (item.id == value) {
+                                  country = item;
+                                  break;
+                                }
+                              }
+                              onCountryChanged(country);
+                            },
+                          );
+                        },
                       ),
-                    ),
+                      const SizedBox(height: 10),
+                      StreamBuilder<List<MarketEvent>>(
+                        stream: selectedCountryId == null ||
+                                selectedCountryId!.isEmpty ||
+                                !visibleCountryIds.contains(selectedCountryId)
+                            ? const Stream<List<MarketEvent>>.empty()
+                            : marketMapService.watchEvents(countryId: selectedCountryId!),
+                        builder: (context, snapshot) {
+                          final events = (snapshot.data ?? const <MarketEvent>[])
+                              .where((event) => visibleEventIds.contains(event.id))
+                              .toList(growable: false);
+                          return _FilterDropdownField<String>(
+                            label: 'EVENEMENT',
+                            value: events.any((event) => event.id == selectedEventId)
+                                ? selectedEventId
+                                : null,
+                            hintText: 'Selectionner un evenement',
+                            enabled: hasVisibleIndex &&
+                                selectedCountryId != null &&
+                                visibleCountryIds.contains(selectedCountryId),
+                            items: events
+                                .map(
+                                  (event) => DropdownMenuItem<String>(
+                                    value: event.id,
+                                    child: Text(event.name.trim().isEmpty
+                                        ? event.id.toUpperCase()
+                                        : event.name.trim().toUpperCase()),
+                                  ),
+                                )
+                                .toList(growable: false),
+                            onChanged: (value) {
+                              MarketEvent? event;
+                              for (final item in events) {
+                                if (item.id == value) {
+                                  event = item;
+                                  break;
+                                }
+                              }
+                              onEventChanged(event);
+                            },
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      StreamBuilder<List<MarketCircuit>>(
+                        stream: selectedCountryId == null ||
+                                selectedCountryId!.isEmpty ||
+                                selectedEventId == null ||
+                                selectedEventId!.isEmpty ||
+                                !visibleCountryIds.contains(selectedCountryId) ||
+                                !visibleEventIds.contains(selectedEventId)
+                            ? const Stream<List<MarketCircuit>>.empty()
+                            : marketMapService.watchCircuits(
+                                countryId: selectedCountryId!,
+                                eventId: selectedEventId!,
+                              ),
+                        builder: (context, snapshot) {
+                          final circuits = (snapshot.data ?? const <MarketCircuit>[])
+                              .where((circuit) => circuit.isVisible)
+                              .toList(growable: false);
+
+                          if (selectedCircuitId != null &&
+                              !circuits.any((circuit) => circuit.id == selectedCircuitId)) {
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              onCircuitChanged(null);
+                            });
+                          }
+
+                          return _FilterDropdownField<String>(
+                            label: 'CIRCUIT',
+                            value: circuits.any((circuit) => circuit.id == selectedCircuitId)
+                                ? selectedCircuitId
+                                : null,
+                            hintText: 'Selectionner un circuit',
+                            enabled: hasVisibleIndex &&
+                                selectedCountryId != null &&
+                                selectedEventId != null &&
+                                visibleCountryIds.contains(selectedCountryId) &&
+                                visibleEventIds.contains(selectedEventId),
+                            items: circuits
+                                .map(
+                                  (circuit) => DropdownMenuItem<String>(
+                                    value: circuit.id,
+                                    child: Text(circuit.name.trim().isEmpty
+                                        ? circuit.id.toUpperCase()
+                                        : circuit.name.trim().toUpperCase()),
+                                  ),
+                                )
+                                .toList(growable: false),
+                            onChanged: (value) {
+                              MarketCircuit? circuit;
+                              for (final item in circuits) {
+                                if (item.id == value) {
+                                  circuit = item;
+                                  break;
+                                }
+                              }
+                              onCircuitChanged(circuit);
+                            },
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: MasliveTheme.surfaceAlt,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: MasliveTheme.divider),
+                        ),
+                        child: TextField(
+                          controller: photographerController,
+                          textInputAction: TextInputAction.search,
+                          textCapitalization: TextCapitalization.characters,
+                          decoration: const InputDecoration(
+                            labelText: 'PHOTOGRAPHE (optionnel)',
+                            labelStyle: TextStyle(
+                              color: MasliveTheme.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            prefixIcon: Icon(
+                              Icons.person_search_rounded,
+                              size: 20,
+                              color: MasliveTheme.textSecondary,
+                            ),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             ),
             crossFadeState: isExpanded
                 ? CrossFadeState.showSecond
@@ -735,62 +953,73 @@ class _MediaCatalogFilter extends StatelessWidget {
       ),
     );
   }
+
+  String _countryDropdownLabel(MarketCountry country) {
+    final iso2 = guessIso2FromMarketMapCountry(
+      id: country.id,
+      slug: country.slug,
+      name: country.name,
+    );
+    final flag = countryFlagEmojiFromIso2(iso2);
+    final name = country.name.trim().isEmpty
+        ? country.id.toUpperCase()
+        : country.name.trim().toUpperCase();
+    return flag.isEmpty ? name : '$flag $name';
+  }
 }
 
-class _FilterReadOnlyField extends StatelessWidget {
-  const _FilterReadOnlyField({
+class _FilterDropdownField<T> extends StatelessWidget {
+  const _FilterDropdownField({
     required this.label,
-    required this.value,
     required this.hintText,
-    required this.onTap,
+    required this.items,
+    this.value,
+    this.onChanged,
+    this.enabled = true,
   });
 
   final String label;
-  final String? value;
+  final T? value;
   final String hintText;
-  final VoidCallback onTap;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T?>? onChanged;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
+    return Container(
+      height: 46,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: enabled ? MasliveTheme.surfaceAlt : MasliveTheme.surfaceAlt.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(14),
-        child: Container(
-          height: 46,
-          alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: MasliveTheme.surfaceAlt,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: MasliveTheme.divider),
-          ),
-          child: RichText(
+        border: Border.all(color: MasliveTheme.divider),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<T>(
+          value: value,
+          isExpanded: true,
+          hint: Text(
+            '$label: ${hintText.toUpperCase()}',
             overflow: TextOverflow.ellipsis,
-            text: TextSpan(
-              style: const TextStyle(
-                color: MasliveTheme.textPrimary,
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600,
-              ),
-              children: [
-                TextSpan(
-                  text: '$label: ',
-                  style: const TextStyle(
-                    color: MasliveTheme.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                TextSpan(
-                  text: (value?.trim().isNotEmpty == true)
-                      ? value!.trim().toUpperCase()
-                      : hintText.toUpperCase(),
-                ),
-              ],
+            style: const TextStyle(
+              color: MasliveTheme.textSecondary,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
             ),
           ),
+          borderRadius: BorderRadius.circular(14),
+          icon: const Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: MasliveTheme.textPrimary,
+          ),
+          style: const TextStyle(
+            color: MasliveTheme.textPrimary,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+          ),
+          items: items,
+          onChanged: enabled ? onChanged : null,
         ),
       ),
     );

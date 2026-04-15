@@ -90,8 +90,11 @@ class _StorexShopPageState extends State<StorexShopPage> {
         backgroundColor: _ShopUi.pageBg,
         body: pages[tab],
         bottomNavigationBar: widget.showBottomBar
-            ? const UserFacingBottomBar(
+            ? UserFacingBottomBar(
                 currentTab: UserFacingBottomBarTab.boutique,
+                onExplorerTap: () {
+                  Navigator.of(context).pushReplacementNamed('/search');
+                },
               )
             : null,
       ),

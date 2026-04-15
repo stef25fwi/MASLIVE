@@ -24,6 +24,7 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
   late UserFacingBottomBarTab _currentTab;
   Map<String, dynamic> _mediaArgs = const <String, dynamic>{};
   final ValueNotifier<int> _homeActionsMenuSignal = ValueNotifier<int>(0);
+  final ValueNotifier<int> _homeActionsMenuCloseSignal = ValueNotifier<int>(0);
   final Map<UserFacingBottomBarTab, Widget> _tabCache =
       <UserFacingBottomBarTab, Widget>{};
 
@@ -57,6 +58,7 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
   @override
   void dispose() {
     _homeActionsMenuSignal.dispose();
+    _homeActionsMenuCloseSignal.dispose();
     super.dispose();
   }
 
@@ -128,6 +130,7 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
         showBottomBar: false,
         openActionsMenuOnLoad: _currentTab == UserFacingBottomBarTab.explorer,
         actionsMenuOpenSignal: _homeActionsMenuSignal,
+        actionsMenuCloseSignal: _homeActionsMenuCloseSignal,
       ),
     );
   }
@@ -198,13 +201,32 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
           ),
           bottomNavigationBar: UserFacingBottomBar(
             currentTab: _currentTab,
-            onTabSelected: (tab) {
-              if (tab == UserFacingBottomBarTab.explorer) {
+            onExplorerTap: () {
+              if (_currentTab == UserFacingBottomBarTab.home) {
                 setState(() {
                   _currentTab = UserFacingBottomBarTab.explorer;
                 });
                 _homeActionsMenuSignal.value++;
                 return;
+              }
+
+              if (_currentTab == UserFacingBottomBarTab.explorer) {
+                setState(() {
+                  _currentTab = UserFacingBottomBarTab.home;
+                });
+                _homeActionsMenuCloseSignal.value++;
+                return;
+              }
+
+              setState(() {
+                _currentTab = UserFacingBottomBarTab.explorer;
+              });
+              _homeActionsMenuSignal.value++;
+            },
+            onTabSelected: (tab) {
+              if (_currentTab == UserFacingBottomBarTab.explorer &&
+                  tab != UserFacingBottomBarTab.explorer) {
+                _homeActionsMenuCloseSignal.value++;
               }
               if (tab == _currentTab) return;
               setState(() => _currentTab = tab);

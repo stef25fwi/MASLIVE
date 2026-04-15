@@ -10,10 +10,12 @@ class UserFacingBottomBar extends StatelessWidget {
     super.key,
     required this.currentTab,
     this.onTabSelected,
+    this.onExplorerTap,
   });
 
   final UserFacingBottomBarTab currentTab;
   final ValueChanged<UserFacingBottomBarTab>? onTabSelected;
+  final VoidCallback? onExplorerTap;
 
   void _openShellTab(BuildContext context, UserFacingBottomBarTab tab) {
     if (onTabSelected != null) {
@@ -88,6 +90,11 @@ class UserFacingBottomBar extends StatelessWidget {
                 label: 'Explorer',
                 tooltip: 'Explorer',
                 onTap: () {
+                  if (onExplorerTap != null) {
+                    onExplorerTap!();
+                    return;
+                  }
+                  if (currentTab == UserFacingBottomBarTab.explorer) return;
                   _openShellTab(context, UserFacingBottomBarTab.explorer);
                 },
               ),

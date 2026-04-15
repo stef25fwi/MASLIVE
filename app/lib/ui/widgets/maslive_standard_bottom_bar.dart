@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/maslive_theme.dart';
+
 typedef MasliveStandardBottomBarIconBuilder =
     Widget Function(BuildContext context, bool active);
 
@@ -142,6 +144,10 @@ class _MasliveStandardBottomBarAction extends StatelessWidget {
                 ? BoxDecoration(
                     gradient: _activeGradient,
                     borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: MasliveTheme.pink,
+                      width: 2,
+                    ),
                     boxShadow: const <BoxShadow>[_activeShadow],
                   )
                 : null,

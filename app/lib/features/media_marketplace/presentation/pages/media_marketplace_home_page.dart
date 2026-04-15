@@ -28,6 +28,8 @@ class MediaMarketplaceHomePage extends StatelessWidget {
     this.showContextHeader = true,
     this.embedded = false,
     this.showBranding = true,
+    this.showCatalogFilter = true,
+    this.showHeroCard = true,
     this.onOpenFilters,
     this.useParentScroll = false,
   });
@@ -42,6 +44,8 @@ class MediaMarketplaceHomePage extends StatelessWidget {
   final bool showContextHeader;
   final bool embedded;
   final bool showBranding;
+  final bool showCatalogFilter;
+  final bool showHeroCard;
   final VoidCallback? onOpenFilters;
   final bool useParentScroll;
 
@@ -73,6 +77,8 @@ class MediaMarketplaceHomePage extends StatelessWidget {
         circuitName: circuitName,
         showContextHeader: showContextHeader,
         showBranding: showBranding,
+        showCatalogFilter: showCatalogFilter,
+        showHeroCard: showHeroCard,
         onOpenFilters: onOpenFilters,
         useParentScroll: useParentScroll,
       ),
@@ -91,6 +97,8 @@ class _MediaMarketplaceHomeView extends StatefulWidget {
     required this.circuitName,
     required this.showContextHeader,
     required this.showBranding,
+    required this.showCatalogFilter,
+    required this.showHeroCard,
     required this.onOpenFilters,
     required this.useParentScroll,
   });
@@ -104,6 +112,8 @@ class _MediaMarketplaceHomeView extends StatefulWidget {
   final String? circuitName;
   final bool showContextHeader;
   final bool showBranding;
+  final bool showCatalogFilter;
+  final bool showHeroCard;
   final VoidCallback? onOpenFilters;
   final bool useParentScroll;
 
@@ -448,62 +458,64 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
             ),
             const SizedBox(height: 14),
           ],
-          _CatalogFilterTrigger(
-            countryFieldLabel: _countryFieldLabel(
-              _selectedCountryId,
-              _selectedCountryId == widget.countryId ? widget.countryName : null,
-            ),
-            eventFieldLabel: _selectedEventId == widget.eventId
-                ? _upperText(widget.eventName, fallback: 'SELECTIONNER UN EVENEMENT')
-                : _upperText(
-                    _selectedEventId,
-                    fallback: 'SELECTIONNER UN EVENEMENT',
-                  ),
-            circuitFieldLabel: _selectedCircuitId == widget.circuitId
-                ? _upperText(widget.circuitName, fallback: 'SELECTIONNER UN CIRCUIT')
-                : _upperText(
-                    _selectedCircuitId,
-                    fallback: 'SELECTIONNER UN CIRCUIT',
-                  ),
-            photographerController: _photographerController,
-            isExpanded: _catalogMenuExpanded,
-            onToggleExpanded: () {
-              setState(() {
-                _catalogMenuExpanded = !_catalogMenuExpanded;
-              });
-            },
-            onSelectCountry: (anchorKey) => _openInlineOptionMenu(
-              context: context,
-              anchorKey: anchorKey,
-              options: countryOptions,
-              onSelected: (value) {
+          if (widget.showCatalogFilter) ...<Widget>[
+            _CatalogFilterTrigger(
+              countryFieldLabel: _countryFieldLabel(
+                _selectedCountryId,
+                _selectedCountryId == widget.countryId ? widget.countryName : null,
+              ),
+              eventFieldLabel: _selectedEventId == widget.eventId
+                  ? _upperText(widget.eventName, fallback: 'SELECTIONNER UN EVENEMENT')
+                  : _upperText(
+                      _selectedEventId,
+                      fallback: 'SELECTIONNER UN EVENEMENT',
+                    ),
+              circuitFieldLabel: _selectedCircuitId == widget.circuitId
+                  ? _upperText(widget.circuitName, fallback: 'SELECTIONNER UN CIRCUIT')
+                  : _upperText(
+                      _selectedCircuitId,
+                      fallback: 'SELECTIONNER UN CIRCUIT',
+                    ),
+              photographerController: _photographerController,
+              isExpanded: _catalogMenuExpanded,
+              onToggleExpanded: () {
                 setState(() {
-                  _selectedCountryId = value;
+                  _catalogMenuExpanded = !_catalogMenuExpanded;
                 });
               },
+              onSelectCountry: (anchorKey) => _openInlineOptionMenu(
+                context: context,
+                anchorKey: anchorKey,
+                options: countryOptions,
+                onSelected: (value) {
+                  setState(() {
+                    _selectedCountryId = value;
+                  });
+                },
+              ),
+              onSelectEvent: (anchorKey) => _openInlineOptionMenu(
+                context: context,
+                anchorKey: anchorKey,
+                options: eventOptions,
+                onSelected: (value) {
+                  setState(() {
+                    _selectedEventId = value;
+                  });
+                },
+              ),
+              onSelectCircuit: (anchorKey) => _openInlineOptionMenu(
+                context: context,
+                anchorKey: anchorKey,
+                options: circuitOptions,
+                onSelected: (value) {
+                  setState(() {
+                    _selectedCircuitId = value;
+                  });
+                },
+              ),
             ),
-            onSelectEvent: (anchorKey) => _openInlineOptionMenu(
-              context: context,
-              anchorKey: anchorKey,
-              options: eventOptions,
-              onSelected: (value) {
-                setState(() {
-                  _selectedEventId = value;
-                });
-              },
-            ),
-            onSelectCircuit: (anchorKey) => _openInlineOptionMenu(
-              context: context,
-              anchorKey: anchorKey,
-              options: circuitOptions,
-              onSelected: (value) {
-                setState(() {
-                  _selectedCircuitId = value;
-                });
-              },
-            ),
-          ),
-          const SizedBox(height: 14),
+            const SizedBox(height: 14),
+          ],
           if (widget.showContextHeader && catalog.currentEventId != null) ...<Widget>[
             MediaMarketplaceContextChips(
               eventId: catalog.currentEventId!,
@@ -532,17 +544,20 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
                     .toList(growable: false),
               ),
             ),
-          const SizedBox(height: 20),
-          _HeroGalleryCard(
-            title: selectedGallery?.title.trim().isNotEmpty == true
-                ? selectedGallery!.title.trim().toUpperCase()
-                : (widget.eventName?.trim().isNotEmpty == true
-                    ? widget.eventName!.trim().toUpperCase()
-                    : 'GALERIE'),
-            imageUrl: heroImageUrl,
-            onTap: catalog.selectedGalleryId == null ? null : () {},
-          ),
-          const SizedBox(height: 22),
+          if (widget.showHeroCard) ...<Widget>[
+            const SizedBox(height: 20),
+            _HeroGalleryCard(
+              title: selectedGallery?.title.trim().isNotEmpty == true
+                  ? selectedGallery!.title.trim().toUpperCase()
+                  : (widget.eventName?.trim().isNotEmpty == true
+                      ? widget.eventName!.trim().toUpperCase()
+                      : 'GALERIE'),
+              imageUrl: heroImageUrl,
+              onTap: catalog.selectedGalleryId == null ? null : () {},
+            ),
+            const SizedBox(height: 22),
+          ] else
+            const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[

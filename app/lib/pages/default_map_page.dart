@@ -17,6 +17,7 @@ import '../services/auth_service.dart';
 import '../services/geolocation_service.dart';
 import '../services/home_controls_theme_service.dart';
 import '../services/language_service.dart';
+import '../services/startup_map_style_service.dart';
 import '../ui/theme/maslive_theme.dart';
 import '../ui/widgets/maslive_card.dart';
 import '../ui/widgets/active_circuit_header_banner.dart';
@@ -51,11 +52,13 @@ class DefaultMapPage extends StatefulWidget {
     this.showBottomBar = true,
     this.openActionsMenuOnLoad = false,
     this.actionsMenuOpenSignal,
+    this.actionsMenuCloseSignal,
   });
 
   final bool showBottomBar;
   final bool openActionsMenuOnLoad;
   final ValueListenable<int>? actionsMenuOpenSignal;
+  final ValueListenable<int>? actionsMenuCloseSignal;
 
   @override
   State<DefaultMapPage> createState() => _DefaultMapPageState();
@@ -65,6 +68,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     with WidgetsBindingObserver, TickerProviderStateMixin {
   static const String _prefsKeyDidAutoOpenActionsMenuOnce =
       'default_map_page.did_auto_open_actions_menu_once';
+  static const String _prefsKeyLastHomeStyleUrl =
+      'default_map_page.last_home_style_url';
 
   // Constantes
   static const Duration _resizeDebounceDelay = Duration(milliseconds: 80);
@@ -104,6 +109,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   final GeolocationService _geo = GeolocationService.instance;
   final HomeControlsThemeService _homeControlsThemeService =
       HomeControlsThemeService();
+    final StartupMapStyleService _startupMapStyleService =
+      StartupMapStyleService.instance;
   bool _isTracking = false;
   String? _userGroupId;
 
@@ -137,6 +144,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   int _marketRouteStyleProAnimTick = 0;
   bool _isApplyingMarketRoute = false;
   ValueListenable<int>? _boundActionsMenuSignal;
+  ValueListenable<int>? _boundActionsMenuCloseSignal;
 
   MarketMapService _getMarketMapService() {
     return _marketMapService ??= MarketMapService();
@@ -267,6 +275,41 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     }
   }
 
+  Future<void> _restoreLastHomeStyleUrl() async {
+    try {
+      final globalDefaultStyleUrl = await _startupMapStyleService.getDefaultStyleUrl();
+      if (mounted && globalDefaultStyleUrl != null && globalDefaultStyleUrl != _styleUrl) {
+        setState(() {
+          _styleUrl = globalDefaultStyleUrl;
+        });
+        return;
+      }
+    } catch (e) {
+      debugPrint('⚠️ Chargement style global démarrage impossible: $e');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(_prefsKeyLastHomeStyleUrl);
+    final resolved = tryNormalizeMapboxStyleUrl(stored);
+    if (!mounted || resolved == null || resolved == _styleUrl) {
+      return;
+    }
+
+    setState(() {
+      _styleUrl = resolved;
+    });
+  }
+
+  Future<void> _persistLastHomeStyleUrl(String styleUrl) async {
+    final normalized = tryNormalizeMapboxStyleUrl(styleUrl);
+    if (normalized == null || normalized.isEmpty) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsKeyLastHomeStyleUrl, normalized);
+  }
+
   void _startDeferredHomeInit() {
     if (_didStartDeferredHomeInit) return;
     _didStartDeferredHomeInit = true;
@@ -316,6 +359,13 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     _boundActionsMenuSignal?.addListener(_handleExternalActionsMenuOpen);
   }
 
+  void _bindActionsMenuCloseSignal(ValueListenable<int>? signal) {
+    if (identical(_boundActionsMenuCloseSignal, signal)) return;
+    _boundActionsMenuCloseSignal?.removeListener(_handleExternalActionsMenuClose);
+    _boundActionsMenuCloseSignal = signal;
+    _boundActionsMenuCloseSignal?.addListener(_handleExternalActionsMenuClose);
+  }
+
   void _handleExternalActionsMenuOpen() {
     if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -324,11 +374,21 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     });
   }
 
+  void _handleExternalActionsMenuClose() {
+    if (!mounted || !_showActionsMenu) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_showActionsMenu) return;
+      _dismissActionsMenu();
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _bindActionsMenuSignal(widget.actionsMenuOpenSignal);
+    _bindActionsMenuCloseSignal(widget.actionsMenuCloseSignal);
+    unawaited(_restoreLastHomeStyleUrl());
 
     _isTracking = _geo.isTracking;
     _listenHomeControlsThemeConfig();
@@ -371,6 +431,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     if (!identical(oldWidget.actionsMenuOpenSignal, widget.actionsMenuOpenSignal)) {
       _bindActionsMenuSignal(widget.actionsMenuOpenSignal);
     }
+    if (!identical(oldWidget.actionsMenuCloseSignal, widget.actionsMenuCloseSignal)) {
+      _bindActionsMenuCloseSignal(widget.actionsMenuCloseSignal);
+    }
   }
 
   Future<void> _autoOpenActionsMenuOnceIfNeeded() async {
@@ -409,6 +472,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   @override
   void dispose() {
     _boundActionsMenuSignal?.removeListener(_handleExternalActionsMenuOpen);
+    _boundActionsMenuCloseSignal?.removeListener(_handleExternalActionsMenuClose);
     _groupPublicPosSub?.cancel();
     _homeControlsThemeSub?.cancel();
     _marketPoisSub?.cancel();
@@ -502,6 +566,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       _marketRouteBounds = null;
       _mapRebuildTick++;
     });
+
+    unawaited(_persistLastHomeStyleUrl(resolvedStyleUrl));
 
     _marketRouteStyleProTimer?.cancel();
     _marketRouteStyleProTimer = null;

@@ -75,7 +75,7 @@ Future<MarketMapPoiSelection?> showMarketMapCircuitSelectorSheet(
     context,
     service: service,
     initial: initial,
-    title: '',
+    title: "MAP'MARKET",
     showLayers: false,
     disableKeyboardInput: disableKeyboardInput,
   );
@@ -103,6 +103,16 @@ class _MarketMapPoiSelectorSheet extends StatefulWidget {
 
 class _MarketMapPoiSelectorSheetState
     extends State<_MarketMapPoiSelectorSheet> {
+  static const LinearGradient _headerGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: <Color>[
+      Color(0xFFFFB1D8),
+      Color(0xFFFF6BB5),
+      Color(0xFFFF8CC6),
+    ],
+  );
+
   MarketCountry? _country;
   MarketEvent? _event;
   MarketCircuit? _circuit;
@@ -442,29 +452,59 @@ class _MarketMapPoiSelectorSheetState
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                Row(
-                  children: [
-                    if (widget.title.trim().isNotEmpty)
-                      Expanded(
-                        child: Text(
-                          widget.title,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
+                  if (widget.title.trim().isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: _headerGradient,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: <BoxShadow>[
+                          BoxShadow(
+                            color: const Color(0xFFFF6BB5).withValues(alpha: 0.22),
+                            blurRadius: 18,
+                            offset: const Offset(0, 8),
                           ),
-                        ),
-                      )
-                    else
-                      const Spacer(),
-                    TextButton.icon(
-                      onPressed: () => Navigator.of(
-                        context,
-                      ).pop(const MarketMapPoiSelection.disabled()),
-                      icon: const Icon(Icons.visibility_off_rounded),
-                      label: const Text('Désactiver'),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.map_rounded,
+                            color: Colors.white,
+                            size: 22,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              widget.title,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(height: 10),
                   ],
-                ),
+                  Row(
+                    children: [
+                      const Spacer(),
+                      TextButton.icon(
+                        onPressed: () => Navigator.of(
+                          context,
+                        ).pop(const MarketMapPoiSelection.disabled()),
+                        icon: const Icon(Icons.visibility_off_rounded),
+                        label: const Text('Désactiver'),
+                      ),
+                    ],
+                  ),
                 if (!allowSelection) const LinearProgressIndicator(),
                 if (visibleIndexHasError)
                   const Padding(

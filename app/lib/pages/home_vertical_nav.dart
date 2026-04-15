@@ -116,7 +116,7 @@ class HomeVerticalNavMenu extends StatelessWidget {
 
 class HomeVerticalNavActionItem extends StatelessWidget {
   final HomeVerticalNavItem item;
-  static const Color _inactiveColor = Color(0xFF98A2B3);
+  static const Color _inactiveColor = Color(0xFF101828);
 
   static const double _buttonSize = 56;
   static const double _iconSize = 26;
