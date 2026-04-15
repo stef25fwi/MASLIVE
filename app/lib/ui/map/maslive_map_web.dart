@@ -38,6 +38,7 @@ class MasLiveMapWeb extends StatefulWidget {
   final ValueChanged<MapPoint>? onTap;
   final void Function(MasLiveMapController)? onMapReady;
   final void Function(String message)? onInitError;
+  final void Function()? onStyleFallback;
 
   const MasLiveMapWeb({
     super.key,
@@ -60,6 +61,7 @@ class MasLiveMapWeb extends StatefulWidget {
     this.onTap,
     this.onMapReady,
     this.onInitError,
+    this.onStyleFallback,
   });
 
   @override
@@ -2286,6 +2288,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             });
             widget.onInitError?.call(msg);
           },
+          onStyleFallback: widget.onStyleFallback,
         );
       },
     );
@@ -2323,6 +2326,7 @@ class _MapboxWebViewCustom extends StatefulWidget {
   final VoidCallback? onMapReady;
   final void Function(double lng, double lat)? onTap;
   final void Function(String message)? onInitError;
+  final VoidCallback? onStyleFallback;
 
   const _MapboxWebViewCustom({
     super.key,
@@ -2343,6 +2347,7 @@ class _MapboxWebViewCustom extends StatefulWidget {
     this.onMapReady,
     this.onTap,
     this.onInitError,
+    this.onStyleFallback,
   });
 
   @override
@@ -2495,6 +2500,11 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
           if (lng is num && lat is num) {
             widget.onTap?.call(lng.toDouble(), lat.toDouble());
           }
+        }
+
+        if (type == 'MASLIVE_MAP_STYLE_FALLBACK') {
+          widget.onStyleFallback?.call();
+          return;
         }
 
         if (type == 'MASLIVE_MAP_ERROR') {

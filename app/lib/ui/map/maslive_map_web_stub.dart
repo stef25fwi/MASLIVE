@@ -28,6 +28,7 @@ class MasLiveMapWeb extends StatelessWidget {
     this.onTap,
     this.onMapReady,
     this.onInitError,
+    this.onStyleFallback,
   });
 
   final MasLiveMapController? controller;
@@ -49,6 +50,7 @@ class MasLiveMapWeb extends StatelessWidget {
   final ValueChanged<MapPoint>? onTap;
   final void Function(MasLiveMapController)? onMapReady;
   final void Function(String message)? onInitError;
+  final void Function()? onStyleFallback;
 
   @override
   Widget build(BuildContext context) {

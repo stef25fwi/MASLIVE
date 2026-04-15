@@ -27,6 +27,7 @@ class MasLiveMapNative extends StatefulWidget {
   final ValueChanged<MapPoint>? onTap;
   final void Function(MasLiveMapController)? onMapReady;
   final void Function(String message)? onInitError;
+  final void Function()? onStyleFallback;
 
   const MasLiveMapNative({
     super.key,
@@ -43,6 +44,7 @@ class MasLiveMapNative extends StatefulWidget {
     this.onTap,
     this.onMapReady,
     this.onInitError,
+    this.onStyleFallback,
   });
 
   @override

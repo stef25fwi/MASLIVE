@@ -295,6 +295,26 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     await prefs.setString(_prefsKeyLastHomeStyleUrl, normalized);
   }
 
+  Future<void> _clearPersistedLastHomeStyleUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefsKeyLastHomeStyleUrl);
+  }
+
+  void _handleMapStyleFallback() {
+    unawaited(_clearPersistedLastHomeStyleUrl());
+    if (!mounted) return;
+
+    final defaultStyleUrl = normalizeMapboxStyleUrl(
+      kDefaultMapboxStyleUrl,
+      fallback: kDefaultMapboxStyleUrl,
+    );
+    if (_styleUrl == defaultStyleUrl) return;
+
+    setState(() {
+      _styleUrl = defaultStyleUrl;
+    });
+  }
+
   void _startDeferredHomeInit() {
     if (_didStartDeferredHomeInit) return;
     _didStartDeferredHomeInit = true;
@@ -1813,6 +1833,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                             unawaited(_applyCachedMarketRouteToMap());
                           },
                           onInitError: _handleMapInitError,
+                          onStyleFallback: _handleMapStyleFallback,
                         ),
                       ),
                     ),
