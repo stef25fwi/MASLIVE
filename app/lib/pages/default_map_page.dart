@@ -23,14 +23,15 @@ import '../ui/widgets/active_circuit_header_banner.dart';
 import '../ui/widgets/maslive_standard_bottom_bar.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
 import '../ui/widgets/marketmap_poi_selector_sheet.dart';
+import '../ui/widgets/polaroid_poi_sheet.dart';
 import '../route_style_pro/services/route_style_pro_projection.dart';
 import '../route_style_pro/models/route_style_config.dart' as rsp;
 import '../ui/map/maslive_map.dart';
-import '../ui/map/maslive_map_controller.dart'
-    show MapMarker, MapPoint, MasLiveMapController;
+import '../ui/map/maslive_map_controller.dart' show MapMarker, MapPoint;
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
 import '../l10n/app_localizations.dart' as l10n;
 import '../services/market_map_service.dart';
+import '../services/poi_popup_service.dart';
 import '../models/market_poi.dart';
 import '../models/group_circuit_public_position.dart';
 import '../services/group/marketmap_group_public_position_service.dart';
@@ -79,6 +80,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   static const Duration _deferredHomeInitDelay = Duration(milliseconds: 850);
   static const int _trackingIntervalSeconds = 15;
   static const double _homeBottomBarHeight = 58;
+  static const Duration _poiPopupDebounce = Duration(milliseconds: 650);
 
   ui.Size? _lastMapSize;
   int _mapRebuildTick = 0;
@@ -128,14 +130,16 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       const MarketMapPoiSelection.disabled();
   StreamSubscription? _marketPoisSub;
   List<MarketPoi> _marketPois = const <MarketPoi>[];
-  List<MapMarker> _marketPoiMarkers = const <MapMarker>[];
-  final MasLiveMapController _mapController = MasLiveMapController();
+  final MasLiveMapControllerPoi _mapController = MasLiveMapControllerPoi();
 
   bool _isMasLiveMapReady = false;
   List<MapPoint> _marketRoutePoints = const <MapPoint>[];
   Map<String, dynamic> _marketRouteStyle = const <String, dynamic>{};
   rsp.RouteStyleConfig? _marketRouteStylePro;
   ({double west, double south, double east, double north})? _marketRouteBounds;
+  bool _isPoiPopupShowing = false;
+  DateTime? _lastPoiPopupAt;
+  String? _lastPoiPopupId;
 
   Timer? _marketRouteStyleProTimer;
   int _marketRouteStyleProAnimTick = 0;
@@ -152,14 +156,16 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   String? get _activeCircuitName {
     final circuitName = _marketPoiSelection.circuit?.name.trim();
-    if (!_marketPoiSelection.enabled || circuitName == null || circuitName.isEmpty) {
+    if (!_marketPoiSelection.enabled ||
+        circuitName == null ||
+        circuitName.isEmpty) {
       return null;
     }
     return circuitName;
   }
 
   List<MapMarker> _composeMarkers() {
-    final markers = List<MapMarker>.from(_marketPoiMarkers);
+    final markers = <MapMarker>[];
 
     // Position moyenne du/des groupe(s) (visible uniquement quand l'utilisateur active Tracking)
     if (_isTracking && _groupPublicMarkers.isNotEmpty) {
@@ -236,6 +242,183 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   Future<void> _syncMarkersToMap() async {
     await _mapController.setMarkers(_composeMarkers());
+  }
+
+  Future<void> _syncMarketPoisToMap() async {
+    if (!_isMasLiveMapReady) return;
+
+    final pois = _visibleMarketPoisForCurrentAction();
+    if (pois.isEmpty) {
+      await _mapController.clearPoisGeoJson();
+      return;
+    }
+
+    await _mapController.setPoisGeoJson(
+      _buildMarketPoisFeatureCollection(pois),
+    );
+  }
+
+  List<MarketPoi> _visibleMarketPoisForCurrentAction() {
+    final action = _selectedAction;
+    final filterType = _actionToPoiType(action);
+
+    Iterable<MarketPoi> pois = _marketPois.where(
+      (poi) => poi.lat != 0.0 && poi.lng != 0.0,
+    );
+
+    if (action == _MapAction.parkingWc) {
+      pois = pois.where((poi) => poi.type == 'parking' || poi.type == 'wc');
+    } else if (filterType == null) {
+      return const <MarketPoi>[];
+    } else {
+      pois = pois.where((poi) => poi.type == filterType);
+    }
+
+    return pois.toList();
+  }
+
+  Map<String, dynamic> _buildMarketPoisFeatureCollection(List<MarketPoi> pois) {
+    return <String, dynamic>{
+      'type': 'FeatureCollection',
+      'features': pois
+          .map(
+            (poi) => <String, dynamic>{
+              'type': 'Feature',
+              'id': poi.id,
+              'properties': <String, dynamic>{
+                'poiId': poi.id,
+                'layerId': poi.layerId.trim().isNotEmpty
+                    ? poi.layerId.trim()
+                    : ((poi.type ?? 'market').trim().isEmpty
+                          ? 'market'
+                          : poi.type!.trim()),
+                'type': poi.type ?? poi.layerId,
+                'title': poi.name,
+                'name': poi.name,
+              },
+              'geometry': <String, dynamic>{
+                'type': 'Point',
+                'coordinates': <double>[poi.lng, poi.lat],
+              },
+            },
+          )
+          .toList(),
+    };
+  }
+
+  String _marketPoiOpeningHoursText(Object? raw) {
+    if (raw == null) return '';
+    if (raw is String) return raw.trim();
+    try {
+      return jsonEncode(raw);
+    } catch (_) {
+      return raw.toString();
+    }
+  }
+
+  String _marketPoiImageUrl(MarketPoi poi) {
+    final direct = (poi.imageUrl ?? '').trim();
+    if (direct.isNotEmpty) return direct;
+    final imageMeta = poi.metadata?['image'];
+    if (imageMeta is Map) {
+      final url = (imageMeta['url'] ?? imageMeta['downloadUrl'] ?? '')
+          .toString()
+          .trim();
+      if (url.isNotEmpty) return url;
+    }
+    return '';
+  }
+
+  bool _marketPoiHasImageInMetadata(MarketPoi poi) {
+    final imageMeta = poi.metadata?['image'];
+    if (imageMeta is! Map) return false;
+    final url = (imageMeta['url'] ?? imageMeta['downloadUrl'] ?? '')
+        .toString()
+        .trim();
+    return url.isNotEmpty;
+  }
+
+  Future<void> _handleMarketPoiTap(String poiId) async {
+    MarketPoi? poi;
+    for (final candidate in _visibleMarketPoisForCurrentAction()) {
+      if (candidate.id == poiId) {
+        poi = candidate;
+        break;
+      }
+    }
+    if (poi == null || !mounted) return;
+
+    final type = (poi.type ?? poi.layerId).trim();
+    final title = poi.name.trim().isEmpty
+        ? 'Point d\'intérêt'
+        : poi.name.trim();
+    final description = (poi.description ?? '').trim();
+    final imageUrl = _marketPoiImageUrl(poi);
+    final hasImage = imageUrl.isNotEmpty || _marketPoiHasImageInMetadata(poi);
+    final popupEnabled = PoiPopupService.isPopupEnabled(
+      type: type,
+      meta: poi.metadata,
+      requireImage: false,
+      hasImage: hasImage,
+    );
+
+    final hasCardData =
+        title.isNotEmpty ||
+        description.isNotEmpty ||
+        imageUrl.isNotEmpty ||
+        (poi.address ?? '').trim().isNotEmpty ||
+        _marketPoiOpeningHoursText(poi.openingHours).isNotEmpty ||
+        (poi.phone ?? '').trim().isNotEmpty ||
+        (poi.website ?? '').trim().isNotEmpty ||
+        (poi.instagram ?? '').trim().isNotEmpty ||
+        (poi.facebook ?? '').trim().isNotEmpty ||
+        (poi.whatsapp ?? '').trim().isNotEmpty ||
+        (poi.email ?? '').trim().isNotEmpty ||
+        (poi.mapsUrl ?? '').trim().isNotEmpty;
+
+    if (!popupEnabled || !hasCardData) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final lastAt = _lastPoiPopupAt;
+    if (_isPoiPopupShowing) return;
+    if (lastAt != null &&
+        now.difference(lastAt) < _poiPopupDebounce &&
+        _lastPoiPopupId == poiId) {
+      return;
+    }
+
+    _lastPoiPopupAt = now;
+    _lastPoiPopupId = poiId;
+    _isPoiPopupShowing = true;
+
+    try {
+      await showPolaroidPoiSheet(
+        context: context,
+        title: title,
+        description: description.isEmpty
+            ? 'Aucune description disponible'
+            : description,
+        imageUrl: imageUrl.isEmpty ? null : imageUrl,
+        meta: poi.metadata,
+        hours: _marketPoiOpeningHoursText(poi.openingHours),
+        phone: poi.phone,
+        website: poi.website,
+        whatsapp: poi.whatsapp,
+        email: poi.email,
+        address: poi.address,
+        mapsUrl: poi.mapsUrl,
+        lat: poi.lat,
+        lng: poi.lng,
+        countryId: _marketPoiSelection.country?.id,
+        eventId: _marketPoiSelection.event?.id,
+        circuitId: _marketPoiSelection.circuit?.id,
+        poiId: poi.id,
+      );
+    } finally {
+      _isPoiPopupShowing = false;
+    }
   }
 
   Future<void> _configureMapboxToken() async {
@@ -399,6 +582,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
     _isTracking = _geo.isTracking;
     _listenHomeControlsThemeConfig();
+    _mapController.onPoiTap = _handleMarketPoiTap;
 
     // Initialiser le drapeau de langue dès initState (pas de délai)
     _updateLanguageFlag();
@@ -435,7 +619,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   @override
   void didUpdateWidget(covariant DefaultMapPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.actionsMenuOpenSignal, widget.actionsMenuOpenSignal)) {
+    if (!identical(
+      oldWidget.actionsMenuOpenSignal,
+      widget.actionsMenuOpenSignal,
+    )) {
       _bindActionsMenuSignal(widget.actionsMenuOpenSignal);
     }
     if (!identical(
@@ -495,24 +682,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     super.dispose();
   }
 
-  Color _poiColorForType(String? type) {
-    switch (type) {
-      case 'food':
-        return const Color(0xFFFF9800);
-      case 'visit':
-        return const Color(0xFF9B6BFF);
-      case 'wc':
-        return const Color(0xFF2196F3);
-      case 'parking':
-        return const Color(0xFF4CAF50);
-      case 'assistance':
-        return const Color(0xFFFFC107);
-      case 'market':
-      default:
-        return const Color(0xFFE91E63);
-    }
-  }
-
   Future<void> _applyMarketPoiSelection(
     MarketMapPoiSelection selection, {
     bool resetPoiFilter = false,
@@ -535,7 +704,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       if (!mounted) return;
       setState(() {
         _marketPois = const <MarketPoi>[];
-        _marketPoiMarkers = const <MapMarker>[];
         _marketRoutePoints = const <MapPoint>[];
         _marketRouteStyle = const <String, dynamic>{};
         _marketRouteStylePro = null;
@@ -544,6 +712,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
       // Masquer le tracé sans effacer les marqueurs.
       if (_isMasLiveMapReady) {
+        unawaited(_mapController.clearPoisGeoJson());
         unawaited(
           _mapController.setPolyline(points: const <MapPoint>[], show: false),
         );
@@ -568,8 +737,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       _styleUrl = resolvedStyleUrl;
 
       // Nouveau circuit => reset affichage POIs.
-      _marketPoiMarkers = const <MapMarker>[];
-
       // Nouveau widget Map -> on attend son onMapReady pour appliquer le tracé.
       _isMasLiveMapReady = false;
       _marketRoutePoints = const <MapPoint>[];
@@ -1066,25 +1233,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
     // Action fusionnée: afficher parking + wc.
     if (action == _MapAction.parkingWc) {
-      final markers = _marketPois
-          .where((p) => p.lat != 0.0 && p.lng != 0.0)
-          .where((p) => p.type == 'parking' || p.type == 'wc')
-          .map(
-            (p) => MapMarker(
-              id: 'marketpoi:${p.id}',
-              lng: p.lng,
-              lat: p.lat,
-              label: p.name,
-              color: _poiColorForType(p.type),
-              size: 1.0,
-            ),
-          )
-          .toList();
-
-      setState(() {
-        _marketPoiMarkers = markers;
-      });
-
+      unawaited(_syncMarketPoisToMap());
       unawaited(_syncMarkersToMap());
       return;
     }
@@ -1092,31 +1241,12 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     // Par défaut (aucune action sélectionnée), on n'affiche aucun POI.
     // Les POIs apparaissent uniquement après clic sur une icône de la barre verticale.
     if (filterType == null) {
-      setState(() {
-        _marketPoiMarkers = const <MapMarker>[];
-      });
+      unawaited(_syncMarketPoisToMap());
       unawaited(_syncMarkersToMap());
       return;
     }
-    final markers = _marketPois
-        .where((p) => p.lat != 0.0 && p.lng != 0.0)
-        .where((p) => p.type == filterType)
-        .map(
-          (p) => MapMarker(
-            id: 'marketpoi:${p.id}',
-            lng: p.lng,
-            lat: p.lat,
-            label: p.name,
-            color: _poiColorForType(p.type),
-            size: 1.0,
-          ),
-        )
-        .toList();
 
-    setState(() {
-      _marketPoiMarkers = markers;
-    });
-
+    unawaited(_syncMarketPoisToMap());
     unawaited(_syncMarkersToMap());
   }
 
@@ -1470,10 +1600,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     ];
   }
 
-  Widget _buildBottomBar(
-    BuildContext context, {
-    required User? user,
-  }) {
+  Widget _buildBottomBar(BuildContext context, {required User? user}) {
     final items = _buildBottomBarItems(context, user);
 
     return MasliveStandardBottomBar(
@@ -1780,7 +1907,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
             final navMenuWidth = navItemSize + (navHorizontalPadding * 2);
             final tooltipRight = navMenuWidth + tooltipGapToMenu;
             final carteIconCenterY =
-              menuTopOffset + navVerticalPadding + (navItemSize / 2);
+                menuTopOffset + navVerticalPadding + (navItemSize / 2);
             final activeCircuitName = _activeCircuitName;
 
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1835,6 +1962,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                             _startDeferredHomeInit();
                             _startPostSplashUiWarmups();
                             unawaited(_syncMarkersToMap());
+                            unawaited(_syncMarketPoisToMap());
                             unawaited(_applyCachedMarketRouteToMap());
                           },
                           onInitError: _handleMapInitError,

@@ -7,6 +7,7 @@
 
 const admin = require("firebase-admin");
 const ngeohash = require("ngeohash");
+const sharp = require("sharp");
 const { setGlobalOptions, logger } = require("firebase-functions/v2");
 const { defineSecret } = require("firebase-functions/params");
 const {
@@ -14,9 +15,11 @@ const {
   onDocumentUpdated,
   onDocumentDeleted,
 } = require("firebase-functions/v2/firestore");
+const { onObjectFinalized } = require("firebase-functions/v2/storage");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const createMediaMarketplaceStripe = require("./src/media-marketplace-stripe");
 const createMediaMarketplaceMedia = require("./src/media-marketplace-media");
+const createPoiImageWebpHandlers = require("./src/poi-image-webp");
 const createRestaurantLiveTablesHandlers = require("./src/restaurant-live-tables");
 
 const STRIPE_SECRET_KEY = defineSecret("STRIPE_SECRET_KEY");
@@ -781,6 +784,13 @@ const restaurantLiveTablesHandlers = createRestaurantLiveTablesHandlers({
   getStripe,
   isAllowedRedirectUrl,
 });
+const poiImageWebpHandlers = createPoiImageWebpHandlers({
+  admin,
+  db,
+  onObjectFinalized,
+  logger,
+  sharp,
+});
 
 exports.createMediaMarketplaceCheckout =
   mediaMarketplaceStripe.createMediaMarketplaceCheckout;
@@ -799,6 +809,8 @@ exports.setRestaurantLiveTableStatus =
   restaurantLiveTablesHandlers.setRestaurantLiveTableStatus;
 exports.createRestaurantLiveTableSubscriptionCheckoutSession =
   restaurantLiveTablesHandlers.createRestaurantLiveTableSubscriptionCheckoutSession;
+exports.convertPlacePhotoUploadToWebp =
+  poiImageWebpHandlers.convertPlacePhotoUploadToWebp;
 
 function assertNumber(n, name) {
   if (typeof n !== "number" || Number.isNaN(n) || !Number.isFinite(n)) {

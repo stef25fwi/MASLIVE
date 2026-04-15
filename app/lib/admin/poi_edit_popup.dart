@@ -15,7 +15,6 @@ import '../features/restaurant_live_tables/widgets/live_table_pro_panel.dart';
 import '../services/image_management_service.dart';
 import '../services/poi_popup_service.dart';
 import '../services/premium_service.dart';
-import '../services/webp_converter.dart';
 import '../ui/map/maslive_map.dart';
 import '../ui/map/maslive_map_controller.dart';
 import '../ui/map/maslive_poi_style.dart';
@@ -75,18 +74,12 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
   XFile? _selectedFile;
   Uint8List? _selectedPreviewBytes;
   Future<Uint8List>? _previewBytesFuture;
-  XFile? _originalPickedFile;
-  Uint8List? _originalPickedBytes;
   String? _uploadedImageUrl;
   String? _uploadedImageAssetId;
 
   bool _isSaving = false;
   bool _isUploading = false;
-  bool _isConverting = false;
   double _uploadProgress = 0.0;
-
-  bool _convertToWebp = true;
-  bool _webpUnsupportedNotified = false;
 
   double _angleDeg = -1.7;
   double _grain = 0.35;
@@ -404,9 +397,9 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
             const SizedBox(width: 8),
             Text(
               'Carte du POI',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
           ],
         ),
@@ -441,9 +434,9 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
         const SizedBox(height: 6),
         Text(
           'Astuce: touchez la carte pour mettre a jour Lat/Lng automatiquement.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: MasliveTokens.textSoft,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: MasliveTokens.textSoft),
         ),
       ],
     );
@@ -597,40 +590,10 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
     }
   }
 
-  String _withWebpExtension(String filename) {
-    final lower = filename.toLowerCase();
-    final dot = lower.lastIndexOf('.');
-    if (dot <= 0) return '$filename.webp';
-    return '${filename.substring(0, dot)}.webp';
-  }
-
-  Future<void> _toggleConvertToWebp(bool value) async {
-    if (!mounted) return;
-    setState(() {
-      _convertToWebp = value;
-      _isConverting = true;
-    });
-
-    final originalFile = _originalPickedFile;
-    if (originalFile == null) {
-      if (mounted) setState(() => _isConverting = false);
-      return;
-    }
-
-    try {
-      await _applyConversionFromOriginal(originalFile);
-    } finally {
-      if (mounted) setState(() => _isConverting = false);
-    }
-  }
-
   Future<void> _setSelectedFile(XFile file) async {
     if (!mounted) return;
     setState(() {
-      _isConverting = true;
-      _originalPickedFile = file;
       _selectedFile = file;
-      _originalPickedBytes = null;
       _selectedPreviewBytes = null;
       _previewBytesFuture = file.readAsBytes();
     });
@@ -640,10 +603,9 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
 
       if (!mounted) return;
       setState(() {
-        _originalPickedBytes = originalBytes;
+        _selectedFile = file;
+        _selectedPreviewBytes = originalBytes;
       });
-
-      await _applyConversionFromOriginal(file);
 
       // Si l'utilisateur ajoute une image, on peut re-permettre le popup.
       if (!mounted) return;
@@ -659,91 +621,14 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       }
     } catch (e) {
       if (!mounted) return;
-      final fallback = _originalPickedBytes;
       setState(() {
-        if (fallback != null) {
-          _selectedFile = file;
-          _selectedPreviewBytes = fallback;
-        } else {
-          _selectedFile = null;
-          _selectedPreviewBytes = null;
-          _previewBytesFuture = null;
-        }
+        _selectedFile = null;
+        _selectedPreviewBytes = null;
+        _previewBytesFuture = null;
       });
       TopSnackBar.showMessage(
         context,
         '⚠️ Lecture image impossible: $e',
-        isError: true,
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isConverting = false);
-      }
-    }
-  }
-
-  Future<void> _applyConversionFromOriginal(XFile originalFile) async {
-    final originalBytes = _originalPickedBytes;
-    if (originalBytes == null) {
-      // On n'a pas encore les bytes (lecture en cours) => on garde l'original pour l'instant.
-      if (!mounted) return;
-      setState(() {
-        _selectedFile = originalFile;
-        _selectedPreviewBytes = null;
-      });
-      return;
-    }
-
-    try {
-      if (_convertToWebp) {
-        if (!supportsWebpConversion) {
-          if (!_webpUnsupportedNotified && mounted) {
-            _webpUnsupportedNotified = true;
-            TopSnackBar.showMessage(
-              context,
-              'ℹ️ Conversion WebP disponible sur Web uniquement (pour l’instant).',
-              isError: false,
-            );
-          }
-
-          if (!mounted) return;
-          setState(() {
-            _selectedFile = originalFile;
-            _selectedPreviewBytes = originalBytes;
-          });
-          return;
-        }
-
-        final webpBytes = await convertBytesToWebp(originalBytes, quality: 88);
-
-        final webpFile = XFile.fromData(
-          webpBytes,
-          name: _withWebpExtension(originalFile.name),
-          mimeType: 'image/webp',
-        );
-
-        if (!mounted) return;
-        setState(() {
-          _selectedFile = webpFile;
-          _selectedPreviewBytes = webpBytes;
-        });
-      } else {
-        if (!mounted) return;
-        setState(() {
-          _selectedFile = originalFile;
-          _selectedPreviewBytes = originalBytes;
-        });
-      }
-    } catch (e) {
-      if (!mounted) return;
-      // Fallback: garder l'original (sans conversion)
-      setState(() {
-        _selectedFile = originalFile;
-        _selectedPreviewBytes = originalBytes;
-      });
-      TopSnackBar.showMessage(
-        context,
-        '⚠️ Conversion WebP impossible, upload en original: $e',
         isError: true,
       );
     }
@@ -1106,7 +991,9 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
             if (snap.hasError) {
               return const ColoredBox(
                 color: Colors.black12,
-                child: Center(child: Icon(Icons.broken_image_rounded, size: 42)),
+                child: Center(
+                  child: Icon(Icons.broken_image_rounded, size: 42),
+                ),
               );
             }
             return const Center(child: CircularProgressIndicator());
@@ -1259,8 +1146,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                                 child: buildMasLivePoiAppearanceMenuItem(p),
                               ),
                           ],
-                          onChanged:
-                              (_isSaving || _isUploading || _isConverting)
+                          onChanged: (_isSaving || _isUploading)
                               ? null
                               : (v) {
                                   if (v == null) return;
@@ -1405,7 +1291,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
 
                   const SizedBox(height: 12),
                   FilledButton.tonalIcon(
-                    onPressed: (!canUpload || _isSaving || _isConverting)
+                    onPressed: (!canUpload || _isSaving)
                         ? null
                         : _showSourcePicker,
                     style: FilledButton.styleFrom(
@@ -1433,21 +1319,6 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                     ),
                   ],
 
-                  if (_selectedFile != null) ...[
-                    const SizedBox(height: 6),
-                    SwitchListTile.adaptive(
-                      value: _convertToWebp,
-                      onChanged: (_isSaving || _isUploading || _isConverting)
-                          ? null
-                          : _toggleConvertToWebp,
-                      title: const Text('Convertir en WebP'),
-                      subtitle: const Text(
-                        'Réduit la taille et accélère le chargement.',
-                      ),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ],
-
                   if (!canUpload) ...[
                     const SizedBox(height: 6),
                     Text(
@@ -1460,11 +1331,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                   if (_selectedFile != null) ...[
                     const SizedBox(height: 8),
                     FilledButton.icon(
-                      onPressed:
-                          (!canUpload ||
-                              _isSaving ||
-                              _isUploading ||
-                              _isConverting)
+                      onPressed: (!canUpload || _isSaving || _isUploading)
                           ? null
                           : _uploadSelectedImageIfNeeded,
                       style: FilledButton.styleFrom(
@@ -1473,17 +1340,6 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                       ),
                       icon: const Icon(Icons.cloud_upload_rounded),
                       label: const Text('Uploader'),
-                    ),
-                  ],
-
-                  if (_isConverting) ...[
-                    const SizedBox(height: 8),
-                    const LinearProgressIndicator(),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Conversion en WebP…',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
 
@@ -1503,11 +1359,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                   const SizedBox(height: 8),
                   SwitchListTile.adaptive(
                     value: _popupEnabled,
-                    onChanged:
-                        (_isSaving ||
-                            _isUploading ||
-                            _isConverting ||
-                            !_hasAnyImage)
+                    onChanged: (_isSaving || _isUploading || !_hasAnyImage)
                         ? null
                         : (v) => setState(() => _popupEnabled = v),
                     title: const Text('Popup'),
@@ -1581,9 +1433,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: (_isSaving || _isUploading || _isConverting)
-                              ? null
-                              : _save,
+                          onPressed: (_isSaving || _isUploading) ? null : _save,
                           child: Text(
                             _isSaving ? 'Enregistrement…' : 'Enregistrer',
                           ),
@@ -1596,9 +1446,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                             backgroundColor: MasliveTokens.primary,
                             foregroundColor: Colors.white,
                           ),
-                          onPressed: (_isSaving || _isUploading || _isConverting)
-                              ? null
-                              : _save,
+                          onPressed: (_isSaving || _isUploading) ? null : _save,
                           icon: const Icon(Icons.check_circle_rounded),
                           label: Text(
                             _isSaving
