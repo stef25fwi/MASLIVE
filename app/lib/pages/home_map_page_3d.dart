@@ -3163,6 +3163,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       selectedIndex: _activeBottomBarIndex,
       height: _homeBottomBarHeight,
       padding: const EdgeInsets.symmetric(horizontal: 8),
+      includeBottomSafeArea: true,
     );
   }
 
@@ -3253,14 +3254,11 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
             true, // Permet à la carte de passer SOUS la barre de navigation
         extendBodyBehindAppBar:
             true, // IMPORTANT : la carte passera sous la barre d'état
-        bottomNavigationBar: SafeArea(
-          top: false,
-          child: StreamBuilder<User?>(
-            stream: AuthService.instance.authStateChanges,
-            builder: (context, snap) {
-              return _buildBottomBar(context, user: snap.data);
-            },
-          ),
+        bottomNavigationBar: StreamBuilder<User?>(
+          stream: AuthService.instance.authStateChanges,
+          builder: (context, snap) {
+            return _buildBottomBar(context, user: snap.data);
+          },
         ),
         body: Stack(
           clipBehavior: Clip.none,

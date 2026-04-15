@@ -14,6 +14,7 @@ class MasliveStandardBottomBar extends StatelessWidget {
     this.padding = const EdgeInsets.symmetric(horizontal: 14),
     this.backgroundColor = const Color(0xF9FFFFFF),
     this.inactiveColor = const Color(0xFF98A2B3),
+    this.includeBottomSafeArea = false,
     this.border,
     this.borderRadius = BorderRadius.zero,
     this.boxShadow = const <BoxShadow>[
@@ -33,13 +34,14 @@ class MasliveStandardBottomBar extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final Color backgroundColor;
   final Color inactiveColor;
+  final bool includeBottomSafeArea;
   final Border? border;
   final BorderRadiusGeometry borderRadius;
   final List<BoxShadow> boxShadow;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    final bar = Material(
       color: Colors.transparent,
       child: Container(
         height: height,
@@ -52,7 +54,7 @@ class MasliveStandardBottomBar extends StatelessWidget {
           boxShadow: boxShadow,
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: List.generate(items.length, (index) {
             final item = items[index];
             final action = _MasliveStandardBottomBarAction(
@@ -61,15 +63,29 @@ class MasliveStandardBottomBar extends StatelessWidget {
               inactiveColor: inactiveColor,
             );
 
+            final actionSlot = Expanded(
+              child: Center(child: action),
+            );
+
             if (item.tooltip == null || item.tooltip!.trim().isEmpty) {
-              return action;
+              return actionSlot;
             }
 
-            return Tooltip(message: item.tooltip!, child: action);
+            return Expanded(
+              child: Center(
+                child: Tooltip(message: item.tooltip!, child: action),
+              ),
+            );
           }),
         ),
       ),
     );
+
+    if (!includeBottomSafeArea) {
+      return bar;
+    }
+
+    return SafeArea(top: false, child: bar);
   }
 }
 
@@ -139,6 +155,7 @@ class _MasliveStandardBottomBarAction extends StatelessWidget {
           AnimatedContainer(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOut,
+            height: hasLabel ? 40 : 24,
             padding: EdgeInsets.symmetric(
               horizontal: hasLabel ? 8 : 8,
               vertical: hasLabel ? 5 : 8,

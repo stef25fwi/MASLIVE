@@ -38,71 +38,69 @@ class UserFacingBottomBar extends StatelessWidget {
         final user = snapshot.data;
         final pseudo = (user?.displayName ?? user?.email ?? 'Profil').trim();
 
-        return SafeArea(
-          top: false,
-          child: MasliveStandardBottomBar(
-            items: [
-              MasliveStandardBottomBarItem(
-                iconBuilder: (context, active) => _ProfileBottomBarIcon(
-                  active: active,
-                  isConnected: user != null,
-                ),
-                label: 'Profil',
-                tooltip: pseudo.isEmpty ? 'Profil' : pseudo,
-                onTap: () {
-                  if (currentTab == UserFacingBottomBarTab.profile) return;
-                  _openShellTab(context, UserFacingBottomBarTab.profile);
-                },
+        return MasliveStandardBottomBar(
+          items: [
+            MasliveStandardBottomBarItem(
+              iconBuilder: (context, active) => _ProfileBottomBarIcon(
+                active: active,
+                isConnected: user != null,
               ),
-              MasliveStandardBottomBarItem(
-                icon: Icons.storefront_outlined,
-                activeIcon: Icons.storefront,
-                label: 'Boutique',
-                tooltip: 'Ouvrir la boutique',
-                onTap: () {
-                  if (currentTab == UserFacingBottomBarTab.boutique) return;
-                  _openShellTab(context, UserFacingBottomBarTab.boutique);
-                },
-              ),
-              MasliveStandardBottomBarItem(
-                icon: Icons.home_outlined,
-                activeIcon: Icons.home,
-                label: 'Home',
-                tooltip: 'Revenir à l’accueil',
-                onTap: () {
-                  if (currentTab == UserFacingBottomBarTab.home) return;
-                  _openShellTab(context, UserFacingBottomBarTab.home);
-                },
-              ),
-              MasliveStandardBottomBarItem(
-                icon: Icons.photo_library_outlined,
-                activeIcon: Icons.photo_library,
-                label: 'Media',
-                tooltip: 'Ouvrir les médias',
-                onTap: () {
-                  if (currentTab == UserFacingBottomBarTab.media) return;
-                  _openShellTab(context, UserFacingBottomBarTab.media);
-                },
-              ),
-              MasliveStandardBottomBarItem(
-                icon: Icons.search_rounded,
-                activeIcon: Icons.search,
-                label: 'Explorer',
-                tooltip: 'Explorer',
-                onTap: () {
-                  if (onExplorerTap != null) {
-                    onExplorerTap!();
-                    return;
-                  }
-                  if (currentTab != UserFacingBottomBarTab.home) return;
-                  _openShellTab(context, UserFacingBottomBarTab.explorer);
-                },
-              ),
-            ],
-            selectedIndex: UserFacingBottomBarTab.values.indexOf(currentTab),
-            height: 58,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-          ),
+              label: 'Profil',
+              tooltip: pseudo.isEmpty ? 'Profil' : pseudo,
+              onTap: () {
+                if (currentTab == UserFacingBottomBarTab.profile) return;
+                _openShellTab(context, UserFacingBottomBarTab.profile);
+              },
+            ),
+            MasliveStandardBottomBarItem(
+              icon: Icons.storefront_outlined,
+              activeIcon: Icons.storefront,
+              label: 'Boutique',
+              tooltip: 'Ouvrir la boutique',
+              onTap: () {
+                if (currentTab == UserFacingBottomBarTab.boutique) return;
+                _openShellTab(context, UserFacingBottomBarTab.boutique);
+              },
+            ),
+            MasliveStandardBottomBarItem(
+              icon: Icons.home_outlined,
+              activeIcon: Icons.home,
+              label: 'Home',
+              tooltip: 'Revenir à l’accueil',
+              onTap: () {
+                if (currentTab == UserFacingBottomBarTab.home) return;
+                _openShellTab(context, UserFacingBottomBarTab.home);
+              },
+            ),
+            MasliveStandardBottomBarItem(
+              icon: Icons.photo_library_outlined,
+              activeIcon: Icons.photo_library,
+              label: 'Media',
+              tooltip: 'Ouvrir les médias',
+              onTap: () {
+                if (currentTab == UserFacingBottomBarTab.media) return;
+                _openShellTab(context, UserFacingBottomBarTab.media);
+              },
+            ),
+            MasliveStandardBottomBarItem(
+              icon: Icons.search_rounded,
+              activeIcon: Icons.search,
+              label: 'Explorer',
+              tooltip: 'Explorer',
+              onTap: () {
+                if (onExplorerTap != null) {
+                  onExplorerTap!();
+                  return;
+                }
+                if (currentTab != UserFacingBottomBarTab.home) return;
+                _openShellTab(context, UserFacingBottomBarTab.explorer);
+              },
+            ),
+          ],
+          selectedIndex: UserFacingBottomBarTab.values.indexOf(currentTab),
+          height: 58,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          includeBottomSafeArea: true,
         );
       },
     );
