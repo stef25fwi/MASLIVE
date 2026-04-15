@@ -1732,14 +1732,11 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         extendBody: true,
         extendBodyBehindAppBar: true,
         bottomNavigationBar: widget.showBottomBar
-            ? SafeArea(
-                top: false,
-                child: StreamBuilder<User?>(
-                  stream: AuthService.instance.authStateChanges,
-                  builder: (context, snap) {
-                    return _buildBottomBar(context, user: snap.data);
-                  },
-                ),
+            ? StreamBuilder<User?>(
+                stream: AuthService.instance.authStateChanges,
+                builder: (context, snap) {
+                  return _buildBottomBar(context, user: snap.data);
+                },
               )
             : null,
         body: LayoutBuilder(

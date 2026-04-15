@@ -107,9 +107,10 @@ class _MarketMapPoiSelectorSheetState
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,
     colors: <Color>[
-      Color(0xFFFFB1D8),
+      Color(0xFFFFC857),
       Color(0xFFFF6BB5),
-      Color(0xFFFF8CC6),
+      Color(0xFF9B6BFF),
+      Color(0xFF57C7FF),
     ],
   );
 
@@ -463,7 +464,7 @@ class _MarketMapPoiSelectorSheetState
                         borderRadius: BorderRadius.circular(18),
                         boxShadow: <BoxShadow>[
                           BoxShadow(
-                            color: const Color(0xFFFF6BB5).withValues(alpha: 0.22),
+                            color: const Color(0xFF9B6BFF).withValues(alpha: 0.22),
                             blurRadius: 18,
                             offset: const Offset(0, 8),
                           ),
@@ -725,9 +726,11 @@ class _MarketMapPoiSelectorSheetState
                 builder: (context, snap) {
                   final allCircuits = snap.data ?? const <MarketCircuit>[];
 
-                  // Ne proposer dans le menu "Carte" que les circuits "On line".
+                  // Ne proposer dans le menu "Carte" que les circuits publiés et visibles.
                   final items = allCircuits
-                      .where((c) => c.isVisible == true)
+                      .where(
+                        (c) => c.isVisible == true && c.status == 'published',
+                      )
                       .toList(growable: false);
 
                   final selectedId = _circuit?.id;

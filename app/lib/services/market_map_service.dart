@@ -51,14 +51,16 @@ class MarketMapService {
   CollectionReference<Map<String, dynamic>> get _countriesCol =>
       _db.collection('marketMap');
 
-  /// Index (runtime) des circuits "On line".
+  /// Index (runtime) des circuits publiés et visibles.
   ///
   /// Objectif: filtrer les pays/événements affichés dans le menu "Carte"
   /// sans avoir besoin d'index composite Firestore (on fait une seule requête
-  /// `collectionGroup('circuits')` filtrée sur `isVisible==true`).
+  /// `collectionGroup('circuits')` filtrée sur `status==published` et
+  /// `isVisible==true`).
   Stream<VisibleCircuitsIndex> watchVisibleCircuitsIndex() {
     final primary = _db
         .collectionGroup('circuits')
+        .where('status', isEqualTo: 'published')
         .where('isVisible', isEqualTo: true)
         .snapshots()
         .map(_visibleIndexFromCircuitsGroupSnapshot);
@@ -149,7 +151,7 @@ class MarketMapService {
     );
   }
 
-  /// Fallback robuste: construit l'index des circuits visibles en ne scannant que
+  /// Fallback robuste: construit l'index des circuits publiés et visibles en ne scannant que
   /// l'arborescence `marketMap/{countryId}/events/{eventId}/circuits`.
   ///
   /// Cela évite les erreurs de permission possibles avec `collectionGroup('circuits')`
@@ -191,11 +193,12 @@ class MarketMapService {
       final key = '$countryId|$eventId';
       if (circuitsSubs.containsKey(key)) return;
 
-      final sub = _countriesCol
+        final sub = _countriesCol
           .doc(countryId)
           .collection('events')
           .doc(eventId)
           .collection('circuits')
+          .where('status', isEqualTo: 'published')
           .where('isVisible', isEqualTo: true)
           .limit(1)
           .snapshots()

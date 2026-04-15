@@ -865,7 +865,11 @@ class _MediaCatalogFilter extends StatelessWidget {
                               ),
                         builder: (context, snapshot) {
                           final circuits = (snapshot.data ?? const <MarketCircuit>[])
-                              .where((circuit) => circuit.isVisible)
+                              .where(
+                              (circuit) =>
+                                circuit.isVisible &&
+                                circuit.status == 'published',
+                              )
                               .toList(growable: false);
 
                           if (selectedCircuitId != null &&
