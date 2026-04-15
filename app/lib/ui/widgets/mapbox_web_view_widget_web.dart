@@ -8,6 +8,8 @@ import 'dart:js' as js;
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 
+import '../../utils/mapbox_style_url.dart';
+
 import 'mapbox_web_view_web.dart';
 import '../map/maslive_map_controller.dart';
 
@@ -208,7 +210,7 @@ class _MapboxWebViewState extends State<MapboxWebView> {
 
     final mapConfig = js.JsObject.jsify({
       'container': container,
-      'style': widget.styleUrl ?? 'mapbox://styles/mapbox/streets-v12',
+      'style': widget.styleUrl ?? kDefaultMapboxStyleUrl,
       'center': [widget.initialLng, widget.initialLat],
       'zoom': widget.initialZoom,
       'pitch': widget.initialPitch,

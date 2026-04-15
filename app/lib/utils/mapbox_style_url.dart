@@ -1,4 +1,5 @@
-const String kDefaultMapboxStyleUrl = 'mapbox://styles/mapbox/streets-v12';
+const String kDefaultMapboxStyleUrl =
+    'mapbox://styles/stef971fwi/cmmgh2oa000rk01qr65il695n';
 const String kMasliveProMapboxStyleUrl =
     'mapbox://styles/stef971fwi/cmmgh2oa000rk01qr65il695n';
 

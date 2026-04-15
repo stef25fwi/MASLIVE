@@ -7,6 +7,8 @@ import 'package:web/web.dart' as web;
 
 import 'package:flutter/material.dart';
 
+import '../utils/mapbox_style_url.dart';
+
 /// Widget qui intègre Mapbox GL JS via HtmlElementView pour Flutter Web
 /// 
 /// Utilise le bridge JavaScript (mapbox_bridge.js) pour initialiser
@@ -42,7 +44,7 @@ class WebMapboxGLMap extends StatefulWidget {
   const WebMapboxGLMap({
     super.key,
     required this.accessToken,
-    this.style = 'mapbox://styles/mapbox/streets-v12',
+    this.style = kDefaultMapboxStyleUrl,
     this.center = const [-61.533, 16.241],
     this.zoom = 13.0,
     this.pitch = 45.0,

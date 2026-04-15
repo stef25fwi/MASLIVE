@@ -31,6 +31,8 @@ import '../features/media_marketplace/presentation/pages/media_marketplace_pages
 import '../features/map_style/presentation/widgets/mapbox_style_tile.dart';
 import '../pages/superadmin_articles_page.dart';
 import '../commerce_module_single_file.dart';
+import '../utils/mapbox_style_url.dart';
+import '../services/startup_map_style_service.dart';
 import 'admin_groups_page.dart';
 
 /// Dashboard admin principal 10/10 avec toutes les fonctionnalités
@@ -276,6 +278,8 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                       );
                     },
                   ),
+                  const SizedBox(height: 12),
+                  _buildDefaultMapStyleTile(),
                   const SizedBox(height: 24),
 
                   // Section Tracking & Groupes
@@ -1790,6 +1794,193 @@ Vérifiez:
         Text(title, textAlign: TextAlign.justify, style: titleStyle),
       ],
     );
+  }
+
+  Widget _buildDefaultMapStyleTile() {
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: _firestore.collection('config').doc('appStartup').snapshots(),
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data();
+        final currentUrl = data?['defaultHomeMapStyleUrl'] as String? ?? kDefaultMapboxStyleUrl;
+        final updatedAt = data?['updatedAt'] as Timestamp?;
+
+        String extractShortId(String url) {
+          final uri = url.replaceFirst('mapbox://styles/', '');
+          final parts = uri.split('/');
+          if (parts.length >= 2) return '${parts[0]}/${parts[1]}';
+          return uri;
+        }
+
+        final shortId = extractShortId(currentUrl);
+        final dateLabel = updatedAt != null
+            ? '${updatedAt.toDate().day}/${updatedAt.toDate().month}/${updatedAt.toDate().year}'
+            : '';
+
+        return Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: InkWell(
+            onTap: () => _showDefaultMapStyleDialog(currentUrl),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.indigo.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.style, color: Colors.indigo, size: 26),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Carte par défaut',
+                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Style Mapbox chargé au démarrage',
+                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.edit, size: 18, color: Colors.grey),
+                    ],
+                  ),
+                  const Divider(height: 20),
+                  Row(
+                    children: [
+                      const Icon(Icons.map_outlined, size: 16, color: Colors.indigo),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          shortId,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (dateLabel.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          dateLabel,
+                          style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showDefaultMapStyleDialog(String currentUrl) async {
+    final controller = TextEditingController(text: currentUrl);
+    final presets = <String, String>{
+      'MasLive Pro': kMasliveProMapboxStyleUrl,
+      'Streets v12': 'mapbox://styles/mapbox/streets-v12',
+      'Outdoors v12': 'mapbox://styles/mapbox/outdoors-v12',
+      'Light v11': 'mapbox://styles/mapbox/light-v11',
+      'Dark v11': 'mapbox://styles/mapbox/dark-v11',
+      'Satellite Streets': 'mapbox://styles/mapbox/satellite-streets-v12',
+    };
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Carte par défaut'),
+          content: SizedBox(
+            width: 440,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Style Mapbox chargé par défaut sur la page d\'accueil.\n'
+                  'Collez une URL mapbox:// ou choisissez un preset :',
+                  style: TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  decoration: const InputDecoration(
+                    labelText: 'URL du style Mapbox',
+                    hintText: 'mapbox://styles/user/styleId',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: presets.entries.map((e) {
+                    final isActive = controller.text == e.value;
+                    return ActionChip(
+                      label: Text(e.key),
+                      backgroundColor: isActive ? Colors.indigo.shade100 : null,
+                      onPressed: () {
+                        controller.text = e.value;
+                        (ctx as Element).markNeedsBuild();
+                      },
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler'),
+            ),
+            FilledButton.icon(
+              icon: const Icon(Icons.save, size: 18),
+              label: const Text('Enregistrer'),
+              onPressed: () => Navigator.pop(ctx, controller.text),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == null || !mounted) return;
+
+    final normalized = tryNormalizeMapboxStyleUrl(result);
+    if (normalized == null || normalized.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('URL de style invalide')),
+        );
+      }
+      return;
+    }
+
+    await StartupMapStyleService.instance.saveDefaultStyleUrl(normalized);
+    if (mounted) {
+      TopSnackBar.showMessage(context, '✅ Carte par défaut mise à jour');
+    }
   }
 
   Widget _buildDashboardCard({

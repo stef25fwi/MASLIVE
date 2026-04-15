@@ -36,6 +36,7 @@ import '../models/market_poi.dart';
 import '../models/group_circuit_public_position.dart';
 import '../services/group/marketmap_group_public_position_service.dart';
 import '../utils/mapbox_style_url.dart';
+import '../services/startup_map_style_service.dart';
 import '../utils/startup_trace.dart';
 import '../utils/web_viewport_resize.dart';
 import 'storex_shop_page.dart';
@@ -119,7 +120,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   List<MapMarker> _groupPublicMarkers = const <MapMarker>[];
 
   // Projets cartographiques
-  String _styleUrl = 'mapbox://styles/mapbox/streets-v12';
+  bool _didResolveInitialStyle = false;
+  String _styleUrl = kDefaultMapboxStyleUrl;
   double? _projectCenterLat;
   double? _projectCenterLng;
   double? _projectZoom;
@@ -456,16 +458,32 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   }
 
   Future<void> _restoreLastHomeStyleUrl() async {
-    final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getString(_prefsKeyLastHomeStyleUrl);
-    final resolved = tryNormalizeMapboxStyleUrl(stored);
-    if (!mounted || resolved == null || resolved == _styleUrl) {
-      return;
-    }
+    try {
+      // 1) Style persisté localement (dernière sélection utilisateur)
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString(_prefsKeyLastHomeStyleUrl);
+      final localResolved = tryNormalizeMapboxStyleUrl(stored);
 
-    setState(() {
-      _styleUrl = resolved;
-    });
+      // 2) Style par défaut défini par l'admin (Firestore config/appStartup)
+      final adminResolved =
+          await StartupMapStyleService.instance.getDefaultStyleUrl();
+
+      if (!mounted) return;
+
+      // Priorité : pref locale > admin Firestore > constante kDefaultMapboxStyleUrl
+      final resolved = localResolved ?? adminResolved ?? kDefaultMapboxStyleUrl;
+      if (resolved != _styleUrl) {
+        _styleUrl = resolved;
+      }
+    } catch (_) {
+      // ignore — on garde le style par défaut
+    } finally {
+      if (mounted) {
+        setState(() {
+          _didResolveInitialStyle = true;
+        });
+      }
+    }
   }
 
   Future<void> _persistLastHomeStyleUrl(String styleUrl) async {
@@ -1932,7 +1950,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                     child: SizedBox(
                       width: size.width,
                       height: size.height,
-                      child: Container(
+                      child: !_didResolveInitialStyle
+                        ? const SizedBox.shrink()
+                        : Container(
                         color: Colors.transparent,
                         child: MasLiveMap(
                           key: ValueKey('default-map-stable_$_mapRebuildTick'),
