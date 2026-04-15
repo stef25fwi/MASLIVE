@@ -88,25 +88,29 @@ class HomeVerticalNavMenu extends StatelessWidget {
       ),
     );
 
-    return Container(
-      margin: margin,
-      decoration: BoxDecoration(
-        borderRadius: borderRadius,
-        boxShadow: boxShadow ?? MasliveTheme.floatingShadow,
-      ),
-      child: ClipRRect(
-        borderRadius: borderRadius,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: backgroundAlpha),
-              borderRadius: borderRadius,
-              border: borderColor == null
-                  ? null
-                  : Border.all(color: borderColor!, width: borderWidth),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {},
+      child: Container(
+        margin: margin,
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+          boxShadow: boxShadow ?? MasliveTheme.floatingShadow,
+        ),
+        child: ClipRRect(
+          borderRadius: borderRadius,
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: backgroundAlpha),
+                borderRadius: borderRadius,
+                border: borderColor == null
+                    ? null
+                    : Border.all(color: borderColor!, width: borderWidth),
+              ),
+              child: child,
             ),
-            child: child,
           ),
         ),
       ),
@@ -130,6 +134,7 @@ class HomeVerticalNavActionItem extends StatelessWidget {
         item.highlightBackgroundOnSelected && item.selected;
 
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: item.onTap,
       child: Container(
         width: _buttonSize,

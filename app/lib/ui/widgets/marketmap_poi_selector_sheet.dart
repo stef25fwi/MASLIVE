@@ -358,6 +358,7 @@ class _MarketMapPoiSelectorSheetState
       labelText: label,
       labelStyle: _selectorLabelTextStyle(context),
       floatingLabelStyle: _selectorLabelTextStyle(context),
+      floatingLabelBehavior: FloatingLabelBehavior.always,
       filled: true,
       fillColor: MasliveTokens.surface,
       isDense: false,
@@ -401,6 +402,46 @@ class _MarketMapPoiSelectorSheetState
     );
   }
 
+  Widget _countryFieldValueLabel(
+    BuildContext context,
+    MarketCountry c,
+    TextStyle textStyle,
+  ) {
+    final iso2 = _countryIso2(c);
+    final flag = countryFlagEmojiFromIso2(iso2);
+    final label = _countryLabel(c).toUpperCase();
+
+    return Row(
+      children: [
+        SizedBox(
+          width: 28,
+          child: Text(
+            flag.isEmpty ? '  ' : flag,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 18),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: textStyle,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _fixedSelectorField(Widget child) {
+    return SizedBox(height: 84, child: child);
+  }
+
+  String _eventDisplayLabel(MarketEvent e) => _eventLabel(e).toUpperCase();
+
+  String _circuitDisplayLabel(MarketCircuit c) => _circuitLabel(c).toUpperCase();
+
   String _eventLabel(MarketEvent e) {
     final name = e.name.trim();
     return name.isNotEmpty ? name : e.id;
@@ -429,6 +470,7 @@ class _MarketMapPoiSelectorSheetState
         fillColor: MasliveTokens.surface,
         labelStyle: selectorLabelStyle,
         floatingLabelStyle: selectorLabelStyle,
+        floatingLabelBehavior: FloatingLabelBehavior.always,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 20,
@@ -450,6 +492,7 @@ class _MarketMapPoiSelectorSheetState
           fillColor: MasliveTokens.surface,
           labelStyle: selectorLabelStyle,
           floatingLabelStyle: selectorLabelStyle,
+          floatingLabelBehavior: FloatingLabelBehavior.always,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 14,
             vertical: 20,
@@ -491,16 +534,19 @@ class _MarketMapPoiSelectorSheetState
 
         return Theme(
           data: sheetTheme,
-          child: ColoredBox(
-            color: MasliveTokens.bg,
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 4,
-                bottom: 16 + bottomPadding,
-              ),
-              child: Column(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {},
+            child: ColoredBox(
+              color: MasliveTokens.bg,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 4,
+                  bottom: 16 + bottomPadding,
+                ),
+                child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -523,10 +569,15 @@ class _MarketMapPoiSelectorSheetState
                       ),
                       child: Row(
                         children: [
+                          const Icon(
+                            Icons.map_rounded,
+                            color: Colors.white,
+                            size: 22,
+                          ),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               widget.title,
-                              textAlign: TextAlign.center,
                               style: const TextStyle(
                                 fontSize: 19,
                                 fontWeight: FontWeight.w900,
@@ -570,97 +621,100 @@ class _MarketMapPoiSelectorSheetState
                           ? selectedId
                           : null;
 
-                      return DropdownButtonFormField<String>(
-                        initialValue: currentValue,
-                        isExpanded: true,
-                        isDense: false,
-                        style: selectorTextStyle,
-                        menuMaxHeight: 420,
-                        borderRadius: BorderRadius.circular(14),
-                        dropdownColor: MasliveTokens.surface,
-                        decoration: _selectorDecoration('PAYS'),
-                        items: [
-                          for (final c in items)
-                            DropdownMenuItem<String>(
-                              value: c.id,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: c.id == currentValue
-                                      ? Colors.grey.shade200
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(10),
+                      return _fixedSelectorField(
+                        DropdownButtonFormField<String>(
+                          initialValue: currentValue,
+                          isExpanded: true,
+                          isDense: false,
+                          style: selectorTextStyle,
+                          menuMaxHeight: 420,
+                          borderRadius: BorderRadius.circular(14),
+                          dropdownColor: MasliveTokens.surface,
+                          decoration: _selectorDecoration('PAYS'),
+                          items: [
+                            for (final c in items)
+                              DropdownMenuItem<String>(
+                                value: c.id,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: c.id == currentValue
+                                        ? Colors.grey.shade200
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 8,
+                                  ),
+                                  child: _countryOptionLabel(context, c),
                                 ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 8,
+                              ),
+                          ],
+                          selectedItemBuilder: (context) => [
+                            for (final c in items)
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: _countryFieldValueLabel(
+                                  context,
+                                  c,
+                                  selectorTextStyle,
                                 ),
-                                child: _countryOptionLabel(context, c),
                               ),
-                            ),
-                        ],
-                        selectedItemBuilder: (context) => [
-                          for (final c in items)
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                _countryLabel(c),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: selectorTextStyle,
-                              ),
-                            ),
-                        ],
-                        onChanged: !allowSelection
-                            ? null
-                            : (id) {
-                                if (id == null) return;
-                                final selected = items.firstWhere(
-                                  (c) => c.id == id,
-                                );
-                                setState(() {
-                                  _country = selected;
-                                  _countryHasSelectedOption = true;
-                                  _countryCtrl.text = _countryLabel(selected);
+                          ],
+                          onChanged: !allowSelection
+                              ? null
+                              : (id) {
+                                  if (id == null) return;
+                                  final selected = items.firstWhere(
+                                    (c) => c.id == id,
+                                  );
+                                  setState(() {
+                                    _country = selected;
+                                    _countryHasSelectedOption = true;
+                                    _countryCtrl.text = _countryLabel(selected);
 
-                                  _event = null;
-                                  _eventCtrl.clear();
-                                  _eventHasSelectedOption = false;
-                                  _circuit = null;
-                                  _circuitCtrl.clear();
-                                  _circuitHasSelectedOption = false;
-                                  _layerIds = <String>{};
-                                  _layerSelectionInitialized = false;
-                                });
-                              },
+                                    _event = null;
+                                    _eventCtrl.clear();
+                                    _eventHasSelectedOption = false;
+                                    _circuit = null;
+                                    _circuitCtrl.clear();
+                                    _circuitHasSelectedOption = false;
+                                    _layerIds = <String>{};
+                                    _layerSelectionInitialized = false;
+                                  });
+                                },
+                        ),
                       );
                     }
 
-                    return MarketCountryAutocompleteField(
-                      items: items,
-                      controller: _countryCtrl,
-                      labelText: 'Pays',
-                      hintText: widget.disableKeyboardInput
-                          ? 'Rechercher un pays…'
-                          : 'Rechercher un pays…',
-                      enabled: allowSelection,
-                      strictSelection: widget.disableKeyboardInput,
-                      onSelected: (c) {
-                        setState(() {
-                          if (c == null) {
-                            _country = null;
-                          } else {
-                            _country = c;
-                          }
-                          _event = null;
-                          _eventCtrl.clear();
-                          _eventHasSelectedOption = false;
-                          _circuit = null;
-                          _circuitCtrl.clear();
-                          _circuitHasSelectedOption = false;
-                          _layerIds = <String>{};
-                          _layerSelectionInitialized = false;
-                        });
-                      },
+                    return _fixedSelectorField(
+                      MarketCountryAutocompleteField(
+                        items: items,
+                        controller: _countryCtrl,
+                        labelText: 'Pays',
+                        hintText: widget.disableKeyboardInput
+                            ? 'Rechercher un pays…'
+                            : 'Rechercher un pays…',
+                        enabled: allowSelection,
+                        strictSelection: widget.disableKeyboardInput,
+                        onSelected: (c) {
+                          setState(() {
+                            if (c == null) {
+                              _country = null;
+                            } else {
+                              _country = c;
+                            }
+                            _event = null;
+                            _eventCtrl.clear();
+                            _eventHasSelectedOption = false;
+                            _circuit = null;
+                            _circuitCtrl.clear();
+                            _circuitHasSelectedOption = false;
+                            _layerIds = <String>{};
+                            _layerSelectionInitialized = false;
+                          });
+                        },
+                      ),
                     );
                   },
                 ),
@@ -690,50 +744,52 @@ class _MarketMapPoiSelectorSheetState
                       }
                     }
 
-                    return DropdownMenu<MarketEvent>(
-                      width: MediaQuery.sizeOf(context).width - 32,
-                      controller: _eventCtrl,
-                      focusNode: _eventFocus,
-                      textStyle: selectorTextStyle,
-                      enabled: allowSelection && _country != null,
-                      label: Text(
-                        'EVENEMENT',
-                        style: selectorLabelStyle,
-                      ),
-                      inputDecorationTheme: sheetTheme.dropdownMenuTheme
-                          .inputDecorationTheme,
-                      enableSearch: true,
-                      enableFilter: true,
-                      requestFocusOnTap: true,
-                      initialSelection: initialSelection,
-                      dropdownMenuEntries: [
-                        for (final e in items)
-                          DropdownMenuEntry<MarketEvent>(
-                            value: e,
-                            label: _eventLabel(e),
-                          ),
-                      ],
-                      onSelected: (!allowSelection || _country == null)
-                          ? null
-                          : (e) {
-                              setState(() {
-                                _event = e;
-                                _eventHasSelectedOption = e != null;
-                                _updatingControllers = true;
-                                if (e == null) {
-                                  _eventCtrl.clear();
-                                } else {
-                                  _eventCtrl.text = _eventLabel(e);
-                                }
-                                _updatingControllers = false;
+                    return _fixedSelectorField(
+                      DropdownMenu<MarketEvent>(
+                        width: MediaQuery.sizeOf(context).width - 32,
+                        controller: _eventCtrl,
+                        focusNode: _eventFocus,
+                        textStyle: selectorTextStyle,
+                        enabled: allowSelection && _country != null,
+                        label: Text(
+                          'EVENEMENT',
+                          style: selectorLabelStyle,
+                        ),
+                        inputDecorationTheme: sheetTheme.dropdownMenuTheme
+                            .inputDecorationTheme,
+                        enableSearch: true,
+                        enableFilter: true,
+                        requestFocusOnTap: true,
+                        initialSelection: initialSelection,
+                        dropdownMenuEntries: [
+                          for (final e in items)
+                            DropdownMenuEntry<MarketEvent>(
+                              value: e,
+                              label: _eventDisplayLabel(e),
+                            ),
+                        ],
+                        onSelected: (!allowSelection || _country == null)
+                            ? null
+                            : (e) {
+                                setState(() {
+                                  _event = e;
+                                  _eventHasSelectedOption = e != null;
+                                  _updatingControllers = true;
+                                  if (e == null) {
+                                    _eventCtrl.clear();
+                                  } else {
+                                    _eventCtrl.text = _eventDisplayLabel(e);
+                                  }
+                                  _updatingControllers = false;
 
-                                _circuit = null;
-                                _circuitCtrl.clear();
-                                _circuitHasSelectedOption = false;
-                                _layerIds = <String>{};
-                                _layerSelectionInitialized = false;
-                              });
-                            },
+                                  _circuit = null;
+                                  _circuitCtrl.clear();
+                                  _circuitHasSelectedOption = false;
+                                  _layerIds = <String>{};
+                                  _layerSelectionInitialized = false;
+                                });
+                              },
+                      ),
                     );
                   }
 
@@ -741,34 +797,38 @@ class _MarketMapPoiSelectorSheetState
                       ? selectedId
                       : null;
 
-                  return DropdownButtonFormField<String>(
-                    initialValue: value,
+                  return _fixedSelectorField(
+                    DropdownButtonFormField<String>(
+                      initialValue: value,
                       isDense: false,
                       style: selectorTextStyle,
-                    borderRadius: BorderRadius.circular(14),
-                    dropdownColor: MasliveTokens.surface,
-                    decoration: _selectorDecoration('EVENEMENT'),
-                    items: [
-                      for (final e in items)
-                        DropdownMenuItem(
-                          value: e.id,
-                          child: Text(_eventLabel(e)),
-                        ),
-                    ],
-                    onChanged: (!allowSelection || _country == null)
-                        ? null
-                        : (id) {
-                            if (id == null) return;
-                            final selected = items.firstWhere((e) => e.id == id);
-                            setState(() {
-                              _event = selected;
-                              _eventCtrl.text = _eventLabel(selected);
-                              _circuit = null;
-                              _circuitCtrl.clear();
-                              _layerIds = <String>{};
-                              _layerSelectionInitialized = false;
-                            });
-                          },
+                      borderRadius: BorderRadius.circular(14),
+                      dropdownColor: MasliveTokens.surface,
+                      decoration: _selectorDecoration('EVENEMENT'),
+                      items: [
+                        for (final e in items)
+                          DropdownMenuItem(
+                            value: e.id,
+                            child: Text(_eventDisplayLabel(e)),
+                          ),
+                      ],
+                      onChanged: (!allowSelection || _country == null)
+                          ? null
+                          : (id) {
+                              if (id == null) return;
+                              final selected = items.firstWhere(
+                                (e) => e.id == id,
+                              );
+                              setState(() {
+                                _event = selected;
+                                _eventCtrl.text = _eventDisplayLabel(selected);
+                                _circuit = null;
+                                _circuitCtrl.clear();
+                                _layerIds = <String>{};
+                                _layerSelectionInitialized = false;
+                              });
+                            },
+                    ),
                   );
                 },
               ),
@@ -797,51 +857,57 @@ class _MarketMapPoiSelectorSheetState
                         ? selectedId
                         : null;
 
-                    return DropdownButtonFormField<String>(
-                      initialValue: currentValue,
-                      borderRadius: BorderRadius.circular(14),
-                      dropdownColor: MasliveTokens.surface,
-                      decoration: _selectorDecoration('CIRCUIT'),
-                      items: [
-                        for (final c in items)
-                          DropdownMenuItem(
-                            value: c.id,
-                            child: Text(_circuitLabel(c)),
-                          ),
-                      ],
-                      onChanged:
-                          (!allowSelection ||
-                              _country == null ||
-                              _event == null)
-                          ? null
-                          : (id) {
-                              if (id == null) return;
-                              final selected = items.firstWhere(
-                                (c) => c.id == id,
-                                orElse: () => MarketCircuit(
-                                  id: '',
-                                  countryId: _country?.id ?? '',
-                                  eventId: _event?.id ?? '',
-                                  name: '',
-                                  slug: '',
-                                  status: 'draft',
-                                  createdByUid: '',
-                                  perimeterLocked: false,
-                                  zoomLocked: false,
-                                  center: const {'lat': 0.0, 'lng': 0.0},
-                                  initialZoom: 14,
-                                  isVisible: false,
-                                  wizardState: const <String, dynamic>{},
-                                ),
-                              );
-                              if (selected.id.isEmpty) return;
-                              setState(() {
-                                _circuit = selected;
-                                _circuitCtrl.text = _circuitLabel(selected);
-                                _layerIds = <String>{};
-                                _layerSelectionInitialized = false;
-                              });
-                            },
+                    return _fixedSelectorField(
+                      DropdownButtonFormField<String>(
+                        initialValue: currentValue,
+                        isDense: false,
+                        style: selectorTextStyle,
+                        borderRadius: BorderRadius.circular(14),
+                        dropdownColor: MasliveTokens.surface,
+                        decoration: _selectorDecoration('CIRCUIT'),
+                        items: [
+                          for (final c in items)
+                            DropdownMenuItem(
+                              value: c.id,
+                              child: Text(_circuitDisplayLabel(c)),
+                            ),
+                        ],
+                        onChanged:
+                            (!allowSelection ||
+                                _country == null ||
+                                _event == null)
+                            ? null
+                            : (id) {
+                                if (id == null) return;
+                                final selected = items.firstWhere(
+                                  (c) => c.id == id,
+                                  orElse: () => MarketCircuit(
+                                    id: '',
+                                    countryId: _country?.id ?? '',
+                                    eventId: _event?.id ?? '',
+                                    name: '',
+                                    slug: '',
+                                    status: 'draft',
+                                    createdByUid: '',
+                                    perimeterLocked: false,
+                                    zoomLocked: false,
+                                    center: const {'lat': 0.0, 'lng': 0.0},
+                                    initialZoom: 14,
+                                    isVisible: false,
+                                    wizardState: const <String, dynamic>{},
+                                  ),
+                                );
+                                if (selected.id.isEmpty) return;
+                                setState(() {
+                                  _circuit = selected;
+                                  _circuitCtrl.text = _circuitDisplayLabel(
+                                    selected,
+                                  );
+                                  _layerIds = <String>{};
+                                  _layerSelectionInitialized = false;
+                                });
+                              },
+                      ),
                     );
                   }
 
@@ -855,48 +921,51 @@ class _MarketMapPoiSelectorSheetState
                     }
                   }
 
-                  return DropdownMenu<MarketCircuit>(
-                    width: MediaQuery.sizeOf(context).width - 32,
-                    controller: _circuitCtrl,
-                    focusNode: _circuitFocus,
-                    textStyle: selectorTextStyle,
-                    enabled: allowSelection && _country != null && _event != null,
-                    label: Text(
-                      'CIRCUIT',
-                      style: selectorLabelStyle,
-                    ),
-                    inputDecorationTheme: sheetTheme.dropdownMenuTheme
-                        .inputDecorationTheme,
-                    enableSearch: true,
-                    enableFilter: true,
-                    requestFocusOnTap: true,
-                    initialSelection: initialSelection,
-                    dropdownMenuEntries: [
-                      for (final c in items)
-                        DropdownMenuEntry<MarketCircuit>(
-                          value: c,
-                          label: _circuitLabel(c),
-                        ),
-                    ],
-                    onSelected:
-                        (!allowSelection || _country == null || _event == null)
-                        ? null
-                        : (c) {
-                            setState(() {
-                              _circuit = c;
-                              _circuitHasSelectedOption = c != null;
-                              _updatingControllers = true;
-                              if (c == null) {
-                                _circuitCtrl.clear();
-                              } else {
-                                _circuitCtrl.text = _circuitLabel(c);
-                              }
-                              _updatingControllers = false;
+                  return _fixedSelectorField(
+                    DropdownMenu<MarketCircuit>(
+                      width: MediaQuery.sizeOf(context).width - 32,
+                      controller: _circuitCtrl,
+                      focusNode: _circuitFocus,
+                      textStyle: selectorTextStyle,
+                      enabled:
+                          allowSelection && _country != null && _event != null,
+                      label: Text(
+                        'CIRCUIT',
+                        style: selectorLabelStyle,
+                      ),
+                      inputDecorationTheme: sheetTheme.dropdownMenuTheme
+                          .inputDecorationTheme,
+                      enableSearch: true,
+                      enableFilter: true,
+                      requestFocusOnTap: true,
+                      initialSelection: initialSelection,
+                      dropdownMenuEntries: [
+                        for (final c in items)
+                          DropdownMenuEntry<MarketCircuit>(
+                            value: c,
+                            label: _circuitDisplayLabel(c),
+                          ),
+                      ],
+                      onSelected:
+                          (!allowSelection || _country == null || _event == null)
+                          ? null
+                          : (c) {
+                              setState(() {
+                                _circuit = c;
+                                _circuitHasSelectedOption = c != null;
+                                _updatingControllers = true;
+                                if (c == null) {
+                                  _circuitCtrl.clear();
+                                } else {
+                                  _circuitCtrl.text = _circuitDisplayLabel(c);
+                                }
+                                _updatingControllers = false;
 
-                              _layerIds = <String>{};
-                              _layerSelectionInitialized = false;
-                            });
-                          },
+                                _layerIds = <String>{};
+                                _layerSelectionInitialized = false;
+                              });
+                            },
+                    ),
                   );
                 },
               ),
@@ -929,6 +998,7 @@ class _MarketMapPoiSelectorSheetState
               ),
             ),
           ),
+        ),
         );
       },
     );

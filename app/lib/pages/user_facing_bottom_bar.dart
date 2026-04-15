@@ -118,7 +118,7 @@ class _ProfileBottomBarIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = active ? Colors.white : const Color(0xFF98A2B3);
+    final iconColor = active ? Colors.white : const Color(0xFF101828);
 
     return Stack(
       clipBehavior: Clip.none,

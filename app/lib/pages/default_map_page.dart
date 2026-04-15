@@ -1379,13 +1379,20 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     );
 
     return Positioned.fill(
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: _dismissActionsMenu,
-        child: Align(
-          alignment: Alignment.topRight,
-          child: SlideTransition(position: _menuSlideAnimation, child: menu),
-        ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _dismissActionsMenu,
+              child: const SizedBox.expand(),
+            ),
+          ),
+          Align(
+            alignment: Alignment.topRight,
+            child: SlideTransition(position: _menuSlideAnimation, child: menu),
+          ),
+        ],
       ),
     );
   }

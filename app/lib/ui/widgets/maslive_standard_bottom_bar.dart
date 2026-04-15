@@ -13,7 +13,7 @@ class MasliveStandardBottomBar extends StatelessWidget {
     this.height = defaultHeight,
     this.padding = const EdgeInsets.symmetric(horizontal: 14),
     this.backgroundColor = const Color(0xF9FFFFFF),
-    this.inactiveColor = const Color(0xFF98A2B3),
+    this.inactiveColor = const Color(0xFF101828),
     this.includeBottomSafeArea = false,
     this.border,
     this.borderRadius = BorderRadius.zero,
@@ -130,6 +130,9 @@ class _MasliveStandardBottomBarAction extends StatelessWidget {
     blurRadius: 18,
     offset: Offset(0, 8),
   );
+  static const double _activePillHeight = 48;
+  static const double _activePillWidthWithLabel = 64;
+  static const double _activePillWidthIconOnly = 34;
   final MasliveStandardBottomBarItem item;
   final bool active;
   final Color inactiveColor;
@@ -155,10 +158,17 @@ class _MasliveStandardBottomBarAction extends StatelessWidget {
           AnimatedContainer(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOut,
-            height: hasLabel ? 40 : 24,
+            height: active ? _activePillHeight : (hasLabel ? 40 : 24),
+            constraints: BoxConstraints(
+              minWidth: active
+                  ? (hasLabel
+                        ? _activePillWidthWithLabel
+                        : _activePillWidthIconOnly)
+                  : 0,
+            ),
             padding: EdgeInsets.symmetric(
-              horizontal: hasLabel ? 8 : 8,
-              vertical: hasLabel ? 5 : 8,
+              horizontal: active ? 12 : 8,
+              vertical: active ? 7 : (hasLabel ? 5 : 8),
             ),
             decoration: active
                 ? BoxDecoration(
@@ -172,7 +182,7 @@ class _MasliveStandardBottomBarAction extends StatelessWidget {
                   )
                 : null,
             child: SizedBox(
-              width: hasLabel ? 42 : 24,
+              width: hasLabel ? 44 : 24,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
@@ -190,7 +200,7 @@ class _MasliveStandardBottomBarAction extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: active ? Colors.white : inactiveColor,
-                        fontSize: 9,
+                        fontSize: 9.5,
                         fontWeight: FontWeight.w700,
                         height: 1,
                       ),
