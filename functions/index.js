@@ -21,6 +21,7 @@ const createMediaMarketplaceStripe = require("./src/media-marketplace-stripe");
 const createMediaMarketplaceMedia = require("./src/media-marketplace-media");
 const createPoiImageWebpHandlers = require("./src/poi-image-webp");
 const createRestaurantLiveTablesHandlers = require("./src/restaurant-live-tables");
+const createBloomArtHandlers = require("./src/bloom-art");
 
 const STRIPE_SECRET_KEY = defineSecret("STRIPE_SECRET_KEY");
 const STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET");
@@ -791,6 +792,15 @@ const poiImageWebpHandlers = createPoiImageWebpHandlers({
   logger,
   sharp,
 });
+const bloomArtHandlers = createBloomArtHandlers({
+  admin,
+  db,
+  onCall,
+  HttpsError,
+  STRIPE_SECRET_KEY,
+  getStripe,
+  isAllowedRedirectUrl,
+});
 
 exports.createMediaMarketplaceCheckout =
   mediaMarketplaceStripe.createMediaMarketplaceCheckout;
@@ -811,6 +821,13 @@ exports.createRestaurantLiveTableSubscriptionCheckoutSession =
   restaurantLiveTablesHandlers.createRestaurantLiveTableSubscriptionCheckoutSession;
 exports.convertPlacePhotoUploadToWebp =
   poiImageWebpHandlers.convertPlacePhotoUploadToWebp;
+
+// ─── Bloom Art ────────────────────────────────────────────────────────
+exports.createBloomArtItem = bloomArtHandlers.createBloomArtItem;
+exports.submitBloomArtOffer = bloomArtHandlers.submitBloomArtOffer;
+exports.acceptBloomArtOffer = bloomArtHandlers.acceptBloomArtOffer;
+exports.declineBloomArtOffer = bloomArtHandlers.declineBloomArtOffer;
+exports.createBloomArtCheckout = bloomArtHandlers.createBloomArtCheckout;
 
 function assertNumber(n, name) {
   if (typeof n !== "number" || Number.isNaN(n) || !Number.isFinite(n)) {
@@ -3856,6 +3873,10 @@ async function finalizeStorexOrderPayment({
 async function handleCheckoutSessionCompleted(session, eventId) {
   console.log("Processing checkout.session.completed:", session.id);
 
+  if (await bloomArtHandlers.handleBloomArtCheckoutCompleted(session)) {
+    return;
+  }
+
   if (await mediaMarketplaceStripe.handleMarketplaceCheckoutSessionCompleted(session)) {
     return;
   }
@@ -4177,6 +4198,10 @@ async function decrementStorexStockForRootOrder(rootOrder) {
 }
 async function handlePaymentIntentSucceeded(paymentIntent) {
   console.log("Processing payment_intent.succeeded:", paymentIntent.id);
+
+  if (await bloomArtHandlers.handleBloomArtPaymentIntentSucceeded(paymentIntent)) {
+    return;
+  }
 
   const uid = paymentIntent.metadata?.uid;
   const orderId = paymentIntent.metadata?.orderId || paymentIntent.metadata?.storeOrderId;

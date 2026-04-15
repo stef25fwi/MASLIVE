@@ -1564,6 +1564,76 @@ service cloud.firestore {
         );
     }
 
+    // ========== BLOOM ART — Galerie d'art avec offres de prix ==========
+
+    // Articles Bloom Art (lecture publique si publiés, écriture vendeur/admin)
+    match /bloom_art_items/{itemId} {
+      allow read: if isSignedIn()
+        && (
+          resource.data.isPublished == true
+          || resource.data.sellerId == request.auth.uid
+          || isMasterAdmin()
+        );
+
+      allow create: if isSignedIn()
+        && request.resource.data.sellerId == request.auth.uid;
+
+      allow update: if isSignedIn()
+        && (
+          resource.data.sellerId == request.auth.uid
+          || isMasterAdmin()
+        );
+
+      allow delete: if isMasterAdmin();
+
+      // Sous-collection private (referencePrice) — lecture/écriture serveur uniquement
+      match /private/{doc} {
+        allow read, write: if false;
+      }
+    }
+
+    // Profils vendeur Bloom Art
+    match /bloom_art_seller_profiles/{profileId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && profileId == request.auth.uid;
+
+      allow update: if isSignedIn()
+        && (
+          profileId == request.auth.uid
+          || isMasterAdmin()
+        );
+
+      allow delete: if isMasterAdmin();
+    }
+
+    // Offres de prix Bloom Art
+    match /bloom_art_offers/{offerId} {
+      allow read: if isSignedIn()
+        && (
+          resource.data.buyerId == request.auth.uid
+          || resource.data.sellerId == request.auth.uid
+          || isMasterAdmin()
+        );
+
+      // Les offres sont créées/modifiées uniquement par le backend (Cloud Functions)
+      allow create, update, delete: if false;
+    }
+
+    // Commandes Bloom Art
+    match /bloom_art_orders/{orderId} {
+      allow read: if isSignedIn()
+        && (
+          resource.data.buyerId == request.auth.uid
+          || resource.data.sellerId == request.auth.uid
+          || isMasterAdmin()
+        );
+
+      // Les commandes sont gérées uniquement par le backend
+      allow create, update, delete: if false;
+    }
+
     // ========== REFUS PAR DÉFAUT ==========
     match /{document=**} {
       allow read, write: if false;
