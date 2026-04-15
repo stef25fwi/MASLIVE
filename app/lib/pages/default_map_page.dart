@@ -17,7 +17,6 @@ import '../services/auth_service.dart';
 import '../services/geolocation_service.dart';
 import '../services/home_controls_theme_service.dart';
 import '../services/language_service.dart';
-import '../services/startup_map_style_service.dart';
 import '../ui/theme/maslive_theme.dart';
 import '../ui/widgets/maslive_card.dart';
 import '../ui/widgets/active_circuit_header_banner.dart';
@@ -109,8 +108,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   final GeolocationService _geo = GeolocationService.instance;
   final HomeControlsThemeService _homeControlsThemeService =
       HomeControlsThemeService();
-    final StartupMapStyleService _startupMapStyleService =
-      StartupMapStyleService.instance;
   bool _isTracking = false;
   String? _userGroupId;
 
@@ -276,18 +273,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   }
 
   Future<void> _restoreLastHomeStyleUrl() async {
-    try {
-      final globalDefaultStyleUrl = await _startupMapStyleService.getDefaultStyleUrl();
-      if (mounted && globalDefaultStyleUrl != null && globalDefaultStyleUrl != _styleUrl) {
-        setState(() {
-          _styleUrl = globalDefaultStyleUrl;
-        });
-        return;
-      }
-    } catch (e) {
-      debugPrint('⚠️ Chargement style global démarrage impossible: $e');
-    }
-
     final prefs = await SharedPreferences.getInstance();
     final stored = prefs.getString(_prefsKeyLastHomeStyleUrl);
     final resolved = tryNormalizeMapboxStyleUrl(stored);
@@ -361,7 +346,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   void _bindActionsMenuCloseSignal(ValueListenable<int>? signal) {
     if (identical(_boundActionsMenuCloseSignal, signal)) return;
-    _boundActionsMenuCloseSignal?.removeListener(_handleExternalActionsMenuClose);
+    _boundActionsMenuCloseSignal?.removeListener(
+      _handleExternalActionsMenuClose,
+    );
     _boundActionsMenuCloseSignal = signal;
     _boundActionsMenuCloseSignal?.addListener(_handleExternalActionsMenuClose);
   }
@@ -375,7 +362,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   }
 
   void _handleExternalActionsMenuClose() {
-    if (!mounted || !_showActionsMenu) return;
+    if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_showActionsMenu) return;
       _dismissActionsMenu();
@@ -431,7 +418,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     if (!identical(oldWidget.actionsMenuOpenSignal, widget.actionsMenuOpenSignal)) {
       _bindActionsMenuSignal(widget.actionsMenuOpenSignal);
     }
-    if (!identical(oldWidget.actionsMenuCloseSignal, widget.actionsMenuCloseSignal)) {
+    if (!identical(
+      oldWidget.actionsMenuCloseSignal,
+      widget.actionsMenuCloseSignal,
+    )) {
       _bindActionsMenuCloseSignal(widget.actionsMenuCloseSignal);
     }
   }
@@ -472,7 +462,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   @override
   void dispose() {
     _boundActionsMenuSignal?.removeListener(_handleExternalActionsMenuOpen);
-    _boundActionsMenuCloseSignal?.removeListener(_handleExternalActionsMenuClose);
+    _boundActionsMenuCloseSignal?.removeListener(
+      _handleExternalActionsMenuClose,
+    );
     _groupPublicPosSub?.cancel();
     _homeControlsThemeSub?.cancel();
     _marketPoisSub?.cancel();
@@ -1462,6 +1454,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       selectedIndex: _activeBottomBarIndex,
       height: _homeBottomBarHeight,
       padding: const EdgeInsets.symmetric(horizontal: 8),
+      inactiveColor: const Color(0xFF101828),
     );
   }
 
@@ -1732,11 +1725,14 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         extendBody: true,
         extendBodyBehindAppBar: true,
         bottomNavigationBar: widget.showBottomBar
-            ? StreamBuilder<User?>(
-                stream: AuthService.instance.authStateChanges,
-                builder: (context, snap) {
-                  return _buildBottomBar(context, user: snap.data);
-                },
+            ? SafeArea(
+                top: false,
+                child: StreamBuilder<User?>(
+                  stream: AuthService.instance.authStateChanges,
+                  builder: (context, snap) {
+                    return _buildBottomBar(context, user: snap.data);
+                  },
+                ),
               )
             : null,
         body: LayoutBuilder(

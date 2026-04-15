@@ -13,6 +13,7 @@ class MasliveStandardBottomBar extends StatelessWidget {
     this.height = defaultHeight,
     this.padding = const EdgeInsets.symmetric(horizontal: 14),
     this.backgroundColor = const Color(0xF9FFFFFF),
+    this.inactiveColor = const Color(0xFF98A2B3),
     this.border,
     this.borderRadius = BorderRadius.zero,
     this.boxShadow = const <BoxShadow>[
@@ -31,6 +32,7 @@ class MasliveStandardBottomBar extends StatelessWidget {
   final double height;
   final EdgeInsetsGeometry padding;
   final Color backgroundColor;
+  final Color inactiveColor;
   final Border? border;
   final BorderRadiusGeometry borderRadius;
   final List<BoxShadow> boxShadow;
@@ -56,6 +58,7 @@ class MasliveStandardBottomBar extends StatelessWidget {
             final action = _MasliveStandardBottomBarAction(
               item: item,
               active: index == selectedIndex,
+              inactiveColor: inactiveColor,
             );
 
             if (item.tooltip == null || item.tooltip!.trim().isEmpty) {
@@ -97,6 +100,7 @@ class _MasliveStandardBottomBarAction extends StatelessWidget {
   const _MasliveStandardBottomBarAction({
     required this.item,
     required this.active,
+    required this.inactiveColor,
   });
 
   static const LinearGradient _activeGradient = LinearGradient(
@@ -110,10 +114,9 @@ class _MasliveStandardBottomBarAction extends StatelessWidget {
     blurRadius: 18,
     offset: Offset(0, 8),
   );
-  static const Color _inactiveColor = Color(0xFF98A2B3);
-
   final MasliveStandardBottomBarItem item;
   final bool active;
+  final Color inactiveColor;
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +126,7 @@ class _MasliveStandardBottomBarAction extends StatelessWidget {
         item.iconBuilder?.call(context, active) ??
         Icon(
           active ? item.activeIcon : item.icon,
-          color: active ? Colors.white : _inactiveColor,
+          color: active ? Colors.white : inactiveColor,
           size: hasLabel ? 22 : 24,
         );
 
@@ -169,7 +172,7 @@ class _MasliveStandardBottomBarAction extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: active ? Colors.white : _inactiveColor,
+                        color: active ? Colors.white : inactiveColor,
                         fontSize: 9,
                         fontWeight: FontWeight.w700,
                         height: 1,

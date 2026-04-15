@@ -863,6 +863,7 @@
   // ============================================================
 
   const _v2State = new Map(); // containerId -> { map, markers: Map<string, Marker>, routeAnim }
+  const _defaultSafeStyleUrl = 'mapbox://styles/mapbox/streets-v12';
 
   function _postToFlutter(obj) {
     try {
@@ -885,9 +886,104 @@
       routeAnim: null,
       lastErrorKey: null,
       lastErrorAt: 0,
+      currentStyleUrl: _defaultSafeStyleUrl,
+      terrainFallbackApplied: false,
     };
     _v2State.set(containerId, state);
     return state;
+  }
+
+  function _normalizeRuntimeStyleUrl(styleUrl) {
+    try {
+      const value = String(styleUrl || '').trim();
+      return value.length > 0 ? value : _defaultSafeStyleUrl;
+    } catch (_) {
+      return _defaultSafeStyleUrl;
+    }
+  }
+
+  function _isTerrainConfigRuntimeError(message) {
+    const lower = String(message || '').toLowerCase();
+    return lower.includes('terrain')
+      && (
+        lower.includes('object expected')
+        || lower.includes('expected object')
+        || lower.includes('terrain value must be an object')
+      );
+  }
+
+  function _maybeFallbackFromTerrainError(containerId, rawError, onReady) {
+    const state = _v2State.get(containerId);
+    if (!state || !state.map) return false;
+
+    let message = '';
+    try {
+      message = String((rawError && rawError.message) ? rawError.message : rawError || '');
+    } catch (_) {
+      message = '';
+    }
+
+    if (!_isTerrainConfigRuntimeError(message)) return false;
+
+    const failedStyleUrl = _normalizeRuntimeStyleUrl(state.currentStyleUrl);
+    if (state.terrainFallbackApplied || failedStyleUrl === _defaultSafeStyleUrl) {
+      return false;
+    }
+
+    state.terrainFallbackApplied = true;
+    state.currentStyleUrl = _defaultSafeStyleUrl;
+
+    try {
+      console.warn(
+        '[MasliveMapboxV2] Terrain style incompatible, fallback to default style',
+        { containerId, failedStyleUrl, fallbackStyleUrl: _defaultSafeStyleUrl, message },
+      );
+    } catch (_) {
+      // ignore
+    }
+
+    try {
+      state.map.once('style.load', function() {
+        try {
+          add3DBuildings(state.map);
+        } catch (_) {
+          // ignore
+        }
+        try {
+          state.map.resize();
+        } catch (_) {
+          // ignore
+        }
+        try {
+          if (typeof onReady === 'function') onReady();
+        } catch (_) {
+          // ignore
+        }
+        try {
+          _postToFlutter({
+            type: 'MASLIVE_MAP_STYLE_FALLBACK',
+            containerId,
+            reason: 'STYLE_TERRAIN_INVALID',
+            failedStyleUrl,
+            fallbackStyleUrl: _defaultSafeStyleUrl,
+            message: 'Le style Mapbox utilise une configuration terrain incompatible. Retour automatique sur un style par defaut.',
+          });
+        } catch (_) {
+          // ignore
+        }
+      });
+      state.map.setStyle(_defaultSafeStyleUrl);
+      return true;
+    } catch (e) {
+      state.terrainFallbackApplied = false;
+      state.currentStyleUrl = failedStyleUrl;
+      try {
+        console.error('[MasliveMapboxV2] Terrain fallback failed:', e);
+      } catch (_) {
+        // ignore
+      }
+      return false;
+    }
   }
 
   function _safeTokenCandidate(value) {
@@ -1076,6 +1172,15 @@
       return {
         reason: 'WEBGL_UNSUPPORTED',
         message: 'WebGL indisponible: Mapbox GL JS ne peut pas fonctionner sur cet appareil/navigateur.' + (msg ? ' (' + msg + ')' : ''),
+      };
+    }
+
+    if (_isTerrainConfigRuntimeError(lower)) {
+      return {
+        reason: 'STYLE_TERRAIN_INVALID',
+        message:
+          'Le style Mapbox charge une configuration terrain incompatible avec le runtime web.' +
+          (msg ? ' (' + msg + ')' : ''),
       };
     }
 
@@ -1275,6 +1380,8 @@
     const state = _ensureState(containerId, map);
     state.map = map;
     state.initInProgress = false;
+    state.currentStyleUrl = _normalizeRuntimeStyleUrl(options ? options.style : null);
+    state.terrainFallbackApplied = false;
 
     let didPostReady = false;
     const postReady = () => {
@@ -1290,6 +1397,7 @@
       map.on('error', function(e) {
         try {
           const raw = (e && (e.error || e)) ? (e.error || e) : e;
+          if (_maybeFallbackFromTerrainError(containerId, raw, postReady)) return;
           const c = _classifyRuntimeError(raw);
           const now = Date.now();
           const key = String(c.reason || '') + '|' + String(c.message || '');
@@ -1894,6 +2002,11 @@
       const map = _getMap(containerId);
       if (!map) return;
       try {
+        const state = _v2State.get(containerId);
+        if (state) {
+          state.currentStyleUrl = _normalizeRuntimeStyleUrl(styleUrl);
+          state.terrainFallbackApplied = false;
+        }
         map.setStyle(styleUrl);
       } catch (e) {
         console.error('❌ MasliveMapboxV2.setStyle error:', e);

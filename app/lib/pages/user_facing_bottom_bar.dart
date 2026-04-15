@@ -9,13 +9,13 @@ class UserFacingBottomBar extends StatelessWidget {
   const UserFacingBottomBar({
     super.key,
     required this.currentTab,
-    this.onTabSelected,
     this.onExplorerTap,
+    this.onTabSelected,
   });
 
   final UserFacingBottomBarTab currentTab;
-  final ValueChanged<UserFacingBottomBarTab>? onTabSelected;
   final VoidCallback? onExplorerTap;
+  final ValueChanged<UserFacingBottomBarTab>? onTabSelected;
 
   void _openShellTab(BuildContext context, UserFacingBottomBarTab tab) {
     if (onTabSelected != null) {
@@ -94,7 +94,7 @@ class UserFacingBottomBar extends StatelessWidget {
                     onExplorerTap!();
                     return;
                   }
-                  if (currentTab == UserFacingBottomBarTab.explorer) return;
+                  if (currentTab != UserFacingBottomBarTab.home) return;
                   _openShellTab(context, UserFacingBottomBarTab.explorer);
                 },
               ),

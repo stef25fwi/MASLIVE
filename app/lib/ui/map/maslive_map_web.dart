@@ -201,6 +201,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         return 'Problème DOM/transitoire. Un refresh suffit généralement.';
       case 'STYLE_NOT_JSON':
         return 'L\'URL de style pointe vers une page HTML (souvent un lien Mapbox Studio). Utilise `mapbox://styles/<user>/<styleId>` ou une URL API styles/v1.';
+      case 'STYLE_TERRAIN_INVALID':
+        return 'Le style Mapbox demande une configuration terrain incompatible sur le web. Utilise un style standard sans terrain personnalisé.';
       default:
         return null;
     }
