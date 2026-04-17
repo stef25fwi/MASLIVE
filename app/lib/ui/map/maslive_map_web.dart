@@ -776,12 +776,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     try {
       final decoded = jsonDecode(_poisGeoJsonString);
       if (decoded is! Map) {
-        debugPrint('\u26A0\uFE0F POI GeoJSON: decoded is not a Map');
         return;
       }
-      final feats = decoded['features'];
-      debugPrint('\u{1F5FA}\uFE0F _applyPoisGeoJson: upserting source with '
-          '${feats is List ? feats.length : '?'} features');
       final data = js.JsObject.jsify(decoded);
       final src = map.callMethod('getSource', [_poiSourceId]);
       if (src == null) {
@@ -789,13 +785,11 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           _poiSourceId,
           js.JsObject.jsify({'type': 'geojson', 'data': data}),
         ]);
-        debugPrint('\u{1F5FA}\uFE0F POI source created: $_poiSourceId');
       } else {
         (src as js.JsObject).callMethod('setData', [data]);
-        debugPrint('\u{1F5FA}\uFE0F POI source updated: $_poiSourceId');
       }
-    } catch (e) {
-      debugPrint('\u274C POI GeoJSON upsert error: $e');
+    } catch (_) {
+      // ignore
     }
 
     // Ensure pattern images (style)

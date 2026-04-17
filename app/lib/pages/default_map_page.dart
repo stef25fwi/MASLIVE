@@ -247,27 +247,17 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   }
 
   Future<void> _syncMarketPoisToMap() async {
-    debugPrint('\u{1F5FA}\uFE0F _syncMarketPoisToMap: ready=$_isMasLiveMapReady '
-        'action=$_selectedAction pois=${_marketPois.length}');
     if (!_isMasLiveMapReady) return;
 
     final pois = _visibleMarketPoisForCurrentAction();
-    debugPrint('\u{1F5FA}\uFE0F _syncMarketPoisToMap: filtered=${pois.length}');
     if (pois.isEmpty) {
       await _mapController.clearPoisGeoJson();
       return;
     }
 
-    final fc = _buildMarketPoisFeatureCollection(pois);
-    debugPrint('\u{1F5FA}\uFE0F _syncMarketPoisToMap: sending ${(fc['features'] as List).length} features');
-    await _mapController.setPoisGeoJson(fc);
-  }
-
-  /// Résout le type effectif d'un POI : champ `type`, sinon `layerId`.
-  String _resolvePoiType(MarketPoi poi) {
-    final t = (poi.type ?? '').trim().toLowerCase();
-    if (t.isNotEmpty) return t;
-    return poi.layerId.trim().toLowerCase();
+    await _mapController.setPoisGeoJson(
+      _buildMarketPoisFeatureCollection(pois),
+    );
   }
 
   List<MarketPoi> _visibleMarketPoisForCurrentAction() {
@@ -278,19 +268,12 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       (poi) => poi.lat != 0.0 && poi.lng != 0.0,
     );
 
-    debugPrint('\u{1F5FA}\uFE0F _visiblePois: action=$action filterType=$filterType '
-        'total=${_marketPois.length} withCoords=${pois.length} '
-        'types=${_marketPois.map((p) => _resolvePoiType(p)).toSet()}');
-
     if (action == _MapAction.parkingWc) {
-      pois = pois.where((poi) {
-        final t = _resolvePoiType(poi);
-        return t == 'parking' || t == 'wc';
-      });
+      pois = pois.where((poi) => poi.type == 'parking' || poi.type == 'wc');
     } else if (filterType == null) {
       return const <MarketPoi>[];
     } else {
-      pois = pois.where((poi) => _resolvePoiType(poi) == filterType);
+      pois = pois.where((poi) => poi.type == filterType);
     }
 
     return pois.toList();
@@ -797,9 +780,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           layerIds: selection.layerIds,
         )
         .listen((pois) {
-          debugPrint('\u{1F5FA}\uFE0F Firestore stream: ${pois.length} POIs received '
-              'types=${pois.map((p) => p.type).toSet()} '
-              'layerIds=${pois.map((p) => p.layerId).toSet()}');
           if (!mounted) return;
           setState(() => _marketPois = pois);
           _refreshMarketPoiMarkers();
