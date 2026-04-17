@@ -27,6 +27,7 @@
   "overrides": {
     "fast-xml-parser": "^5.5.10",
     "node-forge": "^1.4.0",
+    "protobufjs": "^7.5.5",
     "path-to-regexp": "0.1.13",
     "@tootallnate/once": "^3.0.1"
   }
