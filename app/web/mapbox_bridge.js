@@ -538,6 +538,102 @@
   };
 
   /**
+   * Définit la couleur de l'eau (mers, rivières, canaux)
+   * @param {string} colorHex - Couleur hex (#RRGGBB)
+   * @param {mapboxgl.Map} map - Instance de la carte (optionnel)
+   * @returns {number} - Nombre de layers modifiés
+   */
+  window.mapboxBridge.setWaterColor = function(colorHex, map) {
+    const mapInstance = map || window.MapboxBridge.map;
+    if (!mapInstance) {
+      console.warn('[WaterColor] No map instance');
+      return 0;
+    }
+
+    try {
+      const style = mapInstance.getStyle();
+      if (!style || !style.layers) {
+        console.warn('[WaterColor] No style layers');
+        return 0;
+      }
+
+      let count = 0;
+      const waterKeywords = ['water', 'waterway', 'river', 'canal', 'ocean', 'sea', 'lake'];
+
+      style.layers.forEach(layer => {
+        const layerId = layer.id.toLowerCase();
+        const isWaterLayer = waterKeywords.some(keyword => layerId.includes(keyword));
+        if (!isWaterLayer) {
+          return;
+        }
+
+        try {
+          if (layer.type === 'fill') {
+            mapInstance.setPaintProperty(layer.id, 'fill-color', colorHex);
+            count++;
+          } else if (layer.type === 'line') {
+            mapInstance.setPaintProperty(layer.id, 'line-color', colorHex);
+            count++;
+          } else if (layer.type === 'background') {
+            mapInstance.setPaintProperty(layer.id, 'background-color', colorHex);
+            count++;
+          }
+        } catch (e) {
+          // ignore layer not paintable
+        }
+      });
+
+      console.log(`[WaterColor] Applied color ${colorHex} to ${count} layers`);
+      return count;
+    } catch (e) {
+      console.error('[WaterColor] setWaterColor error:', e);
+      return 0;
+    }
+  };
+
+  /**
+   * Définit la couleur des bâtiments 3D.
+   * @param {string} colorHex - Couleur hex (#RRGGBB)
+   * @param {mapboxgl.Map} map - Instance de la carte (optionnel)
+   * @returns {number} - Nombre de layers modifiés
+   */
+  window.mapboxBridge.setBuildingsColor = function(colorHex, map) {
+    const mapInstance = map || window.MapboxBridge.map;
+    if (!mapInstance) {
+      console.warn('[BuildingsColor] No map instance');
+      return 0;
+    }
+
+    try {
+      const style = mapInstance.getStyle();
+      if (!style || !style.layers) {
+        console.warn('[BuildingsColor] No style layers');
+        return 0;
+      }
+
+      let count = 0;
+      style.layers.forEach(layer => {
+        if (layer.type !== 'fill-extrusion') {
+          return;
+        }
+
+        try {
+          mapInstance.setPaintProperty(layer.id, 'fill-extrusion-color', colorHex);
+          count++;
+        } catch (e) {
+          // ignore layer not paintable
+        }
+      });
+
+      console.log(`[BuildingsColor] Applied color ${colorHex} to ${count} layers`);
+      return count;
+    } catch (e) {
+      console.error('[BuildingsColor] setBuildingsColor error:', e);
+      return 0;
+    }
+  };
+
+  /**
    * Réinitialise la couleur des espaces verts à celle du style par défaut
    * @param {mapboxgl.Map} map - Instance de la carte (optionnel)
    * @returns {boolean} - true si succès

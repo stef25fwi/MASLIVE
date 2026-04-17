@@ -144,6 +144,9 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       MapBuildingsStyleServiceNative();
   bool? _lastBuildings3dEnabled;
   double? _lastBuildings3dOpacity;
+  Color? _lastBuildingsColor;
+  Color? _lastParkColor;
+  Color? _lastWaterColor;
 
   String _poisGeoJsonString = '{"type":"FeatureCollection","features":[]}';
 
@@ -632,6 +635,24 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       }
     };
 
+    controller.setBuildingsColorImpl = (color) async {
+      _lastBuildingsColor = color;
+      if (_mapboxMap == null || !_styleLoaded || color == null) return;
+      await _applyBuildingsColor(color);
+    };
+
+    controller.setParkColorImpl = (color) async {
+      _lastParkColor = color;
+      if (_mapboxMap == null || !_styleLoaded || color == null) return;
+      await _applyGreenAreasColor(color);
+    };
+
+    controller.setWaterColorImpl = (color) async {
+      _lastWaterColor = color;
+      if (_mapboxMap == null || !_styleLoaded || color == null) return;
+      await _applyWaterColor(color);
+    };
+
     // POIs GeoJSON (Mapbox Pro)
     try {
       (controller as dynamic).setPoisGeoJsonImpl = (String fcJson) async {
@@ -671,6 +692,100 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     await _buildingsNative.setBuildingsEnabled(enabled);
     if (enabled) {
       await _buildingsNative.setBuildingsOpacity(opacity);
+    }
+
+    final buildingsColor = _lastBuildingsColor;
+    if (buildingsColor != null) {
+      await _applyBuildingsColor(buildingsColor);
+    }
+
+    final parkColor = _lastParkColor;
+    if (parkColor != null) {
+      await _applyGreenAreasColor(parkColor);
+    }
+
+    final waterColor = _lastWaterColor;
+    if (waterColor != null) {
+      await _applyWaterColor(waterColor);
+    }
+  }
+
+  Future<void> _applyBuildingsColor(Color color) async {
+    final map = _mapboxMap;
+    if (map == null || !_styleLoaded) return;
+
+    try {
+      final layerId = await _buildingsNative.findBuildingLayer();
+      if (layerId == null || layerId.trim().isEmpty) return;
+      await map.style.setStyleLayerProperty(
+        layerId,
+        'fill-extrusion-color',
+        color.toARGB32(),
+      );
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  Future<void> _applyWaterColor(Color color) async {
+    final map = _mapboxMap;
+    if (map == null || !_styleLoaded) return;
+
+    const layerIds = <String>[
+      'water',
+      'water-fill',
+      'water-shadow',
+      'waterway',
+      'waterway-river-canal',
+      'waterway-stream-canal',
+    ];
+
+    for (final layerId in layerIds) {
+      try {
+        final exists = await map.style.styleLayerExists(layerId);
+        if (exists != true) continue;
+        await map.style.setStyleLayerProperty(layerId, 'fill-color', color.toARGB32());
+      } catch (_) {
+        try {
+          await map.style.setStyleLayerProperty(layerId, 'line-color', color.toARGB32());
+        } catch (_) {
+          // ignore
+        }
+      }
+    }
+  }
+
+  Future<void> _applyGreenAreasColor(Color color) async {
+    final map = _mapboxMap;
+    if (map == null || !_styleLoaded) return;
+
+    const layerIds = <String>[
+      'landuse',
+      'landcover',
+      'national-park',
+      'park',
+      'pitch',
+      'grass',
+      'wood',
+      'forest',
+    ];
+
+    for (final layerId in layerIds) {
+      try {
+        final exists = await map.style.styleLayerExists(layerId);
+        if (exists != true) continue;
+        await map.style.setStyleLayerProperty(layerId, 'fill-color', color.toARGB32());
+      } catch (_) {
+        try {
+          await map.style.setStyleLayerProperty(
+            layerId,
+            'background-color',
+            color.toARGB32(),
+          );
+        } catch (_) {
+          // ignore
+        }
+      }
     }
   }
 

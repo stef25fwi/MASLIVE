@@ -24,6 +24,7 @@ import 'admin/mapmarket_projects_page.dart' deferred as adm_mapmarket;
 import 'admin/role_management_page.dart' deferred as adm_roles;
 import 'admin/super_admin_space.dart' deferred as adm_super;
 import 'commerce_module_single_file.dart' deferred as commerce;
+import 'features/map_style/presentation/pages/map_color_tuner_page.dart' deferred as map_color_tuner;
 import 'features/map_style/presentation/pages/mapbox_style_studio_page.dart' deferred as map_style_studio;
 import 'features/media_marketplace/presentation/pages/media_marketplace_pages.dart' deferred as media_market;
 import 'features/shop/pages/media_photo_shop_page.dart' deferred as photo_shop;
@@ -744,6 +745,9 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
       break;
     case '/admin/mapbox-style-studio':
       page = AdminRouteGuard(child: _DeferredLoader(load: map_style_studio.loadLibrary, build: () => map_style_studio.MapboxStyleStudioPage()));
+      break;
+    case '/admin/map-color-tuner':
+      page = AdminRouteGuard(child: _DeferredLoader(load: map_color_tuner.loadLibrary, build: () => map_color_tuner.MapColorTunerPage()));
       break;
     case '/admin/route-style-pro':
       page = AdminRouteGuard(child: _DeferredLoader(load: route_style_pro.loadLibrary, build: () {

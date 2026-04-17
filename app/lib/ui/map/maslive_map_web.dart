@@ -161,6 +161,9 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
   bool? _lastBuildings3dEnabled;
   double? _lastBuildings3dOpacity;
+  Color? _lastBuildingsColor;
+  Color? _lastParkColor;
+  Color? _lastWaterColor;
 
   String? _pendingStyleUrlToApply;
   int _styleChangeNonce = 0;
@@ -384,6 +387,21 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     if (enabled != null && opacity != null) {
       await _applyBuildings3d(enabled: enabled, opacity: opacity);
     }
+
+    final buildingsColor = _lastBuildingsColor;
+    if (buildingsColor != null) {
+      await _applyBuildingsColor(buildingsColor);
+    }
+
+    final parkColor = _lastParkColor;
+    if (parkColor != null) {
+      await _applyParkColor(parkColor);
+    }
+
+    final waterColor = _lastWaterColor;
+    if (waterColor != null) {
+      await _applyWaterColor(waterColor);
+    }
   }
 
   Future<void> _applyBuildings3d({
@@ -476,6 +494,41 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     } catch (e) {
       debugPrint('⚠️ setParkColor error: $e');
     }
+  }
+
+  Future<void> _applyBuildingsColor(Color? color) async {
+    final map = _getMapForThisContainer();
+    if (map == null || color == null) return;
+
+    try {
+      final bridge = js.context['mapboxBridge'];
+      if (bridge is! js.JsObject) return;
+      final colorHex = _toHexColor(color);
+      bridge.callMethod('setBuildingsColor', [colorHex, map]);
+    } catch (e) {
+      debugPrint('⚠️ setBuildingsColor error: $e');
+    }
+  }
+
+  Future<void> _applyWaterColor(Color? color) async {
+    final map = _getMapForThisContainer();
+    if (map == null || color == null) return;
+
+    try {
+      final bridge = js.context['mapboxBridge'];
+      if (bridge is! js.JsObject) return;
+      final colorHex = _toHexColor(color);
+      bridge.callMethod('setWaterColor', [colorHex, map]);
+    } catch (e) {
+      debugPrint('⚠️ setWaterColor error: $e');
+    }
+  }
+
+  String _toHexColor(Color color) {
+    final r = (color.r * 255).round().toRadixString(16).padLeft(2, '0');
+    final g = (color.g * 255).round().toRadixString(16).padLeft(2, '0');
+    final b = (color.b * 255).round().toRadixString(16).padLeft(2, '0');
+    return '#$r$g$b';
   }
 
   void _scheduleResize() {
@@ -1990,9 +2043,22 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       await _applyBuildings3d(enabled: enabled, opacity: opacity);
     };
 
+    controller.setBuildingsColorImpl = (color) async {
+      _lastBuildingsColor = color;
+      if (!_isMapReady) return;
+      await _applyBuildingsColor(color);
+    };
+
     controller.setParkColorImpl = (color) async {
+      _lastParkColor = color;
       if (!_isMapReady) return;
       await _applyParkColor(color);
+    };
+
+    controller.setWaterColorImpl = (color) async {
+      _lastWaterColor = color;
+      if (!_isMapReady) return;
+      await _applyWaterColor(color);
     };
 
     controller

@@ -58,8 +58,14 @@ class MasLiveMapController {
   /// Callback interne pour régler les bâtiments 3D (web: fill-extrusion opacity/visibility)
   Future<void> Function(bool enabled, double opacity)? _setBuildings3dImpl;
 
+  /// Callback interne pour régler la teinte des bâtiments 3D.
+  Future<void> Function(Color? color)? _setBuildingsColorImpl;
+
   /// Callback interne pour régler la couleur des espaces verts (parcs, forêts)
   Future<void> Function(Color? color)? _setParkColorImpl;
+
+  /// Callback interne pour régler la couleur de l'eau.
+  Future<void> Function(Color? color)? _setWaterColorImpl;
 
   // =====================================================================
   // SETTERS publics pour brancher les implémentations (Web/Native)
@@ -155,8 +161,18 @@ class MasLiveMapController {
   }
 
   /// @nodoc - Usage interne seulement
+  set setBuildingsColorImpl(Future<void> Function(Color? color)? impl) {
+    _setBuildingsColorImpl = impl;
+  }
+
+  /// @nodoc - Usage interne seulement
   set setParkColorImpl(Future<void> Function(Color? color)? impl) {
     _setParkColorImpl = impl;
+  }
+
+  /// @nodoc - Usage interne seulement
+  set setWaterColorImpl(Future<void> Function(Color? color)? impl) {
+    _setWaterColorImpl = impl;
   }
 
   // =====================================================================
@@ -290,6 +306,13 @@ class MasLiveMapController {
     await _setBuildings3dImpl?.call(enabled, opacity);
   }
 
+  /// Définir la teinte des bâtiments 3D.
+  ///
+  /// Si color est null, conserve la teinte du style courant.
+  Future<void> setBuildingsColor(Color? color) async {
+    await _setBuildingsColorImpl?.call(color);
+  }
+
   /// Définir la couleur des espaces verts (parcs, forêts, etc.)
   ///
   /// Web: applique la couleur sur les layers de type landuse/park.
@@ -297,6 +320,13 @@ class MasLiveMapController {
   /// Si color est null, réinitialise à la couleur du style par défaut.
   Future<void> setParkColor(Color? color) async {
     await _setParkColorImpl?.call(color);
+  }
+
+  /// Définir la couleur de l'eau.
+  ///
+  /// Si color est null, conserve la couleur du style courant.
+  Future<void> setWaterColor(Color? color) async {
+    await _setWaterColorImpl?.call(color);
   }
 
   /// Afficher un polygone (zone, circuit fermé)

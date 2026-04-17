@@ -279,6 +279,16 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                     },
                   ),
                   const SizedBox(height: 12),
+                  _buildDashboardCard(
+                    title: 'Couleurs carte',
+                    subtitle:
+                        'Regler en live eau, batiments 3D et verdure sans installer de dependance',
+                    icon: Icons.palette_rounded,
+                    color: const Color(0xFF0EA5E9),
+                    onTap: () =>
+                        Navigator.pushNamed(context, '/admin/map-color-tuner'),
+                  ),
+                  const SizedBox(height: 12),
                   _buildDefaultMapStyleTile(),
                   const SizedBox(height: 24),
 
