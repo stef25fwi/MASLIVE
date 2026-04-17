@@ -474,14 +474,13 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
       if (!mounted) return;
 
-      // Priorité : admin Firestore > pref locale > constante.
-      // Ainsi, la tuile Couleur carte reste source de vérité globale
-      // quand aucun circuit spécifique n'est actif sur la Home.
+      // Au démarrage de la Home, la config admin de la tuile couleur de carte
+      // reste la source de vérité. La préférence locale ne sert qu'en fallback.
       final resolved = adminResolved ?? localResolved ?? kDefaultMapboxStyleUrl;
       if (resolved != _styleUrl) {
         _styleUrl = resolved;
       }
-      _startupDefaultHomeStyleUrl = adminResolved;
+      _startupDefaultHomeStyleUrl = adminResolved ?? localResolved;
       _startupHomeMapAppearance = adminAppearance;
       if (_isMasLiveMapReady && adminAppearance != null) {
         unawaited(_applyStartupHomeMapAppearance());
@@ -521,10 +520,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     unawaited(_clearPersistedLastHomeStyleUrl());
     if (!mounted) return;
 
-    final defaultStyleUrl = normalizeMapboxStyleUrl(
-      kDefaultMapboxStyleUrl,
-      fallback: kDefaultMapboxStyleUrl,
-    );
+    final defaultStyleUrl = _resolvedStartupHomeStyleUrl;
     if (_styleUrl == defaultStyleUrl) return;
 
     setState(() {
@@ -748,23 +744,28 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         selection.circuit == null) {
       _marketRouteStyleProTimer?.cancel();
       _marketRouteStyleProTimer = null;
-      final wasMapReady = _isMasLiveMapReady;
+      final startupStyleUrl = _resolvedStartupHomeStyleUrl;
+      final shouldRebuildMap = _styleUrl != startupStyleUrl;
       if (!mounted) return;
       setState(() {
-        _styleUrl = _resolvedStartupHomeStyleUrl;
+        _styleUrl = startupStyleUrl;
         _marketPois = const <MarketPoi>[];
         _marketRoutePoints = const <MapPoint>[];
         _marketRouteStyle = const <String, dynamic>{};
         _marketRouteStylePro = null;
         _marketRouteBounds = null;
-        _isMasLiveMapReady = false;
-        _mapRebuildTick++;
+        if (shouldRebuildMap) {
+          _isMasLiveMapReady = false;
+          _mapRebuildTick++;
+        }
       });
 
-      unawaited(_clearPersistedLastHomeStyleUrl());
+      if (!shouldRebuildMap && _isMasLiveMapReady) {
+        unawaited(_applyStartupHomeMapAppearance());
+      }
 
       // Masquer le tracé sans effacer les marqueurs.
-      if (wasMapReady) {
+      if (_isMasLiveMapReady) {
         unawaited(_mapController.clearPoisGeoJson());
         unawaited(
           _mapController.setPolyline(points: const <MapPoint>[], show: false),

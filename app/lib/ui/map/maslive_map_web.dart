@@ -1932,10 +1932,6 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     // Important: après init (et après setStyle), la carte peut avoir une taille 0
     // si l'orientation vient de changer. On force un resize léger.
     _scheduleResize();
-    final controller = widget.controller;
-    if (controller != null) {
-      widget.onMapReady?.call(controller);
-    }
 
     final pending = _pendingStyleUrlToApply;
     if (pending != null) {
@@ -1950,6 +1946,14 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       }
       _scheduleResize();
       _scheduleReapplyOverlaysAfterStyleChange();
+    }
+
+    final controller = widget.controller;
+    if (controller != null) {
+      // Le callback hôte intervient après l'émission éventuelle d'un setStyle,
+      // afin que les réglages startup (bâtiments/eau/parcs) se calent sur le
+      // style cible plutôt que sur un style transitoire immédiatement remplacé.
+      widget.onMapReady?.call(controller);
     }
   }
 
