@@ -3907,6 +3907,76 @@ class _NearbyPoiFilmCarousel extends StatelessWidget {
   final ValueChanged<_PoiTapCandidate> onTapItem;
   final VoidCallback onClose;
 
+  static String _categoryLabel(String category) {
+    switch (category) {
+      case 'food':
+        return 'Food';
+      case 'visit':
+        return 'Visite';
+      case 'assistance':
+        return 'Aide';
+      case 'parking':
+        return 'Parking';
+      case 'wc':
+        return 'WC';
+      default:
+        return 'POI';
+    }
+  }
+
+  static IconData _categoryIcon(String category) {
+    switch (category) {
+      case 'food':
+        return Icons.restaurant_rounded;
+      case 'visit':
+        return Icons.explore_rounded;
+      case 'assistance':
+        return Icons.shield_outlined;
+      case 'parking':
+        return Icons.local_parking_rounded;
+      case 'wc':
+        return Icons.wc_rounded;
+      default:
+        return Icons.place_rounded;
+    }
+  }
+
+  static Color _categoryColor(String category) {
+    switch (category) {
+      case 'food':
+        return const Color(0xFFFF9F1C);
+      case 'visit':
+        return const Color(0xFF7C5CFF);
+      case 'assistance':
+        return const Color(0xFFFFC145);
+      case 'parking':
+        return const Color(0xFF33C26B);
+      case 'wc':
+        return const Color(0xFF33A1FF);
+      default:
+        return const Color(0xFFFFC857);
+    }
+  }
+
+  Widget _buildFilmHoles() {
+    return SizedBox(
+      height: 8,
+      child: ListView.separated(
+        physics: const NeverScrollableScrollPhysics(),
+        scrollDirection: Axis.horizontal,
+        itemBuilder: (_, __) => DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.22),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: const SizedBox(width: 14, height: 8),
+        ),
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemCount: 18,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return IgnorePointer(
@@ -3940,24 +4010,7 @@ class _NearbyPoiFilmCarousel extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Expanded(
-                            child: SizedBox(
-                              height: 8,
-                              child: ListView.separated(
-                                physics: const NeverScrollableScrollPhysics(),
-                                scrollDirection: Axis.horizontal,
-                                itemBuilder: (_, __) => DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.22),
-                                    borderRadius: BorderRadius.circular(999),
-                                  ),
-                                  child: const SizedBox(width: 14, height: 8),
-                                ),
-                                separatorBuilder: (_, __) => const SizedBox(width: 6),
-                                itemCount: 18,
-                              ),
-                            ),
-                          ),
+                          Expanded(child: _buildFilmHoles()),
                           const SizedBox(width: 8),
                           GestureDetector(
                             onTap: onClose,
@@ -3978,8 +4031,66 @@ class _NearbyPoiFilmCarousel extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 10),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Points proches',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Fais glisser pour choisir le bon point',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(alpha: 0.62),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.09),
+                                ),
+                              ),
+                              child: Text(
+                                '${items.length}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       SizedBox(
-                        height: 76,
+                        height: 94,
                         child: PageView.builder(
                           controller: controller,
                           padEnds: true,
@@ -3992,102 +4103,164 @@ class _NearbyPoiFilmCarousel extends StatelessWidget {
                           itemBuilder: (context, index) {
                             final item = items[index];
                             final isFocused = item.id == focusedPoiId;
+                            final accentColor = _categoryColor(item.category);
                             final distanceLabel = item.distanceMeters == null
                                 ? null
                                 : '${item.distanceMeters!.round()} m';
 
-                            return AnimatedContainer(
+                            return AnimatedScale(
                               duration: const Duration(milliseconds: 180),
                               curve: Curves.easeOutCubic,
-                              margin: EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: isFocused ? 0 : 8,
-                              ),
-                              child: GestureDetector(
-                                onTap: () => onTapItem(item),
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    gradient: isFocused
-                                        ? const LinearGradient(
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                            colors: [
-                                              Color(0xFFFFF4D6),
-                                              Color(0xFFFFD58F),
-                                            ],
-                                          )
-                                        : LinearGradient(
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                            colors: [
-                                              Colors.white.withValues(alpha: 0.14),
-                                              Colors.white.withValues(alpha: 0.08),
-                                            ],
-                                          ),
-                                    borderRadius: BorderRadius.circular(18),
-                                    border: Border.all(
-                                      color: isFocused
-                                          ? const Color(0xFFFFE2AC)
-                                          : Colors.white.withValues(alpha: 0.10),
-                                      width: isFocused ? 1.4 : 1,
-                                    ),
+                              scale: isFocused ? 1.0 : 0.93,
+                              child: AnimatedRotation(
+                                duration: const Duration(milliseconds: 180),
+                                curve: Curves.easeOutCubic,
+                                turns: isFocused
+                                    ? 0
+                                    : (index.isEven ? -0.008 : 0.008),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  curve: Curves.easeOutCubic,
+                                  margin: EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: isFocused ? 0 : 10,
                                   ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 10,
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Container(
-                                          width: 18,
-                                          height: 18,
-                                          decoration: BoxDecoration(
-                                            color: isFocused
-                                                ? const Color(0xFF111111)
-                                                : Colors.white.withValues(alpha: 0.16),
-                                            borderRadius: BorderRadius.circular(6),
-                                          ),
-                                          child: Icon(
-                                            Icons.fiber_manual_record_rounded,
-                                            size: 10,
-                                            color: isFocused
-                                                ? const Color(0xFFFFC857)
-                                                : Colors.white,
-                                          ),
+                                  child: GestureDetector(
+                                    onTap: () => onTapItem(item),
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        gradient: isFocused
+                                            ? const LinearGradient(
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                                colors: [
+                                                  Color(0xFFFFF4D6),
+                                                  Color(0xFFFFD58F),
+                                                ],
+                                              )
+                                            : LinearGradient(
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                                colors: [
+                                                  Colors.white.withValues(alpha: 0.14),
+                                                  Colors.white.withValues(alpha: 0.08),
+                                                ],
+                                              ),
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(
+                                          color: isFocused
+                                              ? const Color(0xFFFFE2AC)
+                                              : Colors.white.withValues(alpha: 0.10),
+                                          width: isFocused ? 1.4 : 1,
                                         ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          item.title,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            color: isFocused
-                                                ? const Color(0xFF111111)
-                                                : Colors.white,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 12.5,
-                                            height: 1.05,
-                                          ),
+                                        boxShadow: isFocused
+                                            ? const [
+                                                BoxShadow(
+                                                  color: Color(0x2A000000),
+                                                  blurRadius: 18,
+                                                  offset: Offset(0, 8),
+                                                ),
+                                              ]
+                                            : null,
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 10,
                                         ),
-                                        if (distanceLabel != null) ...[
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            distanceLabel,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              color: isFocused
-                                                  ? const Color(0xB3111111)
-                                                  : Colors.white.withValues(alpha: 0.68),
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 10.5,
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Container(
+                                                  width: 20,
+                                                  height: 20,
+                                                  decoration: BoxDecoration(
+                                                    color: isFocused
+                                                        ? const Color(0xFF111111)
+                                                        : accentColor.withValues(alpha: 0.18),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                  ),
+                                                  child: Icon(
+                                                    _categoryIcon(item.category),
+                                                    size: 12,
+                                                    color: isFocused
+                                                        ? accentColor
+                                                        : accentColor,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Expanded(
+                                                  child: Container(
+                                                    padding: const EdgeInsets.symmetric(
+                                                      horizontal: 7,
+                                                      vertical: 3,
+                                                    ),
+                                                    decoration: BoxDecoration(
+                                                      color: isFocused
+                                                          ? const Color(0x22111111)
+                                                          : Colors.white.withValues(alpha: 0.08),
+                                                      borderRadius: BorderRadius.circular(999),
+                                                    ),
+                                                    child: Text(
+                                                      _categoryLabel(item.category),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                        color: isFocused
+                                                            ? const Color(0xCC111111)
+                                                            : accentColor,
+                                                        fontWeight: FontWeight.w800,
+                                                        fontSize: 10,
+                                                        letterSpacing: 0.2,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                                if (item.canOpenSheet)
+                                                  Icon(
+                                                    Icons.open_in_full_rounded,
+                                                    size: 14,
+                                                    color: isFocused
+                                                        ? const Color(0xAA111111)
+                                                        : Colors.white.withValues(alpha: 0.62),
+                                                  ),
+                                              ],
                                             ),
-                                          ),
-                                        ],
-                                      ],
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              item.title,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                color: isFocused
+                                                    ? const Color(0xFF111111)
+                                                    : Colors.white,
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 12.5,
+                                                height: 1.05,
+                                              ),
+                                            ),
+                                            if (distanceLabel != null) ...[
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                distanceLabel,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  color: isFocused
+                                                      ? const Color(0xB3111111)
+                                                      : Colors.white.withValues(alpha: 0.68),
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 10.5,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -4096,6 +4269,8 @@ class _NearbyPoiFilmCarousel extends StatelessWidget {
                           },
                         ),
                       ),
+                      const SizedBox(height: 10),
+                      Opacity(opacity: 0.78, child: _buildFilmHoles()),
                     ],
                   ),
                 ),
