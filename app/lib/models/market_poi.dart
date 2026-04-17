@@ -82,8 +82,18 @@ class MarketPoi {
     final data = doc.data() ?? const <String, dynamic>{};
 
     String? asString(dynamic value) {
-      if (value is String) return value;
+      if (value is String) {
+        final trimmed = value.trim();
+        return trimmed.isEmpty ? null : trimmed;
+      }
       return null;
+    }
+
+    String? normalizedPoiType() {
+      final rawType = asString(
+        data['type'] ?? data['layerType'] ?? data['layerId'],
+      );
+      return rawType?.toLowerCase();
     }
 
     DateTime? asDateTime(dynamic value) {
@@ -91,11 +101,14 @@ class MarketPoi {
       return null;
     }
 
+    final resolvedType = normalizedPoiType();
+    final resolvedLayerId = asString(data['layerId'] ?? data['layerType']) ?? '';
+
     return MarketPoi(
       id: doc.id,
       name: (data['name'] as String?) ?? (data['title'] as String?) ?? '',
       description: (data['description'] as String?) ?? (data['desc'] as String?),
-      type: data['type'] as String?,
+      type: resolvedType,
       imageUrl: asString(data['imageUrl'] ?? data['photoUrl'] ?? data['image']),
       address: asString(data['address'] ?? data['adresse'] ?? data['locationLabel']),
       openingHours: data['openingHours'] ?? data['hours'] ?? data['horaires'],
@@ -113,7 +126,7 @@ class MarketPoi {
               : null,
       lat: (data['lat'] as num?)?.toDouble() ?? 0.0,
       lng: (data['lng'] as num?)?.toDouble() ?? 0.0,
-      layerId: (data['layerId'] as String?) ?? '',
+      layerId: resolvedLayerId,
       isVisible: (data['isVisible'] as bool?) ?? true,
       createdByUid: data['createdByUid'] as String?,
       createdAt: asDateTime(data['createdAt']),
