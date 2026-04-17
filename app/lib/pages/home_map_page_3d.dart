@@ -1248,6 +1248,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       await safeSet(_mmRouteLayerMainId, 'line-dasharray', null);
     }
 
+    await _bringMarketRouteLayersAboveBuildings();
+    await _bringMarketPoiLayersToFront();
+
     // Évite tout mouvement caméra en mode animation
     if (!fitCamera) return;
 
@@ -1420,6 +1423,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         final centerWidth = (width * 0.33).clamp(1.0, width);
         await addLine(c: const Color(0xFFFFFFFF), w: centerWidth, alpha: 190);
       }
+
+      await _bringMarketPoiLayersToFront();
 
       final bounds = _boundsFromPositions(pts);
       if (bounds == null) return false;
@@ -1595,6 +1600,59 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     await _ensureMarketPoiGeoJsonRuntime();
     await _updateMarketPoiGeoJson();
     await _applyPoiTypeVisibility();
+    await _bringMarketPoiLayersToFront();
+  }
+
+  Future<void> _bringMarketRouteLayersAboveBuildings() async {
+    final map = _mapboxMap;
+    if (map == null) return;
+
+    const buildingLayerId = 'maslive-3d-buildings';
+    final orderedLayerIds = <String>[
+      _mmRouteLayerShadowId,
+      _mmRouteLayerGlowId,
+      _mmRouteLayerSideLId,
+      _mmRouteLayerSideRId,
+      _mmRouteLayerCasingId,
+      _mmRouteLayerMainId,
+    ];
+
+    try {
+      final buildingExists = await map.style.styleLayerExists(buildingLayerId);
+      if (buildingExists != true) return;
+    } catch (_) {
+      // ignore
+    }
+
+    for (final layerId in orderedLayerIds) {
+      try {
+        final exists = await map.style.styleLayerExists(layerId);
+        if (exists == true) {
+          await map.style.moveStyleLayer(layerId, null);
+        }
+      } catch (_) {
+        // ignore
+      }
+    }
+  }
+
+  Future<void> _bringMarketPoiLayersToFront() async {
+    final map = _mapboxMap;
+    if (map == null) return;
+
+    final orderedLayerIds = <String>[
+      ..._mmTypes.map(_mmLayerIdForType),
+      _mmPoiLiveBadgeLayerId,
+    ];
+
+    for (final layerId in orderedLayerIds) {
+      if (!_mmPoiLayerIds.contains(layerId)) continue;
+      try {
+        await map.style.moveStyleLayer(layerId, null);
+      } catch (_) {
+        // ignore
+      }
+    }
   }
 
   String _mmLayerIdForType(String type) => '$_mmPoiLayerPrefix$type';
