@@ -122,6 +122,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   // Projets cartographiques
   bool _didResolveInitialStyle = false;
   String _styleUrl = kDefaultMapboxStyleUrl;
+  StartupHomeMapAppearance? _startupHomeMapAppearance;
   double? _projectCenterLat;
   double? _projectCenterLng;
   double? _projectZoom;
@@ -467,6 +468,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       // 2) Style par défaut défini par l'admin (Firestore config/appStartup)
       final adminResolved =
           await StartupMapStyleService.instance.getDefaultStyleUrl();
+      final adminAppearance =
+          await StartupMapStyleService.instance.getHomeMapAppearance();
 
       if (!mounted) return;
 
@@ -474,6 +477,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       final resolved = localResolved ?? adminResolved ?? kDefaultMapboxStyleUrl;
       if (resolved != _styleUrl) {
         _styleUrl = resolved;
+      }
+      _startupHomeMapAppearance = adminAppearance;
+      if (_isMasLiveMapReady && adminAppearance != null) {
+        unawaited(_applyStartupHomeMapAppearance());
       }
     } catch (_) {
       // ignore — on garde le style par défaut
@@ -525,6 +532,19 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       unawaited(_bootstrapLocation());
       unawaited(_loadUserGroupId());
     });
+  }
+
+  Future<void> _applyStartupHomeMapAppearance() async {
+    final appearance = _startupHomeMapAppearance;
+    if (!_isMasLiveMapReady || appearance == null) return;
+
+    await _mapController.setBuildings3d(
+      enabled: appearance.buildingsEnabled,
+      opacity: appearance.buildingsOpacity,
+    );
+    await _mapController.setBuildingsColor(appearance.buildingColor);
+    await _mapController.setParkColor(appearance.greenColor);
+    await _mapController.setWaterColor(appearance.waterColor);
   }
 
   void _startPostSplashUiWarmups() {
@@ -1984,6 +2004,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                             unawaited(_syncMarkersToMap());
                             unawaited(_syncMarketPoisToMap());
                             unawaited(_applyCachedMarketRouteToMap());
+                            unawaited(_applyStartupHomeMapAppearance());
                           },
                           onInitError: _handleMapInitError,
                           onStyleFallback: _handleMapStyleFallback,

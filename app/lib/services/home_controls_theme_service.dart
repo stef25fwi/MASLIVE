@@ -1,19 +1,29 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 enum HomeControlsThemeMode { classic, ultraPremiumGlass }
 
 class HomeControlsThemeService {
   HomeControlsThemeService({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore;
 
   static const String configCollection = 'config';
   static const String systemDocument = 'system';
   static const String fieldName = 'homeControlsTheme';
 
-  final FirebaseFirestore _firestore;
+  final FirebaseFirestore? _firestore;
 
-  Stream<HomeControlsThemeMode> watchTheme() {
-    return _firestore
+  Stream<HomeControlsThemeMode> watchTheme() async* {
+    yield HomeControlsThemeMode.classic;
+
+    final firestore = await _waitForFirestore();
+    if (firestore == null) {
+      return;
+    }
+
+    yield* firestore
         .collection(configCollection)
         .doc(systemDocument)
         .snapshots()
@@ -22,9 +32,42 @@ class HomeControlsThemeService {
   }
 
   Future<void> saveTheme(HomeControlsThemeMode theme) {
-    return _firestore.collection(configCollection).doc(systemDocument).set({
+    final firestore = _resolveFirestoreOrThrow();
+    return firestore.collection(configCollection).doc(systemDocument).set({
       fieldName: toStorage(theme),
     }, SetOptions(merge: true));
+  }
+
+  Future<FirebaseFirestore?> _waitForFirestore() async {
+    if (_firestore != null) {
+      return _firestore;
+    }
+    if (Firebase.apps.isNotEmpty) {
+      return FirebaseFirestore.instance;
+    }
+
+    const deadline = Duration(seconds: 8);
+    const step = Duration(milliseconds: 250);
+    final stopwatch = Stopwatch()..start();
+    while (Firebase.apps.isEmpty && stopwatch.elapsed < deadline) {
+      await Future<void>.delayed(step);
+    }
+
+    if (Firebase.apps.isEmpty) {
+      return null;
+    }
+    return FirebaseFirestore.instance;
+  }
+
+  FirebaseFirestore _resolveFirestoreOrThrow() {
+    final firestore = _firestore;
+    if (firestore != null) {
+      return firestore;
+    }
+    if (Firebase.apps.isEmpty) {
+      throw StateError('Firebase n\'est pas initialisé');
+    }
+    return FirebaseFirestore.instance;
   }
 
   static HomeControlsThemeMode fromConfig(Map<String, dynamic>? config) {

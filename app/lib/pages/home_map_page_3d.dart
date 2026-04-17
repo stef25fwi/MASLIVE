@@ -30,6 +30,7 @@ import '../services/language_service.dart';
 import '../services/mapbox_token_service.dart';
 import '../services/market_map_service.dart';
 import '../services/poi_popup_service.dart';
+import '../services/startup_map_style_service.dart';
 import '../models/market_poi.dart';
 import '../ui/widgets/marketmap_poi_selector_sheet.dart';
 import '../services/poi_analytics_service.dart';
@@ -176,6 +177,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   int _mapTick = 0;
   bool _mapCanBeCreated = false;
   String _currentStyleUri = kDefaultMapboxStyleUrl;
+  String? _startupDefaultHomeStyleUrl;
+  StartupHomeMapAppearance? _startupHomeMapAppearance;
   ui.Size? _lastSize;
   Timer? _debounce;
 
@@ -274,6 +277,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     // Initialisation du token Mapbox (peut être vide au démarrage)
     _initMapboxToken();
     _listenHomeControlsThemeConfig();
+    unawaited(_restoreStartupHomeMapConfig());
 
     // Synchroniser l'état de tracking avec le service
     _isTracking = _geo.isTracking;
@@ -540,7 +544,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         selection.country == null ||
         selection.event == null ||
         selection.circuit == null) {
-      await _applyHomeMapStyleUri(kDefaultMapboxStyleUrl);
+      await _applyHomeMapStyleUri(_resolvedStartupHomeStyleUri);
       if (!mounted) return;
       setState(() {
         _marketPois = const <MarketPoi>[];
@@ -621,6 +625,136 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           'MAPBOX_NATIVE',
           'apply home style failed uri=$wantedStyleUri error=$fallbackError',
         );
+      }
+    }
+  }
+
+  String get _resolvedStartupHomeStyleUri => normalizeMapboxStyleUrl(
+    _startupDefaultHomeStyleUrl,
+    fallback: kDefaultMapboxStyleUrl,
+  );
+
+  Future<void> _restoreStartupHomeMapConfig() async {
+    try {
+      final service = StartupMapStyleService.instance;
+      final startupStyleUrl = await service.getDefaultStyleUrl();
+      final startupAppearance = await service.getHomeMapAppearance();
+      final resolvedStyleUri = normalizeMapboxStyleUrl(
+        startupStyleUrl,
+        fallback: kDefaultMapboxStyleUrl,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _startupDefaultHomeStyleUrl = startupStyleUrl;
+        _startupHomeMapAppearance = startupAppearance;
+        _currentStyleUri = resolvedStyleUri;
+      });
+
+      if (_mapboxMap != null) {
+        await _applyHomeMapStyleUri(resolvedStyleUri);
+        await _applyStartupHomeMapAppearance();
+      }
+    } catch (_) {
+      // ignore — on garde le style par défaut local
+    }
+  }
+
+  Future<void> _applyStartupHomeMapAppearance() async {
+    final appearance = _startupHomeMapAppearance;
+    final map = _mapboxMap;
+    if (appearance == null || map == null) return;
+
+    await _applyHomeBuildingsAppearance(appearance);
+    await _applyColorOnHomeLayers(
+      layerIds: const <String>[
+        'landuse',
+        'landcover',
+        'national-park',
+        'park',
+        'pitch',
+        'grass',
+        'wood',
+        'forest',
+      ],
+      primaryProperty: 'fill-color',
+      fallbackProperty: 'background-color',
+      color: appearance.greenColor,
+    );
+    await _applyColorOnHomeLayers(
+      layerIds: const <String>[
+        'water',
+        'water-fill',
+        'water-shadow',
+        'waterway',
+        'waterway-river-canal',
+        'waterway-stream-canal',
+      ],
+      primaryProperty: 'fill-color',
+      fallbackProperty: 'line-color',
+      color: appearance.waterColor,
+    );
+  }
+
+  Future<void> _applyHomeBuildingsAppearance(
+    StartupHomeMapAppearance appearance,
+  ) async {
+    final map = _mapboxMap;
+    if (map == null) return;
+
+    try {
+      final exists = await map.style.styleLayerExists('maslive-3d-buildings');
+      if (exists != true) return;
+
+      await map.style.setStyleLayerProperty(
+        'maslive-3d-buildings',
+        'visibility',
+        appearance.buildingsEnabled ? 'visible' : 'none',
+      );
+      await map.style.setStyleLayerProperty(
+        'maslive-3d-buildings',
+        'fill-extrusion-opacity',
+        appearance.buildingsOpacity,
+      );
+      await map.style.setStyleLayerProperty(
+        'maslive-3d-buildings',
+        'fill-extrusion-color',
+        appearance.buildingColor.toARGB32(),
+      );
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  Future<void> _applyColorOnHomeLayers({
+    required List<String> layerIds,
+    required String primaryProperty,
+    required String fallbackProperty,
+    required Color color,
+  }) async {
+    final map = _mapboxMap;
+    if (map == null) return;
+
+    for (final layerId in layerIds) {
+      try {
+        final exists = await map.style.styleLayerExists(layerId);
+        if (exists != true) continue;
+        await map.style.setStyleLayerProperty(
+          layerId,
+          primaryProperty,
+          color.toARGB32(),
+        );
+      } catch (_) {
+        try {
+          await map.style.setStyleLayerProperty(
+            layerId,
+            fallbackProperty,
+            color.toARGB32(),
+          );
+        } catch (_) {
+          // ignore
+        }
       }
     }
   }
@@ -2913,6 +3047,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
     // Re-ajoute ce qui dépend du style
     await _add3dBuildings();
+    await _applyStartupHomeMapAppearance();
 
     // Rebuild POIs si sélection active
     await _ensureMarketPoiGeoJsonRuntime(forceRebuild: true);

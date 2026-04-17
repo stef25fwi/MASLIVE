@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../../services/startup_map_style_service.dart';
 import '../../../../ui/map/maslive_map.dart';
 import '../../../../ui/map/maslive_map_controller.dart';
 
@@ -32,6 +33,55 @@ class _MapColorTunerPageState extends State<MapColorTunerPage> {
   Color _buildingColor = const Color(0xFFD1D5DB);
   Color _greenColor = const Color(0xFF77B255);
   Color _waterColor = const Color(0xFF58A6FF);
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadSavedConfig());
+  }
+
+  StartupHomeMapAppearance get _currentAppearance => StartupHomeMapAppearance(
+    buildingsEnabled: _buildingsEnabled,
+    buildingsOpacity: _buildingOpacity,
+    buildingColor: _buildingColor,
+    greenColor: _greenColor,
+    waterColor: _waterColor,
+  );
+
+  Future<void> _loadSavedConfig() async {
+    try {
+      final service = StartupMapStyleService.instance;
+      final styleUrl = await service.getDefaultStyleUrl();
+      final appearance = await service.getHomeMapAppearance();
+      if (!mounted) return;
+
+      setState(() {
+        _selectedStyle = _findStyleOption(styleUrl);
+        if (appearance != null) {
+          _buildingsEnabled = appearance.buildingsEnabled;
+          _buildingOpacity = appearance.buildingsOpacity;
+          _buildingColor = appearance.buildingColor;
+          _greenColor = appearance.greenColor;
+          _waterColor = appearance.waterColor;
+        }
+      });
+
+      await _mapController.setStyle(_selectedStyle.styleUrl);
+      await _applyAllSettings();
+    } catch (_) {
+      // ignore — on garde les valeurs par défaut de l'outil.
+    }
+  }
+
+  _MapStyleOption _findStyleOption(String? styleUrl) {
+    for (final option in _styleOptions) {
+      if (option.styleUrl == styleUrl) {
+        return option;
+      }
+    }
+    return _styleOptions.first;
+  }
 
   Future<void> _applyAllSettings() async {
     await _mapController.setBuildings3d(
@@ -57,18 +107,88 @@ class _MapColorTunerPageState extends State<MapColorTunerPage> {
     unawaited(_applyAllSettings());
   }
 
+  Future<void> _saveAndApply() async {
+    if (_isSaving) return;
+
+    setState(() => _isSaving = true);
+    try {
+      await StartupMapStyleService.instance.saveHomeMapConfig(
+        styleUrl: _selectedStyle.styleUrl,
+        appearance: _currentAppearance,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Reglages enregistres et appliques a la Home.'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Impossible d\'enregistrer les reglages: $error'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final saveButton = FilledButton.icon(
+      onPressed: _isSaving ? null : _saveAndApply,
+      icon: _isSaving
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.save_rounded),
+      label: Text(
+        _isSaving
+            ? 'Sauvegarde en cours...'
+            : 'Sauvegarder + appliquer',
+      ),
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Reglage couleurs carte'),
         actions: <Widget>[
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: TextButton.icon(
+              onPressed: _isSaving ? null : _saveAndApply,
+              icon: _isSaving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save_rounded),
+              label: const Text('Sauvegarder'),
+            ),
+          ),
           IconButton(
             tooltip: 'Reinitialiser',
             onPressed: _resetDefaults,
             icon: const Icon(Icons.restart_alt_rounded),
           ),
         ],
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+          ),
+          child: SizedBox(width: double.infinity, child: saveButton),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -201,6 +321,7 @@ class _MapColorTunerPageState extends State<MapColorTunerPage> {
               unawaited(_applyAllSettings());
             },
           ),
+          const SizedBox(height: 24),
         ],
       ),
     );
