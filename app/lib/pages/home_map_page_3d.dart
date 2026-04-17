@@ -1522,9 +1522,58 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   String _mmLayerIdForType(String type) => '$_mmPoiLayerPrefix$type';
 
+  String? _normalizeMarketPoiTypeCandidate(String? raw) {
+    final norm = (raw ?? '').trim().toLowerCase();
+    if (norm.isEmpty) return null;
+
+    if (_mmTypes.contains(norm)) return norm;
+
+    // Mapping centralisé existant (visit/food/wc)
+    final normalized = PoiNormalizer.normalizePoiType(norm);
+    if (normalized == PoiType.visit) return 'visit';
+    if (normalized == PoiType.food) return 'food';
+    if (normalized == PoiType.wc) return 'wc';
+
+    // Aliases legacy / admin
+    switch (norm) {
+      case 'tour':
+      case 'visiter':
+      case 'a_visiter':
+      case 'a-visiter':
+      case 'to_visit':
+      case 'to-visit':
+        return 'visit';
+      case 'toilet':
+      case 'toilets':
+      case 'toilettes':
+      case 'restroom':
+      case 'bathroom':
+        return 'wc';
+      case 'parkings':
+      case 'parking_zone':
+      case 'parking_zones':
+      case 'parking-zone':
+      case 'parking-zones':
+      case 'parkingzone':
+      case 'zone_parking':
+      case 'zones_parking':
+      case 'carpark':
+      case 'car_parking':
+      case 'car-parking':
+        return 'parking';
+      case 'encadrement':
+      case 'help':
+      case 'security':
+      case 'secours':
+      case 'urgence':
+        return 'assistance';
+    }
+
+    return null;
+  }
+
   String _typeFromPoi(MarketPoi poi) {
-    // On essaie plusieurs champs possibles (robuste)
-    // Ajuste si ton MarketPoi a un champ sûr (ex: poi.layerId)
+    // On essaie plusieurs champs possibles pour garantir le bon filtrage Home.
     final dynamicAny = (poi as dynamic);
 
     String? pick(dynamic v) {
@@ -1532,20 +1581,18 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       return s.isEmpty ? null : s;
     }
 
-    final t =
-        pick(dynamicAny.type) ??
-        pick(dynamicAny.layerId) ??
-        pick(dynamicAny.layerType) ??
-        '';
+    final candidates = <String?>[
+      pick(dynamicAny.type),
+      pick(dynamicAny.layerType),
+      pick(dynamicAny.layerId),
+      pick(dynamicAny.category),
+      pick(dynamicAny.poiType),
+    ];
 
-    final norm = t.toLowerCase();
-    if (_mmTypes.contains(norm)) return norm;
-
-    // Mapping de compat (source de vérité: PoiNormalizer pour visit/food/wc)
-    final normalized = PoiNormalizer.normalizePoiType(norm);
-    if (normalized == PoiType.visit) return 'visit';
-    if (normalized == PoiType.food) return 'food';
-    if (normalized == PoiType.wc) return 'wc';
+    for (final candidate in candidates) {
+      final mapped = _normalizeMarketPoiTypeCandidate(candidate);
+      if (mapped != null) return mapped;
+    }
 
     return 'market';
   }
@@ -2855,9 +2902,17 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     setState(() {});
   }
 
-  void _selectAction(_MapAction action, String label) {
+  void _selectAction(_MapAction action) {
+    if (!_marketPoiSelection.enabled ||
+        _marketPoiSelection.country == null ||
+        _marketPoiSelection.event == null ||
+        _marketPoiSelection.circuit == null) {
+      unawaited(_showMapProjectsSelector());
+      return;
+    }
+
     setState(() => _selectedAction = action);
-    _renderMarketPoiMarkers();
+    unawaited(_renderMarketPoiMarkers());
   }
 
   void _toggleActionsMenu() {
@@ -2990,7 +3045,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         icon: Icons.map_outlined,
         selected: _selectedAction == _MapAction.visiter,
         onTap: () {
-          _selectAction(_MapAction.visiter, 'Visiter');
+          _selectAction(_MapAction.visiter);
           _closeNavWithDelay();
         },
       ),
@@ -2999,7 +3054,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         icon: Icons.fastfood_rounded,
         selected: _selectedAction == _MapAction.food,
         onTap: () {
-          _selectAction(_MapAction.food, 'Food');
+          _selectAction(_MapAction.food);
           _closeNavWithDelay();
         },
       ),
@@ -3008,23 +3063,25 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         icon: Icons.shield_outlined,
         selected: _selectedAction == _MapAction.assistance,
         onTap: () {
-          _selectAction(_MapAction.assistance, 'Assistance');
+          _selectAction(_MapAction.assistance);
           _closeNavWithDelay();
         },
       ),
       HomeVerticalNavItem(
-        label: '',
-        iconWidget: Image.asset(
-          'assets/images/icon wc parking.png',
-          fit: BoxFit.cover,
-          filterQuality: FilterQuality.high,
-        ),
-        fullBleed: true,
-        tintOnSelected: false,
-        showBorder: false,
+        label: 'Parking',
+        icon: Icons.local_parking_rounded,
         selected: _selectedAction == _MapAction.parking,
         onTap: () {
-          _selectAction(_MapAction.parking, 'Parking');
+          _selectAction(_MapAction.parking);
+          _closeNavWithDelay();
+        },
+      ),
+      HomeVerticalNavItem(
+        label: 'WC',
+        icon: Icons.wc_rounded,
+        selected: _selectedAction == _MapAction.wc,
+        onTap: () {
+          _selectAction(_MapAction.wc);
           _closeNavWithDelay();
         },
       ),
@@ -3041,9 +3098,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         fullBleed: true,
         tintOnSelected: false,
         showBorder: false,
-        selected: _selectedAction == _MapAction.wc,
+        selected: false,
         onTap: () {
-          _selectAction(_MapAction.wc, 'Langue');
           _cycleLanguage();
           _closeNavWithDelay();
         },
