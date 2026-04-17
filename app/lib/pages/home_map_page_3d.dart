@@ -46,6 +46,74 @@ import 'splash_wrapper_page.dart' show mapReadyNotifier;
 // Menu vertical: modes/actions (filtrage POIs)
 enum _MapAction { visiter, food, assistance, parking, wc }
 
+class _PoiTapCandidate {
+  const _PoiTapCandidate({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.category,
+    required this.canOpenSheet,
+    this.imageUrl,
+    this.lng,
+    this.lat,
+    this.address = '',
+    this.openingHours = '',
+    this.phone = '',
+    this.website = '',
+    this.instagram = '',
+    this.facebook = '',
+    this.whatsapp = '',
+    this.email = '',
+    this.mapsUrl = '',
+    this.meta = const <String, dynamic>{},
+    this.distanceMeters,
+  });
+
+  final String id;
+  final String title;
+  final String description;
+  final String category;
+  final bool canOpenSheet;
+  final String? imageUrl;
+  final double? lng;
+  final double? lat;
+  final String address;
+  final String openingHours;
+  final String phone;
+  final String website;
+  final String instagram;
+  final String facebook;
+  final String whatsapp;
+  final String email;
+  final String mapsUrl;
+  final Map<String, dynamic> meta;
+  final double? distanceMeters;
+
+  _PoiTapCandidate copyWith({double? distanceMeters}) {
+    return _PoiTapCandidate(
+      id: id,
+      title: title,
+      description: description,
+      category: category,
+      canOpenSheet: canOpenSheet,
+      imageUrl: imageUrl,
+      lng: lng,
+      lat: lat,
+      address: address,
+      openingHours: openingHours,
+      phone: phone,
+      website: website,
+      instagram: instagram,
+      facebook: facebook,
+      whatsapp: whatsapp,
+      email: email,
+      mapsUrl: mapsUrl,
+      meta: meta,
+      distanceMeters: distanceMeters ?? this.distanceMeters,
+    );
+  }
+}
+
 class HomeMapPage3D extends StatefulWidget {
   const HomeMapPage3D({super.key});
 
@@ -71,6 +139,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   static const double _userZoom = 15.5;
   static const double _defaultPitch = 45.0;
   static const double _minZoom3dBuildings = 14.5;
+  static const double _defaultPoiCircleRadius = 7.0;
+  static const double _focusedPoiCircleRadius = 10.5;
+  static const double _nearbyPoiThresholdMeters = 28.0;
   // Offset vertical du menu d'actions pour ne pas chevaucher la boussole
   static const double _actionsMenuTopOffset = 162;
 
@@ -91,6 +162,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   late AnimationController _menuAnimController;
   late Animation<Offset> _menuSlideAnimation;
   _MapAction? _selectedAction;
+  List<_PoiTapCandidate> _nearbyPoiCandidates = const <_PoiTapCandidate>[];
+  PageController? _nearbyPoiCarouselController;
+  String? _focusedPoiId;
 
   // ========== CARTE & GÉOLOCALISATION ==========
   MapboxMap? _mapboxMap;
@@ -328,6 +402,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     _homeControlsThemeSub?.cancel();
     _marketPoisSub?.cancel();
     _routeAnimTimer?.cancel();
+    _nearbyPoiCarouselController?.dispose();
     _menuAnimController.dispose();
     super.dispose();
   }
@@ -453,6 +528,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   }) async {
     await _marketPoisSub?.cancel();
     _marketPoisSub = null;
+    _clearNearbyPoiCarousel();
 
     // Quand l'utilisateur change de carte/circuit, on ne doit pas afficher de POIs
     // tant qu'il n'a pas explicitement choisi un type via le menu vertical.
@@ -1509,6 +1585,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         _marketPoiSelection.event == null ||
         _marketPoiSelection.circuit == null) {
       _marketPois = const <MarketPoi>[];
+      _clearNearbyPoiCarousel();
       await _ensureMarketPoiGeoJsonRuntime();
       await _updateMarketPoiGeoJson();
       await _applyPoiTypeVisibility();
@@ -1704,13 +1781,20 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
             final layer = CircleLayer(
               id: layerId,
               sourceId: _mmPoiSourceId,
-              circleRadius: 7.0,
+              circleRadius: _defaultPoiCircleRadius,
               circleColor: color.toARGB32(),
               circleOpacity: 0.95,
               circleStrokeColor: Colors.white.toARGB32(),
               circleStrokeWidth: 2.0,
             );
             await style.addLayer(layer);
+
+            await style.setStyleLayerProperty(layerId, 'circle-radius', [
+              'case',
+              ['==', ['get', 'isFocused'], true],
+              _focusedPoiCircleRadius,
+              _defaultPoiCircleRadius,
+            ]);
 
             // Filter: ["==", ["get","type"], "food"]
             await style.setStyleLayerProperty(layerId, 'filter', [
@@ -1876,12 +1960,14 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           'coordinates': [coord.$1, coord.$2],
         },
         'properties': {
+          'poiId': d.id?.toString() ?? '',
           'type': type,
           'name': name,
           'desc': desc,
           'imageUrl': imageUrl,
           'lng': coord.$1,
           'lat': coord.$2,
+          'isFocused': _focusedPoiId != null && _focusedPoiId == d.id?.toString(),
 
           // fiche complète
           'address': address,
@@ -1957,6 +2043,366 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     } catch (_) {
       // ignore
     }
+  }
+
+  double _distanceMeters({
+    required double latA,
+    required double lngA,
+    required double latB,
+    required double lngB,
+  }) {
+    const earthRadiusMeters = 6371000.0;
+    final dLat = _degToRad(latB - latA);
+    final dLng = _degToRad(lngB - lngA);
+    final a =
+        sin(dLat / 2) * sin(dLat / 2) +
+        cos(_degToRad(latA)) *
+            cos(_degToRad(latB)) *
+            sin(dLng / 2) *
+            sin(dLng / 2);
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return earthRadiusMeters * c;
+  }
+
+  double _degToRad(double value) => value * pi / 180.0;
+
+  void _recreateNearbyPoiCarouselController({required int initialPage}) {
+    _nearbyPoiCarouselController?.dispose();
+    _nearbyPoiCarouselController = PageController(
+      initialPage: initialPage,
+      viewportFraction: 0.42,
+    );
+  }
+
+  void _clearNearbyPoiCarousel() {
+    _nearbyPoiCarouselController?.dispose();
+    _nearbyPoiCarouselController = null;
+    if (!mounted) {
+      _nearbyPoiCandidates = const <_PoiTapCandidate>[];
+      _focusedPoiId = null;
+      return;
+    }
+    if (_nearbyPoiCandidates.isEmpty && _focusedPoiId == null) return;
+    setState(() {
+      _nearbyPoiCandidates = const <_PoiTapCandidate>[];
+      _focusedPoiId = null;
+    });
+    unawaited(_updateMarketPoiGeoJson());
+  }
+
+  void _setFocusedPoiId(String? poiId) {
+    if (_focusedPoiId == poiId) return;
+    if (!mounted) {
+      _focusedPoiId = poiId;
+      return;
+    }
+    setState(() => _focusedPoiId = poiId);
+    unawaited(_updateMarketPoiGeoJson());
+  }
+
+  _PoiTapCandidate? _candidateFromFeature({
+    required String? rawId,
+    required Map<String, dynamic> props,
+  }) {
+    String? asNonEmptyString(dynamic v) {
+      final s = (v ?? '').toString().trim();
+      return s.isEmpty ? null : s;
+    }
+
+    final poiId = asNonEmptyString(props['poiId']) ?? asNonEmptyString(props['id']) ?? rawId;
+    if (poiId == null) return null;
+
+    final title = (props['name'] ?? props['title'] ?? '').toString().trim();
+    final desc = (props['desc'] ?? props['description'] ?? '').toString().trim();
+    final category = _normalizeMarketPoiTypeCandidate(
+          (props['type'] ?? props['layerType'] ?? props['layerId']).toString(),
+        ) ??
+        'market';
+
+    String imageUrl = (props['imageUrl'] ?? props['photoUrl'] ?? '').toString().trim();
+    final lng = (props['lng'] is num) ? (props['lng'] as num).toDouble() : null;
+    final lat = (props['lat'] is num) ? (props['lat'] as num).toDouble() : null;
+    final address = (props['address'] ?? '').toString().trim();
+    final openingHours = (props['openingHours'] ?? '').toString().trim();
+    final phone = (props['phone'] ?? '').toString().trim();
+    final website = (props['website'] ?? '').toString().trim();
+    final instagram = (props['instagram'] ?? '').toString().trim();
+    final facebook = (props['facebook'] ?? '').toString().trim();
+    final whatsapp = (props['whatsapp'] ?? '').toString().trim();
+    final email = (props['email'] ?? '').toString().trim();
+    final mapsUrl = (props['mapsUrl'] ?? '').toString().trim();
+
+    Map<String, dynamic> meta = <String, dynamic>{};
+    final metaRaw = props['meta'] ?? props['metadata'];
+    if (metaRaw is Map) {
+      try {
+        meta = Map<String, dynamic>.from(metaRaw);
+      } catch (_) {
+        meta = metaRaw.map((k, v) => MapEntry(k.toString(), v));
+      }
+    } else if (metaRaw is String && metaRaw.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(metaRaw);
+        if (decoded is Map) {
+          meta = Map<String, dynamic>.from(decoded);
+        }
+      } catch (_) {
+        // ignore
+      }
+    }
+
+    if (imageUrl.isEmpty) {
+      final img = meta['image'];
+      if (img is Map) {
+        final url = (img['url'] ?? img['downloadUrl'] ?? '').toString().trim();
+        if (url.isNotEmpty) imageUrl = url;
+      }
+    }
+
+    final hasImageInMeta = (() {
+      final img = meta['image'];
+      if (img is! Map) return false;
+      final url = (img['url'] ?? img['downloadUrl'] ?? '').toString().trim();
+      return url.isNotEmpty;
+    })();
+
+    final rootPopupEnabled =
+        props['popupEnabled'] ?? props['hasPopup'] ?? props['hasCard'];
+    final hasExplicitPopupFlag =
+        PoiPopupService.parseBool(meta['popupEnabled'] ?? rootPopupEnabled) != null;
+    final hasPolaroidMeta = meta.containsKey('polaroid') || meta.containsKey('image');
+    final hasAnyCardData =
+        title.isNotEmpty ||
+        desc.isNotEmpty ||
+        imageUrl.isNotEmpty ||
+        address.isNotEmpty ||
+        openingHours.isNotEmpty ||
+        phone.isNotEmpty ||
+        website.isNotEmpty ||
+        instagram.isNotEmpty ||
+        facebook.isNotEmpty ||
+        whatsapp.isNotEmpty ||
+        email.isNotEmpty ||
+        mapsUrl.isNotEmpty;
+    final hasCard = hasExplicitPopupFlag || hasPolaroidMeta || hasAnyCardData;
+    final canOpenSheet = hasCard &&
+        PoiPopupService.isPopupEnabled(
+          type: category,
+          meta: meta,
+          rootPopupEnabled: rootPopupEnabled,
+          requireImage: false,
+          hasImage: imageUrl.isNotEmpty || hasImageInMeta,
+        );
+
+    return _PoiTapCandidate(
+      id: poiId,
+      title: title.isEmpty ? 'Point d\'intérêt' : title,
+      description: desc,
+      category: category,
+      canOpenSheet: canOpenSheet,
+      imageUrl: imageUrl.isEmpty ? null : imageUrl,
+      lng: lng,
+      lat: lat,
+      address: address,
+      openingHours: openingHours,
+      phone: phone,
+      website: website,
+      instagram: instagram,
+      facebook: facebook,
+      whatsapp: whatsapp,
+      email: email,
+      mapsUrl: mapsUrl,
+      meta: meta,
+    );
+  }
+
+  _PoiTapCandidate? _candidateFromMarketPoi(MarketPoi poi) {
+    final coord = _coordFromPoi(poi);
+    if (coord == null) return null;
+
+    final type = _typeFromPoi(poi);
+    final d = poi as dynamic;
+    String imageUrl = (d.imageUrl ?? d.photoUrl ?? d.image ?? '').toString().trim();
+    Map<String, dynamic> meta = <String, dynamic>{};
+    try {
+      if (d.metadata is Map) {
+        meta = Map<String, dynamic>.from(d.metadata as Map);
+      } else if (d.meta is Map) {
+        meta = Map<String, dynamic>.from(d.meta as Map);
+      }
+    } catch (_) {
+      // ignore
+    }
+    if (imageUrl.isEmpty) {
+      final img = meta['image'];
+      if (img is Map) {
+        final url = (img['url'] ?? img['downloadUrl'] ?? '').toString().trim();
+        if (url.isNotEmpty) imageUrl = url;
+      }
+    }
+
+    final hasImageInMeta = (() {
+      final img = meta['image'];
+      if (img is! Map) return false;
+      final url = (img['url'] ?? img['downloadUrl'] ?? '').toString().trim();
+      return url.isNotEmpty;
+    })();
+
+    final rootPopupEnabled = d.popupEnabled ?? d.hasPopup ?? d.hasCard;
+    final title = _labelFromPoi(poi);
+    final desc = _descFromPoi(poi);
+    final address = (d.address ?? d.adresse ?? d.locationLabel ?? '').toString().trim();
+    final openingHoursRaw = d.openingHours ?? d.hours ?? d.horaires;
+    final openingHours = (openingHoursRaw is String)
+        ? openingHoursRaw.trim()
+        : (openingHoursRaw != null ? jsonEncode(openingHoursRaw) : '');
+    final phone = (d.phone ?? d.tel ?? d.telephone ?? '').toString().trim();
+    final website = (d.website ?? d.site ?? '').toString().trim();
+    final instagram = (d.instagram ?? d.ig ?? '').toString().trim();
+    final facebook = (d.facebook ?? d.fb ?? '').toString().trim();
+    final whatsapp = (d.whatsapp ?? '').toString().trim();
+    final email = (d.email ?? '').toString().trim();
+    final mapsUrl = (d.mapsUrl ?? d.googleMapsUrl ?? d.mapUrl ?? '').toString().trim();
+
+    final hasExplicitPopupFlag =
+        PoiPopupService.parseBool(meta['popupEnabled'] ?? rootPopupEnabled) != null;
+    final hasPolaroidMeta = meta.containsKey('polaroid') || meta.containsKey('image');
+    final hasAnyCardData =
+        title.isNotEmpty ||
+        desc.isNotEmpty ||
+        imageUrl.isNotEmpty ||
+        address.isNotEmpty ||
+        openingHours.isNotEmpty ||
+        phone.isNotEmpty ||
+        website.isNotEmpty ||
+        instagram.isNotEmpty ||
+        facebook.isNotEmpty ||
+        whatsapp.isNotEmpty ||
+        email.isNotEmpty ||
+        mapsUrl.isNotEmpty;
+    final hasCard = hasExplicitPopupFlag || hasPolaroidMeta || hasAnyCardData;
+    final canOpenSheet = hasCard &&
+        PoiPopupService.isPopupEnabled(
+          type: type,
+          meta: meta,
+          rootPopupEnabled: rootPopupEnabled,
+          requireImage: false,
+          hasImage: imageUrl.isNotEmpty || hasImageInMeta,
+        );
+
+    return _PoiTapCandidate(
+      id: poi.id,
+      title: title.isEmpty ? 'Point d\'intérêt' : title,
+      description: desc,
+      category: type,
+      canOpenSheet: canOpenSheet,
+      imageUrl: imageUrl.isEmpty ? null : imageUrl,
+      lng: coord.$1,
+      lat: coord.$2,
+      address: address,
+      openingHours: openingHours,
+      phone: phone,
+      website: website,
+      instagram: instagram,
+      facebook: facebook,
+      whatsapp: whatsapp,
+      email: email,
+      mapsUrl: mapsUrl,
+      meta: meta,
+    );
+  }
+
+  List<_PoiTapCandidate> _findNearbyPoiCandidates(_PoiTapCandidate anchor) {
+    final lat = anchor.lat;
+    final lng = anchor.lng;
+    if (lat == null || lng == null) return <_PoiTapCandidate>[anchor];
+
+    final items = <_PoiTapCandidate>[];
+    for (final poi in _marketPois) {
+      final candidate = _candidateFromMarketPoi(poi);
+      if (candidate == null || candidate.lat == null || candidate.lng == null) {
+        continue;
+      }
+      if (candidate.category != anchor.category) continue;
+
+      final distanceMeters = _distanceMeters(
+        latA: lat,
+        lngA: lng,
+        latB: candidate.lat!,
+        lngB: candidate.lng!,
+      );
+      if (distanceMeters > _nearbyPoiThresholdMeters) continue;
+      items.add(candidate.copyWith(distanceMeters: distanceMeters));
+    }
+
+    items.sort((a, b) {
+      final distanceCompare =
+          (a.distanceMeters ?? double.infinity).compareTo(
+            b.distanceMeters ?? double.infinity,
+          );
+      if (distanceCompare != 0) return distanceCompare;
+      return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+    });
+
+    if (items.isEmpty) return <_PoiTapCandidate>[anchor];
+    return items;
+  }
+
+  void _showNearbyPoiCarousel({
+    required List<_PoiTapCandidate> candidates,
+    required String initialPoiId,
+  }) {
+    final initialIndex = candidates.indexWhere((item) => item.id == initialPoiId);
+    final resolvedInitialIndex = initialIndex == -1 ? 0 : initialIndex;
+    _recreateNearbyPoiCarouselController(initialPage: resolvedInitialIndex);
+    if (!mounted) {
+      _nearbyPoiCandidates = candidates;
+      _focusedPoiId = candidates[resolvedInitialIndex].id;
+      return;
+    }
+    setState(() {
+      _nearbyPoiCandidates = candidates;
+      _focusedPoiId = candidates[resolvedInitialIndex].id;
+    });
+    unawaited(_updateMarketPoiGeoJson());
+  }
+
+  Future<void> _openPoiCandidate(_PoiTapCandidate candidate) async {
+    if (!candidate.canOpenSheet) return;
+
+    final now = DateTime.now();
+    final lastAt = _lastPoiPopupAt;
+    if (_isPoiPopupShowing) return;
+    if (lastAt != null && now.difference(lastAt) < _poiPopupDebounce) {
+      if (_lastPoiPopupId != null && _lastPoiPopupId == candidate.id) {
+        return;
+      }
+    }
+    _lastPoiPopupAt = now;
+    _lastPoiPopupId = candidate.id;
+
+    await _showPoiPolaroid(
+      poiId: candidate.id,
+      countryId: _marketPoiSelection.country?.id,
+      eventId: _marketPoiSelection.event?.id,
+      circuitId: _marketPoiSelection.circuit?.id,
+      title: candidate.title,
+      description: candidate.description,
+      category: candidate.category,
+      imageUrl: candidate.imageUrl,
+      lng: candidate.lng,
+      lat: candidate.lat,
+      address: candidate.address,
+      openingHours: candidate.openingHours,
+      phone: candidate.phone,
+      website: candidate.website,
+      instagram: candidate.instagram,
+      facebook: candidate.facebook,
+      whatsapp: candidate.whatsapp,
+      email: candidate.email,
+      mapsUrl: candidate.mapsUrl,
+      meta: candidate.meta,
+    );
   }
 
   @override
@@ -2448,7 +2894,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         RenderedQueryOptions(layerIds: layerIds, filter: null),
       );
 
-      if (res.isEmpty) return;
+      if (res.isEmpty) {
+        _clearNearbyPoiCarousel();
+        return;
+      }
 
       // Sélectionner la meilleure feature:
       // - prioriser les POIs non-cluster
@@ -2491,13 +2940,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
       final feature = bestNonCluster ?? allFeatures.first;
 
-      final rawFeatureId = feature['id'];
-
-      String? asNonEmptyString(dynamic v) {
-        final s = (v ?? '').toString().trim();
-        return s.isEmpty ? null : s;
-      }
-
       final props =
           (feature['properties'] as Map?)?.cast<String, dynamic>() ??
           const <String, dynamic>{};
@@ -2529,204 +2971,26 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         return;
       }
 
-      // --- POI normal ---
-      final poiId =
-          asNonEmptyString(props['id']) ?? asNonEmptyString(rawFeatureId);
-
-      final name = (props['name'] ?? props['title'] ?? '').toString();
-      final desc = (props['desc'] ?? props['description'] ?? '').toString();
-      final type = (props['type'] ?? props['layerType'] ?? '').toString();
-
-      // Image URL: supporte aussi meta.image.url (retour admin)
-      String imageUrl = (props['imageUrl'] ?? props['photoUrl'] ?? '')
-          .toString();
-      final lng = (props['lng'] is num)
-          ? (props['lng'] as num).toDouble()
-          : null;
-      final lat = (props['lat'] is num)
-          ? (props['lat'] as num).toDouble()
-          : null;
-
-      final address = (props['address'] ?? '').toString();
-      final openingHours = (props['openingHours'] ?? '').toString();
-      final phone = (props['phone'] ?? '').toString();
-      final website = (props['website'] ?? '').toString();
-      final instagram = (props['instagram'] ?? '').toString();
-      final facebook = (props['facebook'] ?? '').toString();
-      final whatsapp = (props['whatsapp'] ?? '').toString();
-      final email = (props['email'] ?? '').toString();
-      final mapsUrl = (props['mapsUrl'] ?? '').toString();
-
-      Map<String, dynamic>? meta;
-      final metaRaw = props['meta'] ?? props['metadata'];
-      if (metaRaw is Map) {
-        try {
-          meta = Map<String, dynamic>.from(metaRaw);
-        } catch (_) {
-          meta = metaRaw.map((k, v) => MapEntry(k.toString(), v));
-        }
-      } else if (metaRaw is String && metaRaw.trim().isNotEmpty) {
-        try {
-          final decoded = jsonDecode(metaRaw);
-          if (decoded is Map) {
-            meta = Map<String, dynamic>.from(decoded);
-          }
-        } catch (e) {
-          if (kDebugMode) {
-            debugPrint('⚠️ Failed to parse meta JSON: $metaRaw');
-          }
-        }
-      }
-
-      // Certaines impls peuvent exposer `image` directement dans props.
-      if (meta == null) {
-        final imgRaw = props['image'];
-        if (imgRaw is Map) {
-          try {
-            meta = <String, dynamic>{
-              'image': Map<String, dynamic>.from(imgRaw),
-            };
-          } catch (_) {
-            meta = <String, dynamic>{
-              'image': imgRaw.map((k, v) => MapEntry(k.toString(), v)),
-            };
-          }
-        }
-      }
-
-      // Compléter imageUrl depuis meta.image.url si besoin
-      if (imageUrl.trim().isEmpty && meta != null) {
-        final img = meta['image'];
-        if (img is Map) {
-          final url = (img['url'] ?? img['downloadUrl'] ?? '')
-              .toString()
-              .trim();
-          if (url.isNotEmpty) {
-            imageUrl = url;
-            if (kDebugMode) {
-              debugPrint('ℹ️ POI imageUrl completed from meta.image.url');
-            }
-          }
-        }
-      }
-
-      final hasImageInMeta = (() {
-        if (meta == null) return false;
-        final img = meta['image'];
-        if (img is! Map) return false;
-        final u = (img['url'] ?? img['downloadUrl'] ?? '').toString().trim();
-        return u.isNotEmpty;
-      })();
-
-      // Détecter si une fiche descriptive existe (signal explicite)
-      final rootPopupEnabled =
-          props['popupEnabled'] ?? props['hasPopup'] ?? props['hasCard'];
-      final hasExplicitPopupFlag =
-          PoiPopupService.parseBool(
-            (meta ?? const <String, dynamic>{})['popupEnabled'] ??
-                rootPopupEnabled,
-          ) !=
-          null;
-      final hasPolaroidMeta =
-          meta != null &&
-          (meta.containsKey('polaroid') || meta.containsKey('image'));
-      final hasAnyCardData =
-          name.trim().isNotEmpty ||
-          desc.trim().isNotEmpty ||
-          imageUrl.trim().isNotEmpty ||
-          address.trim().isNotEmpty ||
-          openingHours.trim().isNotEmpty ||
-          phone.trim().isNotEmpty ||
-          website.trim().isNotEmpty ||
-          instagram.trim().isNotEmpty ||
-          facebook.trim().isNotEmpty ||
-          whatsapp.trim().isNotEmpty ||
-          email.trim().isNotEmpty ||
-          mapsUrl.trim().isNotEmpty;
-      final hasCard = hasExplicitPopupFlag || hasPolaroidMeta || hasAnyCardData;
-
-      if (!hasCard) {
-        if (kDebugMode) {
-          debugPrint(
-            'ℹ️ POI tap: no card detected => skip (id=${poiId ?? "?"}, type=$type, name="$name", hasImage=$imageUrl, hasAnyCardData=$hasAnyCardData, metaKeys=${meta?.keys.toList() ?? []})',
-          );
-        }
-        return;
-      }
-
-      // Si popup désactivé => POI non cliquable (ex: WC)
-      final bool popupEnabled = PoiPopupService.isPopupEnabled(
-        type: type,
-        meta: meta,
-        rootPopupEnabled: rootPopupEnabled,
-        requireImage: false,
-        hasImage: imageUrl.trim().isNotEmpty || hasImageInMeta,
+      final candidate = _candidateFromFeature(
+        rawId: feature['id']?.toString(),
+        props: props,
       );
-
-      if (!popupEnabled) {
-        if (kDebugMode) {
-          debugPrint(
-            'ℹ️ POI tap: card exists but popup disabled => skip (id=${poiId ?? "?"}, type=$type, popupEnabledRaw=${(meta ?? const <String, dynamic>{})['popupEnabled'] ?? rootPopupEnabled})',
-          );
-        }
+      if (candidate == null) {
+        _clearNearbyPoiCarousel();
         return;
       }
 
-      // Anti-doublon (taps rapides)
-      final now = DateTime.now();
-      final lastAt = _lastPoiPopupAt;
-      if (_isPoiPopupShowing) {
-        if (kDebugMode) {
-          debugPrint(
-            'ℹ️ POI tap: popup already showing => ignore (id=${poiId ?? "?"})',
-          );
-        }
-        return;
-      }
-      if (lastAt != null && now.difference(lastAt) < _poiPopupDebounce) {
-        if (_lastPoiPopupId != null &&
-            poiId != null &&
-            _lastPoiPopupId == poiId) {
-          if (kDebugMode) {
-            debugPrint('ℹ️ POI tap: debounced duplicate => ignore (id=$poiId)');
-          }
-          return;
-        }
-      }
-      _lastPoiPopupAt = now;
-      _lastPoiPopupId = poiId;
-
-      if (!mounted) return;
-      unawaited(
-        _showPoiPolaroid(
-          poiId: poiId,
-          countryId: _marketPoiSelection.country?.id,
-          eventId: _marketPoiSelection.event?.id,
-          circuitId: _marketPoiSelection.circuit?.id,
-          title: name.isEmpty ? 'Point d\'intérêt' : name,
-          description: desc,
-          category: type,
-          imageUrl: imageUrl.isEmpty ? null : imageUrl,
-          lng: lng,
-          lat: lat,
-          address: address,
-          openingHours: openingHours,
-          phone: phone,
-          website: website,
-          instagram: instagram,
-          facebook: facebook,
-          whatsapp: whatsapp,
-          email: email,
-          mapsUrl: mapsUrl,
-          meta: meta ?? const <String, dynamic>{},
-        ),
-      );
-
-      if (kDebugMode) {
-        debugPrint(
-          '✅ POI tap: show polaroid (id=${poiId ?? "?"}, type=$type, hasImage=${imageUrl.trim().isNotEmpty}, name="$name")',
+      final nearbyCandidates = _findNearbyPoiCandidates(candidate);
+      if (nearbyCandidates.length > 1) {
+        _showNearbyPoiCarousel(
+          candidates: nearbyCandidates,
+          initialPoiId: candidate.id,
         );
+        return;
       }
+
+      _clearNearbyPoiCarousel();
+      await _openPoiCandidate(candidate);
     } catch (e) {
       debugPrint('⚠️ Tap POI queryRenderedFeatures error: $e');
     }
@@ -2912,6 +3176,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     }
 
     setState(() => _selectedAction = action);
+    _clearNearbyPoiCarousel();
     unawaited(_renderMarketPoiMarkers());
   }
 
@@ -3243,6 +3508,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   Widget _buildContent(BuildContext context, ui.Size size) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final hasNearbyPoiCarousel = _nearbyPoiCandidates.length > 1;
 
     const bottomBarHeight = _homeBottomBarHeight;
 
@@ -3395,10 +3661,29 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
               Positioned(
                 left: 16,
                 right: 16,
-                bottom: bottomInset + bottomBarHeight + 12,
+                bottom: bottomInset + bottomBarHeight + (hasNearbyPoiCarousel ? 122 : 12),
                 child: _TrackingPill(
                   isTracking: _isTracking,
                   onToggle: _toggleTracking,
+                ),
+              ),
+
+            if (hasNearbyPoiCarousel)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: bottomInset + bottomBarHeight + 12,
+                child: _NearbyPoiFilmCarousel(
+                  controller: _nearbyPoiCarouselController!,
+                  items: _nearbyPoiCandidates,
+                  focusedPoiId: _focusedPoiId,
+                  onCentered: (poiId) {
+                    _setFocusedPoiId(poiId);
+                  },
+                  onTapItem: (candidate) {
+                    unawaited(_openPoiCandidate(candidate));
+                  },
+                  onClose: _clearNearbyPoiCarousel,
                 ),
               ),
           ],
@@ -3600,6 +3885,224 @@ class _TrackingPill extends StatelessWidget {
             label: Text(isTracking ? 'Stop' : 'Start'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _NearbyPoiFilmCarousel extends StatelessWidget {
+  const _NearbyPoiFilmCarousel({
+    required this.controller,
+    required this.items,
+    required this.focusedPoiId,
+    required this.onCentered,
+    required this.onTapItem,
+    required this.onClose,
+  });
+
+  final PageController controller;
+  final List<_PoiTapCandidate> items;
+  final String? focusedPoiId;
+  final ValueChanged<String> onCentered;
+  final ValueChanged<_PoiTapCandidate> onTapItem;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      ignoring: false,
+      child: SafeArea(
+        top: false,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF111111).withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.12),
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x3A000000),
+                      blurRadius: 28,
+                      offset: Offset(0, 16),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 12, 10, 10),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SizedBox(
+                              height: 8,
+                              child: ListView.separated(
+                                physics: const NeverScrollableScrollPhysics(),
+                                scrollDirection: Axis.horizontal,
+                                itemBuilder: (_, __) => DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.22),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: const SizedBox(width: 14, height: 8),
+                                ),
+                                separatorBuilder: (_, __) => const SizedBox(width: 6),
+                                itemCount: 18,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: onClose,
+                            child: Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.08),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 76,
+                        child: PageView.builder(
+                          controller: controller,
+                          padEnds: true,
+                          onPageChanged: (index) {
+                            if (index >= 0 && index < items.length) {
+                              onCentered(items[index].id);
+                            }
+                          },
+                          itemCount: items.length,
+                          itemBuilder: (context, index) {
+                            final item = items[index];
+                            final isFocused = item.id == focusedPoiId;
+                            final distanceLabel = item.distanceMeters == null
+                                ? null
+                                : '${item.distanceMeters!.round()} m';
+
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              curve: Curves.easeOutCubic,
+                              margin: EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: isFocused ? 0 : 8,
+                              ),
+                              child: GestureDetector(
+                                onTap: () => onTapItem(item),
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    gradient: isFocused
+                                        ? const LinearGradient(
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                            colors: [
+                                              Color(0xFFFFF4D6),
+                                              Color(0xFFFFD58F),
+                                            ],
+                                          )
+                                        : LinearGradient(
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                            colors: [
+                                              Colors.white.withValues(alpha: 0.14),
+                                              Colors.white.withValues(alpha: 0.08),
+                                            ],
+                                          ),
+                                    borderRadius: BorderRadius.circular(18),
+                                    border: Border.all(
+                                      color: isFocused
+                                          ? const Color(0xFFFFE2AC)
+                                          : Colors.white.withValues(alpha: 0.10),
+                                      width: isFocused ? 1.4 : 1,
+                                    ),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 10,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          width: 18,
+                                          height: 18,
+                                          decoration: BoxDecoration(
+                                            color: isFocused
+                                                ? const Color(0xFF111111)
+                                                : Colors.white.withValues(alpha: 0.16),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Icon(
+                                            Icons.fiber_manual_record_rounded,
+                                            size: 10,
+                                            color: isFocused
+                                                ? const Color(0xFFFFC857)
+                                                : Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          item.title,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: isFocused
+                                                ? const Color(0xFF111111)
+                                                : Colors.white,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 12.5,
+                                            height: 1.05,
+                                          ),
+                                        ),
+                                        if (distanceLabel != null) ...[
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            distanceLabel,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              color: isFocused
+                                                  ? const Color(0xB3111111)
+                                                  : Colors.white.withValues(alpha: 0.68),
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 10.5,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
