@@ -67,7 +67,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     with SingleTickerProviderStateMixin {
   static const int _poiPageSize = 100;
   static const int _poiLimit = 2000;
-  static const int _poiStepIndex = 5;
+  static const int _poiStepIndex = 6;
   static const double _wizardMapHeightMultiplier = 2.0;
   static const double _wizardScrollRailWidth = 56.0;
   static const double _wizardStepHorizontalPadding = 4.0;
@@ -79,6 +79,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     'Périmètre',
     'Tracé + Style',
     'Style Pro',
+    'Couleurs',
     'POI',
     'Pré-pub',
     'Publication',
@@ -375,13 +376,21 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         );
       case 5:
         return (
+          title: 'Map Coloring',
+          subtitle:
+              'Choisissez le fond de carte Mapbox ou réutilisez le thème global.',
+          icon: Icons.color_lens_outlined,
+          accent: const Color(0xFFE11D48),
+        );
+      case 6:
+        return (
           title: 'POI & zones',
           subtitle:
               'Ajoutez les points d’intérêt et structurez les zones parking ou couches éditoriales.',
           icon: Icons.place_outlined,
           accent: const Color(0xFFB45309),
         );
-      case 6:
+      case 7:
         return (
           title: 'Contrôle qualité',
           subtitle:
@@ -389,7 +398,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           icon: Icons.verified_outlined,
           accent: const Color(0xFFEA580C),
         );
-      case 7:
+      case 8:
         return (
           title: 'Publication',
           subtitle:
@@ -610,6 +619,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       case 5:
         return [
           _buildStageFact(
+            label: 'Style Mapbox',
+            value: _styleUrlController.text.isEmpty ? 'Par défaut' : 'Personnalisé',
+            icon: Icons.map_outlined,
+            accent: const Color(0xFFE11D48),
+          ),
+        ];
+      case 6:
+        return [
+          _buildStageFact(
             label: 'POI',
             value: '${_pois.length}/$_poiLimit',
             icon: Icons.place_outlined,
@@ -630,7 +648,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             accent: const Color(0xFFB45309),
           ),
         ];
-      case 6:
+      case 7:
         return [
           _buildStageFact(
             label: 'Score',
@@ -655,7 +673,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             accent: const Color(0xFFEA580C),
           ),
         ];
-      case 7:
+      case 8:
         return [
           _buildStageFact(
             label: 'Publication',
@@ -811,7 +829,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           ),
         );
         break;
-      case 5:
+      case 6:
         actions.add(
           wrapAction(
             OutlinedButton.icon(
@@ -837,7 +855,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           ),
         );
         break;
-      case 6:
+      case 7:
         actions.add(
           wrapAction(
             FilledButton.tonalIcon(
@@ -859,7 +877,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           ),
         );
         break;
-      case 7:
+      case 8:
         actions.add(
           wrapAction(
             FilledButton.tonalIcon(
@@ -1225,6 +1243,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   final ScrollController _poiStepScrollController = ScrollController();
   final ScrollController _templateStepScrollController = ScrollController();
   final ScrollController _infosStepScrollController = ScrollController();
+  final ScrollController _mapColoringStepScrollController = ScrollController();
   final ScrollController _perimeterStepScrollController = ScrollController();
   final ScrollController _routeStepScrollController = ScrollController();
   final ScrollController _styleProStepScrollController = ScrollController();
@@ -2244,6 +2263,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     _perimeterStepScrollController,
     _routeStepScrollController,
     _styleProStepScrollController,
+    _mapColoringStepScrollController,
     _poiStepScrollController,
     _validationStepScrollController,
     _publishStepScrollController,
@@ -2262,10 +2282,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       case 4:
         return _styleProStepScrollController;
       case 5:
-        return _poiStepScrollController;
+        return _mapColoringStepScrollController;
       case 6:
-        return _validationStepScrollController;
+        return _poiStepScrollController;
       case 7:
+        return _validationStepScrollController;
+      case 8:
         return _publishStepScrollController;
       default:
         return null;
@@ -3271,6 +3293,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                             _wrapWizardStep(_buildStep2Perimeter()),
                             _wrapWizardStep(_buildStep3RouteAndStyleTabbed()),
                             _wrapWizardStep(_buildStep6StylePro()),
+                            _wrapWizardStep(_buildStepMapColoring()),
                             _wrapWizardStep(_buildStep5POI()),
                             _wrapWizardStep(_buildStep7Validation()),
                             _wrapWizardStep(_buildStep8Publish()),
@@ -3562,164 +3585,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 ),
               ),
               const SizedBox(height: MasliveTokens.m),
-              TextField(
-                controller: _styleUrlController,
-                onChanged: _onStyleUrlChanged,
-                decoration: const InputDecoration(
-                  labelText: 'Style URL Mapbox (optionnel)',
-                  hintText: 'mapbox://styles/username/style-id',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: MasliveTokens.s),
-              Builder(
-                builder: (context) {
-                  final current = _normalizeMapboxStyleUrl(
-                    _styleUrlController.text,
-                  );
-                  final presets = <({String label, String url})>[
-                    (label: 'Effacer', url: ''),
-                    (
-                      label: 'Streets',
-                      url: 'mapbox://styles/mapbox/streets-v12',
-                    ),
-                    (
-                      label: 'Outdoors',
-                      url: 'mapbox://styles/mapbox/outdoors-v12',
-                    ),
-                    (
-                      label: 'Satellite',
-                      url: 'mapbox://styles/mapbox/satellite-streets-v12',
-                    ),
-                    (label: 'Light', url: 'mapbox://styles/mapbox/light-v11'),
-                    (label: 'Dark', url: 'mapbox://styles/mapbox/dark-v11'),
-                    (
-                      label: 'Perso (stef971fwi)',
-                      url:
-                          'mapbox://styles/stef971fwi/cmmgh2oa000rk01qr65il695n',
-                    ),
-                  ];
-
-                  Widget pill({required String label, required String url}) {
-                    final normalized = _normalizeMapboxStyleUrl(url);
-                    final selected =
-                        (normalized.isEmpty && current.isEmpty) ||
-                        (normalized.isNotEmpty && normalized == current);
-
-                    final bg = selected
-                        ? MasliveTokens.primary.withValues(alpha: 0.15)
-                        : Colors.white.withValues(alpha: 0.74);
-                    final fg = selected
-                        ? MasliveTokens.primary
-                        : MasliveTokens.text;
-
-                    return InkWell(
-                      onTap: () => _applyStylePreset(url),
-                      borderRadius: BorderRadius.circular(MasliveTokens.rPill),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        curve: Curves.easeOut,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: MasliveTokens.m,
-                          vertical: MasliveTokens.s,
-                        ),
-                        decoration: BoxDecoration(
-                          color: bg,
-                          borderRadius: BorderRadius.circular(
-                            MasliveTokens.rPill,
-                          ),
-                          border: Border.all(
-                            color: selected
-                                ? MasliveTokens.primary.withValues(alpha: 0.22)
-                                : MasliveTokens.borderSoft,
-                          ),
-                        ),
-                        child: Text(
-                          label,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: fg,
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Presets rapides',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: MasliveTokens.text,
-                        ),
-                      ),
-                      const SizedBox(height: MasliveTokens.xs),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            for (final p in presets) ...[
-                              pill(label: p.label, url: p.url),
-                              const SizedBox(width: MasliveTokens.xs),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: MasliveTokens.m),
-              WizardStep2MapStyleSection(
-                orgId: (FirebaseAuth.instance.currentUser?.uid ?? '').trim(),
-                currentStyleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text),
-                onApplyPreset: (preset) => _applyStylePreset(
-                  preset.theme.global.mapboxBaseStyle,
-                ),
-                onPreviewPreset: (preset) => _applyStylePreset(
-                  preset.theme.global.mapboxBaseStyle,
-                ),
-                onDuplicatePreset: (preset) => _applyStylePreset(
-                  preset.theme.global.mapboxBaseStyle,
-                ),
-              ),
-              const SizedBox(height: MasliveTokens.m),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(MasliveTokens.rL),
-                child: SizedBox(
-                  height: 440,
-                  child: _wrapWizardMapToBlockScroll(
-                    MasLiveMap(
-                      key: ValueKey(
-                        _wizardMapViewportKey(context, 'wizard-infos-preview'),
-                      ),
-                      initialLng: _routePoints.isNotEmpty
-                          ? _routePoints.first.lng
-                          : (_perimeterPoints.isNotEmpty
-                                ? _perimeterPoints.first.lng
-                                : -61.533),
-                      initialLat: _routePoints.isNotEmpty
-                          ? _routePoints.first.lat
-                          : (_perimeterPoints.isNotEmpty
-                                ? _perimeterPoints.first.lat
-                                : 16.241),
-                      initialZoom:
-                          (_routePoints.isNotEmpty ||
-                              _perimeterPoints.isNotEmpty)
-                          ? 13.5
-                          : 12.0,
-                      styleUrl:
-                          _normalizeMapboxStyleUrl(
-                            _styleUrlController.text,
-                          ).isEmpty
-                          ? null
-                          : _normalizeMapboxStyleUrl(_styleUrlController.text),
-                    ),
-                  ),
-                ),
-              ),
               const SizedBox(height: MasliveTokens.xl),
               GlassPanel(
                 radius: MasliveTokens.rM,
@@ -5180,6 +5045,201 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       (hsv.saturation * factor.clamp(0.0, 1.0)).clamp(0.0, 1.0),
     );
     return _colorToHex(adjusted.toColor());
+  }
+
+  Widget _buildStepMapColoring() {
+    return GlassScrollbar(
+      controller: _mapColoringStepScrollController,
+      scrollbarOrientation: ScrollbarOrientation.left,
+      child: SingleChildScrollView(
+        controller: _mapColoringStepScrollController,
+        physics: _isWizardMapInteracting
+            ? const NeverScrollableScrollPhysics()
+            : null,
+        padding: const EdgeInsets.fromLTRB(
+          _wizardStepHorizontalPadding,
+          0,
+          _wizardStepHorizontalPadding,
+          kBottomNavigationBarHeight + MasliveTokens.l,
+        ),
+        child: GlassPanel(
+        padding: const EdgeInsets.all(MasliveTokens.m),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildWizardScrollableHeader(padding: EdgeInsets.zero),
+            const Text(
+              'Couleurs de la carte (Mapbox)',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: MasliveTokens.text,
+              ),
+            ),
+            const SizedBox(height: MasliveTokens.m),
+              TextField(
+                controller: _styleUrlController,
+                onChanged: _onStyleUrlChanged,
+                decoration: const InputDecoration(
+                  labelText: 'Style URL Mapbox (optionnel)',
+                  hintText: 'mapbox://styles/username/style-id',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: MasliveTokens.s),
+              Builder(
+                builder: (context) {
+                  final current = _normalizeMapboxStyleUrl(
+                    _styleUrlController.text,
+                  );
+                  final presets = <({String label, String url})>[
+                    (label: 'Effacer', url: ''),
+                    (
+                      label: 'Streets',
+                      url: 'mapbox://styles/mapbox/streets-v12',
+                    ),
+                    (
+                      label: 'Outdoors',
+                      url: 'mapbox://styles/mapbox/outdoors-v12',
+                    ),
+                    (
+                      label: 'Satellite',
+                      url: 'mapbox://styles/mapbox/satellite-streets-v12',
+                    ),
+                    (label: 'Light', url: 'mapbox://styles/mapbox/light-v11'),
+                    (label: 'Dark', url: 'mapbox://styles/mapbox/dark-v11'),
+                    (
+                      label: 'Perso (stef971fwi)',
+                      url:
+                          'mapbox://styles/stef971fwi/cmmgh2oa000rk01qr65il695n',
+                    ),
+                  ];
+
+                  Widget pill({required String label, required String url}) {
+                    final normalized = _normalizeMapboxStyleUrl(url);
+                    final selected =
+                        (normalized.isEmpty && current.isEmpty) ||
+                        (normalized.isNotEmpty && normalized == current);
+
+                    final bg = selected
+                        ? MasliveTokens.primary.withValues(alpha: 0.15)
+                        : Colors.white.withValues(alpha: 0.74);
+                    final fg = selected
+                        ? MasliveTokens.primary
+                        : MasliveTokens.text;
+
+                    return InkWell(
+                      onTap: () => _applyStylePreset(url),
+                      borderRadius: BorderRadius.circular(MasliveTokens.rPill),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        curve: Curves.easeOut,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: MasliveTokens.m,
+                          vertical: MasliveTokens.s,
+                        ),
+                        decoration: BoxDecoration(
+                          color: bg,
+                          borderRadius: BorderRadius.circular(
+                            MasliveTokens.rPill,
+                          ),
+                          border: Border.all(
+                            color: selected
+                                ? MasliveTokens.primary.withValues(alpha: 0.22)
+                                : MasliveTokens.borderSoft,
+                          ),
+                        ),
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: fg,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Presets rapides',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: MasliveTokens.text,
+                        ),
+                      ),
+                      const SizedBox(height: MasliveTokens.xs),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            for (final p in presets) ...[
+                              pill(label: p.label, url: p.url),
+                              const SizedBox(width: MasliveTokens.xs),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: MasliveTokens.m),
+              WizardStep2MapStyleSection(
+                orgId: (FirebaseAuth.instance.currentUser?.uid ?? '').trim(),
+                currentStyleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text),
+                onApplyPreset: (preset) => _applyStylePreset(
+                  preset.theme.global.mapboxBaseStyle,
+                ),
+                onPreviewPreset: (preset) => _applyStylePreset(
+                  preset.theme.global.mapboxBaseStyle,
+                ),
+                onDuplicatePreset: (preset) => _applyStylePreset(
+                  preset.theme.global.mapboxBaseStyle,
+                ),
+              ),
+              const SizedBox(height: MasliveTokens.m),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(MasliveTokens.rL),
+                child: SizedBox(
+                  height: 440,
+                  child: _wrapWizardMapToBlockScroll(
+                    MasLiveMap(
+                      key: ValueKey(
+                        _wizardMapViewportKey(context, 'wizard-infos-preview'),
+                      ),
+                      initialLng: _routePoints.isNotEmpty
+                          ? _routePoints.first.lng
+                          : (_perimeterPoints.isNotEmpty
+                                ? _perimeterPoints.first.lng
+                                : -61.533),
+                      initialLat: _routePoints.isNotEmpty
+                          ? _routePoints.first.lat
+                          : (_perimeterPoints.isNotEmpty
+                                ? _perimeterPoints.first.lat
+                                : 16.241),
+                      initialZoom:
+                          (_routePoints.isNotEmpty ||
+                              _perimeterPoints.isNotEmpty)
+                          ? 13.5
+                          : 12.0,
+                      styleUrl:
+                          _normalizeMapboxStyleUrl(
+                            _styleUrlController.text,
+                          ).isEmpty
+                          ? null
+                          : _normalizeMapboxStyleUrl(_styleUrlController.text),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+    );
   }
 
   Widget _buildStep5POI() {
