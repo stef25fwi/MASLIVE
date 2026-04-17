@@ -209,6 +209,7 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
   Future<void>? _backgroundBootstrap;
   VoidCallback? _deferredWebBootstrapListener;
   bool _didStartDeferredWebBootstrap = false;
+  bool _didWarmDeferredNavigationModules = false;
 
   @override
   void initState() {
@@ -255,10 +256,12 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
 
     if (kIsWeb && firebaseReady) {
       StartupTrace.log('BOOT', 'background bootstrap core complete (web)');
+      _scheduleDeferredNavigationWarmup();
       return;
     }
 
     StartupTrace.log('BOOT', 'background bootstrap complete');
+    _scheduleDeferredNavigationWarmup();
   }
 
   Future<bool> _initializeFirebase() async {
@@ -348,6 +351,39 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
     _startDeferredFirebaseDependentServices();
     await _initializePremiumService(true);
     StartupTrace.log('BOOT', 'web post-splash bootstrap complete');
+    _scheduleDeferredNavigationWarmup();
+  }
+
+  void _scheduleDeferredNavigationWarmup() {
+    if (_didWarmDeferredNavigationModules) return;
+    _didWarmDeferredNavigationModules = true;
+
+    Future<void>.delayed(const Duration(milliseconds: 220), () {
+      if (!mounted) return;
+      unawaited(_warmDeferredNavigationModules());
+    });
+  }
+
+  Future<void> _warmDeferredNavigationModules() async {
+    StartupTrace.log('BOOT', 'deferred navigation warmup start');
+    final warmups = <Future<void> Function()>[
+      user_shell.loadLibrary,
+      account.loadLibrary,
+      adm_main.loadLibrary,
+      adm_circuit_wiz.loadLibrary,
+      map_color_tuner.loadLibrary,
+      route_style_pro.loadLibrary,
+    ];
+
+    for (final warmup in warmups) {
+      try {
+        await warmup();
+      } catch (error) {
+        StartupTrace.log('BOOT', 'deferred navigation warmup failed: $error');
+      }
+    }
+
+    StartupTrace.log('BOOT', 'deferred navigation warmup complete');
   }
 
   Future<void> _initializeStripe() async {
@@ -871,10 +907,55 @@ class _DeferredLoader extends StatelessWidget {
         if (snap.connectionState == ConnectionState.done && !snap.hasError) {
           return _buildPage();
         }
-        return const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        );
+        return const _RouteTransitionPlaceholder();
       },
+    );
+  }
+}
+
+class _RouteTransitionPlaceholder extends StatelessWidget {
+  const _RouteTransitionPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: ColoredBox(
+        color: Colors.white,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(
+                    Icons.blur_on_rounded,
+                    size: 34,
+                    color: Color(0xFF94A3B8),
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    'Ouverture de la page...',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Le module est precharge en arriere-plan pour accelerer les transitions suivantes.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Color(0xFF64748B)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
