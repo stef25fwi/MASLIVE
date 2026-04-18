@@ -363,11 +363,11 @@ class _AccountUiPageState extends State<AccountUiPage> {
                     onPressed: () async {
                       await AuthService.instance.signOut();
                       if (context.mounted) {
-                        // Retour à la home '/' : UserFacingShellPage écoute
-                        // authStateChanges et affichera LoginPage si non connecté.
+                        // '/login' → UserFacingShellPage(tab: profile)
+                        // qui affiche LoginPage quand l'utilisateur est déconnecté.
                         Navigator.of(
                           context,
-                        ).pushNamedAndRemoveUntil('/', (route) => false);
+                        ).pushNamedAndRemoveUntil('/login', (route) => false);
                       }
                     },
                     icon: const Icon(Icons.logout_rounded),
