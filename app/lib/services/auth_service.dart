@@ -289,9 +289,22 @@ class AuthService {
           ..addScope('profile')
           ..setCustomParameters({'prompt': 'select_account'});
 
-        final result = await _auth.signInWithPopup(provider);
-        await _syncSocialUserProfile(result.user);
-        return result;
+        try {
+          final result = await _auth.signInWithPopup(provider);
+          await _syncSocialUserProfile(result.user);
+          return result;
+        } on FirebaseAuthException catch (e) {
+          // Si le popup est bloqué, basculer sur la redirection.
+          if (e.code == 'popup-blocked' ||
+              e.code == 'cancelled-popup-request') {
+            await _auth.signInWithRedirect(provider);
+            // signInWithRedirect recharge la page ; le résultat sera
+            // récupéré au retour via getRedirectResult() dans l'app shell.
+            // On lance une exception annulée pour bloquer la suite du code.
+            throw const AuthException('Connexion Google annulée');
+          }
+          throw AuthException(_mapFirebaseAuthError(e));
+        }
       }
 
       await ensureGoogleSignInInitialized();
@@ -458,12 +471,12 @@ class AuthService {
     final existing = await getUserProfile(user.uid);
     if (existing != null) return;
 
-    final email = user.email;
-    if (email == null || email.isEmpty) {
-      throw const AuthException(
-        'Impossible de créer le profil: email manquant pour ce compte social.',
-      );
-    }
+    // Certains providers (Apple sur iOS) ne renvoient l'email qu'à la
+    // première connexion. Si l'email est absent, on utilise un placeholder
+    // basé sur l'UID pour ne pas bloquer la création du profil.
+    final email = (user.email?.isNotEmpty == true)
+        ? user.email!
+        : '${user.uid}@no-email.maslive';
 
     await createOrUpdateUserProfile(
       userId: user.uid,
