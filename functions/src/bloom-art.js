@@ -452,7 +452,7 @@ module.exports = function createBloomArtHandlers(deps) {
         throw new HttpsError("invalid-argument", "Invalid redirect URL domain");
       }
 
-      // Transaction : empêcher double checkout
+      // Transaction : verrouiller l'offre et l'ordre pour eviter les doubles checkouts
       const result = await db.runTransaction(async (transaction) => {
         const offerRef = db.collection(COLLECTIONS.offers).doc(offerId);
         const offerSnap = await transaction.get(offerRef);
@@ -489,9 +489,31 @@ module.exports = function createBloomArtHandlers(deps) {
           throw new HttpsError("failed-precondition", "Item is already sold");
         }
 
-        // Créer la commande Bloom Art
-        const orderRef = db.collection(COLLECTIONS.orders).doc();
+        // Utilise un ID d'ordre deterministe = offerId pour eviter les doublons.
+        const orderRef = db.collection(COLLECTIONS.orders).doc(offerId);
         const orderId = orderRef.id;
+        const existingOrderSnap = await transaction.get(orderRef);
+
+        if (existingOrderSnap.exists) {
+          const existingOrder = existingOrderSnap.data();
+          if (
+            existingOrder.paymentStatus === "paid" ||
+            existingOrder.orderStatus === ORDER_STATUS.paid
+          ) {
+            throw new HttpsError(
+              "failed-precondition",
+              "This Bloom Art order is already paid"
+            );
+          }
+
+          return {
+            orderId,
+            offer,
+            item,
+            orderPayload: existingOrder,
+            reuseExistingOrder: true,
+          };
+        }
 
         const orderPayload = {
           itemId: offer.itemId,
@@ -512,63 +534,117 @@ module.exports = function createBloomArtHandlers(deps) {
 
         transaction.set(orderRef, orderPayload);
 
-        // Mettre l'offre en checkout_started
-        transaction.update(offerRef, {
-          status: OFFER_STATUS.checkoutStarted,
-          updatedAt: serverTimestamp(),
-        });
-
         return {
           orderId,
           offer,
           item,
           orderPayload,
+          reuseExistingOrder: false,
         };
       });
 
       // Créer la session Stripe Checkout hors transaction (appel réseau)
       const stripeClient = getStripe();
+
+      if (result.reuseExistingOrder === true) {
+        const existingSessionId = result.orderPayload?.stripeCheckoutSessionId;
+        const existingOrderStatus = result.orderPayload?.orderStatus;
+
+        if (looksLikeNonEmptyString(existingSessionId)) {
+          const existingSession = await stripeClient.checkout.sessions.retrieve(
+            existingSessionId
+          );
+
+          return {
+            orderId: result.orderId,
+            checkoutUrl: existingSession.url,
+            stripeSessionId: existingSession.id,
+          };
+        }
+
+        if (existingOrderStatus && existingOrderStatus !== ORDER_STATUS.failed) {
+          throw new HttpsError(
+            "failed-precondition",
+            "A checkout session is already being prepared for this offer"
+          );
+        }
+      }
+
       const priceInCents = amountToCents(result.offer.proposedPrice);
 
-      const session = await stripeClient.checkout.sessions.create(
-        {
-          mode: "payment",
-          line_items: [
-            {
-              price_data: {
-                currency: (result.item.currency || "EUR").toLowerCase(),
-                product_data: {
-                  name: result.item.title || "Bloom Art",
-                  description: `Offre acceptée — ${result.item.title || "Article Bloom Art"}`,
+      let session;
+      try {
+        session = await stripeClient.checkout.sessions.create(
+          {
+            mode: "payment",
+            line_items: [
+              {
+                price_data: {
+                  currency: (result.item.currency || "EUR").toLowerCase(),
+                  product_data: {
+                    name: result.item.title || "Bloom Art",
+                    description: `Offre acceptee — ${
+                      result.item.title || "Article Bloom Art"
+                    }`,
+                  },
+                  unit_amount: priceInCents,
                 },
-                unit_amount: priceInCents,
+                quantity: 1,
               },
-              quantity: 1,
+            ],
+            client_reference_id: result.orderId,
+            success_url: `${successUrl}?orderId=${result.orderId}`,
+            cancel_url: `${cancelUrl}?orderId=${result.orderId}`,
+            metadata: {
+              kind: BLOOM_ART_KIND,
+              orderId: result.orderId,
+              offerId,
+              itemId: result.offer.itemId,
+              buyerId: uid,
+              sellerId: result.offer.sellerId,
+              uid,
             },
-          ],
-          client_reference_id: result.orderId,
-          success_url: `${successUrl}?orderId=${result.orderId}`,
-          cancel_url: `${cancelUrl}?orderId=${result.orderId}`,
-          metadata: {
-            kind: BLOOM_ART_KIND,
-            orderId: result.orderId,
-            offerId,
-            itemId: result.offer.itemId,
-            buyerId: uid,
-            sellerId: result.offer.sellerId,
-            uid,
+            customer_email: request.auth.token.email || undefined,
           },
-          customer_email: request.auth.token.email || undefined,
-        },
-        { idempotencyKey: `bloom_art_checkout_${uid}_${result.orderId}` }
-      );
+          { idempotencyKey: `bloom_art_checkout_${uid}_${result.orderId}` }
+        );
 
-      // Mettre à jour la commande avec l'ID de session Stripe
-      await db.collection(COLLECTIONS.orders).doc(result.orderId).update({
-        stripeCheckoutSessionId: session.id,
-        orderStatus: ORDER_STATUS.checkoutStarted,
-        updatedAt: serverTimestamp(),
-      });
+        await db.runTransaction(async (transaction) => {
+          const orderRef = db.collection(COLLECTIONS.orders).doc(result.orderId);
+          const offerRef = db.collection(COLLECTIONS.offers).doc(offerId);
+          const [orderSnap, offerSnap] = await Promise.all([
+            transaction.get(orderRef),
+            transaction.get(offerRef),
+          ]);
+
+          if (!orderSnap.exists || !offerSnap.exists) {
+            throw new HttpsError(
+              "failed-precondition",
+              "Bloom Art order or offer no longer exists"
+            );
+          }
+
+          transaction.update(orderRef, {
+            stripeCheckoutSessionId: session.id,
+            orderStatus: ORDER_STATUS.checkoutStarted,
+            updatedAt: serverTimestamp(),
+          });
+
+          transaction.update(offerRef, {
+            status: OFFER_STATUS.checkoutStarted,
+            updatedAt: serverTimestamp(),
+          });
+        });
+      } catch (error) {
+        await db.collection(COLLECTIONS.orders).doc(result.orderId).set(
+          {
+            orderStatus: ORDER_STATUS.failed,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+        throw error;
+      }
 
       return {
         orderId: result.orderId,

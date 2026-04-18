@@ -337,6 +337,10 @@ class _StorexHome extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const _StorexHeroBanner(),
+                    const SizedBox(height: 18),
+                    _StorexBloomArtBanner(
+                      onTap: () => Navigator.of(context).pushNamed('/bloom-art'),
+                    ),
                     if (cats.isNotEmpty) ...[
                       const SizedBox(height: 18),
                       const Text(
@@ -507,6 +511,83 @@ class _StorexHeroBanner extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _StorexBloomArtBanner extends StatelessWidget {
+  const _StorexBloomArtBanner({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFFE7DCCF)),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x11000000),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFFF7EEE5),
+            ),
+            child: const Icon(
+              Icons.palette_outlined,
+              color: Color(0xFF7A5C45),
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Galerie Bloom Art',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: _ShopUi.textMain,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Exposez une creation, recevez des offres et basculez vers le checkout Stripe centralise.',
+                  style: TextStyle(
+                    color: _ShopUi.textMuted,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          FilledButton(
+            onPressed: onTap,
+            style: FilledButton.styleFrom(
+              backgroundColor: _ShopUi.textMain,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+            child: const Text('Ouvrir'),
+          ),
+        ],
       ),
     );
   }

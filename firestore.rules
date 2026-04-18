@@ -1568,20 +1568,53 @@ service cloud.firestore {
 
     // Articles Bloom Art (lecture publique si publiés, écriture vendeur/admin)
     match /bloom_art_items/{itemId} {
-      allow read: if isSignedIn()
-        && (
-          resource.data.isPublished == true
-          || resource.data.sellerId == request.auth.uid
-          || isMasterAdmin()
+      allow read: if resource.data.isPublished == true
+        || (
+          isSignedIn()
+          && (
+            resource.data.sellerId == request.auth.uid
+            || isMasterAdmin()
+          )
         );
 
-      allow create: if isSignedIn()
-        && request.resource.data.sellerId == request.auth.uid;
+      // Creation sensible : backend uniquement (Cloud Functions admin).
+      allow create: if false;
 
-      allow update: if isSignedIn()
-        && (
-          resource.data.sellerId == request.auth.uid
-          || isMasterAdmin()
+      // Le vendeur peut uniquement modifier les champs publics editables tant
+      // que la piece n'est pas reservee / vendue. Les transitions critiques
+      // (sold, reserved, paiement) restent backend-only.
+      allow update: if isMasterAdmin()
+        || (
+          isSignedIn()
+          && resource.data.sellerId == request.auth.uid
+          && request.resource.data.sellerId == resource.data.sellerId
+          && request.resource.data.sellerProfileType == resource.data.sellerProfileType
+          && request.resource.data.createdAt == resource.data.createdAt
+          && resource.data.availabilityStatus in ['draft', 'published']
+          && request.resource.data.availabilityStatus in ['draft', 'published']
+          && !request.resource.data.keys().hasAny([
+            'referencePrice',
+            'stripeCheckoutSessionId',
+            'stripePaymentIntentId',
+            'paymentStatus',
+            'status'
+          ])
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+            'sellerDisplayName',
+            'title',
+            'description',
+            'category',
+            'condition',
+            'materials',
+            'dimensions',
+            'images',
+            'currency',
+            'isPublished',
+            'availabilityStatus',
+            'deliveryMode',
+            'deliveryNotes',
+            'updatedAt'
+          ])
         );
 
       allow delete: if isMasterAdmin();
@@ -1594,7 +1627,12 @@ service cloud.firestore {
 
     // Profils vendeur Bloom Art
     match /bloom_art_seller_profiles/{profileId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn()
+        && (
+          profileId == request.auth.uid
+          || resource.data.userId == request.auth.uid
+          || isMasterAdmin()
+        );
 
       allow create: if isSignedIn()
         && profileId == request.auth.uid;

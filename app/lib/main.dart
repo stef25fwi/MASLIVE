@@ -24,6 +24,7 @@ import 'admin/mapmarket_projects_page.dart' deferred as adm_mapmarket;
 import 'admin/role_management_page.dart' deferred as adm_roles;
 import 'admin/super_admin_space.dart' deferred as adm_super;
 import 'commerce_module_single_file.dart' deferred as commerce;
+import 'features/bloom_art/presentation/pages/bloom_art_pages.dart' deferred as bloom_art;
 import 'features/map_style/presentation/pages/map_color_tuner_page.dart' deferred as map_color_tuner;
 import 'features/map_style/presentation/pages/mapbox_style_studio_page.dart' deferred as map_style_studio;
 import 'features/media_marketplace/presentation/pages/media_marketplace_pages.dart' deferred as media_market;
@@ -511,6 +512,47 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
   final name = settings.name;
   final args = settings.arguments;
   Widget? page;
+
+  final uri = name == null ? null : Uri.tryParse(name);
+  final segments = uri?.pathSegments ?? const <String>[];
+  if (segments.isNotEmpty && segments.first == 'bloom-art') {
+    page = _DeferredLoader(
+      load: bloom_art.loadLibrary,
+      build: () {
+        if (segments.length == 1) {
+          return bloom_art.BloomArtHomePage();
+        }
+
+        if (segments.length == 2 && segments[1] == 'sell') {
+          final mapArgs = args is Map ? args : null;
+          return bloom_art.BloomArtSellEntryPage(
+            initialSelectedType: mapArgs?['selectedType'] as String?,
+          );
+        }
+
+        if (segments.length == 2 && segments[1] == 'create') {
+          final mapArgs = args is Map ? args : null;
+          return bloom_art.BloomArtItemCreatePage(
+            profileType: mapArgs?['profileType'] as String?,
+          );
+        }
+
+        if (segments.length == 2 && segments[1] == 'dashboard') {
+          return bloom_art.BloomArtSellerDashboardPage();
+        }
+
+        if (segments.length == 3 && segments[1] == 'item') {
+          return bloom_art.BloomArtItemDetailPage(itemId: segments[2]);
+        }
+
+        if (segments.length == 3 && segments[1] == 'offers') {
+          return bloom_art.BloomArtOfferDetailPage(offerId: segments[2]);
+        }
+
+        return const _RouteArgsErrorPage(routeName: '/bloom-art');
+      },
+    );
+  }
 
   switch (name) {
     // ── Maps ──
