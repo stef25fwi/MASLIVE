@@ -1,9 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-import '../../../../ui/snack/top_snack_bar.dart';
 
 class BloomArtCheckoutService {
   BloomArtCheckoutService({FirebaseFunctions? functions})
@@ -21,8 +18,7 @@ class BloomArtCheckoutService {
     return 'https://maslive.web.app/#$normalizedRoute';
   }
 
-  Future<void> startCheckout(
-    BuildContext context, {
+  Future<void> startCheckout({
     required String offerId,
     required String itemId,
   }) async {
@@ -46,11 +42,5 @@ class BloomArtCheckoutService {
     if (!launched) {
       throw StateError('Impossible d\'ouvrir Stripe Checkout');
     }
-
-    if (!context.mounted) return;
-    TopSnackBar.show(
-      context,
-      const SnackBar(content: Text('Checkout Bloom Art ouvert dans Stripe')),
-    );
   }
 }

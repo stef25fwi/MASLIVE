@@ -67,7 +67,7 @@ void main() {
       );
     });
 
-    test('detects negative prices', () {
+    test('sanitizes negative prices before coherence verification', () async {
       final item = CartItemModel(
         id: 'ci_test',
         itemType: CartItemType.merch,
@@ -83,13 +83,15 @@ void main() {
         requiresShipping: true,
       );
 
-      CartService.instance.addCartItem(item);
+      await CartService.instance.addCartItem(item);
+      expect(CartService.instance.unifiedItems.single.unitPrice, 0);
+
       final issues = CartCoherenceChecker.verify();
 
       expect(
         issues.any((i) => i.message.contains('negative price')),
-        true,
-        reason: 'Should detect negative price',
+        false,
+        reason: 'Negative prices should be clamped before the coherence check',
       );
     });
 

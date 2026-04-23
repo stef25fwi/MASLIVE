@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'auth/login_page_support.dart';
 import '../session/session_scope.dart';
 import 'auth/auth_action_runner.dart';
 import '../services/auth_service.dart';
@@ -22,28 +23,76 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
+  final _confirmPassCtrl = TextEditingController();
   bool _obscure = true;
   bool _loading = false;
   String? _error;
   bool _emailError = false;
   bool _passwordError = false;
+  bool _confirmPasswordError = false;
+  LoginPageMode _mode = LoginPageMode.signIn;
 
   bool get _supportsAppleSignInUi => AuthService.instance.supportsAppleSignInUi;
+  bool get _isSignUpMode => _mode == LoginPageMode.signUp;
+
+  String _validationMessageFor(
+    LoginValidationCode code,
+    AppLocalizations l10n,
+  ) {
+    switch (code) {
+      case LoginValidationCode.emailRequired:
+        return l10n.loginValidationEmailRequired;
+      case LoginValidationCode.invalidEmail:
+        return l10n.loginValidationInvalidEmail;
+      case LoginValidationCode.passwordRequired:
+        return l10n.loginValidationPasswordRequired;
+      case LoginValidationCode.passwordTooShort:
+        return l10n.loginValidationPasswordTooShort(
+          minimumSignUpPasswordLength,
+        );
+      case LoginValidationCode.confirmPasswordRequired:
+        return l10n.loginValidationConfirmPasswordRequired;
+      case LoginValidationCode.passwordMismatch:
+        return l10n.loginValidationPasswordMismatch;
+    }
+  }
+
+  String _feedbackMessageFor(LoginFeedbackCode code, AppLocalizations l10n) {
+    switch (code) {
+      case LoginFeedbackCode.actionCancelled:
+        return l10n.loginFeedbackActionCancelled;
+      case LoginFeedbackCode.networkIssue:
+        return l10n.loginFeedbackNetworkIssue;
+      case LoginFeedbackCode.invalidCredentials:
+        return l10n.loginFeedbackInvalidCredentials;
+      case LoginFeedbackCode.emailAlreadyInUse:
+        return l10n.loginFeedbackEmailAlreadyInUse;
+      case LoginFeedbackCode.accountExistsDifferentCredential:
+        return l10n.loginFeedbackAccountExistsDifferentMethod;
+      case LoginFeedbackCode.tooManyAttempts:
+        return l10n.loginFeedbackTooManyAttempts;
+      case LoginFeedbackCode.googleConfiguration:
+        return l10n.loginFeedbackGoogleConfiguration;
+      case LoginFeedbackCode.generic:
+        return l10n.loginFeedbackGeneric;
+    }
+  }
+
+  void _setMode(LoginPageMode mode) {
+    if (_mode == mode) return;
+    setState(() {
+      _mode = mode;
+      _error = null;
+      _emailError = false;
+      _passwordError = false;
+      _confirmPasswordError = false;
+      if (mode == LoginPageMode.signIn) {
+        _confirmPassCtrl.clear();
+      }
+    });
+  }
 
   Future<void> _run(Future<void> Function() fn) async {
-    // Validation
-    final email = _emailCtrl.text.trim();
-    final password = _passCtrl.text;
-
-    setState(() {
-      _emailError = email.isEmpty;
-      _passwordError = password.isEmpty;
-    });
-
-    if (_emailError || _passwordError) {
-      return;
-    }
-
     setState(() {
       _loading = true;
       _error = null;
@@ -57,10 +106,65 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.of(context).pushReplacementNamed('/account-ui');
       }
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
+      setState(
+        () => _error = _feedbackMessageFor(classifyLoginFeedback(e), l10n),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _submitEmailAuth() async {
+    final l10n = AppLocalizations.of(context)!;
+    final emailCode = validateLoginEmail(_emailCtrl.text);
+    final passwordCode = validateLoginPassword(
+      _passCtrl.text,
+      requireMinimumLength: _isSignUpMode,
+    );
+    final confirmCode = _isSignUpMode
+        ? validatePasswordConfirmation(
+            password: _passCtrl.text,
+            confirmation: _confirmPassCtrl.text,
+          )
+        : null;
+
+    setState(() {
+      _emailError = emailCode != null;
+      _passwordError = passwordCode != null;
+      _confirmPasswordError = confirmCode != null;
+      _error = emailCode != null
+          ? _validationMessageFor(emailCode, l10n)
+          : passwordCode != null
+          ? _validationMessageFor(passwordCode, l10n)
+          : confirmCode != null
+          ? _validationMessageFor(confirmCode, l10n)
+          : null;
+    });
+
+    if (emailCode != null || passwordCode != null || confirmCode != null) {
+      return;
+    }
+
+    final email = _emailCtrl.text.trim();
+    final password = _passCtrl.text;
+    if (_isSignUpMode) {
+      await _run(
+        () => AuthService.instance.createUserWithEmailPassword(
+          email: email,
+          password: password,
+        ),
+      );
+      return;
+    }
+
+    await _run(
+      () => AuthService.instance.signInWithEmailPassword(
+        email: email,
+        password: password,
+      ),
+    );
   }
 
   Future<void> _runProvider(AuthAction action) async {
@@ -94,16 +198,107 @@ class _LoginPageState extends State<LoginPage> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
+      setState(
+        () => _error = _feedbackMessageFor(classifyLoginFeedback(e), l10n),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _showResetPasswordDialog() async {
+    final l10n = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final resetEmailCtrl = TextEditingController(text: _emailCtrl.text.trim());
+    String? dialogError;
+    bool sending = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            Future<void> submitReset() async {
+              final emailCode = validateLoginEmail(resetEmailCtrl.text);
+              if (emailCode != null) {
+                setDialogState(
+                  () => dialogError = _validationMessageFor(emailCode, l10n),
+                );
+                return;
+              }
+
+              setDialogState(() {
+                sending = true;
+                dialogError = null;
+              });
+
+              try {
+                await AuthService.instance.resetPassword(
+                  resetEmailCtrl.text.trim(),
+                );
+                if (!mounted) return;
+                navigator.pop();
+                messenger.showSnackBar(
+                  SnackBar(content: Text(l10n.loginResetPasswordEmailSent)),
+                );
+              } catch (error) {
+                setDialogState(() {
+                  sending = false;
+                  dialogError = _feedbackMessageFor(
+                    classifyLoginFeedback(error),
+                    l10n,
+                  );
+                });
+              }
+            }
+
+            return AlertDialog(
+              title: Text(l10n.forgotPassword),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(l10n.loginResetPasswordDescription),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: resetEmailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(
+                      labelText: l10n.email,
+                      errorText: dialogError,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: sending ? null : () => navigator.pop(),
+                  child: const Text('Annuler'),
+                ),
+                FilledButton(
+                  onPressed: sending ? null : submitReset,
+                  child: Text(
+                    sending ? l10n.signingIn : l10n.forgotPassword,
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    resetEmailCtrl.dispose();
   }
 
   @override
   void dispose() {
     _emailCtrl.dispose();
     _passCtrl.dispose();
+    _confirmPassCtrl.dispose();
     super.dispose();
   }
 
@@ -119,6 +314,11 @@ class _LoginPageState extends State<LoginPage> {
     _passCtrl.addListener(() {
       if (_passwordError && _passCtrl.text.isNotEmpty) {
         setState(() => _passwordError = false);
+      }
+    });
+    _confirmPassCtrl.addListener(() {
+      if (_confirmPasswordError && _confirmPassCtrl.text.isNotEmpty) {
+        setState(() => _confirmPasswordError = false);
       }
     });
   }
@@ -283,28 +483,56 @@ class _LoginPageState extends State<LoginPage> {
                                         ),
                                       ),
                                     ),
+                                    if (_isSignUpMode) ...[
+                                      const SizedBox(height: 12),
+                                      _PremiumField(
+                                        controller: _confirmPassCtrl,
+                                        hintText: AppLocalizations.of(
+                                          context,
+                                        )!.confirmPassword,
+                                        prefixIcon: Icons.lock_reset_rounded,
+                                        borderColor: border,
+                                        obscureText: _obscure,
+                                        hasError: _confirmPasswordError,
+                                      ),
+                                    ],
                                     const SizedBox(height: 18),
                                     _GradientButton(
                                       gradient: masliveGradient,
                                       text: _loading
-                                          ? AppLocalizations.of(
-                                              context,
-                                            )!.signingIn
-                                          : AppLocalizations.of(
-                                              context,
-                                            )!.signIn,
+                                          ? (_isSignUpMode
+                                                ? AppLocalizations.of(
+                                                    context,
+                                                  )!.creating
+                                                : AppLocalizations.of(
+                                                    context,
+                                                  )!.signingIn)
+                                          : (_isSignUpMode
+                                                ? AppLocalizations.of(
+                                                    context,
+                                                  )!.signup
+                                                : AppLocalizations.of(
+                                                    context,
+                                                  )!.signIn),
                                       onPressed: _loading
                                           ? () {}
-                                          : () => _run(
-                                              () => AuthService.instance
-                                                  .signInWithEmailPassword(
-                                                    email: _emailCtrl.text
-                                                        .trim(),
-                                                    password: _passCtrl.text,
-                                                  ),
-                                            ),
+                                          : _submitEmailAuth,
                                     ),
                                     const SizedBox(height: 10),
+                                    if (!_isSignUpMode)
+                                      Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: TextButton(
+                                          onPressed: _loading
+                                              ? null
+                                              : _showResetPasswordDialog,
+                                          child: Text(
+                                            AppLocalizations.of(
+                                              context,
+                                            )!.forgotPassword,
+                                          ),
+                                        ),
+                                      ),
                                     Align(
                                       alignment: Alignment.centerRight,
                                       child: TextButton(
@@ -342,22 +570,19 @@ class _LoginPageState extends State<LoginPage> {
                                     const SizedBox(height: 6),
                                     _GradientButton(
                                       gradient: masliveGradient,
-                                      text: _loading
+                                      text: _isSignUpMode
                                           ? AppLocalizations.of(
                                               context,
-                                            )!.creating
+                                            )!.signIn
                                           : AppLocalizations.of(
                                               context,
                                             )!.createAccountWithEmail,
                                       onPressed: _loading
                                           ? () {}
-                                          : () => _run(
-                                              () => AuthService.instance
-                                                  .createUserWithEmailPassword(
-                                                    email: _emailCtrl.text
-                                                        .trim(),
-                                                    password: _passCtrl.text,
-                                                  ),
+                                          : () => _setMode(
+                                              _isSignUpMode
+                                                  ? LoginPageMode.signIn
+                                                  : LoginPageMode.signUp,
                                             ),
                                     ),
                                     const SizedBox(height: 12),
@@ -669,7 +894,14 @@ class _SocialButton extends StatelessWidget {
           children: [
             leading,
             const SizedBox(width: 10),
-            Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
           ],
         ),
       ),

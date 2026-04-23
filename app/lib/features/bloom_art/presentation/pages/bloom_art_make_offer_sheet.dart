@@ -55,6 +55,7 @@ class _BloomArtMakeOfferSheetState extends State<BloomArtMakeOfferSheet> {
   }
 
   Future<void> _submit() async {
+    final rootContext = widget.rootContext;
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       if (mounted) {
@@ -96,11 +97,11 @@ class _BloomArtMakeOfferSheetState extends State<BloomArtMakeOfferSheet> {
       if (!mounted) return;
       Navigator.of(context).pop();
 
-      if (!widget.rootContext.mounted) return;
+      if (!rootContext.mounted) return;
 
       if (offer.checkoutEligible) {
         final payNow = await showDialog<bool>(
-          context: widget.rootContext,
+          context: rootContext,
           builder: (dialogContext) {
             return AlertDialog(
               title: const Text('Offre auto-acceptée'),
@@ -121,21 +122,26 @@ class _BloomArtMakeOfferSheetState extends State<BloomArtMakeOfferSheet> {
           },
         );
 
-        if (payNow == true && widget.rootContext.mounted) {
+        if (payNow == true && rootContext.mounted) {
           await _notificationService.notifyBuyerOfferAutoAccepted(
             buyerId: user.uid,
             offerId: offer.id,
           );
           await _checkoutService.startCheckout(
-            widget.rootContext,
             offerId: offer.id,
             itemId: widget.item.id,
+          );
+          if (!rootContext.mounted) return;
+          ScaffoldMessenger.of(rootContext).showSnackBar(
+            const SnackBar(
+              content: Text('Checkout Bloom Art ouvert dans Stripe'),
+            ),
           );
         }
         return;
       }
 
-      ScaffoldMessenger.of(widget.rootContext).showSnackBar(
+      ScaffoldMessenger.of(rootContext).showSnackBar(
         const SnackBar(
           content: Text('Offre envoyée. Le vendeur doit maintenant répondre.'),
         ),

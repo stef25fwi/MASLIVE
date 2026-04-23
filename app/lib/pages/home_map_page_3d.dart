@@ -4157,14 +4157,14 @@ class _NearbyPoiFilmCarousel extends StatelessWidget {
       child: ListView.separated(
         physics: const NeverScrollableScrollPhysics(),
         scrollDirection: Axis.horizontal,
-        itemBuilder: (_, __) => DecoratedBox(
+        itemBuilder: (context, index) => DecoratedBox(
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.22),
             borderRadius: BorderRadius.circular(999),
           ),
           child: const SizedBox(width: 14, height: 8),
         ),
-        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        separatorBuilder: (context, index) => const SizedBox(width: 6),
         itemCount: 18,
       ),
     );

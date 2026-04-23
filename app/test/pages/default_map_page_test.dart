@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:masslive/pages/default_map_page.dart';
+import 'package:masslive/services/home_controls_theme_service.dart';
 import 'package:masslive/services/language_service.dart';
 import 'package:masslive/services/mapbox_token_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -59,8 +60,12 @@ void main() {
     // Build our app and trigger a frame.
     // Wrap in MaterialApp/Scaffold because DefaultMapPage expects it (it returns Scaffold)
     await tester.pumpWidget(
-      const GetMaterialApp(
-        home: DefaultMapPage(),
+      GetMaterialApp(
+        home: DefaultMapPage(
+          homeControlsThemeService: HomeControlsThemeService(
+            waitForFirebaseInitialization: false,
+          ),
+        ),
       ),
     );
 

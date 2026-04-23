@@ -93,9 +93,12 @@ class _BloomArtOfferDetailPageState extends State<BloomArtOfferDetailPage> {
     });
     try {
       await _checkoutService.startCheckout(
-        context,
         offerId: offer.id,
         itemId: offer.itemId,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Checkout Bloom Art ouvert dans Stripe')),
       );
     } finally {
       if (mounted) {

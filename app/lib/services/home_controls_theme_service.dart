@@ -6,14 +6,18 @@ import 'package:firebase_core/firebase_core.dart';
 enum HomeControlsThemeMode { classic, ultraPremiumGlass }
 
 class HomeControlsThemeService {
-  HomeControlsThemeService({FirebaseFirestore? firestore})
-    : _firestore = firestore;
+  HomeControlsThemeService({
+    FirebaseFirestore? firestore,
+    bool waitForFirebaseInitialization = true,
+  }) : _firestore = firestore,
+       _waitForFirebaseInitialization = waitForFirebaseInitialization;
 
   static const String configCollection = 'config';
   static const String systemDocument = 'system';
   static const String fieldName = 'homeControlsTheme';
 
   final FirebaseFirestore? _firestore;
+  final bool _waitForFirebaseInitialization;
 
   Stream<HomeControlsThemeMode> watchTheme() async* {
     yield HomeControlsThemeMode.classic;
@@ -44,6 +48,9 @@ class HomeControlsThemeService {
     }
     if (Firebase.apps.isNotEmpty) {
       return FirebaseFirestore.instance;
+    }
+    if (!_waitForFirebaseInitialization) {
+      return null;
     }
 
     const deadline = Duration(seconds: 8);

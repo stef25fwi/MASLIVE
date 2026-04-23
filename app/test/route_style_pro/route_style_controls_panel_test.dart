@@ -26,6 +26,8 @@ void main() {
       ),
     );
 
+    await tester.tap(find.text('Waze-like'));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Rainbow casing'), 200);
 
     expect(find.text('Rainbow casing'), findsOneWidget);

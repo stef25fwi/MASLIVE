@@ -6,6 +6,10 @@ const int kRouteStyleSchemaVersion = 8;
 /// Représentation simple (lat, lng) pour les services.
 typedef LatLng = ({double lat, double lng});
 
+double _roundRouteStyleValue(double value, {int fractionDigits = 3}) {
+    return double.parse(value.toStringAsFixed(fractionDigits));
+}
+
 enum RouteLineCap { round, butt, square }
 
 enum RouteLineJoin { round, bevel, miter }
@@ -213,8 +217,9 @@ class RouteStyleConfig {
       ? mainWidth.clamp(2.0, kRoadWidthModeMaxMainWidth)
       : mainWidth;
 
-  double get effectiveRenderedMainWidth =>
-      effectiveMainWidth * effectiveWidthScale3d;
+    double get effectiveRenderedMainWidth => _roundRouteStyleValue(
+        effectiveMainWidth * effectiveWidthScale3d,
+    );
 
   bool get shouldRenderRoadLike =>
       roadEffectsEnabled &&
@@ -244,8 +249,9 @@ class RouteStyleConfig {
     return casingWidth.clamp(0.0, maxAllowed);
   }
 
-  double get effectiveRenderedCasingWidth =>
-      effectiveCasingWidth * effectiveWidthScale3d;
+    double get effectiveRenderedCasingWidth => _roundRouteStyleValue(
+        effectiveCasingWidth * effectiveWidthScale3d,
+    );
 
   double get effectiveElevationPx =>
       roadEffectsEnabled && !roadWidthModeEnabled ? elevationPx : 0.0;

@@ -27,7 +27,7 @@ void main() {
     await tester.pumpWidget(buildPage());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Créer un compte').first);
+    await tester.tap(find.text('Créer un compte avec email').first);
     await tester.pumpAndSettle();
 
     expect(find.text('Confirmer le mot de passe'), findsOneWidget);

@@ -54,12 +54,14 @@ class DefaultMapPage extends StatefulWidget {
     this.openActionsMenuOnLoad = false,
     this.actionsMenuOpenSignal,
     this.actionsMenuCloseSignal,
+    this.homeControlsThemeService,
   });
 
   final bool showBottomBar;
   final bool openActionsMenuOnLoad;
   final ValueListenable<int>? actionsMenuOpenSignal;
   final ValueListenable<int>? actionsMenuCloseSignal;
+  final HomeControlsThemeService? homeControlsThemeService;
 
   @override
   State<DefaultMapPage> createState() => _DefaultMapPageState();
@@ -109,8 +111,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   // Tracking
   final GeolocationService _geo = GeolocationService.instance;
-  final HomeControlsThemeService _homeControlsThemeService =
-      HomeControlsThemeService();
+  late final HomeControlsThemeService _homeControlsThemeService;
   bool _isTracking = false;
   String? _userGroupId;
 
@@ -618,6 +619,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   @override
   void initState() {
     super.initState();
+    _homeControlsThemeService =
+        widget.homeControlsThemeService ?? HomeControlsThemeService();
     WidgetsBinding.instance.addObserver(this);
     _bindActionsMenuSignal(widget.actionsMenuOpenSignal);
     _bindActionsMenuCloseSignal(widget.actionsMenuCloseSignal);
