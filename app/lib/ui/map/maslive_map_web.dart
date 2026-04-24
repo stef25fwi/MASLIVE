@@ -1066,47 +1066,57 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
                   false,
                 ],
               ],
+              // POIs sans appearance (food/wc/parking…) → cercle.
+              // En Mapbox GL JS, null != 'value' retourne false, donc on
+              // protège avec un '!' has pour les features sans la propriété.
               [
-                'all',
+                'any',
                 [
-                  '!=',
-                  ['get', kMasLivePoiAppearanceKey],
-                  kMasLivePoiAppearanceIconPointId,
+                  '!',
+                  ['has', kMasLivePoiAppearanceKey],
                 ],
                 [
-                  '!=',
-                  ['get', kMasLivePoiAppearanceKey],
-                  'icon-point.webp',
-                ],
-                [
-                  '!=',
-                  ['get', kMasLivePoiAppearanceKey],
-                  'icon-point.wbp',
-                ],
-                [
-                  '!=',
-                  ['get', kMasLivePoiAppearanceKey],
-                  'point.webp',
-                ],
-                [
-                  '!=',
-                  ['get', kMasLivePoiAppearanceKey],
-                  'point.wbp',
-                ],
-                [
-                  '!=',
-                  ['get', kMasLivePoiAppearanceKey],
-                  'point_webp',
-                ],
-                [
-                  '!=',
-                  ['get', kMasLivePoiAppearanceKey],
-                  'point_wbp',
-                ],
-                [
-                  '!=',
-                  ['get', kMasLivePoiAppearanceKey],
-                  'point',
+                  'all',
+                  [
+                    '!=',
+                    ['get', kMasLivePoiAppearanceKey],
+                    kMasLivePoiAppearanceIconPointId,
+                  ],
+                  [
+                    '!=',
+                    ['get', kMasLivePoiAppearanceKey],
+                    'icon-point.webp',
+                  ],
+                  [
+                    '!=',
+                    ['get', kMasLivePoiAppearanceKey],
+                    'icon-point.wbp',
+                  ],
+                  [
+                    '!=',
+                    ['get', kMasLivePoiAppearanceKey],
+                    'point.webp',
+                  ],
+                  [
+                    '!=',
+                    ['get', kMasLivePoiAppearanceKey],
+                    'point.wbp',
+                  ],
+                  [
+                    '!=',
+                    ['get', kMasLivePoiAppearanceKey],
+                    'point_webp',
+                  ],
+                  [
+                    '!=',
+                    ['get', kMasLivePoiAppearanceKey],
+                    'point_wbp',
+                  ],
+                  [
+                    '!=',
+                    ['get', kMasLivePoiAppearanceKey],
+                    'point',
+                  ],
                 ],
               ],
             ],
@@ -1156,47 +1166,55 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
               false,
             ],
           ],
+          // Même correction que addLayer : null != 'value' → false en Mapbox GL JS.
           [
-            'all',
+            'any',
             [
-              '!=',
-              ['get', kMasLivePoiAppearanceKey],
-              kMasLivePoiAppearanceIconPointId,
+              '!',
+              ['has', kMasLivePoiAppearanceKey],
             ],
             [
-              '!=',
-              ['get', kMasLivePoiAppearanceKey],
-              'icon-point.webp',
-            ],
-            [
-              '!=',
-              ['get', kMasLivePoiAppearanceKey],
-              'icon-point.wbp',
-            ],
-            [
-              '!=',
-              ['get', kMasLivePoiAppearanceKey],
-              'point.webp',
-            ],
-            [
-              '!=',
-              ['get', kMasLivePoiAppearanceKey],
-              'point.wbp',
-            ],
-            [
-              '!=',
-              ['get', kMasLivePoiAppearanceKey],
-              'point_webp',
-            ],
-            [
-              '!=',
-              ['get', kMasLivePoiAppearanceKey],
-              'point_wbp',
-            ],
-            [
-              '!=',
-              ['get', kMasLivePoiAppearanceKey],
-              'point',
+              'all',
+              [
+                '!=',
+                ['get', kMasLivePoiAppearanceKey],
+                kMasLivePoiAppearanceIconPointId,
+              ],
+              [
+                '!=',
+                ['get', kMasLivePoiAppearanceKey],
+                'icon-point.webp',
+              ],
+              [
+                '!=',
+                ['get', kMasLivePoiAppearanceKey],
+                'icon-point.wbp',
+              ],
+              [
+                '!=',
+                ['get', kMasLivePoiAppearanceKey],
+                'point.webp',
+              ],
+              [
+                '!=',
+                ['get', kMasLivePoiAppearanceKey],
+                'point.wbp',
+              ],
+              [
+                '!=',
+                ['get', kMasLivePoiAppearanceKey],
+                'point_webp',
+              ],
+              [
+                '!=',
+                ['get', kMasLivePoiAppearanceKey],
+                'point_wbp',
+              ],
+              [
+                '!=',
+                ['get', kMasLivePoiAppearanceKey],
+                'point',
+              ],
             ],
           ],
         ]),
