@@ -7064,19 +7064,61 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final projectId = _projectId;
     if (projectId == null || projectId.trim().isEmpty) return;
 
+    final layerId = (poi.layerId ?? poi.layerType).trim();
+    // Normaliser le type pour qu'il corresponde exactement aux valeurs
+    // attendues par le filtre de la page accueil (visit/food/wc/parking/assistance).
+    final normalizedType = _normalizePoiLayerType(poi.layerType);
+    final poiData = <String, dynamic>{
+      ...poi.toFirestore(),
+      // `type` est nécessaire pour que MarketPoi.fromDoc() lise correctement
+      // le layerType (visit/food/parking/wc…) côté page accueil.
+      'type': normalizedType,
+      'layerType': normalizedType,
+      'layerId': layerId,
+      'isVisible': poi.isVisible,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
     try {
       final docId = _draftPoiDocId(poi);
-      await FirebaseFirestore.instance
-          .collection('map_projects')
-          .doc(projectId)
-          .collection('pois')
-          .doc(docId)
-          .set({
-            ...poi.toFirestore(),
-            'layerId': (poi.layerId ?? poi.layerType).trim(),
-            'isVisible': poi.isVisible,
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
+      final db = FirebaseFirestore.instance;
+      final batch = db.batch();
+
+      // 1. Brouillon (source de vérité du wizard).
+      batch.set(
+        db
+            .collection('map_projects')
+            .doc(projectId)
+            .collection('pois')
+            .doc(docId),
+        poiData,
+        SetOptions(merge: true),
+      );
+
+      // 2. Écriture directe dans marketMap pour que les POIs soient
+      //    immédiatement visibles côté utilisateur sans attendre la publication.
+      final countryId = _countryController.text.trim();
+      final eventId = _eventController.text.trim();
+      final marketCircuitId = (widget.circuitId?.trim().isNotEmpty ?? false)
+          ? widget.circuitId!.trim()
+          : projectId;
+      if (countryId.isNotEmpty && eventId.isNotEmpty) {
+        batch.set(
+          db
+              .collection('marketMap')
+              .doc(countryId)
+              .collection('events')
+              .doc(eventId)
+              .collection('circuits')
+              .doc(marketCircuitId)
+              .collection('pois')
+              .doc(docId),
+          poiData,
+          SetOptions(merge: true),
+        );
+      }
+
+      await batch.commit();
     } catch (e) {
       if (!mounted) return;
       _showTopSnackBar(
@@ -7092,13 +7134,40 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     if (projectId == null || projectId.trim().isEmpty) return;
 
     final docId = _draftPoiDocId(poi);
+    final db = FirebaseFirestore.instance;
     try {
-      await FirebaseFirestore.instance
-          .collection('map_projects')
-          .doc(projectId)
-          .collection('pois')
-          .doc(docId)
-          .delete();
+      final batch = db.batch();
+
+      // 1. Suppression dans le brouillon.
+      batch.delete(
+        db
+            .collection('map_projects')
+            .doc(projectId)
+            .collection('pois')
+            .doc(docId),
+      );
+
+      // 2. Suppression miroir dans marketMap.
+      final countryId = _countryController.text.trim();
+      final eventId = _eventController.text.trim();
+      final marketCircuitId = (widget.circuitId?.trim().isNotEmpty ?? false)
+          ? widget.circuitId!.trim()
+          : projectId;
+      if (countryId.isNotEmpty && eventId.isNotEmpty) {
+        batch.delete(
+          db
+              .collection('marketMap')
+              .doc(countryId)
+              .collection('events')
+              .doc(eventId)
+              .collection('circuits')
+              .doc(marketCircuitId)
+              .collection('pois')
+              .doc(docId),
+        );
+      }
+
+      await batch.commit();
     } on FirebaseException catch (e) {
       if (e.code == 'not-found') return;
       rethrow;

@@ -714,23 +714,59 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
     await _ensureActorContext();
     if (!_canWriteMapProjects) return;
 
+    final normalizedType = _normalizePoiLayerType(poi.layerType);
     final layerId = (poi.layerId ?? poi.layerType).trim();
     final docId = poi.id.trim().isEmpty
         ? 'poi_${poi.layerType}_${poi.lng.toStringAsFixed(5)}_${poi.lat.toStringAsFixed(5)}'
         : poi.id.trim();
 
+    final poiData = <String, dynamic>{
+      ...poi.toFirestore(),
+      // `type` + `layerType` normalisés pour le filtrage page accueil.
+      'type': normalizedType,
+      'layerType': normalizedType,
+      'layerId': layerId,
+      'isVisible': poi.isVisible,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
     try {
-      await FirebaseFirestore.instance
-          .collection('map_projects')
-          .doc(widget.projectId)
-          .collection('pois')
-          .doc(docId)
-          .set({
-            ...poi.toFirestore(),
-            'layerId': layerId,
-            'isVisible': poi.isVisible,
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
+      final db = FirebaseFirestore.instance;
+      final batch = db.batch();
+
+      // 1. Brouillon dans map_projects.
+      batch.set(
+        db
+            .collection('map_projects')
+            .doc(widget.projectId)
+            .collection('pois')
+            .doc(docId),
+        poiData,
+        SetOptions(merge: true),
+      );
+
+      // 2. Écriture directe dans marketMap pour visibilité immédiate
+      //    sans attendre la publication.
+      final countryId = widget.countryId.trim();
+      final eventId = widget.eventId.trim();
+      final circuitId = widget.circuitId.trim();
+      if (countryId.isNotEmpty && eventId.isNotEmpty && circuitId.isNotEmpty) {
+        batch.set(
+          db
+              .collection('marketMap')
+              .doc(countryId)
+              .collection('events')
+              .doc(eventId)
+              .collection('circuits')
+              .doc(circuitId)
+              .collection('pois')
+              .doc(docId),
+          poiData,
+          SetOptions(merge: true),
+        );
+      }
+
+      await batch.commit();
     } catch (e) {
       if (!mounted) return;
       TopSnackBar.show(
@@ -785,12 +821,35 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
         ? 'poi_${poi.layerType}_${poi.lng.toStringAsFixed(5)}_${poi.lat.toStringAsFixed(5)}'
         : poi.id.trim();
     try {
-      await FirebaseFirestore.instance
-          .collection('map_projects')
-          .doc(widget.projectId)
-          .collection('pois')
-          .doc(docId)
-          .delete();
+      final db = FirebaseFirestore.instance;
+      final batch = db.batch();
+
+      batch.delete(
+        db
+            .collection('map_projects')
+            .doc(widget.projectId)
+            .collection('pois')
+            .doc(docId),
+      );
+
+      final countryId = widget.countryId.trim();
+      final eventId = widget.eventId.trim();
+      final circuitId = widget.circuitId.trim();
+      if (countryId.isNotEmpty && eventId.isNotEmpty && circuitId.isNotEmpty) {
+        batch.delete(
+          db
+              .collection('marketMap')
+              .doc(countryId)
+              .collection('events')
+              .doc(eventId)
+              .collection('circuits')
+              .doc(circuitId)
+              .collection('pois')
+              .doc(docId),
+        );
+      }
+
+      await batch.commit();
     } on FirebaseException catch (e) {
       if (e.code != 'not-found' && mounted) {
         TopSnackBar.show(

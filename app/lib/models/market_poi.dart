@@ -93,7 +93,22 @@ class MarketPoi {
       final rawType = asString(
         data['type'] ?? data['layerType'] ?? data['layerId'],
       );
-      return rawType?.toLowerCase();
+      if (rawType == null) return null;
+      final norm = rawType.toLowerCase();
+      // Normalisation des alias legacy (identique à _normalizePoiLayerType du wizard).
+      if (norm == 'tour' || norm == 'visiter') return 'visit';
+      if (norm == 'toilet' || norm == 'toilets') return 'wc';
+      if (norm == 'parkings' ||
+          norm == 'parking_zone' ||
+          norm == 'parking_zones' ||
+          norm == 'parking-zone' ||
+          norm == 'parking-zones' ||
+          norm == 'parkingzone' ||
+          norm == 'zones_parking' ||
+          norm == 'zone_parking') {
+        return 'parking';
+      }
+      return norm;
     }
 
     DateTime? asDateTime(dynamic value) {

@@ -1241,6 +1241,9 @@ class CircuitRepository {
       final metadata = poi.metadata;
 
       final layerId = (poi.layerId ?? poi.layerType).trim();
+      // Normaliser le type (tour→visit, toilet→wc, alias parking…) pour
+      // garantir la cohérence avec le filtre de la page accueil.
+      final normalizedType = _normalizePoiLayerType(poi.layerType);
 
       // Champs fiche (non destructifs): on n'écrase pas avec null.
       String? nonEmpty(String? v) {
@@ -1252,11 +1255,11 @@ class CircuitRepository {
         'name': poi.name,
         'description': poi.description,
         // Compat viewer: certains écrans lisent `type`.
-        'type': poi.layerType,
+        'type': normalizedType,
         // Filtrage Firestore: `layerId` est la source de vérité.
         'layerId': layerId,
-        // On conserve aussi `layerType` pour compat admin/drafts.
-        'layerType': poi.layerType,
+        // On conserve aussi `layerType` normalisé pour compat admin/drafts.
+        'layerType': normalizedType,
         'lat': poi.lat,
         'lng': poi.lng,
         'isVisible': poi.isVisible,
@@ -1313,5 +1316,24 @@ class CircuitRepository {
     final trimmed = poi.id.trim();
     if (trimmed.isNotEmpty) return trimmed;
     return 'poi_${poi.layerType}_${poi.lng.toStringAsFixed(5)}_${poi.lat.toStringAsFixed(5)}';
+  }
+
+  /// Normalise le layerType d'un POI vers la valeur canonique attendue
+  /// par le filtre de la page accueil (visit/food/wc/parking/assistance).
+  String _normalizePoiLayerType(String raw) {
+    final norm = raw.trim().toLowerCase();
+    if (norm == 'tour' || norm == 'visiter') return 'visit';
+    if (norm == 'toilet' || norm == 'toilets') return 'wc';
+    if (norm == 'parkings' ||
+        norm == 'parking_zone' ||
+        norm == 'parking_zones' ||
+        norm == 'parking-zone' ||
+        norm == 'parking-zones' ||
+        norm == 'parkingzone' ||
+        norm == 'zones_parking' ||
+        norm == 'zone_parking') {
+      return 'parking';
+    }
+    return norm;
   }
 }
