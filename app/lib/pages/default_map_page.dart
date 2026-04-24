@@ -1418,9 +1418,16 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     });
   }
 
-  void _selectAction(_MapAction action, String label) {
+  /// Retourne `true` si l'action a été appliquée (fermer le menu), `false` si
+  /// aucune carte n'est encore sélectionnée (garder le menu ouvert + tooltip).
+  bool _selectAction(_MapAction action, String label) {
+    if (!_marketPoiSelection.enabled) {
+      setState(() => _showOnboardingTooltip = true);
+      return false;
+    }
     setState(() => _selectedAction = action);
     _refreshMarketPoiMarkers();
+    return true;
   }
 
   List<HomeVerticalNavItem> _buildClassicVerticalNavItems(
@@ -1461,8 +1468,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         icon: Icons.map_outlined,
         selected: _selectedAction == _MapAction.visiter,
         onTap: () {
-          _selectAction(_MapAction.visiter, 'Visiter');
-          _closeNavWithDelay();
+          if (_selectAction(_MapAction.visiter, 'Visiter')) _closeNavWithDelay();
         },
       ),
       HomeVerticalNavItem(
@@ -1470,8 +1476,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         icon: Icons.fastfood_rounded,
         selected: _selectedAction == _MapAction.food,
         onTap: () {
-          _selectAction(_MapAction.food, 'Food');
-          _closeNavWithDelay();
+          if (_selectAction(_MapAction.food, 'Food')) _closeNavWithDelay();
         },
       ),
       HomeVerticalNavItem(
@@ -1479,8 +1484,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         icon: Icons.shield_outlined,
         selected: _selectedAction == _MapAction.assistance,
         onTap: () {
-          _selectAction(_MapAction.assistance, 'Assistance');
-          _closeNavWithDelay();
+          if (_selectAction(_MapAction.assistance, 'Assistance')) _closeNavWithDelay();
         },
       ),
       HomeVerticalNavItem(
@@ -1518,8 +1522,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         tintOnSelected: false,
         highlightBackgroundOnSelected: false,
         onTap: () {
-          _selectAction(_MapAction.parkingWc, 'P/WC');
-          _closeNavWithDelay();
+          if (_selectAction(_MapAction.parkingWc, 'P/WC')) _closeNavWithDelay();
         },
       ),
       HomeVerticalNavItem(
