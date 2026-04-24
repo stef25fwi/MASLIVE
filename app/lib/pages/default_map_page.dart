@@ -735,10 +735,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     await _marketPoisSub?.cancel();
     _marketPoisSub = null;
 
-    // Changement de carte/circuit => ne pas afficher de POIs par défaut.
-    // Les POIs apparaissent uniquement après clic sur une icône de la barre verticale.
+    // Changement de carte/circuit => afficher les POIs food par défaut.
     if (resetPoiFilter && mounted) {
-      setState(() => _selectedAction = null);
+      setState(() => _selectedAction = _MapAction.food);
     }
 
     if (!selection.enabled ||
