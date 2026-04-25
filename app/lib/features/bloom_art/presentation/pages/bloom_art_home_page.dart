@@ -223,7 +223,6 @@ class _BloomArtHeroBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(2),
-      height: 188,
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: _Ui.rainbowGradient,
@@ -231,76 +230,53 @@ class _BloomArtHeroBanner extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(28),
-        child: Stack(
-          fit: StackFit.expand,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
+            // ── Zone logo sur fond blanc ───────────────────────────────
             Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFF7EEE5), Color(0xFFEFE0F5), Color(0xFFDFF0FA)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
+              child: Image.asset(
+                'assets/images/logobloom.png',
+                fit: BoxFit.contain,
+                height: 160,
               ),
             ),
+            // ── Zone texte + bouton sous le logo ──────────────────────
             Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.black.withValues(alpha: 0.08),
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.04),
-                  ],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-              ),
-            ),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                // Logo centré qui occupe tout l'espace disponible
-                Expanded(
-                  child: Center(
-                    child: Image.asset(
-                      'assets/images/logobloom.png',
-                      fit: BoxFit.contain,
+              color: _Ui.textMain,
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  const Expanded(
+                    child: Text(
+                      'Exposez une création, recevez des offres',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        height: 1.4,
+                      ),
                     ),
                   ),
-                ),
-                // Texte en bas + bouton
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(18, 10, 18, 16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: <Widget>[
-                      const Expanded(
-                        child: Text(
-                          'Exposez une création, recevez des offres',
-                          style: TextStyle(
-                            color: _Ui.textMuted,
-                            height: 1.4,
-                          ),
-                        ),
+                  const SizedBox(width: 12),
+                  FilledButton.icon(
+                    onPressed: onSellPressed,
+                    icon: const Icon(Icons.add_circle_outline, size: 18),
+                    label: const Text('Déposer'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: _Ui.textMain,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
                       ),
-                      const SizedBox(width: 12),
-                      FilledButton.icon(
-                        onPressed: onSellPressed,
-                        icon: const Icon(Icons.add_circle_outline, size: 18),
-                        label: const Text('Déposer'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _Ui.textMain,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
