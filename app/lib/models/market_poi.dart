@@ -89,15 +89,25 @@ class MarketPoi {
       return null;
     }
 
-    String? normalizedPoiType() {
-      final rawType = asString(
-        data['type'] ?? data['layerType'] ?? data['layerId'],
-      );
+    String? normalizeRawPoiType(dynamic value) {
+      final rawType = asString(value);
       if (rawType == null) return null;
       final norm = rawType.toLowerCase();
-      // Normalisation des alias legacy (identique à _normalizePoiLayerType du wizard).
-      if (norm == 'tour' || norm == 'visiter') return 'visit';
-      if (norm == 'toilet' || norm == 'toilets') return 'wc';
+      if (norm == 'tour' || norm == 'visiter' || norm == 'tourisme') {
+        return 'visit';
+      }
+      if (norm == 'toilet' ||
+          norm == 'toilets' ||
+          norm == 'toilette' ||
+          norm == 'toilettes') {
+        return 'wc';
+      }
+      if (norm == 'restaurant' ||
+          norm == 'resto' ||
+          norm == 'bar' ||
+          norm == 'snack') {
+        return 'food';
+      }
       if (norm == 'parkings' ||
           norm == 'parking_zone' ||
           norm == 'parking_zones' ||
@@ -109,6 +119,38 @@ class MarketPoi {
         return 'parking';
       }
       return norm;
+    }
+
+    String? normalizedPoiType() {
+      // Certains POIs publiés gardent un `type` legacy non canonique alors que
+      // `layerType` contient déjà la vraie catégorie exploitable côté home.
+      const canonicalTypes = <String>{
+        'visit',
+        'food',
+        'assistance',
+        'parking',
+        'wc',
+        'cashier',
+        'market',
+      };
+
+      final candidates = <String?>[
+        normalizeRawPoiType(data['layerType']),
+        normalizeRawPoiType(data['type']),
+        normalizeRawPoiType(data['layerId']),
+      ];
+
+      for (final candidate in candidates) {
+        if (candidate != null && canonicalTypes.contains(candidate)) {
+          return candidate;
+        }
+      }
+
+      for (final candidate in candidates) {
+        if (candidate != null) return candidate;
+      }
+
+      return null;
     }
 
     DateTime? asDateTime(dynamic value) {
