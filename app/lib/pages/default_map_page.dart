@@ -254,6 +254,12 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
     final pois = _visibleMarketPoisForCurrentAction();
     if (pois.isEmpty) {
+      // Ne pas effacer les layers si le stream est actif mais n'a pas encore
+      // émis : on attend sa première émission qui appellera de nouveau cette
+      // méthode avec des POIs réels.  Effacer maintenant créerait une race
+      // condition avec l'appel concurrent à _applyPoisGeoJsonIfReady déclenché
+      // par onMapReady (source/layers supprimés, puis re-ajout impossible).
+      if (_marketPoisSub != null && _marketPois.isEmpty) return;
       await _mapController.clearPoisGeoJson();
       return;
     }
@@ -820,7 +826,17 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         .listen((pois) {
           if (!mounted) return;
           setState(() => _marketPois = pois);
-          _refreshMarketPoiMarkers();
+          // Si la carte est déjà prête, on diffère le sync d'un frame pour
+          // laisser tout _applyPoisGeoJsonIfReady en cours depuis onMapReady
+          // se terminer avant de lancer notre propre appel.
+          if (_isMasLiveMapReady) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              _refreshMarketPoiMarkers();
+            });
+          } else {
+            _refreshMarketPoiMarkers();
+          }
         });
   }
 

@@ -5,7 +5,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/group_product.dart';
 import '../../widgets/language_switcher.dart';
 import '../../l10n/app_localizations.dart' as l10n;
-import '../../pages/media_gallery_maslive_instagram_page.dart';
 
 /// Drawer standardisé pour toutes les pages boutique
 /// 
@@ -96,15 +95,11 @@ class ShopDrawer extends StatelessWidget {
               const SizedBox(height: 10),
 
               _FeaturedDrawerAction(
-                label: 'Galerie BLoOm ArT',
+                label: 'Galerie BLoOmOod Art',
                 icon: Icons.palette_rounded,
                 onTap: () {
                   Navigator.of(context).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const MediaGalleryMasliveInstagramPage(),
-                    ),
-                  );
+                  Navigator.of(context).pushNamed('/bloom-art');
                 },
               ),
               

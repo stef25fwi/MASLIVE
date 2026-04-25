@@ -557,7 +557,7 @@ class _StorexBloomArtBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Galerie Bloom Art',
+                  'Galerie BLoOmOod Art',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w900,

@@ -1,11 +1,25 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../shop/widgets/storex_page_header.dart';
 import '../../data/models/bloom_art_item.dart';
 import '../../data/repositories/bloom_art_repository.dart';
-import '../widgets/bloom_art_gallery_header.dart';
 import '../widgets/bloom_art_item_card.dart';
 import 'bloom_art_profile_choice_sheet.dart';
+
+// ─── Couleurs partagées (miroir de la boutique) ────────────────────────────
+
+class _Ui {
+  const _Ui._();
+  static const Color pageBg    = Color(0xFFF7F8FC);
+  static const Color textMain  = Color(0xFF101828);
+  static const Color textMuted = Color(0xFF667085);
+  static const LinearGradient rainbowGradient = LinearGradient(
+    colors: [Color(0xFFFFE36A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+}
 
 class BloomArtHomePage extends StatelessWidget {
   BloomArtHomePage({super.key});
@@ -33,21 +47,26 @@ class BloomArtHomePage extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFBF7),
+      backgroundColor: _Ui.pageBg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFFBF7),
+        backgroundColor: const Color(0xFFF6F7FB),
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         elevation: 0,
-        title: const Text(
-          'Bloom Art',
-          style: TextStyle(fontWeight: FontWeight.w900),
-        ),
+        toolbarHeight: 88,
+        iconTheme: const IconThemeData(color: _Ui.textMain),
+        centerTitle: true,
+        title: const StorexPageHeaderTitle(subtitle: 'GALERIE BLOOMOOD ART'),
         actions: <Widget>[
           if (user != null)
             IconButton(
               tooltip: 'Espace vendeur',
-              onPressed: () => Navigator.of(context).pushNamed('/bloom-art/dashboard'),
+              onPressed: () =>
+                  Navigator.of(context).pushNamed('/bloom-art/dashboard'),
               icon: const Icon(Icons.dashboard_customize_outlined),
             ),
+          const SizedBox(width: 4),
         ],
       ),
       body: StreamBuilder<List<BloomArtItem>>(
@@ -58,59 +77,78 @@ class BloomArtHomePage extends StatelessWidget {
           return LayoutBuilder(
             builder: (context, constraints) {
               final width = constraints.maxWidth;
-              int crossAxisCount = 1;
-              if (width >= 1180) {
-                crossAxisCount = 3;
-              } else if (width >= 720) {
-                crossAxisCount = 2;
-              }
+              int crossAxisCount = 2;
+              if (width >= 1180) crossAxisCount = 3;
 
               return CustomScrollView(
+                physics: const BouncingScrollPhysics(),
                 slivers: <Widget>[
+                  // ── Bandeau hero + chips ──────────────────────────────
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+                    padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
                     sliver: SliverToBoxAdapter(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          BloomArtGalleryHeader(
+                          _BloomArtHeroBanner(
                             onSellPressed: () => _handleSellPressed(context),
                           ),
                           const SizedBox(height: 18),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: const <Widget>[
-                              _BloomArtPill(label: 'Prix privé côté vendeur'),
-                              _BloomArtPill(label: 'Offres négociées avec élégance'),
-                              _BloomArtPill(label: 'Checkout Stripe centralisé'),
-                            ],
+                          SizedBox(
+                            height: 46,
+                            child: ListView(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              children: const <Widget>[
+                                _BloomArtChip(label: 'PRIX PRIVE'),
+                                SizedBox(width: 12),
+                                _BloomArtChip(label: 'OFFRES NEGOCIEES'),
+                                SizedBox(width: 12),
+                                _BloomArtChip(label: 'CHECKOUT STRIPE'),
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 26),
-                          const Text(
-                            'Pièces disponibles',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF1A1A1A),
-                            ),
+                          // ── Titre section ─────────────────────────────
+                          Row(
+                            children: <Widget>[
+                              const Text(
+                                'PIECES DISPONIBLES',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.4,
+                                  color: _Ui.textMain,
+                                  height: 1,
+                                ),
+                              ),
+                              const Spacer(),
+                              if (user != null)
+                                GestureDetector(
+                                  onTap: () => _handleSellPressed(context),
+                                  child: const Text(
+                                    'Vendre',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: _Ui.textMuted,
+                                      height: 1,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Les visiteurs découvrent la matière, le geste et l’histoire de la pièce. Le prix de référence reste confidentiel.',
-                            style: TextStyle(
-                              color: Color(0xFF6A645E),
-                              height: 1.45,
-                            ),
-                          ),
+                          const SizedBox(height: 16),
                         ],
                       ),
                     ),
                   ),
+
+                  // ── Etats du stream ───────────────────────────────────
                   if (snapshot.connectionState == ConnectionState.waiting)
                     const SliverFillRemaining(
                       hasScrollBody: false,
-                      child: Center(child: CircularProgressIndicator()),
+                      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
                     )
                   else if (snapshot.hasError)
                     SliverFillRemaining(
@@ -119,8 +157,9 @@ class BloomArtHomePage extends StatelessWidget {
                         child: Padding(
                           padding: const EdgeInsets.all(24),
                           child: Text(
-                            'Impossible de charger la galerie Bloom Art : ${snapshot.error}',
+                            'Impossible de charger la galerie.',
                             textAlign: TextAlign.center,
+                            style: const TextStyle(color: _Ui.textMuted),
                           ),
                         ),
                       ),
@@ -132,10 +171,10 @@ class BloomArtHomePage extends StatelessWidget {
                         child: Padding(
                           padding: EdgeInsets.all(24),
                           child: Text(
-                            'Aucune pièce n’est encore publiée. Revenez bientôt ou déposez la première création de la galerie.',
+                            'Aucune piece n\'est encore publiee.\nRevenez bientot ou deposez la premiere creation.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: Color(0xFF6A645E),
+                              color: _Ui.textMuted,
                               height: 1.45,
                             ),
                           ),
@@ -144,13 +183,13 @@ class BloomArtHomePage extends StatelessWidget {
                     )
                   else
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
+                      padding: const EdgeInsets.fromLTRB(18, 0, 18, 28),
                       sliver: SliverGrid.builder(
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: crossAxisCount,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: crossAxisCount == 1 ? 0.79 : 0.74,
+                          crossAxisSpacing: 14,
+                          mainAxisSpacing: 14,
+                          childAspectRatio: crossAxisCount >= 2 ? 0.52 : 0.74,
                         ),
                         itemCount: items.length,
                         itemBuilder: (context, index) {
@@ -174,25 +213,126 @@ class BloomArtHomePage extends StatelessWidget {
   }
 }
 
-class _BloomArtPill extends StatelessWidget {
-  const _BloomArtPill({required this.label});
+// ─── Hero banner ─────────────────────────────────────────────────────────────
 
+class _BloomArtHeroBanner extends StatelessWidget {
+  const _BloomArtHeroBanner({required this.onSellPressed});
+  final VoidCallback onSellPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(2),
+      height: 188,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: _Ui.rainbowGradient,
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFF7EEE5), Color(0xFFEFE0F5), Color(0xFFDFF0FA)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.black.withValues(alpha: 0.08),
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.04),
+                  ],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+              ),
+            ),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                // Logo centré qui occupe tout l'espace disponible
+                Expanded(
+                  child: Center(
+                    child: Image.asset(
+                      'assets/images/logobloom.png',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+                // Texte en bas + bouton
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(18, 10, 18, 16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: <Widget>[
+                      const Expanded(
+                        child: Text(
+                          'Exposez une création, recevez des offres',
+                          style: TextStyle(
+                            color: _Ui.textMuted,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      FilledButton.icon(
+                        onPressed: onSellPressed,
+                        icon: const Icon(Icons.add_circle_outline, size: 18),
+                        label: const Text('Déposer'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _Ui.textMain,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Chip categorie (style boutique) ─────────────────────────────────────────
+
+class _BloomArtChip extends StatelessWidget {
+  const _BloomArtChip({required this.label});
   final String label;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      height: 46,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFE9DED1)),
+        color: _Ui.textMain,
+        borderRadius: BorderRadius.circular(24),
       ),
+      alignment: Alignment.center,
       child: Text(
         label,
         style: const TextStyle(
-          color: Color(0xFF6A645E),
-          fontWeight: FontWeight.w700,
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          letterSpacing: 0.3,
+          height: 1,
         ),
       ),
     );
