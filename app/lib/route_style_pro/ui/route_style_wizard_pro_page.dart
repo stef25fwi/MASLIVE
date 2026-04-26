@@ -26,6 +26,7 @@ class RouteStyleWizardProPage extends StatefulWidget {
   final List<LatLng>? initialRoute;
   final String? initialStyleUrl;
   final bool embedded;
+  final bool hideParkAreasInPreview;
   final RouteStyleWizardProController? controller;
   final ValueChanged<RouteStyleConfig>? onConfigChanged;
   final double? embeddedPreviewHeight;
@@ -37,6 +38,7 @@ class RouteStyleWizardProPage extends StatefulWidget {
     this.initialRoute,
     this.initialStyleUrl,
     this.embedded = false,
+    this.hideParkAreasInPreview = false,
     this.controller,
     this.onConfigChanged,
     this.embeddedPreviewHeight,
@@ -453,6 +455,7 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
                             config: _renderConfig,
                             route: _route,
                             styleUrl: _baseStyleUrl,
+                            hideParkAreas: widget.hideParkAreasInPreview,
                           ),
                         ),
                         if (_busy)

@@ -484,13 +484,14 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         return;
       }
 
-      // Convertir la couleur en hex
-      final r = (color.r * 255).round().toRadixString(16).padLeft(2, '0');
-      final g = (color.g * 255).round().toRadixString(16).padLeft(2, '0');
-      final b = (color.b * 255).round().toRadixString(16).padLeft(2, '0');
-      final colorHex = '#$r$g$b';
+      final red = (color.r * 255).round().clamp(0, 255);
+      final green = (color.g * 255).round().clamp(0, 255);
+      final blue = (color.b * 255).round().clamp(0, 255);
+      final cssColor = color.a >= 0.999
+          ? '#${red.toRadixString(16).padLeft(2, '0')}${green.toRadixString(16).padLeft(2, '0')}${blue.toRadixString(16).padLeft(2, '0')}'
+          : 'rgba($red, $green, $blue, ${color.a.toStringAsFixed(3)})';
 
-      bridge.callMethod('setParkColor', [colorHex, map]);
+      bridge.callMethod('setParkColor', [cssColor, map]);
     } catch (e) {
       debugPrint('⚠️ setParkColor error: $e');
     }
@@ -1905,11 +1906,12 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           // Token not found yet — retry after a short delay
           // (Firestore fallback may need more time on cold start).
           _tokenRetryCount++;
-          debugPrint('[MAPBOX][TOKEN] retry $_tokenRetryCount/$_maxTokenRetries');
-          Future.delayed(
-            Duration(seconds: _tokenRetryCount * 2),
-            () { if (mounted) _loadMapboxToken(); },
+          debugPrint(
+            '[MAPBOX][TOKEN] retry $_tokenRetryCount/$_maxTokenRetries',
           );
+          Future.delayed(Duration(seconds: _tokenRetryCount * 2), () {
+            if (mounted) _loadMapboxToken();
+          });
           return;
         }
         setState(() {
@@ -1924,11 +1926,12 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     } catch (e) {
       if (mounted && _tokenRetryCount < _maxTokenRetries) {
         _tokenRetryCount++;
-        debugPrint('[MAPBOX][TOKEN] retry $_tokenRetryCount/$_maxTokenRetries (error: $e)');
-        Future.delayed(
-          Duration(seconds: _tokenRetryCount * 2),
-          () { if (mounted) _loadMapboxToken(); },
+        debugPrint(
+          '[MAPBOX][TOKEN] retry $_tokenRetryCount/$_maxTokenRetries (error: $e)',
         );
+        Future.delayed(Duration(seconds: _tokenRetryCount * 2), () {
+          if (mounted) _loadMapboxToken();
+        });
         return;
       }
       if (mounted) {
@@ -2638,6 +2641,8 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
       container.style.width = '100%';
       container.style.height = '100%';
       container.style.display = 'block';
+      container.style.setProperty('touch-action', 'none');
+      container.style.setProperty('overscroll-behavior', 'contain');
       _containerEl = container;
 
       final knownSize = _lastKnownSize;

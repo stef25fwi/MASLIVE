@@ -17,6 +17,7 @@ class RouteStylePreviewMap extends StatefulWidget {
   final List<LatLng> route;
   final VoidCallback? onMapReady;
   final String? styleUrl;
+  final bool hideParkAreas;
 
   const RouteStylePreviewMap({
     super.key,
@@ -24,6 +25,7 @@ class RouteStylePreviewMap extends StatefulWidget {
     required this.route,
     this.onMapReady,
     this.styleUrl,
+    this.hideParkAreas = false,
   });
 
   @override
@@ -64,6 +66,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
   static const _layerGlow = 'rsp_glow';
   static const _layerCasing = 'rsp_casing';
   static const _layerMain = 'rsp_main';
+  static const _hiddenParkColor = Color(0x00FFFFFF);
 
   @override
   void initState() {
@@ -207,6 +210,15 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       unawaited(_buildingsNative.setBuildingsEnabled(cfg.buildings3dEnabled));
       if (cfg.buildings3dEnabled) {
         unawaited(_buildingsNative.setBuildingsOpacity(cfg.buildingOpacity));
+      }
+    }
+
+    final effectiveParkColor = _effectiveParkColor(cfg);
+    final parkColorValue = effectiveParkColor?.toARGB32();
+    if (_lastParkColorValue != parkColorValue) {
+      _lastParkColorValue = parkColorValue;
+      if (effectiveParkColor != null) {
+        await _applyNativeParkColor(effectiveParkColor);
       }
     }
 
@@ -442,7 +454,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
 
     // Bâtiments 3D (opacity + enabled) : ne réapplique que si valeur a changé.
     final buildingsKey =
-        '${ cfg.buildings3dEnabled ? 1 : 0}:${cfg.buildingOpacity.toStringAsFixed(3)}';
+        '${cfg.buildings3dEnabled ? 1 : 0}:${cfg.buildingOpacity.toStringAsFixed(3)}';
     if (_lastWebBuildingsKey != buildingsKey) {
       _lastWebBuildingsKey = buildingsKey;
       await _webController.setBuildings3d(
@@ -452,10 +464,11 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     }
 
     // Couleur des parcs : applique si changée
-    final parkColorValue = cfg.parkColor?.toARGB32();
+    final effectiveParkColor = _effectiveParkColor(cfg);
+    final parkColorValue = effectiveParkColor?.toARGB32();
     if (_lastParkColorValue != parkColorValue) {
       _lastParkColorValue = parkColorValue;
-      await _webController.setParkColor(cfg.parkColor);
+      await _webController.setParkColor(effectiveParkColor);
     }
 
     if (_lastWebBoundsKey != boundsKey) {
@@ -523,6 +536,49 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
         await map.style.setStyleLayerProperty(layerId, e.key, e.value);
       } catch (_) {
         // ignore
+      }
+    }
+  }
+
+  Color? _effectiveParkColor(RouteStyleConfig cfg) {
+    if (widget.hideParkAreas) return _hiddenParkColor;
+    return cfg.parkColor;
+  }
+
+  Future<void> _applyNativeParkColor(Color color) async {
+    final map = _map;
+    if (map == null || !_styleReady) return;
+
+    const layerIds = <String>[
+      'landuse',
+      'landcover',
+      'national-park',
+      'park',
+      'pitch',
+      'grass',
+      'wood',
+      'forest',
+    ];
+
+    for (final layerId in layerIds) {
+      try {
+        final exists = await map.style.styleLayerExists(layerId);
+        if (exists != true) continue;
+        await map.style.setStyleLayerProperty(
+          layerId,
+          'fill-color',
+          color.toARGB32(),
+        );
+      } catch (_) {
+        try {
+          await map.style.setStyleLayerProperty(
+            layerId,
+            'background-color',
+            color.toARGB32(),
+          );
+        } catch (_) {
+          // ignore
+        }
       }
     }
   }

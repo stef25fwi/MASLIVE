@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
@@ -68,6 +67,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   static const int _poiPageSize = 100;
   static const int _poiLimit = 2000;
   static const int _poiStepIndex = 6;
+  static const Color _step3HiddenParkColor = Color(0x00FFFFFF);
   static const double _wizardMapHeightMultiplier = 2.0;
   static const double _wizardScrollRailWidth = 56.0;
   static const double _wizardStepHorizontalPadding = 4.0;
@@ -620,7 +620,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         return [
           _buildStageFact(
             label: 'Style Mapbox',
-            value: _styleUrlController.text.isEmpty ? 'Par défaut' : 'Personnalisé',
+            value: _styleUrlController.text.isEmpty
+                ? 'Par défaut'
+                : 'Personnalisé',
             icon: Icons.map_outlined,
             accent: const Color(0xFFE11D48),
           ),
@@ -1272,28 +1274,30 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     return null;
   }
 
-  MarketMapLayer? get _activePoiLayerForMap =>
-      _parkingZoneModeActive ? (_parkingLayer ?? _selectedLayer) : _selectedLayer;
+  MarketMapLayer? get _activePoiLayerForMap => _parkingZoneModeActive
+      ? (_parkingLayer ?? _selectedLayer)
+      : _selectedLayer;
 
   Widget _wrapWizardMapToBlockScroll(Widget child) {
+    void beginInteraction() {
+      if (!mounted) return;
+      setState(() => _wizardMapPointerCount++);
+    }
+
+    void endInteraction() {
+      if (!mounted) return;
+      setState(() {
+        _wizardMapPointerCount = math.max(0, _wizardMapPointerCount - 1);
+      });
+    }
+
     return Listener(
       behavior: HitTestBehavior.opaque,
-      onPointerDown: (_) {
-        if (!mounted) return;
-        setState(() => _wizardMapPointerCount++);
-      },
-      onPointerUp: (_) {
-        if (!mounted) return;
-        setState(() {
-          _wizardMapPointerCount = math.max(0, _wizardMapPointerCount - 1);
-        });
-      },
-      onPointerCancel: (_) {
-        if (!mounted) return;
-        setState(() {
-          _wizardMapPointerCount = math.max(0, _wizardMapPointerCount - 1);
-        });
-      },
+      onPointerDown: (_) => beginInteraction(),
+      onPointerPanZoomStart: (_) => beginInteraction(),
+      onPointerUp: (_) => endInteraction(),
+      onPointerCancel: (_) => endInteraction(),
+      onPointerPanZoomEnd: (_) => endInteraction(),
       child: child,
     );
   }
@@ -1993,10 +1997,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       context: context,
       builder: (ctx) {
         CircuitDraftVersion? picked = drafts.isNotEmpty ? drafts.first : null;
-        Future<Map<String, dynamic>?> snapshotFuture =
-            picked == null
+        Future<Map<String, dynamic>?> snapshotFuture = picked == null
             ? Future<Map<String, dynamic>?>.value(null)
-          : _loadDraftSnapshot(projectId: _projectId!, draftId: picked.id);
+            : _loadDraftSnapshot(projectId: _projectId!, draftId: picked.id);
 
         return StatefulBuilder(
           builder: (context, setLocal) {
@@ -2043,7 +2046,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                           FutureBuilder<Map<String, dynamic>?>(
                             future: snapshotFuture,
                             builder: (context, snap) {
-                              if (snap.connectionState != ConnectionState.done) {
+                              if (snap.connectionState !=
+                                  ConnectionState.done) {
                                 return const Padding(
                                   padding: EdgeInsets.all(12),
                                   child: Center(
@@ -2063,7 +2067,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                                 oldSnapshot: snapshot,
                               );
                               return Container(
-                                constraints: const BoxConstraints(maxHeight: 280),
+                                constraints: const BoxConstraints(
+                                  maxHeight: 280,
+                                ),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
@@ -2080,18 +2086,20 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                                     : ListView.separated(
                                         shrinkWrap: true,
                                         itemCount: changes.length,
-                                        separatorBuilder: (context, index) => Divider(
-                                          height: 1,
-                                          color: MasliveTokens.borderSoft,
-                                        ),
-                                        itemBuilder: (context, index) => ListTile(
-                                          dense: true,
-                                          leading: const Icon(
-                                            Icons.subdirectory_arrow_right,
-                                            size: 18,
-                                          ),
-                                          title: Text(changes[index]),
-                                        ),
+                                        separatorBuilder: (context, index) =>
+                                            Divider(
+                                              height: 1,
+                                              color: MasliveTokens.borderSoft,
+                                            ),
+                                        itemBuilder: (context, index) =>
+                                            ListTile(
+                                              dense: true,
+                                              leading: const Icon(
+                                                Icons.subdirectory_arrow_right,
+                                                size: 18,
+                                              ),
+                                              title: Text(changes[index]),
+                                            ),
                                       ),
                               );
                             },
@@ -2481,7 +2489,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           _descriptionController.text = _draftData['description'] ?? '';
           _styleUrlController.text = _draftData['styleUrl'] ?? '';
           _defaultPoiAppearanceId =
-              (_draftData['defaultPoiAppearanceId'] as String?)?.trim().isNotEmpty == true
+              (_draftData['defaultPoiAppearanceId'] as String?)
+                      ?.trim()
+                      .isNotEmpty ==
+                  true
               ? (_draftData['defaultPoiAppearanceId'] as String).trim()
               : kMasLivePoiAppearancePresets.first.id;
 
@@ -3350,7 +3361,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           : _normalizeMapboxStyleUrl(_styleUrlController.text),
       buildings3dEnabled: proCfg?.buildings3dEnabled,
       buildingsOpacity: proCfg?.buildingOpacity,
-      parkColor: proCfg?.parkColor,
+      parkColor: _step3HiddenParkColor,
       showToolbar: false,
       showHeader: false,
       allowVerticalScroll: true,
@@ -3822,7 +3833,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       label,
                       style: toolbarValueStyle.copyWith(
                         color: isActive ? tint : MasliveTokens.text,
-                        fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
+                        fontWeight: isActive
+                            ? FontWeight.w700
+                            : FontWeight.w600,
                       ),
                     ),
                   ),
@@ -4285,12 +4298,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                     compact: compactToolbar,
                     children: [
                       toolbarToggleButton(
-                        label: _routeStyleProConfig?.parkColor != null ? 'Custom' : 'Défaut',
+                        label: _routeStyleProConfig?.parkColor != null
+                            ? 'Custom'
+                            : 'Défaut',
                         tooltip: 'Activer/désactiver couleur personnalisée',
                         isActive: _routeStyleProConfig?.parkColor != null,
                         onPressed: () {
                           setState(() {
-                            final current = _routeStyleProConfig ?? const rsp.RouteStyleConfig();
+                            final current =
+                                _routeStyleProConfig ??
+                                const rsp.RouteStyleConfig();
                             _routeStyleProConfig = current.copyWith(
                               parkColor: current.parkColor == null
                                   ? const Color(0xFF7CB342) // Vert par défaut
@@ -4307,7 +4324,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                           tooltip: 'Vert clair',
                           onPressed: () {
                             setState(() {
-                              final current = _routeStyleProConfig ?? const rsp.RouteStyleConfig();
+                              final current =
+                                  _routeStyleProConfig ??
+                                  const rsp.RouteStyleConfig();
                               _routeStyleProConfig = current.copyWith(
                                 parkColor: const Color(0xFF9CCC65),
                               );
@@ -4321,7 +4340,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                           tooltip: 'Vert normal',
                           onPressed: () {
                             setState(() {
-                              final current = _routeStyleProConfig ?? const rsp.RouteStyleConfig();
+                              final current =
+                                  _routeStyleProConfig ??
+                                  const rsp.RouteStyleConfig();
                               _routeStyleProConfig = current.copyWith(
                                 parkColor: const Color(0xFF7CB342),
                               );
@@ -4335,7 +4356,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                           tooltip: 'Vert foncé',
                           onPressed: () {
                             setState(() {
-                              final current = _routeStyleProConfig ?? const rsp.RouteStyleConfig();
+                              final current =
+                                  _routeStyleProConfig ??
+                                  const rsp.RouteStyleConfig();
                               _routeStyleProConfig = current.copyWith(
                                 parkColor: const Color(0xFF558B2F),
                               );
@@ -4349,7 +4372,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                           tooltip: 'Forêt',
                           onPressed: () {
                             setState(() {
-                              final current = _routeStyleProConfig ?? const rsp.RouteStyleConfig();
+                              final current =
+                                  _routeStyleProConfig ??
+                                  const rsp.RouteStyleConfig();
                               _routeStyleProConfig = current.copyWith(
                                 parkColor: const Color(0xFF33691E),
                               );
@@ -4559,10 +4584,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   Future<void> _addPointsAndSnapRoute() async {
     if (_isSnappingRoute || _routePoints.length < 2) return;
 
-    final densified = _densifyRoutePoints(
-      _routePoints,
-      maxSegmentMeters: 45.0,
-    );
+    final densified = _densifyRoutePoints(_routePoints, maxSegmentMeters: 45.0);
     final addedCount = densified.length - _routePoints.length;
 
     if (addedCount > 0) {
@@ -4604,19 +4626,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       out.add(start);
 
       final distance = _parkingZoneDistanceMeters(start, end);
-      final inserts = math.max(
-        0,
-        (distance / maxSegmentMeters).ceil() - 1,
-      );
+      final inserts = math.max(0, (distance / maxSegmentMeters).ceil() - 1);
 
       for (var j = 1; j <= inserts; j++) {
         final t = j / (inserts + 1);
-        out.add(
-          (
-            lng: start.lng + (end.lng - start.lng) * t,
-            lat: start.lat + (end.lat - start.lat) * t,
-          ),
-        );
+        out.add((
+          lng: start.lng + (end.lng - start.lng) * t,
+          lat: start.lat + (end.lat - start.lat) * t,
+        ));
       }
     }
 
@@ -4970,7 +4987,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildWizardScrollableHeader(
-              padding: const EdgeInsets.only(left: _wizardStepHorizontalPadding),
+              padding: const EdgeInsets.only(
+                left: _wizardStepHorizontalPadding,
+              ),
             ),
             Align(
               alignment: Alignment.centerLeft,
@@ -4993,6 +5012,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               height: styleProViewportHeight,
               child: RouteStyleWizardProPage(
                 embedded: true,
+                hideParkAreasInPreview: true,
                 controller: _routeStyleProController,
                 projectId: _projectId,
                 circuitId: widget.circuitId,
@@ -5063,20 +5083,20 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           kBottomNavigationBarHeight + MasliveTokens.l,
         ),
         child: GlassPanel(
-        padding: const EdgeInsets.all(MasliveTokens.m),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildWizardScrollableHeader(padding: EdgeInsets.zero),
-            const Text(
-              'Couleurs de la carte (Mapbox)',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: MasliveTokens.text,
+          padding: const EdgeInsets.all(MasliveTokens.m),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildWizardScrollableHeader(padding: EdgeInsets.zero),
+              const Text(
+                'Couleurs de la carte (Mapbox)',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: MasliveTokens.text,
+                ),
               ),
-            ),
-            const SizedBox(height: MasliveTokens.m),
+              const SizedBox(height: MasliveTokens.m),
               TextField(
                 controller: _styleUrlController,
                 onChanged: _onStyleUrlChanged,
@@ -5189,16 +5209,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               const SizedBox(height: MasliveTokens.m),
               WizardStep2MapStyleSection(
                 orgId: (FirebaseAuth.instance.currentUser?.uid ?? '').trim(),
-                currentStyleUrl: _normalizeMapboxStyleUrl(_styleUrlController.text),
-                onApplyPreset: (preset) => _applyStylePreset(
-                  preset.theme.global.mapboxBaseStyle,
+                currentStyleUrl: _normalizeMapboxStyleUrl(
+                  _styleUrlController.text,
                 ),
-                onPreviewPreset: (preset) => _applyStylePreset(
-                  preset.theme.global.mapboxBaseStyle,
-                ),
-                onDuplicatePreset: (preset) => _applyStylePreset(
-                  preset.theme.global.mapboxBaseStyle,
-                ),
+                onApplyPreset: (preset) =>
+                    _applyStylePreset(preset.theme.global.mapboxBaseStyle),
+                onPreviewPreset: (preset) =>
+                    _applyStylePreset(preset.theme.global.mapboxBaseStyle),
+                onDuplicatePreset: (preset) =>
+                    _applyStylePreset(preset.theme.global.mapboxBaseStyle),
               ),
               const SizedBox(height: MasliveTokens.m),
               ClipRRect(
@@ -5235,10 +5254,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   ),
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 
@@ -5448,12 +5467,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 toolButton(
                   icon: const Icon(Icons.edit_location_alt_rounded),
                   tooltip: parkingLayerSelected
-                    ? 'Les parkings se créent uniquement en zone'
-                    : 'Ajouter un POI (coordonnées manuelles)',
+                      ? 'Les parkings se créent uniquement en zone'
+                      : 'Ajouter un POI (coordonnées manuelles)',
                   onPressed:
                       (_selectedLayer == null ||
                           _pois.length >= _poiLimit ||
-                      parkingLayerSelected ||
+                          parkingLayerSelected ||
                           parkingDrawingActive)
                       ? null
                       : () {
@@ -5476,12 +5495,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 toolButton(
                   icon: const Icon(Icons.my_location),
                   tooltip: parkingLayerSelected
-                    ? 'Les parkings se créent uniquement en zone'
-                    : 'Ajouter un POI à la position actuelle',
+                      ? 'Les parkings se créent uniquement en zone'
+                      : 'Ajouter un POI à la position actuelle',
                   onPressed:
                       (_selectedLayer == null ||
                           _pois.length >= _poiLimit ||
-                      parkingLayerSelected ||
+                          parkingLayerSelected ||
                           parkingDrawingActive)
                       ? null
                       : _addPoiAtCurrentCenter,
@@ -6081,8 +6100,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       _poiInlineError = null;
       _poiInlineAppearanceId =
           normalizeMasLivePoiAppearanceId(
-                (poi.metadata?[kMasLivePoiAppearanceKey] as String?),
-              ).isNotEmpty
+            (poi.metadata?[kMasLivePoiAppearanceKey] as String?),
+          ).isNotEmpty
           ? normalizeMasLivePoiAppearanceId(
               (poi.metadata?[kMasLivePoiAppearanceKey] as String?),
             )
@@ -6235,7 +6254,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
         final previewParkingZonePoints =
             (_parkingZoneModeActive &&
-            _isParkingLayerType(layer.type) &&
+                _isParkingLayerType(layer.type) &&
                 _parkingZonePoints.isNotEmpty)
             ? _parkingZonePoints
             : null;
@@ -7177,8 +7196,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     if ((poi.imageUrl ?? '').trim().isNotEmpty) {
       try {
         final parentId = 'poi_${projectId}_$docId';
-        await ImageOptimizationService.instance
-            .deleteImageVariants('places/$parentId');
+        await ImageOptimizationService.instance.deleteImageVariants(
+          'places/$parentId',
+        );
       } catch (_) {
         // Nettoyage best-effort: pas bloquant si Storage déjà vide.
       }
@@ -7498,13 +7518,15 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
     final editingPoi = _poiEditingPoi;
     final isParkingPoi =
-      isEdit && editingPoi != null && _isParkingLayerType(editingPoi.layerType);
+        isEdit &&
+        editingPoi != null &&
+        _isParkingLayerType(editingPoi.layerType);
     final isEditZone =
         isEdit &&
         editingPoi != null &&
         _poiPerimeterFromMetadata(editingPoi) != null;
     final isEditZoneLike =
-      isEditZone || (isParkingPoi && _isEditingParkingZonePerimeter);
+        isEditZone || (isParkingPoi && _isEditingParkingZonePerimeter);
     final editZonePerimeter = editingPoi == null
         ? null
         : _poiPerimeterFromMetadata(editingPoi);
@@ -7515,12 +7537,12 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               : (editZonePerimeter?.length ?? 0));
 
     final title = isCreateZone
-      ? 'Nouvelle zone parking'
-      : isEditZoneLike
-      ? 'Modifier la zone parking'
-      : isParkingPoi
-      ? 'Modifier le parking'
-      : 'Modifier le POI';
+        ? 'Nouvelle zone parking'
+        : isEditZoneLike
+        ? 'Modifier la zone parking'
+        : isParkingPoi
+        ? 'Modifier le parking'
+        : 'Modifier le POI';
 
     final primaryLabel = isEdit ? 'Enregistrer' : 'Ajouter la zone';
 
@@ -7584,9 +7606,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 Align(
                   alignment: Alignment.centerLeft,
                   child: FilledButton.tonalIcon(
-                    onPressed: () => _startParkingZonePerimeterEditingFromPoint(
-                      editingPoi,
-                    ),
+                    onPressed: () =>
+                        _startParkingZonePerimeterEditingFromPoint(editingPoi),
                     icon: const Icon(Icons.draw_rounded, size: 18),
                     label: const Text('Créer une zone sur la carte'),
                   ),
