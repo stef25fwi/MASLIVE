@@ -221,8 +221,10 @@ class _BloomArtHeroBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final heroImageHeight =
-        (MediaQuery.sizeOf(context).width * 0.32).clamp(230.0, 360.0).toDouble();
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final heroImageHeight = screenWidth >= 1024
+      ? 480.0
+      : (screenWidth * 0.33).clamp(240.0, 372.0).toDouble();
 
     return Container(
       padding: const EdgeInsets.all(2),
