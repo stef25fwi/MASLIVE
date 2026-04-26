@@ -221,6 +221,9 @@ class _BloomArtHeroBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final heroImageHeight =
+        (MediaQuery.sizeOf(context).width * 0.24).clamp(190.0, 280.0).toDouble();
+
     return Container(
       padding: const EdgeInsets.all(2),
       width: double.infinity,
@@ -237,11 +240,12 @@ class _BloomArtHeroBanner extends StatelessWidget {
             // ── Zone logo sur fond blanc ───────────────────────────────
             Container(
               color: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 18),
               child: Image.asset(
-                'assets/images/logobloom.png',
+                'assets/images/logobloom.webp',
                 fit: BoxFit.contain,
-                height: 160,
+                filterQuality: FilterQuality.high,
+                height: heroImageHeight,
               ),
             ),
             // ── Zone texte + bouton sous le logo ──────────────────────
