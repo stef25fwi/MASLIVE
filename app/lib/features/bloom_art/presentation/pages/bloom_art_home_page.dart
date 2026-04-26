@@ -238,11 +238,11 @@ class _BloomArtHeroBanner extends StatelessWidget {
             Container(
               color: Colors.white,
               height: 216,
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
               child: Image.asset(
                 'assets/images/logobloom.png',
                 fit: BoxFit.contain,
-                height: 184,
+                height: 200,
               ),
             ),
             // ── Zone texte + bouton sous le logo ──────────────────────
