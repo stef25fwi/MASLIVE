@@ -1267,6 +1267,16 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   bool _isParkingLayerType(String raw) =>
       _normalizePoiLayerType(raw) == 'parking';
 
+  /// Circuit ID effectif pour les écritures dans marketMap.
+  /// Priorité : widget.circuitId > _draftData['circuitId'] > _projectId.
+  String get _effectiveMarketCircuitId {
+    final fromWidget = widget.circuitId?.trim() ?? '';
+    if (fromWidget.isNotEmpty) return fromWidget;
+    final fromDraft = (_draftData['circuitId'] as String?)?.trim() ?? '';
+    if (fromDraft.isNotEmpty) return fromDraft;
+    return _projectId ?? '';
+  }
+
   MarketMapLayer? get _parkingLayer {
     for (final layer in _layers) {
       if (_isParkingLayerType(layer.type)) return layer;
@@ -1910,7 +1920,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     }
 
     return {
-      'circuitId': (widget.circuitId ?? _projectId ?? '').trim(),
+      'circuitId': _effectiveMarketCircuitId,
       'name': _nameController.text.trim(),
       'countryId': _countryController.text.trim(),
       'eventId': _eventController.text.trim(),
@@ -7118,9 +7128,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       //    immédiatement visibles côté utilisateur sans attendre la publication.
       final countryId = _countryController.text.trim();
       final eventId = _eventController.text.trim();
-      final marketCircuitId = (widget.circuitId?.trim().isNotEmpty ?? false)
-          ? widget.circuitId!.trim()
-          : projectId;
+      final marketCircuitId = _effectiveMarketCircuitId;
       if (countryId.isNotEmpty && eventId.isNotEmpty) {
         batch.set(
           db
@@ -7169,9 +7177,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       // 2. Suppression miroir dans marketMap.
       final countryId = _countryController.text.trim();
       final eventId = _eventController.text.trim();
-      final marketCircuitId = (widget.circuitId?.trim().isNotEmpty ?? false)
-          ? widget.circuitId!.trim()
-          : projectId;
+      final marketCircuitId = _effectiveMarketCircuitId;
       if (countryId.isNotEmpty && eventId.isNotEmpty) {
         batch.delete(
           db
@@ -8623,9 +8629,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
       final countryId = _countryController.text.trim();
       final eventId = _eventController.text.trim();
-      final marketCircuitId = (widget.circuitId?.trim().isNotEmpty ?? false)
-          ? widget.circuitId!.trim()
-          : projectId;
+      final marketCircuitId = _effectiveMarketCircuitId;
 
       if (countryId.isEmpty || eventId.isEmpty) {
         throw StateError('Pays et événement requis pour publier.');
