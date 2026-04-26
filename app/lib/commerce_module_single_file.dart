@@ -909,8 +909,9 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                                   final d = double.tryParse(
                                     (v ?? '').replaceAll(',', '.'),
                                   );
-                                  if (d == null || d < 0)
+                                  if (d == null || d < 0) {
                                     return 'Prix invalide';
+                                  }
                                   return null;
                                 },
                               ),
@@ -953,8 +954,9 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                                 keyboardType: TextInputType.number,
                                 validator: (v) {
                                   final i = int.tryParse((v ?? '').trim());
-                                  if (i == null || i < 0)
+                                  if (i == null || i < 0) {
                                     return 'Stock invalide';
+                                  }
                                   return null;
                                 },
                               ),
@@ -967,8 +969,9 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                                 keyboardType: TextInputType.number,
                                 validator: (v) {
                                   final i = int.tryParse((v ?? '').trim());
-                                  if (i == null || i < 0)
+                                  if (i == null || i < 0) {
                                     return 'Valeur invalide';
+                                  }
                                   return null;
                                 },
                               ),
@@ -1039,8 +1042,9 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                         backgroundColor: Colors.blue,
                       ),
                       onPressed: () {
-                        if (!(formKey.currentState?.validate() ?? false))
+                        if (!(formKey.currentState?.validate() ?? false)) {
                           return;
+                        }
 
                         final price = double.parse(
                           priceCtrl.text.replaceAll(',', '.'),

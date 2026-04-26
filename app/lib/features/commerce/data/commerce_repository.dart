@@ -284,7 +284,7 @@ class CommerceRepository {
 
       final total = items.fold<double>(
         0,
-        (sum, item) => sum + (item.product.price * item.qty),
+        (runningTotal, item) => runningTotal + (item.product.price * item.qty),
       );
 
       tx.set(orderRef, {
