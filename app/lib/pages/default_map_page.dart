@@ -31,6 +31,7 @@ import '../ui/map/maslive_map_controller.dart' show MapMarker, MapPoint;
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
 import '../l10n/app_localizations.dart' as l10n;
 import '../services/market_map_service.dart';
+import '../models/market_layer.dart';
 import '../services/poi_popup_service.dart';
 import '../models/market_poi.dart';
 import '../models/group_circuit_public_position.dart';
@@ -134,7 +135,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   MarketMapPoiSelection _marketPoiSelection =
       const MarketMapPoiSelection.disabled();
   StreamSubscription? _marketPoisSub;
+  List<MarketLayer> _marketLayers = const <MarketLayer>[];
   List<MarketPoi> _marketPois = const <MarketPoi>[];
+  StreamSubscription<List<MarketLayer>>? _marketLayersSub;
   final MasLiveMapControllerPoi _mapController = MasLiveMapControllerPoi();
 
   bool _isMasLiveMapReady = false;
@@ -254,12 +257,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
     final pois = _visibleMarketPoisForCurrentAction();
     if (pois.isEmpty) {
-      // Ne pas effacer les layers si le stream est actif mais n'a pas encore
-      // émis : on attend sa première émission qui appellera de nouveau cette
-      // méthode avec des POIs réels.  Effacer maintenant créerait une race
-      // condition avec l'appel concurrent à _applyPoisGeoJsonIfReady déclenché
-      // par onMapReady (source/layers supprimés, puis re-ajout impossible).
-      if (_marketPoisSub != null && _marketPois.isEmpty) return;
       await _mapController.clearPoisGeoJson();
       return;
     }
@@ -272,17 +269,27 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   List<MarketPoi> _visibleMarketPoisForCurrentAction() {
     final action = _selectedAction;
     final filterType = _actionToPoiType(action);
+    final matchingLayerIds = _publishedLayerIdsForAction(action);
 
     Iterable<MarketPoi> pois = _marketPois.where(
       (poi) => poi.lat != 0.0 && poi.lng != 0.0,
     );
 
     if (action == _MapAction.parkingWc) {
-      pois = pois.where((poi) => poi.type == 'parking' || poi.type == 'wc');
+      pois = pois.where(
+        (poi) =>
+            _normalizedPoiActionType(poi.type ?? poi.layerId) == 'parking' ||
+            _normalizedPoiActionType(poi.type ?? poi.layerId) == 'wc' ||
+            matchingLayerIds.contains(poi.layerId.trim()),
+      );
     } else if (filterType == null) {
       return const <MarketPoi>[];
     } else {
-      pois = pois.where((poi) => poi.type == filterType);
+      pois = pois.where(
+        (poi) =>
+            _normalizedPoiActionType(poi.type ?? poi.layerId) == filterType ||
+            matchingLayerIds.contains(poi.layerId.trim()),
+      );
     }
 
     return pois.toList();
@@ -727,6 +734,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     _groupPublicPosSub?.cancel();
     _homeControlsThemeSub?.cancel();
     _marketPoisSub?.cancel();
+    _marketLayersSub?.cancel();
     _resizeDebounce?.cancel();
     _positionSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
@@ -740,6 +748,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   }) async {
     await _marketPoisSub?.cancel();
     _marketPoisSub = null;
+    await _marketLayersSub?.cancel();
+    _marketLayersSub = null;
 
     // Changement de carte/circuit => afficher les POIs food par défaut.
     if (resetPoiFilter && mounted) {
@@ -757,6 +767,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       if (!mounted) return;
       setState(() {
         _styleUrl = startupStyleUrl;
+        _marketLayers = const <MarketLayer>[];
         _marketPois = const <MarketPoi>[];
         _marketRoutePoints = const <MapPoint>[];
         _marketRouteStyle = const <String, dynamic>{};
@@ -797,6 +808,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       _projectCenterLng = center['lng'];
       _projectZoom = circuit.initialZoom;
       _styleUrl = resolvedStyleUrl;
+      _marketLayers = const <MarketLayer>[];
 
       // Nouveau circuit => reset affichage POIs.
       // Nouveau widget Map -> on attend son onMapReady pour appliquer le tracé.
@@ -816,6 +828,18 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     // Charger le tracé publié (marketMap/.../circuits/.../route) + style.
     unawaited(_loadAndCacheMarketRoute(selection));
 
+    _marketLayersSub = _getMarketMapService()
+        .watchLayers(
+          countryId: selection.country!.id,
+          eventId: selection.event!.id,
+          circuitId: selection.circuit!.id,
+        )
+        .listen((layers) {
+          if (!mounted) return;
+          setState(() => _marketLayers = layers);
+          _refreshMarketPoiMarkers();
+        });
+
     _marketPoisSub = _getMarketMapService()
         .watchVisiblePois(
           countryId: selection.country!.id,
@@ -826,17 +850,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         .listen((pois) {
           if (!mounted) return;
           setState(() => _marketPois = pois);
-          // Si la carte est déjà prête, on diffère le sync d'un frame pour
-          // laisser tout _applyPoisGeoJsonIfReady en cours depuis onMapReady
-          // se terminer avant de lancer notre propre appel.
-          if (_isMasLiveMapReady) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              _refreshMarketPoiMarkers();
-            });
-          } else {
-            _refreshMarketPoiMarkers();
-          }
+          _refreshMarketPoiMarkers();
         });
   }
 
@@ -898,6 +912,53 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     }
   }
 
+  String? _normalizedPoiActionType(String? raw) {
+    final norm = (raw ?? '').trim().toLowerCase();
+    if (norm.isEmpty) return null;
+    if (norm == 'tour' || norm == 'visiter' || norm == 'tourisme') {
+      return 'visit';
+    }
+    if (norm == 'toilet' ||
+        norm == 'toilets' ||
+        norm == 'toilette' ||
+        norm == 'toilettes') {
+      return 'wc';
+    }
+    if (norm == 'restaurant' ||
+        norm == 'resto' ||
+        norm == 'bar' ||
+        norm == 'snack') {
+      return 'food';
+    }
+    if (norm == 'parkings' ||
+        norm == 'parking_zone' ||
+        norm == 'parking_zones' ||
+        norm == 'parking-zone' ||
+        norm == 'parking-zones' ||
+        norm == 'parkingzone' ||
+        norm == 'zones_parking' ||
+        norm == 'zone_parking') {
+      return 'parking';
+    }
+    return norm;
+  }
+
+  Set<String> _publishedLayerIdsForAction(_MapAction? action) {
+    final ids = <String>{};
+    for (final layer in _marketLayers) {
+      final normalizedType = _normalizedPoiActionType(layer.type);
+      if (normalizedType == null) continue;
+      final isWanted = action == _MapAction.parkingWc
+          ? normalizedType == 'parking' || normalizedType == 'wc'
+          : normalizedType == _actionToPoiType(action);
+      if (!isWanted) continue;
+
+      final layerId = layer.id.trim();
+      if (layerId.isNotEmpty) ids.add(layerId);
+    }
+    return ids;
+  }
+
   void _syncMarketRouteStyleProTimer() {
     final cfg = _marketRouteStylePro;
     final needsAnim =
@@ -913,9 +974,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     }
 
     final validated = cfg.validated();
-    final periodMs = (110 - (validated.rainbowSpeed * 0.8))
-        .clamp(25, 110)
-        .round();
+    final periodMs = (110 - (validated.rainbowSpeed * 0.8)).clamp(25, 110).round();
 
     _marketRouteStyleProTimer?.cancel();
     _marketRouteStyleProTimer = Timer.periodic(
