@@ -6,6 +6,16 @@ class CartCoherenceChecker {
   static const String _okMark = '✓';
   static const String _failMark = '✗';
 
+  static bool _hasMerchImage(CartItemModel item) {
+    final imageUrl = item.imageUrl.trim();
+    if (imageUrl.isNotEmpty) return true;
+
+    final metadata = item.metadata;
+    if (metadata == null) return false;
+
+    return (metadata['imagePath'] ?? '').toString().trim().isNotEmpty;
+  }
+
   /// Checks if all carts are coherent.
   /// Returns a list of coherence issues found.
   static List<CartCoherenceIssue> verify() {
@@ -62,7 +72,7 @@ class CartCoherenceChecker {
     if (item.id.isEmpty) requiredFields.add('id');
     if (item.productId.isEmpty) requiredFields.add('productId');
     if (item.title.isEmpty) requiredFields.add('title');
-    if (item.imageUrl.isEmpty && item.itemType == CartItemType.merch) {
+    if (item.itemType == CartItemType.merch && !_hasMerchImage(item)) {
       requiredFields.add('imageUrl');
     }
     if (item.currency.isEmpty) requiredFields.add('currency');

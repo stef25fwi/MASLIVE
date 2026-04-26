@@ -18,10 +18,21 @@ class CartItemTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final metadata = item.metadata ?? const <String, dynamic>{};
+    final fallbackAssetPath = (metadata['imagePath'] ?? '').toString().trim();
+    final effectiveImageRef = item.imageUrl.trim().isNotEmpty
+      ? item.imageUrl.trim()
+      : fallbackAssetPath;
+    final usesAssetImage = effectiveImageRef.startsWith('assets/');
     final theme = Theme.of(context);
-    final metadataEntries = (item.metadata ?? const <String, dynamic>{})
+    final metadataEntries = metadata
         .entries
-        .where((entry) => entry.value != null && entry.value.toString().trim().isNotEmpty)
+      .where(
+        (entry) =>
+          entry.key != 'imagePath' &&
+          entry.value != null &&
+          entry.value.toString().trim().isNotEmpty,
+      )
         .take(3)
         .toList(growable: false);
 
@@ -41,13 +52,24 @@ class CartItemTile extends StatelessWidget {
             child: SizedBox(
               width: 88,
               height: 88,
-              child: item.imageUrl.trim().isEmpty
+              child: effectiveImageRef.isEmpty
                   ? Container(
                       color: const Color(0xFFE5E7EB),
                       child: const Icon(Icons.image_outlined),
                     )
+                  : usesAssetImage
+                  ? Image.asset(
+                      effectiveImageRef,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: const Color(0xFFE5E7EB),
+                          child: const Icon(Icons.broken_image_outlined),
+                        );
+                      },
+                    )
                   : Image.network(
-                      item.imageUrl,
+                      effectiveImageRef,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
                         return Container(
