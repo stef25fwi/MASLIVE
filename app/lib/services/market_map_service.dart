@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/market_country.dart';
 import '../models/market_circuit.dart';
@@ -47,6 +48,8 @@ class MarketMapService {
     : _db = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _db;
+  static const bool _debugMarketPoiTrace =
+      bool.fromEnvironment('dart.vm.product') == false;
 
   CollectionReference<Map<String, dynamic>> get _countriesCol =>
       _db.collection('marketMap');
@@ -434,9 +437,8 @@ class MarketMapService {
 
   /// Stream des POIs visibles pour un circuit.
   ///
-  /// - `layerIds` vide/null => toutes les couches
-  /// - `layerIds` <= 10 => filtre Firestore via whereIn
-  /// - `layerIds` > 10 => requêtes chunkées (whereIn par paquets de 10) + merge
+  /// Le filtrage visibilité/couche est fait après mapping car certains POI
+  /// legacy n'ont pas de `layerId` ou utilisent encore `visible`.
   Stream<List<MarketPoi>> watchVisiblePois({
     required String countryId,
     required String eventId,
@@ -450,64 +452,43 @@ class MarketMapService {
     );
 
     final normalized = (layerIds ?? const <String>{})
-        .where((e) => e.trim().isNotEmpty)
+        .map((e) => e.trim().toLowerCase())
+        .where((e) => e.isNotEmpty)
         .toSet();
 
-    Query<Map<String, dynamic>> query = col.where('isVisible', isEqualTo: true);
-
-    if (normalized.isNotEmpty && normalized.length <= 10) {
-      query = query.where('layerId', whereIn: normalized.toList());
-    }
-
-    if (normalized.isNotEmpty && normalized.length > 10) {
-      final ids = normalized.toList()..sort();
-      final chunks = <List<String>>[];
-      for (var i = 0; i < ids.length; i += 10) {
-        chunks.add(ids.sublist(i, min(i + 10, ids.length)));
-      }
-
-      late final StreamController<List<MarketPoi>> controller;
-      final subs = <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
-      final latestByChunk = <int, List<MarketPoi>>{};
-
-      void emitMerged() {
-        final byId = <String, MarketPoi>{};
-        for (final list in latestByChunk.values) {
-          for (final poi in list) {
-            byId[poi.id] = poi;
-          }
-        }
-        controller.add(byId.values.toList());
-      }
-
-      controller = StreamController<List<MarketPoi>>(
-        onListen: () {
-          for (var idx = 0; idx < chunks.length; idx++) {
-            final chunk = chunks[idx];
-            final q = col
-                .where('isVisible', isEqualTo: true)
-                .where('layerId', whereIn: chunk);
-
-            subs.add(
-              q.snapshots().listen((snap) {
-                latestByChunk[idx] = snap.docs.map(MarketPoi.fromDoc).toList();
-                emitMerged();
-              }, onError: controller.addError),
-            );
-          }
-        },
-        onCancel: () async {
-          for (final s in subs) {
-            await s.cancel();
-          }
-        },
-      );
-
-      return controller.stream;
-    }
+    final query = col;
 
     return query.snapshots().map((snap) {
-      final pois = snap.docs.map(MarketPoi.fromDoc).toList();
+      final mapped = snap.docs.map(MarketPoi.fromDoc).toList();
+      final pois = mapped.where((poi) {
+        if (!poi.isVisible) return false;
+        if (normalized.isEmpty) return true;
+
+        final candidates = <String>{
+          poi.layerId.trim().toLowerCase(),
+          (poi.type ?? '').trim().toLowerCase(),
+        }..removeWhere((value) => value.isEmpty);
+
+        return candidates.any(normalized.contains);
+      }).toList();
+
+      if (_debugMarketPoiTrace) {
+        final visibleCount = mapped.where((poi) => poi.isVisible).length;
+        final foodCount = pois.where((poi) => poi.type == 'food').length;
+        debugPrint(
+          '[MARKET_POI_STREAM] '
+          'country=$countryId '
+          'event=$eventId '
+          'circuit=$circuitId '
+          'requestedLayers=${normalized.toList()..sort()} '
+          'raw=${snap.docs.length} '
+          'mapped=${mapped.length} '
+          'visible=$visibleCount '
+          'matched=${pois.length} '
+          'food=$foodCount',
+        );
+      }
+
       return pois;
     });
   }

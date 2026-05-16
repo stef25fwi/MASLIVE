@@ -124,6 +124,9 @@ class HomeMapPage3D extends StatefulWidget {
 
 class _HomeMapPage3DState extends State<HomeMapPage3D>
     with TickerProviderStateMixin, WidgetsBindingObserver {
+  static const bool _debugMarketPoiTrace =
+      bool.fromEnvironment('dart.vm.product') == false;
+
   // ========== CONSTANTES ==========
   static const Duration _resizeDebounceDelay = Duration(milliseconds: 80);
   static const Duration _menuAnimationDuration = Duration(milliseconds: 300);
@@ -582,6 +585,16 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         )
         .listen((pois) async {
           if (!mounted) return;
+          if (_debugMarketPoiTrace) {
+            final foodCount = pois.where((poi) => poi.type == 'food').length;
+            debugPrint(
+              '[HOME_3D_POI_RECEIVED] '
+              'circuit=${selection.circuit!.id} '
+              'layers=${selection.layerIds.toList()..sort()} '
+              'count=${pois.length} '
+              'food=$foodCount',
+            );
+          }
           setState(() => _marketPois = pois);
           await _renderMarketPoiMarkers(); // GeoJSON update + visibility
         });
@@ -2179,6 +2192,21 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           'liveTableState': liveTableState,
         },
       });
+    }
+
+    if (_debugMarketPoiTrace) {
+      final foodFeatures = feats.where((feature) {
+        final props = feature['properties'];
+        if (props is! Map) return false;
+        return props['type'] == 'food';
+      }).length;
+      debugPrint(
+        '[HOME_3D_POI_RENDER] '
+        'circuit=${_marketPoiSelection.circuit?.id ?? 'none'} '
+        'selectedAction=${_selectedAction?.name ?? 'none'} '
+        'features=${feats.length} '
+        'food=$foodFeatures',
+      );
     }
 
     final fc = {'type': 'FeatureCollection', 'features': feats};

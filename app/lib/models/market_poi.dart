@@ -184,7 +184,7 @@ class MarketPoi {
       lat: (data['lat'] as num?)?.toDouble() ?? 0.0,
       lng: (data['lng'] as num?)?.toDouble() ?? 0.0,
       layerId: resolvedLayerId,
-      isVisible: (data['isVisible'] as bool?) ?? true,
+      isVisible: (data['isVisible'] as bool?) ?? (data['visible'] as bool?) ?? true,
       createdByUid: data['createdByUid'] as String?,
       createdAt: asDateTime(data['createdAt']),
       updatedAt: asDateTime(data['updatedAt']),

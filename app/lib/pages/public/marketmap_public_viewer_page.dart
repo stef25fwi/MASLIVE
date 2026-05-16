@@ -535,15 +535,16 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
     });
 
     // POIs stream (source unique)
-    _subPois = _poisCol(circuitId)
-        .where('isVisible', isEqualTo: true)
-        .snapshots()
-        .listen((qs) async {
+    _subPois = _poisCol(circuitId).snapshots().listen((qs) async {
           final features = <Map<String, dynamic>>[];
           final pois = <_PoiItem>[];
 
           for (final doc in qs.docs) {
             final d = doc.data();
+            final isVisible =
+                (d['isVisible'] as bool?) ?? (d['visible'] as bool?) ?? true;
+            if (!isVisible) continue;
+
             final coord = _parsePoiCoord(d);
             if (coord == null) continue;
 
