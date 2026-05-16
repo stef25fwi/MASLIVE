@@ -25,7 +25,11 @@ class MarketMapLayer {
       id: doc.id,
       label: data['label'] ?? '',
       type: data['type'] ?? 'route',
-      isVisible: data['isVisible'] ?? true,
+      isVisible:
+          (data['isVisible'] as bool?) ??
+          (data['visible'] as bool?) ??
+          (data['isEnabled'] as bool?) ??
+          true,
       zIndex: data['zIndex'] ?? 0,
       color: data['color'],
       icon: data['icon'],
@@ -284,7 +288,10 @@ class CircuitProject {
                 }),
       ),
       styleUrl: data['styleUrl'],
-      isVisible: data['isVisible'] ?? false,
+      isVisible:
+          (data['isVisible'] as bool?) ??
+          (data['visible'] as bool?) ??
+          false,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
       publishedAt: (data['publishedAt'] as Timestamp?)?.toDate(),

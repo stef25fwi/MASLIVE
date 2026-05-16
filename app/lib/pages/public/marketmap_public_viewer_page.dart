@@ -122,6 +122,10 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
   CollectionReference<Map<String, dynamic>> _poisCol(String circuitId) =>
       _circuitRef(circuitId).collection('pois');
 
+  bool _circuitIsVisible(Map<String, dynamic> data) {
+    return (data['isVisible'] as bool?) ?? (data['visible'] as bool?) ?? false;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -512,7 +516,11 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
       for (final doc in qs.docs) {
         final d = doc.data();
         final label = (d['label'] ?? doc.id).toString();
-        final visible = (d['isVisible'] as bool?) ?? true;
+        final visible =
+            (d['isVisible'] as bool?) ??
+            (d['visible'] as bool?) ??
+            (d['isEnabled'] as bool?) ??
+            true;
         final type = (d['type'] ?? '').toString();
         final style = d['style'];
         final styleColor = style is Map ? style['color'] : null;
@@ -1313,7 +1321,6 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: _circuitsCol
-                  .where('isVisible', isEqualTo: true)
                   .orderBy('name')
                   .snapshots(),
               builder: (context, snap) {
@@ -1324,7 +1331,9 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
                   return const LinearProgressIndicator(minHeight: 2);
                 }
 
-                final docs = snap.data!.docs;
+                final docs = snap.data!.docs.where((doc) {
+                  return _circuitIsVisible(doc.data());
+                }).toList();
                 if (docs.isEmpty) {
                   return const Text(
                     'Aucun circuit visible pour cet événement.',

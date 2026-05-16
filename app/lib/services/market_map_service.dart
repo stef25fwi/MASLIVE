@@ -52,17 +52,20 @@ class MarketMapService {
   CollectionReference<Map<String, dynamic>> get _countriesCol =>
       _db.collection('marketMap');
 
+  bool _circuitIsVisible(Map<String, dynamic> data) {
+    return (data['isVisible'] as bool?) ?? (data['visible'] as bool?) ?? false;
+  }
+
   /// Index (runtime) des circuits publiés et visibles.
   ///
   /// Objectif: filtrer les pays/événements affichés dans le menu "Carte"
   /// sans avoir besoin d'index composite Firestore (on fait une seule requête
-  /// `collectionGroup('circuits')` filtrée sur `status==published` et
-  /// `isVisible==true`).
+  /// `collectionGroup('circuits')` filtrée sur `status==published`, puis
+  /// visibilité normalisée côté client (`isVisible` ou `visible`).
   Stream<VisibleCircuitsIndex> watchVisibleCircuitsIndex() {
     final primary = _db
         .collectionGroup('circuits')
         .where('status', isEqualTo: 'published')
-        .where('isVisible', isEqualTo: true)
         .snapshots()
         .map(_visibleIndexFromCircuitsGroupSnapshot);
 
@@ -113,6 +116,9 @@ class MarketMapService {
     final eventIdsByCountry = <String, Set<String>>{};
 
     for (final d in snap.docs) {
+      final data = d.data();
+      if (!_circuitIsVisible(data)) continue;
+
       // IMPORTANT: certains anciens circuits n'ont pas (ou plus) des champs
       // `countryId`/`eventId` fiables. On dérive donc d'abord depuis le chemin.
       // Attendu: marketMap/{countryId}/events/{eventId}/circuits/{circuitId}
@@ -136,7 +142,6 @@ class MarketMapService {
       }
 
       if (countryId.isEmpty || eventId.isEmpty) {
-        final data = d.data();
         countryId = (data['countryId'] ?? '').toString().trim();
         eventId = (data['eventId'] ?? '').toString().trim();
       }
@@ -200,12 +205,12 @@ class MarketMapService {
           .doc(eventId)
           .collection('circuits')
           .where('status', isEqualTo: 'published')
-          .where('isVisible', isEqualTo: true)
-          .limit(1)
           .snapshots()
           .listen(
             (snap) {
-              hasVisibleByEvent[key] = snap.docs.isNotEmpty;
+              hasVisibleByEvent[key] = snap.docs.any(
+                (doc) => _circuitIsVisible(doc.data()),
+              );
               emit();
             },
             onError: (error, stackTrace) {

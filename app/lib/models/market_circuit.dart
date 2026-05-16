@@ -119,7 +119,10 @@ class MarketCircuit {
       styleId:
           (map['styleId'] as String?) ?? (currentMap?['styleId'] as String?),
       styleUrl: extractMapboxStyleUrlFromData(map),
-      isVisible: (map['isVisible'] as bool?) ?? false,
+        isVisible:
+          (map['isVisible'] as bool?) ??
+          (map['visible'] as bool?) ??
+          false,
       wizardState:
           (map['wizardState'] as Map<String, dynamic>?) ??
           const <String, dynamic>{},

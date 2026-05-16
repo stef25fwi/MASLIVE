@@ -42,7 +42,11 @@ class MarketLayer {
     return MarketLayer(
       id: id,
       type: (map['type'] as String?) ?? 'pois',
-      isEnabled: (map['isEnabled'] as bool?) ?? true,
+      isEnabled:
+          (map['isEnabled'] as bool?) ??
+          (map['isVisible'] as bool?) ??
+          (map['visible'] as bool?) ??
+          true,
       order: (map['order'] as num?)?.toInt() ?? 0,
       style: (map['style'] as Map<String, dynamic>?) ?? const <String, dynamic>{},
       params:
