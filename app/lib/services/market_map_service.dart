@@ -48,8 +48,6 @@ class MarketMapService {
     : _db = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _db;
-  static const bool _debugMarketPoiTrace =
-      bool.fromEnvironment('dart.vm.product') == false;
 
   CollectionReference<Map<String, dynamic>> get _countriesCol =>
       _db.collection('marketMap');
@@ -472,7 +470,9 @@ class MarketMapService {
         return candidates.any(normalized.contains);
       }).toList();
 
-      if (_debugMarketPoiTrace) {
+      if (normalized.contains('food') ||
+          mapped.any((poi) => poi.type == 'food') ||
+          pois.any((poi) => poi.type == 'food')) {
         final visibleCount = mapped.where((poi) => poi.isVisible).length;
         final foodCount = pois.where((poi) => poi.type == 'food').length;
         debugPrint(

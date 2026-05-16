@@ -124,9 +124,6 @@ class HomeMapPage3D extends StatefulWidget {
 
 class _HomeMapPage3DState extends State<HomeMapPage3D>
     with TickerProviderStateMixin, WidgetsBindingObserver {
-  static const bool _debugMarketPoiTrace =
-      bool.fromEnvironment('dart.vm.product') == false;
-
   // ========== CONSTANTES ==========
   static const Duration _resizeDebounceDelay = Duration(milliseconds: 80);
   static const Duration _menuAnimationDuration = Duration(milliseconds: 300);
@@ -585,8 +582,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         )
         .listen((pois) async {
           if (!mounted) return;
-          if (_debugMarketPoiTrace) {
-            final foodCount = pois.where((poi) => poi.type == 'food').length;
+          final foodCount = pois.where((poi) => poi.type == 'food').length;
+          if (selection.layerIds.contains('food') || foodCount > 0) {
             debugPrint(
               '[HOME_3D_POI_RECEIVED] '
               'circuit=${selection.circuit!.id} '
@@ -2194,12 +2191,13 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       });
     }
 
-    if (_debugMarketPoiTrace) {
-      final foodFeatures = feats.where((feature) {
-        final props = feature['properties'];
-        if (props is! Map) return false;
-        return props['type'] == 'food';
-      }).length;
+    final foodFeatures = feats.where((feature) {
+      final props = feature['properties'];
+      if (props is! Map) return false;
+      return props['type'] == 'food';
+    }).length;
+
+    if (_selectedAction == _MapAction.food || foodFeatures > 0) {
       debugPrint(
         '[HOME_3D_POI_RENDER] '
         'circuit=${_marketPoiSelection.circuit?.id ?? 'none'} '

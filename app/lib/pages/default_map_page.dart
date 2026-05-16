@@ -69,8 +69,6 @@ class DefaultMapPage extends StatefulWidget {
 
 class _DefaultMapPageState extends State<DefaultMapPage>
     with WidgetsBindingObserver, TickerProviderStateMixin {
-  static const bool _debugMarketPoiTrace =
-      bool.fromEnvironment('dart.vm.product') == false;
   static const String _prefsKeyDidAutoOpenActionsMenuOnce =
       'default_map_page.did_auto_open_actions_menu_once';
   static const String _prefsKeyLastHomeStyleUrl =
@@ -255,7 +253,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     if (!_isMasLiveMapReady) return;
 
     final pois = _visibleMarketPoisForCurrentAction();
-    if (_debugMarketPoiTrace) {
+    if (_selectedAction == _MapAction.food ||
+        _marketPois.any((poi) => poi.type == 'food') ||
+        pois.any((poi) => poi.type == 'food')) {
       final circuitId = _marketPoiSelection.circuit?.id ?? 'none';
       debugPrint(
         '[DEFAULT_MAP_POI_RENDER] '
@@ -981,8 +981,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         )
         .listen((pois) {
           if (!mounted) return;
-          if (_debugMarketPoiTrace) {
-            final foodCount = pois.where((poi) => poi.type == 'food').length;
+          final foodCount = pois.where((poi) => poi.type == 'food').length;
+          if (selection.layerIds.contains('food') || foodCount > 0) {
             debugPrint(
               '[DEFAULT_MAP_POI_RECEIVED] '
               'circuit=${selection.circuit!.id} '
