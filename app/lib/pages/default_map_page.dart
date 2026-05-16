@@ -265,22 +265,171 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   List<MarketPoi> _visibleMarketPoisForCurrentAction() {
     final action = _selectedAction;
-    final filterType = _actionToPoiType(action);
 
-    Iterable<MarketPoi> pois = _marketPois.where(
-      (poi) => poi.lat != 0.0 && poi.lng != 0.0,
-    );
+    final validPois = _marketPois
+        .where((poi) => poi.lat != 0.0 && poi.lng != 0.0)
+        .toList();
 
-    if (action == _MapAction.parkingWc) {
-      pois = pois.where((poi) => poi.type == 'parking' || poi.type == 'wc');
-    } else if (filterType == null) {
+    if (action == null) {
       return const <MarketPoi>[];
-    } else {
-      pois = pois.where((poi) => poi.type == filterType);
     }
 
-    return pois.toList();
+    final visible = validPois
+        .where((poi) => _marketPoiMatchesAction(poi, action))
+        .toList();
+
+    if (const bool.fromEnvironment('dart.vm.product') == false) {
+      debugPrint(
+        '[HOME_POI_FILTER] action=$action total=${validPois.length} visible=${visible.length}',
+      );
+
+      for (final poi in validPois.take(10)) {
+        final meta = poi.metadata ?? const <String, dynamic>{};
+        debugPrint(
+          '[HOME_POI_FILTER_ITEM] '
+          'id=${poi.id} '
+          'name=${poi.name} '
+          'type=${poi.type} '
+          'layerId=${poi.layerId} '
+          'metaType=${meta['type']} '
+          'metaCategory=${meta['category']} '
+          'metaKind=${meta['kind']} '
+          'metaPoiType=${meta['poiType']} '
+          'metaIcon=${meta['icon']} '
+          'metaTags=${meta['tags']}',
+        );
+      }
+    }
+
+    return visible;
   }
+
+  bool _marketPoiMatchesAction(MarketPoi poi, _MapAction action) {
+    final tokens = _marketPoiTokens(poi);
+
+    bool hasAny(Set<String> expected) => tokens.any(expected.contains);
+
+    switch (action) {
+      case _MapAction.food:
+        return hasAny(_foodPoiTokens);
+      case _MapAction.visiter:
+        return hasAny(_visitPoiTokens);
+      case _MapAction.assistance:
+        return hasAny(_assistancePoiTokens);
+      case _MapAction.parkingWc:
+        return hasAny(_parkingWcPoiTokens);
+      case _MapAction.parking:
+        return hasAny({'parking', 'p'});
+      case _MapAction.wc:
+        return hasAny({
+          'wc',
+          'toilet',
+          'toilets',
+          'toilette',
+          'toilettes',
+          'restroom',
+        });
+    }
+  }
+
+  Set<String> _marketPoiTokens(MarketPoi poi) {
+    final tokens = <String>{};
+
+    void addToken(dynamic value) {
+      if (value == null) return;
+
+      if (value is Iterable) {
+        for (final item in value) {
+          addToken(item);
+        }
+        return;
+      }
+
+      final raw = value.toString().trim().toLowerCase();
+      if (raw.isEmpty) return;
+
+      tokens.add(raw);
+
+      for (final part in raw.split(RegExp(r'[\s,;/|_-]+'))) {
+        final token = part.trim().toLowerCase();
+        if (token.isNotEmpty) {
+          tokens.add(token);
+        }
+      }
+    }
+
+    addToken(poi.type);
+    addToken(poi.layerId);
+
+    final meta = poi.metadata;
+    if (meta != null) {
+      addToken(meta['type']);
+      addToken(meta['category']);
+      addToken(meta['kind']);
+      addToken(meta['poiType']);
+      addToken(meta['icon']);
+      addToken(meta['tags']);
+    }
+
+    return tokens;
+  }
+
+  static const Set<String> _foodPoiTokens = {
+    'food',
+    'restaurant',
+    'restaurants',
+    'resto',
+    'restauration',
+    'snack',
+    'bar',
+    'drink',
+    'drinks',
+    'cafe',
+    'café',
+    'buvette',
+    'repas',
+  };
+
+  static const Set<String> _visitPoiTokens = {
+    'visit',
+    'visiter',
+    'visite',
+    'tour',
+    'tourisme',
+    'tourist',
+    'culture',
+    'monument',
+    'site',
+    'point',
+    'poi',
+  };
+
+  static const Set<String> _assistancePoiTokens = {
+    'assistance',
+    'help',
+    'secours',
+    'security',
+    'securite',
+    'sécurité',
+    'police',
+    'medical',
+    'médical',
+    'sante',
+    'santé',
+    'info',
+  };
+
+  static const Set<String> _parkingWcPoiTokens = {
+    'parking',
+    'parkings',
+    'p',
+    'wc',
+    'toilet',
+    'toilets',
+    'toilette',
+    'toilettes',
+    'restroom',
+  };
 
   Map<String, dynamic> _buildMarketPoisFeatureCollection(List<MarketPoi> pois) {
     return <String, dynamic>{
@@ -468,10 +617,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       final localResolved = tryNormalizeMapboxStyleUrl(stored);
 
       // 2) Style par défaut défini par l'admin (Firestore config/appStartup)
-      final adminResolved =
-          await StartupMapStyleService.instance.getDefaultStyleUrl();
-      final adminAppearance =
-          await StartupMapStyleService.instance.getHomeMapAppearance();
+      final adminResolved = await StartupMapStyleService.instance
+          .getDefaultStyleUrl();
+      final adminAppearance = await StartupMapStyleService.instance
+          .getHomeMapAppearance();
 
       if (!mounted) return;
 
@@ -897,8 +1046,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     }
 
     final validated = cfg.validated();
-    final periodMs =
-        (110 - (validated.rainbowSpeed * 0.8)).clamp(25, 110).round();
+    final periodMs = (110 - (validated.rainbowSpeed * 0.8))
+        .clamp(25, 110)
+        .round();
 
     _marketRouteStyleProTimer?.cancel();
     _marketRouteStyleProTimer = Timer.periodic(
@@ -1466,7 +1616,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         icon: Icons.map_outlined,
         selected: _selectedAction == _MapAction.visiter,
         onTap: () {
-          if (_selectAction(_MapAction.visiter, 'Visiter')) _closeNavWithDelay();
+          if (_selectAction(_MapAction.visiter, 'Visiter'))
+            _closeNavWithDelay();
         },
       ),
       HomeVerticalNavItem(
@@ -1482,7 +1633,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         icon: Icons.shield_outlined,
         selected: _selectedAction == _MapAction.assistance,
         onTap: () {
-          if (_selectAction(_MapAction.assistance, 'Assistance')) _closeNavWithDelay();
+          if (_selectAction(_MapAction.assistance, 'Assistance'))
+            _closeNavWithDelay();
         },
       ),
       HomeVerticalNavItem(
@@ -1991,45 +2143,52 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                       width: size.width,
                       height: size.height,
                       child: !_didResolveInitialStyle
-                        ? const SizedBox.shrink()
-                        : Container(
-                        color: Colors.transparent,
-                        child: MasLiveMap(
-                          key: ValueKey('default-map-stable_$_mapRebuildTick'),
-                          controller: _mapController,
-                          initialLat: _projectCenterLat ?? _userLat ?? 16.2410,
-                          initialLng: _projectCenterLng ?? _userLng ?? -61.5340,
-                          initialZoom:
-                              _projectZoom ?? (_userLat != null ? 15.0 : 13.0),
-                          initialPitch: 0.0,
-                          initialBearing: 0.0,
-                          styleUrl: _styleUrl,
-                          showUserLocation: false,
-                          controlsPosition: 'top-left',
-                          forceCompactAttribution: true,
-                          showAttributionControl: false,
-                          showMapboxLogo: false,
-                          prioritizeFirstFrame: true,
-                          onTap: (_) {
-                            // Fermer la tooltip au premier clic
-                            if (_showOnboardingTooltip) {
-                              setState(() => _showOnboardingTooltip = false);
-                            }
-                          },
-                          onMapReady: (_) {
-                            _isMasLiveMapReady = true;
-                            _notifyMapReady();
-                            _startDeferredHomeInit();
-                            _startPostSplashUiWarmups();
-                            unawaited(_syncMarkersToMap());
-                            unawaited(_syncMarketPoisToMap());
-                            unawaited(_applyCachedMarketRouteToMap());
-                            unawaited(_applyStartupHomeMapAppearance());
-                          },
-                          onInitError: _handleMapInitError,
-                          onStyleFallback: _handleMapStyleFallback,
-                        ),
-                      ),
+                          ? const SizedBox.shrink()
+                          : Container(
+                              color: Colors.transparent,
+                              child: MasLiveMap(
+                                key: ValueKey(
+                                  'default-map-stable_$_mapRebuildTick',
+                                ),
+                                controller: _mapController,
+                                initialLat:
+                                    _projectCenterLat ?? _userLat ?? 16.2410,
+                                initialLng:
+                                    _projectCenterLng ?? _userLng ?? -61.5340,
+                                initialZoom:
+                                    _projectZoom ??
+                                    (_userLat != null ? 15.0 : 13.0),
+                                initialPitch: 0.0,
+                                initialBearing: 0.0,
+                                styleUrl: _styleUrl,
+                                showUserLocation: false,
+                                controlsPosition: 'top-left',
+                                forceCompactAttribution: true,
+                                showAttributionControl: false,
+                                showMapboxLogo: false,
+                                prioritizeFirstFrame: true,
+                                onTap: (_) {
+                                  // Fermer la tooltip au premier clic
+                                  if (_showOnboardingTooltip) {
+                                    setState(
+                                      () => _showOnboardingTooltip = false,
+                                    );
+                                  }
+                                },
+                                onMapReady: (_) {
+                                  _isMasLiveMapReady = true;
+                                  _notifyMapReady();
+                                  _startDeferredHomeInit();
+                                  _startPostSplashUiWarmups();
+                                  unawaited(_syncMarkersToMap());
+                                  unawaited(_syncMarketPoisToMap());
+                                  unawaited(_applyCachedMarketRouteToMap());
+                                  unawaited(_applyStartupHomeMapAppearance());
+                                },
+                                onInitError: _handleMapInitError,
+                                onStyleFallback: _handleMapStyleFallback,
+                              ),
+                            ),
                     ),
                   ),
                 ),

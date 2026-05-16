@@ -10,7 +10,7 @@ import '../../domain/commerce_models.dart';
 class ProductController extends ChangeNotifier {
   final String shopId;
   final CommerceRepository commerceRepo;
-  final StorageRepository storageRepo;
+  StorageRepository? _storageRepo;
 
   ProductFilter _filter = const ProductFilter();
   String _search = '';
@@ -25,7 +25,9 @@ class ProductController extends ChangeNotifier {
     CommerceRepository? commerceRepo,
     StorageRepository? storageRepo,
   }) : commerceRepo = commerceRepo ?? CommerceRepository(),
-       storageRepo = storageRepo ?? StorageRepository();
+       _storageRepo = storageRepo;
+
+  StorageRepository get storageRepo => _storageRepo ??= StorageRepository();
 
   Stream<List<Product>> streamProducts() =>
       commerceRepo.streamProducts(shopId, _filter, _search);

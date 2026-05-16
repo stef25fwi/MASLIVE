@@ -8,8 +8,14 @@ import '../../../../ui/snack/top_snack_bar.dart';
 class BoutiquePage extends StatefulWidget {
   final String shopId;
   final String userId;
+  final ProductController? controller;
 
-  const BoutiquePage({super.key, required this.shopId, required this.userId});
+  const BoutiquePage({
+    super.key,
+    required this.shopId,
+    required this.userId,
+    this.controller,
+  });
 
   @override
   State<BoutiquePage> createState() => _BoutiquePageState();
@@ -17,13 +23,15 @@ class BoutiquePage extends StatefulWidget {
 
 class _BoutiquePageState extends State<BoutiquePage> {
   late final ProductController controller;
+  late final bool ownsController;
   final TextEditingController searchCtrl = TextEditingController();
   final Map<String, CartItem> cart = {};
 
   @override
   void initState() {
     super.initState();
-    controller = ProductController(shopId: widget.shopId);
+    ownsController = widget.controller == null;
+    controller = widget.controller ?? ProductController(shopId: widget.shopId);
     searchCtrl.addListener(() => controller.setSearch(searchCtrl.text));
     controller.setFilter(const ProductFilter(onlyActive: true));
   }
@@ -31,7 +39,9 @@ class _BoutiquePageState extends State<BoutiquePage> {
   @override
   void dispose() {
     searchCtrl.dispose();
-    controller.dispose();
+    if (ownsController) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
