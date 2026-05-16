@@ -557,6 +557,10 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
             if (coord == null) continue;
 
             final layerId = (d['layerId'] ?? d['layerType'] ?? '').toString();
+            final layerType = (d['layerType'] ?? d['type'] ?? '')
+              .toString()
+              .trim()
+              .toLowerCase();
             final name = (d['name'] ?? d['title'] ?? '').toString();
             final desc = (d['description'] ?? d['desc'] ?? '').toString();
             final meta = (d['metadata'] is Map)
@@ -612,6 +616,7 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
                 'desc': desc,
                 'imageUrl': imageUrl,
                 'layerId': layerId,
+                'layerType': layerType,
               },
             });
           }
@@ -752,6 +757,7 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
   // -----------------------------
 
   String _poiLayerIdFor(String layerId) => 'mm_public_poi_layer__$layerId';
+  String _normLayerType(String raw) => raw.trim().toLowerCase();
 
   Future<void> _rebuildPoiLayersFromUiState() async {
     final map = _map;
@@ -776,6 +782,7 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
       final layerDocId = entry.key;
       final uiLayer = entry.value;
       final layerId = _poiLayerIdFor(layerDocId);
+      final uiLayerType = _normLayerType(uiLayer.type);
 
       if (_poiLayerIdsCreated.contains(layerId)) continue;
 
@@ -797,12 +804,20 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
         // ignore
       }
 
-      // Filter: feature.properties.layerId == layerDocId
+      // Filter: match par layerId exact OU layerType (fallback legacy)
       try {
         await style.setStyleLayerProperty(layerId, 'filter', [
-          '==',
-          ['get', 'layerId'],
-          layerDocId,
+          'any',
+          [
+            '==',
+            ['get', 'layerId'],
+            layerDocId,
+          ],
+          [
+            '==',
+            ['get', 'layerType'],
+            uiLayerType,
+          ],
         ]);
       } catch (_) {
         // ignore
