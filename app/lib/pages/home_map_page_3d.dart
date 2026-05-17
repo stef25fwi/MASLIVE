@@ -534,10 +534,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     _marketPoisSub = null;
     _clearNearbyPoiCarousel();
 
-    // Quand l'utilisateur change de carte/circuit, on ne doit pas afficher de POIs
-    // tant qu'il n'a pas explicitement choisi un type via le menu vertical.
+    // Aligné sur la Home principale: au changement de circuit on ouvre
+    // directement la catégorie food, sinon tous les layers POI restent masqués.
     if (resetPoiFilter && mounted) {
-      setState(() => _selectedAction = null);
+      setState(() => _selectedAction = _MapAction.food);
     }
 
     if (!selection.enabled ||

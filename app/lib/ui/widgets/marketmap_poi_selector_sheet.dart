@@ -134,6 +134,26 @@ class _MarketMapPoiSelectorSheetState
 
   bool _updatingControllers = false;
 
+  Set<String> _layerFilterTokens(MarketLayer layer) {
+    final tokens = <String>{};
+
+    final id = layer.id.trim().toLowerCase();
+    if (id.isNotEmpty) {
+      tokens.add(id);
+    }
+
+    final type = layer.type.trim().toLowerCase();
+    if (type.isNotEmpty) {
+      tokens.add(type);
+    }
+
+    return tokens;
+  }
+
+  bool _isLayerSelected(MarketLayer layer) {
+    return _layerFilterTokens(layer).any(_layerIds.contains);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1027,7 +1047,10 @@ class _MarketMapPoiSelectorSheetState
 
         if (!_layerSelectionInitialized) {
           _layerSelectionInitialized = true;
-          _layerIds = layers.where((l) => l.isEnabled).map((l) => l.id).toSet();
+          _layerIds = layers
+              .where((l) => l.isEnabled)
+              .expand(_layerFilterTokens)
+              .toSet();
         }
 
         return Column(
@@ -1039,17 +1062,18 @@ class _MarketMapPoiSelectorSheetState
             ),
             const SizedBox(height: 6),
             ...layers.map((layer) {
-              final enabled = _layerIds.contains(layer.id);
+              final enabled = _isLayerSelected(layer);
               return CheckboxListTile(
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 value: enabled,
                 onChanged: (v) {
                   setState(() {
+                    final tokens = _layerFilterTokens(layer);
                     if (v == true) {
-                      _layerIds.add(layer.id);
+                      _layerIds.addAll(tokens);
                     } else {
-                      _layerIds.remove(layer.id);
+                      _layerIds.removeAll(tokens);
                     }
                   });
                 },
