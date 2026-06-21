@@ -1951,6 +1951,13 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           } catch (_) {
             // ignore (déjà présent)
           }
+          // Verify the source is actually accessible in the style.
+          // If not (style not ready), this throws and the outer retry handles it.
+          await style.setStyleSourceProperty(
+            _mmPoiSourceId,
+            'data',
+            _emptyPoiFeatureCollection(),
+          );
 
           // Cluster (optionnel selon version SDK)
           try {
@@ -1977,7 +1984,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           final layerId = _mmLayerIdForType(type);
           if (_mmPoiLayerIds.contains(layerId) && !forceRebuild) continue;
 
-          // addLayer peut throw si déjà présent -> on ignore
+          // addLayer peut throw si déjà présent → tenter de confirmer que la
+          // couche existe via styleLayerExists avant de la considérer comme prête.
           try {
             final color = _poiColorForType(type);
             final layer = CircleLayer(
@@ -1990,23 +1998,27 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
               circleStrokeWidth: 2.0,
             );
             await style.addLayer(layer);
-
-            await style.setStyleLayerProperty(layerId, 'circle-radius', [
-              'case',
-              ['==', ['get', 'isFocused'], true],
-              _focusedPoiCircleRadius,
-              _defaultPoiCircleRadius,
-            ]);
-
-            // Filter: ["==", ["get","type"], "food"]
-            await style.setStyleLayerProperty(layerId, 'filter', [
-              '==',
-              ['get', 'type'],
-              type,
-            ]);
           } catch (_) {
-            // ignore
+            // Layer might already be present — check before continuing.
+            // styleLayerExists throws if the style isn't ready, which lets the
+            // outer retry loop kick in rather than silently swallowing the error.
+            if (await style.styleLayerExists(layerId) != true) continue;
           }
+
+          // Layer exists — set properties.  Errors here propagate to outer retry.
+          await style.setStyleLayerProperty(layerId, 'circle-radius', [
+            'case',
+            ['==', ['get', 'isFocused'], true],
+            _focusedPoiCircleRadius,
+            _defaultPoiCircleRadius,
+          ]);
+
+          // Filter: ["==", ["get","type"], "food"]
+          await style.setStyleLayerProperty(layerId, 'filter', [
+            '==',
+            ['get', 'type'],
+            type,
+          ]);
 
           _mmPoiLayerIds.add(layerId);
         }
@@ -2070,7 +2082,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
             _mmPoiLayerIds.add(_mmPoiLiveBadgeLayerId);
           } catch (_) {
-            // ignore
+            // ignore — badge layer is supplementary
           }
         }
 
