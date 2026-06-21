@@ -325,9 +325,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     // jamais (réseau coupé, token révoqué, etc.), on débloque le splash
     // après 6 secondes pour ne pas bloquer l'utilisateur.
     Future.delayed(const Duration(seconds: 6), () {
-      if (mounted && !_isMapReady && !mapReadyNotifier.value) {
+      if (mounted && !mapReadyNotifier.value) {
         debugPrint(
-          '⚠️ HomeMapPage3D: timeout 6s – carte non prête, déblocage splash',
+          '⚠️ HomeMapPage3D: timeout 6s – splash non débloqué, fallback',
         );
         _notifyMapReadyFallback();
       }
@@ -3012,13 +3012,14 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       return;
     }
 
-    // 2. Marquer la carte comme prête dès que l'instance est interactive.
+    // 2. Marquer l'instance comme prête pour les commandes.
+    // Le signal splash (mapReadyNotifier) est déclenché depuis onMapLoadedListener
+    // une fois que les tuiles visibles sont rendues, évitant le flash noir.
     if (mounted) {
       setState(() {
         _isMapReady = true;
       });
-      _checkIfReady();
-      StartupTrace.log('MAPBOX_NATIVE', '_onMapCreated map ready');
+      StartupTrace.log('MAPBOX_NATIVE', '_onMapCreated instance ready');
     }
 
     unawaited(_finishMapSetupAfterReady(mapboxMap));
@@ -3830,6 +3831,14 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                             ),
                             onMapCreated: _onMapCreated,
                             onStyleLoadedListener: _onStyleLoaded,
+                            onMapLoadedListener: (_) {
+                              // Tuiles visibles chargées → signal splash
+                              _checkIfReady();
+                              StartupTrace.log(
+                                'MAPBOX_NATIVE',
+                                'onMapLoadedListener fired',
+                              );
+                            },
                             onTapListener: (gestureContext) {
                               _onMapTap(gestureContext.touchPosition);
                             },
