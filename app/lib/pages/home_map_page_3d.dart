@@ -540,10 +540,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     _marketPoisSub = null;
     _clearNearbyPoiCarousel();
 
-    // Aligné sur la Home principale: au changement de circuit on ouvre
-    // directement la catégorie food, sinon tous les layers POI restent masqués.
     if (resetPoiFilter && mounted) {
-      setState(() => _selectedAction = _MapAction.food);
+      setState(() => _selectedAction = null);
     }
 
     if (!selection.enabled ||
