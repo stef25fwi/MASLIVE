@@ -1133,8 +1133,11 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         ]);
       }
 
-      // Toujours (ré)appliquer le filtre/paint, même si layer déjà existant.
-      map.callMethod('setFilter', [
+      // (Ré)appliquer le filtre uniquement si la couche est présente dans le style.
+      // Appeler setFilter sur une couche absente fait lever une erreur Mapbox GL JS
+      // qui serait transmise à Flutter comme MASLIVE_MAP_ERROR — à éviter.
+      final existingForFilter = map.callMethod('getLayer', [_poiLayerId]);
+      if (existingForFilter != null) map.callMethod('setFilter', [
         _poiLayerId,
         js.JsObject.jsify([
           'all',
@@ -1357,7 +1360,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         ]);
       }
 
-      map.callMethod('setFilter', [
+      final existingPreview = map.callMethod('getLayer', [_poiPreviewVertexLayerId]);
+      if (existingPreview != null) map.callMethod('setFilter', [
         _poiPreviewVertexLayerId,
         js.JsObject.jsify([
           'all',
@@ -2453,6 +2457,7 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
   Size? _lastKnownSize;
   StreamSubscription<html.MessageEvent>? _messageSub;
   bool _didInit = false;
+  bool _didSuccessfulInit = false;
   bool _didReceiveErrorFromJs = false;
   // Nombre de tentatives réelles d'initialisation JS (quand le container est prêt).
   // IMPORTANT: ne pas consommer ce compteur pendant les phases où le layout est à 0,
@@ -2581,6 +2586,7 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
         if (containerId != widget.containerId) return;
 
         if (type == 'MASLIVE_MAP_READY') {
+          _didSuccessfulInit = true;
           widget.onMapReady?.call();
           return;
         }
@@ -2621,6 +2627,14 @@ class _MapboxWebViewCustomState extends State<_MapboxWebViewCustom> {
               Future.delayed(const Duration(milliseconds: 120), _tryInit);
               return;
             }
+          }
+
+          // If the map already finished initializing, this is a runtime error
+          // (e.g. a layer operation failed after a style change).  Don't replace
+          // the map with a fatal error screen — just log it.
+          if (_didSuccessfulInit) {
+            debugPrint('[MAPBOX][RUNTIME_ERROR] $fullMsg');
+            return;
           }
 
           // Erreur permanente: bloque toute nouvelle tentative d'init pour ce widget.
