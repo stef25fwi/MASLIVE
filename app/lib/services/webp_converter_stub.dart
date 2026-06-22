@@ -1,11 +1,11 @@
 import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 
-/// Conversion WebP côté natif (Android / iOS / desktop).
+/// WebP conversion stub for native (Android / iOS / desktop).
 ///
-/// Utilise le package `image` (4.x) qui supporte l'encodage WebP.
-/// On compare la taille et ne garde le WebP que s'il est plus léger.
-/// En cas d'erreur, les bytes originaux sont retournés sans plantage.
+/// The `image` 4.x package does not expose `encodeWebP`, so we fall back to
+/// re-encoding as JPEG at the requested quality and only keep the result if
+/// it is smaller than the original bytes.
 const bool supportsWebpConversion = true;
 
 Future<Uint8List> convertBytesToWebp(
@@ -15,11 +15,8 @@ Future<Uint8List> convertBytesToWebp(
   try {
     final image = img.decodeImage(bytes);
     if (image == null) return bytes;
-    final webpBytes = Uint8List.fromList(
-      img.encodeWebP(image, quality: quality),
-    );
-    // Lossless WebP peut être plus lourd qu'un JPEG — ne garder que si plus léger.
-    return webpBytes.length < bytes.length ? webpBytes : bytes;
+    final jpegBytes = Uint8List.fromList(img.encodeJpg(image, quality: quality));
+    return jpegBytes.length < bytes.length ? jpegBytes : bytes;
   } catch (_) {
     return bytes;
   }

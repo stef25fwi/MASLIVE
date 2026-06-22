@@ -191,9 +191,7 @@ class ImageOptimizationService {
       case ImageFormat.png:
         return Uint8List.fromList(img.encodePng(image, level: 6));
       case ImageFormat.webp:
-        final webpBytes = Uint8List.fromList(img.encodeWebP(image, quality: quality));
-        final jpegBytes = Uint8List.fromList(img.encodeJpg(image, quality: quality));
-        return webpBytes.length < jpegBytes.length ? webpBytes : jpegBytes;
+        return Uint8List.fromList(img.encodeJpg(image, quality: quality));
     }
   }
 
