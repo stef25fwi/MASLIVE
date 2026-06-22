@@ -7,6 +7,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Visibility;
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart'
     hide LocationSettings;
 import 'package:geolocator/geolocator.dart' hide Position;
@@ -31,6 +32,9 @@ import '../services/mapbox_token_service.dart';
 import '../services/market_map_service.dart';
 import '../services/poi_popup_service.dart';
 import '../services/startup_map_style_service.dart';
+import '../models/market_circuit.dart';
+import '../models/market_country.dart';
+import '../models/market_event.dart';
 import '../models/market_poi.dart';
 import '../ui/widgets/marketmap_poi_selector_sheet.dart';
 import '../services/poi_analytics_service.dart';
@@ -134,6 +138,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   static const int _gpsDistanceFilter = 8;
   static const Duration _gpsTimeout = Duration(seconds: 8);
   static const double _homeBottomBarHeight = 58;
+  static const String _kCircuitSelectionKey = 'maslive_market_circuit_selection_v1';
   static const double _userMarkerIconSize = 1.5;
   static const Duration _cameraAnimationDuration = Duration(milliseconds: 800);
   static const double _defaultZoom = 13.0;
@@ -523,6 +528,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       _marketPoiSelection = selection;
     });
 
+    unawaited(_saveMarketCircuitSelection(selection));
     await _applyMarketPoiSelection(selection);
   }
 
@@ -596,6 +602,136 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           await _renderMarketPoiMarkers(); // GeoJSON update + visibility
         });
   }
+
+  // ── Persistance sélection circuit (SharedPreferences) ─────────────────────
+
+  Future<void> _saveMarketCircuitSelection(
+    MarketMapPoiSelection selection,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!selection.enabled ||
+          selection.country == null ||
+          selection.event == null ||
+          selection.circuit == null) {
+        await prefs.remove(_kCircuitSelectionKey);
+        return;
+      }
+      final c = selection.circuit!;
+      final data = <String, dynamic>{
+        'countryId': selection.country!.id,
+        'countryName': selection.country!.name,
+        'countrySlug': selection.country!.slug,
+        'eventId': selection.event!.id,
+        'eventCountryId': selection.event!.countryId,
+        'eventName': selection.event!.name,
+        'eventSlug': selection.event!.slug,
+        'circuitId': c.id,
+        'circuitCountryId': c.countryId,
+        'circuitEventId': c.eventId,
+        'circuitName': c.name,
+        'circuitSlug': c.slug,
+        'circuitStatus': c.status,
+        'circuitCreatedByUid': c.createdByUid,
+        'circuitPerimeterLocked': c.perimeterLocked,
+        'circuitZoomLocked': c.zoomLocked,
+        'circuitCenter': c.center,
+        'circuitInitialZoom': c.initialZoom,
+        'circuitBounds': c.bounds,
+        'circuitStyleId': c.styleId,
+        'circuitStyleUrl': c.styleUrl,
+        'circuitIsVisible': c.isVisible,
+        'circuitWizardState': c.wizardState,
+      };
+      await prefs.setString(_kCircuitSelectionKey, jsonEncode(data));
+    } catch (e) {
+      debugPrint('⚠️ _saveMarketCircuitSelection failed: $e');
+    }
+  }
+
+  Future<void> _loadAndRestoreMarketCircuitSelection() async {
+    if (_marketPoiSelection.enabled) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_kCircuitSelectionKey);
+      if (raw == null || raw.isEmpty) return;
+
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+
+      final country = MarketCountry(
+        id: data['countryId'] as String,
+        name: (data['countryName'] as String?) ?? '',
+        slug: (data['countrySlug'] as String?) ?? (data['countryId'] as String),
+      );
+
+      final event = MarketEvent(
+        id: data['eventId'] as String,
+        countryId:
+            (data['eventCountryId'] as String?) ?? (data['countryId'] as String),
+        name: (data['eventName'] as String?) ?? '',
+        slug: (data['eventSlug'] as String?) ?? (data['eventId'] as String),
+      );
+
+      final rawCenter = data['circuitCenter'];
+      final Map<String, double> center;
+      if (rawCenter is Map) {
+        center = rawCenter.map(
+          (k, v) => MapEntry(k.toString(), (v as num).toDouble()),
+        );
+      } else {
+        center = const {'lat': 0.0, 'lng': 0.0};
+      }
+
+      final rawBounds = data['circuitBounds'];
+      final Map<String, dynamic>? bounds =
+          rawBounds is Map ? Map<String, dynamic>.from(rawBounds) : null;
+
+      final rawWizard = data['circuitWizardState'];
+      final Map<String, dynamic> wizardState =
+          rawWizard is Map ? Map<String, dynamic>.from(rawWizard) : const {};
+
+      final circuit = MarketCircuit(
+        id: data['circuitId'] as String,
+        countryId: (data['circuitCountryId'] as String?) ??
+            (data['countryId'] as String),
+        eventId:
+            (data['circuitEventId'] as String?) ?? (data['eventId'] as String),
+        name: (data['circuitName'] as String?) ?? '',
+        slug: (data['circuitSlug'] as String?) ?? (data['circuitId'] as String),
+        status: (data['circuitStatus'] as String?) ?? 'draft',
+        createdByUid: (data['circuitCreatedByUid'] as String?) ?? '',
+        perimeterLocked: (data['circuitPerimeterLocked'] as bool?) ?? false,
+        zoomLocked: (data['circuitZoomLocked'] as bool?) ?? false,
+        center: center,
+        initialZoom:
+            (data['circuitInitialZoom'] as num?)?.toDouble() ?? 14.0,
+        bounds: bounds,
+        styleId: data['circuitStyleId'] as String?,
+        styleUrl: data['circuitStyleUrl'] as String?,
+        isVisible: (data['circuitIsVisible'] as bool?) ?? true,
+        wizardState: wizardState,
+      );
+
+      final selection = MarketMapPoiSelection.enabled(
+        country: country,
+        event: event,
+        circuit: circuit,
+        layerIds: const <String>{},
+      );
+
+      if (!mounted) return;
+      setState(() => _marketPoiSelection = selection);
+      await _applyMarketPoiSelection(selection);
+
+      debugPrint(
+        '✅ Circuit sélection restaurée: ${country.id} / ${event.id} / ${circuit.id}',
+      );
+    } catch (e) {
+      debugPrint('⚠️ _loadAndRestoreMarketCircuitSelection failed: $e');
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
 
   Future<void> _applyHomeMapStyleUri(String? rawStyleUrl) async {
     final wantedStyleUri = normalizeMapboxStyleUrl(
@@ -3057,6 +3193,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     await _updateUserMarker();
     await _renderMarketPoiMarkers();
 
+    // Restaure le dernier circuit sélectionné (persiste entre les sessions).
+    await _loadAndRestoreMarketCircuitSelection();
+
     if (_lastSize != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scheduleResize(_lastSize!);
@@ -3485,6 +3624,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       _marketPoiSelection = selection;
     });
 
+    unawaited(_saveMarketCircuitSelection(selection));
     await _applyMarketPoiSelection(selection, resetPoiFilter: true);
   }
 
