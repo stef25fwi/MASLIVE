@@ -367,33 +367,33 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         );
       case 4:
         return (
-          title: ‘Mapbox Style Designer’,
+          title: "Mapbox Style Designer",
           subtitle:
-              ‘Choisissez le fond de carte Mapbox et affinez le rendu visuel du tracé.’,
+              "Choisissez le fond de carte Mapbox et affinez le rendu visuel du tracé.",
           icon: Icons.palette_outlined,
           accent: const Color(0xFF6D28D9),
         );
       case 5:
         return (
-          title: ‘POI & zones’,
+          title: "POI & zones",
           subtitle:
-              ‘Ajoutez les points d’intérêt et structurez les zones parking ou couches éditoriales.’,
+              "Ajoutez les points d'intérêt et structurez les zones parking ou couches éditoriales.",
           icon: Icons.place_outlined,
           accent: const Color(0xFFB45309),
         );
       case 6:
         return (
-          title: ‘Contrôle qualité’,
+          title: "Contrôle qualité",
           subtitle:
-              ‘Repérez les blocants de publication et corrigez les points qui réduisent la qualité finale.’,
+              "Repérez les blocants de publication et corrigez les points qui réduisent la qualité finale.",
           icon: Icons.verified_outlined,
           accent: const Color(0xFFEA580C),
         );
       case 7:
         return (
-          title: ‘Publication’,
+          title: "Publication",
           subtitle:
-              ‘Vérifiez l’état final du circuit puis publiez uniquement quand tous les signaux sont au vert.’,
+              "Vérifiez l'état final du circuit puis publiez uniquement quand tous les signaux sont au vert.",
           icon: Icons.rocket_launch_outlined,
           accent: const Color(0xFF16A34A),
         );
@@ -4998,10 +4998,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           ),
           Expanded(
             child: TabBarView(
-              children: [
-                _buildStepMapColoring(),
-                _buildStep6StylePro(),
-              ],
+              children: [_buildStepMapColoring(), _buildStep6StylePro()],
             ),
           ),
         ],
