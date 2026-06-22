@@ -16,6 +16,7 @@ import '../ui/snack/top_snack_bar.dart';
 import '../ui/widgets/country_autocomplete_field.dart';
 import '../ui/widgets/glass_scrollbar.dart';
 import 'circuit_wizard_pro_page.dart';
+import 'parking_zone_drawer_page.dart';
 import 'poi_edit_popup.dart';
 
 const _emptyVisibleCircuitsIndex = VisibleCircuitsIndex(
@@ -1390,6 +1391,27 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
     await _poisCol.doc(resolvedId).set(data, SetOptions(merge: true));
   }
 
+  Future<void> _createParkingZone() async {
+    final circuit = widget.circuit;
+    final centerLat = (circuit.center['lat'] ?? 0.0).toDouble();
+    final centerLng = (circuit.center['lng'] ?? 0.0).toDouble();
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ParkingZoneDrawerPage(
+          countryId: widget.countryId,
+          eventId: widget.eventId,
+          circuitId: widget.circuitId,
+          initialLat: centerLat,
+          initialLng: centerLng,
+          initialZoom: 15.0,
+          styleUrl: circuit.styleUrl,
+        ),
+      ),
+    );
+    // Firestore stream auto-refreshes the list.
+  }
+
   Future<void> _deletePoi(String poiId) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -1463,24 +1485,37 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
           if (widget.layer.type == 'parking')
             Container(
               margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
               decoration: BoxDecoration(
                 color: const Color(0xFFF3E5F5),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: const Color(0xFF9C27B0), width: 1),
               ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFF9C27B0)),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Les zones parking (polygones) se créent depuis le Circuit Wizard Pro '
-                      '(brouillon → étape POI). Cette liste montre les zones existantes et '
-                      'permet de modifier leurs informations.',
-                      style: const TextStyle(fontSize: 13, height: 1.4),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFF9C27B0)),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text(
+                          'Les zones parking sont des polygones dessinés sur la carte.',
+                          style: TextStyle(fontSize: 13, height: 1.4),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF9C27B0),
+                      foregroundColor: Colors.white,
                     ),
+                    onPressed: _createParkingZone,
+                    icon: const Icon(Icons.draw_rounded, size: 18),
+                    label: const Text('Dessiner une zone parking'),
                   ),
                 ],
               ),

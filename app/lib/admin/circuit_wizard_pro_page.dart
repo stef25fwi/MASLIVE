@@ -66,7 +66,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     with SingleTickerProviderStateMixin {
   static const int _poiPageSize = 100;
   static const int _poiLimit = 2000;
-  static const int _poiStepIndex = 6;
+  static const int _poiStepIndex = 5;
   static const Color _step3HiddenParkColor = Color(0x00FFFFFF);
   static const double _wizardMapHeightMultiplier = 2.0;
   static const double _wizardScrollRailWidth = 56.0;
@@ -78,8 +78,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     'Infos',
     'Périmètre',
     'Tracé + Style',
-    'Style Pro',
-    'Couleurs',
+    'Style Designer',
     'POI',
     'Pré-pub',
     'Publication',
@@ -368,41 +367,33 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         );
       case 4:
         return (
-          title: 'Style Pro',
+          title: "Mapbox Style Designer",
           subtitle:
-              'Affinez la carte et le rendu du circuit pour obtenir une signature visuelle cohérente.',
+              "Choisissez le fond de carte Mapbox et affinez le rendu visuel du tracé.",
           icon: Icons.palette_outlined,
           accent: const Color(0xFF6D28D9),
         );
       case 5:
         return (
-          title: 'Map Coloring',
+          title: "POI & zones",
           subtitle:
-              'Choisissez le fond de carte Mapbox ou réutilisez le thème global.',
-          icon: Icons.color_lens_outlined,
-          accent: const Color(0xFFE11D48),
-        );
-      case 6:
-        return (
-          title: 'POI & zones',
-          subtitle:
-              'Ajoutez les points d’intérêt et structurez les zones parking ou couches éditoriales.',
+              "Ajoutez les points d'intérêt et structurez les zones parking ou couches éditoriales.",
           icon: Icons.place_outlined,
           accent: const Color(0xFFB45309),
         );
-      case 7:
+      case 6:
         return (
-          title: 'Contrôle qualité',
+          title: "Contrôle qualité",
           subtitle:
-              'Repérez les blocants de publication et corrigez les points qui réduisent la qualité finale.',
+              "Repérez les blocants de publication et corrigez les points qui réduisent la qualité finale.",
           icon: Icons.verified_outlined,
           accent: const Color(0xFFEA580C),
         );
-      case 8:
+      case 7:
         return (
-          title: 'Publication',
+          title: "Publication",
           subtitle:
-              'Vérifiez l’état final du circuit puis publiez uniquement quand tous les signaux sont au vert.',
+              "Vérifiez l'état final du circuit puis publiez uniquement quand tous les signaux sont au vert.",
           icon: Icons.rocket_launch_outlined,
           accent: const Color(0xFF16A34A),
         );
@@ -442,7 +433,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       case 'layersExist':
         return 5;
       default:
-        return 6;
+        return 5;
     }
   }
 
@@ -451,7 +442,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         .where((item) => item.required && !item.ok)
         .map(_qualityStepForItem)
         .cast<int?>()
-        .firstWhere((step) => step != null, orElse: () => 6)!;
+        .firstWhere((step) => step != null, orElse: () => 5)!;
     await _continueToStep(target);
   }
 
@@ -599,35 +590,24 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       case 4:
         return [
           _buildStageFact(
-            label: 'Style URL',
+            label: 'Style Mapbox',
             value:
                 _normalizeMapboxStyleUrl(
                   _styleUrlController.text,
                 ).trim().isEmpty
-                ? 'Preset local'
-                : 'Mapbox actif',
+                ? 'Par défaut'
+                : 'Actif',
             icon: Icons.map_outlined,
             accent: const Color(0xFF6D28D9),
           ),
           _buildStageFact(
-            label: 'Route Style Pro',
+            label: 'Style tracé',
             value: _routeStyleProConfig == null ? 'À charger' : 'Synchronisé',
             icon: Icons.auto_graph_outlined,
             accent: const Color(0xFF6D28D9),
           ),
         ];
       case 5:
-        return [
-          _buildStageFact(
-            label: 'Style Mapbox',
-            value: _styleUrlController.text.isEmpty
-                ? 'Par défaut'
-                : 'Personnalisé',
-            icon: Icons.map_outlined,
-            accent: const Color(0xFFE11D48),
-          ),
-        ];
-      case 6:
         return [
           _buildStageFact(
             label: 'POI',
@@ -650,7 +630,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             accent: const Color(0xFFB45309),
           ),
         ];
-      case 7:
+      case 6:
         return [
           _buildStageFact(
             label: 'Score',
@@ -675,7 +655,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             accent: const Color(0xFFEA580C),
           ),
         ];
-      case 8:
+      case 7:
         return [
           _buildStageFact(
             label: 'Publication',
@@ -831,7 +811,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           ),
         );
         break;
-      case 6:
+      case 5:
         actions.add(
           wrapAction(
             OutlinedButton.icon(
@@ -857,7 +837,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           ),
         );
         break;
-      case 7:
+      case 6:
         actions.add(
           wrapAction(
             FilledButton.tonalIcon(
@@ -879,7 +859,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           ),
         );
         break;
-      case 8:
+      case 7:
         actions.add(
           wrapAction(
             FilledButton.tonalIcon(
@@ -2264,6 +2244,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     _wizardScrollProgress.dispose();
     _wizardScrollCanScroll.dispose();
     _styleProStepScrollController.dispose();
+    _mapColoringStepScrollController.dispose();
     _poiInlineNameController.dispose();
     _poiInlineLatController.dispose();
     _poiInlineLngController.dispose();
@@ -2284,7 +2265,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     _perimeterStepScrollController,
     _routeStepScrollController,
     _styleProStepScrollController,
-    _mapColoringStepScrollController,
     _poiStepScrollController,
     _validationStepScrollController,
     _publishStepScrollController,
@@ -2303,12 +2283,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       case 4:
         return _styleProStepScrollController;
       case 5:
-        return _mapColoringStepScrollController;
-      case 6:
         return _poiStepScrollController;
-      case 7:
+      case 6:
         return _validationStepScrollController;
-      case 8:
+      case 7:
         return _publishStepScrollController;
       default:
         return null;
@@ -3330,8 +3308,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                             _wrapWizardStep(_buildStep1Infos()),
                             _wrapWizardStep(_buildStep2Perimeter()),
                             _wrapWizardStep(_buildStep3RouteAndStyleTabbed()),
-                            _wrapWizardStep(_buildStep6StylePro()),
-                            _wrapWizardStep(_buildStepMapColoring()),
+                            _wrapWizardStep(_buildStepStyleDesigner()),
                             _wrapWizardStep(_buildStep5POI()),
                             _wrapWizardStep(_buildStep7Validation()),
                             _wrapWizardStep(_buildStep8Publish()),
@@ -3351,8 +3328,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   ? () => unawaited(_goToPreviousStep())
                   : null,
               onSave: () => _saveDraft(createSnapshot: true),
-              showNext: (!widget.poiOnly && _currentStep < 7),
-              onNext: (!widget.poiOnly && _currentStep < 7)
+              showNext: (!widget.poiOnly && _currentStep < 6),
+              onNext: (!widget.poiOnly && _currentStep < 6)
                   ? () => _continueToStep(_currentStep + 1)
                   : null,
             ),
@@ -4992,6 +4969,40 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           ],
         );
       },
+    );
+  }
+
+  Widget _buildStepStyleDesigner() {
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Material(
+            color: Colors.transparent,
+            child: TabBar(
+              indicatorColor: MasliveTokens.primary,
+              labelColor: MasliveTokens.primary,
+              unselectedLabelColor: MasliveTokens.textSoft,
+              tabs: const [
+                Tab(
+                  icon: Icon(Icons.map_outlined, size: 18),
+                  text: 'Fond de carte',
+                ),
+                Tab(
+                  icon: Icon(Icons.route_outlined, size: 18),
+                  text: 'Style tracé',
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [_buildStepMapColoring(), _buildStep6StylePro()],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

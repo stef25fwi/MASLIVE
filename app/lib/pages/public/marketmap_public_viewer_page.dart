@@ -194,6 +194,9 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
     }
   }
 
+  static const String _zoneGlobalFillLayerId = 'mm_public_zone_fill_global';
+  static const String _zoneGlobalLineLayerId = 'mm_public_zone_line_global';
+
   Future<void> _ensureBaseSourcesAndLayers() async {
     final map = _map;
     if (map == null) return;
@@ -201,6 +204,54 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
     // Sources vides
     await _tryAddSource(_routeSourceId, _emptyFeatureCollection());
     await _tryAddSource(_poiSourceId, _emptyFeatureCollection());
+
+    // Zone polygon layers (global — render all Polygon POI features regardless of
+    // layer documents; uses per-feature fillColor/strokeColor from perimeterStyle).
+    // Added BEFORE route so zones appear under the circuit line.
+    await _tryAddLayer(FillLayer(
+      id: _zoneGlobalFillLayerId,
+      sourceId: _poiSourceId,
+    ));
+    try {
+      await map.style.setStyleLayerProperty(
+        _zoneGlobalFillLayerId,
+        'filter',
+        ['==', ['geometry-type'], 'Polygon'],
+      );
+      await map.style.setStyleLayerProperty(
+        _zoneGlobalFillLayerId,
+        'fill-color',
+        ['to-color', ['coalesce', ['get', 'fillColor'], '#0A84FF']],
+      );
+      await map.style.setStyleLayerProperty(
+        _zoneGlobalFillLayerId,
+        'fill-opacity',
+        ['coalesce', ['get', 'fillOpacity'], 0.25],
+      );
+    } catch (_) {}
+
+    await _tryAddLayer(LineLayer(
+      id: _zoneGlobalLineLayerId,
+      sourceId: _poiSourceId,
+      lineWidth: 2.0,
+    ));
+    try {
+      await map.style.setStyleLayerProperty(
+        _zoneGlobalLineLayerId,
+        'filter',
+        ['==', ['geometry-type'], 'Polygon'],
+      );
+      await map.style.setStyleLayerProperty(
+        _zoneGlobalLineLayerId,
+        'line-color',
+        ['to-color', ['coalesce', ['get', 'strokeColor'], '#FFFFFF']],
+      );
+      await map.style.setStyleLayerProperty(
+        _zoneGlobalLineLayerId,
+        'line-width',
+        ['coalesce', ['get', 'strokeWidth'], 2.0],
+      );
+    } catch (_) {}
 
     // Route layer
     await _tryAddLayer(
@@ -279,10 +330,9 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
       _showRoute && _routeCasingWantedVisible,
     );
 
-    // POI layers visibilités selon _uiLayersById
+    // POI circle layers visibilités selon _uiLayersById
     for (final entry in _uiLayersById.entries) {
-      final layerId = _poiLayerIdFor(entry.key);
-      await _setLayerVisibility(layerId, entry.value.visible);
+      await _setLayerVisibility(_poiLayerIdFor(entry.key), entry.value.visible);
     }
   }
 
@@ -619,6 +669,55 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
                 'layerType': layerType,
               },
             });
+
+            // Zones (parking etc.): also emit a Polygon feature for fill/outline
+            final perimeter = meta['perimeter'];
+            if (perimeter is List && perimeter.length >= 3) {
+              final ring = <List<double>>[];
+              for (final p in perimeter) {
+                if (p is! Map) continue;
+                final pLng = (p['lng'] as num?)?.toDouble();
+                final pLat = (p['lat'] as num?)?.toDouble();
+                if (pLng != null && pLat != null) ring.add([pLng, pLat]);
+              }
+              if (ring.length >= 3) {
+                // Close ring
+                if (ring.first[0] != ring.last[0] ||
+                    ring.first[1] != ring.last[1]) {
+                  ring.add([ring.first[0], ring.first[1]]);
+                }
+                final ps = meta['perimeterStyle'] is Map
+                    ? Map<String, dynamic>.from(
+                        meta['perimeterStyle'] as Map,
+                      )
+                    : const <String, dynamic>{};
+                final fillColor =
+                    (ps['fillColor'] ?? '#0A84FF').toString();
+                final fillOpacity =
+                    (ps['fillOpacity'] as num?)?.toDouble() ?? 0.25;
+                final strokeColor =
+                    (ps['strokeColor'] ?? fillColor).toString();
+                final strokeWidth =
+                    (ps['strokeWidth'] as num?)?.toDouble() ?? 3.0;
+                features.add({
+                  'type': 'Feature',
+                  'id': '${doc.id}_poly',
+                  'geometry': {
+                    'type': 'Polygon',
+                    'coordinates': [ring],
+                  },
+                  'properties': {
+                    'id': doc.id,
+                    'layerId': layerId,
+                    'layerType': layerType,
+                    'fillColor': fillColor,
+                    'fillOpacity': fillOpacity,
+                    'strokeColor': strokeColor,
+                    'strokeWidth': strokeWidth,
+                  },
+                });
+              }
+            }
           }
 
           _visiblePois
@@ -765,33 +864,31 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
 
     final style = map.style;
 
-    // Remove layers that no longer exist
+    // Remove circle layers that no longer exist
     final desired = _uiLayersById.keys.map(_poiLayerIdFor).toSet();
     final toRemove = _poiLayerIdsCreated.difference(desired).toList();
-    for (final layerId in toRemove) {
+    for (final lid in toRemove) {
       try {
-        await style.removeStyleLayer(layerId);
-      } catch (_) {
-        // ignore
-      }
-      _poiLayerIdsCreated.remove(layerId);
+        await style.removeStyleLayer(lid);
+      } catch (_) {}
+      _poiLayerIdsCreated.remove(lid);
     }
 
-    // Create missing layers
+    // Create missing circle layers (one per UI layer, above the global zone layers)
     for (final entry in _uiLayersById.entries) {
       final layerDocId = entry.key;
       final uiLayer = entry.value;
-      final layerId = _poiLayerIdFor(layerDocId);
+      final circleLayerId = _poiLayerIdFor(layerDocId);
       final uiLayerType = _normLayerType(uiLayer.type);
 
-      if (_poiLayerIdsCreated.contains(layerId)) continue;
+      if (_poiLayerIdsCreated.contains(circleLayerId)) continue;
 
       final color = _parseHexColor(uiLayer.colorHex) ?? const Color(0xFFFF6A00);
 
       try {
         await style.addLayer(
           CircleLayer(
-            id: layerId,
+            id: circleLayerId,
             sourceId: _poiSourceId,
             circleRadius: 7.0,
             circleColor: color.toARGB32(),
@@ -800,30 +897,14 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
             circleStrokeWidth: 2.0,
           ),
         );
-      } catch (_) {
-        // ignore
-      }
-
-      // Filter: match par layerId exact OU layerType (fallback legacy)
-      try {
-        await style.setStyleLayerProperty(layerId, 'filter', [
+        await style.setStyleLayerProperty(circleLayerId, 'filter', [
           'any',
-          [
-            '==',
-            ['get', 'layerId'],
-            layerDocId,
-          ],
-          [
-            '==',
-            ['get', 'layerType'],
-            uiLayerType,
-          ],
+          ['==', ['get', 'layerId'], layerDocId],
+          ['==', ['get', 'layerType'], uiLayerType],
         ]);
-      } catch (_) {
-        // ignore
-      }
+      } catch (_) {}
 
-      _poiLayerIdsCreated.add(layerId);
+      _poiLayerIdsCreated.add(circleLayerId);
     }
   }
 

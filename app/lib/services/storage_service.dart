@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart' show rootBundle;
 import 'dart:developer' as developer;
+import 'webp_converter.dart';
 
 /// Service centralisé de gestion du stockage Firebase Storage
 /// 
@@ -424,9 +425,6 @@ class StorageService {
     }
     developer.log('✅ [StorageService] User authentifié: ${user.uid}');
 
-    final ref = _storage.ref(path);
-    developer.log('✅ [StorageService] Référence Storage créée: $path');
-    
     // Métadonnées
     final metadata = SettableMetadata(
       contentType: _getContentType(file.name),
@@ -450,9 +448,37 @@ class StorageService {
         developer.log('📱 [StorageService] Mode MOBILE - lecture bytes...');
       }
 
-      final bytes = await file.readAsBytes();
+      var bytes = await file.readAsBytes();
       developer.log('✅ [StorageService] ${bytes.length} bytes lus');
-      uploadTask = ref.putData(bytes, metadata);
+
+      // Auto-convert photos to WebP for smaller uploads
+      var finalPath = path;
+      var finalMetadata = metadata;
+      if (supportsWebpConversion && _isImagePath(path)) {
+        try {
+          final originalSize = bytes.length;
+          final webpBytes = await convertBytesToWebp(bytes, quality: 82);
+          if (webpBytes.length < originalSize) {
+            bytes = webpBytes;
+            finalPath = path.replaceAll(
+              RegExp(r'\.(jpe?g|png)$', caseSensitive: false),
+              '.webp',
+            );
+            finalMetadata = SettableMetadata(
+              contentType: 'image/webp',
+              customMetadata: metadata.customMetadata,
+            );
+            developer.log(
+              '✅ [StorageService] WebP: ${(originalSize / 1024).round()}KB → ${(bytes.length / 1024).round()}KB',
+            );
+          }
+        } catch (e) {
+          developer.log('⚠️ [StorageService] WebP skipped: $e');
+        }
+      }
+
+      final ref = _storage.ref(finalPath);
+      uploadTask = ref.putData(bytes, finalMetadata);
       developer.log('✅ [StorageService] UploadTask créée');
 
       // Surveiller progression
@@ -516,6 +542,11 @@ class StorageService {
       default:
         return 'application/octet-stream';
     }
+  }
+
+  bool _isImagePath(String path) {
+    final lower = path.toLowerCase();
+    return lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png');
   }
 
   /// Extrait l'extension d'un nom de fichier
