@@ -240,7 +240,7 @@ class _BloomArtHeroBanner extends StatelessWidget {
               height: 216,
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
               child: Image.asset(
-                'assets/images/logobloom.png',
+                'assets/images/logobloom.webp',
                 fit: BoxFit.contain,
                 height: 200,
               ),
