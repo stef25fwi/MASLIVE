@@ -3733,12 +3733,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           _scheduleResize(size);
         });
 
-        return _buildContent(context, size);
+        return _buildContent(context);
       },
     );
   }
 
-  Widget _buildContent(BuildContext context, ui.Size size) {
+  Widget _buildContent(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final hasNearbyPoiCarousel = _nearbyPoiCandidates.length > 1;
 
@@ -3820,18 +3820,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
             // Carte Mapbox 3D - Occupe tout l'écran
             Positioned.fill(
               child: RepaintBoundary(
-                // Optimise les performances de rendu
-                child: SizedBox(
-                  width: size.width,
-                  height: size.height,
-                  child: Container(
-                    color:
-                        Colors.black, // Couleur de fond pendant le chargement
+                child: SizedBox.expand(
+                  child: ColoredBox(
+                    color: Colors.black,
                     child: _mapCanBeCreated
                         ? MapWidget(
-                            key: ValueKey(
-                              'map_${size.width.toInt()}x${size.height.toInt()}_$_mapTick',
-                            ),
+                            key: ValueKey('map_$_mapTick'),
                             styleUri: _currentStyleUri,
                             cameraOptions: CameraOptions(
                               center: Point(
@@ -3855,7 +3849,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                               _onMapTap(gestureContext.touchPosition);
                             },
                           )
-                        : const SizedBox.expand(),
+                        : const SizedBox.shrink(),
                   ),
                 ),
               ),
