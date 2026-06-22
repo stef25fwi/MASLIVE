@@ -569,7 +569,27 @@ class CircuitRepository {
     }
 
     await _syncLayersBatch(batch: batch, projectId: projectId, layers: layers);
-    await _syncPoisBatch(batch: batch, projectId: projectId, pois: pois);
+
+    // POIs: source unique de vérité = marketMap. On synchronise directement la
+    // sous-collection marketMap (pas map_projects/pois qui est abandonné).
+    final poiCountryId =
+        (currentData['countryId'] ?? existing['countryId'] ?? '').toString().trim();
+    final poiEventId =
+        (currentData['eventId'] ?? existing['eventId'] ?? '').toString().trim();
+    final poiCircuitId =
+        (currentData['circuitId'] ?? existing['circuitId'] ?? projectId)
+            .toString()
+            .trim();
+    if (poiCountryId.isNotEmpty && poiEventId.isNotEmpty && poiCircuitId.isNotEmpty) {
+      await _syncMarketPoisBatch(
+        batch: batch,
+        countryId: poiCountryId,
+        eventId: poiEventId,
+        circuitId: poiCircuitId,
+        pois: pois,
+        actorUid: actorUid,
+      );
+    }
 
     _audit.writeInBatch(
       batch: batch,

@@ -1533,7 +1533,10 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
 
   Future<void> _ensureAllPoisLoadedForPublish() async {
     if (_isEnsuringAllPoisLoaded) return;
-    if (_projectId == null) return;
+    // Guard: besoin du contexte marketMap pour charger les POIs.
+    final _ensureCountry = _countryController.text.trim();
+    final _ensureCircuit = _effectiveMarketCircuitId;
+    if (_ensureCountry.isEmpty || _ensureCircuit.isEmpty) return;
     if (!_hasMorePois) return;
 
     setState(() => _isEnsuringAllPoisLoaded = true);
@@ -2989,15 +2992,30 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   Future<void> _loadMorePoisPage() async {
-    if (_projectId == null || _isLoadingMorePois || !_hasMorePois) return;
+    final countryId = _countryController.text.trim();
+    final eventId = _eventController.text.trim();
+    final circuitId = _effectiveMarketCircuitId;
+    if (countryId.isEmpty || eventId.isEmpty || circuitId.isEmpty) return;
+    if (_isLoadingMorePois || !_hasMorePois) return;
 
     setState(() => _isLoadingMorePois = true);
     try {
-      final page = await _repository.listPoisPage(
-        projectId: _projectId!,
-        pageSize: _poiPageSize,
-        startAfter: _poisLastDoc,
-      );
+      // Source unique de vérité: marketMap (commune avec le wizard simple).
+      final db = FirebaseFirestore.instance;
+      Query<Map<String, dynamic>> query = db
+          .collection('marketMap')
+          .doc(countryId)
+          .collection('events')
+          .doc(eventId)
+          .collection('circuits')
+          .doc(circuitId)
+          .collection('pois')
+          .orderBy('name')
+          .limit(_poiPageSize);
+      if (_poisLastDoc != null) {
+        query = query.startAfterDocument(_poisLastDoc!);
+      }
+      final page = await query.get();
 
       final incoming = page.docs
           .map((doc) => MarketMapPOI.fromFirestore(doc))
@@ -3015,7 +3033,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       }
     }
 
-    // Si l'utilisateur est déjà sur une couche, on rafraîchit l'affichage.
     if (mounted && _selectedLayer != null) {
       _refreshPoiMarkers();
     }
@@ -7090,17 +7107,17 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   Future<void> _persistPoiDraftUpdate(MarketMapPOI poi) async {
-    final projectId = _projectId;
-    if (projectId == null || projectId.trim().isEmpty) return;
+    final countryId = _countryController.text.trim();
+    final eventId = _eventController.text.trim();
+    final circuitId = _effectiveMarketCircuitId;
+    // Source unique: marketMap. Si le contexte géographique n'est pas encore
+    // renseigné (début de création), on ne peut pas persister.
+    if (countryId.isEmpty || eventId.isEmpty || circuitId.isEmpty) return;
 
     final layerId = (poi.layerId ?? poi.layerType).trim();
-    // Normaliser le type pour qu'il corresponde exactement aux valeurs
-    // attendues par le filtre de la page accueil (visit/food/wc/parking/assistance).
     final normalizedType = _normalizePoiLayerType(poi.layerType);
     final poiData = <String, dynamic>{
       ...poi.toFirestore(),
-      // `type` est nécessaire pour que MarketPoi.fromDoc() lise correctement
-      // le layerType (visit/food/parking/wc…) côté page accueil.
       'type': normalizedType,
       'layerType': normalizedType,
       'layerId': layerId,
@@ -7111,41 +7128,18 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     try {
       final docId = _draftPoiDocId(poi);
       final db = FirebaseFirestore.instance;
-      final batch = db.batch();
 
-      // 1. Brouillon (source de vérité du wizard).
-      batch.set(
-        db
-            .collection('map_projects')
-            .doc(projectId)
-            .collection('pois')
-            .doc(docId),
-        poiData,
-        SetOptions(merge: true),
-      );
-
-      // 2. Écriture directe dans marketMap pour que les POIs soient
-      //    immédiatement visibles côté utilisateur sans attendre la publication.
-      final countryId = _countryController.text.trim();
-      final eventId = _eventController.text.trim();
-      final marketCircuitId = _effectiveMarketCircuitId;
-      if (countryId.isNotEmpty && eventId.isNotEmpty) {
-        batch.set(
-          db
-              .collection('marketMap')
-              .doc(countryId)
-              .collection('events')
-              .doc(eventId)
-              .collection('circuits')
-              .doc(marketCircuitId)
-              .collection('pois')
-              .doc(docId),
-          poiData,
-          SetOptions(merge: true),
-        );
-      }
-
-      await batch.commit();
+      // Source unique de vérité: marketMap (commune avec le wizard simple).
+      await db
+          .collection('marketMap')
+          .doc(countryId)
+          .collection('events')
+          .doc(eventId)
+          .collection('circuits')
+          .doc(circuitId)
+          .collection('pois')
+          .doc(docId)
+          .set(poiData, SetOptions(merge: true));
     } catch (e) {
       if (!mounted) return;
       _showTopSnackBar(
@@ -7157,53 +7151,39 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   Future<void> _deletePoiDraft(MarketMapPOI poi) async {
-    final projectId = _projectId;
-    if (projectId == null || projectId.trim().isEmpty) return;
+    final countryId = _countryController.text.trim();
+    final eventId = _eventController.text.trim();
+    final circuitId = _effectiveMarketCircuitId;
+    if (countryId.isEmpty || eventId.isEmpty || circuitId.isEmpty) return;
 
     final docId = _draftPoiDocId(poi);
     final db = FirebaseFirestore.instance;
     try {
-      final batch = db.batch();
-
-      // 1. Suppression dans le brouillon.
-      batch.delete(
-        db
-            .collection('map_projects')
-            .doc(projectId)
-            .collection('pois')
-            .doc(docId),
-      );
-
-      // 2. Suppression miroir dans marketMap.
-      final countryId = _countryController.text.trim();
-      final eventId = _eventController.text.trim();
-      final marketCircuitId = _effectiveMarketCircuitId;
-      if (countryId.isNotEmpty && eventId.isNotEmpty) {
-        batch.delete(
-          db
-              .collection('marketMap')
-              .doc(countryId)
-              .collection('events')
-              .doc(eventId)
-              .collection('circuits')
-              .doc(marketCircuitId)
-              .collection('pois')
-              .doc(docId),
-        );
-      }
-
-      await batch.commit();
+      // Source unique de vérité: marketMap.
+      await db
+          .collection('marketMap')
+          .doc(countryId)
+          .collection('events')
+          .doc(eventId)
+          .collection('circuits')
+          .doc(circuitId)
+          .collection('pois')
+          .doc(docId)
+          .delete();
     } on FirebaseException catch (e) {
       if (e.code == 'not-found') return;
       rethrow;
     }
 
-    // Nettoyage Storage: si le POI avait une photo, supprimer le dossier.
+    // Nettoyage Storage: tente les deux préfixes (wizard pro + wizard simple).
     if ((poi.imageUrl ?? '').trim().isNotEmpty) {
       try {
-        final parentId = 'poi_${projectId}_$docId';
+        final projectId = _projectId;
+        final prefix = projectId != null && projectId.trim().isNotEmpty
+            ? 'poi_${projectId}_$docId'
+            : 'poi_marketmap_${countryId}_${eventId}_${circuitId}_$docId';
         await ImageOptimizationService.instance.deleteImageVariants(
-          'places/$parentId',
+          'places/$prefix',
         );
       } catch (_) {
         // Nettoyage best-effort: pas bloquant si Storage déjà vide.
