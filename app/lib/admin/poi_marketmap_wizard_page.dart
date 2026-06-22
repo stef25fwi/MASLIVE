@@ -589,6 +589,35 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
     }
   }
 
+  String _layerLabel(MarketLayer layer) {
+    switch (layer.type) {
+      case 'food':
+        return 'Restauration';
+      case 'parking':
+        return 'Parkings';
+      case 'wc':
+        return 'Sanitaires';
+      case 'assistance':
+        return 'Assistance';
+      case 'visit':
+        return 'Visites';
+      case 'cashier':
+        return 'Caisses';
+      case 'market':
+        return 'Commerce';
+      case 'track':
+      case 'tracking':
+        return 'Tracé';
+      case 'perimeter':
+        return 'Périmètre';
+      case 'pois':
+        return 'POIs généraux';
+      default:
+        final raw = layer.id.trim();
+        return raw.isNotEmpty ? raw : layer.type;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final title = switch (_step) {
@@ -939,9 +968,8 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
                           foregroundColor: color,
                           child: Icon(_layerIcon(layer)),
                         ),
-                        title: Text(layer.id),
-                        subtitle: Text(
-                            'type: ${layer.type} • enabled: ${layer.isEnabled}'),
+                        title: Text(_layerLabel(layer)),
+                        subtitle: Text(layer.isEnabled ? 'Active' : 'Désactivée'),
                         trailing: const Icon(Icons.chevron_right_rounded),
                         onTap: () {
                           Navigator.of(context).push(
@@ -953,6 +981,7 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
                                 eventName: event.name,
                                 circuitId: circuit.id,
                                 circuitName: circuit.name,
+                                circuit: circuit,
                                 layer: layer,
                               ),
                             ),
@@ -1242,6 +1271,7 @@ class _LayerPoisPage extends StatefulWidget {
     required this.eventName,
     required this.circuitId,
     required this.circuitName,
+    required this.circuit,
     required this.layer,
   });
 
@@ -1251,6 +1281,7 @@ class _LayerPoisPage extends StatefulWidget {
   final String eventName;
   final String circuitId;
   final String circuitName;
+  final MarketCircuit circuit;
   final MarketLayer layer;
 
   @override
@@ -1302,9 +1333,8 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
       ? Map<String, dynamic>.from(existing?['metadata'] as Map)
       : null;
 
-    final initialMeta = isNew
-      ? <String, dynamic>{'__coordsUnset': true}
-      : existingMeta;
+    final centerLat = (widget.circuit.center['lat'] ?? 0.0).toDouble();
+    final centerLng = (widget.circuit.center['lng'] ?? 0.0).toDouble();
 
     final initialPoi = MarketMapPOI(
       id: resolvedId,
@@ -1312,8 +1342,8 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
           ? asString(existing?['name'])!.trim()
           : 'Nouveau POI',
       layerType: widget.layer.type,
-      lng: asDouble(existing?['lng'], 0.0),
-      lat: asDouble(existing?['lat'], 0.0),
+      lng: isNew ? centerLng : asDouble(existing?['lng'], centerLng),
+      lat: isNew ? centerLat : asDouble(existing?['lat'], centerLat),
       isVisible: (existing?['isVisible'] as bool?) ?? true,
       layerId: widget.layer.id,
       description: asString(existing?['description']),
@@ -1327,7 +1357,7 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
       whatsapp: asString(existing?['whatsapp']),
       email: asString(existing?['email']),
       mapsUrl: asString(existing?['mapsUrl'] ?? existing?['googleMapsUrl'] ?? existing?['mapUrl']),
-      metadata: initialMeta,
+      metadata: isNew ? null : existingMeta,
     );
 
     final updated = await showModalBottomSheet<MarketMapPOI>(
@@ -1424,18 +1454,37 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${widget.countryName} • ${widget.eventName} • ${widget.circuitName}\nCouche: ${widget.layer.id} (${widget.layer.type})',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ),
-              ],
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+            child: Text(
+              '${widget.countryName} • ${widget.eventName} • ${widget.circuitName}',
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
+          if (widget.layer.type == 'parking')
+            Container(
+              margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3E5F5),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF9C27B0), width: 1),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFF9C27B0)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Les zones parking (polygones) se créent depuis le Circuit Wizard Pro '
+                      '(brouillon → étape POI). Cette liste montre les zones existantes et '
+                      'permet de modifier leurs informations.',
+                      style: const TextStyle(fontSize: 13, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           const Divider(height: 1),
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -1478,10 +1527,9 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
                             child: Icon(_typeIcon(type)),
                           ),
                           title: Text(name),
-                          subtitle: Text(
-                            '${type ?? 'poi'}'
-                            '${lat != null && lng != null ? ' • ${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}' : ''}',
-                          ),
+                          subtitle: lat != null && lng != null
+                              ? Text('${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}')
+                              : const Text('Coordonnées non définies'),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
