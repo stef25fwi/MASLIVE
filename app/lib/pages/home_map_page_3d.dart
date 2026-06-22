@@ -1986,27 +1986,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   }
 
   String _typeFromPoi(MarketPoi poi) {
-    // On essaie plusieurs champs possibles pour garantir le bon filtrage Home.
-    final dynamicAny = (poi as dynamic);
-
-    String? pick(dynamic v) {
-      final s = (v == null) ? '' : v.toString().trim();
-      return s.isEmpty ? null : s;
-    }
-
-    final candidates = <String?>[
-      pick(dynamicAny.type),
-      pick(dynamicAny.layerType),
-      pick(dynamicAny.layerId),
-      pick(dynamicAny.category),
-      pick(dynamicAny.poiType),
-    ];
-
-    for (final candidate in candidates) {
+    // Use typed fields — MarketPoi.type is already normalized by fromDoc.
+    // Fallback to layerId for legacy POIs missing the type field.
+    for (final candidate in [poi.type, poi.layerId]) {
       final mapped = _normalizeMarketPoiTypeCandidate(candidate);
       if (mapped != null) return mapped;
     }
-
     return 'market';
   }
 
@@ -2292,12 +2277,14 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       }
 
       // État live tables pour le badge marker (food uniquement, premium actif).
+      // MarketPoi doesn't carry isPublished/premiumFeatures/liveTableSummary
+      // as top-level fields; _resolveLiveTableBadgeState falls back to metadata.
       final liveTableState = _resolveLiveTableBadgeState(
         poiType: type,
         metadata: meta,
-        rootPublished: d.isPublished ?? d.published,
-        rootPremiumFeatures: d.premiumFeatures,
-        rootLiveTableSummary: d.liveTableSummary,
+        rootPublished: null,
+        rootPremiumFeatures: null,
+        rootLiveTableSummary: null,
       );
 
       feats.add({
