@@ -3747,7 +3747,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
     return Positioned.fill(
       child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
+        behavior: HitTestBehavior.opaque,
         onTap: _dismissActionsMenu,
         child: Align(
           alignment: Alignment.topRight,
