@@ -6297,10 +6297,6 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             ? _parkingZonePoints
             : null;
 
-        if (_parkingZoneModeActive) {
-          await _poiMapController.clearPoisGeoJson();
-        }
-
         await _poiMapController.setPoisGeoJson(
           _buildPoisFeatureCollection(
             poisForLayer,
