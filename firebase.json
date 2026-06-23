@@ -18,6 +18,7 @@
     }
   ],
   "hosting": {
+    "site": "maslive",
     "public": "app/build/web",
     "ignore": [
       "firebase.json",
