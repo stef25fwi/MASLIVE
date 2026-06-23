@@ -5261,7 +5261,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               ClipRRect(
                 borderRadius: BorderRadius.circular(MasliveTokens.rL),
                 child: SizedBox(
-                  height: 440,
+                  height: 880,
                   child: _wrapWizardMapToBlockScroll(
                     MasLiveMap(
                       key: ValueKey(

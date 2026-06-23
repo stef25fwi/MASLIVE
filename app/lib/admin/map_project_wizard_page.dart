@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../ui/map/maslive_map.dart';
@@ -17,6 +19,9 @@ class MapProjectWizardPage extends StatefulWidget {
 class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
   int _currentStep = 0;
   bool _loading = true;
+  int _mapPointerCount = 0;
+  bool get _mapInteracting => _mapPointerCount > 0;
+  final ScrollController _stepperController = ScrollController();
 
   final _nameController = TextEditingController();
   final _countryController = TextEditingController();
@@ -99,6 +104,7 @@ class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
     _countryController.dispose();
     _eventController.dispose();
     _styleUrlController.dispose();
+    _stepperController.dispose();
     super.dispose();
   }
 
@@ -237,6 +243,28 @@ class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
     });
   }
 
+  Widget _wrapMapScrollLock(Widget child) {
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: (_) => setState(
+        () => _mapPointerCount = math.max(0, _mapPointerCount) + 1,
+      ),
+      onPointerPanZoomStart: (_) => setState(
+        () => _mapPointerCount = math.max(0, _mapPointerCount) + 1,
+      ),
+      onPointerUp: (_) => setState(
+        () => _mapPointerCount = math.max(0, _mapPointerCount - 1),
+      ),
+      onPointerCancel: (_) => setState(
+        () => _mapPointerCount = math.max(0, _mapPointerCount - 1),
+      ),
+      onPointerPanZoomEnd: (_) => setState(
+        () => _mapPointerCount = math.max(0, _mapPointerCount - 1),
+      ),
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -252,6 +280,10 @@ class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
         backgroundColor: const Color(0xFF1A1A2E),
       ),
       body: Stepper(
+        controller: _stepperController,
+        physics: _mapInteracting
+            ? const NeverScrollableScrollPhysics()
+            : null,
         currentStep: _currentStep,
         onStepTapped: (step) => setState(() => _currentStep = step),
         onStepContinue: () {
@@ -332,10 +364,11 @@ class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
       content: Column(
         children: [
           SizedBox(
-            height: 400,
+            height: 800,
             child: Stack(
               children: [
-                MasLiveMap(
+                _wrapMapScrollLock(
+                  MasLiveMap(
                   controller: _mapController,
                   initialLng: _perimeterPoints.isNotEmpty
                       ? _perimeterPoints.first['lng']!
@@ -354,6 +387,7 @@ class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
                       _addPerimeterPoint(point.lng, point.lat);
                     }
                   },
+                  ),
                 ),
                 Positioned(
                   top: 10,
@@ -403,10 +437,11 @@ class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
       content: Column(
         children: [
           SizedBox(
-            height: 400,
+            height: 800,
             child: Stack(
               children: [
-                MasLiveMap(
+                _wrapMapScrollLock(
+                  MasLiveMap(
                   controller: _mapController,
                   initialLng: _routePoints.isNotEmpty
                       ? _routePoints.first['lng']!
@@ -425,6 +460,7 @@ class _MapProjectWizardPageState extends State<MapProjectWizardPage> {
                       _addRoutePoint(point.lng, point.lat);
                     }
                   },
+                  ),
                 ),
                 Positioned(
                   top: 10,
