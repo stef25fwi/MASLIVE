@@ -44,14 +44,23 @@ class HoneycombBackground extends StatelessWidget {
               child: Padding(padding: padding, child: child),
             ),
             Positioned.fill(
+              // DecorationImage.opacity applique l'opacité pendant le tracé de
+              // l'image (alpha du paint) — contrairement au widget Opacity qui
+              // force un saveLayer offscreen à chaque frame. Comme ce fond
+              // enveloppe TOUTES les pages (builder de GetMaterialApp), y compris
+              // par-dessus la carte live, éviter le saveLayer supprime un coût
+              // GPU permanent sur mobile.
               child: IgnorePointer(
-                child: Opacity(
-                  opacity: opacity.clamp(0.0, 1.0),
-                  child: Image.asset(
-                    'assets/textures/maslive_honeycomb_2048.png',
-                    fit: BoxFit.cover,
-                    filterQuality: FilterQuality.low,
-                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: const AssetImage(
+                        'assets/textures/maslive_honeycomb_2048.png',
+                      ),
+                      fit: BoxFit.cover,
+                      filterQuality: FilterQuality.low,
+                      opacity: opacity.clamp(0.0, 1.0),
+                    ),
                   ),
                 ),
               ),

@@ -1143,8 +1143,16 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
 }
 
 /// Widget helper pour le chargement différé d'un module (deferred import).
-/// Affiche un spinner le temps que le code soit téléchargé, puis construit
-/// le widget final via [build].
+///
+/// Sur le web, `loadLibrary()` télécharge réellement un chunk JS séparé: on
+/// affiche un spinner le temps du téléchargement, puis on construit la page.
+///
+/// Sur natif (Android/iOS, AOT), les imports différés sont compilés DANS le
+/// binaire — `loadLibrary()` est un no-op et les symboles sont déjà
+/// disponibles. Passer par un `FutureBuilder` y imposerait au minimum une
+/// frame de spinner à CHAQUE navigation (un Future ne se résout jamais dans la
+/// frame courante). On construit donc la page directement: navigation
+/// instantanée, sans flash de chargement.
 class _DeferredLoader extends StatelessWidget {
   const _DeferredLoader({required this.load, required Widget Function() build})
     : _buildPage = build;
@@ -1152,6 +1160,10 @@ class _DeferredLoader extends StatelessWidget {
   final Widget Function() _buildPage;
   @override
   Widget build(BuildContext context) {
+    if (!kIsWeb) {
+      // Natif: code déjà présent, aucun await nécessaire.
+      return _buildPage();
+    }
     return FutureBuilder<void>(
       future: load(),
       builder: (context, snap) {

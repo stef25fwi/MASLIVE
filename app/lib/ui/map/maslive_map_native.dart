@@ -134,6 +134,11 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   PointAnnotationManager? _userLocationManager;
   bool _isMapReady = false;
   bool _styleLoaded = false;
+  // True une fois les layers POI construits pour le style courant. Permet un
+  // rafraîchissement rapide (mise à jour de la source seule) au lieu de
+  // détruire/recréer ~12 layers à chaque appel. Remis à false quand un nouveau
+  // style est (re)chargé — un changement de style efface layers et sources.
+  bool _poiLayersBuilt = false;
   bool _didNotifyHostMapReady = false;
   void Function(double lat, double lng)? _onPointAddedCallback;
 
@@ -259,6 +264,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     }
 
     _styleLoaded = false;
+    _poiLayersBuilt = false;
     try {
       await map.loadStyleURI(styleUri);
     } catch (e) {
@@ -1025,6 +1031,30 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
 
     await _ensurePoiPatternImages();
 
+    // ── Chemin rapide ────────────────────────────────────────────────────
+    // Si les layers sont déjà construits pour ce style, on met simplement à
+    // jour les données de la source (un seul aller-retour platform channel)
+    // au lieu de détruire puis recréer ~12 layers (des dizaines d'appels).
+    // Les paint/filtres des layers sont statiques (les couleurs par-feature
+    // sont des expressions ['get', ...] qui se réévaluent sur la nouvelle
+    // donnée), donc le rendu est identique — sans flicker ni jank au pan/filtre.
+    if (_poiLayersBuilt) {
+      try {
+        final exists = await map.style.styleSourceExists(_poiSourceId);
+        if (exists) {
+          await map.style.setStyleSourceProperty(
+            _poiSourceId,
+            'data',
+            _poisGeoJsonString,
+          );
+          return;
+        }
+      } catch (_) {
+        // En cas d'échec, on retombe sur la reconstruction complète ci-dessous.
+      }
+      _poiLayersBuilt = false;
+    }
+
     // Remove + add source, puis layer si besoin.
     try {
       await map.style.removeStyleLayer(_poiLayerId);
@@ -1726,6 +1756,10 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     } catch (_) {
       // ignore
     }
+
+    // Layers construits: les prochains rafraîchissements passeront par le
+    // chemin rapide (mise à jour de la source seule).
+    _poiLayersBuilt = true;
   }
 
   Future<void> _ensureMarkersManager() async {
@@ -1918,6 +1952,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
           });
         }
         _patternImagesReady = false;
+        _poiLayersBuilt = false;
         await _applyPoisGeoJsonIfReady();
         await _applyPoiStyleIfReady();
 
