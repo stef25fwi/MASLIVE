@@ -241,7 +241,12 @@ async function patchDoc({ projectId, accessToken, relativeDocPath, data }) {
     .split('/')
     .map((s) => encodeURIComponent(s))
     .join('/');
-  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${encodedPath}`;
+  // updateMask obligatoire: sans lui, PATCH remplace le document entier
+  // (ce qui efface status/route/bounds sur un circuit publié).
+  const mask = Object.keys(data)
+    .map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`)
+    .join('&');
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${encodedPath}?${mask}`;
 
   const res = await fetch(url, {
     method: 'PATCH',
