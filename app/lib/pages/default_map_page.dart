@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -450,7 +451,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     for (final poi in pois) {
       final effectiveLayerId = poi.layerId.trim().isNotEmpty
           ? poi.layerId.trim()
-          : ((poi.type ?? 'market').trim().isEmpty ? 'market' : poi.type!.trim());
+          : ((poi.type ?? 'market').trim().isEmpty
+                ? 'market'
+                : poi.type!.trim());
 
       // Zones parking: rendu Polygon si metadata.perimeter disponible.
       final rawPerimeter = poi.metadata?['perimeter'];
@@ -474,7 +477,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
               ? Map<String, dynamic>.from(styleRaw)
               : const <String, dynamic>{};
           final fillColor = (style['fillColor'] as String?) ?? '#4A90D9';
-          final fillOpacity = (style['fillOpacity'] as num?)?.toDouble() ?? 0.35;
+          final fillOpacity =
+              (style['fillOpacity'] as num?)?.toDouble() ?? 0.35;
           final strokeColor = (style['strokeColor'] as String?) ?? fillColor;
           final strokeWidth = (style['strokeWidth'] as num?)?.toDouble() ?? 2.0;
           final strokeDash = style['strokeDash'] as String?;
@@ -503,7 +507,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
           // Label "P" au centroïde.
           double sumLng = 0, sumLat = 0;
-          final n = pts.length - 1; // exclure le dernier point (doublon du premier)
+          final n =
+              pts.length - 1; // exclure le dernier point (doublon du premier)
           for (var i = 0; i < n; i++) {
             sumLng += pts[i][0];
             sumLat += pts[i][1];
@@ -1805,17 +1810,21 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     required double navMenuRightOffset,
     required double navHorizontalPadding,
   }) {
+    // PointerInterceptor: la carte Mapbox est une vue DOM (HtmlElementView);
+    // sans lui, les taps sur le menu traversent vers la carte sur web.
     final Widget menu = Transform.translate(
       offset: Offset(navMenuRightOffset, 0),
-      child: HomeVerticalNavMenu(
-        margin: EdgeInsets.only(top: menuTopOffset),
-        horizontalPadding: navHorizontalPadding,
-        verticalPadding: 10,
-        backgroundAlpha: 0.88,
-        blurSigma: HomeVerticalNavMenu.boutiqueBlurSigma,
-        boxShadow: HomeVerticalNavMenu.boutiqueShadow,
-        borderColor: HomeVerticalNavMenu.boutiqueBorderColor,
-        items: _buildClassicVerticalNavItems(context),
+      child: PointerInterceptor(
+        child: HomeVerticalNavMenu(
+          margin: EdgeInsets.only(top: menuTopOffset),
+          horizontalPadding: navHorizontalPadding,
+          verticalPadding: 10,
+          backgroundAlpha: 0.88,
+          blurSigma: HomeVerticalNavMenu.boutiqueBlurSigma,
+          boxShadow: HomeVerticalNavMenu.boutiqueShadow,
+          borderColor: HomeVerticalNavMenu.boutiqueBorderColor,
+          items: _buildClassicVerticalNavItems(context),
+        ),
       ),
     );
 
@@ -1823,10 +1832,12 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       child: Stack(
         children: [
           Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _dismissActionsMenu,
-              child: const SizedBox.expand(),
+            child: PointerInterceptor(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _dismissActionsMenu,
+                child: const SizedBox.expand(),
+              ),
             ),
           ),
           Align(
@@ -2194,7 +2205,11 @@ class _DefaultMapPageState extends State<DefaultMapPage>
             ? StreamBuilder<User?>(
                 stream: AuthService.instance.authStateChanges,
                 builder: (context, snap) {
-                  return _buildBottomBar(context, user: snap.data);
+                  // PointerInterceptor: extendBody place la barre au-dessus de
+                  // la carte (vue DOM sur web) — sans lui, les taps traversent.
+                  return PointerInterceptor(
+                    child: _buildBottomBar(context, user: snap.data),
+                  );
                 },
               )
             : null,
@@ -2334,9 +2349,11 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                     left: 16,
                     right: 16,
                     bottom: bottomInset + bottomBarHeight + 12,
-                    child: _TrackingPill(
-                      isTracking: _isTracking,
-                      onToggle: _toggleTracking,
+                    child: PointerInterceptor(
+                      child: _TrackingPill(
+                        isTracking: _isTracking,
+                        onToggle: _toggleTracking,
+                      ),
                     ),
                   ),
               ],
@@ -2370,63 +2387,65 @@ class _OnboardingTooltip extends StatelessWidget {
     return Positioned(
       top: anchorCenterY,
       right: right,
-      child: GestureDetector(
-        onTap: onDismiss,
-        child: FractionalTranslation(
-          translation: const Offset(0.0, -0.5),
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.centerRight,
-            children: [
-              CustomPaint(
-                painter: const _DashedTooltipBorderPainter(
-                  borderRadius: borderRadius,
-                ),
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 230),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 14,
+      child: PointerInterceptor(
+        child: GestureDetector(
+          onTap: onDismiss,
+          child: FractionalTranslation(
+            translation: const Offset(0.0, -0.5),
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.centerRight,
+              children: [
+                CustomPaint(
+                  painter: const _DashedTooltipBorderPainter(
+                    borderRadius: borderRadius,
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(borderRadius),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.28),
-                        blurRadius: 16,
-                        offset: const Offset(0, 8),
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 230),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(borderRadius),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.28),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      message,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        height: 1.3,
                       ),
-                    ],
-                  ),
-                  child: Text(
-                    message,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      height: 1.3,
                     ),
                   ),
                 ),
-              ),
-              Positioned(
-                right: -(arrowWidth - 3),
-                top: 0,
-                bottom: 0,
-                child: SizedBox(
-                  width: arrowWidth,
-                  height: arrowHeight,
-                  child: Center(
-                    child: CustomPaint(
-                      size: const Size(arrowWidth, arrowHeight),
-                      painter: const _TooltipArrowPainter(),
+                Positioned(
+                  right: -(arrowWidth - 3),
+                  top: 0,
+                  bottom: 0,
+                  child: SizedBox(
+                    width: arrowWidth,
+                    height: arrowHeight,
+                    child: Center(
+                      child: CustomPaint(
+                        size: const Size(arrowWidth, arrowHeight),
+                        painter: const _TooltipArrowPainter(),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
