@@ -811,7 +811,7 @@ class _MediaPhotoDetailsSheet extends StatelessWidget {
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+          padding: const EdgeInsets.fromLTRB(10, 12, 10, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -937,7 +937,7 @@ class _AllGalleryMediaSheet extends StatelessWidget {
             ),
             child: ListView(
               controller: scrollController,
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+              padding: const EdgeInsets.fromLTRB(10, 12, 10, 24),
               children: <Widget>[
                 Center(
                   child: Container(
@@ -1578,7 +1578,7 @@ class _CategoryChip extends StatelessWidget {
       borderRadius: BorderRadius.circular(22),
       child: Container(
         height: 42,
-        padding: const EdgeInsets.symmetric(horizontal: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(22),

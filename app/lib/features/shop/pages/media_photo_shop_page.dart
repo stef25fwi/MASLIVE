@@ -377,7 +377,7 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
           return <Widget>[
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(18, widget.embedded ? 18 : 14, 18, 12),
+                padding: EdgeInsets.fromLTRB(10, widget.embedded ? 18 : 14, 10, 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -470,7 +470,7 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
           ];
         },
         body: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
+          padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
           child: _buildActiveMarketplaceContent(),
         ),
       ),

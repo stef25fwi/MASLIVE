@@ -281,7 +281,7 @@ class _CreateProductDialogState extends State<_CreateProductDialog> {
     final dialogWidth = w < 800 ? w * 0.94 : 800.0;
 
     return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -295,7 +295,7 @@ class _CreateProductDialogState extends State<_CreateProductDialog> {
             child: SafeArea(
               top: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+                padding: const EdgeInsets.fromLTRB(10, 18, 10, 14),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [

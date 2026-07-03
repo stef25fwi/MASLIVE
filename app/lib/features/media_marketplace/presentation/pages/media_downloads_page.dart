@@ -69,7 +69,7 @@ class _MediaDownloadsView extends StatelessWidget {
     final cartCount = context.watch<CartProvider>().totalQuantity;
     final listPadding = embedded
         ? const EdgeInsets.fromLTRB(8, 16, 8, 24)
-        : const EdgeInsets.fromLTRB(18, 14, 18, 24);
+      : const EdgeInsets.fromLTRB(10, 14, 10, 24);
 
     final content = controller.loading
           ? const Center(child: CircularProgressIndicator())

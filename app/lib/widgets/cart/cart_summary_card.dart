@@ -25,7 +25,7 @@ class CartSummaryCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+      padding: const EdgeInsets.fromLTRB(12, 18, 12, 18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: <Color>[

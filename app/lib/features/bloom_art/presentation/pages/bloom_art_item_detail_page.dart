@@ -56,7 +56,7 @@ class BloomArtItemDetailPage extends StatelessWidget {
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+                  padding: const EdgeInsets.fromLTRB(10, 12, 10, 28),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[

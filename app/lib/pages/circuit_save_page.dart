@@ -222,7 +222,7 @@ class _FolderCard extends StatelessWidget {
           GestureDetector(
             onTap: onToggleExpand,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
               child: Row(
                 children: [
                   Icon(Icons.folder, size: 24, color: const Color(0xFFF59E0B)),
@@ -269,7 +269,7 @@ class _FolderCard extends StatelessWidget {
           if (isExpanded) ...[
             Container(height: 1, color: Colors.grey.shade100),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
               child: Column(
                 children: (folderData['maps'] as Map).entries
                     .map(

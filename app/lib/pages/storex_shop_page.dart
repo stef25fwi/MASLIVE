@@ -66,6 +66,8 @@ class _ShopUi {
   static const Color textMuted = Color(0xFF667085);
 }
 
+const double _pageHorizontalInset = 8;
+
 class _StorexShopPageState extends State<StorexShopPage> {
   int tab = 0;
 
@@ -332,7 +334,12 @@ class _StorexHome extends StatelessWidget {
 
               return SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
+                padding: const EdgeInsets.fromLTRB(
+                  _pageHorizontalInset,
+                  14,
+                  _pageHorizontalInset,
+                  12,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -606,7 +613,7 @@ class _StorexCategoryChip extends StatelessWidget {
       onTap: onTap,
       child: Container(
         height: 46,
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: _ShopUi.textMain,
           borderRadius: BorderRadius.circular(24),
@@ -755,7 +762,12 @@ class _SearchPageState extends State<_SearchPage> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+              padding: const EdgeInsets.fromLTRB(
+                _pageHorizontalInset,
+                10,
+                _pageHorizontalInset,
+                8,
+              ),
               child: Row(
                 children: [
                   const Icon(Icons.search, color: Colors.black38),
@@ -805,7 +817,12 @@ class _SearchPageState extends State<_SearchPage> {
                   }
 
                   return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+                    padding: const EdgeInsets.fromLTRB(
+                      _pageHorizontalInset,
+                      10,
+                      _pageHorizontalInset,
+                      14,
+                    ),
                     itemCount: min(filtered.length, 40),
                     separatorBuilder: (_, index) => const SizedBox(height: 10),
                     itemBuilder: (_, i) {
@@ -990,7 +1007,12 @@ class _StorexCategory extends StatelessWidget {
           }
 
           return GridView.builder(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+            padding: const EdgeInsets.fromLTRB(
+              _pageHorizontalInset,
+              12,
+              _pageHorizontalInset,
+              14,
+            ),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               crossAxisSpacing: 10,
@@ -1451,7 +1473,12 @@ class _StorexAccount extends StatelessWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+        padding: const EdgeInsets.fromLTRB(
+          _pageHorizontalInset,
+          10,
+          _pageHorizontalInset,
+          14,
+        ),
         children: [
           Row(
             children: [
@@ -1751,7 +1778,12 @@ class _WishlistPage extends StatelessWidget {
           }
 
           return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+            padding: const EdgeInsets.fromLTRB(
+              _pageHorizontalInset,
+              10,
+              _pageHorizontalInset,
+              14,
+            ),
             itemCount: docs.length,
             separatorBuilder: (_, index) => const SizedBox(height: 12),
             itemBuilder: (_, i) {
@@ -2072,7 +2104,12 @@ class _OrdersPage extends StatelessWidget {
           final docs = snap.data!.docs;
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+            padding: const EdgeInsets.fromLTRB(
+              _pageHorizontalInset,
+              10,
+              _pageHorizontalInset,
+              14,
+            ),
             children: [
               Text(
                 "${docs.length} ${l10n.AppLocalizations.of(context)!.orders}",

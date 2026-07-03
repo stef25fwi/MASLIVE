@@ -35,7 +35,7 @@ class _SearchPageState extends State<SearchPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            padding: const EdgeInsets.fromLTRB(10, 12, 10, 8),
             child: TextField(
               decoration: InputDecoration(
                 hintText: l10n.searchLocation,
@@ -67,7 +67,7 @@ class _SearchPageState extends State<SearchPage> {
                 }
 
                 return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 24),
                   itemCount: filtered.length,
                   separatorBuilder: (_, _) => const Divider(height: 18),
                   itemBuilder: (context, i) {

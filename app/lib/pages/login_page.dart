@@ -733,7 +733,7 @@ class _GlassCard extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+          padding: const EdgeInsets.fromLTRB(10, 18, 10, 10),
           decoration: BoxDecoration(
             color: Colors.white.withAlpha((0.62 * 255).round()),
             borderRadius: BorderRadius.circular(28),

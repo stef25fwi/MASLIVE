@@ -247,7 +247,7 @@ class _StorexDeliveryPageState extends State<StorexDeliveryPage> {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+        padding: const EdgeInsets.fromLTRB(10, 14, 10, 16),
         children: [
           const Text(
             'Shipping Method',
@@ -599,7 +599,7 @@ class _StorexPaymentPageState extends State<StorexPaymentPage> {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+        padding: const EdgeInsets.fromLTRB(10, 16, 10, 16),
         children: [
           const Text(
             'Payment Method',

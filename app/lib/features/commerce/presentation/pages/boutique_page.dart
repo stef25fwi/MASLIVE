@@ -94,7 +94,7 @@ class _BoutiquePageState extends State<BoutiquePage> {
               child: Column(
                 children: [
                   Container(
-                    padding: EdgeInsets.fromLTRB(16, topPadding + 12, 16, 12),
+                    padding: EdgeInsets.fromLTRB(10, topPadding + 12, 10, 12),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       boxShadow: [
@@ -124,7 +124,7 @@ class _BoutiquePageState extends State<BoutiquePage> {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                    padding: const EdgeInsets.fromLTRB(10, 14, 10, 10),
                     child: TextField(
                       controller: searchCtrl,
                       decoration: InputDecoration(
@@ -164,7 +164,7 @@ class _BoutiquePageState extends State<BoutiquePage> {
                             }
 
                             return ListView.separated(
-                              padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
+                              padding: const EdgeInsets.fromLTRB(10, 6, 10, 16),
                               itemCount: products.length,
                               separatorBuilder: (context, index) =>
                                   const SizedBox(height: 10),

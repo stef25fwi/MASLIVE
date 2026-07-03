@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart'
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../admin/admin_debug_logs_sheet.dart';
 import 'favorites_page.dart';
 import 'login_page.dart';
 import 'media_gallery_maslive_instagram_page.dart';
@@ -12,6 +13,7 @@ import '../widgets/cart/cart_icon_badge.dart';
 import '../widgets/admin_route_guard.dart';
 import '../admin/admin_stock_page.dart';
 import '../admin/admin_product_categories_page.dart';
+import '../utils/debug_log_buffer.dart';
 import 'storex_shop_page.dart';
 import 'user_facing_bottom_bar.dart';
 
@@ -33,6 +35,18 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
   Stream<DocumentSnapshot<Map<String, dynamic>>> _userDocStream() {
     final uid = user?.uid;
     return _db.collection('users').doc(uid).snapshots();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    DebugLogBuffer.setActiveScope('Espace administrateur');
+  }
+
+  @override
+  void dispose() {
+    DebugLogBuffer.clearActiveScope();
+    super.dispose();
   }
 
   @override
@@ -69,128 +83,137 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
           ),
           body: CustomScrollView(
             slivers: [
-                SliverToBoxAdapter(
-                  child: RainbowHeader(
-                    title: 'Espace administrateur',
-                    leading: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                    trailing: CartIconBadge(
-                      iconColor: const Color(0xFF111827),
-                      backgroundColor: Colors.white.withValues(alpha: 0.16),
-                      borderColor: Colors.white.withValues(alpha: 0.22),
-                    ),
+              SliverToBoxAdapter(
+                child: RainbowHeader(
+                  title: 'Espace administrateur',
+                  leading: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isAdmin)
+                        const AdminDebugLogsButton(
+                          scopeLabel: 'Espace administrateur',
+                        ),
+                      if (isAdmin) const SizedBox(width: 4),
+                      CartIconBadge(
+                        iconColor: const Color(0xFF111827),
+                        backgroundColor: Colors.white.withValues(alpha: 0.16),
+                        borderColor: Colors.white.withValues(alpha: 0.22),
+                      ),
+                    ],
                   ),
                 ),
-                SliverPadding(
-                  padding: const EdgeInsets.all(16),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      _AccountHeader(
-                        displayName:
-                            data['displayName'] ??
-                            (user!.displayName ?? "Utilisateur"),
-                        email: user!.email ?? "",
-                        photoUrl: data['photoUrl'] ?? user!.photoURL,
-                        isAdmin: isAdmin,
-                      ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    _AccountHeader(
+                      displayName:
+                          data['displayName'] ??
+                          (user!.displayName ?? "Utilisateur"),
+                      email: user!.email ?? "",
+                      photoUrl: data['photoUrl'] ?? user!.photoURL,
+                      isAdmin: isAdmin,
+                    ),
 
-                      const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
+                    _SectionCard(
+                      title: "Mon profil",
+                      subtitle: "Infos, préférences, sécurité",
+                      icon: Icons.person,
+                      onTap: () =>
+                          _showEditProfileSheet(context, initial: data),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    _SectionCard(
+                      title: "Mes favoris",
+                      subtitle: "Points & circuits sauvegardés",
+                      icon: Icons.bookmark,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const FavoritesPage(),
+                          ),
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    _SectionCard(
+                      title: "Historique",
+                      subtitle: "Dernières actions sur la carte",
+                      icon: Icons.history,
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("À brancher : page Historique"),
+                          ),
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    _SectionCard(
+                      title: "Inbox vendeur",
+                      subtitle: "Commandes à valider",
+                      icon: Icons.inbox,
+                      onTap: () {
+                        Navigator.of(context).pushNamed('/seller-inbox');
+                      },
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    if (isAdmin && !isMobile) ...[
+                      const _SectionTitle("Espace Admin"),
+                      const SizedBox(height: 10),
                       _SectionCard(
-                        title: "Mon profil",
-                        subtitle: "Infos, préférences, sécurité",
-                        icon: Icons.person,
-                        onTap: () =>
-                            _showEditProfileSheet(context, initial: data),
+                        title: "Dashboard Administrateur",
+                        subtitle: "Vue d'ensemble complète de la gestion",
+                        icon: Icons.dashboard,
+                        onTap: () {
+                          Navigator.of(context).pushNamed('/admin');
+                        },
                       ),
-
                       const SizedBox(height: 12),
-
                       _SectionCard(
-                        title: "Mes favoris",
-                        subtitle: "Points & circuits sauvegardés",
-                        icon: Icons.bookmark,
+                        title: "Galerie Médias",
+                        subtitle: "Consulter et gérer les médias MAS'LIVE",
+                        icon: Icons.photo_library,
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => const FavoritesPage(),
-                            ),
-                          );
-                        },
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      _SectionCard(
-                        title: "Historique",
-                        subtitle: "Dernières actions sur la carte",
-                        icon: Icons.history,
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("À brancher : page Historique"),
-                            ),
-                          );
-                        },
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      _SectionCard(
-                        title: "Inbox vendeur",
-                        subtitle: "Commandes à valider",
-                        icon: Icons.inbox,
-                        onTap: () {
-                          Navigator.of(context).pushNamed('/seller-inbox');
-                        },
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      if (isAdmin && !isMobile) ...[
-                        const _SectionTitle("Espace Admin"),
-                        const SizedBox(height: 10),
-                        _SectionCard(
-                          title: "Dashboard Administrateur",
-                          subtitle: "Vue d'ensemble complète de la gestion",
-                          icon: Icons.dashboard,
-                          onTap: () {
-                            Navigator.of(context).pushNamed('/admin');
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        _SectionCard(
-                          title: "Galerie Médias",
-                          subtitle: "Consulter et gérer les médias MAS'LIVE",
-                          icon: Icons.photo_library,
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const AdminRouteGuard(
-                                  child: MediaGalleryMasliveInstagramPage(),
-                                ),
+                              builder: (_) => const AdminRouteGuard(
+                                child: MediaGalleryMasliveInstagramPage(),
                               ),
-                            );
-                          },
+                            ),
+                          );
+                        },
+                      ),
+                      if (showSuperAdminCommerce) ...[
+                        const SizedBox(height: 20),
+                        const _SectionTitle('Commerce (SuperAdmin)'),
+                        const SizedBox(height: 10),
+                        _SuperAdminCommerceSection(
+                          shopId: 'global',
+                          email: user?.email ?? '',
                         ),
-                        if (showSuperAdminCommerce) ...[
-                          const SizedBox(height: 20),
-                          const _SectionTitle('Commerce (SuperAdmin)'),
-                          const SizedBox(height: 10),
-                          _SuperAdminCommerceSection(
-                            shopId: 'global',
-                            email: user?.email ?? '',
-                          ),
-                        ],
                       ],
-                    ]),
-                  ),
+                    ],
+                  ]),
                 ),
-              ],
-            ),
-
+              ),
+            ],
+          ),
         );
       },
     );

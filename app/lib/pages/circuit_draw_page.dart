@@ -88,7 +88,7 @@ class _CircuitDrawPageState extends State<CircuitDrawPage> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),

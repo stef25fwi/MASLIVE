@@ -146,7 +146,7 @@ class PaymentCompletePage extends StatelessWidget {
             ),
             const Spacer(),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 20),
               child: SizedBox(
                 height: 52,
                 width: double.infinity,
@@ -268,7 +268,7 @@ class OrderTrackerPage extends StatelessWidget {
           final shippingMethod = (data['shippingMethod'] ?? '').toString();
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+            padding: const EdgeInsets.fromLTRB(10, 16, 10, 20),
             children: [
               const Text(
                 'Order Summary',
@@ -369,7 +369,7 @@ class ReviewsPage extends StatelessWidget {
           }
 
           return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),
             itemCount: docs.length,
             separatorBuilder: (context, index) => const Divider(height: 24),
             itemBuilder: (context, i) {
@@ -563,7 +563,7 @@ class _AddReviewPageState extends State<AddReviewPage> {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+        padding: const EdgeInsets.fromLTRB(10, 16, 10, 20),
         children: [
           const Text('Rating', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600)),
           const SizedBox(height: 10),

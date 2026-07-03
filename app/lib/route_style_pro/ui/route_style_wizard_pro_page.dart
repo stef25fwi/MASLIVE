@@ -426,7 +426,7 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
           duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
           dismissDirection: DismissDirection.up,
-          margin: EdgeInsets.fromLTRB(16, top, 16, bottom),
+          margin: EdgeInsets.fromLTRB(10, top, 10, bottom),
         ),
       );
   }
@@ -476,7 +476,7 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
                       config: _config,
                       onChanged: _onConfigChanged,
                       contentPadding: isWide
-                          ? const EdgeInsets.fromLTRB(16, 16, 16, 0)
+                          ? const EdgeInsets.fromLTRB(10, 16, 10, 0)
                           : const EdgeInsets.fromLTRB(6, 16, 16, 0),
                       onTestAutoRoute: _busy ? () {} : _testAutoRoute,
                       onUseMyTrace: _busy ? () {} : _useMyTrace,

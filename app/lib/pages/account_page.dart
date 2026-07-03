@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../admin/admin_debug_logs_sheet.dart';
 import 'account_admin_page.dart';
 import '../services/auth_service.dart';
 import '../services/auth_claims_service.dart';
@@ -11,6 +12,7 @@ import '../widgets/rainbow_header.dart';
 import '../widgets/cart/cart_icon_badge.dart';
 import '../ui/widgets/honeycomb_background.dart';
 import '../ui/widgets/maslive_card.dart';
+import '../utils/debug_log_buffer.dart';
 import '../l10n/app_localizations.dart';
 import 'user_facing_bottom_bar.dart';
 
@@ -32,10 +34,17 @@ class _AccountUiPageState extends State<AccountUiPage> {
   @override
   void initState() {
     super.initState();
+    DebugLogBuffer.setActiveScope('Mon Profil');
     _checkAdminStatus();
     _checkBusinessStatus();
     _checkPhotographerStatus();
     _checkCommercePermissions();
+  }
+
+  @override
+  void dispose() {
+    DebugLogBuffer.clearActiveScope();
+    super.dispose();
   }
 
   Future<void> _checkAdminStatus() async {
@@ -64,7 +73,10 @@ class _AccountUiPageState extends State<AccountUiPage> {
     try {
       final user = AuthService.instance.currentUser;
       if (user == null) return;
-      final doc = await FirebaseFirestore.instance.collection('businesses').doc(user.uid).get();
+      final doc = await FirebaseFirestore.instance
+          .collection('businesses')
+          .doc(user.uid)
+          .get();
       if (!mounted) return;
       setState(() => _hasBusiness = doc.exists);
     } catch (_) {
@@ -176,12 +188,15 @@ class _AccountUiPageState extends State<AccountUiPage> {
     ];
 
     if (_hasBusiness) {
-      tiles.insert(1, _AccountTileData(
-        icon: Icons.business_center_outlined,
-        title: 'Compte professionnel',
-        subtitle: 'Demande + paiements Stripe',
-        route: '/business',
-      ));
+      tiles.insert(
+        1,
+        _AccountTileData(
+          icon: Icons.business_center_outlined,
+          title: 'Compte professionnel',
+          subtitle: 'Demande + paiements Stripe',
+          route: '/business',
+        ),
+      );
     }
 
     if (_hasPhotographerProfile) {
@@ -216,12 +231,23 @@ class _AccountUiPageState extends State<AccountUiPage> {
                 title: 'Mon Profil',
                 leading: IconButton(
                   onPressed: () => Navigator.of(context).maybePop(),
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white,
+                  ),
                 ),
-                trailing: CartIconBadge(
-                  iconColor: const Color(0xFF111827),
-                  backgroundColor: Colors.white.withValues(alpha: 0.16),
-                  borderColor: Colors.white.withValues(alpha: 0.22),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_isAdmin)
+                      const AdminDebugLogsButton(scopeLabel: 'Mon Profil'),
+                    if (_isAdmin) const SizedBox(width: 4),
+                    CartIconBadge(
+                      iconColor: const Color(0xFF111827),
+                      backgroundColor: Colors.white.withValues(alpha: 0.16),
+                      borderColor: Colors.white.withValues(alpha: 0.22),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -235,12 +261,12 @@ class _AccountUiPageState extends State<AccountUiPage> {
             if (_canSubmitCommerce)
               const SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                   child: CommerceSectionCard(),
                 ),
               ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 18),
+              padding: const EdgeInsets.fromLTRB(10, 24, 10, 18),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate((context, i) {
                   if (i < tiles.length) {
@@ -287,7 +313,7 @@ class _AccountUiPageState extends State<AccountUiPage> {
                       children: [
                         Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
+                            horizontal: 10,
                             vertical: 8,
                           ),
                           child: Text(
@@ -356,7 +382,7 @@ class _AccountUiPageState extends State<AccountUiPage> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+                padding: const EdgeInsets.fromLTRB(10, 0, 10, 18),
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(

@@ -113,7 +113,7 @@ class _RoleManagementPageState extends State<RoleManagementPage> {
                   }
 
                   return ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
                     itemCount: roles.length,
                     itemBuilder: (context, index) {
                       final roleDoc = roles[index];

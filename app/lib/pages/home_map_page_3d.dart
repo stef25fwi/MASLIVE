@@ -4193,7 +4193,7 @@ class _TrackingPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return MasliveCard(
       radius: 22,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       child: Row(
         children: [
           Container(

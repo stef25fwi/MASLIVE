@@ -85,7 +85,7 @@ class BloomArtHomePage extends StatelessWidget {
                 slivers: <Widget>[
                   // ── Bandeau hero + chips ──────────────────────────────
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
+                    padding: const EdgeInsets.fromLTRB(10, 14, 10, 0),
                     sliver: SliverToBoxAdapter(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,7 +183,7 @@ class BloomArtHomePage extends StatelessWidget {
                     )
                   else
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(18, 0, 18, 28),
+                      padding: const EdgeInsets.fromLTRB(10, 0, 10, 28),
                       sliver: SliverGrid.builder(
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: crossAxisCount,
@@ -248,7 +248,7 @@ class _BloomArtHeroBanner extends StatelessWidget {
             // ── Zone texte + bouton sous le logo ──────────────────────
             Container(
               color: _Ui.textMain,
-              padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
+              padding: const EdgeInsets.fromLTRB(10, 14, 10, 16),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: <Widget>[

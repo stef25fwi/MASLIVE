@@ -64,7 +64,6 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
 
   // ── Style state ───────────────────────────────────────────────────────────
   String _fillColorHex = _kDefaultFillHex;
-  String _strokeColorHex = _kDefaultStrokeHex;
   bool _strokeFollowsFill = false;
   double _colorSaturation = _kDefaultColorSaturation;
   double _fillOpacity = _kDefaultFillOpacity;
@@ -446,7 +445,7 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
   }) {
     setState(() {
       if (fillColorHex != null) _fillColorHex = fillColorHex;
-      if (strokeColorHex != null) _strokeColorHex = strokeColorHex;
+      if (strokeColorHex != null) _strokeColorCtrl.text = strokeColorHex;
       if (strokeFollowsFill != null) _strokeFollowsFill = strokeFollowsFill;
       if (colorSaturation != null) _colorSaturation = colorSaturation;
       if (fillOpacity != null) _fillOpacity = fillOpacity;
@@ -543,7 +542,7 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
             right: 0,
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -741,7 +740,7 @@ class _StyleSheetState extends State<_StyleSheet> {
         padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
         child: SingleChildScrollView(
           controller: scrollCtrl,
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+          padding: const EdgeInsets.fromLTRB(10, 16, 10, 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

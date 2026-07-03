@@ -385,7 +385,7 @@ class _MarketMapPerimeterPageState extends State<MarketMapPerimeterPage> {
                 ),
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(16),
                       child: buildCircuitMap(
@@ -400,7 +400,7 @@ class _MarketMapPerimeterPageState extends State<MarketMapPerimeterPage> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 16),
                   child: Row(
                     children: [
                       IconButton(

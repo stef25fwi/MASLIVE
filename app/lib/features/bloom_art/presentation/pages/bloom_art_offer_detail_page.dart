@@ -149,7 +149,7 @@ class _BloomArtOfferDetailPageState extends State<BloomArtOfferDetailPage> {
             builder: (context, itemSnapshot) {
               final item = itemSnapshot.data;
               return ListView(
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+                padding: const EdgeInsets.fromLTRB(10, 16, 10, 28),
                 children: <Widget>[
                   Container(
                     padding: const EdgeInsets.all(22),

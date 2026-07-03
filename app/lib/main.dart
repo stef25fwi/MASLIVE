@@ -24,10 +24,14 @@ import 'admin/mapmarket_projects_page.dart' deferred as adm_mapmarket;
 import 'admin/role_management_page.dart' deferred as adm_roles;
 import 'admin/super_admin_space.dart' deferred as adm_super;
 import 'commerce_module_single_file.dart' deferred as commerce;
-import 'features/bloom_art/presentation/pages/bloom_art_pages.dart' deferred as bloom_art;
-import 'features/map_style/presentation/pages/map_color_tuner_page.dart' deferred as map_color_tuner;
-import 'features/map_style/presentation/pages/mapbox_style_studio_page.dart' deferred as map_style_studio;
-import 'features/media_marketplace/presentation/pages/media_marketplace_pages.dart' deferred as media_market;
+import 'features/bloom_art/presentation/pages/bloom_art_pages.dart'
+    deferred as bloom_art;
+import 'features/map_style/presentation/pages/map_color_tuner_page.dart'
+    deferred as map_color_tuner;
+import 'features/map_style/presentation/pages/mapbox_style_studio_page.dart'
+    deferred as map_style_studio;
+import 'features/media_marketplace/presentation/pages/media_marketplace_pages.dart'
+    deferred as media_market;
 import 'features/shop/pages/media_photo_shop_page.dart' deferred as photo_shop;
 import 'firebase_options.dart';
 import 'l10n/app_localizations.dart';
@@ -67,13 +71,15 @@ import 'pages/public/marketmap_public_viewer_page.dart' deferred as public_map;
 import 'pages/purchase_history_page.dart' deferred as purchase_hist;
 import 'pages/seller/seller_inbox_page.dart' deferred as seller_inbox;
 import 'pages/seller/seller_order_detail_page.dart' deferred as seller_order;
-import 'pages/shop/storex_reviews_and_success_pages.dart' deferred as storex_reviews;
+import 'pages/shop/storex_reviews_and_success_pages.dart'
+    deferred as storex_reviews;
 import 'pages/tracking_live_page.dart' deferred as tracking;
 import 'pages/user_facing_shell_page.dart' deferred as user_shell;
 import 'pages/commerce/create_media_page.dart' deferred as create_media;
 import 'pages/commerce/create_product_page.dart' deferred as create_product;
 import 'pages/commerce/my_submissions_page.dart' deferred as my_submissions;
-import 'route_style_pro/ui/route_style_wizard_pro_page.dart' deferred as route_style_pro;
+import 'route_style_pro/ui/route_style_wizard_pro_page.dart'
+    deferred as route_style_pro;
 import 'providers/cart_provider.dart';
 import 'services/cart_checkout_service.dart';
 import 'services/cart_service.dart';
@@ -86,6 +92,7 @@ import 'session/session_controller.dart';
 import 'session/session_scope.dart';
 import 'ui/theme/maslive_theme.dart';
 import 'ui/widgets/honeycomb_background.dart';
+import 'utils/debug_log_buffer.dart';
 import 'utils/startup_trace.dart';
 import 'widgets/admin_route_guard.dart';
 import 'widgets/localized_app.dart';
@@ -121,6 +128,7 @@ void _reportStartupFatal(Object error, [StackTrace? stackTrace]) {
   final message = error.toString();
   _lastStartupFatalError = message;
   StartupTrace.log('BOOT', 'fatal startup error: $message');
+  DebugLogBuffer.logError(error, stackTrace, 'BOOT');
   debugPrint('❌ Startup fatal error: $message');
   if (stackTrace != null) {
     debugPrint('$stackTrace');
@@ -129,11 +137,13 @@ void _reportStartupFatal(Object error, [StackTrace? stackTrace]) {
 
 void _installStartupErrorHandling() {
   FlutterError.onError = (details) {
+    DebugLogBuffer.logError(details.exception, details.stack, 'FLUTTER');
     _reportStartupFatal(details.exception, details.stack);
     FlutterError.presentError(details);
   };
 
   PlatformDispatcher.instance.onError = (error, stackTrace) {
+    DebugLogBuffer.logError(error, stackTrace, 'RUNTIME');
     _reportStartupFatal(error, stackTrace);
     return false;
   };
@@ -179,6 +189,7 @@ void _installStartupErrorHandling() {
 Future<void> main() async {
   await runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
+    DebugLogBuffer.install();
     _installStartupErrorHandling();
     StartupTrace.log('MAIN', 'WidgetsFlutterBinding initialized');
 
@@ -558,7 +569,10 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
     // ── Maps ──
     case '/mapbox-web':
     case '/map-3d':
-      page = _DeferredLoader(load: mapbox_web.loadLibrary, build: () => mapbox_web.MapboxWebMapPage());
+      page = _DeferredLoader(
+        load: mapbox_web.loadLibrary,
+        build: () => mapbox_web.MapboxWebMapPage(),
+      );
       break;
 
     // ── Account ──
@@ -578,7 +592,10 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
       break;
     case '/account':
     case '/account-admin':
-      page = _DeferredLoader(load: account.loadLibrary, build: () => account.AccountAndAdminPage());
+      page = _DeferredLoader(
+        load: account.loadLibrary,
+        build: () => account.AccountAndAdminPage(),
+      );
       break;
     case '/login':
       page = _DeferredLoader(
@@ -601,118 +618,199 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
       break;
     case '/shop':
       final groupId = args is String ? args : 'groupe_demo';
-      page = _DeferredLoader(load: grp_shop.loadLibrary, build: () => grp_shop.GroupShopPage(groupId: groupId));
+      page = _DeferredLoader(
+        load: grp_shop.loadLibrary,
+        build: () => grp_shop.GroupShopPage(groupId: groupId),
+      );
       break;
     case '/boutique-photo':
-      page = _DeferredLoader(load: photo_shop.loadLibrary, build: () => photo_shop.MediaPhotoShopPage());
+      page = _DeferredLoader(
+        load: photo_shop.loadLibrary,
+        build: () => photo_shop.MediaPhotoShopPage(),
+      );
       break;
 
     // ── Storex (reviews / payment / tracker) ──
     case StorexRoutes.paymentComplete:
-      page = _DeferredLoader(load: storex_reviews.loadLibrary, build: () {
-        if (args is PaymentCompleteArgs) {
-          return storex_reviews.PaymentCompletePage(orderCode: args.orderCode, continueToRoute: args.continueToRoute);
-        }
-        return const _RouteArgsErrorPage(routeName: '/storex/paymentComplete');
-      });
+      page = _DeferredLoader(
+        load: storex_reviews.loadLibrary,
+        build: () {
+          if (args is PaymentCompleteArgs) {
+            return storex_reviews.PaymentCompletePage(
+              orderCode: args.orderCode,
+              continueToRoute: args.continueToRoute,
+            );
+          }
+          return const _RouteArgsErrorPage(
+            routeName: '/storex/paymentComplete',
+          );
+        },
+      );
       break;
     case StorexRoutes.reviews:
-      page = _DeferredLoader(load: storex_reviews.loadLibrary, build: () {
-        if (args is ReviewsArgs) {
-          return storex_reviews.ReviewsPage(productId: args.productId, productTitle: args.productTitle);
-        }
-        return const _RouteArgsErrorPage(routeName: '/storex/reviews');
-      });
+      page = _DeferredLoader(
+        load: storex_reviews.loadLibrary,
+        build: () {
+          if (args is ReviewsArgs) {
+            return storex_reviews.ReviewsPage(
+              productId: args.productId,
+              productTitle: args.productTitle,
+            );
+          }
+          return const _RouteArgsErrorPage(routeName: '/storex/reviews');
+        },
+      );
       break;
     case StorexRoutes.addReview:
-      page = _DeferredLoader(load: storex_reviews.loadLibrary, build: () {
-        if (args is AddReviewArgs) {
-          return storex_reviews.AddReviewPage(productId: args.productId, productTitle: args.productTitle);
-        }
-        return const _RouteArgsErrorPage(routeName: '/storex/addReview');
-      });
+      page = _DeferredLoader(
+        load: storex_reviews.loadLibrary,
+        build: () {
+          if (args is AddReviewArgs) {
+            return storex_reviews.AddReviewPage(
+              productId: args.productId,
+              productTitle: args.productTitle,
+            );
+          }
+          return const _RouteArgsErrorPage(routeName: '/storex/addReview');
+        },
+      );
       break;
     case StorexRoutes.orderTracker:
-      page = _DeferredLoader(load: storex_reviews.loadLibrary, build: () {
-        if (args is OrderTrackerArgs) {
-          return storex_reviews.OrderTrackerPage(orderId: args.orderId);
-        }
-        return const _RouteArgsErrorPage(routeName: '/storex/orderTracker');
-      });
+      page = _DeferredLoader(
+        load: storex_reviews.loadLibrary,
+        build: () {
+          if (args is OrderTrackerArgs) {
+            return storex_reviews.OrderTrackerPage(orderId: args.orderId);
+          }
+          return const _RouteArgsErrorPage(routeName: '/storex/orderTracker');
+        },
+      );
       break;
 
     // ── App / Group ──
     case '/app':
       final m = args is Map ? args : null;
       final groupId = m?['groupId'] as String? ?? 'groupe_demo';
-      page = _DeferredLoader(load: app_shell.loadLibrary, build: () => app_shell.AppShell(groupId: groupId));
+      page = _DeferredLoader(
+        load: app_shell.loadLibrary,
+        build: () => app_shell.AppShell(groupId: groupId),
+      );
       break;
     case '/group':
     case '/group-ui':
-      page = _DeferredLoader(load: grp_profile.loadLibrary, build: () => grp_profile.GroupProfilePage(groupId: 'groupe_demo'));
+      page = _DeferredLoader(
+        load: grp_profile.loadLibrary,
+        build: () => grp_profile.GroupProfilePage(groupId: 'groupe_demo'),
+      );
       break;
     case '/group-member':
       final m = args is Map ? args : null;
       final groupId = m?['groupId'] as String?;
-      page = _DeferredLoader(load: grp_member.loadLibrary, build: () => grp_member.GroupMemberPage(groupId: groupId));
+      page = _DeferredLoader(
+        load: grp_member.loadLibrary,
+        build: () => grp_member.GroupMemberPage(groupId: groupId),
+      );
       break;
     case '/group-admin':
-      page = _DeferredLoader(load: grp_admin.loadLibrary, build: () => grp_admin.AdminGroupDashboardPage());
+      page = _DeferredLoader(
+        load: grp_admin.loadLibrary,
+        build: () => grp_admin.AdminGroupDashboardPage(),
+      );
       break;
     case '/group-tracker':
-      page = _DeferredLoader(load: grp_tracker.loadLibrary, build: () => grp_tracker.TrackerGroupProfilePage());
+      page = _DeferredLoader(
+        load: grp_tracker.loadLibrary,
+        build: () => grp_tracker.TrackerGroupProfilePage(),
+      );
       break;
     case '/group-live':
       final m = args is Map ? args : null;
       final adminGroupId = (m?['adminGroupId'] as String?) ?? '000000';
-      page = _DeferredLoader(load: grp_live.loadLibrary, build: () => grp_live.GroupMapLivePage(adminGroupId: adminGroupId));
+      page = _DeferredLoader(
+        load: grp_live.loadLibrary,
+        build: () => grp_live.GroupMapLivePage(adminGroupId: adminGroupId),
+      );
       break;
     case '/group-history':
       final m = args is Map ? args : null;
       final adminGroupId = (m?['adminGroupId'] as String?) ?? '000000';
       final uid = m?['uid'] as String?;
-      page = _DeferredLoader(load: grp_history.loadLibrary, build: () => grp_history.GroupTrackHistoryPage(adminGroupId: adminGroupId, uid: uid));
+      page = _DeferredLoader(
+        load: grp_history.loadLibrary,
+        build: () => grp_history.GroupTrackHistoryPage(
+          adminGroupId: adminGroupId,
+          uid: uid,
+        ),
+      );
       break;
     case '/group-export':
       final m = args is Map ? args : null;
       final adminGroupId = (m?['adminGroupId'] as String?) ?? '000000';
       final uid = m?['uid'] as String?;
-      page = _DeferredLoader(load: grp_export.loadLibrary, build: () => grp_export.GroupExportPage(adminGroupId: adminGroupId, uid: uid));
+      page = _DeferredLoader(
+        load: grp_export.loadLibrary,
+        build: () =>
+            grp_export.GroupExportPage(adminGroupId: adminGroupId, uid: uid),
+      );
       break;
 
     // ── Orders / Seller ──
     case '/orders':
-      page = _DeferredLoader(load: orders.loadLibrary, build: () => orders.OrdersPage());
+      page = _DeferredLoader(
+        load: orders.loadLibrary,
+        build: () => orders.OrdersPage(),
+      );
       break;
     case '/seller-inbox':
-      page = _DeferredLoader(load: seller_inbox.loadLibrary, build: () => seller_inbox.SellerInboxPage());
+      page = _DeferredLoader(
+        load: seller_inbox.loadLibrary,
+        build: () => seller_inbox.SellerInboxPage(),
+      );
       break;
     case '/seller-order':
       final orderId = args is String ? args : null;
       if (orderId == null || orderId.trim().isEmpty) {
         page = const _RouteArgsErrorPage(routeName: '/seller-order');
       } else {
-        page = _DeferredLoader(load: seller_order.loadLibrary, build: () => seller_order.SellerOrderDetailPage(orderId: orderId));
+        page = _DeferredLoader(
+          load: seller_order.loadLibrary,
+          build: () => seller_order.SellerOrderDetailPage(orderId: orderId),
+        );
       }
       break;
 
     // ── Circuits ──
     case '/circuit-import-export':
-      page = _DeferredLoader(load: circuit_io.loadLibrary, build: () => circuit_io.CircuitImportExportPage());
+      page = _DeferredLoader(
+        load: circuit_io.loadLibrary,
+        build: () => circuit_io.CircuitImportExportPage(),
+      );
       break;
     case '/circuit-calculs':
-      page = _DeferredLoader(load: circuit_calc.loadLibrary, build: () => circuit_calc.CircuitCalculsValidationPage());
+      page = _DeferredLoader(
+        load: circuit_calc.loadLibrary,
+        build: () => circuit_calc.CircuitCalculsValidationPage(),
+      );
       break;
     case '/circuit-save':
-      page = _DeferredLoader(load: circuit_save.loadLibrary, build: () => circuit_save.CircuitSavePage());
+      page = _DeferredLoader(
+        load: circuit_save.loadLibrary,
+        build: () => circuit_save.CircuitSavePage(),
+      );
       break;
     case '/circuit-draw':
-      page = _DeferredLoader(load: circuit_draw.loadLibrary, build: () => circuit_draw.CircuitDrawPage());
+      page = _DeferredLoader(
+        load: circuit_draw.loadLibrary,
+        build: () => circuit_draw.CircuitDrawPage(),
+      );
       break;
 
     // ── Tracking / Search / Favorites ──
     case '/tracking':
-      page = _DeferredLoader(load: tracking.loadLibrary, build: () => tracking.TrackingLivePage());
+      page = _DeferredLoader(
+        load: tracking.loadLibrary,
+        build: () => tracking.TrackingLivePage(),
+      );
       break;
     case '/search':
       page = _DeferredLoader(
@@ -723,113 +821,243 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
       );
       break;
     case '/favorites':
-      page = _DeferredLoader(load: favorites.loadLibrary, build: () => favorites.FavoritesPage());
+      page = _DeferredLoader(
+        load: favorites.loadLibrary,
+        build: () => favorites.FavoritesPage(),
+      );
       break;
 
     // ── Cart / Paywall / Purchase ──
     case '/cart':
     case '/media-marketplace/cart':
-      page = _DeferredLoader(load: cart.loadLibrary, build: () => cart.UnifiedCartPage());
+      page = _DeferredLoader(
+        load: cart.loadLibrary,
+        build: () => cart.UnifiedCartPage(),
+      );
       break;
     case '/paywall':
-      page = _DeferredLoader(load: paywall.loadLibrary, build: () => paywall.PaywallPage());
+      page = _DeferredLoader(
+        load: paywall.loadLibrary,
+        build: () => paywall.PaywallPage(),
+      );
       break;
     case '/pending-products':
-      page = _DeferredLoader(load: pending_prod.loadLibrary, build: () => pending_prod.PendingProductsPage());
+      page = _DeferredLoader(
+        load: pending_prod.loadLibrary,
+        build: () => pending_prod.PendingProductsPage(),
+      );
       break;
     case '/purchase-history':
-      page = _DeferredLoader(load: purchase_hist.loadLibrary, build: () => purchase_hist.PurchaseHistoryPage());
+      page = _DeferredLoader(
+        load: purchase_hist.loadLibrary,
+        build: () => purchase_hist.PurchaseHistoryPage(),
+      );
       break;
 
     // ── Business ──
     case '/business':
-      page = _DeferredLoader(load: biz_account.loadLibrary, build: () => biz_account.BusinessAccountPage());
+      page = _DeferredLoader(
+        load: biz_account.loadLibrary,
+        build: () => biz_account.BusinessAccountPage(),
+      );
       break;
     case '/business-request':
-      page = _DeferredLoader(load: biz_request.loadLibrary, build: () => biz_request.BusinessRequestPage());
+      page = _DeferredLoader(
+        load: biz_request.loadLibrary,
+        build: () => biz_request.BusinessRequestPage(),
+      );
       break;
 
     // ── Commerce ──
     case '/commerce/create-product':
-      page = _DeferredLoader(load: create_product.loadLibrary, build: () => create_product.CreateProductPage());
+      page = _DeferredLoader(
+        load: create_product.loadLibrary,
+        build: () => create_product.CreateProductPage(),
+      );
       break;
     case '/commerce/create-media':
-      page = _DeferredLoader(load: create_media.loadLibrary, build: () => create_media.CreateMediaPage());
+      page = _DeferredLoader(
+        load: create_media.loadLibrary,
+        build: () => create_media.CreateMediaPage(),
+      );
       break;
     case '/commerce/my-submissions':
-      page = _DeferredLoader(load: my_submissions.loadLibrary, build: () => my_submissions.MySubmissionsPage());
+      page = _DeferredLoader(
+        load: my_submissions.loadLibrary,
+        build: () => my_submissions.MySubmissionsPage(),
+      );
       break;
 
     // ── Admin ──
     case '/admin':
-      page = AdminRouteGuard(child: _DeferredLoader(load: adm_main.loadLibrary, build: () => adm_main.AdminMainDashboard()));
+      page = AdminRouteGuard(
+        child: _DeferredLoader(
+          load: adm_main.loadLibrary,
+          build: () => adm_main.AdminMainDashboard(),
+        ),
+      );
       break;
     case '/admin/circuits':
-      page = AdminRouteGuard(child: _DeferredLoader(load: adm_circuits.loadLibrary, build: () => adm_circuits.AdminCircuitsPage()));
+      page = AdminRouteGuard(
+        child: _DeferredLoader(
+          load: adm_circuits.loadLibrary,
+          build: () => adm_circuits.AdminCircuitsPage(),
+        ),
+      );
       break;
     case '/admin/track-editor':
-      page = AdminRouteGuard(child: _DeferredLoader(load: circuit_editor.loadLibrary, build: () => circuit_editor.CircuitEditorWorkflowPage()));
+      page = AdminRouteGuard(
+        child: _DeferredLoader(
+          load: circuit_editor.loadLibrary,
+          build: () => circuit_editor.CircuitEditorWorkflowPage(),
+        ),
+      );
       break;
     case '/admin/map-library':
-      page = AdminRouteGuard(child: _DeferredLoader(load: adm_map_lib.loadLibrary, build: () => adm_map_lib.MapProjectsLibraryPage()));
+      page = AdminRouteGuard(
+        child: _DeferredLoader(
+          load: adm_map_lib.loadLibrary,
+          build: () => adm_map_lib.MapProjectsLibraryPage(),
+        ),
+      );
       break;
     case '/admin/mapmarket':
-      page = AdminRouteGuard(child: _DeferredLoader(load: adm_mapmarket.loadLibrary, build: () => adm_mapmarket.MapMarketProjectsPage()));
+      page = AdminRouteGuard(
+        child: _DeferredLoader(
+          load: adm_mapmarket.loadLibrary,
+          build: () => adm_mapmarket.MapMarketProjectsPage(),
+        ),
+      );
       break;
     case '/admin/mapmarket/wizard':
-      page = AdminRouteGuard(child: _DeferredLoader(load: adm_map_wiz.loadLibrary, build: () => adm_map_wiz.MapProjectWizardEntryPage()));
+      page = AdminRouteGuard(
+        child: _DeferredLoader(
+          load: adm_map_wiz.loadLibrary,
+          build: () => adm_map_wiz.MapProjectWizardEntryPage(),
+        ),
+      );
       break;
     case '/admin/marketmap-debug':
-      page = AdminRouteGuard(child: _DeferredLoader(load: adm_market_debug.loadLibrary, build: () => adm_market_debug.MarketMapDebugPage()));
+      page = AdminRouteGuard(
+        child: _DeferredLoader(
+          load: adm_market_debug.loadLibrary,
+          build: () => adm_market_debug.MarketMapDebugPage(),
+        ),
+      );
       break;
     case '/admin/circuit-wizard':
-      page = AdminRouteGuard(child: _DeferredLoader(load: adm_circuit_wiz.loadLibrary, build: () => adm_circuit_wiz.CircuitWizardEntryPage()));
+      page = AdminRouteGuard(
+        child: _DeferredLoader(
+          load: adm_circuit_wiz.loadLibrary,
+          build: () => adm_circuit_wiz.CircuitWizardEntryPage(),
+        ),
+      );
       break;
     case '/admin/mapbox-style-studio':
-      page = AdminRouteGuard(child: _DeferredLoader(load: map_style_studio.loadLibrary, build: () => map_style_studio.MapboxStyleStudioPage()));
+      page = AdminRouteGuard(
+        child: _DeferredLoader(
+          load: map_style_studio.loadLibrary,
+          build: () => map_style_studio.MapboxStyleStudioPage(),
+        ),
+      );
       break;
     case '/admin/map-color-tuner':
-      page = AdminRouteGuard(child: _DeferredLoader(load: map_color_tuner.loadLibrary, build: () => map_color_tuner.MapColorTunerPage()));
+      page = AdminRouteGuard(
+        child: _DeferredLoader(
+          load: map_color_tuner.loadLibrary,
+          build: () => map_color_tuner.MapColorTunerPage(),
+        ),
+      );
       break;
     case '/admin/route-style-pro':
-      page = AdminRouteGuard(child: _DeferredLoader(load: route_style_pro.loadLibrary, build: () {
-        if (args is RouteStyleProArgs) {
-          return route_style_pro.RouteStyleWizardProPage(
-            projectId: args.projectId,
-            circuitId: args.circuitId,
-            initialRoute: args.initialRoute,
-            initialStyleUrl: args.initialStyleUrl,
-          );
-        }
-        return route_style_pro.RouteStyleWizardProPage();
-      }));
+      page = AdminRouteGuard(
+        child: _DeferredLoader(
+          load: route_style_pro.loadLibrary,
+          build: () {
+            if (args is RouteStyleProArgs) {
+              return route_style_pro.RouteStyleWizardProPage(
+                projectId: args.projectId,
+                circuitId: args.circuitId,
+                initialRoute: args.initialRoute,
+                initialStyleUrl: args.initialStyleUrl,
+              );
+            }
+            return route_style_pro.RouteStyleWizardProPage();
+          },
+        ),
+      );
       break;
     case '/admin/superadmin':
-      page = AdminRouteGuard(child: _DeferredLoader(load: adm_super.loadLibrary, build: () => adm_super.SuperAdminSpace()));
+      page = AdminRouteGuard(
+        child: _DeferredLoader(
+          load: adm_super.loadLibrary,
+          build: () => adm_super.SuperAdminSpace(),
+        ),
+      );
       break;
     case '/admin/categories':
-      page = AdminRouteGuard(child: _DeferredLoader(load: adm_categories.loadLibrary, build: () => adm_categories.CategoryManagementPage()));
+      page = AdminRouteGuard(
+        child: _DeferredLoader(
+          load: adm_categories.loadLibrary,
+          build: () => adm_categories.CategoryManagementPage(),
+        ),
+      );
       break;
     case '/admin/roles':
-      page = AdminRouteGuard(child: _DeferredLoader(load: adm_roles.loadLibrary, build: () => adm_roles.RoleManagementPage()));
+      page = AdminRouteGuard(
+        child: _DeferredLoader(
+          load: adm_roles.loadLibrary,
+          build: () => adm_roles.RoleManagementPage(),
+        ),
+      );
       break;
     case '/admin/business-requests':
-      page = AdminRouteGuard(child: _DeferredLoader(load: adm_biz_req.loadLibrary, build: () => adm_biz_req.BusinessRequestsPage()));
+      page = AdminRouteGuard(
+        child: _DeferredLoader(
+          load: adm_biz_req.loadLibrary,
+          build: () => adm_biz_req.BusinessRequestsPage(),
+        ),
+      );
       break;
     case '/admin/commerce':
-      page = AdminRouteGuard(child: _DeferredLoader(load: commerce.loadLibrary, build: () => commerce.ProductManagementPage(shopId: 'global')));
+      page = AdminRouteGuard(
+        child: _DeferredLoader(
+          load: commerce.loadLibrary,
+          build: () => commerce.ProductManagementPage(shopId: 'global'),
+        ),
+      );
       break;
     case '/admin/moderation':
-      page = AdminRouteGuard(child: _DeferredLoader(load: adm_moderation.loadLibrary, build: () => adm_moderation.AdminModerationPage()));
+      page = AdminRouteGuard(
+        child: _DeferredLoader(
+          load: adm_moderation.loadLibrary,
+          build: () => adm_moderation.AdminModerationPage(),
+        ),
+      );
       break;
     case '/admin/commerce-analytics':
-      page = AdminRouteGuard(child: _DeferredLoader(load: adm_com_analytics.loadLibrary, build: () => adm_com_analytics.CommerceAnalyticsPage()));
+      page = AdminRouteGuard(
+        child: _DeferredLoader(
+          load: adm_com_analytics.loadLibrary,
+          build: () => adm_com_analytics.CommerceAnalyticsPage(),
+        ),
+      );
       break;
     case '/admin/media-marketplace/moderation':
-      page = AdminRouteGuard(child: _DeferredLoader(load: media_market.loadLibrary, build: () => media_market.AdminModerationQueuePage()));
+      page = AdminRouteGuard(
+        child: _DeferredLoader(
+          load: media_market.loadLibrary,
+          build: () => media_market.AdminModerationQueuePage(),
+        ),
+      );
       break;
     case '/map-admin':
-      page = AdminRouteGuard(child: _DeferredLoader(load: map_admin.loadLibrary, build: () => map_admin.MapAdminEditorPage()));
+      page = AdminRouteGuard(
+        child: _DeferredLoader(
+          load: map_admin.loadLibrary,
+          build: () => map_admin.MapAdminEditorPage(),
+        ),
+      );
       break;
 
     // ── Media Marketplace ──
@@ -844,44 +1072,61 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
           : <String, dynamic>{'tab': 'media'};
       page = _DeferredLoader(
         load: user_shell.loadLibrary,
-        build: () => user_shell.UserFacingShellPage(
-          initialTab: mediaInitialTab,
-        ),
+        build: () =>
+            user_shell.UserFacingShellPage(initialTab: mediaInitialTab),
       );
       break;
     case '/media-marketplace/success':
-      page = _MediaMarketplaceCheckoutReturnPage(succeeded: true, orderId: _routeQueryParam('orderId'));
+      page = _MediaMarketplaceCheckoutReturnPage(
+        succeeded: true,
+        orderId: _routeQueryParam('orderId'),
+      );
       break;
     case '/media-marketplace/cancel':
-      page = _MediaMarketplaceCheckoutReturnPage(succeeded: false, orderId: _routeQueryParam('orderId'));
+      page = _MediaMarketplaceCheckoutReturnPage(
+        succeeded: false,
+        orderId: _routeQueryParam('orderId'),
+      );
       break;
     case '/media-marketplace/downloads':
-      page = _DeferredLoader(load: media_market.loadLibrary, build: () => media_market.MediaDownloadsPage());
+      page = _DeferredLoader(
+        load: media_market.loadLibrary,
+        build: () => media_market.MediaDownloadsPage(),
+      );
       break;
     case '/media-marketplace/photographer':
-      page = _DeferredLoader(load: media_market.loadLibrary, build: () => media_market.PhotographerDashboardPage());
+      page = _DeferredLoader(
+        load: media_market.loadLibrary,
+        build: () => media_market.PhotographerDashboardPage(),
+      );
       break;
     case '/media-marketplace/subscription':
-      page = _DeferredLoader(load: media_market.loadLibrary, build: () => media_market.PhotographerSubscriptionPage());
+      page = _DeferredLoader(
+        load: media_market.loadLibrary,
+        build: () => media_market.PhotographerSubscriptionPage(),
+      );
       break;
 
     // ── Public ──
     case '/public/marketmap':
-      page = _DeferredLoader(load: public_map.loadLibrary, build: () {
-        if (args is Map) {
-          final countryId = args['countryId'] as String?;
-          final eventId = args['eventId'] as String?;
-          if (countryId != null && eventId != null) {
-            return public_map.MarketMapPublicViewerPage(
-              countryId: countryId,
-              eventId: eventId,
-              initialCircuitId: args['initialCircuitId'] as String?,
-              accessToken: args['accessToken'] as String?,
-            );
+      page = _DeferredLoader(
+        load: public_map.loadLibrary,
+        build: () {
+          if (args is Map) {
+            final countryId = args['countryId'] as String?;
+            final eventId = args['eventId'] as String?;
+            if (countryId != null && eventId != null) {
+              return public_map.MarketMapPublicViewerPage(
+                countryId: countryId,
+                eventId: eventId,
+                initialCircuitId: args['initialCircuitId'] as String?,
+                accessToken: args['accessToken'] as String?,
+              );
+            }
           }
-        }
-        return const _RouteArgsErrorPage(routeName: '/public/marketmap');
-      });
+          return const _RouteArgsErrorPage(routeName: '/public/marketmap');
+        },
+      );
       break;
   }
 
@@ -902,7 +1147,7 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
 /// le widget final via [build].
 class _DeferredLoader extends StatelessWidget {
   const _DeferredLoader({required this.load, required Widget Function() build})
-      : _buildPage = build;
+    : _buildPage = build;
   final Future<void> Function() load;
   final Widget Function() _buildPage;
   @override
@@ -913,9 +1158,7 @@ class _DeferredLoader extends StatelessWidget {
         if (snap.connectionState == ConnectionState.done && !snap.hasError) {
           return _buildPage();
         }
-        return const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        );
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
       },
     );
   }

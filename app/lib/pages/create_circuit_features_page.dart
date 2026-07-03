@@ -173,7 +173,7 @@ class _CreateCircuitFeaturesPageState extends State<CreateCircuitFeaturesPage> {
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 10, 18, 28),
+                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 28),
                   child: Column(
                     children: [
                       for (int i = 0; i < sections.length; i++) ...[

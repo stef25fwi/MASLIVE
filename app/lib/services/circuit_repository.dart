@@ -311,7 +311,12 @@ class CircuitRepository {
 
     final previousRouteCount = (existingCurrent['route'] as List?)?.length ?? 0;
     final previousPoiCount =
-        (await projectRef.collection('pois').get()).docs.length;
+        await _countPublishedPois(
+          countryId: countryId,
+          eventId: eventId,
+          circuitId: circuitId,
+          fallbackProjectRef: projectRef,
+        );
 
     await saveDraft(
       projectId: projectId,
@@ -1103,15 +1108,64 @@ class CircuitRepository {
     int pageSize = 100,
     DocumentSnapshot<Map<String, dynamic>>? startAfter,
   }) {
-    Query<Map<String, dynamic>> query = _projects
-        .doc(projectId)
-        .collection('pois')
-        .orderBy('name')
-        .limit(pageSize);
-    if (startAfter != null) {
-      query = query.startAfterDocument(startAfter);
+    Future<QuerySnapshot<Map<String, dynamic>>> queryCollection(
+      CollectionReference<Map<String, dynamic>> collection,
+    ) async {
+      Query<Map<String, dynamic>> query = collection
+          .orderBy('name')
+          .limit(pageSize);
+      if (startAfter != null) {
+        query = query.startAfterDocument(startAfter);
+      }
+      return query.get();
     }
-    return query.get();
+
+    return _resolvePublishedPoisCollection(projectId)
+        .then((collection) async {
+          if (collection != null) {
+            try {
+              return await queryCollection(collection);
+            } catch (_) {
+              // Si le chemin publié n'est pas encore lisible, on retombe sur le legacy.
+            }
+          }
+
+          return queryCollection(_projects.doc(projectId).collection('pois'));
+        });
+  }
+
+  Future<CollectionReference<Map<String, dynamic>>?>
+  _resolvePublishedPoisCollection(String projectId) async {
+    final projectSnap = await _projects.doc(projectId).get();
+    if (!projectSnap.exists) return null;
+
+    final data = projectSnap.data() ?? const <String, dynamic>{};
+    final current = data['current'];
+    final currentMap = current is Map
+        ? Map<String, dynamic>.from(current)
+        : const <String, dynamic>{};
+
+    final countryId =
+        (currentMap['countryId'] ?? data['countryId'] ?? '').toString().trim();
+    final eventId =
+        (currentMap['eventId'] ?? data['eventId'] ?? '').toString().trim();
+    final circuitId =
+        (currentMap['circuitId'] ?? data['circuitId'] ?? projectId)
+            .toString()
+            .trim();
+
+    if (countryId.isEmpty || eventId.isEmpty || circuitId.isEmpty) {
+      return null;
+    }
+
+    return _firestore
+        .collection('marketMap')
+        .doc(countryId)
+        .collection('events')
+        .doc(eventId)
+        .collection('circuits')
+        .doc(circuitId)
+        .collection('pois');
   }
 
   Future<void> _syncLayersBatch({
@@ -1144,35 +1198,33 @@ class CircuitRepository {
     }
   }
 
-  Future<void> _syncPoisBatch({
-    required WriteBatch batch,
-    required String projectId,
-    required List<MarketMapPOI> pois,
+  Future<int> _countPublishedPois({
+    required String countryId,
+    required String eventId,
+    required String circuitId,
+    required DocumentReference<Map<String, dynamic>> fallbackProjectRef,
   }) async {
-    final col = _projects.doc(projectId).collection('pois');
-    final snap = await col.get();
-    final existing = {for (final d in snap.docs) d.id: d};
-    final incomingIds = <String>{};
-
-    for (final poi in pois) {
-      final id = poi.id.trim().isEmpty
-          ? 'poi_${poi.layerType}_${poi.lng.toStringAsFixed(5)}_${poi.lat.toStringAsFixed(5)}'
-          : poi.id.trim();
-      incomingIds.add(id);
-      final layerId = (poi.layerId ?? poi.layerType).trim();
-      final data = {...poi.toFirestore(), 'layerId': layerId, 'isVisible': poi.isVisible};
-      final ref = col.doc(id);
-      final old = existing[id]?.data();
-      if (!_mapsShallowEqual(old, data)) {
-        batch.set(ref, data, SetOptions(merge: true));
+    if (countryId.trim().isNotEmpty &&
+        eventId.trim().isNotEmpty &&
+        circuitId.trim().isNotEmpty) {
+      try {
+        final snap = await _firestore
+            .collection('marketMap')
+            .doc(countryId.trim())
+            .collection('events')
+            .doc(eventId.trim())
+            .collection('circuits')
+            .doc(circuitId.trim())
+            .collection('pois')
+            .get();
+        return snap.docs.length;
+      } catch (_) {
+        // Fallback legacy si le chemin publié est indisponible.
       }
     }
 
-    for (final doc in snap.docs) {
-      if (!incomingIds.contains(doc.id)) {
-        batch.delete(doc.reference);
-      }
-    }
+    final snap = await fallbackProjectRef.collection('pois').get();
+    return snap.docs.length;
   }
 
   Future<void> _syncMarketLayersBatch({

@@ -24,7 +24,7 @@ class BloomArtCtaButton extends StatelessWidget {
         elevation: 0,
         backgroundColor: const Color(0xFF171717),
         foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         textStyle: const TextStyle(
           fontSize: 15,

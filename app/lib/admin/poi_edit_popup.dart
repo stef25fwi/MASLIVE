@@ -423,7 +423,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                 : Container(
                     color: Colors.black12,
                     alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
                     child: const Text(
                       'Saisissez des coordonnees valides pour afficher la carte.',
                       textAlign: TextAlign.center,

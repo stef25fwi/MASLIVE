@@ -2764,15 +2764,25 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
         _normalizePoiLayerType(layer.type);
   }
 
-  Future<void> _migrateLegacyPoiTypesToVisit({
-    required String projectId,
-  }) async {
+  Future<void> _migratePoiTypesToVisitPublished() async {
     if (!_canWriteMapProjects) return;
 
     final db = FirebaseFirestore.instance;
-    final col = db.collection('map_projects').doc(projectId).collection('pois');
+    final countryId = _countryController.text.trim();
+    final eventId = _eventController.text.trim();
+    final circuitId = _effectiveMarketCircuitId;
+    if (countryId.isEmpty || eventId.isEmpty || circuitId.isEmpty) return;
 
-    // Migration ciblée (pas de scan complet): tour/visiter -> visit
+    final col = db
+        .collection('marketMap')
+        .doc(countryId)
+        .collection('events')
+        .doc(eventId)
+        .collection('circuits')
+        .doc(circuitId)
+        .collection('pois');
+
+    // Migration ciblée (pas de scan complet): tour/visiter -> visit.
     final snap = await col
         .where('layerType', whereIn: const ['tour', 'visiter'])
         .get();
@@ -2807,9 +2817,14 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     final projectId = _projectId;
     if (projectId == null || projectId.trim().isEmpty) return;
 
+    final countryId = _countryController.text.trim();
+    final eventId = _eventController.text.trim();
+    final circuitId = _effectiveMarketCircuitId;
+    if (countryId.isEmpty || eventId.isEmpty || circuitId.isEmpty) return;
+
     // 1) Migration POI legacy (pour cohérence avec Home: visit)
     try {
-      await _migrateLegacyPoiTypesToVisit(projectId: projectId);
+      await _migratePoiTypesToVisitPublished();
     } catch (e) {
       debugPrint('WizardPro migrate POI types error: $e');
     }

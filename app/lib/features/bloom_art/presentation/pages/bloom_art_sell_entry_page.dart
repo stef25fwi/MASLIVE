@@ -130,7 +130,7 @@ class _BloomArtSellEntryPageState extends State<BloomArtSellEntryPage> {
             : Stack(
                 children: <Widget>[
                   ListView(
-                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+                    padding: const EdgeInsets.fromLTRB(10, 16, 10, 28),
                     children: <Widget>[
                       Container(
                         padding: const EdgeInsets.all(22),

@@ -333,7 +333,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   children: [
                     // Photo / galerie sous le header (scrollable)
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+                      padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(24),
                         child: SizedBox(
@@ -351,7 +351,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 196),
+                      padding: const EdgeInsets.fromLTRB(10, 10, 10, 196),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -777,7 +777,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
           gradient: enabled

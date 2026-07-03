@@ -683,7 +683,7 @@ class _SyncStatusBanner extends StatelessWidget {
     required String subtitle,
   }) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.fromLTRB(10, 16, 10, 0),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(

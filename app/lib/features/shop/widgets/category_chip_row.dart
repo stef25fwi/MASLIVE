@@ -33,7 +33,7 @@ class CategoryChipRow extends StatelessWidget {
               : (isSelected ? const Color(0xFF111111) : const Color(0xFF3F3F3F));
 
           return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             decoration: BoxDecoration(
               color: background,
               borderRadius: BorderRadius.circular(999),

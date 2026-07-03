@@ -83,7 +83,7 @@ class _UserProfilePreviewPageState extends State<UserProfilePreviewPage> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Row(
                     children: [
                       Expanded(

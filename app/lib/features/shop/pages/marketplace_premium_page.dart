@@ -18,7 +18,7 @@ class MarketplacePremiumPage extends StatelessWidget {
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
+                padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
@@ -294,7 +294,7 @@ class _MerchProductCard extends StatelessWidget {
                 ),
                 Positioned.fill(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 22, 16, 16),
+                    padding: const EdgeInsets.fromLTRB(10, 22, 10, 16),
                     child: Center(
                       child: Image.asset(
                         imageUrl,

@@ -155,7 +155,7 @@ class _BloomArtJeMeLanceFormPageState
           : Form(
               key: _formKey,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+                padding: const EdgeInsets.fromLTRB(10, 16, 10, 28),
                 children: <Widget>[
                   const _BloomArtLaunchHero(),
                   const SizedBox(height: 18),

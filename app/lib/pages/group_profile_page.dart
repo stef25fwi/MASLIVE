@@ -30,7 +30,7 @@ class _GroupProfilePageState extends State<GroupProfilePage> {
             children: [
               MasliveGradientHeader(
                 height: 250,
-                padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
+                padding: const EdgeInsets.fromLTRB(10, 48, 10, 16),
                 child: Column(
                   children: [
                     Row(
@@ -92,8 +92,8 @@ class _GroupProfilePageState extends State<GroupProfilePage> {
                               ),
                             ),
                             Positioned(
-                              left: 14,
-                              right: 14,
+                              left: 10,
+                              right: 10,
                               bottom: 12,
                               child: Row(
                                 children: [
@@ -144,7 +144,7 @@ class _GroupProfilePageState extends State<GroupProfilePage> {
               ),
 
               Container(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+                padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
                 child: TabBar(
                   indicatorSize: TabBarIndicatorSize.tab,
                   indicator: BoxDecoration(
@@ -193,7 +193,7 @@ class _AboutTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 18),
       children: [
         MasliveCard(
           radius: 20,
@@ -266,7 +266,7 @@ class _PlanningTab extends StatelessWidget {
     ];
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 18),
       itemCount: items.length,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, i) {
@@ -324,7 +324,7 @@ class _MediaTab extends StatelessWidget {
     ];
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 18),
       child: GridView.builder(
         itemCount: assets.length,
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -367,7 +367,7 @@ class _MembersTab extends StatelessWidget {
     ];
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 18),
       itemCount: members.length,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, i) {

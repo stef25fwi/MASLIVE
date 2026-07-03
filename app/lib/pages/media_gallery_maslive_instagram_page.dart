@@ -987,7 +987,7 @@ class _FiltersSheetMasliveState extends State<_FiltersSheetMaslive> {
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+        padding: const EdgeInsets.fromLTRB(10, 10, 10, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

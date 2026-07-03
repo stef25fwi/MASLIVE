@@ -314,7 +314,7 @@ class _MasliveUltraPremiumCheckoutPageState
                     ? const _EmptyCheckoutView()
                     : ListView(
                         physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(18, 18, 18, 250),
+                        padding: const EdgeInsets.fromLTRB(10, 18, 10, 250),
                         children: [
                           _HeroSummaryCard(
                             totalItems: totalQuantity,
@@ -669,7 +669,7 @@ class _CheckoutTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+      padding: const EdgeInsets.fromLTRB(10, 16, 10, 18),
       decoration: const BoxDecoration(gradient: _premiumHeaderGradient),
       child: SafeArea(
         bottom: false,
@@ -1504,7 +1504,7 @@ class _CheckoutBottomBar extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+          padding: const EdgeInsets.fromLTRB(10, 16, 10, 16),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.90),
             borderRadius: BorderRadius.circular(30),

@@ -30,7 +30,7 @@ class ShopAppHeader extends StatelessWidget {
     final double sideWidth = showSearch && showBag ? 76 : 40;
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(18, compact ? 6 : 8, 18, 4),
+      padding: EdgeInsets.fromLTRB(10, compact ? 6 : 8, 10, 4),
       child: Column(
         children: <Widget>[
           SizedBox(

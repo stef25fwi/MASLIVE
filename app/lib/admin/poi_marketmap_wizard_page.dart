@@ -923,7 +923,7 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          padding: const EdgeInsets.fromLTRB(10, 16, 10, 0),
           child: _CircuitStyleSelector(
             countryId: country.id,
             eventId: event.id,

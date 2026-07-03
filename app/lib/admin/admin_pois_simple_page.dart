@@ -41,8 +41,8 @@ class _AdminPOIsSimplePageState extends State<AdminPOIsSimplePage> {
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
+            margin: const EdgeInsets.fromLTRB(10, 16, 10, 0),
             decoration: BoxDecoration(
               color: Colors.orange.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(12),

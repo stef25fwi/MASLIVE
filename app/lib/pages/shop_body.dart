@@ -431,7 +431,7 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
 
         // LISTE D'ARTICLES (scroll vertical)
         SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           sliver: SliverToBoxAdapter(
             child: Row(children: [Text("Articles", style: h1)]),
           ),
@@ -649,7 +649,7 @@ class _ChipPill extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(999),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         decoration: BoxDecoration(
           gradient: bg,
           color: selected ? null : Colors.white.withValues(alpha: 0.45),
@@ -695,7 +695,7 @@ class _GroupDropdown extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       child: Container(
         height: 54,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.70),
           borderRadius: BorderRadius.circular(18),

@@ -161,7 +161,7 @@ class _BloomArtArtistCreatorFormPageState
           : Form(
               key: _formKey,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+                padding: const EdgeInsets.fromLTRB(10, 16, 10, 28),
                 children: <Widget>[
                   const _BloomArtFormHero(
                     title: 'Confirmez votre statut vendeur',

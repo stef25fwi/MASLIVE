@@ -236,7 +236,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                        _filterActive != null;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -419,7 +419,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
     final isCurrentUser = _currentUser?.uid == user.uid;
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: MasLiveTheme.getRoleColor(user.role),

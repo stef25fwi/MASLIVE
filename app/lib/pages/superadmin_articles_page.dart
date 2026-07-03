@@ -80,7 +80,7 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
             ),
             // Liste des articles
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
               sliver: StreamBuilder<List<SuperadminArticle>>(
                 stream: _articleService.streamActiveArticles(
                   category: _selectedCategory == 'tous'

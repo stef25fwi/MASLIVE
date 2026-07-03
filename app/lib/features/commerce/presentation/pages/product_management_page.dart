@@ -77,7 +77,7 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
               child: Column(
                 children: [
                   Container(
-                    padding: EdgeInsets.fromLTRB(16, topPad + 12, 16, 12),
+                    padding: EdgeInsets.fromLTRB(10, topPad + 12, 10, 12),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       boxShadow: [
@@ -141,7 +141,7 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                    padding: const EdgeInsets.fromLTRB(10, 14, 10, 10),
                     child: TextField(
                       controller: searchCtrl,
                       decoration: InputDecoration(
@@ -157,7 +157,7 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
                     child: ProductFiltersBar(controller: c),
                   ),
                   Expanded(
@@ -189,7 +189,7 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                                 : (w >= 800 ? 3 : (w >= 520 ? 2 : 1));
 
                             return Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                              padding: const EdgeInsets.fromLTRB(10, 0, 10, 16),
                               child: GridView.builder(
                                 gridDelegate:
                                     SliverGridDelegateWithFixedCrossAxisCount(
@@ -699,12 +699,12 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
     return Dialog(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.white,
-      insetPadding: const EdgeInsets.all(16),
+      insetPadding: const EdgeInsets.all(10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 640),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          padding: const EdgeInsets.fromLTRB(10, 14, 10, 14),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1044,12 +1044,12 @@ class _ProductImagesEditorDialogState
     return Dialog(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.white,
-      insetPadding: const EdgeInsets.all(16),
+      insetPadding: const EdgeInsets.all(10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 720),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          padding: const EdgeInsets.fromLTRB(10, 14, 10, 14),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1226,7 +1226,7 @@ class _StockQuickEditorDialogState extends State<StockQuickEditorDialog> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          padding: const EdgeInsets.fromLTRB(10, 14, 10, 14),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1511,7 +1511,7 @@ Future<T?> _pickFromMenu<T>(
     builder: (_) {
       return SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+          padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

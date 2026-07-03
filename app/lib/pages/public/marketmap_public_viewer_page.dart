@@ -1316,7 +1316,7 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
           ..sort((a, b) => a.label.compareTo(b.label));
 
         return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
+          padding: const EdgeInsets.fromLTRB(10, 10, 10, 18),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

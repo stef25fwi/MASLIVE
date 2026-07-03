@@ -196,7 +196,7 @@ class _CreateCircuitStep1DialogState extends State<CreateCircuitStep1Dialog> {
     final maxWidth = MediaQuery.of(context).size.width;
 
     return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 24),
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth),
         child: Padding(

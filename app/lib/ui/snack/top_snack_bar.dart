@@ -27,7 +27,7 @@ class TopSnackBar {
           dismissDirection: DismissDirection.up,
           duration: snackBar.duration,
           elevation: snackBar.elevation,
-          margin: EdgeInsets.fromLTRB(16, top, 16, bottom),
+          margin: EdgeInsets.fromLTRB(10, top, 10, bottom),
           onVisible: snackBar.onVisible,
           padding: snackBar.padding,
           shape: snackBar.shape,

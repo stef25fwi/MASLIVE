@@ -110,7 +110,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                   }
 
                   return ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
                     itemCount: categories.length,
                     itemBuilder: (context, index) {
                       final category = categories[index];

@@ -37,7 +37,7 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            padding: const EdgeInsets.fromLTRB(10, 16, 10, 0),
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
@@ -125,7 +125,7 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
                   itemCount: circuits.length,
                   itemBuilder: (context, index) {
                     final circuit = circuits[index];

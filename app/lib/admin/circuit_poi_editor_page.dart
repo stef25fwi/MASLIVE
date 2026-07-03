@@ -296,13 +296,23 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
         _normalizePoiLayerType(layer.type);
   }
 
-  Future<void> _migrateLegacyPoiTypesToVisit({
-    required String projectId,
-  }) async {
+  Future<void> _migratePoiTypesToVisitPublished() async {
     if (!_canWriteMapProjects) return;
 
     final db = FirebaseFirestore.instance;
-    final col = db.collection('map_projects').doc(projectId).collection('pois');
+    final countryId = widget.countryId.trim();
+    final eventId = widget.eventId.trim();
+    final circuitId = widget.circuitId.trim();
+    if (countryId.isEmpty || eventId.isEmpty || circuitId.isEmpty) return;
+
+    final col = db
+        .collection('marketMap')
+        .doc(countryId)
+        .collection('events')
+        .doc(eventId)
+        .collection('circuits')
+        .doc(circuitId)
+        .collection('pois');
 
     final snap = await col
         .where('layerType', whereIn: const ['tour', 'visiter'])
@@ -338,7 +348,7 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
     if (projectId.trim().isEmpty) return;
 
     try {
-      await _migrateLegacyPoiTypesToVisit(projectId: projectId);
+      await _migratePoiTypesToVisitPublished();
     } catch (e) {
       debugPrint('PoiEditor migrate POI types error: $e');
     }
@@ -771,7 +781,9 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
       if (!mounted) return;
       TopSnackBar.show(
         context,
-        SnackBar(content: Text('⚠️ POI modifié localement mais non persisté: $e')),
+        SnackBar(
+          content: Text('⚠️ POI modifié localement mais non persisté: $e'),
+        ),
       );
     }
   }
@@ -854,7 +866,11 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
       if (e.code != 'not-found' && mounted) {
         TopSnackBar.show(
           context,
-          SnackBar(content: Text('⚠️ POI retiré localement mais Firestore a refusé: $e')),
+          SnackBar(
+            content: Text(
+              '⚠️ POI retiré localement mais Firestore a refusé: $e',
+            ),
+          ),
         );
       }
     }
@@ -863,8 +879,9 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
     if ((poi.imageUrl ?? '').trim().isNotEmpty) {
       try {
         final parentId = 'poi_${widget.projectId}_$docId';
-        await ImageOptimizationService.instance
-            .deleteImageVariants('places/$parentId');
+        await ImageOptimizationService.instance.deleteImageVariants(
+          'places/$parentId',
+        );
       } catch (_) {
         // Non bloquant.
       }
@@ -975,8 +992,8 @@ class _CircuitPoiEditorPageState extends State<CircuitPoiEditorPage> {
                           icon: const Icon(Icons.my_location),
                           tooltip: 'Ajouter un POI à la position actuelle',
                           onPressed:
-                            (!_canWriteMapProjects ||
-                              _selectedLayer == null ||
+                              (!_canWriteMapProjects ||
+                                  _selectedLayer == null ||
                                   _pois.length >= _poiLimit)
                               ? null
                               : _addPoiAtCurrentCenter,

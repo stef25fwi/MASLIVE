@@ -28,7 +28,7 @@ class LaBoutiqueHeader extends StatelessWidget {
     final top = MediaQuery.of(context).padding.top;
 
     return Container(
-      padding: EdgeInsets.fromLTRB(16, top + 8, 16, 10),
+      padding: EdgeInsets.fromLTRB(10, top + 8, 10, 10),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
