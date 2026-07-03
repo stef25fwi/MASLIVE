@@ -2966,13 +2966,41 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   }
 
   Future<void> _loadPoisFirstPage() async {
-    if (_projectId == null) {
-      _pois = [];
-      _poisLastDoc = null;
-      _hasMorePois = false;
-      _isLoadingMorePois = false;
-      return;
+    _pois = [];
+    _poisLastDoc = null;
+    _hasMorePois = false;
+    _isLoadingMorePois = false;
+
+    // Source unique de vérité: marketMap — même collection que
+    // _persistPoiDraftUpdate, _loadMorePoisPage et la synchro saveDraft/publish.
+    // Charger depuis map_projects/pois (abandonné) désynchronisait _pois et
+    // provoquait la suppression des POIs marketMap au save/publish suivant.
+    final countryId = _countryController.text.trim();
+    final eventId = _eventController.text.trim();
+    final circuitId = _effectiveMarketCircuitId;
+
+    if (countryId.isNotEmpty && eventId.isNotEmpty && circuitId.isNotEmpty) {
+      final page = await FirebaseFirestore.instance
+          .collection('marketMap')
+          .doc(countryId)
+          .collection('events')
+          .doc(eventId)
+          .collection('circuits')
+          .doc(circuitId)
+          .collection('pois')
+          .orderBy('name')
+          .limit(_poiPageSize)
+          .get();
+
+      _pois = page.docs.map((doc) => MarketMapPOI.fromFirestore(doc)).toList();
+      _poisLastDoc = page.docs.isNotEmpty ? page.docs.last : null;
+      _hasMorePois = page.docs.length == _poiPageSize;
+      if (_pois.isNotEmpty || _hasMorePois) return;
     }
+
+    // Fallback legacy: anciens brouillons dont les POIs vivent encore
+    // uniquement dans map_projects/{id}/pois (jamais migrés vers marketMap).
+    if (_projectId == null) return;
 
     final page = await _repository.listPoisPage(
       projectId: _projectId!,

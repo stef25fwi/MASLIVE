@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../models/market_circuit_models.dart';
 import 'audit_logger.dart';
@@ -1353,6 +1354,17 @@ class CircuitRepository {
         'createdByUid': actorUid,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+    }
+
+    // Garde anti-wipe: un état local vide face à un marketMap non vide vient
+    // presque toujours d'un chargement incomplet (mauvaise collection, page
+    // non chargée), pas d'une intention de tout effacer. Les suppressions
+    // individuelles passent déjà par le delete direct du wizard.
+    if (pois.isEmpty && existingIds.isNotEmpty) {
+      debugPrint(
+        'syncMarketPois: suppression ignorée (local vide, remote=${existingIds.length})',
+      );
+      return;
     }
 
     for (final oldId in existingIds.difference(incomingIds)) {
