@@ -445,32 +445,110 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   };
 
   Map<String, dynamic> _buildMarketPoisFeatureCollection(List<MarketPoi> pois) {
-    return <String, dynamic>{
-      'type': 'FeatureCollection',
-      'features': pois
-          .map(
-            (poi) => <String, dynamic>{
-              'type': 'Feature',
-              'id': poi.id,
-              'properties': <String, dynamic>{
-                'poiId': poi.id,
-                'layerId': poi.layerId.trim().isNotEmpty
-                    ? poi.layerId.trim()
-                    : ((poi.type ?? 'market').trim().isEmpty
-                          ? 'market'
-                          : poi.type!.trim()),
-                'type': poi.type ?? poi.layerId,
-                'title': poi.name,
-                'name': poi.name,
-              },
-              'geometry': <String, dynamic>{
-                'type': 'Point',
-                'coordinates': <double>[poi.lng, poi.lat],
-              },
+    final features = <Map<String, dynamic>>[];
+
+    for (final poi in pois) {
+      final effectiveLayerId = poi.layerId.trim().isNotEmpty
+          ? poi.layerId.trim()
+          : ((poi.type ?? 'market').trim().isEmpty ? 'market' : poi.type!.trim());
+
+      // Zones parking: rendu Polygon si metadata.perimeter disponible.
+      final rawPerimeter = poi.metadata?['perimeter'];
+      if (rawPerimeter is List && rawPerimeter.length >= 3) {
+        final pts = <List<double>>[];
+        for (final p in rawPerimeter) {
+          if (p is! Map) continue;
+          final lng = (p['lng'] as num?)?.toDouble();
+          final lat = (p['lat'] as num?)?.toDouble();
+          if (lng == null || lat == null) continue;
+          pts.add(<double>[lng, lat]);
+        }
+        if (pts.length >= 3) {
+          // Fermer l'anneau si nécessaire.
+          if (pts.first[0] != pts.last[0] || pts.first[1] != pts.last[1]) {
+            pts.add(List<double>.from(pts.first));
+          }
+
+          final styleRaw = poi.metadata?['perimeterStyle'];
+          final style = styleRaw is Map
+              ? Map<String, dynamic>.from(styleRaw)
+              : const <String, dynamic>{};
+          final fillColor = (style['fillColor'] as String?) ?? '#4A90D9';
+          final fillOpacity = (style['fillOpacity'] as num?)?.toDouble() ?? 0.35;
+          final strokeColor = (style['strokeColor'] as String?) ?? fillColor;
+          final strokeWidth = (style['strokeWidth'] as num?)?.toDouble() ?? 2.0;
+          final strokeDash = style['strokeDash'] as String?;
+
+          features.add(<String, dynamic>{
+            'type': 'Feature',
+            'id': poi.id,
+            'properties': <String, dynamic>{
+              'poiId': poi.id,
+              'layerId': effectiveLayerId,
+              'type': poi.type ?? effectiveLayerId,
+              'title': poi.name,
+              'name': poi.name,
+              'isZone': true,
+              'fillColor': fillColor,
+              'fillOpacity': fillOpacity,
+              'strokeColor': strokeColor,
+              'strokeWidth': strokeWidth,
+              if (strokeDash != null) 'strokeDash': strokeDash,
             },
-          )
-          .toList(),
-    };
+            'geometry': <String, dynamic>{
+              'type': 'Polygon',
+              'coordinates': <List<List<double>>>[pts],
+            },
+          });
+
+          // Label "P" au centroïde.
+          double sumLng = 0, sumLat = 0;
+          final n = pts.length - 1; // exclure le dernier point (doublon du premier)
+          for (var i = 0; i < n; i++) {
+            sumLng += pts[i][0];
+            sumLat += pts[i][1];
+          }
+          final cLng = n > 0 ? sumLng / n : poi.lng;
+          final cLat = n > 0 ? sumLat / n : poi.lat;
+
+          features.add(<String, dynamic>{
+            'type': 'Feature',
+            'id': '${poi.id}__zone_label',
+            'properties': <String, dynamic>{
+              'poiId': poi.id,
+              'layerId': effectiveLayerId,
+              'title': poi.name,
+              'isZoneLabel': true,
+              'labelText': 'P',
+            },
+            'geometry': <String, dynamic>{
+              'type': 'Point',
+              'coordinates': <double>[cLng, cLat],
+            },
+          });
+          continue;
+        }
+      }
+
+      // POI standard → Point.
+      features.add(<String, dynamic>{
+        'type': 'Feature',
+        'id': poi.id,
+        'properties': <String, dynamic>{
+          'poiId': poi.id,
+          'layerId': effectiveLayerId,
+          'type': poi.type ?? poi.layerId,
+          'title': poi.name,
+          'name': poi.name,
+        },
+        'geometry': <String, dynamic>{
+          'type': 'Point',
+          'coordinates': <double>[poi.lng, poi.lat],
+        },
+      });
+    }
+
+    return <String, dynamic>{'type': 'FeatureCollection', 'features': features};
   }
 
   String _marketPoiOpeningHoursText(Object? raw) {
