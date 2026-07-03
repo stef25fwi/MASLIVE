@@ -229,6 +229,45 @@
         // ignore
       }
 
+      // ── Resize instantané & robuste (bascule portrait/paysage) ───────────
+      // Le `trackResize` intégré de Mapbox n'écoute que `window`; lors d'une
+      // rotation, le CONTENEUR peut changer de taille à un instant différent du
+      // resize window. Un ResizeObserver sur le conteneur appelle map.resize()
+      // dès que ses dimensions changent, throttlé via requestAnimationFrame pour
+      // rester fluide. Cela supprime le décalage/déformation au changement
+      // d'orientation, sans dépendre du dispatch débouncé côté Flutter.
+      try {
+        if (typeof ResizeObserver !== 'undefined' && containerEl) {
+          let rafId = 0;
+          let lastW = 0;
+          let lastH = 0;
+          const ro = new ResizeObserver((entries) => {
+            let w = 0;
+            let h = 0;
+            try {
+              const rect = entries && entries[0] ? entries[0].contentRect : null;
+              if (rect) { w = Math.round(rect.width); h = Math.round(rect.height); }
+            } catch (_) { /* ignore */ }
+            if (w === lastW && h === lastH) return;
+            lastW = w;
+            lastH = h;
+            if (rafId) return;
+            rafId = requestAnimationFrame(() => {
+              rafId = 0;
+              try { map.resize(); } catch (_) { /* ignore */ }
+            });
+          });
+          ro.observe(containerEl);
+          // Nettoyage à la destruction de la carte.
+          map.on('remove', () => {
+            try { if (rafId) cancelAnimationFrame(rafId); } catch (_) {}
+            try { ro.disconnect(); } catch (_) {}
+          });
+        }
+      } catch (_) {
+        // ResizeObserver best-effort: le fallback window-resize reste actif.
+      }
+
       // Événements de chargement
       map.on('load', function() {
         console.log('✅ Mapbox GL JS map loaded');
@@ -1360,9 +1399,14 @@
     return fallback;
   }
 
+  // Retourne `null` si le style est joignable, sinon un objet { reason, message }
+  // décrivant l'échec. NE POSTE PLUS l'erreur lui-même: le préflight tourne en
+  // parallèle de l'init (voir initElement/init) et l'appelant décide s'il faut
+  // remonter l'erreur — uniquement quand la carte n'a pas déjà chargé, pour ne
+  // jamais afficher un faux négatif réseau au-dessus d'une carte déjà visible.
   async function _preflightApiMapboxStyle(containerId, accessToken, options) {
     const token = (accessToken || '').trim();
-    if (!token) return false;
+    if (!token) return null;
 
     const style = options ? options.style : null;
     const url = _styleToApiStyleUrl(style, token);
@@ -1380,39 +1424,33 @@
       const resp = await fetch(url, {
         method: 'GET',
         mode: 'cors',
-        cache: 'no-store',
+        // 'default' (et non 'no-store'): le navigateur peut mettre le style en
+        // cache HTTP, et la propre requête de style de Mapbox GL JS le réutilise
+        // → pas de double téléchargement, démarrage plus rapide.
+        cache: 'default',
         signal: controller ? controller.signal : undefined,
       });
 
       // Statuts token
       if (resp && resp.status === 401) {
-        _postToFlutter({
-          type: 'MASLIVE_MAP_ERROR',
-          containerId,
+        return {
           reason: 'TOKEN_INVALID',
           message: 'api.mapbox.com refuse le token (401). Vérifie le token (pk.*) et rebuild/deploy.',
-        });
-        return false;
+        };
       }
 
       if (resp && resp.status === 403) {
-        _postToFlutter({
-          type: 'MASLIVE_MAP_ERROR',
-          containerId,
+        return {
           reason: 'TOKEN_FORBIDDEN',
           message: 'api.mapbox.com refuse le token (403). Vérifie restrictions (Allowed URLs/origins) et accès au style.',
-        });
-        return false;
+        };
       }
 
       if (!resp || resp.ok !== true) {
-        _postToFlutter({
-          type: 'MASLIVE_MAP_ERROR',
-          containerId,
+        return {
           reason: 'MAPBOX_API_ERROR',
           message: 'api.mapbox.com erreur HTTP ' + String(resp ? resp.status : 'unknown') + ' sur ' + url,
-        });
-        return false;
+        };
       }
 
       // Contrôle léger: si la réponse ressemble à du HTML (style URL wrong)
@@ -1422,20 +1460,17 @@
           const txt = await resp.text();
           const t = (txt || '').trim().toLowerCase();
           if (t.startsWith('<!doctype') || t.startsWith('<html') || t.startsWith('<')) {
-            _postToFlutter({
-              type: 'MASLIVE_MAP_ERROR',
-              containerId,
+            return {
               reason: 'STYLE_NOT_JSON',
               message: 'Le style Mapbox ne renvoie pas du JSON (réponse HTML). Vérifie l\'URL de style (mapbox://styles/<user>/<styleId>).',
-            });
-            return false;
+            };
           }
         }
       } catch (_) {
         // ignore
       }
 
-      return true;
+      return null;
     } catch (e) {
       const msg = (() => {
         try {
@@ -1444,19 +1479,50 @@
         return String(e);
       })();
 
-      _postToFlutter({
-        type: 'MASLIVE_MAP_ERROR',
-        containerId,
+      return {
         reason: 'NETWORK_BLOCKED',
         message:
           'Impossible de joindre api.mapbox.com (Failed to fetch). ' +
           'Cause fréquente: adblock/anti-tracker, DNS filtrant, proxy, ou CSP trop stricte. ' +
           'Détail: ' + msg,
-      });
-
-      return false;
+      };
     } finally {
       try { if (timeoutId != null) clearTimeout(timeoutId); } catch (_) {}
+    }
+  }
+
+  // Lance l'init immédiatement et le préflight réseau EN PARALLÈLE. Le préflight
+  // ne sert plus qu'à produire un message d'erreur clair (adblock/CSP/DNS) et
+  // uniquement si la carte n'a pas réussi à charger — il n'est plus sur le
+  // chemin critique du premier rendu.
+  function _initWithParallelPreflight(containerId, elOrId, token, options) {
+    try {
+      _initMapAndWireEvents(containerId, elOrId, token, options);
+    } catch (e) {
+      try {
+        _postToFlutter({
+          type: 'MASLIVE_MAP_ERROR',
+          containerId,
+          reason: 'EXCEPTION',
+          message: 'Erreur JS pendant init Mapbox: ' + String(e),
+        });
+      } catch (_) {}
+    }
+
+    try {
+      _preflightApiMapboxStyle(containerId, token, options).then((err) => {
+        if (!err) return;
+        try {
+          const st = _v2State.get(containerId);
+          // La carte a déjà chargé: ne pas afficher un faux échec réseau.
+          if (st && st.didLoad) return;
+        } catch (_) {}
+        try {
+          _postToFlutter({ type: 'MASLIVE_MAP_ERROR', containerId, reason: err.reason, message: err.message });
+        } catch (_) {}
+      });
+    } catch (_) {
+      // ignore: le préflight est best-effort.
     }
   }
 
@@ -1483,6 +1549,10 @@
     const postReady = () => {
       if (didPostReady) return;
       didPostReady = true;
+      try {
+        const st = _v2State.get(containerId);
+        if (st) st.didLoad = true;
+      } catch (_) {}
       _postToFlutter({ type: 'MASLIVE_MAP_READY', containerId });
     };
     map.on('load', function() {
@@ -1769,21 +1839,8 @@
         // ── 5. Préflight api.mapbox.com (diag "Failed to fetch") ───────────
         // BUT: produire une erreur explicite si le réseau/adblock/CSP bloque api.mapbox.com.
         // On initialise Mapbox seulement si le préflight passe.
-        _preflightApiMapboxStyle(containerId, resolved.token, options).then((ok) => {
-          if (!ok) return;
-          try {
-            _initMapAndWireEvents(containerId, el, resolved.token, options);
-          } catch (e) {
-            try {
-              _postToFlutter({
-                type: 'MASLIVE_MAP_ERROR',
-                containerId,
-                reason: 'EXCEPTION',
-                message: 'Erreur JS pendant init Mapbox: ' + String(e),
-              });
-            } catch (_) {}
-          }
-        });
+        // Init immédiat + préflight en parallèle (hors chemin critique).
+        _initWithParallelPreflight(containerId, el, resolved.token, options);
 
         // Retourne true: init asynchrone, READY/ERROR arriveront par postMessage.
         return true;
@@ -1907,21 +1964,8 @@
             // ignore
           }
 
-          _preflightApiMapboxStyle(containerId, resolved.token, options).then((ok) => {
-            if (!ok) return;
-            try {
-              _initMapAndWireEvents(containerId, containerId, resolved.token, options);
-            } catch (e) {
-              try {
-                _postToFlutter({
-                  type: 'MASLIVE_MAP_ERROR',
-                  containerId,
-                  reason: 'EXCEPTION',
-                  message: 'Erreur JS pendant init Mapbox: ' + String(e),
-                });
-              } catch (_) {}
-            }
-          });
+          // Init immédiat + préflight en parallèle (hors chemin critique).
+          _initWithParallelPreflight(containerId, containerId, resolved.token, options);
 
           return true;
         } catch (_) {

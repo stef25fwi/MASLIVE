@@ -116,6 +116,40 @@ window.masliveMapbox = (() => {
       });
       console.log('🗺️ Map created');
 
+      // Resize instantané sur changement de taille du conteneur (rotation
+      // portrait/paysage, panneaux wizard qui s'ouvrent/ferment). rAF-throttlé.
+      try {
+        const el = document.getElementById(containerId);
+        if (typeof ResizeObserver !== 'undefined' && el) {
+          let rafId = 0;
+          let lastW = 0;
+          let lastH = 0;
+          const ro = new ResizeObserver((entries) => {
+            let w = 0;
+            let h = 0;
+            try {
+              const rect = entries && entries[0] ? entries[0].contentRect : null;
+              if (rect) { w = Math.round(rect.width); h = Math.round(rect.height); }
+            } catch (_) { /* ignore */ }
+            if (w === lastW && h === lastH) return;
+            lastW = w;
+            lastH = h;
+            if (rafId) return;
+            rafId = requestAnimationFrame(() => {
+              rafId = 0;
+              try { if (map) map.resize(); } catch (_) { /* ignore */ }
+            });
+          });
+          ro.observe(el);
+          map.on('remove', () => {
+            try { if (rafId) cancelAnimationFrame(rafId); } catch (_) {}
+            try { ro.disconnect(); } catch (_) {}
+          });
+        }
+      } catch (_) {
+        // ResizeObserver best-effort.
+      }
+
       map.on("load", () => {
         console.log('✅ Mapbox loaded');
         ensureSourcesAndLayers();
