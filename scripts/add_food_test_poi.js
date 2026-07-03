@@ -402,6 +402,13 @@ async function addFoodTestPoi() {
     },
   });
 
+  const circuitData = await getDocument({
+    projectId,
+    accessToken,
+    relativeDocPath: `marketMap/${countryId}/events/${eventId}/circuits/${circuitId}`,
+  });
+  const center = pickCircuitCenter(circuitData);
+
   await patchDoc({
     projectId,
     accessToken,
@@ -409,17 +416,11 @@ async function addFoodTestPoi() {
     data: {
       name: resolved.circuitName,
       isVisible: true,
-      center: { lat: 16.241, lng: -61.533 },
+      // Ne pas écraser le center d'un circuit publié: on ne l'écrit que s'il manque.
+      ...(circuitData?.center ? {} : { center: { lat: center.lat, lng: center.lng } }),
       updatedAtIso: nowIso,
     },
   });
-
-  const circuitData = await getDocument({
-    projectId,
-    accessToken,
-    relativeDocPath: `marketMap/${countryId}/events/${eventId}/circuits/${circuitId}`,
-  });
-  const center = pickCircuitCenter(circuitData);
 
   await patchDoc({
     projectId,
