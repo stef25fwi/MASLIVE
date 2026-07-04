@@ -18,7 +18,6 @@ import 'admin/category_management_page.dart' deferred as adm_categories;
 import 'admin/circuit_wizard_entry_page.dart' deferred as adm_circuit_wiz;
 import 'admin/commerce_analytics_page.dart' deferred as adm_com_analytics;
 import 'admin/map_projects_library_page.dart' deferred as adm_map_lib;
-import 'admin/map_project_wizard_entry_page.dart' deferred as adm_map_wiz;
 import 'admin/marketmap_debug_page.dart' deferred as adm_market_debug;
 import 'admin/mapmarket_projects_page.dart' deferred as adm_mapmarket;
 import 'admin/role_management_page.dart' deferred as adm_roles;
@@ -49,7 +48,6 @@ import 'pages/business_request_page.dart' deferred as biz_request;
 import 'pages/cart/unified_cart_page.dart' deferred as cart;
 import 'pages/circuit_calculs_validation_page.dart' deferred as circuit_calc;
 import 'pages/circuit_draw_page.dart' deferred as circuit_draw;
-import 'pages/circuit_editor_workflow_page.dart' deferred as circuit_editor;
 import 'pages/circuit_import_export_page.dart' deferred as circuit_io;
 import 'pages/circuit_save_page.dart' deferred as circuit_save;
 import 'pages/favorites_page.dart' deferred as favorites;
@@ -905,14 +903,6 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
         ),
       );
       break;
-    case '/admin/track-editor':
-      page = AdminRouteGuard(
-        child: _DeferredLoader(
-          load: circuit_editor.loadLibrary,
-          build: () => circuit_editor.CircuitEditorWorkflowPage(),
-        ),
-      );
-      break;
     case '/admin/map-library':
       page = AdminRouteGuard(
         child: _DeferredLoader(
@@ -926,14 +916,6 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
         child: _DeferredLoader(
           load: adm_mapmarket.loadLibrary,
           build: () => adm_mapmarket.MapMarketProjectsPage(),
-        ),
-      );
-      break;
-    case '/admin/mapmarket/wizard':
-      page = AdminRouteGuard(
-        child: _DeferredLoader(
-          load: adm_map_wiz.loadLibrary,
-          build: () => adm_map_wiz.MapProjectWizardEntryPage(),
         ),
       );
       break;

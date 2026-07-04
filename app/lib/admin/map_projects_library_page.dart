@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'circuit_wizard_pro_page.dart';
 import 'poi_marketmap_wizard_page.dart';
-import '../pages/circuit_editor_workflow_page.dart';
+import 'circuit_wizard_entry_page.dart';
 
 class MapProjectsLibraryPage extends StatefulWidget {
   const MapProjectsLibraryPage({super.key});
@@ -93,10 +93,10 @@ class _MapProjectsLibraryPageState extends State<MapProjectsLibraryPage> {
               ),
             ),
           IconButton(
-            tooltip: 'Nouveau',
+            tooltip: 'Nouveau circuit (Wizard Pro)',
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => const CircuitEditorWorkflowPage(),
+                builder: (_) => const CircuitWizardEntryPage(),
               ),
             ),
             icon: const Icon(Icons.add),

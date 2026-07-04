@@ -202,11 +202,21 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                   _buildSectionTitle('Carte & Navigation', Icons.map),
                   const SizedBox(height: 12),
                   _buildDashboardCard(
-                    title: 'MapMarket',
+                    title: 'Bibliothèque de cartes',
                     subtitle:
-                        'Créer / éditer / publier des cartes (Mapbox-only)',
+                        'Ouvrir & éditer les circuits dans le Wizard Pro',
                     icon: Icons.map,
                     color: Colors.blue,
+                    onTap: () =>
+                        Navigator.pushNamed(context, '/admin/map-library'),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildDashboardCard(
+                    title: 'Publication & visibilité',
+                    subtitle:
+                        'Activer / masquer les circuits publiés (MarketMap)',
+                    icon: Icons.published_with_changes,
+                    color: Colors.indigo,
                     onTap: () =>
                         Navigator.pushNamed(context, '/admin/mapmarket'),
                   ),
