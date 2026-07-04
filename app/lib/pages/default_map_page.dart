@@ -471,12 +471,15 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           final style = styleRaw is Map
               ? Map<String, dynamic>.from(styleRaw)
               : const <String, dynamic>{};
-          final fillColor = (style['fillColor'] as String?) ?? '#4A90D9';
-          final fillOpacity =
-              (style['fillOpacity'] as num?)?.toDouble() ?? 0.35;
-          final strokeColor = (style['strokeColor'] as String?) ?? fillColor;
-          final strokeWidth = (style['strokeWidth'] as num?)?.toDouble() ?? 2.0;
-          final strokeDash = style['strokeDash'] as String?;
+          // Casts défensifs: ces champs viennent de Firestore et peuvent avoir
+          // un type inattendu (couleur stockée en int, etc.) → jamais de `as`.
+          String? asStr(dynamic v) => v is String ? v : null;
+          double? asNum(dynamic v) => v is num ? v.toDouble() : null;
+          final fillColor = asStr(style['fillColor']) ?? '#4A90D9';
+          final fillOpacity = asNum(style['fillOpacity']) ?? 0.35;
+          final strokeColor = asStr(style['strokeColor']) ?? fillColor;
+          final strokeWidth = asNum(style['strokeWidth']) ?? 2.0;
+          final strokeDash = asStr(style['strokeDash']);
 
           features.add(<String, dynamic>{
             'type': 'Feature',
@@ -1571,7 +1574,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           .doc(user.uid)
           .get();
       if (!doc.exists || !mounted) return;
-      final groupId = doc.data()?['groupId'] as String?;
+      final rawGroupId = doc.data()?['groupId'];
+      final groupId = rawGroupId is String ? rawGroupId : null;
       setState(() => _userGroupId = groupId);
     } catch (e) {
       debugPrint('Erreur chargement groupId: $e');

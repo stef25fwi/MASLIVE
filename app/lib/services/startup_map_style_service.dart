@@ -121,7 +121,8 @@ class StartupMapStyleService {
 
   Future<String?> getDefaultStyleUrl() async {
     final snapshot = await _doc.get();
-    return tryNormalizeMapboxStyleUrl(snapshot.data()?[_fieldStyleUrl] as String?);
+    final raw = snapshot.data()?[_fieldStyleUrl];
+    return tryNormalizeMapboxStyleUrl(raw is String ? raw : null);
   }
 
   Future<StartupHomeMapAppearance?> getHomeMapAppearance() async {

@@ -201,8 +201,11 @@ class MapboxTokenService {
           .doc('mapbox')
           .get()
           .timeout(const Duration(seconds: 5));
-      final firestoreToken =
-          ((doc.data()?['accessToken'] ?? '') as String).trim();
+      // Cast défensif: le champ peut être absent, null, ou d'un type inattendu
+      // (ancienne donnée / config malformée). Un `as String` direct ferait
+      // planter le démarrage (TypeError: ... is not a subtype of type String).
+      final rawToken = doc.data()?['accessToken'];
+      final firestoreToken = (rawToken is String ? rawToken : '').trim();
       if (firestoreToken.isNotEmpty) {
         debugPrint('[MAPBOX][TOKEN] Firestore fallback len=${firestoreToken.length}');
         // Persist locally for next cold start.
