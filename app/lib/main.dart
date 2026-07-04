@@ -276,6 +276,10 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
   Future<void>? _backgroundBootstrap;
   VoidCallback? _deferredWebBootstrapListener;
   bool _didStartDeferredWebBootstrap = false;
+  // True quand Firebase.initializeApp est résolu (succès OU échec définitif).
+  // L'arbre app n'est monté qu'après: les StreamBuilder(FirebaseAuth.instance…)
+  // du premier frame ne doivent jamais courir contre l'init Firebase.
+  bool _coreReady = false;
 
   @override
   void initState() {
@@ -301,6 +305,17 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
     StartupTrace.log('BOOT', 'background bootstrap start');
 
     final firebaseReady = await _initializeFirebase();
+
+    // Débloque le montage de l'arbre app (voir build): les widgets du premier
+    // frame (FirebaseAuth.instance, Firestore…) exigent que initializeApp soit
+    // RÉSOLU. Monter avant = course → sur web, l'interop firebase_core_web
+    // null-deref puis caste l'erreur en JavaScriptObject:
+    // "TypeError: Instance of 'NullError' is not a subtype of JavaScriptObject".
+    if (mounted) {
+      setState(() => _coreReady = true);
+    } else {
+      _coreReady = true;
+    }
 
     if (firebaseReady) {
       _startImmediateFirebaseDependentServices();
@@ -517,6 +532,18 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_coreReady) {
+      // Écran d'attente minimal (~50-200ms) le temps que Firebase.initializeApp
+      // se résolve. Sans ce gate, le premier build accède à FirebaseAuth/
+      // Firestore pendant l'init → crash de démarrage sur web (voir _coreReady).
+      return const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          backgroundColor: Colors.white,
+          body: SizedBox.expand(),
+        ),
+      );
+    }
     return MasLiveApp(session: _session);
   }
 }
