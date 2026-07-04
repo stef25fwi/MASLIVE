@@ -423,6 +423,10 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         if (options.routeAlwaysOnTop == true) {
           await _moveRouteLayersAboveBuildings();
         }
+
+        // Les POI/zones doivent rester AU-DESSUS du tracé qui vient d'être
+        // (re)dessiné ou remonté.
+        await _movePoiLayersToTop();
         return;
       } else {
         _pendingPolyline = null;
@@ -1047,6 +1051,8 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
             'data',
             _poisGeoJsonString,
           );
+          // Reste au-dessus même si le tracé a été (re)dessiné entre-temps.
+          await _movePoiLayersToTop();
           return;
         }
       } catch (_) {
@@ -1757,9 +1763,42 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       // ignore
     }
 
+    // Garantit que les POI/zones restent au-dessus de tout (fond + tracé).
+    await _movePoiLayersToTop();
+
     // Layers construits: les prochains rafraîchissements passeront par le
     // chemin rapide (mise à jour de la source seule).
     _poiLayersBuilt = true;
+  }
+
+  /// Remonte les couches POI/zones au sommet de la pile de style, dans le bon
+  /// ordre interne (fond de zone en bas → vertices de prévisualisation en haut).
+  /// `moveStyleLayer(id, null)` place la couche tout en haut; en itérant du bas
+  /// vers le haut, la dernière déplacée finit au-dessus.
+  Future<void> _movePoiLayersToTop() async {
+    final map = _mapboxMap;
+    if (map == null || !_styleLoaded) return;
+    const order = <String>[
+      _poiFillLayerId,
+      _poiPatternLayerId,
+      _poiLineLayerId,
+      _poiLineLayerDashedId,
+      _poiLineLayerDottedId,
+      _poiLayerId,
+      _poiIconLayerId,
+      _poiZoneBadgeLayerId,
+      _poiZoneLabelLayerId,
+      _poiPreviewVertexLayerId,
+    ];
+    for (final id in order) {
+      try {
+        if (await map.style.styleLayerExists(id)) {
+          await map.style.moveStyleLayer(id, null);
+        }
+      } catch (_) {
+        // ignore: couche absente/style non prêt.
+      }
+    }
   }
 
   Future<void> _ensureMarkersManager() async {

@@ -1615,7 +1615,40 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       // ignore
     }
 
+    // Garantit que TOUTES les couches POI/zones restent au-dessus de tout le
+    // reste (fond de carte, tracé du circuit même en routeAlwaysOnTop, etc.).
+    _movePoiLayersToTop(map);
+
     await _applyPoiStyleIfReady();
+  }
+
+  /// Remonte les couches POI/zones au sommet de la pile Mapbox, dans le bon
+  /// ordre interne (fond de zone en bas → vertices de prévisualisation en haut).
+  /// `moveLayer(id)` sans `beforeId` place la couche tout en haut; en itérant
+  /// du bas vers le haut, la dernière déplacée finit au-dessus.
+  void _movePoiLayersToTop(js.JsObject map) {
+    const order = <String>[
+      _poiFillLayerId,
+      _poiPatternLayerId,
+      _poiLineLayerLegacyId,
+      _poiLineLayerId,
+      _poiLineLayerDashedId,
+      _poiLineLayerDottedId,
+      _poiLayerId,
+      _poiIconLayerId,
+      _poiZoneBadgeLayerId,
+      _poiZoneLabelLayerId,
+      _poiPreviewVertexLayerId,
+    ];
+    for (final id in order) {
+      try {
+        if (map.callMethod('getLayer', [id]) != null) {
+          map.callMethod('moveLayer', [id]);
+        }
+      } catch (_) {
+        // ignore: couche absente/style non prêt.
+      }
+    }
   }
 
   String? _hitTestPoiId(double lng, double lat) {
@@ -2061,6 +2094,11 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         if (options.routeAlwaysOnTop == true) {
           await _moveRouteLayersAboveBuildings();
         }
+
+        // Les POI/zones doivent rester AU-DESSUS du tracé, même quand celui-ci
+        // vient d'être (re)dessiné ou remonté (routeAlwaysOnTop).
+        final map = _getMapForThisContainer();
+        if (map != null) _movePoiLayersToTop(map);
       } catch (e) {
         debugPrint('⚠️ setPolyline error: $e');
       }
