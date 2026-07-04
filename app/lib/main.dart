@@ -1152,7 +1152,10 @@ class _DeferredLoader extends StatelessWidget {
         if (snap.connectionState == ConnectionState.done && !snap.hasError) {
           return _buildPage();
         }
-        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        // Pas de spinner animé à l'ouverture: un placeholder transparent laisse
+        // le fond de l'app visible le temps (bref) du chargement du chunk, sans
+        // "flash" de loader. La page s'affiche dès qu'elle est prête.
+        return const SizedBox.expand();
       },
     );
   }

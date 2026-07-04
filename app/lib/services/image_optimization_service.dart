@@ -4,6 +4,7 @@ import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../models/image_asset.dart' as asset;
+import 'webp_converter.dart';
 
 enum ImageFormat {
   jpeg,
@@ -40,9 +41,25 @@ class ImageOptimizationService {
     required asset.ImageContentType contentType,
     void Function(double progress)? onProgress,
   }) async {
-    final bytes = await file.readAsBytes();
-    final ext = _extension(file.name);
-    final mimeType = _mimeTypeForExtension(ext);
+    var bytes = await file.readAsBytes();
+    var ext = _extension(file.name);
+    var mimeType = _mimeTypeForExtension(ext);
+
+    // Conversion WebP systématique (allègement), cohérente avec StorageService.
+    // On ne conserve le WebP que s'il est réellement plus léger que l'original.
+    if (supportsWebpConversion &&
+        (ext == 'jpg' || ext == 'jpeg' || ext == 'png')) {
+      try {
+        final webpBytes = await convertBytesToWebp(bytes, quality: 82);
+        if (webpBytes.length < bytes.length) {
+          bytes = webpBytes;
+          ext = 'webp';
+          mimeType = 'image/webp';
+        }
+      } catch (e) {
+        developer.log('⚠️ [ImageOptimization] WebP ignoré: $e');
+      }
+    }
 
     final objectPath = '$basePath/original.$ext';
     final ref = _storage.ref(objectPath);
