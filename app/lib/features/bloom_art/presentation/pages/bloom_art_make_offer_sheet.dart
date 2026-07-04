@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/models/bloom_art_item.dart';
 import '../../data/repositories/bloom_art_offer_repository.dart';
-import '../../services/bloom_art_checkout_service.dart';
+import '../../../../services/checkout/unified_checkout_service.dart';
 import '../../services/bloom_art_notification_service.dart';
 import '../widgets/bloom_art_cta_button.dart';
 
@@ -41,7 +41,6 @@ class _BloomArtMakeOfferSheetState extends State<BloomArtMakeOfferSheet> {
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
   final BloomArtOfferRepository _offerRepository = BloomArtOfferRepository();
-  final BloomArtCheckoutService _checkoutService = BloomArtCheckoutService();
   final BloomArtNotificationService _notificationService =
       const BloomArtNotificationService();
 
@@ -127,7 +126,7 @@ class _BloomArtMakeOfferSheetState extends State<BloomArtMakeOfferSheet> {
             buyerId: user.uid,
             offerId: offer.id,
           );
-          await _checkoutService.startCheckout(
+          await UnifiedCheckoutService.startBloomArtCheckout(
             offerId: offer.id,
             itemId: widget.item.id,
           );

@@ -4,6 +4,22 @@ import 'package:flutter/foundation.dart';
 enum CartItemType {
   merch,
   media,
+  bloomArt,
+}
+
+/// Clé de groupe utilisée dans le payload de checkout
+/// (buildCheckoutGroupsByType) et par la Cloud Function de paiement unique.
+extension CartItemTypeGroup on CartItemType {
+  String get groupKey {
+    switch (this) {
+      case CartItemType.merch:
+        return 'merch';
+      case CartItemType.media:
+        return 'media';
+      case CartItemType.bloomArt:
+        return 'bloomArt';
+    }
+  }
 }
 
 CartItemType cartItemTypeFromString(
@@ -15,6 +31,10 @@ CartItemType cartItemTypeFromString(
       return CartItemType.merch;
     case 'media':
       return CartItemType.media;
+    case 'bloomart':
+    case 'bloom_art':
+    case 'bloomood':
+      return CartItemType.bloomArt;
     default:
       return fallback;
   }

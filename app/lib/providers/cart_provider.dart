@@ -20,6 +20,8 @@ class CartProvider extends ChangeNotifier {
 
   List<CartItemModel> get mediaItems => items.byType(CartItemType.media);
 
+  List<CartItemModel> get bloomArtItems => items.byType(CartItemType.bloomArt);
+
   bool get loading => _service.loading;
 
   Object? get error => _service.error;
@@ -34,6 +36,8 @@ class CartProvider extends ChangeNotifier {
 
   double get mediaSubtotal => mediaItems.grandTotal();
 
+  double get bloomArtSubtotal => bloomArtItems.grandTotal();
+
   double get grandTotal => items.grandTotal();
 
   List<CartItemModel> get checkoutEligibleItems =>
@@ -44,6 +48,9 @@ class CartProvider extends ChangeNotifier {
 
   List<CartItemModel> get mediaCheckoutItems =>
       checkoutEligibleItems.byType(CartItemType.media);
+
+  List<CartItemModel> get bloomArtCheckoutItems =>
+      checkoutEligibleItems.byType(CartItemType.bloomArt);
 
   void start() {
     _service.start();
@@ -98,6 +105,7 @@ class CartProvider extends ChangeNotifier {
         'totalQuantity': totalQuantity,
         'merchSubtotal': merchSubtotal,
         'mediaSubtotal': mediaSubtotal,
+        'bloomArtSubtotal': bloomArtSubtotal,
         'grandTotal': grandTotal,
       },
       'groups': buildCheckoutGroupsByType(),
@@ -108,6 +116,9 @@ class CartProvider extends ChangeNotifier {
     return <String, List<Map<String, dynamic>>>{
       'merch': merchCheckoutItems.map((item) => item.toMap()).toList(growable: false),
       'media': mediaCheckoutItems.map((item) => item.toMap()).toList(growable: false),
+      // Groupe prêt pour la consolidation backend (createMixedCartCheckoutSession).
+      // Vide tant que Bloom Art reste en flux offre → paiement direct.
+      'bloomArt': bloomArtCheckoutItems.map((item) => item.toMap()).toList(growable: false),
     };
   }
 

@@ -80,6 +80,10 @@ class CartConstraintValidator {
         }
 
         return (true, null);
+
+      case CartItemType.bloomArt:
+        // Bloom Art: prix négocié via offre; pas de metadata obligatoire ici.
+        return (true, null);
     }
   }
 

@@ -5,7 +5,7 @@ import '../../data/models/bloom_art_item.dart';
 import '../../data/models/bloom_art_offer.dart';
 import '../../data/repositories/bloom_art_offer_repository.dart';
 import '../../data/repositories/bloom_art_repository.dart';
-import '../../services/bloom_art_checkout_service.dart';
+import '../../../../services/checkout/unified_checkout_service.dart';
 import '../../services/bloom_art_notification_service.dart';
 import '../widgets/bloom_art_cta_button.dart';
 import '../widgets/bloom_art_offer_status_badge.dart';
@@ -25,7 +25,6 @@ class BloomArtOfferDetailPage extends StatefulWidget {
 class _BloomArtOfferDetailPageState extends State<BloomArtOfferDetailPage> {
   final BloomArtOfferRepository _offerRepository = BloomArtOfferRepository();
   final BloomArtRepository _repository = BloomArtRepository();
-  final BloomArtCheckoutService _checkoutService = BloomArtCheckoutService();
   final BloomArtNotificationService _notificationService =
       const BloomArtNotificationService();
 
@@ -92,7 +91,7 @@ class _BloomArtOfferDetailPageState extends State<BloomArtOfferDetailPage> {
       _busy = true;
     });
     try {
-      await _checkoutService.startCheckout(
+      await UnifiedCheckoutService.startBloomArtCheckout(
         offerId: offer.id,
         itemId: offer.itemId,
       );

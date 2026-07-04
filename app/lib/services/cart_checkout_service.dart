@@ -4,34 +4,20 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../pages/checkout/storex_checkout_stripe.dart';
 import '../providers/cart_provider.dart';
 import '../ui/snack/top_snack_bar.dart';
+import 'checkout/checkout_gateway.dart';
 
 class CartCheckoutService {
   const CartCheckoutService._();
 
-  static String _webRouteUrl(String route) {
-    final normalizedRoute = route.startsWith('/') ? route : '/$route';
-    return '${Uri.base.origin}/#$normalizedRoute';
-  }
+  // Délègue à la passerelle Stripe commune (source unique de vérité).
+  static String _webRouteUrl(String route) => CheckoutGateway.webRouteUrl(route);
 
-  static Future<void> _openStripeCheckoutUrl(String rawUrl) async {
-    final checkoutUri = Uri.tryParse(rawUrl);
-    if (checkoutUri == null || rawUrl.isEmpty) {
-      throw StateError('checkoutUrl Stripe manquante');
-    }
-
-    final launched = await launchUrl(
-      checkoutUri,
-      mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
-    );
-    if (!launched) {
-      throw StateError('Impossible d\'ouvrir Stripe');
-    }
-  }
+  static Future<void> _openStripeCheckoutUrl(String rawUrl) =>
+      CheckoutGateway.openCheckoutUrl(rawUrl);
 
   static Future<void> releaseMediaCheckoutLock({String? uid}) async {
     final resolvedUid = (uid ?? FirebaseAuth.instance.currentUser?.uid)?.trim();
