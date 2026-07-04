@@ -472,7 +472,10 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
                       border: Border.all(color: Colors.grey.shade200),
                     ),
                     child: QrImageView(
-                      data: buildGroupQrPayload(_admin!.adminGroupId),
+                      data: buildGroupQrPayload(
+                        _admin!.adminGroupId,
+                        groupName: _admin!.displayName,
+                      ),
                       version: QrVersions.auto,
                       size: 180,
                       gapless: true,

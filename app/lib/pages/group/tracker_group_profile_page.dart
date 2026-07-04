@@ -52,8 +52,8 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
     );
     if (!mounted || raw == null) return;
 
-    final code = parseGroupQrPayload(raw);
-    if (code == null) {
+    final payload = parseGroupQrPayload(raw);
+    if (payload == null) {
       TopSnackBar.show(
         context,
         const SnackBar(content: Text('QR non reconnu (code groupe introuvable)')),
@@ -61,15 +61,39 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
       return;
     }
 
-    setState(() => _codeController.text = code);
+    setState(() => _codeController.text = payload.code);
 
-    // Si le nom est déjà renseigné, on rattache directement après le scan.
+    // Confirmation affichant le nom du groupe (si présent dans le QR).
+    final groupLabel = (payload.groupName != null &&
+            payload.groupName!.trim().isNotEmpty)
+        ? '« ${payload.groupName!.trim()} »'
+        : 'ce groupe (code ${payload.code})';
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Rejoindre le groupe'),
+        content: Text('Veux-tu rejoindre $groupLabel ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Rejoindre'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || confirm != true) return;
+
+    // Si le nom est déjà renseigné, on rattache directement après confirmation.
     if (_nameController.text.trim().isNotEmpty) {
       await _linkToAdmin();
     } else {
       TopSnackBar.show(
         context,
-        const SnackBar(content: Text('Code scanné. Saisis ton nom puis rattache-toi.')),
+        const SnackBar(content: Text('Code validé. Saisis ton nom puis rattache-toi.')),
       );
     }
   }
