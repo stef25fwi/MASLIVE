@@ -3,6 +3,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import '../../services/group/group_link_qr.dart';
 import '../../models/group_admin.dart';
 import '../../models/group_tracker.dart';
 import '../../services/group/group_link_service.dart';
@@ -455,6 +457,40 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
             Text(
               'Partagez ce code avec vos trackers',
               style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            // QR de rattachement: le traceur le scanne pour se lier au groupe
+            // sans saisir le code manuellement.
+            Center(
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: QrImageView(
+                      data: buildGroupQrPayload(_admin!.adminGroupId),
+                      version: QrVersions.auto,
+                      size: 180,
+                      gapless: true,
+                      backgroundColor: Colors.white,
+                      errorStateBuilder: (context, error) => const SizedBox(
+                        width: 180,
+                        height: 180,
+                        child: Center(child: Text('QR indisponible')),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Ou faites scanner ce QR code',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

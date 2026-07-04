@@ -89,6 +89,9 @@ dependencies:
   # Empêche les clics de traverser les overlays (Flutter web + HtmlElementView)
   pointer_interceptor: ^0.10.1
 
+  qr_flutter: ^4.1.0        # Génération du QR de rattachement (côté admin)
+  mobile_scanner: ^5.2.3    # Scan du QR (côté traceur)
+
   # State management (ChangeNotifier)
   provider: ^6.1.2
   

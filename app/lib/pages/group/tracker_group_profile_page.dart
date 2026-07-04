@@ -3,8 +3,10 @@
 import 'package:flutter/material.dart';
 import '../../models/group_tracker.dart';
 import '../../services/group/group_link_service.dart';
+import '../../services/group/group_link_qr.dart';
 import '../../services/group/group_tracking_service.dart';
 import '../../ui/snack/top_snack_bar.dart';
+import 'group_qr_scanner_page.dart';
 import 'group_track_history_page.dart';
 import 'group_export_page.dart';
 
@@ -41,6 +43,34 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
       }
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _scanQr() async {
+    final raw = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const GroupQrScannerPage()),
+    );
+    if (!mounted || raw == null) return;
+
+    final code = parseGroupQrPayload(raw);
+    if (code == null) {
+      TopSnackBar.show(
+        context,
+        const SnackBar(content: Text('QR non reconnu (code groupe introuvable)')),
+      );
+      return;
+    }
+
+    setState(() => _codeController.text = code);
+
+    // Si le nom est déjà renseigné, on rattache directement après le scan.
+    if (_nameController.text.trim().isNotEmpty) {
+      await _linkToAdmin();
+    } else {
+      TopSnackBar.show(
+        context,
+        const SnackBar(content: Text('Code scanné. Saisis ton nom puis rattache-toi.')),
+      );
     }
   }
 
@@ -157,11 +187,26 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
             keyboardType: TextInputType.number,
             maxLength: 6,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: _isLoading ? null : _scanQr,
+            icon: const Icon(Icons.qr_code_scanner),
+            label: const Text('Scanner le QR du groupe'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'ou',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
           ElevatedButton.icon(
-            onPressed: _linkToAdmin,
+            onPressed: _isLoading ? null : _linkToAdmin,
             icon: const Icon(Icons.link),
-            label: const Text('Se rattacher'),
+            label: const Text('Se rattacher avec le code'),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
             ),
