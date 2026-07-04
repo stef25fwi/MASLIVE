@@ -49,6 +49,8 @@ class CloudFunctionService {
     required double lng,
     double? heading,
     double? speed,
+    double? accuracy,
+    double? altitude,
   }) async {
     try {
       final callable = _functions.httpsCallable('updateGroupLocation');
@@ -58,6 +60,10 @@ class CloudFunctionService {
         'lng': lng,
         'heading': heading,
         'speed': speed,
+        // accuracy/altitude alimentent la pondération et le filtrage de la
+        // moyenne géodésique groupe (group_positions → agrégation).
+        'accuracy': accuracy,
+        'altitude': altitude,
         // ownerId est géré côté backend (context.auth.uid)
       });
     } catch (e) {

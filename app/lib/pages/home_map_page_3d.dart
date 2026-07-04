@@ -27,9 +27,11 @@ import '../ui/widgets/polaroid_poi_sheet.dart';
 import '../services/auth_service.dart';
 import '../services/geolocation_service.dart';
 import '../services/home_controls_theme_service.dart';
+import '../services/group/marketmap_group_public_position_service.dart';
 import '../services/language_service.dart';
 import '../services/mapbox_token_service.dart';
 import '../services/market_map_service.dart';
+import '../models/group_circuit_public_position.dart';
 import '../services/poi_popup_service.dart';
 import '../services/startup_map_style_service.dart';
 import '../models/market_circuit.dart';
@@ -216,6 +218,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   MarketMapPoiSelection _marketPoiSelection =
       const MarketMapPoiSelection.disabled();
   StreamSubscription? _marketPoisSub;
+  StreamSubscription<List<GroupCircuitPublicPosition>>? _groupPublicPosSub;
   List<MarketPoi> _marketPois = const <MarketPoi>[];
 
   // === MarketMap POIs (GeoJSON Layers) ===
@@ -410,6 +413,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     _positionSub?.cancel();
     _homeControlsThemeSub?.cancel();
     _marketPoisSub?.cancel();
+    _groupPublicPosSub?.cancel();
     _routeAnimTimer?.cancel();
     _nearbyPoiCarouselController?.dispose();
     _menuAnimController.dispose();
@@ -555,6 +559,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       });
       await _renderMarketPoiMarkers();
       await _clearMarketCircuitRoute();
+      _restartGroupPublicPositionStream(null);
       return;
     }
 
@@ -599,6 +604,69 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           setState(() => _marketPois = pois);
           await _renderMarketPoiMarkers(); // GeoJSON update + visibility
         });
+
+    // Curseur groupe (position moyenne publiée sur ce circuit).
+    _restartGroupPublicPositionStream(selection);
+  }
+
+  /// (Re)démarre le stream du curseur groupe pour le circuit sélectionné.
+  /// `selection == null` (ou circuit incomplet) => efface le curseur.
+  void _restartGroupPublicPositionStream(MarketMapPoiSelection? selection) {
+    _groupPublicPosSub?.cancel();
+    _groupPublicPosSub = null;
+
+    final country = selection?.country;
+    final event = selection?.event;
+    final circuit = selection?.circuit;
+    if (selection == null ||
+        !selection.enabled ||
+        country == null ||
+        event == null ||
+        circuit == null) {
+      unawaited(_updateGroupMarkers(const <GroupCircuitPublicPosition>[]));
+      return;
+    }
+
+    _groupPublicPosSub = MarketMapGroupPublicPositionService.instance
+        .streamCircuitGroupPositions(
+          countryId: country.id,
+          eventId: event.id,
+          circuitId: circuit.id,
+        )
+        .listen((positions) {
+      if (!mounted) return;
+      unawaited(_updateGroupMarkers(positions));
+    });
+  }
+
+  /// Rend les curseurs groupe via le PointAnnotationManager dédié.
+  /// Un glyphe emoji sert d'icône (pas de dépendance à une image enregistrée).
+  Future<void> _updateGroupMarkers(
+    List<GroupCircuitPublicPosition> positions,
+  ) async {
+    final manager = _groupsAnnotationManager;
+    if (manager == null) return;
+    try {
+      await manager.deleteAll();
+      for (final p in positions) {
+        final name = (p.displayName != null && p.displayName!.trim().isNotEmpty)
+            ? p.displayName!.trim()
+            : 'Groupe';
+        await manager.create(
+          PointAnnotationOptions(
+            geometry: Point(coordinates: Position(p.lng, p.lat)),
+            textField: '👥 $name',
+            textSize: 14.0,
+            textColor: 0xFFFFFFFF,
+            textHaloColor: 0xFF101828,
+            textHaloWidth: 1.6,
+            textOffset: [0.0, -1.2],
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ Erreur update group markers: $e');
+    }
   }
 
   // ── Persistance sélection circuit (SharedPreferences) ─────────────────────

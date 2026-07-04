@@ -70,6 +70,8 @@ class GeolocationService {
         lng: position.longitude,
         heading: position.heading > 0 ? position.heading : null,
         speed: position.speed > 0 ? position.speed : null,
+        accuracy: position.accuracy > 0 ? position.accuracy : null,
+        altitude: position.altitude,
       );
 
       // print('✅ Position sent: (${position.latitude}, ${position.longitude})');

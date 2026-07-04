@@ -173,8 +173,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   List<MapMarker> _composeMarkers() {
     final markers = <MapMarker>[];
 
-    // Position moyenne du/des groupe(s) (visible uniquement quand l'utilisateur active Tracking)
-    if (_isTracking && _groupPublicMarkers.isNotEmpty) {
+    // Curseur(s) groupe (position moyenne publiée sur le circuit). Visible par
+    // tous les membres qui consultent le circuit, indépendamment du fait que
+    // l'utilisateur courant traque lui-même sa position.
+    if (_groupPublicMarkers.isNotEmpty) {
       markers.addAll(_groupPublicMarkers);
     }
 
@@ -192,13 +194,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     _groupPublicPosSub?.cancel();
     _groupPublicPosSub = null;
     _groupPublicMarkers = const <MapMarker>[];
-
-    if (!_isTracking) {
-      if (_isMasLiveMapReady) {
-        unawaited(_syncMarkersToMap());
-      }
-      return;
-    }
 
     final selection = _marketPoiSelection;
     final country = selection.country;
@@ -1077,6 +1072,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           setState(() => _marketPois = pois);
           _refreshMarketPoiMarkers();
         });
+
+    // Démarre/reprend le stream du curseur groupe pour ce circuit (couvre aussi
+    // la restauration au démarrage, pas seulement la sélection manuelle).
+    _restartGroupPublicPositionStream();
   }
 
   Future<void> _loadAndCacheMarketRoute(MarketMapPoiSelection selection) async {

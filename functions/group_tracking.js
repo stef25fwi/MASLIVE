@@ -252,7 +252,7 @@ exports.calculateGroupAveragePosition = onDocumentWritten(
         console.log(`   Détails filtrage: ${details.join(", ")}`);
       }
 
-      const positionsForAverage = validPositions.length > 0
+      let positionsForAverage = validPositions.length > 0
         ? validPositions
         : fallbackRecentPositions;
 
@@ -267,11 +267,31 @@ exports.calculateGroupAveragePosition = onDocumentWritten(
       }
 
       // Calcule le centroïde géodésique avec pondération
-      const avgPos = GeoUtils.calculateGeodeticCenter(positionsForAverage, true);
+      let avgPos = GeoUtils.calculateGeodeticCenter(positionsForAverage, true);
 
       if (!avgPos) {
         console.log("❌ Impossible calculer centroïde");
         return;
+      }
+
+      // Rejet d'outliers: un traceur très éloigné (GPS erratique, membre isolé)
+      // ne doit pas tirer le curseur du groupe. On exclut les positions au-delà
+      // d'un seuil du centroïde puis on recalcule une fois, à condition qu'il
+      // reste assez de points pour que la moyenne garde du sens (>= 3).
+      const OUTLIER_MAX_M = 500;
+      if (positionsForAverage.length >= 3) {
+        const kept = positionsForAverage.filter(
+          (pos) =>
+            GeoUtils.distanceKm(pos.lat, pos.lng, avgPos.lat, avgPos.lng) * 1000 <=
+            OUTLIER_MAX_M
+        );
+        if (kept.length >= 3 && kept.length < positionsForAverage.length) {
+          const removed = positionsForAverage.length - kept.length;
+          console.log(`🚫 Outliers exclus: ${removed} (> ${OUTLIER_MAX_M}m du centre)`);
+          positionsForAverage = kept;
+          avgPos =
+            GeoUtils.calculateGeodeticCenter(positionsForAverage, true) || avgPos;
+        }
       }
 
       console.log(

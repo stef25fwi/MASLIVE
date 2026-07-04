@@ -940,6 +940,67 @@ exports.updateGroupLocation = onCall(
       uid: request.auth.uid,
     });
 
+    // Alimente le pipeline d'agrégation groupe (moyenne géodésique → curseur
+    // sur le circuit). On résout l'adminGroupId de rattachement de l'utilisateur
+    // (source de vérité: group_trackers/{uid} pour un traceur, group_admins/{uid}
+    // pour un admin), indépendamment du `groupId` legacy passé en argument.
+    // Le trigger calculateGroupAveragePosition (group_positions/{adminGroupId}/
+    // members/{uid}) recalcule alors la moyenne et publishGroupAverageToCircuit
+    // la publie sur le circuit sélectionné par l'admin.
+    try {
+      let adminGroupId = null;
+      let memberRole = "tracker";
+
+      const trackerSnap = await db
+        .collection("group_trackers")
+        .doc(request.auth.uid)
+        .get();
+      const trackerData = trackerSnap.exists ? trackerSnap.data() : null;
+      if (trackerData && typeof trackerData.adminGroupId === "string" &&
+          trackerData.adminGroupId.trim().length > 0) {
+        adminGroupId = trackerData.adminGroupId.trim();
+        memberRole = "tracker";
+      } else {
+        const adminSnap = await db
+          .collection("group_admins")
+          .doc(request.auth.uid)
+          .get();
+        const adminData = adminSnap.exists ? adminSnap.data() : null;
+        if (adminData && typeof adminData.adminGroupId === "string" &&
+            adminData.adminGroupId.trim().length > 0) {
+          adminGroupId = adminData.adminGroupId.trim();
+          memberRole = "admin";
+        }
+      }
+
+      if (adminGroupId) {
+        await db
+          .collection("group_positions")
+          .doc(adminGroupId)
+          .collection("members")
+          .doc(request.auth.uid)
+          .set(
+            {
+              role: memberRole,
+              lastPosition: {
+                lat,
+                lng,
+                alt: typeof data.altitude === "number" ? data.altitude : null,
+                accuracy,
+                // ts = heure serveur d'écriture: cohérent avec la fenêtre de
+                // fraîcheur (20 s live / 2 min fallback) côté trigger d'agrégation.
+                ts: admin.firestore.FieldValue.serverTimestamp(),
+              },
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+      }
+    } catch (aggErr) {
+      // Best-effort: ne jamais faire échouer l'update de position principale.
+      console.log("ℹ️ group_positions feed skipped:", String(aggErr));
+    }
+
     return { ok: true };
   }
 );

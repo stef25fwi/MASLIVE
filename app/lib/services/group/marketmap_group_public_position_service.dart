@@ -45,45 +45,7 @@ class MarketMapGroupPublicPositionService {
     });
   }
 
-  Future<void> deleteGroupPosition({
-    required String countryId,
-    required String eventId,
-    required String circuitId,
-    required String adminGroupId,
-  }) {
-    return _groupTrackingCol(
-      countryId: countryId,
-      eventId: eventId,
-      circuitId: circuitId,
-    ).doc(adminGroupId).delete();
-  }
-
-  Future<void> upsertGroupPosition({
-    required String countryId,
-    required String eventId,
-    required String circuitId,
-    required String adminGroupId,
-    required String adminUid,
-    required String displayName,
-    required double lat,
-    required double lng,
-    int? memberCount,
-  }) {
-    // Note: en prod, on privilégie l’écriture via Cloud Functions (Admin SDK)
-    // pour garder une surface d’attaque minimale côté client.
-    return _groupTrackingCol(
-      countryId: countryId,
-      eventId: eventId,
-      circuitId: circuitId,
-    ).doc(adminGroupId).set({
-      'adminGroupId': adminGroupId,
-      'adminUid': adminUid,
-      'displayName': displayName,
-      'position': GeoPoint(lat, lng),
-      'lat': lat,
-      'lng': lng,
-      'memberCount': ?memberCount,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-  }
+  // L'écriture de group_tracking (upsert/delete) est assurée côté serveur par la
+  // Cloud Function `publishGroupAverageToCircuit` (Admin SDK) pour garder une
+  // surface d'attaque minimale côté client. Ce service est en lecture seule.
 }
