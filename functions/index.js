@@ -1699,30 +1699,53 @@ exports.createMixedCartCheckoutSession = onCall(
     );
     const continueToRoute = sanitizeContinueToRoute(data.continueToRoute, "/cart");
 
-    const storeOrder = await createStorexOrderDraftFromMerchCart({
-      uid,
-      currency: currency.toLowerCase(),
-      shippingCents,
-      shippingMethod,
-      shippingAddress,
-      checkoutPayload,
-    });
+    // Composition du panier (depuis le payload unifié). Rend merch ET media
+    // optionnels: la même fonction sert désormais aux paniers merch-seul,
+    // media-seul et mixtes. Un panier mixte se comporte exactement comme avant.
+    const payloadGroups = (checkoutPayload && typeof checkoutPayload.groups === "object")
+      ? checkoutPayload.groups
+      : {};
+    const hasMerch = Array.isArray(payloadGroups.merch) && payloadGroups.merch.length > 0;
+    const hasMedia = Array.isArray(payloadGroups.media) && payloadGroups.media.length > 0;
 
-    const mediaOrder = await mediaMarketplaceStripe.createMarketplaceOrderForPaymentIntent({
-      uid,
-      checkoutPayload,
-      source: "mixed_cart_checkout",
-    });
-    if (!mediaOrder?.orderId || !Number.isFinite(Number(mediaOrder.totalCents))) {
-      throw new HttpsError("failed-precondition", "Media cart empty");
+    const storeOrder = hasMerch
+      ? await createStorexOrderDraftFromMerchCart({
+          uid,
+          currency: currency.toLowerCase(),
+          shippingCents,
+          shippingMethod,
+          shippingAddress,
+          checkoutPayload,
+        })
+      : null;
+
+    let mediaOrder = null;
+    if (hasMedia) {
+      mediaOrder = await mediaMarketplaceStripe.createMarketplaceOrderForPaymentIntent({
+        uid,
+        checkoutPayload,
+        source: "mixed_cart_checkout",
+      });
+      if (!mediaOrder?.orderId || !Number.isFinite(Number(mediaOrder.totalCents))) {
+        throw new HttpsError("failed-precondition", "Media cart empty");
+      }
+      if (normalizeCurrencyCode(mediaOrder.currency, currency).toUpperCase() !== currency) {
+        throw new HttpsError("failed-precondition", "Mixed currencies are not supported");
+      }
     }
-    if (normalizeCurrencyCode(mediaOrder.currency, currency).toUpperCase() !== currency) {
-      throw new HttpsError("failed-precondition", "Mixed currencies are not supported");
+
+    if (!storeOrder && !mediaOrder) {
+      throw new HttpsError("failed-precondition", "Cart empty");
     }
+
+    // Identifiant de référence principal (ordre merch si présent, sinon media).
+    const primaryOrderId = storeOrder ? storeOrder.orderId : mediaOrder.orderId;
+    const storeCents = storeOrder ? toSafeInt(storeOrder.totalCents, 0) : 0;
+    const mediaCents = mediaOrder ? toSafeInt(mediaOrder.totalCents, 0) : 0;
 
     let promoCentsDiscount = 0;
     if (promoCode) {
-      const subtotalCents = storeOrder.totalCents + toSafeInt(mediaOrder.totalCents, 0);
+      const subtotalCents = storeCents + mediaCents;
       const promoSnap = await db.collection("config").doc("promo_codes").get();
       const promoConfig = promoSnap.exists && promoSnap.data() ? promoSnap.data() : {};
       const codes = promoConfig.codes || {};
@@ -1748,10 +1771,7 @@ exports.createMixedCartCheckoutSession = onCall(
       }
     }
 
-    const totalCents = Math.max(
-      0,
-      storeOrder.totalCents + toSafeInt(mediaOrder.totalCents, 0) - promoCentsDiscount
-    );
+    const totalCents = Math.max(0, storeCents + mediaCents - promoCentsDiscount);
     if (totalCents <= 0) {
       throw new HttpsError("failed-precondition", "Cart total invalid");
     }
@@ -1761,9 +1781,9 @@ exports.createMixedCartCheckoutSession = onCall(
       kind: "mixed_cart_checkout",
       uid,
       userId: uid,
-      orderId: storeOrder.orderId,
-      storeOrderId: storeOrder.orderId,
-      mediaOrderId: mediaOrder.orderId,
+      orderId: primaryOrderId,
+      ...(storeOrder ? { storeOrderId: storeOrder.orderId } : {}),
+      ...(mediaOrder ? { mediaOrderId: mediaOrder.orderId } : {}),
       currency,
       promoCode: promoCode || "none",
       promoCentsDiscount: String(promoCentsDiscount),
@@ -1775,23 +1795,23 @@ exports.createMixedCartCheckoutSession = onCall(
         line_items: [
           buildStripeCheckoutSummaryLineItem({
             title: "MASLIVE Mixed Checkout",
-            description: `${storeOrder.itemsCount || 0} article(s) merch + ${mediaOrder.itemsCount || 0} media`,
+            description: `${storeOrder ? (storeOrder.itemsCount || 0) : 0} article(s) merch + ${mediaOrder ? (mediaOrder.itemsCount || 0) : 0} media`,
             currency,
             totalCents,
             metadata: {
-              storeOrderId: storeOrder.orderId,
-              mediaOrderId: mediaOrder.orderId,
+              ...(storeOrder ? { storeOrderId: storeOrder.orderId } : {}),
+              ...(mediaOrder ? { mediaOrderId: mediaOrder.orderId } : {}),
               promoCode: promoCode || "none",
             },
           }),
         ],
-        client_reference_id: storeOrder.orderId,
+        client_reference_id: primaryOrderId,
         success_url: appendRedirectParams(successUrl, {
-          orderId: storeOrder.orderId,
+          orderId: primaryOrderId,
           continueToRoute,
         }),
         cancel_url: appendRedirectParams(cancelUrl, {
-          orderId: storeOrder.orderId,
+          orderId: primaryOrderId,
         }),
         customer_email: auth.token?.email || shippingAddress.email || undefined,
         metadata: sessionMetadata,
@@ -1799,43 +1819,45 @@ exports.createMixedCartCheckoutSession = onCall(
           metadata: {
             uid,
             userId: uid,
-            orderId: storeOrder.orderId,
-            storeOrderId: storeOrder.orderId,
-            mediaOrderId: mediaOrder.orderId,
+            orderId: primaryOrderId,
+            ...(storeOrder ? { storeOrderId: storeOrder.orderId } : {}),
+            ...(mediaOrder ? { mediaOrderId: mediaOrder.orderId } : {}),
             kind: "mixed_cart",
             promoCode: promoCode || "none",
             promoCentsDiscount: String(promoCentsDiscount),
           },
         },
       },
-      { idempotencyKey: `mixed_checkout_${storeOrder.orderId}_${mediaOrder.orderId}` }
+      { idempotencyKey: `mixed_checkout_${storeOrder ? storeOrder.orderId : "none"}_${mediaOrder ? mediaOrder.orderId : "none"}` }
     );
 
-    await storeOrder.orderRef.set(
-      {
-        promoCode: promoCode || null,
-        promoCentsDiscount,
-        stripe: {
-          sessionId: session.id,
-          checkoutKind: "mixed_cart_checkout",
-          mediaOrderId: mediaOrder.orderId,
+    if (storeOrder) {
+      await storeOrder.orderRef.set(
+        {
+          promoCode: promoCode || null,
+          promoCentsDiscount,
+          stripe: {
+            sessionId: session.id,
+            checkoutKind: "mixed_cart_checkout",
+            ...(mediaOrder ? { mediaOrderId: mediaOrder.orderId } : {}),
+          },
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-    await storeOrder.rootOrderRef.set(
-      {
-        stripe: {
-          sessionId: session.id,
-          checkoutKind: "mixed_cart_checkout",
-          mediaOrderId: mediaOrder.orderId,
+        { merge: true }
+      );
+      await storeOrder.rootOrderRef.set(
+        {
+          stripe: {
+            sessionId: session.id,
+            checkoutKind: "mixed_cart_checkout",
+            ...(mediaOrder ? { mediaOrderId: mediaOrder.orderId } : {}),
+          },
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-    await db.collection("orders").doc(mediaOrder.orderId).set(
+        { merge: true }
+      );
+    }
+    if (mediaOrder) await db.collection("orders").doc(mediaOrder.orderId).set(
       {
         stripeCheckoutSessionId: session.id,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1844,8 +1866,9 @@ exports.createMixedCartCheckoutSession = onCall(
     );
 
     return {
-      storeOrderId: storeOrder.orderId,
-      mediaOrderId: mediaOrder.orderId,
+      orderId: primaryOrderId,
+      storeOrderId: storeOrder ? storeOrder.orderId : null,
+      mediaOrderId: mediaOrder ? mediaOrder.orderId : null,
       checkoutUrl: session.url,
       stripeSessionId: session.id,
       totalCents,
