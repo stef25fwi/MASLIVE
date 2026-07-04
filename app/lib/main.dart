@@ -40,6 +40,7 @@ import 'route_style_pro/ui/route_style_pro_args.dart';
 // ── Eager: pages critiques au démarrage ──
 import 'pages/default_map_page.dart';
 import 'pages/splash_wrapper_page.dart';
+import 'widgets/debug/debug_admin_overlay.dart';
 // ── Deferred: toutes les autres pages (chargées à la demande) ──
 import 'pages/account_admin_page.dart' deferred as account;
 import 'pages/app_shell.dart' deferred as app_shell;
@@ -158,34 +159,80 @@ void _installStartupErrorHandling() {
 
   ErrorWidget.builder = (details) {
     final message = _lastStartupFatalError ?? details.exceptionAsString();
+    // On affiche AUSSI les logs capturés (debugPrint + erreurs) directement sur
+    // l'écran d'erreur: pendant un crash de démarrage, aucun autre écran ne se
+    // rend, donc le bouton flottant est inaccessible. Ici on a tout le contexte.
+    final logs = DebugLogBuffer.buildCopyText();
     return Material(
       color: Colors.white,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
+      child: SafeArea(
+        child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.error_outline,
-                  size: 56,
-                  color: Colors.redAccent,
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Erreur de demarrage MASLIVE',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  message,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontFamily: 'monospace'),
-                ),
-              ],
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Erreur de demarrage MASLIVE',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 10),
+                  SelectableText(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Clipboard.setData(
+                            ClipboardData(text: '$message\n\n=== LOGS ===\n$logs'),
+                          );
+                        },
+                        icon: const Icon(Icons.copy, size: 16),
+                        label: const Text('Copier erreur + logs'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Logs (requêtes / appels arrière-plan) :',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Flexible(
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0B1220),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: SingleChildScrollView(
+                        child: SelectableText(
+                          logs,
+                          style: const TextStyle(
+                            color: Color(0xFFCBD5E1),
+                            fontFamily: 'monospace',
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -513,7 +560,7 @@ class MasLiveApp extends StatelessWidget {
                 opacity: 0.08,
                 child: LocalizedApp(
                   showLanguageSidebar: true,
-                  child: child ?? const SizedBox(),
+                  child: DebugAdminOverlay(child: child ?? const SizedBox()),
                 ),
               ),
             );
