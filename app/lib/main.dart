@@ -124,7 +124,17 @@ String? _routeQueryParam(String key) {
 
 void _reportStartupFatal(Object error, [StackTrace? stackTrace]) {
   final message = error.toString();
-  _lastStartupFatalError = message;
+  // On joint les premières lignes de la stack au message affiché: en cas de
+  // récidive, le screenshot suffit à localiser le cast fautif (frame du haut).
+  final frames = stackTrace
+      ?.toString()
+      .split('\n')
+      .where((l) => l.trim().isNotEmpty)
+      .take(6)
+      .join('\n');
+  _lastStartupFatalError = (frames == null || frames.isEmpty)
+      ? message
+      : '$message\n\n$frames';
   StartupTrace.log('BOOT', 'fatal startup error: $message');
   DebugLogBuffer.logError(error, stackTrace, 'BOOT');
   debugPrint('❌ Startup fatal error: $message');
