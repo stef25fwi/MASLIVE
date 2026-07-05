@@ -30,6 +30,7 @@ class WizardStep2MapStyleSection extends StatefulWidget {
 class _WizardStep2MapStyleSectionState extends State<WizardStep2MapStyleSection> {
   final _repository = MapStylePresetRepositoryImpl();
   late final WatchWizardQuickMapStylePresetsUseCase _watchUseCase;
+  late final DuplicateMapStylePresetUseCase _duplicateUseCase;
   StreamSubscription<List<MapStylePreset>>? _subscription;
 
   bool _loading = true;
@@ -40,6 +41,7 @@ class _WizardStep2MapStyleSectionState extends State<WizardStep2MapStyleSection>
   void initState() {
     super.initState();
     _watchUseCase = WatchWizardQuickMapStylePresetsUseCase(_repository);
+    _duplicateUseCase = DuplicateMapStylePresetUseCase(_repository);
     _subscription = _watchUseCase(orgId: widget.orgId).listen(
       (items) {
         setState(() {
@@ -88,10 +90,26 @@ class _WizardStep2MapStyleSectionState extends State<WizardStep2MapStyleSection>
             selectedPresetId: _presets.firstWhereOrNull((item) => item.theme.global.mapboxBaseStyle == widget.currentStyleUrl)?.id,
             onApply: widget.onApplyPreset,
             onPreview: widget.onPreviewPreset,
-            onDuplicate: widget.onDuplicatePreset,
+            onDuplicate: _handleDuplicate,
           ),
       ],
     );
+  }
+
+  Future<void> _handleDuplicate(MapStylePreset preset) async {
+    try {
+      final duplicated = await _duplicateUseCase(preset.id);
+      if (!mounted) return;
+      widget.onDuplicatePreset(duplicated);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Preset "${preset.name}" dupliqué et appliqué.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Impossible de dupliquer le preset: $error')),
+      );
+    }
   }
 }
 

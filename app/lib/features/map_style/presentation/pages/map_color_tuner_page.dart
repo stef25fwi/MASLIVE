@@ -5,7 +5,14 @@ import 'package:flutter/material.dart';
 import '../../../../services/startup_map_style_service.dart';
 import '../../../../ui/map/maslive_map.dart';
 import '../../../../ui/map/maslive_map_controller.dart';
+import '../../../../utils/mapbox_base_style_presets.dart';
 
+/// Réglage rapide et local de l'apparence de la carte affichée sur la Home
+/// (bâtiments/verdure/eau + style de base), persisté via
+/// [StartupMapStyleService]. Volontairement séparé de la tuile "Mapbox
+/// Style" (`MapboxStyleStudioPage`), qui gère une bibliothèque de presets
+/// Firestore réutilisables et publiables pour toute l'organisation : les
+/// deux outils ne partagent pas de stockage, ce n'est pas un oubli.
 class MapColorTunerPage extends StatefulWidget {
   const MapColorTunerPage({super.key});
 
@@ -14,20 +21,11 @@ class MapColorTunerPage extends StatefulWidget {
 }
 
 class _MapColorTunerPageState extends State<MapColorTunerPage> {
-  static const List<_MapStyleOption> _styleOptions = <_MapStyleOption>[
-    _MapStyleOption('Streets', 'mapbox://styles/mapbox/streets-v12'),
-    _MapStyleOption('Outdoors', 'mapbox://styles/mapbox/outdoors-v12'),
-    _MapStyleOption('Light', 'mapbox://styles/mapbox/light-v11'),
-    _MapStyleOption('Dark', 'mapbox://styles/mapbox/dark-v11'),
-    _MapStyleOption(
-      'Satellite Streets',
-      'mapbox://styles/mapbox/satellite-streets-v12',
-    ),
-  ];
+  static const List<MapboxBaseStylePreset> _styleOptions = kMapboxBaseStylePresets;
 
   final MasLiveMapController _mapController = MasLiveMapController();
 
-  _MapStyleOption _selectedStyle = _styleOptions.first;
+  MapboxBaseStylePreset _selectedStyle = _styleOptions.first;
   bool _buildingsEnabled = true;
   double _buildingOpacity = 0.72;
   Color _buildingColor = const Color(0xFFD1D5DB);
@@ -74,7 +72,7 @@ class _MapColorTunerPageState extends State<MapColorTunerPage> {
     }
   }
 
-  _MapStyleOption _findStyleOption(String? styleUrl) {
+  MapboxBaseStylePreset _findStyleOption(String? styleUrl) {
     for (final option in _styleOptions) {
       if (option.styleUrl == styleUrl) {
         return option;
@@ -220,7 +218,7 @@ class _MapColorTunerPageState extends State<MapColorTunerPage> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<_MapStyleOption>(
+                DropdownButtonFormField<MapboxBaseStylePreset>(
                   initialValue: _selectedStyle,
                   decoration: const InputDecoration(
                     labelText: 'Style de base Mapbox',
@@ -228,7 +226,7 @@ class _MapColorTunerPageState extends State<MapColorTunerPage> {
                   ),
                   items: _styleOptions
                       .map(
-                        (option) => DropdownMenuItem<_MapStyleOption>(
+                        (option) => DropdownMenuItem<MapboxBaseStylePreset>(
                           value: option,
                           child: Text(option.label),
                         ),
@@ -640,11 +638,4 @@ class _RgbSlider extends StatelessWidget {
       ],
     );
   }
-}
-
-class _MapStyleOption {
-  const _MapStyleOption(this.label, this.styleUrl);
-
-  final String label;
-  final String styleUrl;
 }

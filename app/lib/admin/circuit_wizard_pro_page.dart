@@ -34,7 +34,9 @@ import '../pages/home_vertical_nav.dart';
 import 'poi_bottom_popup.dart';
 import 'poi_edit_popup.dart';
 import '../features/wizard/presentation/sections/wizard_step2_map_style_section.dart';
+import '../features/map_style/domain/entities/map_style_preset.dart';
 import '../services/image_optimization_service.dart';
+import '../utils/mapbox_base_style_presets.dart';
 
 typedef LngLat = ({double lng, double lat});
 
@@ -2432,6 +2434,54 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     setState(() {
       // Rebuild immédiat pour que la preview réagisse au clic.
     });
+  }
+
+  void _previewStylePreset(MapStylePreset preset) {
+    final styleUrl = _normalizeMapboxStyleUrl(
+      preset.theme.global.mapboxBaseStyle,
+    );
+    final lng = _routePoints.isNotEmpty
+        ? _routePoints.first.lng
+        : (_perimeterPoints.isNotEmpty ? _perimeterPoints.first.lng : -61.533);
+    final lat = _routePoints.isNotEmpty
+        ? _routePoints.first.lat
+        : (_perimeterPoints.isNotEmpty ? _perimeterPoints.first.lat : 16.241);
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text('Aperçu — ${preset.name}'),
+          contentPadding: const EdgeInsets.all(0),
+          content: SizedBox(
+            width: 480,
+            height: 360,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: MasLiveMap(
+                initialLng: lng,
+                initialLat: lat,
+                initialZoom: 13.5,
+                styleUrl: styleUrl.isEmpty ? null : styleUrl,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Fermer'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                _applyStylePreset(preset.theme.global.mapboxBaseStyle);
+              },
+              child: const Text('Appliquer ce style'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _ensurePoiInitialCamera() {
@@ -5195,20 +5245,8 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                   );
                   final presets = <({String label, String url})>[
                     (label: 'Effacer', url: ''),
-                    (
-                      label: 'Streets',
-                      url: 'mapbox://styles/mapbox/streets-v12',
-                    ),
-                    (
-                      label: 'Outdoors',
-                      url: 'mapbox://styles/mapbox/outdoors-v12',
-                    ),
-                    (
-                      label: 'Satellite',
-                      url: 'mapbox://styles/mapbox/satellite-streets-v12',
-                    ),
-                    (label: 'Light', url: 'mapbox://styles/mapbox/light-v11'),
-                    (label: 'Dark', url: 'mapbox://styles/mapbox/dark-v11'),
+                    for (final preset in kMapboxBaseStylePresets)
+                      (label: preset.label, url: preset.styleUrl),
                     (
                       label: 'Perso (stef971fwi)',
                       url:
@@ -5295,8 +5333,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 ),
                 onApplyPreset: (preset) =>
                     _applyStylePreset(preset.theme.global.mapboxBaseStyle),
-                onPreviewPreset: (preset) =>
-                    _applyStylePreset(preset.theme.global.mapboxBaseStyle),
+                onPreviewPreset: (preset) => _previewStylePreset(preset),
                 onDuplicatePreset: (preset) =>
                     _applyStylePreset(preset.theme.global.mapboxBaseStyle),
               ),

@@ -11,6 +11,12 @@ import '../../utils/map_style_defaults.dart';
 import '../widgets/style_editor_panel.dart';
 import '../widgets/style_preset_card.dart';
 
+/// Bibliothèque de presets de style Mapbox (Firestore) : créer, publier,
+/// dupliquer et rendre visibles dans le Wizard Circuit Pro des thèmes
+/// cartographiques réutilisables par toute l'organisation. Volontairement
+/// distincte de `MapColorTunerPage` ("Couleurs carte"), qui ne fait que
+/// régler en local l'apparence de la carte de la Home — les deux outils ne
+/// partagent pas de stockage, ce n'est pas un oubli.
 class MapboxStyleStudioPage extends StatelessWidget {
   const MapboxStyleStudioPage({super.key});
 
