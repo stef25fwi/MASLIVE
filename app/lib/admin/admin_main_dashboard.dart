@@ -32,6 +32,7 @@ import '../features/map_style/presentation/widgets/mapbox_style_tile.dart';
 import '../pages/superadmin_articles_page.dart';
 import '../commerce_module_single_file.dart';
 import '../utils/mapbox_style_url.dart';
+import '../utils/mapbox_base_style_presets.dart';
 import '../services/startup_map_style_service.dart';
 import 'admin_groups_page.dart';
 
@@ -1917,11 +1918,7 @@ Vérifiez:
     final controller = TextEditingController(text: currentUrl);
     final presets = <String, String>{
       'MasLive Pro': kMasliveProMapboxStyleUrl,
-      'Streets v12': 'mapbox://styles/mapbox/streets-v12',
-      'Outdoors v12': 'mapbox://styles/mapbox/outdoors-v12',
-      'Light v11': 'mapbox://styles/mapbox/light-v11',
-      'Dark v11': 'mapbox://styles/mapbox/dark-v11',
-      'Satellite Streets': 'mapbox://styles/mapbox/satellite-streets-v12',
+      for (final preset in kMapboxBaseStylePresets) preset.label: preset.styleUrl,
     };
 
     final result = await showDialog<String>(
