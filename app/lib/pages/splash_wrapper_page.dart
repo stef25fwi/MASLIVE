@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'splash_screen.dart';
 import 'default_map_page.dart';
 import 'home_map_page_3d.dart';
+import '../services/deferred_route_prefetch.dart';
 import '../services/startup_preload_service.dart';
 import '../utils/startup_trace.dart';
 import '../utils/web_viewport_resize.dart';
@@ -215,6 +216,11 @@ class _SplashWrapperPageState extends State<SplashWrapperPage> {
 
     await Future<void>.delayed(_deferredAssetPreloadDelay);
     if (!mounted) return;
+
+    // Best-effort, non bloquant: télécharge en avance les chunks web des
+    // pages atteignables depuis la bottom bar pour que leur ouverture soit
+    // instantanée au premier tap (voir deferred_route_prefetch.dart).
+    prefetchLikelyDeferredRoutes();
 
     StartupTrace.log('SPLASH', 'deferred asset preload start');
     try {
