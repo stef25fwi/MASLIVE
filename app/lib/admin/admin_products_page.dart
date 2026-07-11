@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
+import '../ui/widgets/storage_image.dart';
 import 'package:flutter/services.dart';
 
 import 'create_product_dialog.dart';
@@ -594,10 +596,11 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
         );
       }
 
-      return Image.network(
-        url,
+      return StorageImage(
+        url: url,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Container(
+        cacheWidth: 500,
+        errorWidget: Container(
           color: Colors.grey[200],
           child: const Icon(Icons.image, size: 50),
         ),
@@ -949,15 +952,14 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                                               label: 'Asset non trouvé',
                                             ),
                                   )
-                                : Image.network(
-                                    imageController.text,
+                                : StorageImage(
+                                    url: imageController.text,
                                     fit: BoxFit.cover,
-                                    errorBuilder:
-                                        (context, error, stackTrace) =>
-                                            _buildImageError(
-                                              icon: Icons.broken_image,
-                                              label: 'URL invalide',
-                                            ),
+                                    cacheWidth: 500,
+                                    errorWidget: _buildImageError(
+                                      icon: Icons.broken_image,
+                                      label: 'URL invalide',
+                                    ),
                                   ))
                           : _buildImageError(
                               icon: Icons.image_not_supported,

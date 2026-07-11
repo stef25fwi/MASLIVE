@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../ui/theme/maslive_theme.dart';
+import '../ui/widgets/storage_image.dart';
 import '../ui/widgets/gradient_header.dart';
 import '../ui/widgets/honeycomb_background.dart';
 import '../ui/widgets/maslive_card.dart';
@@ -625,10 +626,11 @@ class _CommerceTab extends StatelessWidget {
                             height: 72,
                             color: Colors.grey.shade200,
                             child: imageUrl.isNotEmpty
-                                ? Image.network(
-                                    imageUrl,
+                                ? StorageImage(
+                                    url: imageUrl,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) => const Icon(
+                                    cacheWidth: 220,
+                                    errorWidget: const Icon(
                                       Icons.image_not_supported,
                                       color: Colors.grey,
                                     ),

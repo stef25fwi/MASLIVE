@@ -125,7 +125,18 @@ drop-in fidèle.
 >   `cacheWidth` pour préserver la qualité au zoom ×3 ;
 > - `product_tile` (boutique) — conserve son skeleton animé + `alignment`
 >   spécifiques ;
-> - previews d'upload/picker et surfaces admin (trafic faible).
+> - previews d'upload/picker (URL blob/locale, pas de bénéfice cache).
+
+Retrofit étendu (3ᵉ passe) aux **surfaces admin** :
+`admin_products_page` (carte + preview), `poi_edit_popup` (preview POI),
+`pending_products_page` (3 vignettes), `superadmin_articles_page` (carte +
+preview), `professional_articles_page` (vignette 80px),
+`professional_article_form_page` (preview 200px), `group_profile_page`
+(vignette 72px). Cache-hit `gs://` + décodage borné y compris côté back-office.
+
+Vignette panier du checkout client (`maslive_ultra_premium_checkout_page`,
+98×112, branche réseau uniquement — dispatch asset/http préservé) : `cacheWidth`
+300.
 
 ## Recommandations restantes (non appliquées — à arbitrer)
 

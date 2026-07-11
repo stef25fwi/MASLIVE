@@ -10,6 +10,7 @@ import 'package:image_cropper/image_cropper.dart';
 
 import '../models/image_asset.dart' as img;
 import '../models/market_circuit_models.dart';
+import '../ui/widgets/storage_image.dart';
 import '../features/restaurant_live_tables/models/live_table_state.dart';
 import '../features/restaurant_live_tables/widgets/live_table_pro_panel.dart';
 import '../services/image_management_service.dart';
@@ -1001,17 +1002,15 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
         );
       }
     } else if (url != null) {
-      image = Image.network(
-        url,
+      image = StorageImage(
+        url: url,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => const ColoredBox(
+        cacheWidth: 500,
+        errorWidget: const ColoredBox(
           color: Colors.black12,
           child: Center(child: Icon(Icons.broken_image_rounded, size: 42)),
         ),
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-          return const Center(child: CircularProgressIndicator());
-        },
+        placeholder: const Center(child: CircularProgressIndicator()),
       );
     } else {
       image = const ColoredBox(
