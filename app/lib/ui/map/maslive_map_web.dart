@@ -804,7 +804,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       // circuit). On retente ~3s, puis on FORCE l'application pour ne pas
       // laisser les POIs invisibles indéfiniment.
       if (_poiApplyRetries <= 25) {
-        if (_poiApplyRetries <= 3 || _poiApplyRetries == 25) {
+        if (kDebugMode && (_poiApplyRetries <= 3 || _poiApplyRetries == 25)) {
           debugPrint('[POI_APPLY] style not loaded -> defer #$_poiApplyRetries');
         }
         unawaited(
@@ -815,11 +815,11 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         );
         return;
       }
-      debugPrint(
-        '[POI_APPLY] style toujours pas chargé après $_poiApplyRetries essais -> FORCE apply',
-      );
-    } else if (_poiApplyRetries > 0) {
-      debugPrint('[POI_APPLY] style prêt après $_poiApplyRetries essais');
+      if (kDebugMode) {
+        debugPrint(
+          '[POI_APPLY] style toujours pas chargé après $_poiApplyRetries essais -> FORCE apply',
+        );
+      }
     }
     _poiApplyRetries = 0;
 
@@ -1655,26 +1655,28 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       debugPrint('[POI_LAYERS_ERROR_STACK] ${st.toString().split('\n').take(4).join(' | ')}');
     }
 
-    // DIAGNOSTIC: quelles couches POI existent réellement + visibilité.
-    try {
-      String vis(String id) {
-        final ly = map.callMethod('getLayer', [id]);
-        if (ly == null) return 'ABSENT';
-        try {
-          final v = map.callMethod('getLayoutProperty', [id, 'visibility']);
-          return v == null ? 'visible' : v.toString();
-        } catch (_) {
-          return 'exists';
+    // DIAGNOSTIC (debug uniquement): quelles couches POI existent + visibilité.
+    if (kDebugMode) {
+      try {
+        String vis(String id) {
+          final ly = map.callMethod('getLayer', [id]);
+          if (ly == null) return 'ABSENT';
+          try {
+            final v = map.callMethod('getLayoutProperty', [id, 'visibility']);
+            return v == null ? 'visible' : v.toString();
+          } catch (_) {
+            return 'exists';
+          }
         }
-      }
 
-      debugPrint(
-        '[POI_LAYERS] circle=${vis(_poiLayerId)} '
-        'icon=${vis(_poiIconLayerId)} '
-        'fill=${vis(_poiFillLayerId)} '
-        'zoneLabel=${vis(_poiZoneLabelLayerId)}',
-      );
-    } catch (_) {}
+        debugPrint(
+          '[POI_LAYERS] circle=${vis(_poiLayerId)} '
+          'icon=${vis(_poiIconLayerId)} '
+          'fill=${vis(_poiFillLayerId)} '
+          'zoneLabel=${vis(_poiZoneLabelLayerId)}',
+        );
+      } catch (_) {}
+    }
 
     // Garantit que TOUTES les couches POI/zones restent au-dessus de tout le
     // reste (fond de carte, tracé du circuit même en routeAlwaysOnTop, etc.).

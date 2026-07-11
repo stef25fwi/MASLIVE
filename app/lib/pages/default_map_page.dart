@@ -4,7 +4,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show ValueListenable, kIsWeb;
+import 'package:flutter/foundation.dart' show ValueListenable, kDebugMode, kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
@@ -250,17 +250,17 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     if (!_isMasLiveMapReady) return;
 
     final pois = _visibleMarketPoisForCurrentAction();
-    // Log INCONDITIONNEL (visible aussi en release via le bouton debug carte):
-    // received = POIs reçus de Firestore, rendered = POIs matchant le filtre.
-    final circuitId = _marketPoiSelection.circuit?.id ?? 'none';
-    debugPrint(
-      '[POI_RENDER] '
-      'circuit=$circuitId '
-      'action=${_selectedAction?.name ?? 'none'} '
-      'mapReady=$_isMasLiveMapReady '
-      'received=${_marketPois.length} '
-      'rendered=${pois.length}',
-    );
+    if (kDebugMode) {
+      final circuitId = _marketPoiSelection.circuit?.id ?? 'none';
+      debugPrint(
+        '[POI_RENDER] '
+        'circuit=$circuitId '
+        'action=${_selectedAction?.name ?? 'none'} '
+        'mapReady=$_isMasLiveMapReady '
+        'received=${_marketPois.length} '
+        'rendered=${pois.length}',
+      );
+    }
 
     if (pois.isEmpty) {
       await _mapController.clearPoisGeoJson();
@@ -1062,13 +1062,14 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         )
         .listen((pois) {
           if (!mounted) return;
-          // Log INCONDITIONNEL: nb de POIs reçus de Firestore pour ce circuit.
-          debugPrint(
-            '[POI_RECEIVED] '
-            'circuit=${selection.circuit!.id} '
-            'layers=${selection.layerIds.toList()..sort()} '
-            'count=${pois.length}',
-          );
+          if (kDebugMode) {
+            debugPrint(
+              '[POI_RECEIVED] '
+              'circuit=${selection.circuit!.id} '
+              'layers=${selection.layerIds.toList()..sort()} '
+              'count=${pois.length}',
+            );
+          }
           setState(() => _marketPois = pois);
           _refreshMarketPoiMarkers();
         }, onError: (e, st) {
@@ -2361,21 +2362,21 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                     ),
                   ),
 
-                // Bouton debug (logs in-app) — affiche TOUS les logs capturés.
-                // Utile pour diagnostiquer l'affichage des POIs directement sur
-                // l'appareil/prod, sans console navigateur.
-                Positioned(
-                  left: 10,
-                  bottom: bottomInset + bottomBarHeight + 64,
-                  child: PointerInterceptor(
-                    child: Material(
-                      color: Colors.black.withValues(alpha: 0.55),
-                      shape: const CircleBorder(),
-                      clipBehavior: Clip.antiAlias,
-                      child: const AdminDebugLogsButton(), // scope null => tous
+                // Bouton debug (logs in-app) — uniquement en build debug.
+                // Affiche TOUS les logs capturés, sans console navigateur.
+                if (kDebugMode)
+                  Positioned(
+                    left: 10,
+                    bottom: bottomInset + bottomBarHeight + 64,
+                    child: PointerInterceptor(
+                      child: Material(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        shape: const CircleBorder(),
+                        clipBehavior: Clip.antiAlias,
+                        child: const AdminDebugLogsButton(), // scope null => tous
+                      ),
                     ),
                   ),
-                ),
               ],
             );
           },
