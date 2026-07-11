@@ -4,9 +4,10 @@ import 'package:flutter/services.dart';
 import '../utils/debug_log_buffer.dart';
 
 class AdminDebugLogsButton extends StatelessWidget {
-  const AdminDebugLogsButton({super.key, required this.scopeLabel});
+  const AdminDebugLogsButton({super.key, this.scopeLabel});
 
-  final String scopeLabel;
+  /// Scope à afficher. `null` => tous les logs (toutes pages confondues).
+  final String? scopeLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +21,7 @@ class AdminDebugLogsButton extends StatelessWidget {
 
 Future<void> showAdminDebugLogsSheet(
   BuildContext context, {
-  required String scopeLabel,
+  String? scopeLabel,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -66,7 +67,7 @@ Future<void> showAdminDebugLogsSheet(
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                scopeLabel,
+                                scopeLabel ?? 'Tous les logs',
                                 style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(color: Colors.black54),
                               ),

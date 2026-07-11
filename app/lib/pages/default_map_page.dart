@@ -13,6 +13,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../admin/admin_debug_logs_sheet.dart';
 import '../services/mapbox_token_service.dart';
 import '../services/auth_service.dart';
 import '../services/geolocation_service.dart';
@@ -249,18 +250,17 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     if (!_isMasLiveMapReady) return;
 
     final pois = _visibleMarketPoisForCurrentAction();
-    if (_selectedAction == _MapAction.food ||
-        _marketPois.any((poi) => poi.type == 'food') ||
-        pois.any((poi) => poi.type == 'food')) {
-      final circuitId = _marketPoiSelection.circuit?.id ?? 'none';
-      debugPrint(
-        '[DEFAULT_MAP_POI_RENDER] '
-        'circuit=$circuitId '
-        'action=${_selectedAction?.name ?? 'none'} '
-        'received=${_marketPois.length} '
-        'rendered=${pois.length}',
-      );
-    }
+    // Log INCONDITIONNEL (visible aussi en release via le bouton debug carte):
+    // received = POIs reçus de Firestore, rendered = POIs matchant le filtre.
+    final circuitId = _marketPoiSelection.circuit?.id ?? 'none';
+    debugPrint(
+      '[POI_RENDER] '
+      'circuit=$circuitId '
+      'action=${_selectedAction?.name ?? 'none'} '
+      'mapReady=$_isMasLiveMapReady '
+      'received=${_marketPois.length} '
+      'rendered=${pois.length}',
+    );
 
     if (pois.isEmpty) {
       await _mapController.clearPoisGeoJson();
@@ -1062,18 +1062,17 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         )
         .listen((pois) {
           if (!mounted) return;
-          final foodCount = pois.where((poi) => poi.type == 'food').length;
-          if (selection.layerIds.contains('food') || foodCount > 0) {
-            debugPrint(
-              '[DEFAULT_MAP_POI_RECEIVED] '
-              'circuit=${selection.circuit!.id} '
-              'layers=${selection.layerIds.toList()..sort()} '
-              'count=${pois.length} '
-              'food=$foodCount',
-            );
-          }
+          // Log INCONDITIONNEL: nb de POIs reçus de Firestore pour ce circuit.
+          debugPrint(
+            '[POI_RECEIVED] '
+            'circuit=${selection.circuit!.id} '
+            'layers=${selection.layerIds.toList()..sort()} '
+            'count=${pois.length}',
+          );
           setState(() => _marketPois = pois);
           _refreshMarketPoiMarkers();
+        }, onError: (e, st) {
+          debugPrint('[POI_STREAM_ERROR] circuit=${selection.circuit!.id} err=$e');
         });
 
     // Démarre/reprend le stream du curseur groupe pour ce circuit (couvre aussi
@@ -2361,6 +2360,22 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                       ),
                     ),
                   ),
+
+                // Bouton debug (logs in-app) — affiche TOUS les logs capturés.
+                // Utile pour diagnostiquer l'affichage des POIs directement sur
+                // l'appareil/prod, sans console navigateur.
+                Positioned(
+                  left: 10,
+                  bottom: bottomInset + bottomBarHeight + 64,
+                  child: PointerInterceptor(
+                    child: Material(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      shape: const CircleBorder(),
+                      clipBehavior: Clip.antiAlias,
+                      child: const AdminDebugLogsButton(), // scope null => tous
+                    ),
+                  ),
+                ),
               ],
             );
           },
