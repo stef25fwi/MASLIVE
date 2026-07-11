@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../ui/widgets/storage_image.dart';
+
 class PendingProductsPage extends StatelessWidget {
   const PendingProductsPage({super.key});
 
@@ -109,7 +111,11 @@ class PendingProductsPage extends StatelessWidget {
                               height: 70,
                               child: imageUrl.isEmpty
                                   ? Container(color: Colors.black.withValues(alpha: 0.06))
-                                  : Image.network(imageUrl, fit: BoxFit.cover),
+                                  : StorageImage(
+                                      url: imageUrl,
+                                      fit: BoxFit.cover,
+                                      cacheWidth: 210,
+                                    ),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -462,7 +468,7 @@ class _PendingProductReviewPageState extends State<PendingProductReviewPage> {
                 borderRadius: BorderRadius.circular(14),
                 child: url1.isEmpty
                     ? Container(color: Colors.black.withValues(alpha: 0.06))
-                    : Image.network(url1, fit: BoxFit.cover),
+                    : StorageImage(url: url1, fit: BoxFit.cover, cacheWidth: 400),
               ),
             ),
           ),
@@ -474,7 +480,7 @@ class _PendingProductReviewPageState extends State<PendingProductReviewPage> {
                 borderRadius: BorderRadius.circular(14),
                 child: url2.isEmpty
                     ? Container(color: Colors.black.withValues(alpha: 0.06))
-                    : Image.network(url2, fit: BoxFit.cover),
+                    : StorageImage(url: url2, fit: BoxFit.cover, cacheWidth: 400),
               ),
             ),
           ),

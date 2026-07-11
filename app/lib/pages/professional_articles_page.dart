@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'professional_article_form_page.dart';
+import '../ui/widgets/storage_image.dart';
 import '../ui/snack/top_snack_bar.dart';
 
 class ProfessionalArticlesPage extends StatefulWidget {
@@ -422,22 +423,21 @@ class _ProfessionalArticlesPageState extends State<ProfessionalArticlesPage> {
             if (image.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  image,
+                child: StorageImage(
+                  url: image,
                   width: 80,
                   height: 80,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.image_not_supported),
-                    );
-                  },
+                  cacheWidth: 240,
+                  errorWidget: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.image_not_supported),
+                  ),
                 ),
               )
             else

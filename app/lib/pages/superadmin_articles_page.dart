@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
+
+import '../ui/widgets/storage_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/superadmin_article.dart';
@@ -191,18 +193,17 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
                   top: Radius.circular(12),
                 ),
                 child: article.imageUrl.isNotEmpty
-                    ? Image.network(
-                        article.imageUrl,
+                    ? StorageImage(
+                        url: article.imageUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Center(
-                            child: Icon(
-                              Icons.image,
-                              size: 32,
-                              color: Colors.grey.shade400,
-                            ),
-                          );
-                        },
+                        cacheWidth: 500,
+                        errorWidget: Center(
+                          child: Icon(
+                            Icons.image,
+                            size: 32,
+                            color: Colors.grey.shade400,
+                          ),
+                        ),
                       )
                     : Center(
                         child: Icon(
@@ -782,19 +783,18 @@ class _ArticleEditDialogState extends State<_ArticleEditDialog> {
                             );
                           },
                         )
-                      : Image.network(
-                          _imageUrl,
+                      : StorageImage(
+                          url: _imageUrl,
                           height: 120,
                           width: 120,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              height: 120,
-                              width: 120,
-                              color: Colors.grey.shade200,
-                              child: const Icon(Icons.image),
-                            );
-                          },
+                          cacheWidth: 360,
+                          errorWidget: Container(
+                            height: 120,
+                            width: 120,
+                            color: Colors.grey.shade200,
+                            child: const Icon(Icons.image),
+                          ),
                         ),
                 ),
               ),

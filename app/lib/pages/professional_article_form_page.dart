@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../ui/widgets/storage_image.dart';
+
 class ProfessionalArticleFormPage extends StatefulWidget {
   final String? articleId;
 
@@ -255,22 +257,21 @@ class _ProfessionalArticleFormPageState extends State<ProfessionalArticleFormPag
                     if (_imageUrlCtrl.text.isNotEmpty)
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          _imageUrlCtrl.text,
+                        child: StorageImage(
+                          url: _imageUrlCtrl.text,
                           height: 200,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              height: 200,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[200],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Center(
-                                child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
-                              ),
-                            );
-                          },
+                          cacheWidth: 600,
+                          errorWidget: Container(
+                            height: 200,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Center(
+                              child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                            ),
+                          ),
                         ),
                       ),
                   ]),
