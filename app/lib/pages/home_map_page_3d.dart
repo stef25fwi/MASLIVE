@@ -227,6 +227,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   static const String _mmPoiLiveBadgeLayerId = 'mm_pois_live_badge';
   GeoJsonSource? _mmPoiSource;
   final Set<String> _mmPoiLayerIds = <String>{};
+  // Dernier GeoJSON POI poussé à Mapbox: sert de garde-diff pour éviter de
+  // réécrire la source (et déclencher un re-render/re-cluster) quand le contenu
+  // n'a pas changé (fréquent sur les circuits live avec snapshots répétés).
+  String? _lastMarketPoiGeoJson;
 
   // === MarketMap Route (Style Pro via GeoJSON Layers) ===
   static const String _mmRouteSourceId = 'mm_route_src';
@@ -2147,6 +2151,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
             'data',
             _emptyPoiFeatureCollection(),
           );
+          // La source contient maintenant une FeatureCollection vide: on
+          // synchronise le garde-diff pour que le prochain update repousse
+          // bien les POIs (et évite les réécritures vides redondantes).
+          _lastMarketPoiGeoJson = _emptyPoiFeatureCollection();
 
           // Cluster (optionnel selon version SDK)
           try {
@@ -2394,29 +2402,38 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       });
     }
 
-    final foodFeatures = feats.where((feature) {
-      final props = feature['properties'];
-      if (props is! Map) return false;
-      return props['type'] == 'food';
-    }).length;
+    if (kDebugMode) {
+      final foodFeatures = feats.where((feature) {
+        final props = feature['properties'];
+        if (props is! Map) return false;
+        return props['type'] == 'food';
+      }).length;
 
-    if (_selectedAction == _MapAction.food || foodFeatures > 0) {
-      debugPrint(
-        '[HOME_3D_POI_RENDER] '
-        'circuit=${_marketPoiSelection.circuit?.id ?? 'none'} '
-        'selectedAction=${_selectedAction?.name ?? 'none'} '
-        'features=${feats.length} '
-        'food=$foodFeatures',
-      );
+      if (_selectedAction == _MapAction.food || foodFeatures > 0) {
+        debugPrint(
+          '[HOME_3D_POI_RENDER] '
+          'circuit=${_marketPoiSelection.circuit?.id ?? 'none'} '
+          'selectedAction=${_selectedAction?.name ?? 'none'} '
+          'features=${feats.length} '
+          'food=$foodFeatures',
+        );
+      }
     }
 
     final fc = {'type': 'FeatureCollection', 'features': feats};
+    final encoded = jsonEncode(fc);
+
+    // Garde-diff: si le GeoJSON est identique au dernier poussé, on n'écrit pas
+    // la source (évite un re-render/re-cluster Mapbox inutile).
+    if (encoded == _lastMarketPoiGeoJson) return;
+
     try {
       await map.style.setStyleSourceProperty(
         _mmPoiSourceId,
         'data',
-        jsonEncode(fc),
+        encoded,
       );
+      _lastMarketPoiGeoJson = encoded;
     } catch (_) {
       // Fallback: remove+add
       try {
@@ -2426,8 +2443,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       }
       try {
         await map.style.addSource(
-          GeoJsonSource(id: _mmPoiSourceId, data: jsonEncode(fc)),
+          GeoJsonSource(id: _mmPoiSourceId, data: encoded),
         );
+        _lastMarketPoiGeoJson = encoded;
       } catch (_) {
         // ignore
       }

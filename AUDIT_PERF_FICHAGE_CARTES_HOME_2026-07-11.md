@@ -55,14 +55,54 @@ donc carte plus fluide.
 - **Home** : n'écoute que les POI du circuit sélectionné + positions groupe.
   Souscriptions correctement annulées dans `dispose()`.
 
+## 4. 🔁 Streams `watchCountries()` recréés à chaque build (media gallery)
+**Constat** : dans `_FiltersSheetMasliveState` et `_AddMediaSheetState`
+(`media_gallery_maslive_instagram_page.dart`), `watchCountries()` était appelé
+**directement** dans `stream:` du `StreamBuilder`. À chaque `build()`, un
+**nouveau** stream Firestore était créé → `StreamBuilder` se réabonne
+(annule/relance un listener) à chaque rebuild.
+
+**Action** : stream mis en cache dans un champ `late final _countriesStream`
+par State, passé au `StreamBuilder`.
+
+**Gain** : un seul abonnement stable par sheet, plus de réabonnements Firestore
+à chaque frame de saisie/rebuild.
+
+## 5. 🗺️ Home — GeoJSON POI réécrit à chaque snapshot (garde-diff)
+**Constat** : `_updateMarketPoiGeoJson` réécrivait la source Mapbox
+(`setStyleSourceProperty`) à **chaque** snapshot POI, déclenchant un
+re-render/re-cluster même quand le contenu était identique (fréquent sur
+circuits live).
+
+**Action** : garde-diff `_lastMarketPoiGeoJson` — on ne pousse la source que si
+le JSON encodé a changé. Cache synchronisé à la (re)création de la source
+(FeatureCollection vide) pour rester correct après changement de style. Le bloc
+`debugPrint` associé est aussi gardé derrière `kDebugMode`.
+
+**Gain** : suppression des réécritures/re-clusters inutiles → carte plus fluide
+en live. Les changements réels (focus, ajout/retrait de POI) écrivent toujours.
+
+## 6. 🖼️ Widget `StorageImage` réutilisable + `cacheWidth`
+**Constat** : le pattern « résoudre `gs://` puis `Image.network` » n'existait
+que dans la fiche polaroid ; les grilles de vignettes décodaient les images en
+**pleine résolution** (mémoire élevée).
+
+**Action** : `ui/widgets/storage_image.dart` — widget factorisé adossé à
+`StorageUrlCache` (cache-hit synchrone, http/assets/gs:// gérés) avec
+`cacheWidth`/`cacheHeight`. Adopté dans la grille `_MediaTileMaslive`
+(`cacheWidth: 400`).
+
+**Gain** : vignettes décodées à taille utile (moins de RAM, scroll plus fluide)
+et résolution `gs://` cachée. Widget réutilisable pour boutique/galeries.
+
 ## Recommandations restantes (non appliquées — à arbitrer)
 
-- **`media_gallery_maslive_instagram_page.dart`** : deux `StreamBuilder`
-  distincts sur `watchCountries()` (l.886 et l.1514) → deux listeners identiques.
-  Mutualiser en un seul stream partagé.
-- **`_renderMarketPoiMarkers`** (Home) : reconstruit tout le `FeatureCollection`
-  GeoJSON + réapplique visibilité/ordre à chaque snapshot POI. Pour un circuit
-  live à forte fréquence, envisager un diff (ne réécrire que si le contenu a
-  changé) et éviter `_bringMarketPoiLayersToFront` si l'ordre est inchangé.
-- **Images réseau** : généraliser `StorageUrlCache` aux `Image.network` et
-  envisager `cached_network_image` (cache disque) pour les galeries/boutique.
+- Généraliser `StorageImage` aux autres `Image.network` (boutique, détails
+  produit) au cas par cas, avec un `cacheWidth` adapté à chaque contexte.
+- Envisager `cached_network_image` (cache **disque**) pour la persistance
+  inter-sessions — nécessite l'ajout de la dépendance + `flutter pub get`.
+- `_bringMarketPoiLayersToFront` : ne réordonner que si l'ensemble des couches a
+  changé.
+
+> ⚠️ SDK Flutter absent de l'environnement d'édition : changements validés par
+> relecture. Lancer `flutter analyze` / build avant merge.
