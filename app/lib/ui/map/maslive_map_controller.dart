@@ -233,6 +233,7 @@ class MasLiveMapController {
     bool show = true,
     bool roadLike = false,
     bool shadow3d = false,
+    bool elevated3d = false,
     bool showDirection = false,
     bool animateDirection = false,
     double animationSpeed = 1.0,
@@ -267,6 +268,7 @@ class MasLiveMapController {
       PolylineRenderOptions(
         roadLike: roadLike,
         shadow3d: shadow3d,
+        elevated3d: elevated3d,
         showDirection: showDirection,
         animateDirection: animateDirection,
         animationSpeed: animationSpeed,
@@ -439,6 +441,11 @@ class MapCameraState {
 class PolylineRenderOptions {
   final bool roadLike;
   final bool shadow3d;
+
+  /// Si activé, le tracé est rendu en VRAI 3D (ruban extrudé `fill-extrusion`
+  /// avec épaisseur + faces latérales ombrées), au lieu d'une ligne plate.
+  /// (Web/Mapbox GL JS.)
+  final bool elevated3d;
   final bool showDirection;
   final bool animateDirection;
   final double animationSpeed;
@@ -497,6 +504,7 @@ class PolylineRenderOptions {
   const PolylineRenderOptions({
     this.roadLike = true,
     this.shadow3d = true,
+    this.elevated3d = false,
     this.showDirection = true,
     this.animateDirection = false,
     this.animationSpeed = 1.0,
@@ -526,6 +534,7 @@ class PolylineRenderOptions {
   Map<String, dynamic> toJson() => {
         'roadLike': roadLike,
         'shadow3d': shadow3d,
+        'elevated3d': elevated3d,
         'showDirection': showDirection,
         'animateDirection': animateDirection,
         'animationSpeed': animationSpeed,

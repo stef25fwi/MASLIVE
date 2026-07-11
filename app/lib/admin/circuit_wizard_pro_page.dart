@@ -5028,6 +5028,25 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
               ),
             if (_routeStyleAdvancedExpanded)
               IconButton(
+                tooltip: 'Tracé 3D (ruban extrudé)',
+                onPressed: () {
+                  final current =
+                      _routeStyleProConfig ?? const rsp.RouteStyleConfig();
+                  setState(() {
+                    _routeStyleProConfig = current.copyWith(
+                      elevated3d: !current.elevated3d,
+                    );
+                  });
+                },
+                icon: Icon(
+                  Icons.view_in_ar,
+                  color: (_routeStyleProConfig?.elevated3d ?? false)
+                      ? proBlue
+                      : colorScheme.onSurfaceVariant,
+                ),
+              ),
+            if (_routeStyleAdvancedExpanded)
+              IconButton(
                 tooltip: 'Animation sens de marche',
                 onPressed: _routeShowDirection
                     ? () => setState(

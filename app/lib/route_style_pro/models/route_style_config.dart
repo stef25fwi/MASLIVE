@@ -81,6 +81,10 @@ class RouteStyleConfig {
   // C) Ombre / Glow
   final bool shadowEnabled;
 
+  /// Rendu VRAI 3D du tracé: ruban extrudé (`fill-extrusion`) avec épaisseur
+  /// et faces latérales ombrées, au lieu d'une ligne plate. (Web)
+  final bool elevated3d;
+
   /// 0..1
   final double shadowOpacity;
 
@@ -172,6 +176,7 @@ class RouteStyleConfig {
     this.sidesIntensity = 0.70,
     // C
     this.shadowEnabled = true,
+    this.elevated3d = false,
     this.shadowOpacity = 0.40,
     this.shadowBlur = 2.0,
     this.glowEnabled = true,
@@ -278,6 +283,7 @@ class RouteStyleConfig {
     bool? sidesEnabled,
     double? sidesIntensity,
     bool? shadowEnabled,
+    bool? elevated3d,
     double? shadowOpacity,
     double? shadowBlur,
     bool? glowEnabled,
@@ -323,6 +329,7 @@ class RouteStyleConfig {
       sidesEnabled: sidesEnabled ?? this.sidesEnabled,
       sidesIntensity: sidesIntensity ?? this.sidesIntensity,
       shadowEnabled: shadowEnabled ?? this.shadowEnabled,
+      elevated3d: elevated3d ?? this.elevated3d,
       shadowOpacity: shadowOpacity ?? this.shadowOpacity,
       shadowBlur: shadowBlur ?? this.shadowBlur,
       glowEnabled: glowEnabled ?? this.glowEnabled,
@@ -376,6 +383,7 @@ class RouteStyleConfig {
       sidesEnabled: sidesEnabled,
       sidesIntensity: clamp(sidesIntensity, 0, 1),
       shadowEnabled: shadowEnabled,
+      elevated3d: elevated3d,
       shadowOpacity: clamp(shadowOpacity, 0, 1),
       shadowBlur: clamp(shadowBlur, 0, 20),
       glowEnabled: glowEnabled,
@@ -426,6 +434,7 @@ class RouteStyleConfig {
       'sidesEnabled': sidesEnabled,
       'sidesIntensity': sidesIntensity,
       'shadowEnabled': shadowEnabled,
+      'elevated3d': elevated3d,
       'shadowOpacity': shadowOpacity,
       'shadowBlur': shadowBlur,
       'glowEnabled': glowEnabled,
@@ -526,6 +535,9 @@ class RouteStyleConfig {
       shadowEnabled: json['shadowEnabled'] is bool
           ? json['shadowEnabled'] as bool
           : true,
+      elevated3d: json['elevated3d'] is bool
+          ? json['elevated3d'] as bool
+          : false,
       shadowOpacity: (json['shadowOpacity'] is num)
           ? (json['shadowOpacity'] as num).toDouble()
           : 0.40,
