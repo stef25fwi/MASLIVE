@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../ui/widgets/storage_image.dart';
+
 class RoundedProductCard extends StatelessWidget {
   const RoundedProductCard({
     super.key,
@@ -64,9 +66,10 @@ class RoundedProductCard extends StatelessWidget {
               child: Center(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(4, 8, 4, 2),
-                  child: Image.network(
-                    imageUrl,
+                  child: StorageImage(
+                    url: imageUrl,
                     fit: BoxFit.contain,
+                    cacheWidth: 400,
                   ),
                 ),
               ),

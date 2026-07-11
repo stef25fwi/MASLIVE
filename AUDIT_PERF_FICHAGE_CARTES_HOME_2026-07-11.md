@@ -95,10 +95,31 @@ que dans la fiche polaroid ; les grilles de vignettes décodaient les images en
 **Gain** : vignettes décodées à taille utile (moins de RAM, scroll plus fluide)
 et résolution `gs://` cachée. Widget réutilisable pour boutique/galeries.
 
+## 7. 🛍️ Adoption `StorageImage` aux cartes/vignettes boutique & listes
+**Action** : retrofit des `Image.network` des grilles/listes vers `StorageImage`
+(résolution `gs://` cachée + `cacheWidth` adapté + gestion d'erreur homogène) :
+
+| Fichier | Contexte | `cacheWidth` |
+| --- | --- | --- |
+| `features/shop/widgets/rounded_product_card.dart` | carte produit (grille) | 400 |
+| `features/shop/widgets/photo_grid_card.dart` | vignette photo (grille) | 400 |
+| `features/bloom_art/presentation/widgets/bloom_art_item_card.dart` | carte œuvre | 500 |
+| `widgets/cart/cart_item_tile.dart` | vignette panier 88px | 264 |
+| `widgets/commerce/moderation_tile.dart` | vignette admin 80px | 240 |
+| `widgets/commerce/submission_tile.dart` | vignette admin 60px | 180 |
+
+**Gain** : décodage borné à la taille utile (mémoire ↓, scroll plus fluide),
+plus la résolution `gs://` cachée. Les cartes sans gestion d'erreur en héritent
+désormais (fallback propre).
+
+> Non retrofité volontairement : héros produit zoomable (`product_detail_page`)
+> — pas de `cacheWidth` pour préserver la qualité au zoom ×3, et fallback
+> `maslivesmall.png` déjà en place.
+
 ## Recommandations restantes (non appliquées — à arbitrer)
 
-- Généraliser `StorageImage` aux autres `Image.network` (boutique, détails
-  produit) au cas par cas, avec un `cacheWidth` adapté à chaque contexte.
+- Retrofit `StorageImage` sur les `Image.network` restants au cas par cas
+  (galeries plein écran, gestion produits) avec un `cacheWidth` adapté.
 - Envisager `cached_network_image` (cache **disque**) pour la persistance
   inter-sessions — nécessite l'ajout de la dépendance + `flutter pub get`.
 - `_bringMarketPoiLayersToFront` : ne réordonner que si l'ensemble des couches a
