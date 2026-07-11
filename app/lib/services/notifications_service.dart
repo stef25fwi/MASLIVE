@@ -20,14 +20,35 @@ class NotificationsService {
   void start({GlobalKey<NavigatorState>? navigatorKey}) {
     if (_started) return;
     _started = true;
-
     _navigatorKey = navigatorKey;
+    unawaited(_startSafely());
+  }
 
-    _openedSub = FirebaseMessaging.onMessageOpenedApp.listen(_handleMessage);
-    // Si l'app est lancée depuis une notification
-    FirebaseMessaging.instance.getInitialMessage().then((m) {
-      if (m != null) _handleMessage(m);
-    });
+  Future<void> _startSafely() async {
+    // IMPORTANT (web): sur Safari/iOS et certains contextes, l'API Notification
+    // /ServiceWorker/PushManager est absente. FirebaseMessaging.getToken() /
+    // requestPermission() lèvent alors `ReferenceError: Can't find variable:
+    // Notification`, qui remontait en erreur fatale de démarrage et cassait le
+    // rendu (dont les POIs de la carte). On vérifie donc le support d'abord et
+    // on protège chaque appel.
+    if (kIsWeb) {
+      try {
+        final supported = await FirebaseMessaging.instance.isSupported();
+        if (!supported) return;
+      } catch (_) {
+        return;
+      }
+    }
+
+    try {
+      _openedSub = FirebaseMessaging.onMessageOpenedApp.listen(_handleMessage);
+      // Si l'app est lancée depuis une notification
+      unawaited(
+        FirebaseMessaging.instance.getInitialMessage().then((m) {
+          if (m != null) _handleMessage(m);
+        }).catchError((_) {}),
+      );
+    } catch (_) {}
 
     _authSub = FirebaseAuth.instance.authStateChanges().listen((user) async {
       await _tokenRefreshSub?.cancel();
@@ -38,9 +59,11 @@ class NotificationsService {
       await _requestPermissionIfNeeded();
       await _syncCurrentToken(user.uid);
 
-      _tokenRefreshSub = FirebaseMessaging.instance.onTokenRefresh.listen(
-        (token) => _saveTokenForUser(user.uid, token),
-      );
+      try {
+        _tokenRefreshSub = FirebaseMessaging.instance.onTokenRefresh.listen(
+          (token) => _saveTokenForUser(user.uid, token),
+        );
+      } catch (_) {}
     });
   }
 
@@ -64,9 +87,13 @@ class NotificationsService {
   }
 
   Future<void> _syncCurrentToken(String uid) async {
-    final token = await FirebaseMessaging.instance.getToken();
-    if (token == null || token.isEmpty) return;
-    await _saveTokenForUser(uid, token);
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token == null || token.isEmpty) return;
+      await _saveTokenForUser(uid, token);
+    } catch (_) {
+      // Web non supporté (Notification absente) ou token indisponible: no-op.
+    }
   }
 
   Future<void> _saveTokenForUser(String uid, String token) async {
