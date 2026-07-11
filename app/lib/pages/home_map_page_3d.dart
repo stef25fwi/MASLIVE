@@ -591,15 +591,17 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         )
         .listen((pois) async {
           if (!mounted) return;
-          final foodCount = pois.where((poi) => poi.type == 'food').length;
-          if (selection.layerIds.contains('food') || foodCount > 0) {
-            debugPrint(
-              '[HOME_3D_POI_RECEIVED] '
-              'circuit=${selection.circuit!.id} '
-              'layers=${selection.layerIds.toList()..sort()} '
-              'count=${pois.length} '
-              'food=$foodCount',
-            );
+          if (kDebugMode) {
+            final foodCount = pois.where((poi) => poi.type == 'food').length;
+            if (selection.layerIds.contains('food') || foodCount > 0) {
+              debugPrint(
+                '[HOME_3D_POI_RECEIVED] '
+                'circuit=${selection.circuit!.id} '
+                'layers=${selection.layerIds.toList()..sort()} '
+                'count=${pois.length} '
+                'food=$foodCount',
+              );
+            }
           }
           setState(() => _marketPois = pois);
           await _renderMarketPoiMarkers(); // GeoJSON update + visibility
