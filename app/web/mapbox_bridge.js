@@ -2668,6 +2668,24 @@
               map.setPaintProperty(extrusionLayerId, 'fill-extrusion-height', ribbonHeight);
               map.setPaintProperty(extrusionLayerId, 'fill-extrusion-opacity', Math.max(0.9, opacity));
             }
+
+            // Le ruban 3D remplace le tracé plat: on masque les couches plates
+            // (sinon elles restent visibles au sol sous le ruban). On garde
+            // l'ombre au sol (profondeur) et les flèches de direction.
+            const flatToHide = [
+              'maslive_polyline_core',
+              'maslive_polyline_center',
+              'maslive_polyline_casing',
+              'maslive_polyline_side_l',
+              'maslive_polyline_side_r',
+              'maslive_polyline_glow',
+              'maslive_polyline_layer',
+            ];
+            for (const lid of flatToHide) {
+              if (map.getLayer(lid)) {
+                try { map.setLayoutProperty(lid, 'visibility', 'none'); } catch (_) {}
+              }
+            }
           } catch (e3d) {
             console.warn('[Route3D] extrusion error:', e3d);
           }
