@@ -6,6 +6,7 @@ import '../../../models/market_country.dart';
 import '../../../models/market_event.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../services/market_map_service.dart';
+import '../../../ui/widgets/storage_image.dart';
 import '../../media_marketplace/data/repositories/photographer_repository.dart';
 import '../../media_marketplace/presentation/pages/media_downloads_page.dart';
 import '../../media_marketplace/presentation/pages/media_marketplace_home_page.dart';
@@ -1259,9 +1260,10 @@ class _PhotoCard extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.network(
-                imageUrl,
+              StorageImage(
+                url: imageUrl,
                 fit: BoxFit.cover,
+                cacheWidth: 400,
               ),
               if (showHeart)
                 Positioned(

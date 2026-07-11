@@ -112,9 +112,20 @@ et résolution `gs://` cachée. Widget réutilisable pour boutique/galeries.
 plus la résolution `gs://` cachée. Les cartes sans gestion d'erreur en héritent
 désormais (fallback propre).
 
-> Non retrofité volontairement : héros produit zoomable (`product_detail_page`)
-> — pas de `cacheWidth` pour préserver la qualité au zoom ×3, et fallback
-> `maslivesmall.png` déjà en place.
+Retrofit étendu (2ᵉ passe) aux surfaces galeries/marketplace/boutique :
+`shop_media_gallery_page` (grille + aperçu dialogue), `media_photo_shop_page`
+(grille), `product_management_page` (carte + carrousel), `boutique_page`
+(vignette 66px), `media_marketplace_home_page` (5 couvertures), `storex_shop_page`
+(vignette grille), `shop_body` (`filterQuality.high` préservé). `StorageImage`
+gagne au passage les paramètres `alignment` et `filterQuality` pour rester un
+drop-in fidèle.
+
+> Non retrofité volontairement :
+> - héros produit zoomable (`product_detail_page`, viewer plein écran) — pas de
+>   `cacheWidth` pour préserver la qualité au zoom ×3 ;
+> - `product_tile` (boutique) — conserve son skeleton animé + `alignment`
+>   spécifiques ;
+> - previews d'upload/picker et surfaces admin (trafic faible).
 
 ## Recommandations restantes (non appliquées — à arbitrer)
 

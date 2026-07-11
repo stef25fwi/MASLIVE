@@ -18,6 +18,8 @@ class StorageImage extends StatefulWidget {
     super.key,
     required this.url,
     this.fit = BoxFit.cover,
+    this.alignment = Alignment.center,
+    this.filterQuality = FilterQuality.low,
     this.width,
     this.height,
     this.cacheWidth,
@@ -29,6 +31,8 @@ class StorageImage extends StatefulWidget {
 
   final String? url;
   final BoxFit fit;
+  final Alignment alignment;
+  final FilterQuality filterQuality;
   final double? width;
   final double? height;
   final int? cacheWidth;
@@ -119,6 +123,8 @@ class _StorageImageState extends State<StorageImage> {
       child = Image.asset(
         url.startsWith('/assets/') ? url.substring(1) : url,
         fit: widget.fit,
+        alignment: widget.alignment,
+        filterQuality: widget.filterQuality,
         width: widget.width,
         height: widget.height,
         cacheWidth: widget.cacheWidth,
@@ -129,6 +135,8 @@ class _StorageImageState extends State<StorageImage> {
       child = Image.network(
         url,
         fit: widget.fit,
+        alignment: widget.alignment,
+        filterQuality: widget.filterQuality,
         width: widget.width,
         height: widget.height,
         cacheWidth: widget.cacheWidth,

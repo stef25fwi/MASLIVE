@@ -9,6 +9,7 @@ import '../../domain/commerce_models.dart' as cm show Category;
 import '../controllers/product_controller.dart';
 import '../widgets/change_notifier_provider_lite.dart';
 import '../../../../ui/snack/top_snack_bar.dart';
+import '../../../../ui/widgets/storage_image.dart';
 import 'shop_media_gallery_page.dart';
 
 // ---------------------------------------------------------------------------
@@ -517,11 +518,12 @@ class ProductTileAdmin extends StatelessWidget {
                         ? const Center(
                             child: Icon(Icons.photo_outlined, size: 32),
                           )
-                        : Image.network(
-                            product.mainImageUrl!,
+                        : StorageImage(
+                            url: product.mainImageUrl!,
                             fit: BoxFit.cover,
                             width: double.infinity,
-                            errorBuilder: (_, __, ___) => const Center(
+                            cacheWidth: 500,
+                            errorWidget: const Center(
                               child: Icon(Icons.broken_image_outlined),
                             ),
                           ),
@@ -1110,7 +1112,11 @@ class _ProductImagesEditorDialogState
                           child: Stack(
                             fit: StackFit.expand,
                             children: [
-                              Image.network(img.url, fit: BoxFit.cover),
+                              StorageImage(
+                                url: img.url,
+                                fit: BoxFit.cover,
+                                cacheWidth: 500,
+                              ),
                               Positioned(
                                 top: 10,
                                 right: 10,

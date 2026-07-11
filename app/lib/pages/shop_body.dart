@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/product_model.dart';
 import '../shop/widgets/product_tile.dart';
+import '../ui/widgets/storage_image.dart';
 import 'storex_shop_page.dart';
 import 'product_detail_page.dart';
 import '../services/cart_service.dart';
@@ -864,11 +865,12 @@ class _ProductTileCard extends StatelessWidget {
     String? imageAsset,
   }) {
     if (imageUrl != null && imageUrl.trim().isNotEmpty) {
-      return Image.network(
-        imageUrl,
+      return StorageImage(
+        url: imageUrl,
         fit: BoxFit.cover,
         filterQuality: FilterQuality.high,
-        errorBuilder: (context, error, stackTrace) => Container(
+        cacheWidth: 500,
+        errorWidget: Container(
           color: const Color(0xFFF1F3F8),
           child: const Center(
             child: Icon(

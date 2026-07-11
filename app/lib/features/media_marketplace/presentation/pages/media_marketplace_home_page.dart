@@ -9,6 +9,7 @@ import '../../data/repositories/photographer_repository.dart';
 import '../../presentation/controllers/media_marketplace_catalog_controller.dart';
 import '../../../../models/cart_item_model.dart' as unified_cart;
 import '../../../../providers/cart_provider.dart';
+import '../../../../ui/widgets/storage_image.dart';
 import '../../../../ui/theme/maslive_theme.dart';
 import '../../../../ui/snack/top_snack_bar.dart';
 import '../../../../utils/country_flag.dart';
@@ -832,7 +833,11 @@ class _MediaPhotoDetailsSheet extends StatelessWidget {
                 child: AspectRatio(
                   aspectRatio: 1,
                   child: imageUrl.isNotEmpty
-                      ? Image.network(imageUrl, fit: BoxFit.cover)
+                      ? StorageImage(
+                          url: imageUrl,
+                          fit: BoxFit.cover,
+                          cacheWidth: 600,
+                        )
                       : Container(
                           color: MasliveTheme.surface,
                           alignment: Alignment.center,
@@ -1082,7 +1087,11 @@ class _GalleryMediaCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: <Widget>[
                   if (imageUrl.trim().isNotEmpty)
-                    Image.network(imageUrl.trim(), fit: BoxFit.cover)
+                    StorageImage(
+                      url: imageUrl.trim(),
+                      fit: BoxFit.cover,
+                      cacheWidth: 600,
+                    )
                   else
                     Container(
                       color: MasliveTheme.surfaceAlt,
@@ -1185,7 +1194,11 @@ class _GalleryPackTile extends StatelessWidget {
                 width: 72,
                 height: 72,
                 child: coverUrl?.trim().isNotEmpty == true
-                    ? Image.network(coverUrl!.trim(), fit: BoxFit.cover)
+                    ? StorageImage(
+                        url: coverUrl!.trim(),
+                        fit: BoxFit.cover,
+                        cacheWidth: 220,
+                      )
                     : Container(
                         color: MasliveTheme.surfaceAlt,
                         alignment: Alignment.center,
@@ -1634,7 +1647,11 @@ class _HeroGalleryCard extends StatelessWidget {
           fit: StackFit.expand,
           children: <Widget>[
             if (imageUrl?.trim().isNotEmpty == true)
-              Image.network(imageUrl!.trim(), fit: BoxFit.cover)
+              StorageImage(
+                url: imageUrl!.trim(),
+                fit: BoxFit.cover,
+                cacheWidth: 600,
+              )
             else
               Image.asset('assets/images/maslivesmall.png', fit: BoxFit.cover),
             Container(
@@ -1847,7 +1864,11 @@ class _PhotoCard extends StatelessWidget {
           fit: StackFit.expand,
           children: <Widget>[
             if (item.imageUrl?.trim().isNotEmpty == true)
-              Image.network(item.imageUrl!.trim(), fit: BoxFit.cover)
+              StorageImage(
+                url: item.imageUrl!.trim(),
+                fit: BoxFit.cover,
+                cacheWidth: 600,
+              )
             else
               Container(
                 color: MasliveTheme.surface,
