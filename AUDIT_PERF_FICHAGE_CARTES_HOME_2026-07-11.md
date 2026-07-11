@@ -134,6 +134,10 @@ preview), `professional_articles_page` (vignette 80px),
 `professional_article_form_page` (preview 200px), `group_profile_page`
 (vignette 72px). Cache-hit `gs://` + décodage borné y compris côté back-office.
 
+Vignette panier du checkout client (`maslive_ultra_premium_checkout_page`,
+98×112, branche réseau uniquement — dispatch asset/http préservé) : `cacheWidth`
+300.
+
 ## Recommandations restantes (non appliquées — à arbitrer)
 
 - Retrofit `StorageImage` sur les `Image.network` restants au cas par cas

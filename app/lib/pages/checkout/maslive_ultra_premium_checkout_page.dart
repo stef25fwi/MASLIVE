@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/cart_item_model.dart';
 import '../../providers/cart_provider.dart';
+import '../../ui/widgets/storage_image.dart';
 import '../../services/cart_checkout_service.dart';
 import '../../session/require_signin.dart';
 import '../../session/session_controller.dart';
@@ -1004,10 +1005,11 @@ class _ProductThumb extends StatelessWidget {
                   ),
                 )
               : _isHttp
-              ? Image.network(
-                  imageUrl,
+              ? StorageImage(
+                  url: imageUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const Center(
+                  cacheWidth: 300,
+                  errorWidget: const Center(
                     child: Icon(
                       Icons.image_outlined,
                       size: 30,
