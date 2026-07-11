@@ -137,6 +137,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   late final _MasliveMetricsObserver _metricsObserver;
 
   String _poisGeoJsonString = '{"type":"FeatureCollection","features":[]}';
+  int _poiApplyRetries = 0;
 
   static const String _fallbackStyleUrl = kDefaultMapboxStyleUrl;
 
@@ -784,12 +785,28 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
   Future<void> _applyPoisGeoJsonIfReady() async {
     final map = _getMapForThisContainer();
-    if (map == null) return;
+    if (map == null) {
+      debugPrint('[POI_APPLY] map null -> abort');
+      return;
+    }
 
+    bool styleReady = false;
     try {
-      final styleLoaded = map.callMethod('isStyleLoaded');
-      if (styleLoaded != true) {
-        // Pas d'allowInterop ici: on retente un peu plus tard.
+      styleReady = map.callMethod('isStyleLoaded') == true;
+    } catch (e) {
+      debugPrint('[POI_APPLY] isStyleLoaded threw: $e');
+    }
+
+    if (!styleReady) {
+      _poiApplyRetries++;
+      // IMPORTANT (Safari): isStyleLoaded() peut rester `false` alors que le
+      // style est visuellement chargé (surtout après un changement de style de
+      // circuit). On retente ~3s, puis on FORCE l'application pour ne pas
+      // laisser les POIs invisibles indéfiniment.
+      if (_poiApplyRetries <= 25) {
+        if (_poiApplyRetries <= 3 || _poiApplyRetries == 25) {
+          debugPrint('[POI_APPLY] style not loaded -> defer #$_poiApplyRetries');
+        }
         unawaited(
           Future.delayed(
             const Duration(milliseconds: 120),
@@ -798,9 +815,13 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         );
         return;
       }
-    } catch (_) {
-      // ignore
+      debugPrint(
+        '[POI_APPLY] style toujours pas chargé après $_poiApplyRetries essais -> FORCE apply',
+      );
+    } else if (_poiApplyRetries > 0) {
+      debugPrint('[POI_APPLY] style prêt après $_poiApplyRetries essais');
     }
+    _poiApplyRetries = 0;
 
     // Si FeatureCollection vide => remove
     try {
