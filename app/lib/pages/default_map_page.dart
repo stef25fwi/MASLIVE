@@ -495,7 +495,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
               'fillOpacity': fillOpacity,
               'strokeColor': strokeColor,
               'strokeWidth': strokeWidth,
-              if (strokeDash != null) 'strokeDash': strokeDash,
+              'strokeDash': ?strokeDash,
             },
             'geometry': <String, dynamic>{
               'type': 'Polygon',
@@ -1725,8 +1725,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         icon: Icons.map_outlined,
         selected: _selectedAction == _MapAction.visiter,
         onTap: () {
-          if (_selectAction(_MapAction.visiter, 'Visiter'))
+          if (_selectAction(_MapAction.visiter, 'Visiter')) {
             _closeNavWithDelay();
+          }
         },
       ),
       HomeVerticalNavItem(
@@ -1742,8 +1743,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         icon: Icons.shield_outlined,
         selected: _selectedAction == _MapAction.assistance,
         onTap: () {
-          if (_selectAction(_MapAction.assistance, 'Assistance'))
+          if (_selectAction(_MapAction.assistance, 'Assistance')) {
             _closeNavWithDelay();
+          }
         },
       ),
       HomeVerticalNavItem(

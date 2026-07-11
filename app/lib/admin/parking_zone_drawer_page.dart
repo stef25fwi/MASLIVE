@@ -71,7 +71,7 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
   String _strokeDash = 'solid';
   String _pattern = 'none';
   double _patternOpacity = _kDefaultPatternOpacity;
-  String _labelPreset = _kLabelPresetWideBlue;
+  final String _labelPreset = _kLabelPresetWideBlue;
   Set<String> _vehicleTypes = {'car', 'moto'};
 
   final _nameCtrl = TextEditingController(text: 'Zone parking');
@@ -283,7 +283,7 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
           'strokeColor': stroke,
           'strokeWidth': _strokeWidth,
           'strokeDash': _strokeDash,
-          if (pat != null) 'fillPattern': pat,
+          'fillPattern': ?pat,
           'patternOpacity': _patternOpacity.clamp(0.0, 1.0),
         },
         'geometry': {
@@ -306,7 +306,7 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
           'labelTextSize': _labelSize(pts),
           'parkingIconId': _symbolImageId(),
           'parkingIconScale': _iconScale(pts),
-          if (badge != null) 'parkingBadgeId': badge,
+          'parkingBadgeId': ?badge,
         },
         'geometry': {
           'type': 'Point',

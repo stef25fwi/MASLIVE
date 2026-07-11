@@ -134,7 +134,7 @@ Future<void> showAdminDebugLogsSheet(
                             controller: scrollController,
                             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                             itemCount: entries.length,
-                            separatorBuilder: (_, __) =>
+                            separatorBuilder: (_, _) =>
                                 const SizedBox(height: 10),
                             itemBuilder: (context, index) {
                               final entry = entries[index];

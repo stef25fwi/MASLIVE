@@ -1543,7 +1543,7 @@ Future<T?> _pickFromMenu<T>(
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: items.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (_, i) {
                     final it = items[i];
                     final selected = it.value == initial;

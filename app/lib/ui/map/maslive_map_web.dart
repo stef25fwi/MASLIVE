@@ -1137,7 +1137,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       // Appeler setFilter sur une couche absente fait lever une erreur Mapbox GL JS
       // qui serait transmise à Flutter comme MASLIVE_MAP_ERROR — à éviter.
       final existingForFilter = map.callMethod('getLayer', [_poiLayerId]);
-      if (existingForFilter != null) map.callMethod('setFilter', [
+      if (existingForFilter != null) {
+        map.callMethod('setFilter', [
         _poiLayerId,
         js.JsObject.jsify([
           'all',
@@ -1223,6 +1224,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           ],
         ]),
       ]);
+      }
 
       final existingIcon = map.callMethod('getLayer', [_poiIconLayerId]);
       if (existingIcon == null) {
@@ -1361,7 +1363,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       }
 
       final existingPreview = map.callMethod('getLayer', [_poiPreviewVertexLayerId]);
-      if (existingPreview != null) map.callMethod('setFilter', [
+      if (existingPreview != null) {
+        map.callMethod('setFilter', [
         _poiPreviewVertexLayerId,
         js.JsObject.jsify([
           'all',
@@ -1377,6 +1380,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           ],
         ]),
       ]);
+      }
       map.callMethod('setPaintProperty', [
         _poiPreviewVertexLayerId,
         'circle-color',

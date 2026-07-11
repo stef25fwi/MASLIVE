@@ -1516,9 +1516,9 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
   Future<void> _ensureAllPoisLoadedForPublish() async {
     if (_isEnsuringAllPoisLoaded) return;
     // Guard: besoin du contexte marketMap pour charger les POIs.
-    final _ensureCountry = _countryController.text.trim();
-    final _ensureCircuit = _effectiveMarketCircuitId;
-    if (_ensureCountry.isEmpty || _ensureCircuit.isEmpty) return;
+    final ensureCountry = _countryController.text.trim();
+    final ensureCircuit = _effectiveMarketCircuitId;
+    if (ensureCountry.isEmpty || ensureCircuit.isEmpty) return;
     if (!_hasMorePois) return;
 
     setState(() => _isEnsuringAllPoisLoaded = true);
