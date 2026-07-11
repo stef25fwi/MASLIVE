@@ -857,6 +857,11 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     try {
       await _removeLayerIfExists(map, _poiLineLayerLegacyId);
 
+      // Couches de ZONES (polygones parking) isolées: si l'une échoue (incompat
+      // Safari, expression rejetée, etc.), on continue quand même vers la couche
+      // cercle des POIs points ci-dessous. Sinon un échec ici faisait sauter le
+      // reste du bloc => TOUS les POIs devenaient invisibles.
+      try {
       final fillExisting = map.callMethod('getLayer', [_poiFillLayerId]);
       if (fillExisting == null) {
         map.callMethod('addLayer', [
@@ -1025,6 +1030,9 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             },
           }),
         ]);
+      }
+      } catch (e) {
+        debugPrint('[POI_ZONE_LAYERS_SKIP] $e');
       }
 
       final existing = map.callMethod('getLayer', [_poiLayerId]);
