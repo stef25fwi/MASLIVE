@@ -867,9 +867,12 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       debugPrint('[POI_SOURCE_ERROR] $e');
     }
 
-    // Ensure pattern images (style)
+    // Ensure pattern images (style) — NE DOIT PAS bloquer la création des
+    // couches: le chargement de l'icône POI est asynchrone et peut ne jamais
+    // se terminer sur Safari (WebP). On lance en arrière-plan; Mapbox associera
+    // les images aux couches dès qu'elles sont prêtes.
     try {
-      await _ensurePoiPatternImages(map);
+      unawaited(_ensurePoiPatternImages(map));
     } catch (_) {
       // ignore
     }
@@ -1831,8 +1834,20 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     if (!has(_poiIconPointId)) {
       try {
         final img = html.ImageElement(src: 'assets/images/icon-point.webp');
-        await img.onLoad.first;
-        map.callMethod('addImage', [_poiIconPointId, img]);
+        // IMPORTANT: onLoad peut ne JAMAIS se déclencher si l'image échoue ou
+        // que le WebP ne se décode pas (Safari) => attente bornée sur
+        // onLoad/onError/timeout pour ne pas rester bloqué indéfiniment.
+        await Future.any<void>([
+          img.onLoad.first.then((_) {}),
+          img.onError.first.then((_) {}),
+          Future<void>.delayed(const Duration(seconds: 3)),
+        ]);
+        final loaded = (img.complete == true) && ((img.naturalWidth ?? 0) > 0);
+        if (loaded) {
+          map.callMethod('addImage', [_poiIconPointId, img]);
+        } else {
+          debugPrint('[POI_ICON] icon-point.webp non chargée (Safari/WebP?) — POIs en cercle');
+        }
       } catch (e) {
         debugPrint(
           '⚠️ Impossible de charger l\'image POI icon-point.webp pour Mapbox web: $e',
