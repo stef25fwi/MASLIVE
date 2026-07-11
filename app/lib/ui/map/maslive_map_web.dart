@@ -1834,26 +1834,31 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       add(_parkingBadgeLg, _buildParkingBadgeCanvas(width: 228, height: 56));
     }
     if (!has(_poiIconPointId)) {
-      try {
-        final img = html.ImageElement(src: 'assets/images/icon-point.webp');
-        // IMPORTANT: onLoad peut ne JAMAIS se déclencher si l'image échoue ou
-        // que le WebP ne se décode pas (Safari) => attente bornée sur
-        // onLoad/onError/timeout pour ne pas rester bloqué indéfiniment.
-        await Future.any<void>([
-          img.onLoad.first.then((_) {}),
-          img.onError.first.then((_) {}),
-          Future<void>.delayed(const Duration(seconds: 3)),
-        ]);
-        final loaded = (img.complete == true) && ((img.naturalWidth ?? 0) > 0);
-        if (loaded) {
-          map.callMethod('addImage', [_poiIconPointId, img]);
-        } else {
-          debugPrint('[POI_ICON] icon-point.webp non chargée (Safari/WebP?) — POIs en cercle');
+      // PNG en PRIORITÉ (universel, notamment Safari où le WebP peut ne pas se
+      // décoder), fallback WebP. Attente bornée (onLoad/onError/timeout) pour ne
+      // jamais bloquer; on n'enregistre l'image que si réellement décodée.
+      const iconSources = <String>[
+        'assets/images/icon-point.png',
+        'assets/images/icon-point.webp',
+      ];
+      for (final src in iconSources) {
+        try {
+          final img = html.ImageElement(src: src);
+          await Future.any<void>([
+            img.onLoad.first.then((_) {}),
+            img.onError.first.then((_) {}),
+            Future<void>.delayed(const Duration(seconds: 3)),
+          ]);
+          final loaded =
+              (img.complete == true) && ((img.naturalWidth ?? 0) > 0);
+          if (loaded) {
+            map.callMethod('addImage', [_poiIconPointId, img]);
+            break; // icône chargée => stop
+          }
+          debugPrint('[POI_ICON] $src non chargée, tentative suivante…');
+        } catch (e) {
+          debugPrint('[POI_ICON] $src erreur: $e');
         }
-      } catch (e) {
-        debugPrint(
-          '⚠️ Impossible de charger l\'image POI icon-point.webp pour Mapbox web: $e',
-        );
       }
     }
   }
