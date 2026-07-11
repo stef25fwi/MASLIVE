@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../ui/widgets/storage_image.dart';
+
 class PhotoGridCard extends StatelessWidget {
   const PhotoGridCard({
     super.key,
@@ -19,9 +21,10 @@ class PhotoGridCard extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
-          Image.network(
-            imageUrl,
+          StorageImage(
+            url: imageUrl,
             fit: BoxFit.cover,
+            cacheWidth: 400,
           ),
           DecoratedBox(
             decoration: BoxDecoration(

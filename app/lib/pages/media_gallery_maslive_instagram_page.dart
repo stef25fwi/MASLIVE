@@ -11,6 +11,7 @@ import '../models/market_country.dart';
 import '../services/market_map_service.dart';
 import '../services/media_permissions_service.dart';
 import '../utils/country_flag.dart';
+import '../ui/widgets/storage_image.dart';
 
 class MediaGalleryMasliveInstagramPage extends StatefulWidget {
   const MediaGalleryMasliveInstagramPage({super.key});
@@ -596,29 +597,28 @@ class _MediaTileMaslive extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Thumb
-          Image.network(
-            thumb,
+          // Thumb — StorageImage: résolution gs:// cachée + décodage borné
+          // (cacheWidth) pour alléger la mémoire des grilles de vignettes.
+          StorageImage(
+            url: thumb,
             fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => const ColoredBox(
+            cacheWidth: 400,
+            errorWidget: const ColoredBox(
               color: Color(0xFFF0F0F2),
               child: Center(
                 child: Icon(Icons.broken_image_outlined, color: Colors.black26),
               ),
             ),
-            loadingBuilder: (context, child, progress) {
-              if (progress == null) return child;
-              return const ColoredBox(
-                color: Color(0xFFF3F3F4),
-                child: Center(
-                  child: SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+            placeholder: const ColoredBox(
+              color: Color(0xFFF3F3F4),
+              child: Center(
+                child: SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 ),
-              );
-            },
+              ),
+            ),
           ),
 
           // Overlay coin (ultra discret)
@@ -854,6 +854,9 @@ class _FiltersSheetMaslive extends StatefulWidget {
 
 class _FiltersSheetMasliveState extends State<_FiltersSheetMaslive> {
   final MarketMapService _marketMapService = MarketMapService();
+  // Stream mis en cache: évite de recréer un listener Firestore à chaque build.
+  late final Stream<List<MarketCountry>> _countriesStream =
+      _marketMapService.watchCountries();
   final FocusNode _countryFocusNode = FocusNode();
 
   late final TextEditingController _country;
@@ -883,7 +886,7 @@ class _FiltersSheetMasliveState extends State<_FiltersSheetMaslive> {
 
   Widget _buildMasliveCountryAutocomplete() {
     return StreamBuilder<List<MarketCountry>>(
-      stream: _marketMapService.watchCountries(),
+      stream: _countriesStream,
       builder: (context, snap) {
         final items = snap.data ?? const <MarketCountry>[];
 
@@ -1346,6 +1349,9 @@ class _AddMediaSheet extends StatefulWidget {
 
 class _AddMediaSheetState extends State<_AddMediaSheet> {
   final MarketMapService _marketMapService = MarketMapService();
+  // Stream mis en cache: évite de recréer un listener Firestore à chaque build.
+  late final Stream<List<MarketCountry>> _countriesStream =
+      _marketMapService.watchCountries();
   final FocusNode _countryFocusNode = FocusNode();
 
   final _countryCtrl = TextEditingController();
@@ -1511,7 +1517,7 @@ class _AddMediaSheetState extends State<_AddMediaSheet> {
           const SizedBox(height: 12),
 
           StreamBuilder<List<MarketCountry>>(
-            stream: _marketMapService.watchCountries(),
+            stream: _countriesStream,
             builder: (context, snap) {
               final items = snap.data ?? const <MarketCountry>[];
 

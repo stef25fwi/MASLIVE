@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../ui/widgets/storage_image.dart';
 import '../../data/commerce_repository.dart';
 import '../../domain/commerce_models.dart';
 
@@ -55,7 +56,11 @@ class ShopMediaGalleryPage extends StatelessWidget {
                                 ? const Center(
                                     child: Icon(Icons.videocam_outlined),
                                   )
-                                : Image.network(m.url, fit: BoxFit.cover),
+                                : StorageImage(
+                                    url: m.url,
+                                    fit: BoxFit.cover,
+                                    cacheWidth: 800,
+                                  ),
                           ),
                           Padding(
                             padding: const EdgeInsets.all(12),
@@ -81,7 +86,11 @@ class ShopMediaGalleryPage extends StatelessWidget {
                               color: Colors.black12,
                               child: const Icon(Icons.videocam_outlined),
                             )
-                          : Image.network(m.url, fit: BoxFit.cover),
+                          : StorageImage(
+                              url: m.url,
+                              fit: BoxFit.cover,
+                              cacheWidth: 400,
+                            ),
                       if (!m.isVisible)
                         Container(
                           color: Colors.black38,

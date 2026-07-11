@@ -3,11 +3,11 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../features/restaurant_live_tables/widgets/live_table_status_section.dart';
 import '../../ui_kit/tokens/maslive_tokens.dart';
+import '../../utils/storage_url_cache.dart';
 
 Future<void> showPolaroidPoiSheet({
   required BuildContext context,
@@ -383,16 +383,18 @@ class _PhotoAreaState extends State<_PhotoArea> {
 
     // URL gs:// (Firebase Storage): tenter une résolution vers downloadURL
     if (url.startsWith('gs://')) {
+      // Cache-hit synchrone => affichage instantané, aucun aller-retour réseau.
+      final cached = StorageUrlCache.peek(url);
+      if (cached != null) {
+        if (mounted) setState(() => _resolvedUrl = cached);
+        return;
+      }
       if (_resolving) return;
       _resolving = true;
       try {
-        final ref = FirebaseStorage.instance.refFromURL(url);
-        final downloadUrl = await ref.getDownloadURL();
+        final downloadUrl = await StorageUrlCache.resolve(url);
         if (!mounted) return;
         setState(() => _resolvedUrl = downloadUrl);
-      } catch (_) {
-        if (!mounted) return;
-        setState(() => _resolvedUrl = url);
       } finally {
         _resolving = false;
       }
@@ -522,11 +524,15 @@ class _PolaroidGrainPainter extends CustomPainter {
     }
 
     final n = (2200 * clamped).round().clamp(0, 2200);
-    for (int i = 0; i < n; i++) {
-      final x = next01() * size.width;
-      final y = next01() * size.height;
-      canvas.drawPoints(PointMode.points, [Offset(x, y)], paint);
-    }
+    if (n == 0) return;
+    // Un seul appel batch au lieu de n appels drawPoints individuels:
+    // beaucoup moins d'allocations et un seul draw call GPU par frame.
+    final points = List<Offset>.generate(
+      n,
+      (_) => Offset(next01() * size.width, next01() * size.height),
+      growable: false,
+    );
+    canvas.drawPoints(PointMode.points, points, paint);
   }
 
   @override

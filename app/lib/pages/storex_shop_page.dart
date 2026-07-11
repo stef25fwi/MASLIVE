@@ -15,6 +15,7 @@ import 'user_facing_bottom_bar.dart';
 import '../widgets/language_switcher.dart';
 import '../l10n/app_localizations.dart' as l10n;
 import '../ui/snack/top_snack_bar.dart';
+import '../ui/widgets/storage_image.dart';
 
 /// ===============================================================
 /// Storex-style Shop for MassLive (Firestore: products + categories)
@@ -1043,10 +1044,11 @@ class _StorexCategory extends StatelessWidget {
                     children: [
                       // Fond : image produit ou couleur fallback
                       if (imgUrl != null && imgUrl.isNotEmpty)
-                        Image.network(
-                          imgUrl,
+                        StorageImage(
+                          url: imgUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, e, st) =>
+                          cacheWidth: 400,
+                          errorWidget:
                               Container(color: const Color(0xFFE3E5EA)),
                         )
                       else

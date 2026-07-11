@@ -475,9 +475,10 @@ class MarketMapService {
         return candidates.any(normalized.contains);
       }).toList();
 
-      if (normalized.contains('food') ||
-          mapped.any((poi) => poi.type == 'food') ||
-          pois.any((poi) => poi.type == 'food')) {
+      if (kDebugMode &&
+          (normalized.contains('food') ||
+              mapped.any((poi) => poi.type == 'food') ||
+              pois.any((poi) => poi.type == 'food'))) {
         final visibleCount = mapped.where((poi) => poi.isVisible).length;
         final foodCount = pois.where((poi) => poi.type == 'food').length;
         debugPrint(

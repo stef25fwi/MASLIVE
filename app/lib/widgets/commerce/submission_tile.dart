@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/commerce_submission.dart';
+import '../../ui/widgets/storage_image.dart';
 
 /// Tuile d'affichage d'une soumission commerce
 class SubmissionTile extends StatelessWidget {
@@ -33,12 +34,13 @@ class SubmissionTile extends StatelessWidget {
                 if (submission.mediaUrls.isNotEmpty)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      submission.mediaUrls.first,
+                    child: StorageImage(
+                      url: submission.mediaUrls.first,
                       width: 60,
                       height: 60,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
+                      cacheWidth: 180,
+                      errorWidget: Container(
                         width: 60,
                         height: 60,
                         color: Colors.grey.shade200,

@@ -4,6 +4,7 @@ import '../../domain/commerce_models.dart';
 import '../controllers/product_controller.dart';
 import '../widgets/change_notifier_provider_lite.dart';
 import '../../../../ui/snack/top_snack_bar.dart';
+import '../../../../ui/widgets/storage_image.dart';
 
 class BoutiquePage extends StatefulWidget {
   final String shopId;
@@ -197,9 +198,10 @@ class _BoutiquePageState extends State<BoutiquePage> {
                                           color: const Color(0xFFF6F7FB),
                                           child: product.mainImageUrl == null
                                               ? const Icon(Icons.photo_outlined)
-                                              : Image.network(
-                                                  product.mainImageUrl!,
+                                              : StorageImage(
+                                                  url: product.mainImageUrl!,
                                                   fit: BoxFit.cover,
+                                                  cacheWidth: 200,
                                                 ),
                                         ),
                                       ),

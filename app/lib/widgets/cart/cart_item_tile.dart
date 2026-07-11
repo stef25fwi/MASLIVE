@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/cart_item_model.dart';
+import '../../ui/widgets/storage_image.dart';
 
 class CartItemTile extends StatelessWidget {
   const CartItemTile({
@@ -68,15 +69,14 @@ class CartItemTile extends StatelessWidget {
                         );
                       },
                     )
-                  : Image.network(
-                      effectiveImageRef,
+                  : StorageImage(
+                      url: effectiveImageRef,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: const Color(0xFFE5E7EB),
-                          child: const Icon(Icons.broken_image_outlined),
-                        );
-                      },
+                      cacheWidth: 264,
+                      errorWidget: Container(
+                        color: const Color(0xFFE5E7EB),
+                        child: const Icon(Icons.broken_image_outlined),
+                      ),
                     ),
             ),
           ),

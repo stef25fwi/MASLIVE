@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../ui/widgets/storage_image.dart';
 import '../../data/models/bloom_art_item.dart';
 import 'bloom_art_cta_button.dart';
 
@@ -50,7 +51,11 @@ class BloomArtItemCard extends StatelessWidget {
                           color: Color(0xFF9A836D),
                         ),
                       )
-                    : Image.network(cover, fit: BoxFit.cover),
+                    : StorageImage(
+                        url: cover,
+                        fit: BoxFit.cover,
+                        cacheWidth: 500,
+                      ),
               ),
             ),
             Padding(
