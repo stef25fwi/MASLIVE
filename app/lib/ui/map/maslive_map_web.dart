@@ -842,8 +842,8 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       } else {
         (src as js.JsObject).callMethod('setData', [data]);
       }
-    } catch (_) {
-      // ignore
+    } catch (e) {
+      debugPrint('[POI_SOURCE_ERROR] $e');
     }
 
     // Ensure pattern images (style)
@@ -1615,9 +1615,34 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
           ],
         ]),
       ]);
-    } catch (_) {
-      // ignore
+    } catch (e, st) {
+      // DIAGNOSTIC: cette erreur était avalée => si une création de layer POI
+      // échoue (ex. incompat Safari), tous les layers suivants sont sautés et
+      // les POIs deviennent invisibles. On la logge pour la voir via le bouton 🐛.
+      debugPrint('[POI_LAYERS_ERROR] $e');
+      debugPrint('[POI_LAYERS_ERROR_STACK] ${st.toString().split('\n').take(4).join(' | ')}');
     }
+
+    // DIAGNOSTIC: quelles couches POI existent réellement + visibilité.
+    try {
+      String vis(String id) {
+        final ly = map.callMethod('getLayer', [id]);
+        if (ly == null) return 'ABSENT';
+        try {
+          final v = map.callMethod('getLayoutProperty', [id, 'visibility']);
+          return v == null ? 'visible' : v.toString();
+        } catch (_) {
+          return 'exists';
+        }
+      }
+
+      debugPrint(
+        '[POI_LAYERS] circle=${vis(_poiLayerId)} '
+        'icon=${vis(_poiIconLayerId)} '
+        'fill=${vis(_poiFillLayerId)} '
+        'zoneLabel=${vis(_poiZoneLabelLayerId)}',
+      );
+    } catch (_) {}
 
     // Garantit que TOUTES les couches POI/zones restent au-dessus de tout le
     // reste (fond de carte, tracé du circuit même en routeAlwaysOnTop, etc.).
