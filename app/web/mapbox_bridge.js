@@ -2639,10 +2639,12 @@
               ring.push(ring[0]);
               return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [ring] } };
             };
-            // Largeur/hauteur du ruban en mètres (heuristique; ajustable via
-            // largeur du tracé + thickness3d). À affiner visuellement.
-            const ribbonHalfW = Math.max(2.5, (w * 0.6) * thickness3d);
-            const ribbonHeight = 4 + 10 * thickness3d;
+            // Largeur du ruban (m): suit la largeur du tracé (slider Largeur).
+            // Hauteur (m): pilotée par le slider "Hauteur (3D)" (elevationPx);
+            // à défaut, dérivée de l'épaisseur. Ruban plutôt large et bas
+            // (proche d'une route surélevée), pas un mur fin et haut.
+            const ribbonHalfW = Math.max(3.0, w * 0.75);
+            const ribbonHeight = (elevationPx > 0.5) ? elevationPx : (3 + 6 * thickness3d);
             const poly = bufferLineToPolygon(coords, ribbonHalfW);
             const eSrc = map.getSource(extrusionSrcId);
             if (!eSrc) {
