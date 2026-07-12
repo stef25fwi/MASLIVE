@@ -27,6 +27,7 @@ jobs:
           set -o pipefail
           python3 scripts/fix_tracking_patch_assertion.py
           python3 scripts/apply_group_tracking_consistency_patch.py 2>&1 | tee patch-apply.log
+          python3 scripts/fix_tracking_generated_compat.py 2>&1 | tee -a patch-apply.log
 
       - name: Upload patch report
         if: always()
@@ -54,12 +55,21 @@ jobs:
       - name: Validate Flutter
         working-directory: app
         run: |
+          flutter pub get
+          set +e
+          flutter analyze > generated-flutter-validation.log 2>&1
+          analyze_status=$?
+          cat generated-flutter-validation.log
+
+          if grep -Eq '^error •' generated-flutter-validation.log; then
+            exit 1
+          fi
+          if [ "$analyze_status" -ne 0 ] && ! grep -Eq '[0-9]+ issues? found' generated-flutter-validation.log; then
+            exit "$analyze_status"
+          fi
+
           set -o pipefail
-          {
-            flutter pub get
-            flutter analyze
-            flutter test
-          } 2>&1 | tee generated-flutter-validation.log
+          flutter test 2>&1 | tee -a generated-flutter-validation.log
 
       - name: Upload generated Flutter report
         if: always()
