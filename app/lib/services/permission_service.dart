@@ -1,7 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/user_role_model.dart';
 
-/// Service de gestion des permissions et rôles utilisateur
+import '../models/user_role_model.dart';
+import '../security/role_normalizer.dart';
+
+/// Service de gestion des permissions et rôles utilisateur.
+///
+/// Source de vérité côté client : rôle canonique + définition de rôle Firestore.
+/// Important : `isAdmin=true` reste une compatibilité historique, mais ne donne
+/// plus automatiquement `Permission.values`. Seul `superAdmin` reçoit toutes les
+/// permissions.
 class PermissionService {
   static final PermissionService _instance = PermissionService._internal();
   static PermissionService get instance => _instance;
@@ -11,12 +18,10 @@ class PermissionService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Cache local des définitions de rôles
   Map<String, RoleDefinition>? _rolesCache;
   DateTime? _cacheTime;
   static const _cacheDuration = Duration(minutes: 5);
 
-  /// Récupérer toutes les définitions de rôles
   Future<List<RoleDefinition>> getAllRoles() async {
     try {
       final snapshot = await _firestore.collection('roles').get();
@@ -25,86 +30,84 @@ class PermissionService {
           .where((role) => role.isActive)
           .toList()
         ..sort((a, b) => a.priority.compareTo(b.priority));
-    } catch (e) {
-      // En cas d'erreur, retourner les rôles par défaut
+    } catch (_) {
       return RoleDefinition.defaultRoles;
     }
   }
 
-  /// Récupérer une définition de rôle par son ID
   Future<RoleDefinition?> getRoleDefinition(String roleId) async {
+    final canonicalRoleId = RoleNormalizer.normalize(roleId);
     try {
-      // Vérifier le cache
       if (_rolesCache != null &&
           _cacheTime != null &&
           DateTime.now().difference(_cacheTime!) < _cacheDuration) {
-        return _rolesCache![roleId];
+        return _rolesCache![canonicalRoleId];
       }
 
-      // Recharger depuis Firestore
-      final doc = await _firestore.collection('roles').doc(roleId).get();
+      final doc = await _firestore.collection('roles').doc(canonicalRoleId).get();
       if (doc.exists) {
         return RoleDefinition.fromFirestore(doc);
       }
 
-      // Retourner le rôle par défaut correspondant
-      return RoleDefinition.defaultRoles
-          .firstWhere((r) => r.id == roleId, orElse: () => RoleDefinition.defaultUserRole);
-    } catch (e) {
-      return null;
+      return RoleDefinition.defaultRoles.firstWhere(
+        (role) => role.id == canonicalRoleId,
+        orElse: () => RoleDefinition.defaultUserRole,
+      );
+    } catch (_) {
+      return RoleDefinition.defaultRoles.firstWhere(
+        (role) => role.id == canonicalRoleId,
+        orElse: () => RoleDefinition.defaultUserRole,
+      );
     }
   }
 
-  /// Recharger le cache des rôles
   Future<void> reloadRolesCache() async {
     try {
       final roles = await getAllRoles();
-      _rolesCache = {for (var role in roles) role.id: role};
+      _rolesCache = {for (final role in roles) role.id: role};
       _cacheTime = DateTime.now();
-    } catch (e) {
-      // Ignorer les erreurs de rechargement
+    } catch (_) {
+      // Ignorer les erreurs de rechargement.
     }
   }
 
-  /// Vérifier si un utilisateur a une permission spécifique
   Future<bool> hasPermission(
     String userId,
     Permission permission, {
     String? groupId,
   }) async {
     try {
-      // Récupérer le profil utilisateur
       final userDoc = await _firestore.collection('users').doc(userId).get();
       if (!userDoc.exists) return false;
 
       final userData = userDoc.data()!;
-      final roleString = userData['role'] as String? ?? 'user';
-      
-      // Vérifier si c'est un admin master (backwards compatibility)
-      final isAdmin = userData['isAdmin'] as bool? ?? false;
-      if (isAdmin) return true;
+      final isAdminFlag = userData['isAdmin'] as bool? ?? false;
+      final canonicalRole = RoleNormalizer.normalize(
+        userData['role'] as String?,
+        isAdminFlag: isAdminFlag,
+      );
 
-      // Récupérer la définition du rôle
-      final roleDef = await getRoleDefinition(roleString);
-      if (roleDef == null) return false;
-
-      // Vérifier si le rôle a la permission
-      if (roleDef.permissions.contains(permission)) {
-        // Pour les permissions de groupe, vérifier que l'utilisateur appartient au bon groupe
-        if (_isGroupPermission(permission) && groupId != null) {
-          final userGroupId = userData['groupId'] as String?;
-          return userGroupId == groupId;
-        }
+      if (canonicalRole == RoleNormalizer.superAdmin) {
         return true;
       }
 
-      return false;
-    } catch (e) {
+      final roleDef = await getRoleDefinition(canonicalRole);
+      if (roleDef == null || !roleDef.permissions.contains(permission)) {
+        return false;
+      }
+
+      if (_isGroupPermission(permission)) {
+        if (groupId == null || groupId.isEmpty) return true;
+        final userGroupId = userData['groupId'] as String?;
+        return userGroupId == groupId;
+      }
+
+      return true;
+    } catch (_) {
       return false;
     }
   }
 
-  /// Vérifier si un utilisateur a au moins une des permissions
   Future<bool> hasAnyPermission(
     String userId,
     List<Permission> permissions, {
@@ -118,7 +121,6 @@ class PermissionService {
     return false;
   }
 
-  /// Vérifier si un utilisateur a toutes les permissions
   Future<bool> hasAllPermissions(
     String userId,
     List<Permission> permissions, {
@@ -132,29 +134,30 @@ class PermissionService {
     return true;
   }
 
-  /// Obtenir toutes les permissions d'un utilisateur
   Future<List<Permission>> getUserPermissions(String userId) async {
     try {
       final userDoc = await _firestore.collection('users').doc(userId).get();
       if (!userDoc.exists) return [];
 
       final userData = userDoc.data()!;
-      final roleString = userData['role'] as String? ?? 'user';
-      
-      // Admin master a toutes les permissions
-      final isAdmin = userData['isAdmin'] as bool? ?? false;
-      if (isAdmin) return Permission.values;
+      final canonicalRole = RoleNormalizer.normalize(
+        userData['role'] as String?,
+        isAdminFlag: userData['isAdmin'] as bool? ?? false,
+      );
 
-      final roleDef = await getRoleDefinition(roleString);
-      return roleDef?.permissions ?? [];
-    } catch (e) {
-      return [];
+      if (canonicalRole == RoleNormalizer.superAdmin) {
+        return Permission.values;
+      }
+
+      final roleDef = await getRoleDefinition(canonicalRole);
+      return roleDef?.permissions ?? const <Permission>[];
+    } catch (_) {
+      return const <Permission>[];
     }
   }
 
-  /// Vérifier si une permission est liée à un groupe
   bool _isGroupPermission(Permission permission) {
-    return [
+    return const <Permission>[
       Permission.manageGroupInfo,
       Permission.manageGroupProducts,
       Permission.viewGroupOrders,
@@ -163,80 +166,56 @@ class PermissionService {
     ].contains(permission);
   }
 
-  /// Convertir UserRoleType en string
-  String _roleTypeToString(UserRoleType type) {
-    return type.toString().split('.').last;
-  }
+  String _roleTypeToString(UserRoleType type) => type.toString().split('.').last;
 
-  /// Attribuer un rôle à un utilisateur (admin uniquement)
   Future<void> assignRole({
     required String userId,
     required UserRoleType roleType,
     String? groupId,
   }) async {
-    try {
-      final Map<String, dynamic> updates = {
-        'role': _roleTypeToString(roleType),
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
+    final canonicalRole = _roleTypeToString(roleType);
+    final updates = <String, dynamic>{
+      'role': canonicalRole,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
 
-      // Si c'est un rôle groupe, le groupId est requis
-      if (roleType == UserRoleType.group) {
-        if (groupId == null) {
-          throw Exception('groupId requis pour le rôle groupe');
-        }
-        updates['groupId'] = groupId;
-      } else {
-        // Réinitialiser le groupId pour les autres rôles
-        updates['groupId'] = null;
+    if (roleType == UserRoleType.group) {
+      if (groupId == null || groupId.trim().isEmpty) {
+        throw Exception('groupId requis pour le rôle groupe');
       }
-
-      // Mettre à jour isAdmin pour la rétrocompatibilité
-      updates['isAdmin'] = roleType == UserRoleType.admin || 
-                           roleType == UserRoleType.superAdmin;
-
-      await _firestore.collection('users').doc(userId).update(updates);
-    } catch (e) {
-      rethrow;
+      updates['groupId'] = groupId.trim();
+    } else {
+      updates['groupId'] = null;
     }
+
+    // Compatibilité seulement : ne pas utiliser `isAdmin` comme source de droits.
+    updates['isAdmin'] = roleType == UserRoleType.admin || roleType == UserRoleType.superAdmin;
+
+    await _firestore.collection('users').doc(userId).update(updates);
   }
 
-  /// Créer ou mettre à jour une définition de rôle (super admin uniquement)
   Future<void> saveRoleDefinition(RoleDefinition role) async {
-    try {
-      await _firestore
-          .collection('roles')
-          .doc(role.id)
-          .set(role.toFirestore(), SetOptions(merge: true));
-      
-      // Invalider le cache
-      _rolesCache = null;
-      _cacheTime = null;
-    } catch (e) {
-      rethrow;
-    }
+    await _firestore.collection('roles').doc(role.id).set(
+          role.toFirestore(),
+          SetOptions(merge: true),
+        );
+    _rolesCache = null;
+    _cacheTime = null;
   }
 
-  /// Initialiser les rôles par défaut dans Firestore
   Future<void> initializeDefaultRoles() async {
-    try {
-      final batch = _firestore.batch();
-      
-      for (final role in RoleDefinition.defaultRoles) {
-        final ref = _firestore.collection('roles').doc(role.id);
-        batch.set(ref, role.toFirestore(), SetOptions(merge: true));
-      }
-      
-      await batch.commit();
-      
-      // Recharger le cache
-      await reloadRolesCache();
-    } catch (e) {
-      rethrow;
+    final batch = _firestore.batch();
+    for (final role in RoleDefinition.defaultRoles) {
+      batch.set(
+        _firestore.collection('roles').doc(role.id),
+        role.toFirestore(),
+        SetOptions(merge: true),
+      );
     }
+    await batch.commit();
+    await reloadRolesCache();
   }
 
-  /// Obtenir un résumé des permissions d'un utilisateur
   Future<Map<String, dynamic>> getUserPermissionsSummary(String userId) async {
     try {
       final userDoc = await _firestore.collection('users').doc(userId).get();
@@ -249,101 +228,110 @@ class PermissionService {
       }
 
       final userData = userDoc.data()!;
-      final roleString = userData['role'] as String? ?? 'user';
-      final isAdmin = userData['isAdmin'] as bool? ?? false;
-      final groupId = userData['groupId'] as String?;
-
+      final canonicalRole = RoleNormalizer.normalize(
+        userData['role'] as String?,
+        isAdminFlag: userData['isAdmin'] as bool? ?? false,
+      );
       final permissions = await getUserPermissions(userId);
-      final roleDef = await getRoleDefinition(roleString);
+      final roleDef = await getRoleDefinition(canonicalRole);
 
       return {
         'userId': userId,
-        'role': roleString,
-        'roleName': roleDef?.name ?? 'Utilisateur',
+        'role': canonicalRole,
+        'rawRole': userData['role'] as String? ?? 'user',
+        'roleName': roleDef?.name ?? RoleNormalizer.label(canonicalRole),
         'roleDescription': roleDef?.description ?? '',
         'priority': roleDef?.priority ?? 0,
-        'isAdmin': isAdmin,
-        'groupId': groupId,
+        'isAdmin': userData['isAdmin'] as bool? ?? false,
+        'groupId': userData['groupId'] as String?,
         'permissions': permissions.map((p) => p.toString().split('.').last).toList(),
         'permissionCount': permissions.length,
         'permissionsByCategory': _groupPermissionsByCategory(permissions),
       };
     } catch (e) {
-      return {
-        'error': e.toString(),
-      };
+      return {'error': e.toString()};
     }
   }
 
-  /// Grouper les permissions par catégorie
   Map<String, List<String>> _groupPermissionsByCategory(List<Permission> permissions) {
-    final Map<String, List<String>> grouped = {};
-    
+    final grouped = <String, List<String>>{};
     for (final permission in permissions) {
-      final category = permission.category;
-      if (!grouped.containsKey(category)) {
-        grouped[category] = [];
-      }
-      grouped[category]!.add(permission.displayName);
+      final category = _permissionCategory(permission);
+      grouped.putIfAbsent(category, () => <String>[]).add(_permissionDisplayName(permission));
     }
-    
     return grouped;
   }
 
-  /// Vérifier si un utilisateur peut gérer un autre utilisateur
   Future<bool> canManageUser(String managerId, String targetUserId) async {
     try {
-      // Récupérer les deux profils
       final managerDoc = await _firestore.collection('users').doc(managerId).get();
       final targetDoc = await _firestore.collection('users').doc(targetUserId).get();
-      
       if (!managerDoc.exists || !targetDoc.exists) return false;
 
       final managerData = managerDoc.data()!;
       final targetData = targetDoc.data()!;
+      final managerRole = RoleNormalizer.normalize(
+        managerData['role'] as String?,
+        isAdminFlag: managerData['isAdmin'] as bool? ?? false,
+      );
+      final targetRole = RoleNormalizer.normalize(
+        targetData['role'] as String?,
+        isAdminFlag: targetData['isAdmin'] as bool? ?? false,
+      );
 
-      // Super admin peut tout faire
-      final managerRole = managerData['role'] as String? ?? 'user';
-      if (managerRole == 'superAdmin') return true;
+      if (managerRole == RoleNormalizer.superAdmin) return true;
 
-      // Admin peut gérer les utilisateurs non-admin
-      if (managerRole == 'admin') {
-        final targetRole = targetData['role'] as String? ?? 'user';
-        return !['admin', 'superAdmin'].contains(targetRole);
+      if (managerRole == RoleNormalizer.admin) {
+        return !<String>[RoleNormalizer.admin, RoleNormalizer.superAdmin].contains(targetRole);
       }
 
-      // Admin groupe peut gérer les membres de son groupe
-      if (managerRole == 'group') {
+      if (managerRole == RoleNormalizer.group) {
         final managerGroupId = managerData['groupId'] as String?;
         final targetGroupId = targetData['groupId'] as String?;
-        final targetRole = targetData['role'] as String? ?? 'user';
-        
         return managerGroupId != null &&
-               managerGroupId == targetGroupId &&
-               targetRole == 'user';
+            managerGroupId == targetGroupId &&
+            targetRole == RoleNormalizer.user;
       }
 
       return false;
-    } catch (e) {
+    } catch (_) {
       return false;
     }
   }
 
-  /// Vérifie si l'utilisateur actuel est un superadmin
   Future<bool> isCurrentUserSuperAdmin(String userId) async {
     try {
       final userDoc = await _firestore.collection('users').doc(userId).get();
       if (!userDoc.exists) return false;
-
       final userData = userDoc.data()!;
-      final role = userData['role'] as String? ?? 'user';
-      final isAdmin = userData['isAdmin'] as bool? ?? false;
-
-      // Superadmin ou isAdmin + role admin
-      return role == 'superAdmin' || role == 'superadmin' || 
-             (isAdmin && (role == 'admin' || role == 'Admin'));
-    } catch (e) {
+      return RoleNormalizer.isSuperAdmin(
+        userData['role'] as String?,
+        isAdminFlag: userData['isAdmin'] as bool? ?? false,
+      );
+    } catch (_) {
       return false;
     }
+  }
+
+  String _permissionCategory(Permission permission) {
+    final name = permission.toString().split('.').last;
+    if (name.startsWith('manageGroup') || name.startsWith('viewGroup')) return 'Groupe';
+    if (name.startsWith('manageAll') || name == 'moderateContent' || name == 'viewAllStats') {
+      return 'Administration';
+    }
+    if (name == 'manageRoles' || name == 'managePermissions' || name == 'deleteAnyContent') {
+      return 'SuperAdmin';
+    }
+    if (name == 'updateLocation' || name == 'viewTracking') return 'Tracking';
+    return 'Utilisateur';
+  }
+
+  String _permissionDisplayName(Permission permission) {
+    return permission
+        .toString()
+        .split('.')
+        .last
+        .replaceAllMapped(RegExp(r'([A-Z])'), (match) => ' ${match.group(0)}')
+        .trim();
   }
 }
