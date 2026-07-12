@@ -339,19 +339,15 @@ class CommerceService {
       data['role'] as String?,
       isAdminFlag: data['isAdmin'] as bool? ?? false,
     );
-    final accountType = (data['accountType'] as String?)?.trim().toLowerCase();
     final activities = (data['activities'] as List<dynamic>?)?.cast<String>();
 
     if (role == RoleNormalizer.superAdmin) return OwnerRole.superadmin;
     if (role == RoleNormalizer.admin) return OwnerRole.superadmin;
     if (role == RoleNormalizer.group) return OwnerRole.adminGroupe;
 
-    if (accountType == 'pro') {
-      if (activities?.contains('createur_digital') == true ||
-          activities?.contains('creator_digital') == true) {
-        return OwnerRole.createurDigital;
-      }
-      return OwnerRole.comptePro;
+    if (activities?.contains('createur_digital') == true ||
+        activities?.contains('creator_digital') == true) {
+      return OwnerRole.createurDigital;
     }
 
     return null;
