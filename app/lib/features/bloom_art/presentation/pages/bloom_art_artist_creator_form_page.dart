@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/models/bloom_art_seller_profile.dart';
 import '../../data/repositories/bloom_art_repository.dart';
+import '../../services/bloom_art_business_verification_service.dart';
 import '../widgets/bloom_art_cta_button.dart';
 
 class BloomArtArtistCreatorFormPage extends StatefulWidget {
@@ -17,6 +18,8 @@ class _BloomArtArtistCreatorFormPageState
     extends State<BloomArtArtistCreatorFormPage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final BloomArtRepository _repository = BloomArtRepository();
+  final BloomArtBusinessVerificationService _verificationService =
+      const BloomArtBusinessVerificationService();
 
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _artistNameController = TextEditingController();
@@ -25,14 +28,29 @@ class _BloomArtArtistCreatorFormPageState
   final TextEditingController _bioController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _cityController = TextEditingController();
+  final TextEditingController _postalCodeController = TextEditingController();
+  final TextEditingController _regionController = TextEditingController();
   final TextEditingController _countryController = TextEditingController();
+  final TextEditingController _siretController = TextEditingController();
+  final TextEditingController _sirenController = TextEditingController();
+  final TextEditingController _businessNameController = TextEditingController();
+  final TextEditingController _nafCodeController = TextEditingController();
 
   bool _loading = true;
   bool _saving = false;
+  bool _verifyingSiret = false;
   bool _stripeAccountLinked = false;
-  String _payoutStatus = 'ready';
+  String _payoutStatus = 'pending';
   String _creationType = BloomArtCreationType.artisanatArt;
+  String _businessVerificationStatus = 'not_verified';
+  String _businessVerificationSource = '';
+  DateTime? _businessVerifiedAt;
   DateTime? _createdAt;
+  BloomArtBusinessVerificationResult? _verificationResult;
+
+  bool get _businessVerified =>
+      _businessVerificationStatus == 'verified' &&
+      _siretController.text.trim().isNotEmpty;
 
   @override
   void initState() {
@@ -49,7 +67,13 @@ class _BloomArtArtistCreatorFormPageState
     _bioController.dispose();
     _addressController.dispose();
     _cityController.dispose();
+    _postalCodeController.dispose();
+    _regionController.dispose();
     _countryController.dispose();
+    _siretController.dispose();
+    _sirenController.dispose();
+    _businessNameController.dispose();
+    _nafCodeController.dispose();
     super.dispose();
   }
 
@@ -66,6 +90,7 @@ class _BloomArtArtistCreatorFormPageState
 
     _fullNameController.text = (user.displayName ?? '').trim();
     _emailController.text = (user.email ?? '').trim();
+    _countryController.text = 'France';
 
     final profile = await _repository.getSellerProfile(user.uid);
     if (!mounted) return;
@@ -77,14 +102,25 @@ class _BloomArtArtistCreatorFormPageState
       _emailController.text = profile.email;
       _phoneController.text = profile.phone;
       _bioController.text = profile.bio;
-      _addressController.text = profile.address;
+      _addressController.text = profile.businessAddress.trim().isNotEmpty
+          ? profile.businessAddress
+          : profile.address;
       _cityController.text = profile.city;
-      _countryController.text = profile.country;
+      _postalCodeController.text = profile.postalCode;
+      _regionController.text = profile.region;
+      _countryController.text = profile.country.trim().isEmpty ? 'France' : profile.country;
+      _siretController.text = profile.siret;
+      _sirenController.text = profile.siren;
+      _businessNameController.text = profile.businessName;
+      _nafCodeController.text = profile.nafCode;
       _creationType = BloomArtCreationType.normalize(profile.creationType);
       _stripeAccountLinked = profile.stripeAccountLinked;
       _payoutStatus = profile.payoutStatus.trim().isEmpty
-          ? 'ready'
+          ? 'pending'
           : profile.payoutStatus;
+      _businessVerificationStatus = profile.businessVerificationStatus;
+      _businessVerificationSource = profile.businessVerificationSource;
+      _businessVerifiedAt = profile.businessVerifiedAt;
     }
 
     setState(() {
@@ -92,8 +128,101 @@ class _BloomArtArtistCreatorFormPageState
     });
   }
 
+  Future<void> _verifySiret() async {
+    final siret = _siretController.text.trim();
+    setState(() {
+      _verifyingSiret = true;
+    });
+
+    try {
+      final result = await _verificationService.verifySiret(siret);
+      if (!mounted) return;
+
+      if (!result.isValid) {
+        setState(() {
+          _verificationResult = result;
+          _businessVerificationStatus = 'rejected';
+          _businessVerificationSource = 'api_recherche_entreprises_api_gouv';
+          _businessVerifiedAt = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.errorMessage ?? 'SIRET invalide ou introuvable.'),
+          ),
+        );
+        return;
+      }
+
+      setState(() {
+        _verificationResult = result;
+        _siretController.text = result.siret;
+        _sirenController.text = result.siren;
+        _businessNameController.text = result.denomination;
+        _nafCodeController.text = result.nafCode;
+        if (result.address.trim().isNotEmpty) {
+          _addressController.text = result.address;
+        }
+        if (result.postalCode.trim().isNotEmpty) {
+          _postalCodeController.text = result.postalCode;
+        }
+        if (result.city.trim().isNotEmpty) {
+          _cityController.text = result.city;
+        }
+        if (result.region.trim().isNotEmpty) {
+          _regionController.text = result.region;
+        }
+        if (_countryController.text.trim().isEmpty) {
+          _countryController.text = 'France';
+        }
+        _businessVerificationStatus = 'verified';
+        _businessVerificationSource = 'api_recherche_entreprises_api_gouv';
+        _businessVerifiedAt = DateTime.now();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('SIRET vérifié. Les informations vendeur sont préremplies.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _businessVerificationStatus = 'error';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Vérification SIRET impossible : $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _verifyingSiret = false;
+        });
+      }
+    }
+  }
+
+  void _resetSiretVerification(String _) {
+    if (_businessVerificationStatus == 'not_verified') return;
+    setState(() {
+      _verificationResult = null;
+      _businessVerificationStatus = 'not_verified';
+      _businessVerificationSource = '';
+      _businessVerifiedAt = null;
+      _sirenController.clear();
+      _businessNameController.clear();
+      _nafCodeController.clear();
+    });
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (!_businessVerified) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vérifiez votre SIRET avant de créer l’espace vendeur Bloom Art.'),
+        ),
+      );
+      return;
+    }
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -120,19 +249,29 @@ class _BloomArtArtistCreatorFormPageState
         bio: _bioController.text.trim(),
         address: _addressController.text.trim(),
         city: _cityController.text.trim(),
-        country: _countryController.text.trim(),
+        postalCode: _postalCodeController.text.trim(),
+        region: _regionController.text.trim(),
+        country: _countryController.text.trim().isEmpty ? 'France' : _countryController.text.trim(),
         payoutStatus: _stripeAccountLinked ? _payoutStatus : 'pending',
         stripeAccountLinked: _stripeAccountLinked,
+        sellerStatus: 'active',
+        siret: _siretController.text.trim(),
+        siren: _sirenController.text.trim(),
+        businessName: _businessNameController.text.trim(),
+        nafCode: _nafCodeController.text.trim(),
+        businessAddress: _addressController.text.trim(),
+        businessVerificationStatus: 'verified',
+        businessVerificationSource: _businessVerificationSource.isEmpty
+            ? 'api_recherche_entreprises_api_gouv'
+            : _businessVerificationSource,
+        businessVerifiedAt: _businessVerifiedAt ?? DateTime.now(),
         createdAt: _createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
       );
 
       await _repository.saveSellerProfile(profile);
       if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed(
-        '/bloom-art/create',
-        arguments: <String, dynamic>{'profileType': 'artisan_art'},
-      );
+      Navigator.of(context).pushReplacementNamed('/bloom-art/dashboard');
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -155,7 +294,7 @@ class _BloomArtArtistCreatorFormPageState
         backgroundColor: const Color(0xFFFFFBF7),
         elevation: 0,
         title: const Text(
-          'Profil Artisan d’art',
+          'Artisan d’art déclaré',
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
       ),
@@ -167,9 +306,61 @@ class _BloomArtArtistCreatorFormPageState
                 padding: const EdgeInsets.fromLTRB(10, 16, 10, 28),
                 children: <Widget>[
                   const _BloomArtFormHero(
-                    title: 'Exposez vos œuvres',
+                    title: 'Créez votre galerie Bloom Art',
                     subtitle:
-                        'Exposez vos œuvres, gérez votre galerie, recevez des demandes et vendez vos créations dans Bloom Art.',
+                        'Vérifiez votre SIRET, préremplissez vos informations officielles, puis accédez à votre dashboard pour déposer vos œuvres et recevoir des offres.',
+                  ),
+                  const SizedBox(height: 18),
+                  _BloomArtTextField(
+                    controller: _siretController,
+                    label: 'SIRET de l’activité artistique',
+                    keyboardType: TextInputType.number,
+                    validator: _siretValidator,
+                    onChanged: _resetSiretVerification,
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: BloomArtCtaButton(
+                          label: _verifyingSiret ? 'Vérification...' : 'Vérifier mon SIRET',
+                          icon: Icons.verified_outlined,
+                          onPressed: _verifyingSiret ? null : _verifySiret,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _BusinessVerificationCard(
+                    status: _businessVerificationStatus,
+                    result: _verificationResult,
+                    verifiedAt: _businessVerifiedAt,
+                  ),
+                  const SizedBox(height: 18),
+                  _BloomArtTextField(
+                    controller: _businessNameController,
+                    label: 'Dénomination officielle',
+                    readOnly: true,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: _BloomArtTextField(
+                          controller: _sirenController,
+                          label: 'SIREN',
+                          readOnly: true,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _BloomArtTextField(
+                          controller: _nafCodeController,
+                          label: 'Code APE / NAF',
+                          readOnly: true,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 18),
                   _BloomArtTextField(
@@ -216,24 +407,55 @@ class _BloomArtArtistCreatorFormPageState
                   _BloomArtTextField(
                     controller: _phoneController,
                     label: 'Téléphone',
-                  ),
-                  const SizedBox(height: 12),
-                  _BloomArtTextField(
-                    controller: _cityController,
-                    label: 'Ville',
-                    validator: _requiredValidator,
-                  ),
-                  const SizedBox(height: 12),
-                  _BloomArtTextField(
-                    controller: _countryController,
-                    label: 'Pays',
                     validator: _requiredValidator,
                   ),
                   const SizedBox(height: 12),
                   _BloomArtTextField(
                     controller: _addressController,
-                    label: 'Adresse',
+                    label: 'Adresse officielle',
                     maxLines: 2,
+                    validator: _requiredValidator,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: _BloomArtTextField(
+                          controller: _postalCodeController,
+                          label: 'Code postal',
+                          validator: _requiredValidator,
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _BloomArtTextField(
+                          controller: _cityController,
+                          label: 'Ville',
+                          validator: _requiredValidator,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: _BloomArtTextField(
+                          controller: _regionController,
+                          label: 'Région',
+                          validator: _requiredValidator,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _BloomArtTextField(
+                          controller: _countryController,
+                          label: 'Pays',
+                          validator: _requiredValidator,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   _BloomArtTextField(
@@ -247,7 +469,7 @@ class _BloomArtArtistCreatorFormPageState
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Compte de paiement déjà relié'),
                     subtitle: const Text(
-                      'Activez cette option si votre onboarding vendeur et vos encaissements sont déjà prêts.',
+                      'Activez cette option uniquement si l’onboarding vendeur et les encaissements sont déjà prêts.',
                     ),
                     onChanged: (value) {
                       setState(() {
@@ -261,29 +483,28 @@ class _BloomArtArtistCreatorFormPageState
                     decoration: const InputDecoration(
                       labelText: 'Statut payout',
                       border: OutlineInputBorder(),
+                      filled: true,
+                      fillColor: Colors.white,
                     ),
                     items: const <DropdownMenuItem<String>>[
                       DropdownMenuItem(value: 'pending', child: Text('pending')),
                       DropdownMenuItem(value: 'ready', child: Text('ready')),
                       DropdownMenuItem(value: 'active', child: Text('active')),
-                      DropdownMenuItem(
-                        value: 'validated',
-                        child: Text('validated'),
-                      ),
+                      DropdownMenuItem(value: 'validated', child: Text('validated')),
                     ],
                     onChanged: (value) {
                       setState(() {
-                        _payoutStatus = value ?? 'ready';
+                        _payoutStatus = value ?? 'pending';
                       });
                     },
                   ),
                   const SizedBox(height: 18),
                   BloomArtCtaButton(
                     label: _saving
-                        ? 'Enregistrement en cours...'
-                        : 'Continuer vers le dépôt de l’œuvre',
-                    icon: Icons.arrow_forward_rounded,
-                    onPressed: _saving ? null : _submit,
+                        ? 'Création du dashboard...'
+                        : 'Créer mon dashboard Bloom Art',
+                    icon: Icons.dashboard_customize_outlined,
+                    onPressed: _saving || !_businessVerified ? null : _submit,
                   ),
                 ],
               ),
@@ -298,6 +519,13 @@ class _BloomArtArtistCreatorFormPageState
     return null;
   }
 
+  String? _siretValidator(String? value) {
+    final clean = _verificationService.normalizeSiret(value ?? '');
+    if (clean.isEmpty) return 'SIRET requis';
+    if (clean.length != 14) return 'Le SIRET doit contenir 14 chiffres';
+    return null;
+  }
+
   String? _emailValidator(String? value) {
     final normalized = (value ?? '').trim();
     if (normalized.isEmpty) return 'Champ requis';
@@ -305,6 +533,66 @@ class _BloomArtArtistCreatorFormPageState
       return 'Email invalide';
     }
     return null;
+  }
+}
+
+class _BusinessVerificationCard extends StatelessWidget {
+  const _BusinessVerificationCard({
+    required this.status,
+    required this.result,
+    required this.verifiedAt,
+  });
+
+  final String status;
+  final BloomArtBusinessVerificationResult? result;
+  final DateTime? verifiedAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final verified = status == 'verified';
+    final rejected = status == 'rejected' || status == 'error';
+    final title = verified
+        ? 'SIRET vérifié'
+        : rejected
+            ? 'SIRET non validé'
+            : 'Vérification SIRET requise';
+    final body = verified
+        ? '${result?.denomination ?? 'Entreprise validée'}${verifiedAt == null ? '' : ' · vérifié aujourd’hui'}'
+        : rejected
+            ? result?.errorMessage ?? 'La vérification n’a pas abouti.'
+            : 'Le dépôt d’œuvre est bloqué tant que le SIRET n’est pas vérifié.';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: verified ? const Color(0xFFEAF7EE) : const Color(0xFFFFF4E5),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: verified ? const Color(0xFFB7E1C1) : const Color(0xFFEBD1A7),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Icon(
+            verified ? Icons.verified_rounded : Icons.info_outline_rounded,
+            color: verified ? const Color(0xFF217A3B) : const Color(0xFF9A6A18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+                const SizedBox(height: 4),
+                Text(body, style: const TextStyle(color: Color(0xFF6A645E), height: 1.35)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -348,6 +636,8 @@ class _BloomArtTextField extends StatelessWidget {
     this.maxLines = 1,
     this.keyboardType,
     this.validator,
+    this.onChanged,
+    this.readOnly = false,
   });
 
   final TextEditingController controller;
@@ -355,6 +645,8 @@ class _BloomArtTextField extends StatelessWidget {
   final int maxLines;
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
+  final ValueChanged<String>? onChanged;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -363,11 +655,13 @@ class _BloomArtTextField extends StatelessWidget {
       maxLines: maxLines,
       keyboardType: keyboardType,
       validator: validator,
+      onChanged: onChanged,
+      readOnly: readOnly,
       decoration: InputDecoration(
         labelText: label,
         border: const OutlineInputBorder(),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: readOnly ? const Color(0xFFF7F3EF) : Colors.white,
       ),
     );
   }
