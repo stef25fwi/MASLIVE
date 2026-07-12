@@ -925,7 +925,6 @@ service cloud.firestore {
           || userRole() == 'group-admin'
           || userRole() == 'admin_group'
           || userRole() == 'admin_groupe'
-          || (getUserData().accountType == 'pro' && getUserData().keys().hasAny(['activities']))
           || userRole() == 'superAdmin'
           || userRole() == 'superadmin'
         );
