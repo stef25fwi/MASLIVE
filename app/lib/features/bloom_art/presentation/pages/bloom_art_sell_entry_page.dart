@@ -25,6 +25,7 @@ class _BloomArtSellEntryPageState extends State<BloomArtSellEntryPage> {
 
   static const String _artisanArtType = 'artisan_art';
   static const String _legacyArtistCreatorType = 'artist_creator';
+  static const String _launchType = 'je_me_lance';
 
   @override
   void initState() {
@@ -49,39 +50,29 @@ class _BloomArtSellEntryPageState extends State<BloomArtSellEntryPage> {
     final normalizedType = _normalizeProfileType(profileType);
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      if (mounted) {
-        Navigator.of(context).pushNamed('/login');
-      }
+      if (mounted) Navigator.of(context).pushNamed('/login');
       return;
     }
 
-    setState(() {
-      _redirecting = true;
-    });
+    setState(() => _redirecting = true);
 
     try {
       final existingProfile = await _repository.getSellerProfile(user.uid);
-      final existingType = existingProfile == null
-          ? null
-          : _normalizeProfileType(existingProfile.profileType);
-      final canCreateDirectly = existingProfile != null &&
-          existingType == normalizedType &&
-          (normalizedType == 'je_me_lance' ||
-              existingProfile.stripeAccountLinked ||
-              existingProfile.payoutStatus == 'ready' ||
-              existingProfile.payoutStatus == 'active' ||
-              existingProfile.payoutStatus == 'validated');
+      if (!mounted) return;
 
-      if (canCreateDirectly) {
-        if (!mounted) return;
-        Navigator.of(context).pushNamed(
-          '/bloom-art/create',
-          arguments: <String, dynamic>{'profileType': normalizedType},
-        );
+      if (existingProfile?.canSell == true && _isArtisanArt(normalizedType)) {
+        Navigator.of(context).pushReplacementNamed('/bloom-art/dashboard');
         return;
       }
 
-      if (!mounted) return;
+      if (normalizedType == _launchType) {
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const BloomArtJeMeLanceFormPage(),
+          ),
+        );
+        return;
+      }
 
       if (_isArtisanArt(normalizedType)) {
         await Navigator.of(context).push(
@@ -89,19 +80,9 @@ class _BloomArtSellEntryPageState extends State<BloomArtSellEntryPage> {
             builder: (_) => const BloomArtArtistCreatorFormPage(),
           ),
         );
-      } else {
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => const BloomArtJeMeLanceFormPage(),
-          ),
-        );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _redirecting = false;
-        });
-      }
+      if (mounted) setState(() => _redirecting = false);
     }
   }
 
@@ -128,7 +109,7 @@ class _BloomArtSellEntryPageState extends State<BloomArtSellEntryPage> {
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
                       const Text(
-                        'Connectez-vous pour déposer une création dans Bloom Art.',
+                        'Connectez-vous pour ouvrir votre espace vendeur Bloom Art.',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 16, height: 1.45),
                       ),
@@ -165,38 +146,32 @@ class _BloomArtSellEntryPageState extends State<BloomArtSellEntryPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
                             Text(
-                              'Choisissez votre profil vendeur',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
-                              ),
+                              'Choisissez votre parcours vendeur',
+                              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
                             ),
                             SizedBox(height: 8),
                             Text(
-                              'Le parcours ajuste ensuite le niveau de collecte d’informations avant le dépôt de votre création.',
-                              style: TextStyle(
-                                color: Color(0xFF6A645E),
-                                height: 1.45,
-                              ),
+                              'Bloom Art distingue les artistes déjà déclarés des créateurs qui doivent encore obtenir leur SIRET. Le dépôt d’œuvre est réservé aux comptes vérifiés.',
+                              style: TextStyle(color: Color(0xFF6A645E), height: 1.45),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 18),
                       SellerProfileChoiceCard(
-                        title: 'Artisan d’art',
+                        title: 'Artisan d’art déclaré',
                         subtitle:
-                            'Exposez vos œuvres, gérez votre galerie, recevez des demandes et vendez vos créations.',
-                        icon: Icons.palette_outlined,
+                            'J’ai un SIRET : vérifier mon activité, créer ma galerie et accéder au dashboard Bloom Art.',
+                        icon: Icons.verified_rounded,
                         onTap: () => _handleChoice(_artisanArtType),
                       ),
                       const SizedBox(height: 12),
                       SellerProfileChoiceCard(
                         title: 'Je me lance',
                         subtitle:
-                            'Vous démarrez la vente d’une pièce unique et devez compléter votre profil avant publication.',
+                            'Je n’ai pas encore de SIRET : suivre le guide de création d’entreprise avant de vendre.',
                         icon: Icons.auto_awesome_outlined,
-                        onTap: () => _handleChoice('je_me_lance'),
+                        onTap: () => _handleChoice(_launchType),
                       ),
                       const SizedBox(height: 20),
                       Container(
@@ -206,11 +181,8 @@ class _BloomArtSellEntryPageState extends State<BloomArtSellEntryPage> {
                           borderRadius: BorderRadius.circular(24),
                         ),
                         child: const Text(
-                          'Une fois le profil validé, vous pourrez déposer des photos, définir le prix de référence privé, publier la fiche publique et recevoir des offres connectées au checkout Stripe existant.',
-                          style: TextStyle(
-                            color: Color(0xFF6A645E),
-                            height: 1.45,
-                          ),
+                          'Une fois le SIRET vérifié, vous pourrez gérer votre galerie, déposer des photos, définir le prix de référence privé, publier vos fiches et recevoir des offres.',
+                          style: TextStyle(color: Color(0xFF6A645E), height: 1.45),
                         ),
                       ),
                     ],
