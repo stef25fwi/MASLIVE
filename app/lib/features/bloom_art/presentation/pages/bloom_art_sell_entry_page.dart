@@ -23,18 +23,30 @@ class _BloomArtSellEntryPageState extends State<BloomArtSellEntryPage> {
   final BloomArtRepository _repository = BloomArtRepository();
   bool _redirecting = false;
 
+  static const String _artisanArtType = 'artisan_art';
+  static const String _legacyArtistCreatorType = 'artist_creator';
+
   @override
   void initState() {
     super.initState();
     if (widget.initialSelectedType != null &&
         widget.initialSelectedType!.trim().isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _handleChoice(widget.initialSelectedType!.trim());
+        _handleChoice(_normalizeProfileType(widget.initialSelectedType!.trim()));
       });
     }
   }
 
+  String _normalizeProfileType(String profileType) {
+    return profileType == _legacyArtistCreatorType ? _artisanArtType : profileType;
+  }
+
+  bool _isArtisanArt(String profileType) {
+    return profileType == _artisanArtType || profileType == _legacyArtistCreatorType;
+  }
+
   Future<void> _handleChoice(String profileType) async {
+    final normalizedType = _normalizeProfileType(profileType);
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       if (mounted) {
@@ -49,9 +61,12 @@ class _BloomArtSellEntryPageState extends State<BloomArtSellEntryPage> {
 
     try {
       final existingProfile = await _repository.getSellerProfile(user.uid);
+      final existingType = existingProfile == null
+          ? null
+          : _normalizeProfileType(existingProfile.profileType);
       final canCreateDirectly = existingProfile != null &&
-          existingProfile.profileType == profileType &&
-          (profileType == 'je_me_lance' ||
+          existingType == normalizedType &&
+          (normalizedType == 'je_me_lance' ||
               existingProfile.stripeAccountLinked ||
               existingProfile.payoutStatus == 'ready' ||
               existingProfile.payoutStatus == 'active' ||
@@ -61,14 +76,14 @@ class _BloomArtSellEntryPageState extends State<BloomArtSellEntryPage> {
         if (!mounted) return;
         Navigator.of(context).pushNamed(
           '/bloom-art/create',
-          arguments: <String, dynamic>{'profileType': profileType},
+          arguments: <String, dynamic>{'profileType': normalizedType},
         );
         return;
       }
 
       if (!mounted) return;
 
-      if (profileType == 'artist_creator') {
+      if (_isArtisanArt(normalizedType)) {
         await Navigator.of(context).push(
           MaterialPageRoute<void>(
             builder: (_) => const BloomArtArtistCreatorFormPage(),
@@ -169,11 +184,11 @@ class _BloomArtSellEntryPageState extends State<BloomArtSellEntryPage> {
                       ),
                       const SizedBox(height: 18),
                       SellerProfileChoiceCard(
-                        title: 'Artiste créateur',
+                        title: 'Artisan d’art',
                         subtitle:
-                            'Vous disposez déjà d’un statut professionnel ou d’un compte d’encaissement prêt.',
+                            'Exposez vos œuvres, gérez votre galerie, recevez des demandes et vendez vos créations.',
                         icon: Icons.palette_outlined,
-                        onTap: () => _handleChoice('artist_creator'),
+                        onTap: () => _handleChoice(_artisanArtType),
                       ),
                       const SizedBox(height: 12),
                       SellerProfileChoiceCard(
