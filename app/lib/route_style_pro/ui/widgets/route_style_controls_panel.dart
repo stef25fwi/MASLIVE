@@ -173,7 +173,7 @@ class _RouteStyleControlsPanelState extends State<RouteStyleControlsPanel> {
                 RouteStyleSlider(
                   label: 'Échelle largeur (×)',
                   value: cfg.widthScale3d,
-                  min: 0.5,
+                  min: 0.4,
                   max: 3.0,
                   divisions: 25,
                   unit: '×',
@@ -184,7 +184,7 @@ class _RouteStyleControlsPanelState extends State<RouteStyleControlsPanel> {
                 RouteStyleSlider(
                   label: 'Épaisseur (3D)',
                   value: cfg.thickness3d,
-                  min: 0.6,
+                  min: 0.48,
                   max: 1.8,
                   divisions: 24,
                   unit: '×',
@@ -195,7 +195,7 @@ class _RouteStyleControlsPanelState extends State<RouteStyleControlsPanel> {
                 RouteStyleSlider(
                   label: 'Épaisseur casing (3D)',
                   value: cfg.casingThickness3d,
-                  min: 0.5,
+                  min: 0.4,
                   max: 2.5,
                   divisions: 20,
                   unit: '×',

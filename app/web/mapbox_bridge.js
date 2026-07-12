@@ -2643,14 +2643,35 @@
             // Hauteur (m): pilotée par le slider "Hauteur (3D)" (elevationPx);
             // à défaut, dérivée de l'épaisseur. Ruban plutôt large et bas
             // (proche d'une route surélevée), pas un mur fin et haut.
-            const ribbonHalfW = Math.max(3.0, w * 0.75);
-            const ribbonHeight = (elevationPx > 0.5) ? elevationPx : (3 + 6 * thickness3d);
-            const poly = bufferLineToPolygon(coords, ribbonHalfW);
+            const ribbonHalfW = Math.max(1.2, w * 0.75);
+            const ribbonHeight = (elevationPx > 0.5) ? elevationPx : (2 + 5 * thickness3d);
+
+            // Données d'extrusion + couleur:
+            // - si segments (rainbow / gradient / traffic), on extrude CHAQUE
+            //   segment avec sa couleur => rainbow/gradient s'applique au ruban.
+            // - sinon, un seul polygone bufferisé de couleur mainColor.
+            let extrusionData, extrusionColor;
+            if (segmentsFc && Array.isArray(segmentsFc.features) && segmentsFc.features.length) {
+              const polys = [];
+              for (const f of segmentsFc.features) {
+                const g = f && f.geometry;
+                if (!g || g.type !== 'LineString' || !Array.isArray(g.coordinates) || g.coordinates.length < 2) continue;
+                const p = bufferLineToPolygon(g.coordinates, ribbonHalfW);
+                p.properties = { color: (f.properties && f.properties.color) || mainColor };
+                polys.push(p);
+              }
+              extrusionData = { type: 'FeatureCollection', features: polys };
+              extrusionColor = ['coalesce', ['get', 'color'], mainColor];
+            } else {
+              extrusionData = bufferLineToPolygon(coords, ribbonHalfW);
+              extrusionColor = mainColor;
+            }
+
             const eSrc = map.getSource(extrusionSrcId);
             if (!eSrc) {
-              map.addSource(extrusionSrcId, { type: 'geojson', data: poly });
+              map.addSource(extrusionSrcId, { type: 'geojson', data: extrusionData });
             } else {
-              eSrc.setData(poly);
+              eSrc.setData(extrusionData);
             }
             if (!map.getLayer(extrusionLayerId)) {
               map.addLayer({
@@ -2658,7 +2679,7 @@
                 type: 'fill-extrusion',
                 source: extrusionSrcId,
                 paint: {
-                  'fill-extrusion-color': mainColor,
+                  'fill-extrusion-color': extrusionColor,
                   'fill-extrusion-height': ribbonHeight,
                   'fill-extrusion-base': 0,
                   'fill-extrusion-opacity': Math.max(0.9, opacity),
@@ -2666,7 +2687,7 @@
                 },
               });
             } else {
-              map.setPaintProperty(extrusionLayerId, 'fill-extrusion-color', mainColor);
+              map.setPaintProperty(extrusionLayerId, 'fill-extrusion-color', extrusionColor);
               map.setPaintProperty(extrusionLayerId, 'fill-extrusion-height', ribbonHeight);
               map.setPaintProperty(extrusionLayerId, 'fill-extrusion-opacity', Math.max(0.9, opacity));
             }
