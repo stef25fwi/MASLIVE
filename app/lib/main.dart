@@ -448,8 +448,20 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
       return;
     }
 
+    // Identifiant marchand Apple Pay (requis pour Apple Pay dans la PaymentSheet).
+    // Fourni au build via --dart-define=STRIPE_APPLE_MERCHANT_ID=merchant.com.maslive
+    const appleMerchantId = String.fromEnvironment(
+      'STRIPE_APPLE_MERCHANT_ID',
+      defaultValue: '',
+    );
+
     try {
       Stripe.publishableKey = stripePublishableKey;
+      if (appleMerchantId.isNotEmpty) {
+        Stripe.merchantIdentifier = appleMerchantId;
+      }
+      // Schéma d'URL pour les retours de redirection (3DS, wallets) sur natif.
+      Stripe.urlScheme = 'maslive';
       await Stripe.instance.applySettings().timeout(const Duration(seconds: 4));
       StartupTrace.log('STRIPE', 'applySettings success');
     } catch (error) {

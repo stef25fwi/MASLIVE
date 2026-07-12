@@ -197,6 +197,16 @@ if [[ -n "${STRIPE_PREMIUM_MONTHLY_PRICE_ID:-}" && -n "${STRIPE_PREMIUM_YEARLY_P
 else
 	echo "⚠️ Price IDs premium web absents: le paywall web restera en configuration manquante."
 fi
+# Clé publique Stripe (PaymentSheet native iOS/Android). Web = Stripe Checkout.
+if [[ -n "${STRIPE_PUBLISHABLE_KEY:-}" ]]; then
+	STRIPE_PREMIUM_ARGS+=(--dart-define=STRIPE_PUBLISHABLE_KEY="$STRIPE_PUBLISHABLE_KEY")
+	echo "💳 Clé publique Stripe détectée: OK (redacted)"
+else
+	echo "⚠️ STRIPE_PUBLISHABLE_KEY absente: la PaymentSheet native sera désactivée."
+fi
+if [[ -n "${STRIPE_APPLE_MERCHANT_ID:-}" ]]; then
+	STRIPE_PREMIUM_ARGS+=(--dart-define=STRIPE_APPLE_MERCHANT_ID="$STRIPE_APPLE_MERCHANT_ID")
+fi
 (cd app && flutter pub get && flutter build web --release --no-wasm-dry-run --dart-define=MAPBOX_ACCESS_TOKEN="$TOKEN" "${STRIPE_PREMIUM_ARGS[@]}")
 
 FIREBASE_CMD="firebase"

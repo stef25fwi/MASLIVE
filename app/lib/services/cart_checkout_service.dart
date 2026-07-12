@@ -149,6 +149,12 @@ class CartCheckoutService {
           paymentIntentClientSecret: clientSecret,
           merchantDisplayName: 'MASLIVE',
           style: ThemeMode.light,
+          applePay: const PaymentSheetApplePay(merchantCountryCode: 'FR'),
+          googlePay: const PaymentSheetGooglePay(
+            merchantCountryCode: 'FR',
+            currencyCode: 'EUR',
+            testEnv: kDebugMode,
+          ),
         ),
       );
 
@@ -160,6 +166,15 @@ class CartCheckoutService {
     } catch (_) {
       await releaseMediaCheckoutLock(uid: user.uid);
       rethrow;
+    }
+
+    // Confirmation serveur (finalise sans dépendre uniquement du webhook).
+    try {
+      final confirm = FirebaseFunctions.instanceFor(region: 'us-east1')
+          .httpsCallable('confirmStorexPayment');
+      await confirm.call<Map<String, dynamic>>({'orderId': storeOrderId});
+    } catch (_) {
+      // Filet de sécurité: le webhook Stripe finalisera la commande.
     }
 
     await cart.clearCart();

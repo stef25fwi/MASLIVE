@@ -527,17 +527,33 @@ class _StorexPaymentPageState extends State<StorexPaymentPage> {
         throw Exception('Missing clientSecret/orderId');
       }
 
-      // 2) Init payment sheet
+      // 2) Init payment sheet (carte + Apple Pay / Google Pay)
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           paymentIntentClientSecret: clientSecret,
           merchantDisplayName: 'MASLIVE',
           style: ThemeMode.light,
+          applePay: const PaymentSheetApplePay(merchantCountryCode: 'FR'),
+          googlePay: const PaymentSheetGooglePay(
+            merchantCountryCode: 'FR',
+            currencyCode: 'EUR',
+            testEnv: kDebugMode,
+          ),
         ),
       );
 
       // 3) Present sheet
       await Stripe.instance.presentPaymentSheet();
+
+      // 4) Confirmation serveur du paiement (ne pas dépendre uniquement du
+      // webhook pour finaliser la commande avant l'écran de succès).
+      try {
+        final confirm = FirebaseFunctions.instanceFor(region: 'us-east1')
+            .httpsCallable('confirmStorexPayment');
+        await confirm.call<Map<String, dynamic>>({'orderId': orderId});
+      } catch (_) {
+        // Filet de sécurité: le webhook Stripe finalisera la commande.
+      }
 
       // 5) Clear cart (local + Firestore sync)
       await CartService.instance.clearCart();
