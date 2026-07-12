@@ -9,6 +9,7 @@ import 'dart:html' as html;
 import 'dart:js' as js;
 import 'dart:ui_web' as ui_web;
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 
 import 'maslive_map_controller.dart';
