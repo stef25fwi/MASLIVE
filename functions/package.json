@@ -4,7 +4,8 @@
   "main": "index.js",
   "scripts": {
     "test": "node --test test/*.test.js test/*security*.test.js",
-    "test:rules": "node --test test/firestore-rules-emulator-security.test.js"
+    "test:rules": "node --test test/firestore-rules-emulator-security.test.js",
+    "seed:test-profiles": "node scripts/seed-test-profile-accounts.js --confirm-test-data"
   },
   "keywords": [],
   "author": "",
