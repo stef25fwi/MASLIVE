@@ -19,10 +19,22 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
-          fetch-depth: 0
+          fetch-depth: 1
+          show-progress: false
 
       - name: Apply consistency patch
-        run: python3 scripts/apply_group_tracking_consistency_patch.py
+        run: |
+          set -o pipefail
+          python3 scripts/apply_group_tracking_consistency_patch.py 2>&1 | tee patch-apply.log
+
+      - name: Upload patch report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: group-tracking-patch-report
+          path: patch-apply.log
+          if-no-files-found: warn
+          retention-days: 3
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -32,7 +44,11 @@ jobs:
 
       - name: Format Dart changes
         run: |
-          dart format             app/lib/models/group_tracker.dart             app/lib/services/group/group_tracking_service.dart             app/lib/pages/group/tracker_group_profile_page.dart             app/lib/pages/group/admin_group_dashboard_page.dart
+          dart format \
+            app/lib/models/group_tracker.dart \
+            app/lib/services/group/group_tracking_service.dart \
+            app/lib/pages/group/tracker_group_profile_page.dart \
+            app/lib/pages/group/admin_group_dashboard_page.dart
 
       - name: Validate Flutter
         working-directory: app
