@@ -22,13 +22,16 @@ class _BloomArtJeMeLanceFormPageState
   final TextEditingController _artistNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _bioController = TextEditingController();
-  final TextEditingController _addressController = TextEditingController();
   final TextEditingController _cityController = TextEditingController();
-  final TextEditingController _countryController = TextEditingController();
+  final TextEditingController _regionController = TextEditingController();
+  final TextEditingController _projectNoteController = TextEditingController();
 
   bool _loading = true;
   bool _saving = false;
+  bool _activityChosen = false;
+  bool _statusUnderstood = false;
+  bool _formalitiesStarted = false;
+  String _creationType = BloomArtCreationType.artisanatArt;
   DateTime? _createdAt;
 
   @override
@@ -43,21 +46,16 @@ class _BloomArtJeMeLanceFormPageState
     _artistNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
-    _bioController.dispose();
-    _addressController.dispose();
     _cityController.dispose();
-    _countryController.dispose();
+    _regionController.dispose();
+    _projectNoteController.dispose();
     super.dispose();
   }
 
   Future<void> _bootstrap() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-        });
-      }
+      if (mounted) setState(() => _loading = false);
       return;
     }
 
@@ -73,68 +71,71 @@ class _BloomArtJeMeLanceFormPageState
       _artistNameController.text = profile.artistName;
       _emailController.text = profile.email;
       _phoneController.text = profile.phone;
-      _bioController.text = profile.bio;
-      _addressController.text = profile.address;
       _cityController.text = profile.city;
-      _countryController.text = profile.country;
+      _regionController.text = profile.region;
+      _projectNoteController.text = profile.bio;
+      _creationType = BloomArtCreationType.normalize(profile.creationType);
+      _activityChosen = profile.creationType.trim().isNotEmpty;
+      _statusUnderstood = profile.businessVerificationStatus != 'missing_siret';
+      _formalitiesStarted = profile.sellerStatus == 'launch_guide_started' ||
+          profile.sellerStatus == 'launch_guide_ready';
     }
 
-    setState(() {
-      _loading = false;
-    });
+    setState(() => _loading = false);
   }
 
-  Future<void> _submit() async {
+  Future<void> _saveGuideProgress({bool goToSiret = false}) async {
     if (!_formKey.currentState!.validate()) return;
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      if (mounted) {
-        Navigator.of(context).pushNamed('/login');
-      }
+      if (mounted) Navigator.of(context).pushNamed('/login');
       return;
     }
 
-    setState(() {
-      _saving = true;
-    });
-
+    setState(() => _saving = true);
     try {
       final profile = BloomArtSellerProfile(
         id: user.uid,
         userId: user.uid,
         profileType: 'je_me_lance',
+        creationType: _creationType,
         fullName: _fullNameController.text.trim(),
         artistName: _artistNameController.text.trim(),
         email: _emailController.text.trim(),
         phone: _phoneController.text.trim(),
-        bio: _bioController.text.trim(),
-        address: _addressController.text.trim(),
+        bio: _projectNoteController.text.trim(),
+        address: '',
         city: _cityController.text.trim(),
-        country: _countryController.text.trim(),
+        postalCode: '',
+        region: _regionController.text.trim(),
+        country: 'France',
         payoutStatus: 'pending',
         stripeAccountLinked: false,
+        sellerStatus: _formalitiesStarted ? 'launch_guide_started' : 'launch_guide',
+        businessVerificationStatus: 'missing_siret',
+        businessVerificationSource: 'bloom_art_launch_guide',
         createdAt: _createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
       );
-
       await _repository.saveSellerProfile(profile);
       if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed(
-        '/bloom-art/create',
-        arguments: <String, dynamic>{'profileType': 'je_me_lance'},
-      );
+
+      if (goToSiret) {
+        Navigator.of(context).pushReplacementNamed(
+          '/bloom-art/sell',
+          arguments: <String, dynamic>{'selectedType': 'artisan_art'},
+        );
+      } else {
+        Navigator.of(context).pushReplacementNamed('/bloom-art/dashboard');
+      }
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Impossible d\'enregistrer le profil : $error')),
+        SnackBar(content: Text('Impossible d\'enregistrer le parcours : $error')),
       );
     } finally {
-      if (mounted) {
-        setState(() {
-          _saving = false;
-        });
-      }
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -146,7 +147,7 @@ class _BloomArtJeMeLanceFormPageState
         backgroundColor: const Color(0xFFFFFBF7),
         elevation: 0,
         title: const Text(
-          'Profil je me lance',
+          'Je me lance',
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
       ),
@@ -159,6 +160,30 @@ class _BloomArtJeMeLanceFormPageState
                 children: <Widget>[
                   const _BloomArtLaunchHero(),
                   const SizedBox(height: 18),
+                  DropdownButtonFormField<String>(
+                    initialValue: _creationType,
+                    decoration: const InputDecoration(
+                      labelText: 'Type de création envisagé',
+                      border: OutlineInputBorder(),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                    items: BloomArtCreationType.values
+                        .map(
+                          (value) => DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(BloomArtCreationType.labelOf(value)),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) {
+                      setState(() {
+                        _creationType = BloomArtCreationType.normalize(value);
+                        _activityChosen = true;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
                   _BloomArtTextField(
                     controller: _fullNameController,
                     label: 'Nom complet',
@@ -167,7 +192,7 @@ class _BloomArtJeMeLanceFormPageState
                   const SizedBox(height: 12),
                   _BloomArtTextField(
                     controller: _artistNameController,
-                    label: 'Nom d\'atelier / signature (optionnel)',
+                    label: 'Nom d’atelier / signature',
                   ),
                   const SizedBox(height: 12),
                   _BloomArtTextField(
@@ -179,52 +204,60 @@ class _BloomArtJeMeLanceFormPageState
                   const SizedBox(height: 12),
                   _BloomArtTextField(
                     controller: _phoneController,
-                    label: 'Telephone',
+                    label: 'Téléphone',
                     validator: _requiredValidator,
                   ),
                   const SizedBox(height: 12),
-                  _BloomArtTextField(
-                    controller: _cityController,
-                    label: 'Ville',
-                    validator: _requiredValidator,
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: _BloomArtTextField(
+                          controller: _cityController,
+                          label: 'Ville',
+                          validator: _requiredValidator,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _BloomArtTextField(
+                          controller: _regionController,
+                          label: 'Région',
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   _BloomArtTextField(
-                    controller: _countryController,
-                    label: 'Pays',
-                    validator: _requiredValidator,
+                    controller: _projectNoteController,
+                    label: 'Votre projet artistique',
+                    maxLines: 4,
                   ),
-                  const SizedBox(height: 12),
-                  _BloomArtTextField(
-                    controller: _addressController,
-                    label: 'Adresse',
-                    maxLines: 2,
+                  const SizedBox(height: 18),
+                  _LaunchChecklistCard(
+                    activityChosen: _activityChosen,
+                    statusUnderstood: _statusUnderstood,
+                    formalitiesStarted: _formalitiesStarted,
+                    onActivityChanged: (value) => setState(() => _activityChosen = value),
+                    onStatusChanged: (value) => setState(() => _statusUnderstood = value),
+                    onFormalitiesChanged: (value) => setState(() => _formalitiesStarted = value),
                   ),
-                  const SizedBox(height: 12),
-                  _BloomArtTextField(
-                    controller: _bioController,
-                    label: 'Parlez de votre creation',
-                    maxLines: 5,
-                  ),
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF7EEE5),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      'Le statut vendeur reste en attente tant que votre configuration de paiement n\'est pas finalisee dans votre backend existant.',
-                      style: TextStyle(color: Color(0xFF6A645E), height: 1.45),
-                    ),
-                  ),
+                  const SizedBox(height: 18),
+                  _LaunchAdviceCard(creationType: _creationType),
                   const SizedBox(height: 18),
                   BloomArtCtaButton(
                     label: _saving
-                        ? 'Enregistrement en cours...'
-                        : 'Continuer vers le depot de la creation',
-                    icon: Icons.arrow_forward_rounded,
-                    onPressed: _saving ? null : _submit,
+                        ? 'Enregistrement...'
+                        : 'Enregistrer mon parcours de lancement',
+                    icon: Icons.save_outlined,
+                    onPressed: _saving ? null : _saveGuideProgress,
+                  ),
+                  const SizedBox(height: 12),
+                  BloomArtCtaButton(
+                    label: 'J’ai mon SIRET : vérifier mon compte vendeur',
+                    icon: Icons.verified_user_outlined,
+                    onPressed: _saving
+                        ? null
+                        : () => _saveGuideProgress(goToSiret: true),
                   ),
                 ],
               ),
@@ -233,9 +266,7 @@ class _BloomArtJeMeLanceFormPageState
   }
 
   String? _requiredValidator(String? value) {
-    if ((value ?? '').trim().isEmpty) {
-      return 'Champ requis';
-    }
+    if ((value ?? '').trim().isEmpty) return 'Champ requis';
     return null;
   }
 
@@ -265,15 +296,96 @@ class _BloomArtLaunchHero extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            'Vous vous lancez ?',
+            'Guide création d’entreprise',
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
           ),
           SizedBox(height: 8),
           Text(
-            'Commencez par un profil simple, puis deposez votre piece Bloom Art. Le prix reste prive, les visiteurs ne voient que l\'oeuvre et proposent un montant.',
+            'Ce parcours vous prépare à vendre dans Bloom Art. Il ne permet pas encore de déposer une œuvre : la vente sera activée uniquement après obtention et vérification du SIRET.',
             style: TextStyle(color: Color(0xFF6A645E), height: 1.45),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _LaunchChecklistCard extends StatelessWidget {
+  const _LaunchChecklistCard({
+    required this.activityChosen,
+    required this.statusUnderstood,
+    required this.formalitiesStarted,
+    required this.onActivityChanged,
+    required this.onStatusChanged,
+    required this.onFormalitiesChanged,
+  });
+
+  final bool activityChosen;
+  final bool statusUnderstood;
+  final bool formalitiesStarted;
+  final ValueChanged<bool> onActivityChanged;
+  final ValueChanged<bool> onStatusChanged;
+  final ValueChanged<bool> onFormalitiesChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE9DED1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Text(
+            'Checklist avant vente',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          CheckboxListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            value: activityChosen,
+            title: const Text('J’ai choisi mon type de création'),
+            onChanged: (value) => onActivityChanged(value ?? false),
+          ),
+          CheckboxListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            value: statusUnderstood,
+            title: const Text('Je comprends qu’un SIRET est requis pour vendre'),
+            subtitle: const Text('Micro-entreprise, artiste-auteur, artisan ou structure adaptée.'),
+            onChanged: (value) => onStatusChanged(value ?? false),
+          ),
+          CheckboxListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            value: formalitiesStarted,
+            title: const Text('J’ai commencé mes démarches administratives'),
+            subtitle: const Text('Préparer identité, adresse, activité, RIB et pièces justificatives.'),
+            onChanged: (value) => onFormalitiesChanged(value ?? false),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LaunchAdviceCard extends StatelessWidget {
+  const _LaunchAdviceCard({required this.creationType});
+
+  final String creationType;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = BloomArtCreationType.labelOf(creationType);
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7EEE5),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Text(
+        'Parcours conseillé pour $label : commencez par clarifier votre statut, obtenez un SIRET, puis revenez dans Bloom Art pour vérifier votre compte Artisan d’art déclaré. Le dépôt d’œuvre restera bloqué tant que ce contrôle n’est pas validé.',
+        style: const TextStyle(color: Color(0xFF6A645E), height: 1.45),
       ),
     );
   }
