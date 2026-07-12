@@ -1,11 +1,4 @@
-// Service de tracking GPS temps réel optimisé pour la batterie.
-//
-// Principes :
-// - acquisition GPS avec filtre de déplacement de 15 m ;
-// - envoi live adaptatif : 15 s en mouvement, 45 s lent, 60 s immobile ;
-// - historique allégé : 60 s ou 30 m ;
-// - suppression de la présence live à l'arrêt ;
-// - contrôle local des positions aberrantes avant écriture Firestore.
+// Tracking GPS groupe optimisé batterie / Firestore.
 
 import 'dart:async';
 import 'dart:math';
@@ -57,59 +50,45 @@ class GroupTrackingService {
     required String role,
   }) async {
     final user = _auth.currentUser;
-    if (user == null) {
-      throw Exception('Utilisateur non connecté');
-    }
-    if (isTracking) {
-      throw Exception('Tracking déjà actif');
-    }
+    if (user == null) throw Exception('Utilisateur non connecté');
+    if (isTracking) throw Exception('Tracking déjà actif');
 
-    final permission = await Geolocator.checkPermission();
-    var effectivePermission = permission;
+    var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
-      effectivePermission = await Geolocator.requestPermission();
+      permission = await Geolocator.requestPermission();
     }
-    if (effectivePermission == LocationPermission.denied ||
-        effectivePermission == LocationPermission.deniedForever) {
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
       throw Exception('Permission GPS refusée');
     }
 
     final normalizedRole = role == 'admin' ? 'admin' : 'tracker';
     final now = DateTime.now();
-    final sessionId = _firestore
+    final sessionRef = _firestore
         .collection('group_tracks')
         .doc(adminGroupId)
         .collection('sessions')
-        .doc()
-        .id;
-
+        .doc();
     final session = TrackSession(
-      id: sessionId,
+      id: sessionRef.id,
       adminGroupId: adminGroupId,
       uid: user.uid,
       role: normalizedRole,
       startedAt: now,
       updatedAt: now,
     );
-
-    await _firestore
-        .collection('group_tracks')
-        .doc(adminGroupId)
-        .collection('sessions')
-        .doc(sessionId)
-        .set(session.toFirestore());
+    await sessionRef.set(session.toFirestore());
 
     _currentSession = session;
     _resetRuntimeState();
 
-    const locationSettings = LocationSettings(
+    const settings = LocationSettings(
       accuracy: LocationAccuracy.high,
       distanceFilter: 15,
     );
-
     _positionSubscription = Geolocator.getPositionStream(
-      locationSettings: locationSettings,
+      locationSettings: settings,
     ).listen(
       (position) {
         if (!_isUsablePosition(position)) return;
@@ -117,16 +96,12 @@ class GroupTrackingService {
         _updateStationaryState(position);
         unawaited(_flushLatest(force: _lastSentAt == null));
       },
-      onError: (Object error, StackTrace stackTrace) {
-        // Le stream reste piloté par l'OS. L'UI pourra arrêter/reprendre la session.
-      },
+      onError: (Object _, StackTrace __) {},
     );
 
-    // Un timer unique assure les heartbeats lorsque le téléphone reste immobile.
     _flushTimer = Timer.periodic(_movingInterval, (_) {
       unawaited(_flushLatest());
     });
-
     return session;
   }
 
@@ -142,13 +117,12 @@ class GroupTrackingService {
     _flushTimer?.cancel();
     _flushTimer = null;
 
-    final summary = _calculateSummary(_sessionPoints, session.startedAt);
     final sessionRef = _firestore
         .collection('group_tracks')
         .doc(session.adminGroupId)
         .collection('sessions')
         .doc(session.id);
-
+    final summary = _calculateSummary(_sessionPoints, session.startedAt);
     final batch = _firestore.batch();
     batch.update(sessionRef, <String, dynamic>{
       'endedAt': FieldValue.serverTimestamp(),
@@ -162,7 +136,17 @@ class GroupTrackingService {
           .doc(session.adminGroupId)
           .collection('members')
           .doc(user.uid);
-      batch.delete(liveRef);
+      // Les règles autorisent le membre à mettre à jour son document. La Cloud
+      // Function supprime ensuite ce document avec les droits serveur.
+      batch.set(
+        liveRef,
+        <String, dynamic>{
+          'isTracking': false,
+          'expiresAt': Timestamp.fromDate(DateTime.now()),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
 
       final profileRef = session.role == 'admin'
           ? _firestore.collection('group_admins').doc(user.uid)
@@ -180,12 +164,10 @@ class GroupTrackingService {
     }
 
     await batch.commit();
-    final updatedDoc = await sessionRef.get();
-    final completedSession = TrackSession.fromFirestore(updatedDoc);
-
+    final completed = TrackSession.fromFirestore(await sessionRef.get());
     _currentSession = null;
     _resetRuntimeState();
-    return completedSession;
+    return completed;
   }
 
   void _resetRuntimeState() {
@@ -207,10 +189,9 @@ class GroupTrackingService {
     if (position.latitude < -90 || position.latitude > 90) return false;
     if (position.longitude < -180 || position.longitude > 180) return false;
     if (position.latitude == 0 && position.longitude == 0) return false;
-    if (!position.accuracy.isFinite || position.accuracy > _maxAccuracyM) {
-      return false;
-    }
-    return true;
+    return position.accuracy.isFinite &&
+        position.accuracy >= 0 &&
+        position.accuracy <= _maxAccuracyM;
   }
 
   void _updateStationaryState(Position position) {
@@ -230,7 +211,6 @@ class GroupTrackingService {
         : 0.0;
     if (speed >= 0.8) return _movingInterval;
     if (speed >= 0.2) return _slowInterval;
-
     final stationarySince = _stationarySince;
     if (stationarySince != null &&
         DateTime.now().difference(stationarySince) >= _stationaryDelay) {
@@ -248,10 +228,8 @@ class GroupTrackingService {
     }
 
     final now = DateTime.now();
-    final lastSentAt = _lastSentAt;
-    if (!force && lastSentAt != null) {
-      final interval = _adaptiveInterval(position);
-      if (now.difference(lastSentAt) < interval) return;
+    if (!force && _lastSentAt != null) {
+      if (now.difference(_lastSentAt!) < _adaptiveInterval(position)) return;
     }
 
     final previous = _lastSentPosition;
@@ -259,14 +237,14 @@ class GroupTrackingService {
       final elapsedSeconds =
           now.difference(previous.timestamp).inMilliseconds / 1000;
       if (elapsedSeconds > 0) {
-        final distance = _haversineDistance(
+        final travelled = _haversineDistance(
           previous.lat,
           previous.lng,
           position.latitude,
           position.longitude,
         );
-        final speed = distance / elapsedSeconds;
-        if (distance > 80 && speed > _maxPlausibleSpeedMps) {
+        if (travelled > 80 &&
+            travelled / elapsedSeconds > _maxPlausibleSpeedMps) {
           return;
         }
       }
@@ -288,32 +266,30 @@ class GroupTrackingService {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    final geoPos = GeoPosition(
+    final geoPosition = GeoPosition(
       lat: position.latitude,
       lng: position.longitude,
       altitude: position.altitude.isFinite ? position.altitude : null,
       accuracy: position.accuracy,
       timestamp: now,
     );
-
-    final historyDue = _isHistoryWriteDue(geoPos, now);
+    final historyDue = _isHistoryWriteDue(geoPosition, now);
     final profileDue = _lastProfileWriteAt == null ||
         now.difference(_lastProfileWriteAt!) >= _profileWriteInterval;
-
     final batch = _firestore.batch();
+
     final memberRef = _firestore
         .collection('group_positions')
         .doc(session.adminGroupId)
         .collection('members')
         .doc(user.uid);
-
     batch.set(
       memberRef,
       <String, dynamic>{
         'role': session.role,
         'isTracking': true,
         'sessionId': session.id,
-        'lastPosition': geoPos.toMap(),
+        'lastPosition': geoPosition.toMap(),
         'previousPosition': _lastSentPosition?.toMap(),
         'expiresAt': Timestamp.fromDate(now.add(_liveTtl)),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -328,7 +304,7 @@ class GroupTrackingService {
       batch.set(
         profileRef,
         <String, dynamic>{
-          'lastPosition': geoPos.toMap(),
+          'lastPosition': geoPosition.toMap(),
           'trackingActive': true,
           'trackingSessionId': session.id,
           'updatedAt': FieldValue.serverTimestamp(),
@@ -348,11 +324,11 @@ class GroupTrackingService {
           .doc();
       storedPoint = TrackPoint(
         id: pointRef.id,
-        lat: geoPos.lat,
-        lng: geoPos.lng,
-        altitude: geoPos.altitude,
-        accuracy: geoPos.accuracy,
-        timestamp: geoPos.timestamp,
+        lat: geoPosition.lat,
+        lng: geoPosition.lng,
+        altitude: geoPosition.altitude,
+        accuracy: geoPosition.accuracy,
+        timestamp: geoPosition.timestamp,
       );
       batch.set(pointRef, storedPoint.toFirestore());
       batch.set(
@@ -367,30 +343,26 @@ class GroupTrackingService {
     }
 
     await batch.commit();
-
-    _lastSentPosition = geoPos;
+    _lastSentPosition = geoPosition;
     _lastSentAt = now;
     if (profileDue) _lastProfileWriteAt = now;
     if (storedPoint != null) {
-      _lastHistoryPosition = geoPos;
+      _lastHistoryPosition = geoPosition;
       _lastHistoryAt = now;
       _sessionPoints.add(storedPoint);
     }
   }
 
   bool _isHistoryWriteDue(GeoPosition current, DateTime now) {
-    final lastAt = _lastHistoryAt;
-    final lastPosition = _lastHistoryPosition;
-    if (lastAt == null || lastPosition == null) return true;
-    if (now.difference(lastAt) >= _historyWriteInterval) return true;
-
-    final distance = _haversineDistance(
-      lastPosition.lat,
-      lastPosition.lng,
-      current.lat,
-      current.lng,
-    );
-    return distance >= _historyDistanceM;
+    if (_lastHistoryAt == null || _lastHistoryPosition == null) return true;
+    if (now.difference(_lastHistoryAt!) >= _historyWriteInterval) return true;
+    return _haversineDistance(
+          _lastHistoryPosition!.lat,
+          _lastHistoryPosition!.lng,
+          current.lat,
+          current.lng,
+        ) >=
+        _historyDistanceM;
   }
 
   TrackSummary _calculateSummary(
@@ -409,14 +381,13 @@ class GroupTrackingService {
     }
 
     final durationSec = DateTime.now().difference(startedAt).inSeconds;
-    double totalDistance = 0;
-    double totalAscent = 0;
-    double totalDescent = 0;
-
-    for (var i = 1; i < points.length; i++) {
-      final previous = points[i - 1];
-      final current = points[i];
-      final distance = _haversineDistance(
+    double distanceM = 0;
+    double ascentM = 0;
+    double descentM = 0;
+    for (var index = 1; index < points.length; index++) {
+      final previous = points[index - 1];
+      final current = points[index];
+      final travelled = _haversineDistance(
         previous.lat,
         previous.lng,
         current.lat,
@@ -426,26 +397,25 @@ class GroupTrackingService {
           current.timestamp.difference(previous.timestamp).inMilliseconds /
               1000;
       if (elapsedSeconds > 0 &&
-          distance / elapsedSeconds < _maxPlausibleSpeedMps) {
-        totalDistance += distance;
+          travelled / elapsedSeconds < _maxPlausibleSpeedMps) {
+        distanceM += travelled;
       }
-
       if (previous.altitude != null && current.altitude != null) {
         final difference = current.altitude! - previous.altitude!;
         if (difference > 0) {
-          totalAscent += difference;
+          ascentM += difference;
         } else {
-          totalDescent += difference.abs();
+          descentM += difference.abs();
         }
       }
     }
 
     return TrackSummary(
       durationSec: durationSec,
-      distanceM: totalDistance,
-      ascentM: totalAscent,
-      descentM: totalDescent,
-      avgSpeedMps: durationSec > 0 ? totalDistance / durationSec : 0,
+      distanceM: distanceM,
+      ascentM: ascentM,
+      descentM: descentM,
+      avgSpeedMps: durationSec > 0 ? distanceM / durationSec : 0,
       pointsCount: points.length,
     );
   }
@@ -464,8 +434,7 @@ class GroupTrackingService {
             cos(_toRadians(lat2)) *
             sin(dLon / 2) *
             sin(dLon / 2);
-    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
-    return earthRadiusM * c;
+    return earthRadiusM * 2 * atan2(sqrt(a), sqrt(1 - a));
   }
 
   double _toRadians(double degree) => degree * pi / 180;
@@ -514,7 +483,6 @@ class GroupTrackingService {
         .collection('points')
         .orderBy('ts')
         .get();
-
     return snapshot.docs
         .map((doc) => TrackPoint.fromFirestore(doc))
         .toList();
