@@ -164,6 +164,12 @@ class _RouteStyleControlsPanelState extends State<RouteStyleControlsPanel> {
                       widget.onChanged(cfg.copyWith(casingWidth: v)),
                 ),
                 const SizedBox(height: 8),
+                ToggleTile(
+                  title: 'Tracé 3D (ruban extrudé)',
+                  value: cfg.elevated3d,
+                  onChanged: (v) =>
+                      widget.onChanged(cfg.copyWith(elevated3d: v)),
+                ),
                 RouteStyleSlider(
                   label: 'Échelle largeur (×)',
                   value: cfg.widthScale3d,
