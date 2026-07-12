@@ -61,6 +61,17 @@ class BloomArtSellerProfile {
     required this.payoutStatus,
     required this.stripeAccountLinked,
     this.creationType = BloomArtCreationType.artisanatArt,
+    this.sellerStatus = 'pending',
+    this.siret = '',
+    this.siren = '',
+    this.businessName = '',
+    this.nafCode = '',
+    this.businessAddress = '',
+    this.postalCode = '',
+    this.region = '',
+    this.businessVerificationStatus = 'not_verified',
+    this.businessVerificationSource = '',
+    this.businessVerifiedAt,
     this.createdAt,
     this.updatedAt,
   });
@@ -79,11 +90,26 @@ class BloomArtSellerProfile {
   final String country;
   final String payoutStatus;
   final bool stripeAccountLinked;
+  final String sellerStatus;
+  final String siret;
+  final String siren;
+  final String businessName;
+  final String nafCode;
+  final String businessAddress;
+  final String postalCode;
+  final String region;
+  final String businessVerificationStatus;
+  final String businessVerificationSource;
+  final DateTime? businessVerifiedAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
   String get displayName => artistName.trim().isNotEmpty ? artistName.trim() : fullName.trim();
   String get creationTypeLabel => BloomArtCreationType.labelOf(creationType);
+  bool get isArtisanArt => profileType == 'artisan_art' || profileType == 'artist_creator';
+  bool get isLaunchGuide => profileType == 'je_me_lance' || sellerStatus == 'launch_guide';
+  bool get isBusinessVerified => businessVerificationStatus == 'verified' && siret.trim().isNotEmpty;
+  bool get canSell => isArtisanArt && isBusinessVerified && sellerStatus == 'active';
 
   BloomArtSellerProfile copyWith({
     String? id,
@@ -100,6 +126,17 @@ class BloomArtSellerProfile {
     String? country,
     String? payoutStatus,
     bool? stripeAccountLinked,
+    String? sellerStatus,
+    String? siret,
+    String? siren,
+    String? businessName,
+    String? nafCode,
+    String? businessAddress,
+    String? postalCode,
+    String? region,
+    String? businessVerificationStatus,
+    String? businessVerificationSource,
+    DateTime? businessVerifiedAt,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -118,6 +155,17 @@ class BloomArtSellerProfile {
       country: country ?? this.country,
       payoutStatus: payoutStatus ?? this.payoutStatus,
       stripeAccountLinked: stripeAccountLinked ?? this.stripeAccountLinked,
+      sellerStatus: sellerStatus ?? this.sellerStatus,
+      siret: siret ?? this.siret,
+      siren: siren ?? this.siren,
+      businessName: businessName ?? this.businessName,
+      nafCode: nafCode ?? this.nafCode,
+      businessAddress: businessAddress ?? this.businessAddress,
+      postalCode: postalCode ?? this.postalCode,
+      region: region ?? this.region,
+      businessVerificationStatus: businessVerificationStatus ?? this.businessVerificationStatus,
+      businessVerificationSource: businessVerificationSource ?? this.businessVerificationSource,
+      businessVerifiedAt: businessVerifiedAt ?? this.businessVerifiedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -138,6 +186,17 @@ class BloomArtSellerProfile {
       'country': country,
       'payoutStatus': payoutStatus,
       'stripeAccountLinked': stripeAccountLinked,
+      'sellerStatus': sellerStatus,
+      'siret': siret,
+      'siren': siren,
+      'businessName': businessName,
+      'nafCode': nafCode,
+      'businessAddress': businessAddress,
+      'postalCode': postalCode,
+      'region': region,
+      'businessVerificationStatus': businessVerificationStatus,
+      'businessVerificationSource': businessVerificationSource,
+      if (businessVerifiedAt != null) 'businessVerifiedAt': Timestamp.fromDate(businessVerifiedAt!),
       if (createdAt != null) 'createdAt': Timestamp.fromDate(createdAt!),
       if (updatedAt != null) 'updatedAt': Timestamp.fromDate(updatedAt!),
     };
@@ -147,7 +206,7 @@ class BloomArtSellerProfile {
     return BloomArtSellerProfile(
       id: id,
       userId: (map['userId'] ?? '').toString(),
-      profileType: (map['profileType'] ?? 'je_me_lance').toString(),
+      profileType: _normalizeProfileType((map['profileType'] ?? 'je_me_lance').toString()),
       creationType: BloomArtCreationType.normalize(map['creationType']?.toString()),
       fullName: (map['fullName'] ?? '').toString(),
       artistName: (map['artistName'] ?? '').toString(),
@@ -159,6 +218,17 @@ class BloomArtSellerProfile {
       country: (map['country'] ?? '').toString(),
       payoutStatus: (map['payoutStatus'] ?? 'pending').toString(),
       stripeAccountLinked: map['stripeAccountLinked'] == true,
+      sellerStatus: (map['sellerStatus'] ?? _legacySellerStatus(map)).toString(),
+      siret: (map['siret'] ?? '').toString(),
+      siren: (map['siren'] ?? '').toString(),
+      businessName: (map['businessName'] ?? '').toString(),
+      nafCode: (map['nafCode'] ?? '').toString(),
+      businessAddress: (map['businessAddress'] ?? map['address'] ?? '').toString(),
+      postalCode: (map['postalCode'] ?? '').toString(),
+      region: (map['region'] ?? '').toString(),
+      businessVerificationStatus: (map['businessVerificationStatus'] ?? _legacyVerificationStatus(map)).toString(),
+      businessVerificationSource: (map['businessVerificationSource'] ?? '').toString(),
+      businessVerifiedAt: _toDate(map['businessVerifiedAt']),
       createdAt: _toDate(map['createdAt']),
       updatedAt: _toDate(map['updatedAt']),
     );
@@ -166,6 +236,28 @@ class BloomArtSellerProfile {
 
   factory BloomArtSellerProfile.fromDocument(DocumentSnapshot<Map<String, dynamic>> doc) {
     return BloomArtSellerProfile.fromMap(doc.id, doc.data() ?? <String, dynamic>{});
+  }
+
+  static String _normalizeProfileType(String value) {
+    return value == 'artist_creator' ? 'artisan_art' : value;
+  }
+
+  static String _legacySellerStatus(Map<String, dynamic> map) {
+    final profileType = _normalizeProfileType((map['profileType'] ?? '').toString());
+    if (profileType == 'je_me_lance') return 'launch_guide';
+    if ((map['siret'] ?? '').toString().trim().isNotEmpty) return 'active';
+    return 'pending';
+  }
+
+  static String _legacyVerificationStatus(Map<String, dynamic> map) {
+    if ((map['businessVerificationStatus'] ?? '').toString().trim().isNotEmpty) {
+      return map['businessVerificationStatus'].toString();
+    }
+    if ((map['siret'] ?? '').toString().trim().isNotEmpty) return 'verified';
+    if (_normalizeProfileType((map['profileType'] ?? '').toString()) == 'je_me_lance') {
+      return 'missing_siret';
+    }
+    return 'not_verified';
   }
 
   static DateTime? _toDate(Object? raw) {
