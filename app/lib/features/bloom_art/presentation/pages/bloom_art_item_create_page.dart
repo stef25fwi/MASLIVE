@@ -29,10 +29,8 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
   final TextEditingController _categoryController = TextEditingController();
   final TextEditingController _dimensionsController = TextEditingController();
   final TextEditingController _materialsController = TextEditingController();
-  final TextEditingController _referencePriceController =
-      TextEditingController();
-  final TextEditingController _deliveryNotesController =
-      TextEditingController();
+  final TextEditingController _referencePriceController = TextEditingController();
+  final TextEditingController _deliveryNotesController = TextEditingController();
 
   String _condition = 'excellent';
   String _deliveryMode = 'delivery_or_pickup';
@@ -63,11 +61,7 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
   Future<void> _loadProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      if (mounted) {
-        setState(() {
-          _loadingProfile = false;
-        });
-      }
+      if (mounted) setState(() => _loadingProfile = false);
       return;
     }
 
@@ -99,11 +93,19 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
     }
     if (profile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Complétez d’abord votre profil vendeur Bloom Art.'),
-        ),
+        const SnackBar(content: Text('Complétez d’abord votre profil vendeur Bloom Art.')),
       );
       Navigator.of(context).pushReplacementNamed('/bloom-art/sell');
+      return;
+    }
+    if (!profile.canSell) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Le dépôt est réservé aux artisans d’art avec SIRET vérifié.')),
+      );
+      Navigator.of(context).pushReplacementNamed(
+        '/bloom-art/sell',
+        arguments: <String, dynamic>{'selectedType': 'artisan_art'},
+      );
       return;
     }
 
@@ -123,9 +125,7 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
         .where((value) => value.isNotEmpty)
         .toList(growable: false);
 
-    setState(() {
-      _saving = true;
-    });
+    setState(() => _saving = true);
 
     try {
       final category = _categoryController.text.trim().isEmpty
@@ -134,7 +134,7 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
       final draftItem = BloomArtItem(
         id: '',
         sellerId: user.uid,
-        sellerProfileType: widget.profileType ?? profile.profileType,
+        sellerProfileType: profile.profileType,
         sellerDisplayName: profile.displayName,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
@@ -150,10 +150,7 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
         deliveryNotes: _deliveryNotesController.text.trim(),
       );
 
-      final itemId = await _repository.createItem(
-        item: draftItem,
-        referencePrice: referencePrice,
-      );
+      final itemId = await _repository.createItem(item: draftItem, referencePrice: referencePrice);
 
       final uploadedUrls = await _repository.uploadItemImages(
         itemId: itemId,
@@ -165,6 +162,10 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
         'images': uploadedUrls,
         'isPublished': _publishNow,
         'availabilityStatus': _publishNow ? 'published' : 'draft',
+        'sellerSiretVerified': true,
+        'sellerSiret': profile.siret,
+        'sellerBusinessName': profile.businessName,
+        'sellerRegion': profile.region,
       });
 
       if (!mounted) return;
@@ -175,17 +176,14 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
         SnackBar(content: Text('Impossible de publier la création : $error')),
       );
     } finally {
-      if (mounted) {
-        setState(() {
-          _saving = false;
-        });
-      }
+      if (mounted) setState(() => _saving = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+    final profile = _sellerProfile;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFFBF7),
@@ -208,179 +206,198 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
             )
           : _loadingProfile
               ? const Center(child: CircularProgressIndicator())
-              : Form(
-                  key: _formKey,
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(10, 16, 10, 28),
-                    children: <Widget>[
-                      Container(
-                        padding: const EdgeInsets.all(22),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(28),
-                          border: Border.all(color: const Color(0xFFE9DED1)),
-                        ),
-                        child: const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              'Décrivez votre pièce',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
-                              ),
+              : profile == null || !profile.canSell
+                  ? _BlockedCreateState(profile: profile)
+                  : Form(
+                      key: _formKey,
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(10, 16, 10, 28),
+                        children: <Widget>[
+                          Container(
+                            padding: const EdgeInsets.all(22),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(28),
+                              border: Border.all(color: const Color(0xFFE9DED1)),
                             ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Le prix de référence reste privé. La fiche publique ne montrera que l’œuvre, son histoire et le bouton proposer un prix.',
-                              style: TextStyle(
-                                color: Color(0xFF6A645E),
-                                height: 1.45,
-                              ),
+                            child: const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  'Décrivez votre pièce',
+                                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Le prix de référence reste privé. La fiche publique ne montrera que l’œuvre, son histoire et le bouton proposer un prix.',
+                                  style: TextStyle(color: Color(0xFF6A645E), height: 1.45),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      BloomArtPhotoPicker(
-                        onChanged: (files) {
-                          setState(() {
-                            _selectedPhotos = List<XFile>.from(files);
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 18),
-                      _BloomArtField(
-                        controller: _titleController,
-                        label: 'Titre',
-                        validator: _requiredValidator,
-                      ),
-                      const SizedBox(height: 12),
-                      _BloomArtField(
-                        controller: _descriptionController,
-                        label: 'Description artistique',
-                        maxLines: 5,
-                        validator: _requiredValidator,
-                      ),
-                      const SizedBox(height: 12),
-                      _BloomArtField(
-                        controller: _categoryController,
-                        label: 'Type de création / catégorie',
-                        validator: _requiredValidator,
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: _condition,
-                        decoration: const InputDecoration(
-                          labelText: 'État',
-                          border: OutlineInputBorder(),
-                          filled: true,
-                          fillColor: Colors.white,
-                        ),
-                        items: const <DropdownMenuItem<String>>[
-                          DropdownMenuItem(
-                            value: 'excellent',
-                            child: Text('Excellent'),
                           ),
-                          DropdownMenuItem(value: 'good', child: Text('Bon')),
-                          DropdownMenuItem(
-                            value: 'patina',
-                            child: Text('Patine / pièce vécue'),
+                          const SizedBox(height: 18),
+                          BloomArtPhotoPicker(
+                            onChanged: (files) {
+                              setState(() {
+                                _selectedPhotos = List<XFile>.from(files);
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 18),
+                          _BloomArtField(
+                            controller: _titleController,
+                            label: 'Titre',
+                            validator: _requiredValidator,
+                          ),
+                          const SizedBox(height: 12),
+                          _BloomArtField(
+                            controller: _descriptionController,
+                            label: 'Description artistique',
+                            maxLines: 5,
+                            validator: _requiredValidator,
+                          ),
+                          const SizedBox(height: 12),
+                          _BloomArtField(
+                            controller: _categoryController,
+                            label: 'Type de création / catégorie',
+                            validator: _requiredValidator,
+                          ),
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            initialValue: _condition,
+                            decoration: const InputDecoration(
+                              labelText: 'État',
+                              border: OutlineInputBorder(),
+                              filled: true,
+                              fillColor: Colors.white,
+                            ),
+                            items: const <DropdownMenuItem<String>>[
+                              DropdownMenuItem(value: 'excellent', child: Text('Excellent')),
+                              DropdownMenuItem(value: 'good', child: Text('Bon')),
+                              DropdownMenuItem(value: 'patina', child: Text('Patine / pièce vécue')),
+                            ],
+                            onChanged: (value) {
+                              setState(() {
+                                _condition = value ?? 'excellent';
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          _BloomArtField(controller: _dimensionsController, label: 'Dimensions'),
+                          const SizedBox(height: 12),
+                          _BloomArtField(
+                            controller: _materialsController,
+                            label: 'Matériaux (séparés par des virgules)',
+                          ),
+                          const SizedBox(height: 12),
+                          _BloomArtField(
+                            controller: _referencePriceController,
+                            label: 'Prix de référence privé (EUR)',
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            validator: _requiredValidator,
+                          ),
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            initialValue: _deliveryMode,
+                            decoration: const InputDecoration(
+                              labelText: 'Mode de remise / livraison',
+                              border: OutlineInputBorder(),
+                              filled: true,
+                              fillColor: Colors.white,
+                            ),
+                            items: const <DropdownMenuItem<String>>[
+                              DropdownMenuItem(
+                                value: 'delivery_or_pickup',
+                                child: Text('Livraison ou remise en main propre'),
+                              ),
+                              DropdownMenuItem(value: 'delivery_only', child: Text('Livraison uniquement')),
+                              DropdownMenuItem(value: 'pickup_only', child: Text('Remise en main propre uniquement')),
+                            ],
+                            onChanged: (value) {
+                              setState(() {
+                                _deliveryMode = value ?? 'delivery_or_pickup';
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          _BloomArtField(
+                            controller: _deliveryNotesController,
+                            label: 'Notes de livraison / remise',
+                            maxLines: 3,
+                          ),
+                          const SizedBox(height: 12),
+                          SwitchListTile.adaptive(
+                            value: _publishNow,
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Publier tout de suite'),
+                            subtitle: const Text('Si désactivé, la pièce reste en brouillon dans votre espace vendeur.'),
+                            onChanged: (value) {
+                              setState(() {
+                                _publishNow = value;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 18),
+                          BloomArtCtaButton(
+                            label: _saving ? 'Publication en cours...' : 'Publier ma création',
+                            icon: Icons.check_circle_outline,
+                            onPressed: _saving ? null : _submit,
                           ),
                         ],
-                        onChanged: (value) {
-                          setState(() {
-                            _condition = value ?? 'excellent';
-                          });
-                        },
                       ),
-                      const SizedBox(height: 12),
-                      _BloomArtField(
-                        controller: _dimensionsController,
-                        label: 'Dimensions',
-                      ),
-                      const SizedBox(height: 12),
-                      _BloomArtField(
-                        controller: _materialsController,
-                        label: 'Matériaux (séparés par des virgules)',
-                      ),
-                      const SizedBox(height: 12),
-                      _BloomArtField(
-                        controller: _referencePriceController,
-                        label: 'Prix de référence privé (EUR)',
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        validator: _requiredValidator,
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: _deliveryMode,
-                        decoration: const InputDecoration(
-                          labelText: 'Mode de remise / livraison',
-                          border: OutlineInputBorder(),
-                          filled: true,
-                          fillColor: Colors.white,
-                        ),
-                        items: const <DropdownMenuItem<String>>[
-                          DropdownMenuItem(
-                            value: 'delivery_or_pickup',
-                            child: Text('Livraison ou remise en main propre'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'delivery_only',
-                            child: Text('Livraison uniquement'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'pickup_only',
-                            child: Text('Remise en main propre uniquement'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          setState(() {
-                            _deliveryMode = value ?? 'delivery_or_pickup';
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      _BloomArtField(
-                        controller: _deliveryNotesController,
-                        label: 'Notes de livraison / remise',
-                        maxLines: 3,
-                      ),
-                      const SizedBox(height: 12),
-                      SwitchListTile.adaptive(
-                        value: _publishNow,
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Publier tout de suite'),
-                        subtitle: const Text(
-                          'Si désactivé, la pièce reste en brouillon dans votre espace vendeur.',
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            _publishNow = value;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 18),
-                      BloomArtCtaButton(
-                        label: _saving
-                            ? 'Publication en cours...'
-                            : 'Publier ma création',
-                        icon: Icons.check_circle_outline,
-                        onPressed: _saving ? null : _submit,
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
     );
   }
 
   String? _requiredValidator(String? value) {
-    if ((value ?? '').trim().isEmpty) {
-      return 'Champ requis';
-    }
+    if ((value ?? '').trim().isEmpty) return 'Champ requis';
     return null;
+  }
+}
+
+class _BlockedCreateState extends StatelessWidget {
+  const _BlockedCreateState({required this.profile});
+
+  final BloomArtSellerProfile? profile;
+
+  @override
+  Widget build(BuildContext context) {
+    final message = profile == null
+        ? 'Complétez d’abord votre parcours vendeur Bloom Art.'
+        : 'Votre compte vendeur n’est pas encore vérifié. Le dépôt d’œuvre est réservé aux artisans d’art avec SIRET validé.';
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(10, 16, 10, 28),
+      children: <Widget>[
+        Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: const Color(0xFFE9DED1)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text(
+                'Dépôt bloqué',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 8),
+              Text(message, style: const TextStyle(color: Color(0xFF6A645E), height: 1.45)),
+              const SizedBox(height: 14),
+              BloomArtCtaButton(
+                label: 'Vérifier mon SIRET',
+                icon: Icons.verified_user_outlined,
+                onPressed: () => Navigator.of(context).pushReplacementNamed(
+                  '/bloom-art/sell',
+                  arguments: <String, dynamic>{'selectedType': 'artisan_art'},
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 
