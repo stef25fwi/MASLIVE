@@ -1248,6 +1248,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           show: true,
           roadLike: shouldRoadLike,
           shadow3d: cfg.effectiveShadowEnabled,
+          elevated3d: cfg.elevated3d,
           shadowOpacity: cfg.shadowOpacity,
           shadowBlur: cfg.shadowBlur,
           showDirection: false,

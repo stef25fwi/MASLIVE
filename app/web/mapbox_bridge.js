@@ -1621,8 +1621,10 @@
     _removeLayerIfExists(map, 'maslive_polyline_shadow');
     _removeLayerIfExists(map, 'maslive_polyline_arrows');
     _removeLayerIfExists(map, 'maslive_polyline_layer');
+    _removeLayerIfExists(map, 'maslive_polyline_extrusion3d');
     _removeSourceIfExists(map, 'maslive_polyline');
     _removeSourceIfExists(map, 'maslive_polyline_segments');
+    _removeSourceIfExists(map, 'maslive_polyline_extrusion_src');
   }
 
   function _stopRouteAnimation(state) {
@@ -2263,6 +2265,7 @@
         const opts = optionsJson ? JSON.parse(optionsJson) : {};
         const roadLike = _parseBool(opts.roadLike, true);
         const shadow3d = _parseBool(opts.shadow3d, true);
+        const elevated3d = _parseBool(opts.elevated3d, false);
         const showDirection = _parseBool(opts.showDirection, true);
         const animateDirection = _parseBool(opts.animateDirection, false);
         const animationSpeed = _clampNumber(opts.animationSpeed, 0.1, 10.0, 1.0);
@@ -2357,6 +2360,7 @@
         _removeLayerIfExists(map, 'maslive_polyline_shadow');
         _removeLayerIfExists(map, 'maslive_polyline_arrows');
         _removeLayerIfExists(map, 'maslive_polyline_layer');
+        _removeLayerIfExists(map, 'maslive_polyline_extrusion3d');
 
         const w = Number(width || 6);
         const mainColor = String(colorHex || '#1A73E8');
@@ -2607,6 +2611,89 @@
           });
         }
 
+        // === Tracé 3D (ruban extrudé fill-extrusion) ===
+        // Rendu en VRAI relief: on bufferise la ligne en polygone (offset
+        // métrique) puis on l'extrude. Mapbox ombre automatiquement les faces
+        // latérales => effet ruban 3D avec épaisseur + contour.
+        const extrusionSrcId = 'maslive_polyline_extrusion_src';
+        const extrusionLayerId = 'maslive_polyline_extrusion3d';
+        if (elevated3d && coords.length >= 2) {
+          try {
+            const bufferLineToPolygon = (cs, halfWMeters) => {
+              const R = 6378137, toRad = Math.PI / 180;
+              const left = [], right = [];
+              for (let i = 0; i < cs.length; i++) {
+                const prev = cs[Math.max(0, i - 1)];
+                const next = cs[Math.min(cs.length - 1, i + 1)];
+                const cosLat = Math.max(0.01, Math.cos(cs[i][1] * toRad));
+                const dx = (next[0] - prev[0]) * toRad * R * cosLat;
+                const dy = (next[1] - prev[1]) * toRad * R;
+                const len = Math.hypot(dx, dy) || 1;
+                const nx = -dy / len, ny = dx / len;
+                const dLng = (nx * halfWMeters) / (R * cosLat) / toRad;
+                const dLat = (ny * halfWMeters) / R / toRad;
+                left.push([cs[i][0] + dLng, cs[i][1] + dLat]);
+                right.push([cs[i][0] - dLng, cs[i][1] - dLat]);
+              }
+              const ring = left.concat(right.reverse());
+              ring.push(ring[0]);
+              return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [ring] } };
+            };
+            // Largeur/hauteur du ruban en mètres (heuristique; ajustable via
+            // largeur du tracé + thickness3d). À affiner visuellement.
+            const ribbonHalfW = Math.max(2.5, (w * 0.6) * thickness3d);
+            const ribbonHeight = 4 + 10 * thickness3d;
+            const poly = bufferLineToPolygon(coords, ribbonHalfW);
+            const eSrc = map.getSource(extrusionSrcId);
+            if (!eSrc) {
+              map.addSource(extrusionSrcId, { type: 'geojson', data: poly });
+            } else {
+              eSrc.setData(poly);
+            }
+            if (!map.getLayer(extrusionLayerId)) {
+              map.addLayer({
+                id: extrusionLayerId,
+                type: 'fill-extrusion',
+                source: extrusionSrcId,
+                paint: {
+                  'fill-extrusion-color': mainColor,
+                  'fill-extrusion-height': ribbonHeight,
+                  'fill-extrusion-base': 0,
+                  'fill-extrusion-opacity': Math.max(0.9, opacity),
+                  'fill-extrusion-vertical-gradient': true,
+                },
+              });
+            } else {
+              map.setPaintProperty(extrusionLayerId, 'fill-extrusion-color', mainColor);
+              map.setPaintProperty(extrusionLayerId, 'fill-extrusion-height', ribbonHeight);
+              map.setPaintProperty(extrusionLayerId, 'fill-extrusion-opacity', Math.max(0.9, opacity));
+            }
+
+            // Le ruban 3D remplace le tracé plat: on masque les couches plates
+            // (sinon elles restent visibles au sol sous le ruban). On garde
+            // l'ombre au sol (profondeur) et les flèches de direction.
+            const flatToHide = [
+              'maslive_polyline_core',
+              'maslive_polyline_center',
+              'maslive_polyline_casing',
+              'maslive_polyline_side_l',
+              'maslive_polyline_side_r',
+              'maslive_polyline_glow',
+              'maslive_polyline_layer',
+            ];
+            for (const lid of flatToHide) {
+              if (map.getLayer(lid)) {
+                try { map.setLayoutProperty(lid, 'visibility', 'none'); } catch (_) {}
+              }
+            }
+          } catch (e3d) {
+            console.warn('[Route3D] extrusion error:', e3d);
+          }
+        } else {
+          _removeLayerIfExists(map, extrusionLayerId);
+          _removeSourceIfExists(map, extrusionSrcId);
+        }
+
         if (animateDirection) {
           _startRouteAnimation(state, coords, animationSpeed);
         } else {
@@ -2690,6 +2777,7 @@
         _removeLayerIfExists(map, 'maslive_polyline_shadow');
         _removeLayerIfExists(map, 'maslive_polyline_arrows');
         _removeLayerIfExists(map, 'maslive_polyline_layer');
+        _removeLayerIfExists(map, 'maslive_polyline_extrusion3d');
         _removeSourceIfExists(map, 'maslive_polyline');
         _removeSourceIfExists(map, 'maslive_polyline_segments');
         _removeLayerIfExists(map, 'maslive_polygon_line');
