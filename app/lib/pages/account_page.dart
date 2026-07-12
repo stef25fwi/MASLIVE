@@ -317,15 +317,15 @@ class _AccountUiPageState extends State<AccountUiPage> {
       tiles.insertAll(4, const <_AccountTileData>[
         _AccountTileData(
           icon: Icons.camera_alt_outlined,
-          title: 'Espace photographe',
-          subtitle: 'Gérer mes galeries, ventes et stats',
+          title: 'Espace créateur digital',
+          subtitle: 'Gérer mes médias, galeries, ventes et stats',
           route: '/media-marketplace',
           arguments: <String, dynamic>{'initialTab': 'photographer'},
         ),
         _AccountTileData(
           icon: Icons.workspace_premium_outlined,
-          title: 'Abonnement photographe',
-          subtitle: 'Gérer ma formule marché des médias',
+          title: 'Abonnement créateur digital',
+          subtitle: 'Gérer ma formule média et créateur',
           route: '/media-marketplace/subscription',
         ),
       ]);
@@ -347,7 +347,7 @@ class _AccountUiPageState extends State<AccountUiPage> {
         const _AccountTileData(
           icon: Icons.my_location_outlined,
           title: 'Tracker Groupe',
-          subtitle: 'Rattachement, suivi GPS et historique',
+          subtitle: 'Envoie GPS vers l’Admin Groupe pour calculer la position moyenne',
           route: '/group-tracker',
         ),
       );
@@ -470,7 +470,7 @@ class _CapabilitySummaryCard extends StatelessWidget {
     final chips = <String>[
       profile.roleLabel,
       if (profile.canSubmitCommerce) 'Commerce autorisé',
-      if (profile.hasPhotographerProfile) 'Photographe validé',
+      if (profile.hasPhotographerProfile) 'Créateur digital validé',
       if (profile.can(Capability.trackOwnLocation)) 'Tracking GPS',
       if (profile.can(Capability.accessAdminPanel)) 'Admin',
       if (profile.hasPendingGroupAdminRequest) 'Demande groupe en attente',
