@@ -19,7 +19,11 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-deploy_target="${*:---only hosting}"
+# Par défaut on déploie le hosting ET les règles Storage: l'upload de photos
+# POI écrit sous `places/**`, protégé par storage.rules. Les garder synchro à
+# chaque déploiement évite un « Permission denied » dû à des règles live
+# périmées. Override possible: `./build_and_deploy.sh --only hosting`.
+deploy_target="${*:---only hosting,storage}"
 
 # --- Flutter sur le PATH -----------------------------------------------------
 # shellcheck disable=SC1091
