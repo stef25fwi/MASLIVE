@@ -50,8 +50,12 @@ class GroupTrackingService {
     required String role,
   }) async {
     final user = _auth.currentUser;
-    if (user == null) throw Exception('Utilisateur non connecté');
-    if (isTracking) throw Exception('Tracking déjà actif');
+    if (user == null) {
+      throw Exception('Utilisateur non connecté');
+    }
+    if (isTracking) {
+      throw Exception('Tracking déjà actif');
+    }
 
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied ||
@@ -89,15 +93,14 @@ class GroupTrackingService {
     );
     _positionSubscription = Geolocator.getPositionStream(
       locationSettings: settings,
-    ).listen(
-      (position) {
-        if (!_isUsablePosition(position)) return;
-        _latestGoodPosition = position;
-        _updateStationaryState(position);
-        unawaited(_flushLatest(force: _lastSentAt == null));
-      },
-      onError: (Object _, StackTrace __) {},
-    );
+    ).listen((position) {
+      if (!_isUsablePosition(position)) {
+        return;
+      }
+      _latestGoodPosition = position;
+      _updateStationaryState(position);
+      unawaited(_flushLatest(force: _lastSentAt == null));
+    });
 
     _flushTimer = Timer.periodic(_movingInterval, (_) {
       unawaited(_flushLatest());
@@ -136,8 +139,8 @@ class GroupTrackingService {
           .doc(session.adminGroupId)
           .collection('members')
           .doc(user.uid);
-      // Les règles autorisent le membre à mettre à jour son document. La Cloud
-      // Function supprime ensuite ce document avec les droits serveur.
+      // Le membre marque sa présence inactive. La Cloud Function la supprime
+      // ensuite avec les droits serveur et déclenche le recalcul du groupe.
       batch.set(
         liveRef,
         <String, dynamic>{
@@ -186,9 +189,15 @@ class GroupTrackingService {
     if (!position.latitude.isFinite || !position.longitude.isFinite) {
       return false;
     }
-    if (position.latitude < -90 || position.latitude > 90) return false;
-    if (position.longitude < -180 || position.longitude > 180) return false;
-    if (position.latitude == 0 && position.longitude == 0) return false;
+    if (position.latitude < -90 || position.latitude > 90) {
+      return false;
+    }
+    if (position.longitude < -180 || position.longitude > 180) {
+      return false;
+    }
+    if (position.latitude == 0 && position.longitude == 0) {
+      return false;
+    }
     return position.accuracy.isFinite &&
         position.accuracy >= 0 &&
         position.accuracy <= _maxAccuracyM;
@@ -209,8 +218,12 @@ class GroupTrackingService {
     final speed = position.speed.isFinite && position.speed >= 0
         ? position.speed
         : 0.0;
-    if (speed >= 0.8) return _movingInterval;
-    if (speed >= 0.2) return _slowInterval;
+    if (speed >= 0.8) {
+      return _movingInterval;
+    }
+    if (speed >= 0.2) {
+      return _slowInterval;
+    }
     final stationarySince = _stationarySince;
     if (stationarySince != null &&
         DateTime.now().difference(stationarySince) >= _stationaryDelay) {
@@ -220,7 +233,9 @@ class GroupTrackingService {
   }
 
   Future<void> _flushLatest({bool force = false}) async {
-    if (_writeInProgress) return;
+    if (_writeInProgress) {
+      return;
+    }
     final session = _currentSession;
     final position = _latestGoodPosition;
     if (session == null || position == null || !_isUsablePosition(position)) {
@@ -228,8 +243,11 @@ class GroupTrackingService {
     }
 
     final now = DateTime.now();
-    if (!force && _lastSentAt != null) {
-      if (now.difference(_lastSentAt!) < _adaptiveInterval(position)) return;
+    final lastSentAt = _lastSentAt;
+    if (!force && lastSentAt != null) {
+      if (now.difference(lastSentAt) < _adaptiveInterval(position)) {
+        return;
+      }
     }
 
     final previous = _lastSentPosition;
@@ -264,7 +282,9 @@ class GroupTrackingService {
     DateTime now,
   ) async {
     final user = _auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      return;
+    }
 
     final geoPosition = GeoPosition(
       lat: position.latitude,
@@ -345,7 +365,9 @@ class GroupTrackingService {
     await batch.commit();
     _lastSentPosition = geoPosition;
     _lastSentAt = now;
-    if (profileDue) _lastProfileWriteAt = now;
+    if (profileDue) {
+      _lastProfileWriteAt = now;
+    }
     if (storedPoint != null) {
       _lastHistoryPosition = geoPosition;
       _lastHistoryAt = now;
@@ -354,11 +376,17 @@ class GroupTrackingService {
   }
 
   bool _isHistoryWriteDue(GeoPosition current, DateTime now) {
-    if (_lastHistoryAt == null || _lastHistoryPosition == null) return true;
-    if (now.difference(_lastHistoryAt!) >= _historyWriteInterval) return true;
+    final lastHistoryAt = _lastHistoryAt;
+    final lastHistoryPosition = _lastHistoryPosition;
+    if (lastHistoryAt == null || lastHistoryPosition == null) {
+      return true;
+    }
+    if (now.difference(lastHistoryAt) >= _historyWriteInterval) {
+      return true;
+    }
     return _haversineDistance(
-          _lastHistoryPosition!.lat,
-          _lastHistoryPosition!.lng,
+          lastHistoryPosition.lat,
+          lastHistoryPosition.lng,
           current.lat,
           current.lng,
         ) >=
@@ -415,7 +443,7 @@ class GroupTrackingService {
       distanceM: distanceM,
       ascentM: ascentM,
       descentM: descentM,
-      avgSpeedMps: durationSec > 0 ? distanceM / durationSec : 0,
+      avgSpeedMps: durationSec > 0 ? distanceM / durationSec : 0.0,
       pointsCount: points.length,
     );
   }
