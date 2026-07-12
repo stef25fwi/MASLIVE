@@ -50,7 +50,11 @@ class ImageOptimizationService {
     if (supportsWebpConversion &&
         (ext == 'jpg' || ext == 'jpeg' || ext == 'png')) {
       try {
-        final webpBytes = await convertBytesToWebp(bytes, quality: 82);
+        // Borne globale de sécurité: la conversion ne doit JAMAIS bloquer
+        // l'upload. En cas d'expiration (ex: Safari qui n'émet pas onLoad),
+        // on retombe sur les octets d'origine et on poursuit l'envoi.
+        final webpBytes = await convertBytesToWebp(bytes, quality: 82)
+            .timeout(const Duration(seconds: 12));
         if (webpBytes.length < bytes.length) {
           bytes = webpBytes;
           ext = 'webp';
