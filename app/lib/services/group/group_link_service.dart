@@ -4,8 +4,10 @@
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import '../../models/group_admin.dart';
 import '../../models/group_tracker.dart';
+import '../../security/role_normalizer.dart';
 
 class GroupLinkService {
   static final GroupLinkService instance = GroupLinkService._();
@@ -16,61 +18,90 @@ class GroupLinkService {
 
   String? get currentUid => _auth.currentUser?.uid;
 
-  // Génère un code unique à 6 chiffres
   Future<String> generateUniqueAdminCode() async {
     final random = Random();
-    int attempts = 0;
+    var attempts = 0;
     const maxAttempts = 100;
 
     while (attempts < maxAttempts) {
-      // Génère code 000000 à 999999
       final code = random.nextInt(1000000).toString().padLeft(6, '0');
-
-      // Vérifie si déjà utilisé
-      final doc = await _firestore
-          .collection('group_admin_codes')
-          .doc(code)
-          .get();
-
-      if (!doc.exists) {
-        return code;
-      }
-
+      final doc = await _firestore.collection('group_admin_codes').doc(code).get();
+      if (!doc.exists) return code;
       attempts++;
     }
 
     throw Exception('Impossible de générer un code unique après $maxAttempts tentatives');
   }
 
-  // Crée un profil admin avec code
-  Future<GroupAdmin> createAdminProfile({
-    required String displayName,
-  }) async {
+  /// Crée une demande d'activation Admin Groupe.
+  ///
+  /// Les utilisateurs standards ne créent plus directement `group_admins` :
+  /// la demande doit être validée par l'administration MASLIVE, puis la création
+  /// réelle peut être faite côté admin/Cloud Function.
+  Future<void> requestAdminProfile({required String displayName}) async {
     final user = _auth.currentUser;
-    if (user == null) {
-      throw Exception('Utilisateur non connecté');
+    if (user == null) throw Exception('Utilisateur non connecté');
+
+    final cleanName = displayName.trim();
+    if (cleanName.isEmpty) {
+      throw Exception('Nom d\'affichage requis');
     }
 
-    // Génère code unique
-    final adminGroupId = await generateUniqueAdminCode();
+    await _firestore.collection('group_admin_requests').doc(user.uid).set({
+      'requestUid': user.uid,
+      'displayName': cleanName,
+      'email': user.email,
+      'status': 'pending',
+      'requestedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
 
+  Stream<DocumentSnapshot<Map<String, dynamic>>> streamOwnAdminRequest() {
+    final uid = currentUid;
+    if (uid == null) {
+      return const Stream.empty();
+    }
+    return _firestore.collection('group_admin_requests').doc(uid).snapshots();
+  }
+
+  Future<bool> _currentUserIsMasterAdmin() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    final doc = await _firestore.collection('users').doc(user.uid).get();
+    final data = doc.data();
+    return RoleNormalizer.isMasterAdmin(
+      data?['role'] as String?,
+      isAdminFlag: data?['isAdmin'] == true,
+    );
+  }
+
+  /// Crée réellement le profil admin groupe.
+  ///
+  /// Réservé aux comptes master admin. Pour un utilisateur standard, cette
+  /// méthode enregistre une demande et signale que la validation est requise.
+  Future<GroupAdmin> createAdminProfile({required String displayName}) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Utilisateur non connecté');
+
+    if (!await _currentUserIsMasterAdmin()) {
+      await requestAdminProfile(displayName: displayName);
+      throw Exception('Demande Admin Groupe envoyée. Validation MASLIVE requise avant activation.');
+    }
+
+    final adminGroupId = await generateUniqueAdminCode();
     final now = DateTime.now();
     final admin = GroupAdmin(
       uid: user.uid,
       adminGroupId: adminGroupId,
-      displayName: displayName,
+      displayName: displayName.trim(),
       isVisible: true,
       createdAt: now,
       updatedAt: now,
     );
 
-    // Écrit le profil admin
-    await _firestore
-        .collection('group_admins')
-        .doc(user.uid)
-        .set(admin.toFirestore());
+    await _firestore.collection('group_admins').doc(user.uid).set(admin.toFirestore());
 
-    // Crée l'entrée dans le répertoire des codes
     final adminCode = GroupAdminCode(
       adminGroupId: adminGroupId,
       adminUid: user.uid,
@@ -78,141 +109,98 @@ class GroupLinkService {
       isActive: true,
     );
 
-    await _firestore
-        .collection('group_admin_codes')
-        .doc(adminGroupId)
-        .set(adminCode.toFirestore());
+    await _firestore.collection('group_admin_codes').doc(adminGroupId).set(adminCode.toFirestore());
+
+    await _firestore.collection('users').doc(user.uid).set({
+      'role': RoleNormalizer.group,
+      'groupId': adminGroupId,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
 
     return admin;
   }
 
-  // Vérifie si un code existe
   Future<GroupAdminCode?> validateAdminCode(String code) async {
-    if (code.length != 6 || !RegExp(r'^\d{6}$').hasMatch(code)) {
-      return null;
-    }
-
-    final doc = await _firestore
-        .collection('group_admin_codes')
-        .doc(code)
-        .get();
-
-    if (!doc.exists) {
-      return null;
-    }
-
+    if (code.length != 6 || !RegExp(r'^\d{6}$').hasMatch(code)) return null;
+    final doc = await _firestore.collection('group_admin_codes').doc(code).get();
+    if (!doc.exists) return null;
     final adminCode = GroupAdminCode.fromFirestore(doc);
     return adminCode.isActive ? adminCode : null;
   }
 
-  // Rattache un tracker à un admin
   Future<GroupTracker> linkTrackerToAdmin({
     required String adminGroupId,
     required String displayName,
   }) async {
     final user = _auth.currentUser;
-    if (user == null) {
-      throw Exception('Utilisateur non connecté');
-    }
+    if (user == null) throw Exception('Utilisateur non connecté');
 
-    // Valide le code
     final adminCode = await validateAdminCode(adminGroupId);
-    if (adminCode == null) {
-      throw Exception('Code admin invalide ou inactif');
-    }
+    if (adminCode == null) throw Exception('Code admin invalide ou inactif');
 
     final now = DateTime.now();
     final tracker = GroupTracker(
       uid: user.uid,
       adminGroupId: adminGroupId,
       linkedAdminUid: adminCode.adminUid,
-      displayName: displayName,
+      displayName: displayName.trim(),
       createdAt: now,
       updatedAt: now,
     );
 
-    await _firestore
-        .collection('group_trackers')
-        .doc(user.uid)
-        .set(tracker.toFirestore());
+    await _firestore.collection('group_trackers').doc(user.uid).set(tracker.toFirestore());
+    await _firestore.collection('users').doc(user.uid).set({
+      'role': RoleNormalizer.tracker,
+      'groupId': adminGroupId,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
 
     return tracker;
   }
 
-  // Change le groupe d'un tracker (délie et relie)
-  Future<GroupTracker> changeTrackerGroup({
-    required String newAdminGroupId,
-  }) async {
+  Future<GroupTracker> changeTrackerGroup({required String newAdminGroupId}) async {
     final user = _auth.currentUser;
-    if (user == null) {
-      throw Exception('Utilisateur non connecté');
-    }
+    if (user == null) throw Exception('Utilisateur non connecté');
 
-    // Récupère le profil actuel
-    final trackerDoc = await _firestore
-        .collection('group_trackers')
-        .doc(user.uid)
-        .get();
-
-    if (!trackerDoc.exists) {
-      throw Exception('Profil tracker non trouvé');
-    }
+    final trackerDoc = await _firestore.collection('group_trackers').doc(user.uid).get();
+    if (!trackerDoc.exists) throw Exception('Profil tracker non trouvé');
 
     final currentTracker = GroupTracker.fromFirestore(trackerDoc);
-
-    // Relie au nouveau groupe
-    return await linkTrackerToAdmin(
+    return linkTrackerToAdmin(
       adminGroupId: newAdminGroupId,
       displayName: currentTracker.displayName,
     );
   }
 
-  // Délie un tracker (ne peut plus tracker)
   Future<void> unlinkTracker() async {
     final user = _auth.currentUser;
-    if (user == null) {
-      throw Exception('Utilisateur non connecté');
-    }
+    if (user == null) throw Exception('Utilisateur non connecté');
 
-    await _firestore
-        .collection('group_trackers')
-        .doc(user.uid)
-        .update({
+    await _firestore.collection('group_trackers').doc(user.uid).update({
       'adminGroupId': null,
       'linkedAdminUid': null,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    await _firestore.collection('users').doc(user.uid).set({
+      'role': RoleNormalizer.user,
+      'groupId': null,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
-  // Récupère le profil admin
   Future<GroupAdmin?> getAdminProfile(String uid) async {
-    final doc = await _firestore
-        .collection('group_admins')
-        .doc(uid)
-        .get();
-
-    if (!doc.exists) {
-      return null;
-    }
-
+    final doc = await _firestore.collection('group_admins').doc(uid).get();
+    if (!doc.exists) return null;
     return GroupAdmin.fromFirestore(doc);
   }
 
-  // Récupère le profil tracker
   Future<GroupTracker?> getTrackerProfile(String uid) async {
-    final doc = await _firestore
-        .collection('group_trackers')
-        .doc(uid)
-        .get();
-
-    if (!doc.exists) {
-      return null;
-    }
-
+    final doc = await _firestore.collection('group_trackers').doc(uid).get();
+    if (!doc.exists) return null;
     return GroupTracker.fromFirestore(doc);
   }
 
-  // Stream du profil admin
   Stream<GroupAdmin?> streamAdminProfile(String uid) {
     return _firestore
         .collection('group_admins')
@@ -221,7 +209,6 @@ class GroupLinkService {
         .map((doc) => doc.exists ? GroupAdmin.fromFirestore(doc) : null);
   }
 
-  // Stream du profil tracker
   Stream<GroupTracker?> streamTrackerProfile(String uid) {
     return _firestore
         .collection('group_trackers')
@@ -230,29 +217,22 @@ class GroupLinkService {
         .map((doc) => doc.exists ? GroupTracker.fromFirestore(doc) : null);
   }
 
-  // Liste des trackers rattachés à un admin
   Stream<List<GroupTracker>> streamAdminTrackers(String adminGroupId) {
     return _firestore
         .collection('group_trackers')
         .where('adminGroupId', isEqualTo: adminGroupId)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => GroupTracker.fromFirestore(doc))
-            .toList());
+        .map((snapshot) => snapshot.docs.map((doc) => GroupTracker.fromFirestore(doc)).toList());
   }
 
-  // Liste de tous les admins de groupe
   Stream<List<GroupAdmin>> streamAllAdmins() {
     return _firestore
         .collection('group_admins')
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => GroupAdmin.fromFirestore(doc))
-            .toList());
+        .map((snapshot) => snapshot.docs.map((doc) => GroupAdmin.fromFirestore(doc)).toList());
   }
 
-  // Rattache un tracker existant à un admin (mode admin)
   Future<void> linkExistingTrackerToAdmin({
     required String trackerUid,
     required String adminGroupId,
@@ -260,67 +240,61 @@ class GroupLinkService {
   }) async {
     final trackerRef = _firestore.collection('group_trackers').doc(trackerUid);
     final trackerDoc = await trackerRef.get();
-    if (!trackerDoc.exists) {
-      throw Exception('Tracker introuvable: $trackerUid');
-    }
+    if (!trackerDoc.exists) throw Exception('Tracker introuvable: $trackerUid');
 
     await trackerRef.update({
       'adminGroupId': adminGroupId,
       'linkedAdminUid': linkedAdminUid,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    await _firestore.collection('users').doc(trackerUid).set({
+      'role': RoleNormalizer.tracker,
+      'groupId': adminGroupId,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
-  // Délie un tracker (mode admin)
-  Future<void> unlinkTrackerByUid({
-    required String trackerUid,
-  }) async {
+  Future<void> unlinkTrackerByUid({required String trackerUid}) async {
     await _firestore.collection('group_trackers').doc(trackerUid).update({
       'adminGroupId': null,
       'linkedAdminUid': null,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    await _firestore.collection('users').doc(trackerUid).set({
+      'role': RoleNormalizer.user,
+      'groupId': null,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
-  // Met à jour la visibilité du groupe admin
   Future<void> updateAdminVisibility({
     required String adminUid,
     required bool isVisible,
   }) async {
-    await _firestore
-        .collection('group_admins')
-        .doc(adminUid)
-        .update({
+    await _firestore.collection('group_admins').doc(adminUid).update({
       'isVisible': isVisible,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
-  // Met à jour la carte sélectionnée
   Future<void> updateSelectedMap({
     required String adminUid,
     required String mapId,
   }) async {
-    await _firestore
-        .collection('group_admins')
-        .doc(adminUid)
-        .update({
+    await _firestore.collection('group_admins').doc(adminUid).update({
       'selectedMapId': mapId,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
-  // Met à jour le circuit actif (pays/événement/circuit) pour publication tracking
   Future<void> updateSelectedCircuit({
     required String adminUid,
     required GroupSelectedCircuit selectedCircuit,
   }) async {
-    await _firestore
-        .collection('group_admins')
-        .doc(adminUid)
-        .update({
+    await _firestore.collection('group_admins').doc(adminUid).update({
       'selectedCircuit': selectedCircuit.toMap(),
-      // L'admin choisit son circuit actif => on rend visible par défaut.
       'isVisible': true,
       'updatedAt': FieldValue.serverTimestamp(),
     });
