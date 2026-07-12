@@ -73,6 +73,9 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
 
     final profile = await _repository.getSellerProfile(user.uid);
     if (!mounted) return;
+    if (profile != null && _categoryController.text.trim().isEmpty) {
+      _categoryController.text = profile.creationTypeLabel;
+    }
     setState(() {
       _sellerProfile = profile;
       _loadingProfile = false;
@@ -97,7 +100,7 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
     if (profile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Completez d\'abord votre profil vendeur Bloom Art.'),
+          content: Text('Complétez d’abord votre profil vendeur Bloom Art.'),
         ),
       );
       Navigator.of(context).pushReplacementNamed('/bloom-art/sell');
@@ -109,7 +112,7 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
     );
     if (referencePrice == null || referencePrice <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saisissez un prix de reference valide.')),
+        const SnackBar(content: Text('Saisissez un prix de référence valide.')),
       );
       return;
     }
@@ -125,6 +128,9 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
     });
 
     try {
+      final category = _categoryController.text.trim().isEmpty
+          ? profile.creationTypeLabel
+          : _categoryController.text.trim();
       final draftItem = BloomArtItem(
         id: '',
         sellerId: user.uid,
@@ -132,7 +138,7 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
         sellerDisplayName: profile.displayName,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
-        category: _categoryController.text.trim(),
+        category: category,
         condition: _condition,
         materials: materials,
         dimensions: _dimensionsController.text.trim(),
@@ -166,7 +172,7 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Impossible de publier la creation : $error')),
+        SnackBar(content: Text('Impossible de publier la création : $error')),
       );
     } finally {
       if (mounted) {
@@ -187,7 +193,7 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
         backgroundColor: const Color(0xFFFFFBF7),
         elevation: 0,
         title: const Text(
-          'Depot d\'une creation',
+          'Dépôt d’une création',
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
       ),
@@ -214,20 +220,20 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
                           borderRadius: BorderRadius.circular(28),
                           border: Border.all(color: const Color(0xFFE9DED1)),
                         ),
-                        child: Column(
+                        child: const Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
-                            const Text(
-                              'Decrivez votre piece',
+                            Text(
+                              'Décrivez votre pièce',
                               style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            SizedBox(height: 8),
                             Text(
-                              'Le prix de reference reste prive. La fiche publique ne montrera que l\'oeuvre, son histoire et le bouton proposer un prix.',
-                              style: const TextStyle(
+                              'Le prix de référence reste privé. La fiche publique ne montrera que l’œuvre, son histoire et le bouton proposer un prix.',
+                              style: TextStyle(
                                 color: Color(0xFF6A645E),
                                 height: 1.45,
                               ),
@@ -259,14 +265,14 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
                       const SizedBox(height: 12),
                       _BloomArtField(
                         controller: _categoryController,
-                        label: 'Categorie',
+                        label: 'Type de création / catégorie',
                         validator: _requiredValidator,
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         initialValue: _condition,
                         decoration: const InputDecoration(
-                          labelText: 'Etat',
+                          labelText: 'État',
                           border: OutlineInputBorder(),
                           filled: true,
                           fillColor: Colors.white,
@@ -279,7 +285,7 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
                           DropdownMenuItem(value: 'good', child: Text('Bon')),
                           DropdownMenuItem(
                             value: 'patina',
-                            child: Text('Patine / piece vecue'),
+                            child: Text('Patine / pièce vécue'),
                           ),
                         ],
                         onChanged: (value) {
@@ -296,12 +302,12 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
                       const SizedBox(height: 12),
                       _BloomArtField(
                         controller: _materialsController,
-                        label: 'Materiaux (separes par des virgules)',
+                        label: 'Matériaux (séparés par des virgules)',
                       ),
                       const SizedBox(height: 12),
                       _BloomArtField(
                         controller: _referencePriceController,
-                        label: 'Prix de reference prive (EUR)',
+                        label: 'Prix de référence privé (EUR)',
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
@@ -348,7 +354,7 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
                         contentPadding: EdgeInsets.zero,
                         title: const Text('Publier tout de suite'),
                         subtitle: const Text(
-                          'Si desactive, la piece reste en brouillon dans votre espace vendeur.',
+                          'Si désactivé, la pièce reste en brouillon dans votre espace vendeur.',
                         ),
                         onChanged: (value) {
                           setState(() {
@@ -360,7 +366,7 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
                       BloomArtCtaButton(
                         label: _saving
                             ? 'Publication en cours...'
-                            : 'Publier ma creation',
+                            : 'Publier ma création',
                         icon: Icons.check_circle_outline,
                         onPressed: _saving ? null : _submit,
                       ),
