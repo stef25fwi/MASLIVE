@@ -44,10 +44,23 @@ jobs:
           retention-days: 7
 
       - name: Run Flutter tests
-        run: flutter test --reporter compact
+        id: flutter_tests
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          flutter test --reporter expanded 2>&1 | tee flutter-test.log
 
-      - name: Enforce Flutter analyzer result
-        if: steps.flutter_analyze.outcome == 'failure'
+      - name: Upload Flutter test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-test-report
+          path: app/flutter-test.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Enforce Flutter quality results
+        if: steps.flutter_analyze.outcome == 'failure' || steps.flutter_tests.outcome == 'failure'
         run: exit 1
 
   functions-tests:
