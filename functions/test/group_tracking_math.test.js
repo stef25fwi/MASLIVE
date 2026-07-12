@@ -85,3 +85,10 @@ test('le centroïde pondéré reste au voisinage du groupe', () => {
   assert.ok(center.lat > 16.2398 && center.lat < 16.2403);
   assert.ok(center.lng > -61.5303 && center.lng < -61.5298);
 });
+
+test('le plan A conserve les cadences optimisées', () => {
+  assert.equal(__test.CFG.aggregationMs, 30000);
+  assert.equal(__test.CFG.publishHeartbeatMs, 60000);
+  assert.equal(__test.CFG.idealTrackers, 5);
+  assert.equal(__test.CFG.maxTrackers, 10);
+});
