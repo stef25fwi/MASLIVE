@@ -291,7 +291,7 @@ class BloomArtBusinessVerificationService {
     return value
         .trim()
         .toLowerCase()
-        .replaceAll(RegExp(r'[\s\-\']+'), ' ')
+        .replaceAll(RegExp(r"[\s\-']+"), ' ')
         .replaceAll('é', 'e')
         .replaceAll('è', 'e')
         .replaceAll('ê', 'e')
