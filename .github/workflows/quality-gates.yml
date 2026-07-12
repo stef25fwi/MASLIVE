@@ -25,6 +25,7 @@ jobs:
       - name: Apply consistency patch
         run: |
           set -o pipefail
+          python3 scripts/fix_tracking_patch_assertion.py
           python3 scripts/apply_group_tracking_consistency_patch.py 2>&1 | tee patch-apply.log
 
       - name: Upload patch report
