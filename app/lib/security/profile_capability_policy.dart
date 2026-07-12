@@ -7,6 +7,7 @@ import 'role_normalizer.dart';
 enum ProfileKind {
   user,
   pro,
+  artisanArt,
   creatorDigital,
   tracker,
   groupAdmin,
@@ -28,6 +29,9 @@ enum Capability {
   submitProduct,
   submitMedia,
   manageOwnGallery,
+  manageArtGallery,
+  submitArtwork,
+  receiveArtOffers,
   trackOwnLocation,
   viewOwnTrackHistory,
   exportOwnTracks,
@@ -64,6 +68,7 @@ class ProfileCapabilities {
     required this.groupId,
     required this.adminGroupId,
     required this.hasBusiness,
+    required this.hasBloomArtSellerProfile,
     required this.hasPhotographerProfile,
     required this.groupAdminRequestStatus,
     required this.capabilities,
@@ -81,6 +86,9 @@ class ProfileCapabilities {
   final String? adminGroupId;
   final bool hasBusiness;
 
+  /// Profil vendeur Bloom Art, exposé comme profil fonctionnel Artisan d’art.
+  final bool hasBloomArtSellerProfile;
+
   /// Compat données existantes : les documents `photographers` restent la source
   /// métier du module médias, mais côté profil utilisateur ils sont exposés comme
   /// un profil unique "Créateur digital".
@@ -92,7 +100,9 @@ class ProfileCapabilities {
   bool can(Capability capability) => capabilities.contains(capability);
 
   bool get canSubmitCommerce =>
-      can(Capability.submitProduct) || can(Capability.submitMedia);
+      can(Capability.submitProduct) ||
+      can(Capability.submitMedia) ||
+      can(Capability.submitArtwork);
 
   bool get hasPendingGroupAdminRequest => groupAdminRequestStatus == 'pending';
 
@@ -106,6 +116,8 @@ class ProfileCapabilities {
         return 'Admin Groupe';
       case ProfileKind.tracker:
         return 'Tracker Groupe';
+      case ProfileKind.artisanArt:
+        return 'Artisan d’art';
       case ProfileKind.creatorDigital:
         return 'Créateur digital';
       case ProfileKind.pro:
@@ -164,6 +176,17 @@ class ProfileCapabilityPolicy {
         .get();
     final hasPhotographerProfile = photographerSnap.docs.isNotEmpty;
 
+    final bloomArtSellerDoc =
+        await _firestore.collection('bloom_art_seller_profiles').doc(uid).get();
+    final bloomArtSellerData = bloomArtSellerDoc.data();
+    final bloomArtProfileType =
+        (bloomArtSellerData?['profileType'] as String?)?.trim();
+    final hasBloomArtSellerProfile = bloomArtSellerDoc.exists &&
+        (bloomArtProfileType == null ||
+            bloomArtProfileType.isEmpty ||
+            bloomArtProfileType == 'artisan_art' ||
+            bloomArtProfileType == 'artist_creator');
+
     final groupAdminDoc = await _firestore.collection('group_admins').doc(uid).get();
     final trackerDoc = await _firestore.collection('group_trackers').doc(uid).get();
     final groupRequestDoc = await _firestore.collection('group_admin_requests').doc(uid).get();
@@ -178,6 +201,7 @@ class ProfileCapabilityPolicy {
       accountType: accountType,
       activities: activities,
       hasBusiness: hasBusiness,
+      hasBloomArtSellerProfile: hasBloomArtSellerProfile,
       hasPhotographerProfile: hasPhotographerProfile,
       hasGroupAdminProfile: groupAdminDoc.exists,
       hasTrackerProfile: trackerDoc.exists,
@@ -194,6 +218,7 @@ class ProfileCapabilityPolicy {
       groupId: userData['groupId'] as String?,
       adminGroupId: adminGroupId,
       hasBusiness: hasBusiness,
+      hasBloomArtSellerProfile: hasBloomArtSellerProfile,
       hasPhotographerProfile: hasPhotographerProfile,
       groupAdminRequestStatus: requestData?['status'] as String?,
       capabilities: _capabilitiesFor(kind),
@@ -206,6 +231,7 @@ class ProfileCapabilityPolicy {
     required String? accountType,
     required Set<String> activities,
     required bool hasBusiness,
+    required bool hasBloomArtSellerProfile,
     required bool hasPhotographerProfile,
     required bool hasGroupAdminProfile,
     required bool hasTrackerProfile,
@@ -217,6 +243,9 @@ class ProfileCapabilityPolicy {
     }
     if (canonicalRole == RoleNormalizer.tracker || hasTrackerProfile) {
       return ProfileKind.tracker;
+    }
+    if (hasBloomArtSellerProfile || activities.contains('artisan_art')) {
+      return ProfileKind.artisanArt;
     }
     if (hasPhotographerProfile ||
         activities.contains('createur_digital') ||
@@ -244,6 +273,14 @@ class ProfileCapabilityPolicy {
       ...base,
       Capability.manageOwnBusiness,
       Capability.submitProduct,
+    };
+
+    final artisanArt = <Capability>{
+      ...base,
+      Capability.manageArtGallery,
+      Capability.submitArtwork,
+      Capability.receiveArtOffers,
+      Capability.viewOwnOrders,
     };
 
     final creator = <Capability>{
@@ -296,6 +333,8 @@ class ProfileCapabilityPolicy {
         return groupAdmin;
       case ProfileKind.tracker:
         return tracker;
+      case ProfileKind.artisanArt:
+        return artisanArt;
       case ProfileKind.creatorDigital:
         return creator;
       case ProfileKind.pro:
