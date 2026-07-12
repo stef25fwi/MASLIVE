@@ -71,6 +71,7 @@ class BloomArtSellerProfile {
     this.region = '',
     this.businessVerificationStatus = 'not_verified',
     this.businessVerificationSource = '',
+    this.launchGuideData = const <String, dynamic>{},
     this.businessVerifiedAt,
     this.createdAt,
     this.updatedAt,
@@ -100,6 +101,7 @@ class BloomArtSellerProfile {
   final String region;
   final String businessVerificationStatus;
   final String businessVerificationSource;
+  final Map<String, dynamic> launchGuideData;
   final DateTime? businessVerifiedAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -136,6 +138,7 @@ class BloomArtSellerProfile {
     String? region,
     String? businessVerificationStatus,
     String? businessVerificationSource,
+    Map<String, dynamic>? launchGuideData,
     DateTime? businessVerifiedAt,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -165,6 +168,7 @@ class BloomArtSellerProfile {
       region: region ?? this.region,
       businessVerificationStatus: businessVerificationStatus ?? this.businessVerificationStatus,
       businessVerificationSource: businessVerificationSource ?? this.businessVerificationSource,
+      launchGuideData: launchGuideData ?? this.launchGuideData,
       businessVerifiedAt: businessVerifiedAt ?? this.businessVerifiedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -196,6 +200,7 @@ class BloomArtSellerProfile {
       'region': region,
       'businessVerificationStatus': businessVerificationStatus,
       'businessVerificationSource': businessVerificationSource,
+      'launchGuideData': launchGuideData,
       if (businessVerifiedAt != null) 'businessVerifiedAt': Timestamp.fromDate(businessVerifiedAt!),
       if (createdAt != null) 'createdAt': Timestamp.fromDate(createdAt!),
       if (updatedAt != null) 'updatedAt': Timestamp.fromDate(updatedAt!),
@@ -228,6 +233,7 @@ class BloomArtSellerProfile {
       region: (map['region'] ?? '').toString(),
       businessVerificationStatus: (map['businessVerificationStatus'] ?? _legacyVerificationStatus(map)).toString(),
       businessVerificationSource: (map['businessVerificationSource'] ?? '').toString(),
+      launchGuideData: (map['launchGuideData'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{},
       businessVerifiedAt: _toDate(map['businessVerifiedAt']),
       createdAt: _toDate(map['createdAt']),
       updatedAt: _toDate(map['updatedAt']),
